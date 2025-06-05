@@ -157,6 +157,13 @@ async def create_versus_image(team_blue_image_url: str, team_red_image_url: str,
     :param team_red_image_url: Red team image URL
     :param winner: Optional - either 'blue' or 'red' to indicate winner
     """
+
+    def get_content_bbox(img):
+        """Get bounding box of non-transparent content."""
+        alpha = img.getchannel('A')
+        bbox = alpha.getbbox()
+        return bbox if bbox else (0, 0, img.width, img.height)
+
     img1_bio = None
     img2_bio = None
     try:
@@ -178,22 +185,64 @@ async def create_versus_image(team_blue_image_url: str, team_red_image_url: str,
 
             if winner is None:
                 # Original versus logic
-                standard_size = (200, 200)
-                img1.thumbnail(standard_size, Image.Resampling.LANCZOS)
-                img2.thumbnail(standard_size, Image.Resampling.LANCZOS)
+                # Get actual content size of both images
+                bbox1 = get_content_bbox(img1)
+                bbox2 = get_content_bbox(img2)
+
+                # Calculate content dimensions
+                content1_width = bbox1[2] - bbox1[0]
+                content1_height = bbox1[3] - bbox1[1]
+                content2_width = bbox2[2] - bbox2[0]
+                content2_height = bbox2[3] - bbox2[1]
+
+                # Calculate scaling factors to fit within 200x200
+                scale1 = min(200 / content1_width, 200 / content1_height)
+                scale2 = min(200 / content2_width, 200 / content2_height)
+
+                # Calculate new dimensions
+                new_size1 = (int(content1_width * scale1), int(content1_height * scale1))
+                new_size2 = (int(content2_width * scale2), int(content2_height * scale2))
+
+                # Crop to content and resize
+                img1 = img1.crop(bbox1).resize(new_size1, Image.Resampling.LANCZOS)
+                img2 = img2.crop(bbox2).resize(new_size2, Image.Resampling.LANCZOS)
             else:
                 # Winner/loser logic
-                winner_size = (200, 200)
-                loser_size = (150, 150)
+                bbox1 = get_content_bbox(img1)
+                bbox2 = get_content_bbox(img2)
 
                 if winner.lower() == 'blue':
-                    img1.thumbnail(winner_size, Image.Resampling.LANCZOS)
-                    img2.thumbnail(loser_size, Image.Resampling.LANCZOS)
+                    # Scale winner (img1) to 200x200
+                    content1_width = bbox1[2] - bbox1[0]
+                    content1_height = bbox1[3] - bbox1[1]
+                    scale1 = min(200 / content1_width, 200 / content1_height)
+                    new_size1 = (int(content1_width * scale1), int(content1_height * scale1))
+
+                    # Scale loser (img2) to 150x150
+                    content2_width = bbox2[2] - bbox2[0]
+                    content2_height = bbox2[3] - bbox2[1]
+                    scale2 = min(150 / content2_width, 150 / content2_height)
+                    new_size2 = (int(content2_width * scale2), int(content2_height * scale2))
+
+                    img1 = img1.crop(bbox1).resize(new_size1, Image.Resampling.LANCZOS)
+                    img2 = img2.crop(bbox2).resize(new_size2, Image.Resampling.LANCZOS)
                     winner_img = img1
                     loser_img = img2
                 else:  # 'red'
-                    img1.thumbnail(loser_size, Image.Resampling.LANCZOS)
-                    img2.thumbnail(winner_size, Image.Resampling.LANCZOS)
+                    # Scale loser (img1) to 150x150
+                    content1_width = bbox1[2] - bbox1[0]
+                    content1_height = bbox1[3] - bbox1[1]
+                    scale1 = min(150 / content1_width, 150 / content1_height)
+                    new_size1 = (int(content1_width * scale1), int(content1_height * scale1))
+
+                    # Scale winner (img2) to 200x200
+                    content2_width = bbox2[2] - bbox2[0]
+                    content2_height = bbox2[3] - bbox2[1]
+                    scale2 = min(200 / content2_width, 200 / content2_height)
+                    new_size2 = (int(content2_width * scale2), int(content2_height * scale2))
+
+                    img1 = img1.crop(bbox1).resize(new_size1, Image.Resampling.LANCZOS)
+                    img2 = img2.crop(bbox2).resize(new_size2, Image.Resampling.LANCZOS)
                     winner_img = img2
                     loser_img = img1
 

@@ -307,13 +307,9 @@ if __name__ == "__main__":
         # do not restart again
         exit(-2)
     except psycopg.OperationalError as ex:
-        if isinstance(ex, PoolTimeout):
-            # try again on pool timeouts
-            exit(-1)
-        log.error(f"Database Error: {ex}", exc_info=True)
-        input("Press any key to continue ...")
-        # do not restart again
-        exit(-2)
+        log.exception(ex)
+        # try again on Database errors
+        exit(-1)
     except SystemExit as ex:
         exit(ex.code)
     except:
