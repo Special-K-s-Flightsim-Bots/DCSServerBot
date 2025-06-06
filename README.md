@@ -69,7 +69,7 @@ from time to time, but you as a community member can also create your own plugin
 | Scheduler     | Autostart / -stop of servers or missions, modify missions, etc.                                 | yes[^1]  | Mission                               | [README](./plugins/scheduler/README.md)     |
 | Cloud         | Cloud-based statistics and connection to the [DGSA](#dgsa) global ban system.                   | yes[^1]  | Userstats                             | [README](./plugins/cloud/README.md)         |
 | MissionStats  | Detailed users statistics / mission statistics.                                                 | yes[^1]  | Userstats                             | [README](./plugins/missionstats/README.md)  |
-| ServerStats   | Server statistics for your DCS servers.                                                         | yes[^1]  | Userstats                             | [README](./plugins/serverstats/README.md)   |
+| Monitoring    | Monitoring and sstatistics for your DCS servers.                                                | yes[^1]  | Userstats                             | [README](plugins/monitoring/README.md)      |
 | Backup        | Create a backup of your database, server or bot configurations.                                 | yes      |                                       | [README](./plugins/backup/README.md)        |
 | Battleground  | Support for [DCS Battleground](https://github.com/Frigondin/DCSBattleground)                    | yes      |                                       | [README](./plugins/battleground/README.md)  |
 | Battleground2 | Support for the new version of [DCS Battleground](https://github.com/Frigondin/DCSBattleground) | yes      |                                       | [README](./plugins/battleground2/README.md) |
@@ -147,9 +147,6 @@ You need the following software to run DCSServerBot:
 #### a) Python
 You need to have [Python](https://www.python.org/downloads/) 3.10 or higher and installed. Please make sure that you tick "Add python.exe to PATH" 
 during your Python installation.<br>
-> [!NOTE]
-> Keep in mind that Python 3.13 is still very new and can have bugs. 
-> I would recommend using the latest Python 3.12 for now.
 
 #### b) PostgreSQL
 DCSServerBot needs a database to store information in. I decided to use [PostgreSQL](https://www.postgresql.org/download/), as it has great performance
@@ -196,9 +193,9 @@ you can now install DCSServerBot without the need to use Discord. Select the res
 installation, and you will install a variant that works without.
 
 > [!NOTE]
-> Please keep in mind that DCSServerBot was originally made for Discord and that there are some functionalities that
-> can only work, if you use it, like static graphs, greenieboards, and others.<br>
-> But you can still use a lot and there are in-game chat-commands also that you can use, without any need of Discord.
+> Please keep in mind that DCSServerBot was originally built for Discord and that there are some functionalities that
+> only work with Discord, like static graphs, greenieboards, and others.<br>
+> You can still use a lot without Discord as in-game chat-commands, automated restarts, etc.
 
 ### Download
 Best is to use ```git clone https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git``` as you then always have 

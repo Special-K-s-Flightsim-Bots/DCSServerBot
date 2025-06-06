@@ -1,19 +1,27 @@
+import os
 import re
 import discord
 import psycopg
 
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Server, command, \
-    ValueNotInRange
+    ValueNotInRange, ServiceRegistry
 from datetime import datetime, timezone
 from discord import app_commands
 from discord.ext import tasks
 from discord.utils import MISSING
+from pathlib import Path
+from psycopg.errors import UniqueViolation
 from services.bot import DCSServerBot
+from services.monitoring import MonitoringService
 from typing import Type, Optional, Union
 
-from .listener import ServerStatsListener
+from .listener import MonitoringListener
 from ..userstats.filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, \
     SquadronFilter
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 
 class ServerLoadFilter(PeriodFilter):
@@ -52,28 +60,109 @@ class ServerLoadFilter(PeriodFilter):
         else:
             return "1 = 1"
 
-class ServerStats(Plugin[ServerStatsListener]):
+class Monitoring(Plugin[MonitoringListener]):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[ServerStatsListener] = None):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[MonitoringListener] = None):
         super().__init__(bot, eventlistener)
-        self.cleanup.add_exception_type(psycopg.DatabaseError)
-        self.cleanup.start()
+        self.service = ServiceRegistry.get(MonitoringService)
         self.io_counters = {}
         self.net_io_counters = None
+
+    async def cog_load(self) -> None:
+        await super().cog_load()
+        self.cleanup.add_exception_type(psycopg.DatabaseError)
+        self.cleanup.start()
 
     async def cog_unload(self):
         self.cleanup.cancel()
         await super().cog_unload()
 
+    async def install(self) -> bool:
+        if await super().install():
+            try:
+                async with self.apool.connection() as conn:
+                    await conn.execute("""
+                        UPDATE plugins 
+                        SET version = (
+                            SELECT version FROM plugins WHERE plugin = 'serverstats'
+                        ) 
+                        WHERE plugin = 'monitoring'
+                        """)
+                    cursor = await conn.execute("DELETE FROM plugins WHERE plugin = 'serverstats' RETURNING plugin")
+                    row = await cursor.fetchone()
+                    if row:
+                        self.log.info("  => Migrating serverstats to monitoring. Restart triggered ...")
+                        await self.node.restart()
+                return True
+            except UniqueViolation:
+                pass
+        return False
+
+    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
+        if new_version == '3.3':
+            # Check if we had serverstats loaded in main.yaml and if yes, remove it.
+            config = os.path.join(self.node.config_dir, 'main.yaml')
+            data = yaml.load(Path(config).read_text(encoding='utf-8'))
+            if 'serverstats' in data.get('opt_plugins', []):
+                data['opt_plugins'].remove('serverstats')
+                if not data['opt_plugins']:
+                    del data['opt_plugins']
+                with open(config, mode='w', encoding='utf-8') as outfile:
+                    yaml.dump(data, outfile)
+            # Rewrite the configuration
+            service_yaml = os.path.join(self.node.config_dir, 'services', 'monitoring.yaml')
+            if os.path.exists(service_yaml):
+                service = yaml.load(Path(service_yaml).read_text(encoding='utf-8'))
+            else:
+                service = {}
+            for key, value in service.copy().items():
+                if 'drive_warn_threshold' in value:
+                    service[key].setdefault('thresholds', {}).update(
+                        {
+                            'Drive': {
+                                'warn': value.get('drive_warn_threshold', 10),
+                                'alert': value.get('drive_alert_threshold', 5)
+                            }
+                        }
+                    )
+                    service[key].pop('drive_warn_threshold', None)
+                    service[key].pop('drive_alert_threshold', None)
+            plugin_yaml = os.path.join(self.node.config_dir, 'plugins', 'serverstats.yaml')
+            if os.path.exists(plugin_yaml):
+                plugin = yaml.load(Path(plugin_yaml).read_text(encoding='utf-8'))
+                for key, value in plugin.items():
+                    if key not in service:
+                        service[key] = {}
+                    if 'min_fps' in value:
+                        service[key].setdefault('thresholds', {}).update(
+                            {
+                                'FPS': {
+                                    'min': value.get('min_fps', 30),
+                                    'period': value.get('period', 5),
+                                    'mentioning': value.get('mentioning', True),
+                                    'message': value.get('message', 'The FPS of server {server.name} are below {min_fps} for longer than {period} minutes!')
+                                }
+                            }
+                        )
+                os.remove(plugin_yaml)
+            if service:
+                yaml.dump(service, Path(service_yaml).open('w', encoding='utf-8'))
+
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
                     server: Optional[str] = None) -> None:
-        self.log.debug('Pruning Serverstats ...')
+        self.log.debug('Pruning Monitoring ...')
         if server:
             await conn.execute("DELETE FROM serverstats WHERE server_name = %s", (server, ))
-        self.log.debug('Serverstats pruned.')
+        self.log.debug('Monitoring pruned.')
 
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
         await conn.execute('UPDATE serverstats SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+
+    def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
+                   use_cache: Optional[bool] = True) -> dict:
+        if plugin_name:
+            return super().get_config(server, plugin_name=plugin_name, use_cache=use_cache)
+        return self.service.get_config(server)
 
     async def display_report(self, interaction: discord.Interaction, schema: str, period: Union[str, StatisticsFilter],
                              server: Server, ephemeral: bool):
@@ -158,4 +247,4 @@ class ServerStats(Plugin[ServerStatsListener]):
 async def setup(bot: DCSServerBot):
     if 'userstats' not in bot.plugins:
         raise PluginRequiredError('userstats')
-    await bot.add_cog(ServerStats(bot, ServerStatsListener))
+    await bot.add_cog(Monitoring(bot, MonitoringListener))

@@ -335,10 +335,11 @@ class MonitoringService(Service):
         return f"{size_bytes:.2f}{scales[idx]}"
 
     async def drive_check(self):
+        threshold = self.get_config().get('thresholds', {}).get('Drive', {"warn": 10, "alert": 5})
         for drive in self.space_warning_sent.keys():
             total, free = utils.get_drive_space(drive)
-            warn_pct = (self.get_config().get('drive_warn_threshold', 10)) / 100
-            alert_pct = (self.get_config().get('drive_alert_threshold', 5)) / 100
+            warn_pct = (threshold.get('warn', 10)) / 100
+            alert_pct = (threshold.get('alert', 5)) / 100
             if (free < total * warn_pct) and not self.space_warning_sent[drive]:
                 message = (f"Your freespace on {drive} is below {warn_pct * 100}%!\n{self.convert_bytes(free)} of "
                            f"{self.convert_bytes(total)} bytes free.")
@@ -365,7 +366,7 @@ class MonitoringService(Service):
                 self.drive_check()
             ]
 
-            if 'serverstats' in self.node.plugins:
+            if 'monitoring' in self.node.plugins:
                 tasks.append(self.serverload())
 
             if self.node.locals.get('nodestats', True):

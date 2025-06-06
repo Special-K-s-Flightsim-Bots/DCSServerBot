@@ -1,24 +1,9 @@
-# Plugin ServerStats
-If you enable this plugin you will gather statistics for your DCS servers.<br>
-This can be helpful to detect issues in your servers and missions or just to see how many people love which of your missions most.
+# Plugin Monitoring
+This is a default plugin of DCSServerBot. It gathers load statistics of your DCS server. The plugin itself is only
+the frontend to the [Monitoring Service](../../services/monitoring/README.md).
 
 ## Configuration
-As ServerStats is an optional plugin, you need to activate it in main.yaml first like so:
-```yaml
-opt_plugins:
-  - serverstats
-```
-
-The plugin itself does not need a configuration. You can specify an optional configuration though, which can be used 
-to monitor the server FPS:
-```yaml
-DEFAULT:
-  min_fps: 30       # minium acceptable FPS (0 = disabled)
-  period: 5         # period of 5 minutes (default = 5)
-  mentioning: true  # mentioning DCS Admin (default = true)
-  message: "The FPS of server {server.name} are below {min_fps} for longer than {period} minutes!"
-```
-
+There is no specific plugin configuration. Please see the [service documentation](../../services/monitoring/README.md) for configuration.
 
 ## Discord Commands
 

@@ -78,7 +78,7 @@ DEFAULT_PLUGINS = [
     "admin",
     "userstats",
     "missionstats",
-    "serverstats",
+    "monitoring",
     "creditsystem",
     "gamemaster",
     "cloud"

@@ -1,7 +1,7 @@
 local base      = _G
 local utils 	= base.require("DCSServerBotUtils")
 
-local serverstats = serverstats or {}
+local monitoring = monitoring or {}
 
 function createSimulateFrame()
     local startTime = os.clock()
@@ -21,6 +21,6 @@ function createSimulateFrame()
     end
 end
 
-serverstats.onSimulationFrame = createSimulateFrame()
+monitoring.onSimulationFrame = createSimulateFrame()
 
-DCS.setUserCallbacks(serverstats)
+DCS.setUserCallbacks(monitoring)

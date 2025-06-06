@@ -1,6 +1,7 @@
 # Monitoring Service
-This service monitors your DCS servers for crashes and unwanted popups. It can also generate the necessary information
-for the ServerStats plugin.
+This service monitors the health of your DCS servers.<p>
+It detects crashes or unwanted popups, full disks, too low server FPS or too high RAM usage. 
+It also generates load information to be used with the `/serverload` command.
 
 Servers that are considered RUNNING, PAUSED or STOPPED will be monitored for any unusual popup (login or lua error) or
 crashes of the respective DCS.exe or DCS_server.exe process. A heartbeat will be sent to DCS every minute. The maximum
@@ -12,8 +13,20 @@ The (optional) configuration file for this service has to be placed into config\
 DEFAULT:
   time_sync: true           # sync the PC time with a time-server every 12 hrs, default: false
   time_server: pool.ntp.org # and use this non-default time-server for it, default: Windows default
-  drive_warn_threshold: 10  # Warn, if your drive where DCS is installed (or your C: drive), gets below 10%
-  drive_alert_threshold: 5  # Send an alert and ping admins if your DCS drive (or your C: drive) gets below 5%
+  thresholds:
+    Drive:              # You cannot disable the drive check. If you do not specify anything, these values will be taken as default. 
+      warn: 10          # Warn, if your drive where DCS is installed (or your C: drive), gets below 10% (default: 10)
+      alert: 5          # Send an alert if your DCS drive (or your C: drive) gets below 5% (default: 5)
+    FPS:                # Optional FPS-check
+      min: 30           # if FPS reaches a min of 30 (default: 30)
+      period: 5         # for at least 5 minutes (default: 5)
+      message: "The FPS of server {server.name} are at {fps:.2f} and below {min_fps} for longer than {period} minutes!"
+      mentioning: true  # and mention the admins (default: true)
+    RAM:                # Optional RAM-check
+      max: 32           # if RAM exceeds 32 GB (default: 32)
+      period: 5         # for at least 5 minutes (default: 5)
+      message: "The RAM consumption of server {server.name} has reached {ram:.2f} GB and is over the max of {max_ram} GB for longer than {period} minutes!"
+      mentioning: true  # and mention the admins (default: true)
 ```
 
 To configure the DCS server monitoring, you can change these values in your nodes.yaml and scheduler.yaml:
