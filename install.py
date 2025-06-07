@@ -140,6 +140,7 @@ class Install:
                                     print(_("[red]Wrong password! Try again ({}/3).[/]").format(i+1))
                             else:
                                 print(_('[yellow]You have entered 3x a wrong password. I have reset it.[/]'))
+                                passwd = secrets.token_urlsafe(8)
                                 cursor.execute(f"ALTER USER {user} WITH ENCRYPTED PASSWORD '{passwd}'")
                         # store the password
                         utils.set_password('database', passwd)
