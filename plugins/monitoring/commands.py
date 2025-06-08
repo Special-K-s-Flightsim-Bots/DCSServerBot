@@ -227,9 +227,10 @@ class Monitoring(Plugin[MonitoringListener]):
     @utils.app_has_role('Admin')
     async def cpuinfo(self, interaction: discord.Interaction,
                       node: app_commands.Transform[Node, utils.NodeTransformer]):
-        image = await node.get_cpu_info()
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(file=discord.File(fp=BytesIO(image), filename='cpuinfo.png'))
+        await interaction.response.defer()
+        image = await node.get_cpu_info()
+        await interaction.followup.send(file=discord.File(fp=BytesIO(image), filename='cpuinfo.png'))
 
     @tasks.loop(hours=12.0)
     async def cleanup(self):
