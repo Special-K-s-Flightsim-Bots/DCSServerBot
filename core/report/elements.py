@@ -188,17 +188,22 @@ class GraphElement(ReportElement):
 
 
 class MultiGraphElement(ReportElement):
-    def __init__(self, env: ReportEnv, rows: int, cols: int, params: list[dict]):
+    def __init__(self, env: ReportEnv, rows: int, cols: int, params: list[dict],
+                 wspace: float = 0.5, hspace: float = 0.5):
         super().__init__(env)
         self.axes = []
+        self.wspace = wspace
+        self.hspace = hspace
         for i in range(0, len(params)):
             colspan = params[i]['colspan'] if 'colspan' in params[i] else 1
             rowspan = params[i]['rowspan'] if 'rowspan' in params[i] else 1
             sharex = params[i]['sharex'] if 'sharex' in params[i] else False
-            self.axes.append(plt.subplot2grid((rows, cols), (params[i]['row'], params[i]['col']), colspan=colspan,
-                                              rowspan=rowspan, fig=self.env.figure,
+            self.axes.append(plt.subplot2grid((rows, cols), (params[i]['row'], params[i]['col']),
+                                              colspan=colspan, rowspan=rowspan, fig=self.env.figure,
                                               sharex=self.axes[-1] if sharex else None,
                                               polar=params[i].get('polar', False)))
+
+        plt.subplots_adjust(wspace=self.wspace, hspace=self.hspace)
 
     @abstractmethod
     async def render(self, **kwargs):
@@ -206,40 +211,54 @@ class MultiGraphElement(ReportElement):
 
 
 class Graph(ReportElement):
-    def __init__(self, env: ReportEnv):
+    def __init__(self, env: ReportEnv, width: int, height: int, cols: int, rows: int, elements: list[dict],
+                     wspace: float = 0.5, hspace: float = 0.5, dpi = 100, facecolor: Optional[str] = '#2C2F33'):
         super().__init__(env)
         plt.switch_backend('agg')
+        self.width = width
+        self.height = height
+        self.cols = cols
+        self.rows = rows
+        self.elements = elements
+        self.wspace = wspace
+        self.hspace = hspace
+        self.dpi = dpi
+        self.facecolor = facecolor
         self.plot_lock = asyncio.Lock()
 
     def _plot(self):
-        plt.subplots_adjust(hspace=0.5, wspace=0.5)
+        plt.subplots_adjust(wspace=self.wspace, hspace=self.hspace)
         self.env.filename = f'{uuid.uuid4()}.png'
+
+        # Save with adjusted dimensions while maintaining aspect ratio
         self.env.buffer = BytesIO()
-        warnings.filterwarnings("ignore", category=UserWarning, message=".*Glyph.*")
-        self.env.figure.savefig(self.env.buffer, format='png', bbox_inches='tight',
-                                facecolor=self.env.figure.get_facecolor(), transparent=False)
+        self.env.figure.savefig(
+            self.env.buffer,
+            format='png',
+            bbox_inches='tight',
+            dpi=self.dpi
+        )
         self.env.buffer.seek(0)
 
     async def _async_plot(self):
         async with self.plot_lock:
             self._plot()
 
-    async def render(self, width: int, height: int, cols: int, rows: int, elements: list[dict],
-                     facecolor: Optional[str] = '#2C2F33'):
+    async def render(self, **kwargs):
         plt.style.use('dark_background')
-        plt.rcParams['axes.facecolor'] = facecolor
-        plt.rcParams['figure.facecolor'] = facecolor
-        plt.rcParams['savefig.facecolor'] = facecolor
+        plt.rcParams['axes.facecolor'] = self.facecolor
+        plt.rcParams['figure.facecolor'] = self.facecolor
+        plt.rcParams['savefig.facecolor'] = self.facecolor
         fonts = get_supported_fonts()
         if fonts:
             plt.rcParams['font.family'] = [f"Noto Sans {x}" for x in fonts] + ['sans-serif']
-        self.env.figure = plt.figure(figsize=(width, height))
+        self.env.figure = plt.figure(figsize=(self.width, self.height), dpi=self.dpi)
         try:
-            if facecolor:
-                self.env.figure.set_facecolor(facecolor)
-                self.env.figure.patch.set_facecolor(facecolor)
+            if self.facecolor:
+                self.env.figure.set_facecolor(self.facecolor)
+                self.env.figure.patch.set_facecolor(self.facecolor)
             tasks = []
-            for element in elements:
+            for element in self.elements:
                 if 'params' in element:
                     element_args = parse_params(self.env.params, element['params'])
                 else:
@@ -252,7 +271,7 @@ class Graph(ReportElement):
                     signature = inspect.signature(element_class.__init__).parameters.keys()
                     class_args = {name: value for name, value in element_args.items() if name in signature}
                     # instantiate the class
-                    element_class = element_class(self.env, rows, cols, **class_args)
+                    element_class = element_class(self.env, self.rows, self.cols, **class_args)
                     if isinstance(element_class, (GraphElement, MultiGraphElement)):
                         # remove the parameters that are not in the render methods signature
                         signature = inspect.signature(element_class.render).parameters.keys()
@@ -270,7 +289,7 @@ class Graph(ReportElement):
                         continue
                     self.log.exception(result)
 
-            # only render the graph, if we don't have a rendered graph already attached as a file (image)
+            # only render the graph if we don't have a rendered graph already attached as a file (image)
             if not self.env.filename:
                 await self._async_plot()
             self.env.embed.set_image(url='attachment://' + os.path.basename(self.env.filename))

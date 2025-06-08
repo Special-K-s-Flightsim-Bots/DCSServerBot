@@ -1,33 +1,41 @@
 # Report Framework
-One of the main goals of DCSServerBot is gathering data of your DCS World servers and display them in a useful format.<br/>
-To achieve this, DCSServerBot already comes with some built-in reports. Many plugins display simple to complex data, which I thought, might be of interest.
-<br/><br/>
-To allow you to change the look and feel of existing reports and to make it easier to build your own, I've developed a JSON-based reporting framework.
-Here you'll find the main features and elements of this framework.
+One of the main goals of DCSServerBot is gathering data of your DCS World servers 
+and to display them in a useful format.<br/>
+To achieve this, DCSServerBot already comes with some built-in reports. 
+Many plugins display simple-to-complex data, which I thought might be of interest.
+<p>
+To allow you to change the look and feel of existing reports and to make it easier to build your own, I've developed 
+a JSON-based reporting framework. Here you'll find the main features and elements of this framework.
 
 ## Using Reports in your Plugins
-It is very simple to generate a report in your plugins. You just need to instantiate one of the available Report classes with a json file that is stored in the ./reports subdirectory of your plugin.
+It is quite simple to generate a report in your plugins. You need to instantiate one of the available Report classes
+with a json file which is stored in the ./reports subdirectory of your plugin.
 
 ```python
-from core import DCSServerBot, Plugin, Report
-from discord.ext import commands
+import discord
+
+from core import command, Plugin, Report
+from services.bot import DCSServerBot
 
 
 class Test(Plugin):
-    @commands.command(description='Test')
-    async def test(self, ctx):
-        report = Report(self.bot, self.plugin_name, 'test.json')
-        env = await report.render(params={"name": "Special K"})
-        await ctx.send(embed=env.embed)
+   
+   @command(description='Test')
+   async def test(self, interaction: discord.Interaction):
+      # we defer the interaction to avoid timeouts
+      await interaction.response.defer()
+      report = Report(self.bot, self.plugin_name, 'test.json')
+      env = await report.render(params={"name": "Special K"})
+      await interaction.followup.send(embed=env.embed)
 
 
-def setup(bot: DCSServerBot):
-    bot.add_cog(Test(bot))
+async def setup(bot: DCSServerBot):
+    await bot.add_cog(Test(bot))
 ```
 
 ## General Report Structure
 Every report results in an Embed in Discord.<br/> 
-An Embed has several attributes and many of them can be set inside the report description:
+An Embed has several attributes, and many of them can be set inside the report description:
 ```json
 {
   "color": "blue",
@@ -48,7 +56,8 @@ An Embed has several attributes and many of them can be set inside the report de
 Mentioning is done with role IDs. So you need to add the IDs of the roles to be mentioned in here.
 
 ### Input Section
-Within the "input" section you can define variables that will be used inside the report or validate such, that came from your render(...) call.
+Within the "input" section you can define variables that will be used inside the report or validate such, that came 
+from your render(...) call.
 ```json
   "input":
   [
@@ -110,6 +119,9 @@ Or if you want to change the size:
     }
 ]
 ```
+> [!NOTE]
+> Discord allows a maximum size of 34 characters in an embed.
+
 You can add a header, too:
 ```json
 "elements": [
@@ -190,8 +202,9 @@ the key of the fields you want to use from these dictionaries and the name you w
     }
 ]
 ```
-If ansi_colors is set to true, you can use color coding like `\u001b[0;31m` to color your values. Default is false and
-it is therefor optional. Works with SQLTables also (see `/infractions` as example).
+If ansi_colors is set to true you can use color coding like `\u001b[0;31m` to color your values. 
+Default is "false" and it is therefore optional. 
+Works with SQLTables also (see the code of the `/infractions` command as an example).
 
 ### SQLField
 If you want to display a single value from a database table, use the SQLField for it.
@@ -224,7 +237,9 @@ Similar to the Table element but with values from an SQL query:
     }
 ]
 ```
-no_data can be either a string, or a dictionary. In case of a string, the "name" value will be empty.
+> [!NOTE]
+> "no_data" can be either a string or a dictionary.<br>
+> In case of a string, the "name" value will be empty.
 
 ## Graph Elements
 To display nice graphics like bar-charts or pie-charts, you need to wrap them in a Graph element:
@@ -233,10 +248,14 @@ To display nice graphics like bar-charts or pie-charts, you need to wrap them in
   {
     "type": "Graph",
     "params": {
-      "width": 10, -- width of the resulting image
-      "height": 10, -- height of the resulting image
-      "cols": 2, -- number of columns in the grid
-      "rows": 1, -- number of rows in the grid
+      "width": 10,            -- width of the resulting image in inch
+      "height": 10,           -- height of the resulting image in inch
+      "cols": 2,              -- number of columns in the grid
+      "rows": 1,              -- number of rows in the grid
+      "wspace": 0.5,          -- horizontal spacing between subplots
+      "hspace": 0.5,          -- vertical spacing between subplots
+      "dpi": 100,             -- DPI of the image
+      "facecolor": "#2C2F33", -- the background color of the image
       "elements": [
         ... describe your GraphElements in here ...
       ]
@@ -247,7 +266,7 @@ To display nice graphics like bar-charts or pie-charts, you need to wrap them in
 > [!NOTE]
 > Only one Graph element is allowed per report.
 
-Each sub-element has at least the following parameters:
+You can configure sub-elements like so:
 ```json
     "elements": [
       {
@@ -334,14 +353,17 @@ Same as pie chart, but with an SQL to grab the data from the database.
 ```
 
 ## Report Types
+
 There are three report types that you can use:
 
-1) Report
-<br/>Standard implementation. Will output a single report as an embed.
-2) PaginationReport
-<br/>Will enable pagination based on a provided parameter list.
-3) PersistentReport
-<br/>For auto-updates. Everytime a persistent report is generated, it will update the former embed.
+1. **Report**  
+   Standard implementation. Will output a single report as an embed.
+
+2. **PaginationReport**  
+   Will enable pagination based on a provided parameter list.
+
+3. **PersistentReport**  
+   For auto-updates. Everytime a persistent report is generated, it will update the former embed.
 
 Let's look at the more complex ones.
 
@@ -349,21 +371,41 @@ Let's look at the more complex ones.
 To use a PaginationReport, your code could look like the following:
 
 ```python
-from core import PaginationReport
-from discord.ext import commands
+import discord
+
+from discord import app_commands
 from typing import Optional
 
+from core import command, utils, Plugin, Server, PaginationReport
+from plugins.userstats.filter import (StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, 
+                                      TheatreFilter)
+from services.bot import DCSServerBot
 
-@commands.command(description='Pagination Test', usage='[period] [server name]')
-async def test(self, ctx, period: Optional[str] = None, server_name: Optional[str] = None):
-    report = PaginationReport(self.bot, ctx, self.plugin_name, 'mytest.json')
-    await report.render(period=period, server_name=server_name)
+
+class Test(Plugin):
+
+   @command(description='Pagination Test')
+   async def test(self, interaction: discord.Interaction, 
+                  period: Optional[app_commands.Transform[
+                                StatisticsFilter, PeriodTransformer(
+                                    flt=[PeriodFilter, CampaignFilter, MissionFilter, TheatreFilter]
+                                )]] = PeriodFilter(),
+                  server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None):
+      # we defer the interaction to avoid timeouts
+      await interaction.response.defer()
+      report = PaginationReport(interaction, plugin=self.plugin_name, filename='mytest.json')
+      await report.render(period=period, server_name=server.name if server else None)
+
+
+async def setup(bot: DCSServerBot):
+    await bot.add_cog(Test(bot))
 ```
-Providing None to the pagination value (here server_name) will result in None being the first element to allow aggregated
-displays. If you provide a strict value, this will be the first to be displayed out of the pagination list.
+> [!NOTE]
+> Providing None to the pagination value (here server_name) will result in None being the first element to allow 
+> aggregated displays. If you provide a strict value, this will be the first to be displayed out of the pagination list.
 
 
-In your report though, you have to specify a pagination section:
+In your report, you have to specify a pagination section:
 ```json
 {
   "color": "blue",
@@ -405,19 +447,35 @@ Now you can use {server_name} in your report elements:
 To use a PersistentReport, in general you produce a normal report but provide a unique key with it, that will be used to access and update it later on.
 
 ```python
-from core import utils, PersistentReport
-from discord.ext import commands
+import discord
+
+from discord import app_commands
 from typing import Optional
 
+from core import command, utils, Plugin, Server, PersistentReport
+from plugins.userstats.filter import (StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, 
+                                      TheatreFilter)
+from services.bot import DCSServerBot
 
-@commands.command(description='Pagination Test', usage='[period] [server name]')
-async def test(self, ctx, period: Optional[str] = None, server_name: Optional[str] = None):
-    server = await utils.get_server(self, ctx)
-    report = PersistentReport(self.bot, self.plugin_name, 'mytest.json', server, 'test_embed')
-    return await report.render(period=period, server_name=server_name)
+
+class Test(Plugin):
+
+   @command(description='Pagination Test')
+   async def test(self, interaction: discord.Interaction, 
+                  period: Optional[app_commands.Transform[
+                                StatisticsFilter, PeriodTransformer(
+                                    flt=[PeriodFilter, CampaignFilter, MissionFilter, TheatreFilter]
+                                )]] = PeriodFilter(),
+                  server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None):
+       report = PersistentReport(self.bot, plugin=self.plugin_name, filename='mytest.json', embed_name="myfancyreport")
+       await report.render(period=period, server_name=server.name if server else None)
+
+
+async def setup(bot: DCSServerBot):
+    await bot.add_cog(Test(bot))
 ```
 
-Whenever you call ```.test```, you will not generate a new report but update the existing one.<br/>
-> [!NOTE]
-> The key is unique in that server. You must not use the same key for two different reports, they will replace each 
-> other otherwise.
+Whenever you call `/test`, you will not generate a new report but update the existing one.<br/>
+> [!WARNING]
+> The key is unique in that server. 
+> You must not use the same key for two different reports, they will overwrite each other.

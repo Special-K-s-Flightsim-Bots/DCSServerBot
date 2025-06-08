@@ -9,7 +9,7 @@
     },
     {
       "name": "ruler_length",
-      "value": 27
+      "value": 34
     }
   ],
   "pagination":
@@ -44,8 +44,9 @@
       "type": "Graph",
       "params":
       {
-        "width": 50,
-        "height": 41,
+        "width": 25,
+        "height": 25,
+        "dpi": 100,
         "cols": 1,
         "rows": 5,
         "elements":

@@ -306,6 +306,9 @@ class DCSServerBot(commands.Bot):
         except discord.NotFound:
             self.log.debug(f"Errormessage ignored, no interaction found: {error}")
             pass
+        except Exception as ex:
+            self.log.debug(f"Exception in on_app_command_error ignored: {ex}")
+            pass
 
     async def reload(self, plugin: Optional[str] = None) -> bool:
         if plugin:

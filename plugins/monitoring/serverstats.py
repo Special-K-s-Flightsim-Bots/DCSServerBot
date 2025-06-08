@@ -38,7 +38,7 @@ class ServerUsage(report.EmbedElement):
                 servers = playtimes = players = members = ''
                 await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
-                    servers += row['server_name'][:30] + '\n'
+                    servers += utils.escape_string(row['server_name'])[:30] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
                     players += '{:.0f}\n'.format(row['players'])
                     members += '{:.0f}\n'.format(row['members'])
@@ -74,8 +74,8 @@ class TopTheatresPerServer(report.EmbedElement):
                 servers = theatres = playtimes = ''
                 await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
-                    servers += row['server_name'][:30] + '\n'
-                    theatres += row['mission_theatre'][:20] + '\n'
+                    servers += utils.escape_string(row['server_name'])[:30] + '\n'
+                    theatres += utils.escape_string(row['mission_theatre'])[:20] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
 
         if len(servers) > 0:
@@ -119,7 +119,7 @@ class TopMissionPerServer(report.EmbedElement):
                 servers = missions = playtimes = ''
                 await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
-                    servers += row['server_name'][:30] + '\n'
+                    servers += utils.escape_string(row['server_name'])[:30] + '\n'
                     missions += row['mission_name'][:20] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
 
