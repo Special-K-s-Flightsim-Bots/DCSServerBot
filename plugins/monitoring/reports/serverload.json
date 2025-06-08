@@ -17,7 +17,7 @@
   "elements":
   [
     {
-      "class": "plugins.serverstats.serverstats.ServerLoadHeader"
+      "class": "plugins.monitoring.serverstats.ServerLoadHeader"
     },
     {
       "type": "Graph",
@@ -30,7 +30,7 @@
         "elements":
          [
             {
-              "class": "plugins.serverstats.serverstats.ServerLoad",
+              "class": "plugins.monitoring.serverstats.ServerLoad",
               "params": [
                 { "row": 0, "col": 0 },
                 { "row": 1, "col": 0 },

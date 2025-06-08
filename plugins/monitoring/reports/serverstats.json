@@ -23,20 +23,20 @@
   "elements":
   [
     {
-      "class": "plugins.serverstats.serverstats.ServerUsage"
+      "class": "plugins.monitoring.serverstats.ServerUsage"
     },
     "Ruler",
     {
-      "class": "plugins.serverstats.serverstats.TopTheatresPerServer"
+      "class": "plugins.monitoring.serverstats.TopTheatresPerServer"
     },
     "Ruler",
     {
-      "class": "plugins.serverstats.serverstats.TopMissionPerServer",
+      "class": "plugins.monitoring.serverstats.TopMissionPerServer",
       "params": { "limit": 3 }
     },
     "Ruler",
     {
-      "class": "plugins.serverstats.serverstats.TopModulesPerServer",
+      "class": "plugins.monitoring.serverstats.TopModulesPerServer",
       "params": { "limit": 10 }
     },
     "Ruler",
@@ -51,23 +51,23 @@
         "elements":
          [
             {
-              "class": "plugins.serverstats.serverstats.UniqueUsers",
+              "class": "plugins.monitoring.serverstats.UniqueUsers",
               "params": { "col": 0, "row": 0, "interval": "1 month" }
             },
             {
-              "class": "plugins.serverstats.serverstats.UserRetention",
+              "class": "plugins.monitoring.serverstats.UserRetention",
               "params": { "col": 0, "row": 1, "interval": "1 month" }
             },
             {
-              "class": "plugins.serverstats.serverstats.UserEngagement",
+              "class": "plugins.monitoring.serverstats.UserEngagement",
               "params": { "col": 0, "row": 2, "interval": "1 month" }
             },
             {
-              "class": "plugins.serverstats.serverstats.UsersPerDayTime",
+              "class": "plugins.monitoring.serverstats.UsersPerDayTime",
               "params": { "col": 0, "row": 3, "interval": "1 month" }
             },
             {
-              "class": "plugins.serverstats.serverstats.UsersPerMissionTime",
+              "class": "plugins.monitoring.serverstats.UsersPerMissionTime",
               "params": { "col": 0, "row": 4, "interval": "1 month" }
             }
          ]
