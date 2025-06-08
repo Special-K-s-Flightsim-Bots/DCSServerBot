@@ -17,7 +17,6 @@ target: G:\My Drive\Backup    # A directory of your choice, best case on a cloud
 delete_after: never           # Delete the files after x days (never = never) 
 backups:
   database:                                   # Backup your database
-    path: C:\Program Files\PostgreSQL\17\bin  # path to your postgres installation / bin directory
     username: postgres                        # Optional: use a different user to backup the database
     password: secret                          # Optional: password of that user
     schedule: 

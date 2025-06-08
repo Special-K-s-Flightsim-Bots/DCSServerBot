@@ -327,12 +327,12 @@ class MonitoringService(Service):
     def convert_bytes(size_bytes: int) -> str:
         scales = ('B', 'KB', 'MB', 'GB', 'TB')
         if size_bytes == 0:
-            return "0B"
+            return "0 B"
         idx = 0
         while size_bytes >= 1024 and idx < len(scales) - 1:
             size_bytes /= 1024.0
             idx += 1
-        return f"{size_bytes:.2f}{scales[idx]}"
+        return f"{size_bytes:.2f} {scales[idx]}"
 
     async def drive_check(self):
         config = {
@@ -346,21 +346,21 @@ class MonitoringService(Service):
             warn_pct = config['warn'] / 100
             alert_pct = config['alert'] / 100
             if (free < total * warn_pct) and not self.space_warning_sent[drive]:
-                message = config.get(config['message'].format(
+                message = config['message'].format(
                     drive=drive,
                     pct=config['warn'],
                     bytes_free=self.convert_bytes(free),
-                    bytes_total=self.convert_bytes(total))
+                    bytes_total=self.convert_bytes(total)
                 )
                 self.log.warning(message)
                 await self.node.audit(message)
                 self.space_warning_sent[drive] = True
             if (free < total * alert_pct) and not self.space_alert_sent[drive]:
-                message = config.get(config['message'].format(
+                message = config['message'].format(
                     drive=drive,
                     pct=config['alert'],
                     bytes_free=self.convert_bytes(free),
-                    bytes_total=self.convert_bytes(total))
+                    bytes_total=self.convert_bytes(total)
                 )
                 self.log.error(message)
                 await self.send_alert(title=f"Your DCS drive on node {self.node.name} is running out of space!",
