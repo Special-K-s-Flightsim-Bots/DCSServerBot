@@ -363,7 +363,7 @@ There are three report types that you can use:
    Will enable pagination based on a provided parameter list.
 
 3. **PersistentReport**  
-   For auto-updates. Everytime a persistent report is generated, it will update the former embed.
+   For auto-updates. Every time a persistent report is generated, it will update the former embed.
 
 Let's look at the more complex ones.
 
