@@ -103,8 +103,8 @@ class BackupService(Service):
                 file_path = os.path.join(root, file)
                 zf.write(file_path, arcname=os.path.relpath(file_path, base))
 
-    async def backup_bot(self):
-        await asyncio.to_thread(self._backup_bot)
+    async def backup_bot(self) -> bool:
+        return await asyncio.to_thread(self._backup_bot)
 
     def _backup_bot(self) -> bool:
         self.log.info("Backing up DCSServerBot ...")
@@ -123,8 +123,8 @@ class BackupService(Service):
         finally:
             zf.close()
 
-    async def backup_servers(self):
-        await asyncio.to_thread(self._backup_servers)
+    async def backup_servers(self) -> bool:
+        return await asyncio.to_thread(self._backup_servers)
 
     def _backup_servers(self) -> bool:
         target = self.mkdir()
@@ -153,9 +153,9 @@ class BackupService(Service):
                     rc = False
         return rc
 
-    async def backup_database(self):
+    async def backup_database(self) -> bool:
         installation = await self.get_postgres_installation()
-        await asyncio.to_thread(self._backup_database, installation)
+        return await asyncio.to_thread(self._backup_database, installation)
 
     def _backup_database(self, path: str) -> bool:
         target = self.mkdir()
