@@ -177,8 +177,7 @@ class CompetitiveListener(EventListener["Competitive"]):
     async def countdown_with_warnings(self, match: Match, server: Server, delayed_start: int):
         start_time = datetime.now()
         end_time = start_time + timedelta(seconds=delayed_start)
-        last_minute_warning = None
-        ten_second_warning_sent = False
+        last_warning = None
 
         # wait until the server is unpaused
         try:
@@ -186,24 +185,34 @@ class CompetitiveListener(EventListener["Competitive"]):
         except (TimeoutError, asyncio.TimeoutError):
             pass
 
+        # Define warning thresholds in seconds
+        warning_thresholds = [
+            (60, lambda t: _("The match will start in 1 minute.")),
+            (30, lambda t: _("The match will start in 30 seconds.")),
+            (10, lambda t: _("The match will start in 10 seconds.")),
+            (5, lambda t: _("The match will start in 5 seconds."))
+        ]
+
         while True:
             remaining = int((end_time - datetime.now()).total_seconds())
 
             if remaining <= 0:
                 break
 
-            # Minute warnings
-            current_minute = (remaining + 59) // 60
-            if current_minute != last_minute_warning and remaining > 10:
-                if current_minute > 0:  # Only show minute warnings if there's at least 1 minute
-                    await self.inform_players(server, match, _("The match will start in {} minute{}.").format(
-                        current_minute, 's' if current_minute != 1 else ''))
-                last_minute_warning = current_minute
+            # Find the highest threshold that's greater than the remaining time
+            for threshold, message_func in warning_thresholds:
+                if remaining <= threshold and last_warning != threshold:
+                    await self.inform_players(server, match, message_func(remaining))
+                    last_warning = threshold
+                    break
 
-            # Single 10-second warning
-            if remaining <= 10 and not ten_second_warning_sent:
-                await self.inform_players(server, match, _("The match will start in 10 seconds."))
-                ten_second_warning_sent = True
+            # For times greater than 1 minute (not including exactly 1 minute)
+            if remaining > 60:
+                current_minute = (remaining + 59) // 60
+                if last_warning != current_minute * 60:
+                    await self.inform_players(server, match,
+                                              _("The match will start in {} minutes.").format(current_minute))
+                    last_warning = current_minute * 60
 
             await asyncio.sleep(1)
 
