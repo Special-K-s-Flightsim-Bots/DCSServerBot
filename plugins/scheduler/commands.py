@@ -777,14 +777,14 @@ class Scheduler(Plugin[SchedulerListener]):
         # send warnings (TODO: change to warn structure)
         if server.is_populated():
             if delay > 0:
-                message = _("!!! Server will restart in {}!!!").format(utils.format_time(delay))
-                await server.sendPopupMessage(Coalition.ALL, message, sender=interaction.user.display_name)
+                message = _("!!! Server will restart in {} !!!").format(utils.format_time(delay))
+                await server.sendPopupMessage(Coalition.ALL, message)
                 embed.description += '- Restart is delayed for {}. Waiting ...'.format(utils.format_time(delay))
                 await msg.edit(embed=embed)
                 await asyncio.sleep(delay)
             else:
                 message = _("!!! Server will restart NOW !!!")
-                await server.sendPopupMessage(Coalition.ALL, message, sender=interaction.user.display_name)
+                await server.sendPopupMessage(Coalition.ALL, message)
 
         await self._shutdown(interaction, embed=embed, server=server, msg=msg, maintenance=None, force=force)
         await self._startup(interaction, embed=embed, server=server, msg=msg, maintenance=None,

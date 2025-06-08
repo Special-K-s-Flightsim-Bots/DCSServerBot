@@ -201,9 +201,16 @@ class LogAnalyser(Extension):
 
     async def script_error(self, idx: int, line: str, match: re.Match):
         filename, line_number, error_message = match.groups()
-        if (os.path.basename(filename) in self.config.get('ignore_files', []) or
+        basename = os.path.basename(filename)
+
+        # Get the ignore patterns from config, default to an empty list if not present
+        ignore_patterns = self.config.get('ignore_files', [])
+
+        # Check if the filename matches any of the regex patterns
+        if (any(re.match(pattern, basename) for pattern in ignore_patterns) or
                 (filename, int(line_number)) in self.errors):
             return
+
         await self._send_audit_msg(filename, int(line_number), error_message)
         self.errors.add((filename, int(line_number)))
 
