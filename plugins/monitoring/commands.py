@@ -4,12 +4,11 @@ import psycopg
 import re
 
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Server, command, \
-    ValueNotInRange, ServiceRegistry, Node
+    ValueNotInRange, ServiceRegistry
 from datetime import datetime, timezone
 from discord import app_commands
 from discord.ext import tasks
 from discord.utils import MISSING
-from io import BytesIO
 from pathlib import Path
 from psycopg.errors import UniqueViolation
 from services.bot import DCSServerBot
@@ -221,16 +220,6 @@ class Monitoring(Plugin[MonitoringListener]):
                 await report.render(period=period, server_name=None)
         except ValueNotInRange as ex:
             await interaction.followup.send(ex, ephemeral=utils.get_ephemeral(interaction))
-
-    @command(description='Shows CPU topology')
-    @app_commands.guild_only()
-    @utils.app_has_role('Admin')
-    async def cpuinfo(self, interaction: discord.Interaction,
-                      node: app_commands.Transform[Node, utils.NodeTransformer]):
-        # noinspection PyUnresolvedReferences
-        await interaction.response.defer()
-        image = await node.get_cpu_info()
-        await interaction.followup.send(file=discord.File(fp=BytesIO(image), filename='cpuinfo.png'))
 
     @tasks.loop(hours=12.0)
     async def cleanup(self):

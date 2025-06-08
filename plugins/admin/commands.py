@@ -1022,6 +1022,16 @@ Please make sure you forward the following ports:
             )
             self.log.exception(ex)
 
+    @node_group.command(description=_("Shows CPU topology"))
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def cpuinfo(self, interaction: discord.Interaction,
+                      node: app_commands.Transform[Node, utils.NodeTransformer]):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        image = await node.get_cpu_info()
+        await interaction.followup.send(file=discord.File(fp=BytesIO(image), filename='cpuinfo.png'))
+
     plug = Group(name="plugin", description=_("Commands to manage your DCSServerBot plugins"))
 
     @plug.command(name='install', description=_("Install Plugin"))

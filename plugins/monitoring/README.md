@@ -11,7 +11,6 @@ There is no specific plugin configuration. Please see the [service documentation
 |--------------|---------------------------|-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | /serverstats | [server] [day/week/month] | Admin | Displays server statistics, like usual playtime, most frequented servers and missions.<br/>If no server is provided, you can cycle through all your servers. |
 | /serverload  | [server] [hour/day/week]  | Admin | Displays technical server statistics, like CPU load, memory consumption, etc.<br/>If no server is provided, you can cycle through all your servers.          |
-| /cpuinfo     | node                      | Admin | Shows the CPU topology of your node. More to come.                                                                                                           |
 
 ## Tables
 ### Serverstats
