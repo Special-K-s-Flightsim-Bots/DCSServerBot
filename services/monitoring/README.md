@@ -17,15 +17,16 @@ DEFAULT:
     Drive:              # You cannot disable the drive check. If you do not specify anything, these values will be taken as default. 
       warn: 10          # Warn, if your drive where DCS is installed (or your C: drive), gets below 10% (default: 10)
       alert: 5          # Send an alert if your DCS drive (or your C: drive) gets below 5% (default: 5)
+      message: "Available space on drive {drive} has dropped below {pct}%!\nOnly {bytes_free} out of {bytes_total} free."
     FPS:                # Optional FPS-check
       min: 30           # if FPS reaches a min of 30 (default: 30)
       period: 5         # for at least 5 minutes (default: 5)
-      message: "The FPS of server {server.name} are at {fps:.2f} and below {min_fps} for longer than {period} minutes!"
+      message: "Server {server} FPS ({fps}) has been below {min_fps} for more than {period} minutes."
       mentioning: true  # and mention the admins (default: true)
     RAM:                # Optional RAM-check
       max: 32           # if RAM exceeds 32 GB (default: 32)
       period: 5         # for at least 5 minutes (default: 5)
-      message: "The RAM consumption of server {server.name} has reached {ram:.2f} GB and is over the max of {max_ram} GB for longer than {period} minutes!"
+      message: "Server {server} RAM usage is {ram} GB, exceeding the maximum of {max_ram} GB for more than {period} minutes."
       mentioning: true  # and mention the admins (default: true)
 ```
 

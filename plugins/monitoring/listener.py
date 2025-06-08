@@ -36,9 +36,9 @@ class MonitoringListener(EventListener["Monitoring"]):
                 if self.minutes_fps[server.name] == period:
                     message = utils.format_string(
                         config.get("message",
-                                   "The FPS of server {server.name} are at {fps:.2f} and below {min_fps} "
-                                   "for longer than {period} minutes!"),
-                        server=server, fps=fps, min_fps=min_fps, period=period)
+                                   "Server {server} FPS ({fps}) has been below {min_fps} for more than "
+                                   "{period} minutes."),
+                        server=server.name, fps=round(fps, 2), min_fps=min_fps, period=period)
                     if config.get("mentioning", True):
                         asyncio.create_task(ServiceRegistry.get(BotService).alert(title="Server Performance Low!",
                                                                                   message=message, server=server))
@@ -84,9 +84,9 @@ class MonitoringListener(EventListener["Monitoring"]):
                 if self.minutes_ram[server.name] == period and not self.warning_sent[server.name]:
                     message = utils.format_string(
                         config.get("message",
-                                   "The RAM consumption of server {server.name} has reached {ram:.2f} GB and is over "
-                                   "the max of {max_ram} GB for longer than {period} minutes!"),
-                        server=server, ram=ram, max_ram=max_ram, period=period)
+                                   "Server {server} RAM usage is {ram} GB, exceeding the maximum of {max_ram} GB "
+                                   "for more than {period} minutes."),
+                        server=server.name, ram=round(ram, 2), max_ram=max_ram, period=period)
                     if config.get("mentioning", True):
                         asyncio.create_task(ServiceRegistry.get(BotService).alert(title="Excessive RAM consumption!",
                                                                                   message=message, server=server))
