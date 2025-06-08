@@ -396,3 +396,17 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=timeout)
         return data['return']
+
+    async def get_cpu_info(self) -> Union[bytes, int]:
+        timeout = 60 if not self.slow_system else 120
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "get_cpu_info"
+        }, timeout=timeout, node=self.name)
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                cursor = await conn.execute("SELECT data FROM files WHERE id = %s", (data['return'], ), binary=True)
+                image = (await cursor.fetchone())[0]
+                await conn.execute("DELETE FROM files WHERE id = %s", (data['return'], ))
+        return image

@@ -224,3 +224,6 @@ class Node:
 
     async def uninstall_plugin(self, plugin: str) -> bool:
         raise NotImplementedError()
+
+    async def get_cpu_info(self) -> Union[bytes, int]:
+        raise NotImplementedError()

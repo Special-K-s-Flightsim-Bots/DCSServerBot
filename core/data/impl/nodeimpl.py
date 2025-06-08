@@ -534,7 +534,13 @@ class NodeImpl(Node):
                     self.log.exception(ex)
                     return -1
 
-            rc = await asyncio.to_thread(run_subprocess)
+            # check if there is an update running already
+            proc = next(utils.find_process("DCS_updater.exe"), None)
+            if proc:
+                self.log.info("DCS Update in progress, waiting ...")
+                rc = proc.wait()
+            else:
+                rc = await asyncio.to_thread(run_subprocess)
             if branch and rc == 0:
                 # check if the branch has been changed
                 config = os.path.join(self.installation, 'autoupdate.cfg')
@@ -894,9 +900,11 @@ class NodeImpl(Node):
         else:
             async with self.apool.connection() as conn:
                 async with conn.transaction():
-                    await conn.execute("INSERT INTO files (guild_id, name, data) VALUES (%s, %s, %s)",
-                                       (self.guild_id, path, psycopg.Binary(await _read_file(path))))
-                    cursor = await conn.execute("SELECT currval('files_id_seq')")
+                    cursor = await conn.execute("""
+                        INSERT INTO files (guild_id, name, data) 
+                        VALUES (%s, %s, %s)
+                        RETURNING id
+                    """, (self.guild_id, path, psycopg.Binary(await _read_file(path))))
                     return (await cursor.fetchone())[0]
 
     async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
@@ -1335,3 +1343,27 @@ class NodeImpl(Node):
         await bot.unload_plugin(plugin)
         self.plugins.remove(plugin)
         return True
+
+    async def get_cpu_info(self) -> Union[bytes, int]:
+        def create_image() -> bytes:
+            p_core_affinity_mask = utils.get_p_core_affinity()
+            e_core_affinity_mask = utils.get_e_core_affinity()
+            buffer = utils.create_cpu_topology_visualization(utils.get_cpus_from_affinity(p_core_affinity_mask),
+                                                             utils.get_cpus_from_affinity(e_core_affinity_mask),
+                                                             utils.get_cache_info())
+            try:
+                return buffer.getvalue()
+            finally:
+                buffer.close()
+
+        if self.node.master:
+            return create_image()
+        else:
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    cursor = await conn.execute("""
+                        INSERT INTO files (guild_id, name, data) 
+                        VALUES (%s, %s, %s)
+                        RETURNING id
+                    """, (self.guild_id, 'cpuinfo', psycopg.Binary(create_image())))
+                    return (await cursor.fetchone())[0]

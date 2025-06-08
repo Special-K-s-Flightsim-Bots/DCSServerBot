@@ -1,14 +1,15 @@
 import os
-import re
 import discord
 import psycopg
+import re
 
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Server, command, \
-    ValueNotInRange, ServiceRegistry
+    ValueNotInRange, ServiceRegistry, Node
 from datetime import datetime, timezone
 from discord import app_commands
 from discord.ext import tasks
 from discord.utils import MISSING
+from io import BytesIO
 from pathlib import Path
 from psycopg.errors import UniqueViolation
 from services.bot import DCSServerBot
@@ -224,18 +225,11 @@ class Monitoring(Plugin[MonitoringListener]):
     @command(description='Shows CPU topology')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    async def cpuinfo(self, interaction: discord.Interaction):
-        p_core_affinity_mask = utils.get_p_core_affinity()
-        e_core_affinity_mask = utils.get_e_core_affinity()
-        buffer = utils.create_cpu_topology_visualization(utils.get_cpus_from_affinity(p_core_affinity_mask),
-                                                         utils.get_cpus_from_affinity(e_core_affinity_mask),
-                                                         utils.get_cache_info())
-        try:
-            discord.File(fp=buffer, filename='cpuinfo.png')
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(file=discord.File(fp=buffer, filename='cpuinfo.png'))
-        finally:
-            buffer.close()
+    async def cpuinfo(self, interaction: discord.Interaction,
+                      node: app_commands.Transform[Node, utils.NodeTransformer]):
+        image = await node.get_cpu_info()
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(file=discord.File(fp=BytesIO(image), filename='cpuinfo.png'))
 
     @tasks.loop(hours=12.0)
     async def cleanup(self):
