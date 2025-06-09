@@ -42,6 +42,9 @@ jobs:
 
       - name: Sync and commit documentation
         run: |
+          # Ensure we have the latest development branch
+          git fetch origin development
+
           # Create a new branch with timestamp to avoid conflicts
           BRANCH_NAME="docs-update-$(date +%Y%m%d-%H%M%S)"
           git checkout -b $BRANCH_NAME
