@@ -1,0 +1,47 @@
+{
+  "color": "blue",
+  "input": [
+    {
+      "name": "ruler_length",
+      "value": 27
+    }
+  ],
+  "pagination":
+  {
+    "param":
+    {
+      "name": "node",
+      "sql": "SELECT node FROM nodes"
+    }
+  },
+  "elements":
+  [
+    {
+      "class": "plugins.monitoring.serverstats.ServerLoadHeader"
+    },
+    {
+      "type": "Graph",
+      "params":
+      {
+        "width": 30,
+        "height": 30,
+        "cols": 1,
+        "rows": 5,
+        "elements":
+         [
+            {
+              "class": "plugins.monitoring.serverstats.ServerLoad",
+              "params": [
+                { "row": 0, "col": 0 },
+                { "row": 1, "col": 0 },
+                { "row": 2, "col": 0 },
+                { "row": 3, "col": 0 },
+                { "row": 4, "col": 0 }
+              ]
+            }
+         ]
+      }
+    }
+  ],
+  "footer": "Bot Version: v{bot.version}.{bot.sub_version}"
+}

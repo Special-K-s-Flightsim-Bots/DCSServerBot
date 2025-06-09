@@ -1,7 +1,8 @@
 import discord
 
 from core import Server
-from discord.ui import Modal, TextInput, View, Button
+from discord import ButtonStyle, ChannelType, TextStyle
+from discord.ui import Modal, TextInput, View, Button, ChannelSelect
 from services.bot import DCSServerBot
 
 
@@ -42,11 +43,17 @@ class ConfigView(View):
                 self.children[4].disabled = True
                 return False
         except Exception as ex:
-            print(ex)
+            self.bot.log.exception(ex)
+            return False
 
-    @discord.ui.select(cls=discord.ui.ChannelSelect, channel_types=[discord.ChannelType.text],
-                       placeholder="Select an admin channel")
-    async def admin_channel(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect) -> None:
+    # noinspection PyTypeChecker
+    @discord.ui.select(
+        cls=discord.ui.ChannelSelect,
+        channel_types=[ChannelType.text],
+        placeholder="Select an admin channel",
+    )
+    async def admin_channel(self, interaction: discord.Interaction,
+                            select: ChannelSelect[discord.TextChannel]) -> None:
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if 'channels' not in self.server.locals:
@@ -56,9 +63,14 @@ class ConfigView(View):
         if self.toggle_config():
             await interaction.edit_original_response(view=self)
 
-    @discord.ui.select(cls=discord.ui.ChannelSelect, channel_types=[discord.ChannelType.text],
-                       placeholder="Select a status channel")
-    async def status_channel(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect) -> None:
+    # noinspection PyTypeChecker
+    @discord.ui.select(
+        cls=discord.ui.ChannelSelect,
+        channel_types=[ChannelType.text],
+        placeholder="Select a status channel"
+    )
+    async def status_channel(self, interaction: discord.Interaction,
+                             select: ChannelSelect[discord.TextChannel]) -> None:
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if 'channels' not in self.server.locals:
@@ -68,9 +80,13 @@ class ConfigView(View):
         if self.toggle_config():
             await interaction.edit_original_response(view=self)
 
-    @discord.ui.select(cls=discord.ui.ChannelSelect, channel_types=[discord.ChannelType.text],
-                       placeholder="Select a chat channel")
-    async def chat_channel(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect) -> None:
+    # noinspection PyTypeChecker
+    @discord.ui.select(
+        cls=discord.ui.ChannelSelect,
+        channel_types=[ChannelType.text],
+        placeholder="Select a chat channel"
+    )
+    async def chat_channel(self, interaction: discord.Interaction, select: ChannelSelect[discord.TextChannel]) -> None:
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if 'channels' not in self.server.locals:
@@ -78,23 +94,30 @@ class ConfigView(View):
         self.server.locals['channels']['chat'] = select.values[0].id
         self.channel_update = True
 
-    @discord.ui.button(label='OK', style=discord.ButtonStyle.primary)
+    # noinspection PyTypeChecker
+    @discord.ui.button(label='OK', style=ButtonStyle.primary)
     async def on_ok(self, interaction: discord.Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
-    @discord.ui.button(label='Config', style=discord.ButtonStyle.secondary)
+    # noinspection PyTypeChecker
+    @discord.ui.button(label='Config', style=ButtonStyle.secondary)
     async def on_config(self, interaction: discord.Interaction, _: Button):
         class ConfigModal(Modal, title="Server Configuration"):
+            # noinspection PyTypeChecker
             name = TextInput(label="Name", default=self.server.name if self.server.name != 'n/a' else '',
                              min_length=3, max_length=80, required=True)
-            description = TextInput(label="Description", style=discord.TextStyle.long,
+            # noinspection PyTypeChecker
+            description = TextInput(label="Description", style=TextStyle.long,
                                     default=self.server.settings.get('description'), max_length=2000, required=False)
+            # noinspection PyTypeChecker
             password = TextInput(label="Password", placeholder="n/a", default=self.server.settings.get('password'),
                                  max_length=20, required=False)
+            # noinspection PyTypeChecker
             port = TextInput(label="Port", default=str(self.server.settings.get('port', 10308)), max_length=5,
                              required=True)
+            # noinspection PyTypeChecker
             max_player = TextInput(label="Max Players", default=str(self.server.settings.get('maxPlayers', 16)),
                                    max_length=3, required=True)
 
@@ -118,7 +141,8 @@ class ConfigView(View):
         self.cancelled = await modal.wait()
         self.stop()
 
-    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
+    # noinspection PyTypeChecker
+    @discord.ui.button(label='Cancel', style=ButtonStyle.red)
     async def on_cancel(self, interaction: discord.Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()

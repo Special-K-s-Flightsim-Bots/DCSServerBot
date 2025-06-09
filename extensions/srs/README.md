@@ -15,6 +15,7 @@ MyNode:
   extensions:
     SRS:
       installation: '%ProgramFiles%\DCS-SimpleRadio-Standalone'
+      beta: true  # allow beta versions
       autoupdate: true      # auto update your DCS-SRS installation, if a new version is available online (default: false)
 #      autoupdate:           # alternative configuration with a message being posted to Discord after every update
 #        title: DCS-SRS has been updated to version {}!
@@ -28,7 +29,7 @@ MyNode:
       # [...]
       extensions:
         SRS:
-          config: '%USERPROFILE%\Saved Games\DCS.release_server\Config\SRS.cfg'
+          config: '{instance.home}\Config\SRS.cfg'
           host: 127.0.0.1
           port: 5002
           minimized: true     # start SRS minimized (default: true)

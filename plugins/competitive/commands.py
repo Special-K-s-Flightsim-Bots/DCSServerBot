@@ -1,12 +1,14 @@
 import discord
+import itertools
+import math
 import psycopg
 
-from core import Plugin, command, utils, get_translation
+from core import Plugin, utils, get_translation, Node, Group
 from discord import app_commands
 from plugins.competitive import rating
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from trueskill import Rating
+from trueskill import Rating, BETA, global_env
 from typing import Optional, Union
 
 from .listener import CompetitiveListener
@@ -67,11 +69,7 @@ class Competitive(Plugin[CompetitiveListener]):
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
         await conn.execute('UPDATE trueskill SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
-    @command(description=_('Display your TrueSkill:tm: rating'))
-    @utils.app_has_role('DCS')
-    @app_commands.guild_only()
-    async def trueskill(self, interaction: discord.Interaction,
-                        user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]]):
+    async def _trueskill_player(self, interaction: discord.Interaction, user: Union[discord.Member, str]) -> None:
         if not user:
             user = interaction.user
         elif not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
@@ -102,6 +100,119 @@ class Competitive(Plugin[CompetitiveListener]):
             _("TrueSkill:tm: rating of player {name}: {rating:.2f}.").format(name=row['name'],
                                                                              rating=skill_mu - 3.0 * skill_sigma),
             ephemeral=True)
+
+    @staticmethod
+    def calculate_rating(r: Rating) -> float:
+        return r.mu - 3.0 * r.sigma
+
+    @staticmethod
+    def win_probability(team1: list[Rating], team2: list[Rating]):
+        if not team1 or not team2:
+            return 0.5  # 50% chance when either team is empty
+
+        delta_mu = sum(r.mu for r in team1) - sum(r.mu for r in team2)
+        sum_sigma = sum(r.sigma ** 2 for r in itertools.chain(team1, team2))
+        size = len(team1) + len(team2)
+        denom = math.sqrt(size * (BETA * BETA) + sum_sigma)
+        ts = global_env()
+        return ts.cdf(delta_mu / denom)
+
+    @staticmethod
+    def calculate_squadron_rating(player_ratings: list[Rating]) -> Rating:
+        if not player_ratings:
+            return rating.create_rating()
+
+        # Total mu (skill) of the squadron
+        total_mu = sum(r.mu for r in player_ratings)
+
+        # Calculate sigma considering team size and interactions
+        sum_sigma_squared = sum(r.sigma ** 2 for r in player_ratings)
+        n_players = len(player_ratings)
+
+        # Scale sigma based on team size and interactions
+        # Using similar scaling as in win probability calculation
+        adjusted_sigma = math.sqrt(
+            (sum_sigma_squared + (n_players * BETA * BETA)) / n_players
+        )
+
+        # Average mu for the squadron
+        squadron_mu = total_mu / n_players
+
+        return Rating(mu=squadron_mu, sigma=adjusted_sigma)
+
+    @staticmethod
+    async def read_squadron_member_ratings(node: Node, squadron_id: int) -> list[Rating]:
+        ratings = []
+        async with node.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                async for row in await cursor.execute("""
+                    SELECT s.name,
+                         COALESCE(t.skill_mu, 25.0)          AS "skill_mu",
+                         COALESCE(t.skill_sigma, 25.0 / 3.0) AS "skill_sigma"
+                    FROM squadron_members sm
+                           LEFT OUTER JOIN trueskill t ON (sm.player_ucid = t.player_ucid)
+                           JOIN squadrons s ON (s.id = sm.squadron_id)
+                    WHERE s.id = %s
+                """, (squadron_id,)):
+                    ratings.append(Rating(mu=float(row['skill_mu']), sigma=float(row['skill_sigma'])))
+        return ratings
+
+    @staticmethod
+    async def trueskill_squadron(node: Node, squadron_id: int) -> Rating:
+        ratings = await Competitive.read_squadron_member_ratings(node, squadron_id)
+        return Competitive.calculate_squadron_rating(ratings)
+
+    # New command group "/trueskill"
+    trueskill = Group(name="trueskill", description="Commands to manage TrueSkill:tm: ratings")
+
+    @trueskill.command(description=_('Display TrueSkill:tm: ratings'))
+    @utils.app_has_role('DCS')
+    @app_commands.rename(squadron_id='squadron')
+    @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
+    @app_commands.guild_only()
+    async def rating(self, interaction: discord.Interaction,
+                     user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]] = None,
+                     squadron_id: Optional[int] = None):
+        if squadron_id:
+            r = await self.trueskill_squadron(self.node, squadron_id)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("TrueSkill:tm: rating: {rating:.2f}.").format(
+                rating=self.calculate_rating(r)), ephemeral=True)
+        else:
+            await self._trueskill_player(interaction, user)
+
+    @trueskill.command(description=_('Delete TrueSkill:tm: ratings'))
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    async def delete(self, interaction: discord.Interaction,
+                     user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]] = None):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        if isinstance(user, discord.Member):
+            ucid = await self.bot.get_ucid_by_member(user)
+            if not ucid:
+                await interaction.followup.send(_("User {} is not linked.").format(user.display_name), ephemeral=True)
+                return
+        else:
+            ucid = user
+
+        if user and not await utils.yn_question(
+                interaction, _("Do you really want to delete TrueSkill:tm: ratings for this user?")):
+            await interaction.followup.send(_("Aborted."), ephemeral=True)
+            return
+        elif not user and not await utils.yn_question(
+                interaction, _("Do you really want to delete the TrueSkill:tm: ratings for all users?")):
+            await interaction.followup.send(_("Aborted."), ephemeral=True)
+            return
+
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                if user:
+                    await conn.execute("DELETE FROM trueskill WHERE player_ucid = %s", (ucid, ))
+                else:
+                    await conn.execute("TRUNCATE trueskill CASCADE")
+        # noinspection PyUnresolvedReferences
+        await interaction.followup.send(_("TrueSkill:tm: ratings deleted."), ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):

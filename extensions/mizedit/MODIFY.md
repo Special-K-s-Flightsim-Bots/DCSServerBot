@@ -131,6 +131,19 @@ MyFancyPreset:
 You can work with these variables then later on, to for instance create some randomness in your mission. To use a 
 variable, just add `{variablename}` in your code.
 
+## Conditions
+If you only want to run the script under specific conditions, you can add an "if"-condition like so:
+```yaml
+MyFancyPreset:
+  modify:
+    variable:
+      start_time: start_time
+      theatre: theatre
+    if: ${start_time} > 20000 and '{theatre}' == 'Caucasus'
+    # ... continue ...
+```
+
+
 ## Running Python Code for complex changes
 You can run a specific python function on the result of a for-each call:
 ```yaml

@@ -86,6 +86,8 @@ different greenieboards for different servers. If that is a user demand in the f
 DEFAULT:
   num_landings: 5           # display the last 5 landings
   num_rows: 10              # display 10 players
+  theme: light              # one of 'dark' or 'light' (default: dark)
+  landings_rtl: false       # draw landings right to left (default: True)
   persistent_board: false   # if true, a persistent board will be uploaded into persistent_channel
   persistent_channel: 123456789 # in which channel to post the board
   squadrons:
@@ -129,12 +131,12 @@ with all 3 methods.
 
 ## Discord Commands
 
-| Command      | Parameter     | Channel | Role      | Description                                                                                                             |
-|--------------|---------------|---------|-----------|-------------------------------------------------------------------------------------------------------------------------|
-| /traps board | rows landings | all     | DCS       | Print the current greenieboard (per server). 10 rows is default, so is 30 landings. Can be changed with the parameters. |
-| /traps info  | [user]        | all     | DCS       | Display the last carrier landings for this user and a detailed view on selection. User is the caller if not provided.   |
-| /traps add   | user          | all     | DCS Admin | Adds a trap for this user (manual data input).                                                                          |
-| /traps reset | [user]        | admin   | DCS Admin | Resets all traps (optional: of a user).                                                                                 |
+| Command      | Parameter                        | Channel | Role      | Description                                                                                                             |
+|--------------|----------------------------------|---------|-----------|-------------------------------------------------------------------------------------------------------------------------|
+| /traps board | rows landings theme landings_rtl | all     | DCS       | Print the current greenieboard (per server). 10 rows is default, so is 30 landings. Can be changed with the parameters. |
+| /traps info  | [user]                           | all     | DCS       | Display the last carrier landings for this user and a detailed view on selection. User is the caller if not provided.   |
+| /traps add   | user                             | all     | DCS Admin | Adds a trap for this user (manual data input).                                                                          |
+| /traps reset | [user]                           | admin   | DCS Admin | Resets all traps (optional: of a user).                                                                                 |
 
 ## Highscore Plugin
 You can add your traps to your .highscore (.hs) command. To do that, copy the file plugins/userstats/reports/highscore.json 

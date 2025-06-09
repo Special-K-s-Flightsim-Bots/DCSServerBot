@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import platform
@@ -17,7 +18,7 @@ from pathlib import Path
 from rich import print
 from rich.console import Console
 from rich.prompt import IntPrompt, Prompt, Confirm
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 from urllib.parse import quote, urlparse
 
 # ruamel YAML support
@@ -32,9 +33,10 @@ class Install:
 
     def __init__(self, node: str):
         self.node = node
-        self.log = logging.getLogger(name='dcsserverbot')
+        self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.log.propagate = False
         self.log.setLevel(logging.DEBUG)
+        self.use_upnp = utils.is_upnp_available()
         formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
         os.makedirs('logs', exist_ok=True)
@@ -138,6 +140,7 @@ class Install:
                                     print(_("[red]Wrong password! Try again ({}/3).[/]").format(i+1))
                             else:
                                 print(_('[yellow]You have entered 3x a wrong password. I have reset it.[/]'))
+                                passwd = secrets.token_urlsafe(8)
                                 cursor.execute(f"ALTER USER {user} WITH ENCRYPTED PASSWORD '{passwd}'")
                         # store the password
                         utils.set_password('database', passwd)
@@ -163,7 +166,7 @@ class Install:
             print(_("\n[u]2. Discord Setup[/]"))
             guild_id = IntPrompt.ask(
                 _('Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID")'))
-            main = {
+            main: dict[str, Any] = {
                 "guild_id": guild_id,
                 "autoupdate": autoupdate
             }
@@ -350,8 +353,14 @@ If you need any further assistance, please visit the support discord, listed in 
         else:
             dcs_installation = Install.get_dcs_installation_linux()
         node = nodes[self.node] = {
-            "listen_port": max([n.get('listen_port', 10041 + idx) for idx, n in enumerate(nodes.values())]) + 1 if nodes else 10042,
+            "listen_port": max([
+                n.get('listen_port', 10041 + idx) for idx, n in enumerate(nodes.values())
+            ]) + 1 if nodes else 10042,
+            "use_upnp": self.use_upnp
         }
+        public_ip = asyncio.run(utils.get_public_ip())
+        if Confirm.ask(_("Is {} a static IP-address for this node?").format(public_ip), default=False):
+            node['public_ip'] = public_ip
         if 'database' not in main:
             node["database"] = {
                 "url": database_url
@@ -412,7 +421,7 @@ If you need any further assistance, please visit the support discord, listed in 
                         "home": os.path.join(SAVED_GAMES, instance)
                     }
                     if srs_path:
-                        srs_config = f"%USERPROFILE%\\Saved Games\\{instance}\\Config\\SRS.cfg"
+                        srs_config = os.path.join('{instance.home}', 'Config', 'SRS.cfg')
                         node['instances'][instance]['extensions'] = {
                             "SRS": {
                                 "config": srs_config,
@@ -429,7 +438,7 @@ If you need any further assistance, please visit the support discord, listed in 
                     bot_port += 1
                     srs_port += 2
 
-                    # we only set up channels, if we configure a discord bot
+                    # we only set up channels if we configure a discord bot
                     if not bot.get('no_discord', False):
                         channels = {
                             "Status Channel": _("To display the mission and player status."),
@@ -520,7 +529,7 @@ If you need any further assistance, please visit the support discord, listed in 
 
 
 if __name__ == "__main__":
-    # get the command line args from core
+    # get the command line args from the core
     args = COMMAND_LINE_ARGS
     console = Console()
     try:

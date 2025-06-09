@@ -4,7 +4,10 @@ import random
 
 from core import EventListener, utils, Server, Player, Status, event, chat_command
 from datetime import datetime, timedelta, timezone
-from typing import Union, Optional
+from typing import Union, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import Scheduler
 
 
 class SchedulerListener(EventListener["Scheduler"]):
@@ -70,6 +73,7 @@ class SchedulerListener(EventListener["Scheduler"]):
                     return min_time_difference, restart
                 else:
                     return None
+            return None
 
     async def run(self, server: Server, method: str, **kwargs) -> None:
         if method.startswith('load:'):
@@ -115,6 +119,9 @@ class SchedulerListener(EventListener["Scheduler"]):
             await server.loadNextMission(modify_mission=run_extensions, use_orig=use_orig)
             asyncio.create_task(self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                                f"{server.current_mission.display_name}", server=server))
+        elif what['command'] == 'stop':
+            await server.stop()
+            asyncio.create_task(self.bot.audit(f"{self.plugin_name.title()} stopped server", server=server))
         elif what['command'] == 'load':
             run_extensions = what.get('run_extensions', True)
             use_orig = what.get('use_orig', True)
@@ -266,8 +273,11 @@ class SchedulerListener(EventListener["Scheduler"]):
     @event(name="onServerEmpty")
     async def onServerEmpty(self, server: Server, _: dict) -> None:
         if server.on_empty:
+            self.log.debug(f"Scheduler: onServerEmpty: processing on_empty event: {server.on_empty['command']}")
             asyncio.create_task(self.process(server, server.on_empty.copy()))
             server.on_empty.clear()
+        else:
+            self.log.debug("Scheduler: onServerEmpty: no on_empty event provided - skipping")
 
     @chat_command(name="maintenance", aliases=["maint"], roles=['DCS Admin'], help="enable maintenance mode")
     async def maintenance(self, server: Server, player: Player, _: list[str]):

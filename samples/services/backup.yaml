@@ -18,14 +18,13 @@ backups:
       - '00:00'               # You can create multiple times per day, but not a different time on multiple days.
       - '12:00'
   database: # the DCSSB database
-    password: secret          # This is the password of the "postgres" user of you database
-    path: C:\Program Files\PostgreSQL\14\bin  # The path to your postgres binaries. You need at least a client installation for DCSServerBot to work.
+    password: secret          # This is the password of the "postgres" user of your database
     schedule:
       days: NNNNNNY
       times:
       - '03:00'
   servers:  # all your DCS servers
-    directories:              # Specify which directories you want to backup. They will be zipped.
+    directories:              # Specify which directories you want to back up. They will be zipped.
     - Config
     - Missions
     - Scripts

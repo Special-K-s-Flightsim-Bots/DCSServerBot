@@ -1,8 +1,8 @@
 import discord
 
 from core import utils
+from discord import TextStyle
 from discord.ui import Modal, TextInput
-from psycopg.errors import UniqueViolation
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -10,8 +10,10 @@ if TYPE_CHECKING:
 
 
 class SquadronModal(Modal):
-    description = TextInput(label="Enter a description for this squadron:", style=discord.TextStyle.long, required=True)
-    image_url = TextInput(label="Squadron Image (URL):", style=discord.TextStyle.short, required=False)
+    # noinspection PyTypeChecker
+    description = TextInput(label="Enter a description for this squadron:", style=TextStyle.long, required=True)
+    # noinspection PyTypeChecker
+    image_url = TextInput(label="Squadron Image (URL):", style=TextStyle.short, required=False)
 
     def __init__(self, plugin: "UserStatistics", name: str, *, locked: bool = False, role: Optional[discord.Role] = None,
                  description: Optional[str] = None, image_url: Optional[str] = None,
@@ -57,10 +59,5 @@ class SquadronModal(Modal):
         await interaction.response.send_message(f"Squadron {self.name} created/updated.", ephemeral=ephemeral)
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, /) -> None:
-        if isinstance(error, UniqueViolation):
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"Squadron {self.name} exists already. Please chose another name.",
-                                                    ephemeral=True)
-        else:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"Error while creating squadron: {error}", ephemeral=True)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(f"Error while creating squadron: {error}", ephemeral=True)

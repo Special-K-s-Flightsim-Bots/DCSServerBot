@@ -3,7 +3,7 @@ import os
 import pandas as pd
 
 from core import Plugin, Report, ReportEnv, command, utils, get_translation, Status
-from discord import app_commands, Interaction
+from discord import app_commands, Interaction, ButtonStyle, TextStyle
 from discord.ui import View, Select, Button, Modal, TextInput, Item
 from functools import cache
 from io import BytesIO
@@ -161,27 +161,32 @@ class Help(Plugin[HelpListener]):
             self.index = [x.value for x in self.options].index(select.values[0])
             await self.paginate(select.values[0], interaction)
 
-        @discord.ui.button(label="<<", style=discord.ButtonStyle.secondary)
+        # noinspection PyTypeChecker
+        @discord.ui.button(label="<<", style=ButtonStyle.secondary)
         async def on_start(self, interaction: discord.Interaction, _: Button):
             self.index = 0
             await self.paginate(self.options[self.index].value, interaction)
 
-        @discord.ui.button(label="Back", style=discord.ButtonStyle.primary)
+        # noinspection PyTypeChecker
+        @discord.ui.button(label="Back", style=ButtonStyle.primary)
         async def on_left(self, interaction: discord.Interaction, _: Button):
             self.index -= 1
             await self.paginate(self.options[self.index].value, interaction)
 
-        @discord.ui.button(label="Next", style=discord.ButtonStyle.primary)
+        # noinspection PyTypeChecker
+        @discord.ui.button(label="Next", style=ButtonStyle.primary)
         async def on_right(self, interaction: discord.Interaction, _: Button):
             self.index += 1
             await self.paginate(self.options[self.index].value, interaction)
 
-        @discord.ui.button(label=">>", style=discord.ButtonStyle.secondary)
+        # noinspection PyTypeChecker
+        @discord.ui.button(label=">>", style=ButtonStyle.secondary)
         async def on_end(self, interaction: discord.Interaction, _: Button):
             self.index = len(self.options) - 1
             await self.paginate(self.options[self.index].value, interaction)
 
-        @discord.ui.button(label="Quit", style=discord.ButtonStyle.red)
+        # noinspection PyTypeChecker
+        @discord.ui.button(label="Quit", style=ButtonStyle.red)
         async def on_cancel(self, interaction: discord.Interaction, _: Button):
             # noinspection PyUnresolvedReferences
             await interaction.response.defer()
@@ -296,9 +301,9 @@ class Help(Plugin[HelpListener]):
                                     role: Optional[Literal['Admin', 'DCS Admin', 'DCS']] = None,
                                     channel: Optional[discord.TextChannel] = None):
         class DocModal(Modal):
-            header = TextInput(label="Header", default=_("## DCSServerBot Commands"), style=discord.TextStyle.short,
+            header = TextInput(label="Header", default=_("## DCSServerBot Commands"), style=TextStyle.short,
                                required=True)
-            intro = TextInput(label="Intro", style=discord.TextStyle.long, required=True)
+            intro = TextInput(label="Intro", style=TextStyle.long, required=True)
 
             def __init__(derived, role: Optional[str]):
                 super().__init__(title=_("Generate Documentation"))
@@ -339,7 +344,7 @@ _ _
                             try:
                                 if len(str(cell.value)) > max_length:
                                     max_length = len(cell.value)
-                            except:
+                            except Exception:
                                 pass
                         adjusted_width = max_length + 3  # Add buffer width
                         worksheet.column_dimensions[column.column_letter].width = adjusted_width
@@ -347,6 +352,7 @@ _ _
             output.seek(0)
             # noinspection PyUnresolvedReferences
             await interaction.followup.send(file=discord.File(fp=output, filename='DCSSB-Commands.xlsx'))
+            output.close()
         elif role:
             modal = DocModal(role=role)
             # noinspection PyUnresolvedReferences
@@ -421,13 +427,14 @@ _ _
                     try:
                         if len(str(cell.value)) > max_length:
                             max_length = len(cell.value)
-                    except:
+                    except Exception:
                         pass
                 adjusted_width = max_length + 3  # Add buffer width
                 worksheet.column_dimensions[column.column_letter].width = adjusted_width
 
         output.seek(0)
         await interaction.followup.send(file=discord.File(fp=output, filename='ServerInfo.xlsx'))
+        output.close()
 
     @command(description=_('Generate Documentation'))
     @app_commands.guild_only()

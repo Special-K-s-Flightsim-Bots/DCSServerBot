@@ -1,4 +1,5 @@
 import aiohttp
+import asyncio
 import certifi
 import os
 import shutil
@@ -51,13 +52,14 @@ class Cloud(Extension):
     async def post(self, request: str, data: Any) -> Any:
         async def send(element: dict):
             url = f"{self.base_url}/{request}/"
-            async with (self.session.post(
+            async with self.session.post(
                     url,
                     json=element,
                     proxy=self.node.proxy,
                     proxy_auth=self.node.proxy_auth,
-                    raise_for_status=False
-            ) as response):
+                    raise_for_status=False,
+                    timeout=aiohttp.ClientTimeout(total=30)  # Add reasonable timeout
+            ) as response:
                 if response.status > 299:
                     body = await response.text()
                     raise aiohttp.ClientResponseError(
@@ -69,11 +71,14 @@ class Cloud(Extension):
                     )
                 return await response.json()
 
-        if isinstance(data, list):
-            for line in data:
-                await send(line)
-        else:
-            await send(data)
+        try:
+            if isinstance(data, list):
+                tasks = [send(line) for line in data]
+                return await asyncio.gather(*tasks, return_exceptions=True)
+            else:
+                return await send(data)
+        except asyncio.TimeoutError:
+            raise aiohttp.ClientError("Request timed out")
 
     async def cloud_register(self):
         # we do not send cloud updates if we are not allowed and for non-public servers
@@ -86,7 +91,7 @@ class Cloud(Extension):
                 "guild_id": self.node.guild_id,
                 "server_name": self.server.name,
                 "port": self.server.instance.dcs_port,
-                "password": (self.server.settings['password'] != ""),
+                "password": (self.server.settings.get('password', '') != ''),
                 "theatre": self.server.current_mission.map,
                 "dcs_version": self.node.dcs_version,
                 "num_players": len(self.server.get_active_players()) + 1,
@@ -119,7 +124,7 @@ class Cloud(Extension):
             self.log.debug(payload)
 
     async def startup(self) -> bool:
-        await self.cloud_register()
+        self.loop.create_task(self.cloud_register())
         return await super().startup()
 
     def shutdown(self) -> bool:

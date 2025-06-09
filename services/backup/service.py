@@ -2,6 +2,8 @@ import asyncio
 import os
 import subprocess
 import time
+import winreg
+from pathlib import Path
 
 from core import ServiceRegistry, Service, utils
 from datetime import datetime
@@ -57,13 +59,75 @@ class BackupService(Service):
         return str(directory)
 
     @staticmethod
+    def get_postgres_installations() -> list[dict]:
+        postgres_installations = []
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\PostgreSQL\Installations") as key:
+                i = 0
+                while True:
+                    try:
+                        subkey_name = winreg.EnumKey(key, i)
+                        with winreg.OpenKey(key, subkey_name) as subkey:
+                            install_location = winreg.QueryValueEx(subkey, "Base Directory")[0]
+                            version = winreg.QueryValueEx(subkey, "Version")[0]
+                            postgres_installations.append({
+                                'version': version,
+                                'location': install_location
+                            })
+                        i += 1
+                    except WindowsError:
+                        break
+        except WindowsError:
+            pass
+        return postgres_installations
+
+    async def get_postgres_installation(self) -> Optional[str]:
+        # check the registry
+        installations = self.get_postgres_installations()
+        if len(installations) == 1 and os.path.exists(installations[0]['location']):
+            return installations[0]['location']
+
+        # we could not find the installation in the registry, so ask the database itself
+        async with self.node.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT 
+                    version(),
+                    setting as installation_directory
+                FROM pg_settings 
+                WHERE name = 'data_directory';
+            """)
+            version, location = await cursor.fetchone()
+        if os.path.exists(location):
+            return location
+
+        # check the file system itself
+        else:
+            pg_path = Path(r"C:\Program Files\PostgreSQL")
+            if not pg_path.exists():
+                return None
+
+            # Filter for integer-only directory names and convert to int for comparison
+            versions = []
+            for item in pg_path.iterdir():
+                if item.is_dir() and item.name.isdigit():
+                    versions.append(int(item.name))
+
+            if versions:
+                latest = max(versions)
+                return str(pg_path / str(latest))
+            return None
+
+    @staticmethod
     def zip_path(zf: ZipFile, base: str, path: str):
         for root, dirs, files in os.walk(os.path.join(base, path)):
             for file in files:
                 file_path = os.path.join(root, file)
                 zf.write(file_path, arcname=os.path.relpath(file_path, base))
 
-    def backup_bot(self) -> bool:
+    async def backup_bot(self) -> bool:
+        return await asyncio.to_thread(self._backup_bot)
+
+    def _backup_bot(self) -> bool:
         self.log.info("Backing up DCSServerBot ...")
         target = self.mkdir()
         config = self.locals['backups'].get('bot')
@@ -80,7 +144,10 @@ class BackupService(Service):
         finally:
             zf.close()
 
-    def backup_servers(self) -> bool:
+    async def backup_servers(self) -> bool:
+        return await asyncio.to_thread(self._backup_servers)
+
+    def _backup_servers(self) -> bool:
         target = self.mkdir()
         config = self.locals['backups'].get('servers')
         rc = True
@@ -107,47 +174,79 @@ class BackupService(Service):
                     rc = False
         return rc
 
-    def backup_database(self) -> bool:
+    async def backup_database(self) -> bool:
+        path = self.locals['backups']['database'].get('path')
+        if not path:
+            installation = await self.get_postgres_installation()
+            if installation:
+                path = os.path.join(installation, "bin")
+            else:
+                self.log.error("Could not find PostgreSQL installation. Please set the path in the backup.yaml.")
+                return False
+        return await asyncio.to_thread(self._backup_database, path)
+
+    def _backup_database(self, path: str) -> bool:
         target = self.mkdir()
         config = self.locals['backups'].get('database')
-        cmd = os.path.join(os.path.expandvars(config['path']), "pg_dump.exe")
+        cmd = os.path.join(path, "pg_dump.exe")
         if not os.path.exists(cmd):
             raise FileNotFoundError(cmd)
-        filename = f"db_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
-        path = os.path.join(target, filename)
-        url = urlparse(self.node.config.get("database", self.node.locals.get('database'))['url'])
-        try:
-            password = utils.get_password('postgres', self.node.config_dir)
-            username = config.get('username', 'postgres')
-        except ValueError:
-            username = url.username
-            password = utils.get_password('database', self.node.config_dir)
-        database = url.path.strip('/')
-        args = [
-            '--no-owner',
-            '--no-privileges',
-            '-U', username,
-            '-F', 't',
-            '-f', path,
-            '-d', database,
-            '-h', url.hostname
+
+        cpool_url = self.node.config.get("database", self.node.locals.get('database'))['url']
+        lpool_url = self.node.locals.get("database", self.node.config.get('database'))['url']
+
+        databases = [
+            (
+                urlparse(lpool_url),
+                utils.get_password('database', self.node.config_dir),
+                f"db_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
+            )
         ]
-        try:
-            os.environ['PGPASSWORD'] = password
-        except ValueError:
-            self.log.error("Backup of database failed. No password set.")
-            return False
-        self.log.info(f'Backing up database "{database}" ...')
-        process = subprocess.run([os.path.basename(cmd), *args], executable=cmd,
-                                 stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
-        rc = process.returncode
-        if rc == 0:
-            self.log.info("Backup of database complete.")
-            return True
-        else:
-            error_message = process.stderr.strip()
-            self.log.info(f"Backup of database failed. Code: {rc}. Error: {error_message}")
-            return False
+        if cpool_url != lpool_url:
+            databases.append(
+                (
+                    urlparse(cpool_url),
+                    utils.get_password('clusterdb', self.node.config_dir),
+                    f"clusterdb_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
+                )
+            )
+
+        ret = True
+        for url, password, filename in databases:
+            try:
+                password = utils.get_password('postgres', self.node.config_dir)
+                username = config.get('username', 'postgres')
+            except ValueError:
+                username = url.username
+                password = password
+            database = url.path.strip('/')
+            args = [
+                '--no-owner',
+                '--no-privileges',
+                '-U', username,
+                '-F', 't',
+                '-f', os.path.join(target, filename),
+                '-d', database,
+                '-h', url.hostname
+            ]
+            try:
+                os.environ['PGPASSWORD'] = password
+            except ValueError:
+                self.log.error(f"Backup of database {database} failed. No password set.")
+                return False
+            self.log.info(f'Backing up database "{database}" ...')
+            process = subprocess.run([os.path.basename(cmd), *args], executable=cmd,
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+            rc = process.returncode
+            if rc != 0:
+                ret = False
+                error_message = process.stderr.strip()
+                self.log.info(f"Backup of database {database} failed. Code: {rc}. Error: {error_message}")
+                continue
+            else:
+                self.log.info(f"Backup of database {database} complete.")
+
+        return ret
 
     def recover_database(self, date: str):
         ...
@@ -178,11 +277,11 @@ class BackupService(Service):
         try:
             if self.node.master:
                 if self.can_run(self.locals['backups'].get('bot')):
-                    await asyncio.to_thread(self.backup_bot)
+                    asyncio.create_task(self.backup_bot())
                 if self.can_run(self.locals['backups'].get('database')):
-                    await asyncio.to_thread(self.backup_database)
+                    asyncio.create_task(self.backup_database())
             if self.can_run(self.locals['backups'].get('servers')):
-                await asyncio.to_thread(self.backup_servers)
+                asyncio.create_task((self.backup_servers()))
         except Exception as ex:
             self.log.exception(ex)
 

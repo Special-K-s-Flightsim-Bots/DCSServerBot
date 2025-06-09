@@ -10,8 +10,9 @@ import psycopg
 import sys
 
 from abc import ABC, abstractmethod
+from contextlib import suppress
 from core import utils, Channel
-from discord import Interaction, SelectOption
+from discord import Interaction, SelectOption, ButtonStyle
 from discord.ui import View, Button, Select, Item
 from discord.utils import MISSING
 from typing import Optional, TYPE_CHECKING, Any, cast, Union
@@ -208,7 +209,7 @@ class PaginationReport(Report):
         if 'pagination' not in self.report_def:
             raise PaginationReport.NoPaginationInformation
 
-    async def read_param(self, param: dict, **kwargs) -> tuple[str, list]:
+    async def read_param(self, param: dict, **kwargs) -> tuple[str, list[str]]:
         name = param['name']
         values = None
         if 'sql' in param:
@@ -231,7 +232,7 @@ class PaginationReport(Report):
     class PaginationReportView(View):
         def __init__(self, name, values, index, func, keep_image: bool, *args, **kwargs):
             super().__init__()
-            self.log = logging.getLogger(__name__)
+            self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
             self.name = name
             self.values = values
             self.index = index
@@ -263,11 +264,11 @@ class PaginationReport(Report):
             for child, new_state in zip(target_children, new_states):
                 child.disabled = new_state
 
-        async def render(self, value) -> ReportEnv:
+        async def render(self, value: str) -> ReportEnv:
             self.kwargs[self.name] = value if value != 'All' else None
             return await self.func(*self.args, **self.kwargs)
 
-        async def paginate(self, value, interaction: discord.Interaction):
+        async def paginate(self, value: str, interaction: discord.Interaction):
             # noinspection PyUnresolvedReferences
             await interaction.response.defer()
             env = await self.render(value)
@@ -299,27 +300,32 @@ class PaginationReport(Report):
             self.index = int(select.values[0])
             await self.paginate(self.values[self.index], interaction)
 
-        @discord.ui.button(label="<<", style=discord.ButtonStyle.secondary)
+        # noinspection PyTypeChecker
+        @discord.ui.button(label="<<", style=ButtonStyle.secondary)
         async def on_start(self, interaction: Interaction, _: Button):
             self.index = 0
             await self.paginate(self.values[self.index], interaction)
 
-        @discord.ui.button(label="Back", style=discord.ButtonStyle.primary)
+        # noinspection PyTypeChecker
+        @discord.ui.button(label="Back", style=ButtonStyle.primary)
         async def on_left(self, interaction: Interaction, _: Button):
             self.index -= 1
             await self.paginate(self.values[self.index], interaction)
 
-        @discord.ui.button(label="Next", style=discord.ButtonStyle.primary)
+        # noinspection PyTypeChecker
+        @discord.ui.button(label="Next", style=ButtonStyle.primary)
         async def on_right(self, interaction: Interaction, _: Button):
             self.index += 1
             await self.paginate(self.values[self.index], interaction)
 
-        @discord.ui.button(label=">>", style=discord.ButtonStyle.secondary)
+        # noinspection PyTypeChecker
+        @discord.ui.button(label=">>", style=ButtonStyle.secondary)
         async def on_end(self, interaction: Interaction, _: Button):
             self.index = len(self.values) - 1
             await self.paginate(self.values[self.index], interaction)
 
-        @discord.ui.button(label="Quit", style=discord.ButtonStyle.red)
+        # noinspection PyTypeChecker
+        @discord.ui.button(label="Quit", style=ButtonStyle.red)
         async def on_cancel(self, interaction: Interaction, _: Button):
             self.index = -1
             # noinspection PyUnresolvedReferences
@@ -374,17 +380,14 @@ class PaginationReport(Report):
                 await view.wait()
             else:
                 message = None
+            return self.env
         except Exception:
             self.log.error(f"Exception while processing report {self.filename}!")
             raise
         finally:
-            try:
-                if message:
+            if message:
+                with suppress(discord.NotFound):
                     await message.delete()
-            except discord.NotFound:
-                pass
-        return self.env
-
 
 class PersistentReport(Report):
 

@@ -1,7 +1,8 @@
 import asyncio
 import psycopg_pool
 
-from core import EventListener, PersistentReport, Server, Coalition, Channel, event, Report, get_translation
+from core import EventListener, PersistentReport, Server, Coalition, Channel, event, Report, get_translation, \
+    ThreadSafeDict
 from discord.ext import tasks
 from typing import TYPE_CHECKING
 
@@ -44,7 +45,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
     def __init__(self, plugin: "MissionStatistics"):
         super().__init__(plugin)
         self.mission_stats = {}
-        self.update: dict[str, bool] = {}
+        self.update: dict[str, bool] = ThreadSafeDict()
         self.do_update.start()
 
     async def shutdown(self):
@@ -58,7 +59,18 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
 
     async def _toggle_mission_stats(self, server: Server):
         if self.plugin.get_config(server).get('enabled', True):
-            await server.send_to_dcs({"command": "enableMissionStats"})
+            await server.send_to_dcs({
+                "command": "enableMissionStats",
+                "filter": self.plugin.get_config(server).get('event_filter', [
+                    "S_EVENT_MARK_ADDED",
+                    "S_EVENT_MARK_CHANGE",
+                    "S_EVENT_MARK_REMOVED",
+                    "S_EVENT_DISCARD_CHAIR_AFTER_EJECTION",
+                    "S_EVENT_AI_ABORT_MISSION",
+                    "S_EVENT_SHOOTING_START",
+                    "S_EVENT_SHOOTING_END"
+                ])
+            })
             await server.send_to_dcs({"command": "getMissionSituation",
                                       "channel": server.channels.get(Channel.STATUS, -1)})
         else:
@@ -81,7 +93,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                 return None
             return values[index1][index2]
 
-        if not config.get('persistence', True) or data['eventName'] in config.get('event_filter', []):
+        if not config.get('persistence', True):
             return
         player = get_value(data, 'initiator', 'name')
         init_player = server.get_player(name=player) if player else None
@@ -206,7 +218,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             # workaround for DCS base capture bug:
             if name in stats['coalitions'][win_coalition.name]['airbases'] or \
                     name not in stats['coalitions'][lose_coalition.name]['airbases']:
-                return None
+                return
             stats['coalitions'][win_coalition.name]['airbases'].append(name)
             if 'captures' not in stats['coalitions'][win_coalition.name]:
                 stats['coalitions'][win_coalition.name]['captures'] = 1
@@ -241,6 +253,10 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                                     title=title)
             else:
                 channel = self.bot.get_channel(config['mission_end'].get('channel'))
+                if not channel:
+                    self.log.warning("Missionstats: you have no valid mission_end channel configured "
+                                     "in your missionstats.yaml")
+                    return
                 report = Report(self.bot, self.plugin_name, 'missionstats.json')
                 env = await report.render(stats=stats, mission_id=server.mission_id,
                                           sides=[Coalition.BLUE, Coalition.RED], title=title)

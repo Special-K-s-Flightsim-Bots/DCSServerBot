@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import certifi
 import discord
+import faulthandler
 import logging
 import os
 import pathlib
@@ -11,6 +12,7 @@ import platform
 import psycopg
 import sys
 import time
+import traceback
 
 from datetime import datetime
 from psycopg import OperationalError
@@ -91,6 +93,7 @@ class Main:
         logging.getLogger(name='git').setLevel(logging.WARNING)
         logging.getLogger(name='matplotlib').setLevel(logging.ERROR)
         logging.getLogger(name='PidFile').setLevel(logging.ERROR)
+        logging.getLogger(name='PIL').setLevel(logging.INFO)
         logging.getLogger(name='psycopg.pool').setLevel(logging.WARNING)
         logging.getLogger(name='pykwalify').setLevel(logging.CRITICAL)
 
@@ -187,10 +190,49 @@ class Main:
                     await self.node.unregister()
 
 
+def handle_exception(loop, context):
+    # Extract exception details from context
+    exception = context.get('exception')
+    message = context.get('message')
+
+    # Log detailed information
+    if exception:
+        log.error(f"Async error: {message}", exc_info=exception)
+    else:
+        log.error(f"Async error: {message}")
+
+    # Write to async_errors.log with task information
+    with open(os.path.join('logs', 'async_errors.log'), 'a') as f:
+        f.write(f"\n{'=' * 50}\n{datetime.now().isoformat()}: {message}\n")
+
+        # Dump all running tasks
+        f.write("\nRunning tasks:\n")
+        for task in asyncio.all_tasks(loop):
+            f.write(f"Task {task.get_name()}: {str(task)}\n")
+            # Get task stack
+            stack = task.get_stack()
+            if stack:
+                f.write('Stack:\n')
+                f.write(''.join(traceback.format_stack(stack[-1])))
+            f.write('\n')
+
+        if exception:
+            f.write("\nException details:\n")
+            traceback.print_exception(type(exception), exception, exception.__traceback__, file=f)
+        f.write(f"{'=' * 50}\n")
+
+
 async def run_node(name, config_dir=None, no_autoupdate=False) -> int:
-    async with NodeImpl(name=name, config_dir=config_dir) as node:
-        await Main(node, no_autoupdate=no_autoupdate).run()
-        return node.rc
+    loop = asyncio.get_running_loop()
+    loop.set_exception_handler(handle_exception)
+
+    try:
+        async with NodeImpl(name=name, config_dir=config_dir) as node:
+            await Main(node, no_autoupdate=no_autoupdate).run()
+            return node.rc
+    except Exception as ex:
+        log.exception(ex)
+        raise
 
 
 if __name__ == "__main__":
@@ -227,7 +269,12 @@ if __name__ == "__main__":
         from migrate import migrate_3
 
         migrate_3(node=args.node)
+
+    fault_log = open(os.path.join('logs', 'fault.log'), 'w')
     try:
+        # enable faulthandler
+        faulthandler.enable(file=fault_log, all_threads=True)
+
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
                 rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
@@ -250,6 +297,7 @@ if __name__ == "__main__":
         # restart again (old handling)
         exit(-1)
     except asyncio.CancelledError:
+        log.warning("Main loop cancelled.")
         # do not restart again
         exit(-2)
     except (YAMLError, FatalException) as ex:
@@ -258,10 +306,9 @@ if __name__ == "__main__":
         # do not restart again
         exit(-2)
     except psycopg.OperationalError as ex:
-        log.error(f"Database Error: {ex}", exc_info=True)
-        input("Press any key to continue ...")
-        # do not restart again
-        exit(-2)
+        log.exception(ex)
+        # try again on Database errors
+        exit(-1)
     except SystemExit as ex:
         exit(ex.code)
     except:
@@ -270,4 +317,5 @@ if __name__ == "__main__":
         exit(-1)
     finally:
         log.info("DCSServerBot stopped.")
+        fault_log.close()
     exit(rc)

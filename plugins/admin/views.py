@@ -1,5 +1,6 @@
 import discord
 
+from discord import ButtonStyle
 from discord.ui import View, Button, Select
 
 
@@ -31,14 +32,16 @@ class CleanupView(View):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
 
-    @discord.ui.button(label='Prune', style=discord.ButtonStyle.danger, emoji='⚠')
+    # noinspection PyTypeChecker
+    @discord.ui.button(label='Prune', style=ButtonStyle.danger, emoji='⚠')
     async def prune(self, interaction: discord.Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.cmd = "prune"
         self.stop()
 
-    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
+    # noinspection PyTypeChecker
+    @discord.ui.button(label='Cancel', style=ButtonStyle.red)
     async def cancel(self, interaction: discord.Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()

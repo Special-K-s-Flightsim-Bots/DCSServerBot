@@ -35,7 +35,7 @@ class Extension(ABC):
 
     def __init__(self, server: Server, config: dict):
         self.node = server.node
-        self.log = logging.getLogger(__name__)
+        self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.pool = self.node.pool
         self.loop = asyncio.get_event_loop()
         self.lock = asyncio.Lock()
@@ -113,7 +113,10 @@ class Extension(ABC):
         ...
 
     async def get_config(self, **kwargs) -> dict:
-        return self.locals
+        return self.config
 
     async def get_ports(self) -> dict:
         return {}
+
+    async def change_config(self, config: dict):
+        self.config |= config

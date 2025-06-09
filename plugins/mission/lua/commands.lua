@@ -9,7 +9,9 @@ local utils 	= base.require("DCSServerBotUtils")
 local mod_dictionary= require('dictionary')
 
 dcsbot.registered = false
+dcsbot.server_locked = false
 dcsbot.banList = dcsbot.banList or {}
+dcsbot.locked = dcsbot.locked or {}
 dcsbot.userInfo = dcsbot.userInfo or {}
 dcsbot.red_slots = dcsbot.red_slots or {}
 dcsbot.blue_slots = dcsbot.blue_slots or {}
@@ -68,7 +70,7 @@ function dcsbot.registerDCSServer(json)
         -- players
         msg.players = {}
         plist = net.get_player_list()
-        for i = 1, table.getn(plist) do
+        for i = 1, #plist do
             msg.players[i] = net.get_player_info(plist[i])
             msg.players[i].ipaddr = utils.getIP(msg.players[i].ipaddr)
             msg.players[i].unit_type, msg.players[i].slot, msg.players[i].sub_slot = utils.getMulticrewAllParameters(plist[i])
@@ -420,6 +422,18 @@ end
 local function setUserRoles(json)
     dcsbot.userInfo[json.ucid] = dcsbot.userInfo[json.ucid] or {}
     dcsbot.userInfo[json.ucid].roles = json.roles
+    local plist = net.get_player_list()
+
+    for i = 2, #plist do
+        if (net.get_player_info(plist[i], 'ucid') == json.ucid) then
+            name = net.get_player_info(plist[i], 'name')
+            break
+        end
+    end
+    if name then
+        local script = 'dcsbot._setUserRoles(' .. utils.basicSerialize(name) .. ', ' .. utils.basicSerialize(net.lua2json(json.roles)) .. ')'
+        net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
+    end
 end
 
 function dcsbot.uploadUserRoles(json)
@@ -440,7 +454,7 @@ function dcsbot.kick(json)
         return
     end
     local plist = net.get_player_list()
-    for i = 2, table.getn(plist) do
+    for i = 2, #plist do
         if ((json.ucid and net.get_player_info(plist[i], 'ucid') == json.ucid) or
                 (json.name and net.get_player_info(plist[i], 'name') == json.name)) then
             net.kick(plist[i], json.reason)
@@ -462,7 +476,7 @@ local function single_ban(json)
     local reason = json.reason .. '.\nExpires ' .. banned_until
     dcsbot.banList[json.ucid] = reason
     local plist = net.get_player_list()
-    for i = 2, table.getn(plist) do
+    for i = 2, #plist do
         if net.get_player_info(plist[i], 'ucid') == json.ucid then
             net.kick(plist[i], reason)
             ipaddr = utils.getIP(net.get_player_info(plist[i], 'ipaddr'))
@@ -485,8 +499,36 @@ function dcsbot.ban(json)
 end
 
 function dcsbot.unban(json)
-    log.write('DCSServerBot', log.DEBUG, 'Admin: unban()')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: unban()')
 	dcsbot.banList[json.ucid] = nil
+end
+
+function dcsbot.lock_player(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: lock_player()')
+	dcsbot.locked[json.ucid] = true
+end
+
+function dcsbot.unlock_player(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: unlock_player()')
+	dcsbot.locked[json.ucid] = nil
+end
+
+function dcsbot.lock_server(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: lock_server()')
+	dcsbot.server_locked = true
+	if json.message then
+	    messages = dcsbot.params['mission']['messages']
+	    messages['message_server_locked_old'] = messages['message_server_locked']
+        messages['message_server_locked'] = json.message
+    end
+end
+
+function dcsbot.unlock_server(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: unlock_server()')
+	dcsbot.server_locked = false
+    -- reset the message to default
+    messages = dcsbot.params['mission']['messages']
+    messages['message_server_locked'] = messages['message_server_locked_old']
 end
 
 function dcsbot.makeScreenshot(json)
@@ -536,4 +578,9 @@ end
 function dcsbot.deleteMenu(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: deleteMenu()')
 	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.deleteMenu(' .. json.groupID .. ')') .. ')')
+end
+
+function dcsbot.endMission(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: endMission()')
+	net.dostring_in('mission', 'a_end_mission(' .. utils.basicSerialize(json.winner or '') .. ',' .. utils.basicSerialize(json.message or '') .. ',' .. (json.time or 0) .. ')')
 end

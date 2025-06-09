@@ -1,23 +1,30 @@
 import asyncio
 import discord
 
-from core import EventListener, Server, Status, utils, event, chat_command, get_translation
-from typing import cast, Union
+from core import EventListener, Server, Status, utils, event, chat_command, get_translation, DataObjectFactory
+from typing import cast, Union, TYPE_CHECKING
 
 from .player import CreditPlayer
+from .squadron import Squadron
 
+if TYPE_CHECKING:
+    from .commands import CreditSystem
 
 _ = get_translation(__name__.split('.')[1])
 
 
 class CreditSystemListener(EventListener["CreditSystem"]):
 
+    def __init__(self, plugin: "CreditSystem"):
+        super().__init__(plugin)
+        self.squadrons: dict[str, Squadron] = {}
+
     @staticmethod
     def get_points_per_kill(config: dict, data: dict) -> int:
         default = 1
         if 'points_per_kill' in config:
             for unit in config['points_per_kill']:
-                if 'category' in unit and data['victimCategory'] != unit['category']:
+                if 'category' in unit and data.get('victimCategory', 'Planes') != unit['category']:
                     continue
                 if 'unit_type' in unit and unit['unit_type'] != data['arg5']:
                     continue
@@ -27,8 +34,8 @@ class CreditSystemListener(EventListener["CreditSystem"]):
                 if 'category' in unit or 'unit_type' in unit or 'type' in unit:
                     return unit['points']
                 elif 'default' in unit:
-                    default = unit['default'] if data['victimCategory'] != 'Structures' else 0
-        return default if data['victimCategory'] != 'Structures' else 0
+                    default = unit['default'] if data.get('victimCategory', 'Planes') != 'Structures' else 0
+        return default if data.get('victimCategory', 'Planes') != 'Structures' else 0
 
     def get_initial_points(self, player: CreditPlayer, config: dict) -> int:
         if not config or 'initial_points' not in config:
@@ -55,8 +62,12 @@ class CreditSystemListener(EventListener["CreditSystem"]):
         if not player:
             return
         if player.points == -1:
+            # do not add initial points to squadrons
+            squadron = player.squadron
+            player.squadron = None
             player.points = self.get_initial_points(player, config)
             player.audit('init', 0, _('Initial points received'))
+            player.squadron = squadron
         else:
             asyncio.create_task(server.send_to_dcs({
                 'command': 'updateUserPoints',
@@ -74,13 +85,24 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             if not player:
                 return
             old_points = player.points
-            multiplier = self.plugin.get_config(server).get('multiplier', 0)
             points_to_add = int(data['points'])
-            if multiplier:
-                player.deposit += points_to_add * multiplier
+            player.deposit += points_to_add * self.plugin.get_config(server).get('multiplier', 1.0)
             player.points += points_to_add
             if old_points != player.points:
                 player.audit('mission', old_points, data.get('reason', _('Unknown mission achievement')))
+
+    @event(name="addSquadronPoints")
+    async def addSquadronPoints(self, server: Server, data: dict) -> None:
+        if data['points'] != 0:
+            squadron = self.squadrons.get(data['name'])
+            if not squadron:
+                campaign_id, name = utils.get_running_campaign(self.node, server)
+                squadron = DataObjectFactory().new(Squadron, node=self, name=data['name'], campaign_id=campaign_id)
+                self.squadrons[data['name']] = squadron
+            old_points = squadron.points
+            squadron.points += int(data['points'])
+            if old_points != squadron.points:
+                squadron.audit('mission', old_points, data.get('reason', _('Unknown mission achievement')))
 
     async def get_flighttime(self, ucid: str, campaign_id: int) -> int:
         async with self.apool.connection() as conn:
@@ -152,7 +174,6 @@ class CreditSystemListener(EventListener["CreditSystem"]):
         if data['eventName'] == 'kill':
             # players gain points only, if they don't kill themselves and no teamkills
             if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
-                multiplier = config.get('multiplier', 0)
                 # Multicrew - pilot and all crew members gain points
                 for player in server.get_crew_members(server.get_player(id=data['arg1'])):  # type: CreditPlayer
                     ppk = self.get_points_per_kill(config, data)
@@ -160,10 +181,14 @@ class CreditSystemListener(EventListener["CreditSystem"]):
                         old_points = player.points
                         # We will add the PPK to the deposit to allow for multiplied paybacks
                         # (to be configured in Slotblocking)
-                        if multiplier:
-                            player.deposit += ppk * multiplier
+                        player.deposit += ppk * config.get('multiplier', 1.0)
                         player.points += ppk
                         player.audit('kill', old_points, _("for killing {}").format(data['arg5']))
+                        victim = server.get_player(id=data['arg4'])
+                        message_kill = config.get('messages', {}).get('message_kill')
+                        if message_kill:
+                            await player.sendUserMessage(message_kill.format(
+                                points=ppk, victim=victim.name if victim else f"AI in {data['arg5']}"))
 
         elif data['eventName'] == 'disconnect':
             server: Server = self.bot.servers[data['server_name']]
@@ -177,7 +202,11 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             return
         config = self.plugin.get_config(server)
         for player in server.get_active_players():  # type: CreditPlayer
+            # do not add initial points to squadrons
+            squadron = player.squadron
+            player.squadron = None
             player.points = self.get_initial_points(player, config)
+            player.squadron = squadron
 
     @chat_command(name="credits", help=_("Shows your current credits"))
     async def credits(self, server: Server, player: CreditPlayer, params: list[str]):
@@ -219,9 +248,16 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             return
         old_points_player = player.points
         old_points_receiver = receiver.points
+        squadron = player.squadron
+        player.squadron = None
         player.points -= donation
+        player.squadron = squadron
         player.audit('donation', old_points_player, _("Donation to player {}").format(receiver.name))
+        # do not donate to a squadron
+        squadron = receiver.squadron
+        receiver.squadron = None
         receiver.points += donation
+        receiver.squadron = squadron
         receiver.audit('donation', old_points_receiver, _("Donation from player {}").format(player.name))
         await player.sendChatMessage(_("You've donated {donation} credit points to player {name}.").format(
             donation=donation, name=name))

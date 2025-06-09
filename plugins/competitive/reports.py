@@ -2,20 +2,40 @@ import discord
 import numpy as np
 
 from core import report
+from datetime import datetime, timezone
 from matplotlib import cm
 from psycopg.rows import dict_row
 from typing import Optional
 
+from ..userstats.filter import StatisticsFilter, CampaignFilter
 from ..userstats.highscore import compute_font_size
 
 
 class HighscoreTrueSkill(report.GraphElement):
 
-    async def render(self, interaction: discord.Interaction, limit: int, bar_labels: Optional[bool] = True):
+    async def render(self, interaction: discord.Interaction, limit: int, flt: StatisticsFilter,
+                     bar_labels: Optional[bool] = True):
+        if isinstance(flt, CampaignFilter):
+            if 'campaign:' in flt.period:
+                campaign = flt.period.split(':')[1]
+            else:
+                campaign = flt.period
+            inner_sql = """
+                JOIN squadron_members sm ON sm.player_ucid = t.player_ucid
+                JOIN tm_matches tm ON sm.squadron_id = tm.squadron_blue OR sm.squadron_id = tm.squadron_red
+                JOIN tm_tournaments tt ON tm.tournament_id = tt.tournament_id
+                JOIN campaigns c ON tt.campaign = c.name
+                WHERE c.name = %(campaign)s
+            """
+        else:
+            inner_sql = ""
+            campaign = None
+
         sql = f"""
-            SELECT DISTINCT p.discord_id, COALESCE(name, 'Unknown') AS name, t.skill_mu - 3 * t.skill_sigma AS value
-            FROM players p, trueskill t
-            WHERE p.ucid = t.player_ucid
+            SELECT DISTINCT p.discord_id, COALESCE(p.name, 'Unknown') AS name, t.skill_mu - 3 * t.skill_sigma AS value
+            FROM players p 
+            JOIN trueskill t ON p.ucid = t.player_ucid
+            {inner_sql}
             ORDER BY 3 DESC 
             LIMIT {limit}
         """
@@ -24,7 +44,7 @@ class HighscoreTrueSkill(report.GraphElement):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 labels = []
                 values = []
-                await cursor.execute(sql)
+                await cursor.execute(sql, {"campaign": campaign})
                 async for row in cursor:
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']
@@ -52,3 +72,15 @@ class HighscoreTrueSkill(report.GraphElement):
                     self.axes.set_xticks([])
                     self.axes.set_yticks([])
                     self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
+
+
+class MatchLog(report.EmbedElement):
+
+    async def render(self, match: dict):
+        times = []
+        logs = []
+        for time, log in match['log'].items():
+            times.append(datetime.fromisoformat(time).replace(tzinfo=timezone.utc))
+            logs.append(log)
+        self.add_field(name="Time", value="\n".join([f"<t:{int(t.timestamp())}:T>" for t in times]))
+        self.add_field(name="Log", value="\n".join(logs))

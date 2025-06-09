@@ -28,6 +28,7 @@ def read_menu_config(listener: EventListener, server: Server) -> Optional[list]:
             raise YAMLError(menu_file, ex)
         except PyKwalifyException as ex:
             logger.error(f"Schema validation failed for file menus.yaml:\n{ex}")
+    return None
 
 
 def filter_menu_items(menu: list, usable_commands: list[str], player: Player) -> list:

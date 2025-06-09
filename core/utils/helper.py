@@ -27,7 +27,8 @@ import math
 from collections.abc import Mapping
 from copy import deepcopy
 from croniter import croniter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from difflib import unified_diff
 from importlib import import_module
 from pathlib import Path
 from typing import Optional, Union, TYPE_CHECKING, Generator, Iterable, Callable, Any
@@ -71,10 +72,13 @@ __all__ = [
     "tree_delete",
     "deep_merge",
     "hash_password",
+    "run_parallel_nofail",
     "evaluate",
     "for_each",
     "YAMLError",
-    "DictWrapper"
+    "DictWrapper",
+    "format_dict_pretty",
+    "show_dict_diff"
 ]
 
 logger = logging.getLogger(__name__)
@@ -160,17 +164,29 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
                 spec = ''
                 value = default_ or ''
             elif isinstance(value, list):
-                value = '\n'.join(value)
+                value = repr(value)
             elif isinstance(value, dict):
                 value = json.dumps(value)
             elif isinstance(value, bool):
                 value = str(value).lower()
+            elif isinstance(value, datetime) and value.tzinfo:
+                value = value.astimezone(timezone.utc).replace(tzinfo=None)
             return super().format_field(value, spec)
+
+        def get_value(self, key, args, kwargs):
+            if isinstance(key, int):
+                return args[key]
+            elif key in kwargs:
+                return kwargs[key]
+            else:
+                return "{" + key + "}"
 
     try:
         string_ = NoneFormatter().format(string_, **kwargs)
     except (KeyError, TypeError):
         string_ = ""
+    except IndexError as ex:
+        logger.exception(ex)
     return string_
 
 
@@ -374,11 +390,15 @@ def get_preset(node: Node, name: str, filename: Optional[str] = None) -> Optiona
     :param filename: The optional filename of the preset file to search in. If not provided, it will search for preset files in the 'config' directory.
     :return: The dictionary containing the preset data if found, or None if the preset was not found.
     """
-    def _read_presets_from_file(filename: Path, name: str) -> Optional[dict]:
-        all_presets = yaml.load(filename.read_text(encoding='utf-8'))
+    @cache_with_expiration(120)
+    def load_all_presets(filename: Path) -> dict:
+        return yaml.load(filename.read_text(encoding='utf-8'))
+
+    def _read_presets_from_file(filename: Path, name: str) -> Optional[Union[dict, list]]:
+        all_presets = load_all_presets(filename)
         preset = all_presets.get(name)
         if isinstance(preset, list):
-            return {k: v for d in preset for k, v in all_presets.get(d, {}).items()}
+            return [_read_presets_from_file(filename, x) for x in preset]
         return preset
 
     if filename:
@@ -457,11 +477,16 @@ def async_cache(func):
     cache = {}
 
     @functools.wraps(func)
-    async def wrapper(*args):
-        if args in cache:
-            return cache[args]
-        result = await func(*args)
-        cache[args] = result
+    async def wrapper(*args, **kwargs):
+        # Create a cache key from both args and kwargs
+        # We need to freeze kwargs into an immutable form to use as dict key
+        cache_key = (args, frozenset(kwargs.items()))
+
+        if cache_key in cache:
+            return cache[cache_key]
+
+        result = await func(*args, **kwargs)
+        cache[cache_key] = result
         return result
 
     return wrapper
@@ -470,6 +495,7 @@ def async_cache(func):
 def cache_with_expiration(expiration: int):
     """
     Decorator to cache function results for a specific duration.
+    Works with both sync and async functions.
 
     :param expiration: Cache duration in seconds.
     """
@@ -478,24 +504,46 @@ def cache_with_expiration(expiration: int):
         cache: dict[Any, Any] = {}
         cache_expiry: dict[Any, float] = {}
 
-        @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
-            # Generate a key based on function arguments
+        def get_cache_key(*args, **kwargs):
             hashable_kwargs = {k: tuple(v) if isinstance(v, list) else v for k, v in kwargs.items()}
-            cache_key = (args, frozenset(hashable_kwargs.items()))
+            return args, frozenset(hashable_kwargs.items())
 
-            # Check if the cache is still valid
+        def check_cache(cache_key):
             if cache_key in cache and cache_key in cache_expiry:
                 if time.time() < cache_expiry[cache_key]:
                     return cache[cache_key]
+            return None
 
-            # Call the original function and cache its result
-            result = await func(*args, **kwargs)
+        def update_cache(cache_key, result):
             cache[cache_key] = result
             cache_expiry[cache_key] = time.time() + expiration
             return result
 
-        return wrapper
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            cache_key = get_cache_key(*args, **kwargs)
+
+            cached_result = check_cache(cache_key)
+            if cached_result is not None:
+                return cached_result
+
+            result = await func(*args, **kwargs)
+            return update_cache(cache_key, result)
+
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            cache_key = get_cache_key(*args, **kwargs)
+
+            cached_result = check_cache(cache_key)
+            if cached_result is not None:
+                return cached_result
+
+            result = func(*args, **kwargs)
+            return update_cache(cache_key, result)
+
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper
+        return sync_wrapper
 
     return decorator
 
@@ -810,6 +858,11 @@ def hash_password(password: str) -> str:
     return hashed_password
 
 
+async def run_parallel_nofail(*tasks):
+    """Run tasks in parallel, ignoring any failures."""
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+
 def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union[str, int, float, bool, list, dict]:
     """
     Evaluate the given value, replacing placeholders with keyword arguments if necessary.
@@ -824,19 +877,23 @@ def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union
             return value
         value = format_string(value[1:], **kwargs)
         namespace = {k: v for k, v in globals().items() if not k.startswith("__")}
-        return eval(value, namespace, kwargs) if value else False
+        try:
+            return eval(value, namespace, kwargs) if value else False
+        except Exception:
+            logger.error(f"Error evaluating: {value} using kwargs={repr(kwargs)}")
+            raise
 
     if isinstance(value, list):
         for i in range(len(value)):
-            value[i] = _evaluate(value[i], **kwargs)
+            value[i] = evaluate(value[i], **kwargs)
     elif isinstance(value, dict):
-        return {_evaluate(k, **kwargs): _evaluate(v, **kwargs) for k, v in value.items()}
+        return {_evaluate(k, **kwargs): evaluate(v, **kwargs) for k, v in value.items()}
     else:
         return _evaluate(value, **kwargs)
 
 
 def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
-             debug: Optional[bool] = False, **kwargs) -> Generator[dict]:
+             debug: Optional[bool] = False, **kwargs) -> Generator[Optional[dict]]:
     """
     :param data: The data to iterate over.
     :param search: The search pattern to match elements in the data.
@@ -856,15 +913,15 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
     If the search pattern is fully matched or the data is empty, the method will yield the data itself. If debug is set to True, debug information will be printed during the search process
     *.
     """
-    def process_iteration(_next, data, search, depth, debug):
+    def process_iteration(_next, data, search, depth, debug, **kwargs):
         if isinstance(data, list):
             for value in data:
-                yield from for_each(value, search, depth + 1, debug=debug)
+                yield from for_each(value, search, depth + 1, debug=debug, **kwargs)
         elif isinstance(data, dict):
             for value in data.values():
-                yield from for_each(value, search, depth + 1, debug=debug)
+                yield from for_each(value, search, depth + 1, debug=debug, **kwargs)
 
-    def process_indexing(_next, data, search, depth, debug):
+    def process_indexing(_next, data, search, depth, debug, **kwargs):
         if isinstance(data, list):
             indexes = [int(x.strip()) for x in _next[1:-1].split(',')]
             for index in indexes:
@@ -874,7 +931,7 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
                     yield None
                 if debug:
                     logger.debug("  " * depth + f"|_ Selecting {index}. element")
-                yield from for_each(data[index - 1], search, depth + 1, debug=debug)
+                yield from for_each(data[index - 1], search, depth + 1, debug=debug, **kwargs)
         elif isinstance(data, dict):
             indexes = [x.strip() for x in _next[1:-1].split(',')]
             for index in indexes:
@@ -884,7 +941,7 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
                     yield None
                 if debug:
                     logger.debug("  " * depth + f"|_ Selecting element {index}")
-                yield from for_each(data[index], search, depth + 1, debug=debug)
+                yield from for_each(data[index], search, depth + 1, debug=debug, **kwargs)
 
     def process_pattern(_next, data, search, depth, debug, **kwargs):
         if isinstance(data, list):
@@ -892,33 +949,44 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
                 if evaluate(_next, **(kwargs | value)):
                     if debug:
                         logger.debug("  " * depth + f"  - Element {idx + 1} matches.")
-                    yield from for_each(value, search, depth + 1, debug=debug)
-        else:
-            if evaluate(_next, **(kwargs | data)):
+                    yield from for_each(value, search, depth + 1, debug=debug, **kwargs)
+        elif isinstance(data, dict):
+            if any(x for x in data.keys() if isinstance(x, int)):
+                for idx, value in data.items():
+                    if evaluate(_next, **(kwargs | value)):
+                        if debug:
+                            logger.debug("  " * depth + f"  - Element {idx} matches.")
+                        yield from for_each(value, search, depth + 1, debug=debug, **kwargs)
+            elif evaluate(_next, **(kwargs | data)):
                 if debug:
-                    logger.debug("  " * depth + "  - Element matches.")
-                yield from for_each(data, search, depth + 1, debug=debug)
+                    logger.debug("  " * depth + f"  - Element {format_string(_next[1:], **kwargs)} matches.")
+                yield from for_each(data, search, depth + 1, debug=debug, **kwargs)
 
     if not data or len(search) == depth:
-        if debug:
-            logger.debug("  " * depth + ("|_ RESULT found => Processing ..." if len(search) == depth else "|_ NO result found, skipping."))
-        yield data if len(search) == depth else None
+        if len(search) == depth:
+            if debug:
+                logger.debug("  " * depth + "|_ RESULT found => Processing ...")
+            yield data
+        else:
+            logger.debug("  " * depth +  "|_ NO result found, skipping.")
+            yield None
     else:
         _next = search[depth]
         if _next == '*':
             if debug:
                 logger.debug("  " * depth + f"|_ Iterating over {len(data)} {search[depth - 1]} elements")
-            yield from process_iteration(_next, data, search, depth, debug)
+            yield from process_iteration(_next, data, search, depth, debug, **kwargs)
         elif _next.startswith('['):
-            yield from process_indexing(_next, data, search, depth, debug)
+            yield from process_indexing(_next, data, search, depth, debug, **kwargs)
         elif _next.startswith('$'):
             if debug:
-                logger.debug("  " * depth + f"|_ Searching pattern {_next} on {len(data)} {search[depth - 1]} elements")
+                pattern = format_string(_next[1:], **kwargs)
+                logger.debug("  " * depth + f"|_ Searching pattern {pattern} on {len(data)} {search[depth - 1]} elements")
             yield from process_pattern(_next, data, search, depth, debug, **kwargs)
         elif _next in data:
             if debug:
                 logger.debug("  " * depth + f"|_ {_next} found.")
-            yield from for_each(data.get(_next), search, depth + 1, debug=debug)
+            yield from for_each(data.get(_next), search, depth + 1, debug=debug, **kwargs)
         else:
             if debug:
                 logger.debug("  " * depth + f"|_ {_next} not found.")
@@ -1016,3 +1084,47 @@ class DictWrapper:
     def clone(self):
         """Deeply clone the DictWrapper object."""
         return DictWrapper(deepcopy(self.to_dict()))
+
+
+def format_dict_pretty(d: dict) -> str:
+    """Convert dictionary to pretty-printed JSON string with indentation."""
+
+    def default_serializer(obj):
+        return str(obj)
+
+    # Convert to string keys and sort manually
+    items = sorted(d.items(), key=lambda x: str(x[0]))
+    sorted_dict = dict(items)
+
+    return json.dumps(sorted_dict, indent=4, sort_keys=False, default=default_serializer)
+
+
+def show_dict_diff(old_dict: dict[str, Any], new_dict: dict[str, Any], context_lines: int = 3) -> str:
+    """
+    Generate a Discord-friendly diff between two dictionaries with context lines.
+
+    Args:
+        old_dict: Original dictionary
+        new_dict: Modified dictionary
+        context_lines: Number of context lines to show before and after changes
+
+    Returns:
+        String formatted for Discord with diff syntax highlighting
+    """
+    # Convert both dictionaries to a pretty-printed format
+    old_str = format_dict_pretty(old_dict).splitlines()
+    new_str = format_dict_pretty(new_dict).splitlines()
+
+    # Generate a unified diff with specified context
+    diff = list(unified_diff(old_str, new_str, lineterm='', n=context_lines))
+
+    # Build the formatted string for Discord
+    result = ["```diff"]
+    for line in diff:
+        # Skip the header lines that show file names
+        if line.startswith('---') or line.startswith('+++'):
+            continue
+        result.append(line)
+    result.append("```")
+
+    return '\n'.join(result)

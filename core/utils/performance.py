@@ -65,11 +65,13 @@ def performance_log(use_profiling: bool = False):
                 log_name = f'{func.__qualname__}()'
                 with PerformanceLog(log_name, use_profiling=use_profiling):
                     return await func(*args, **kwargs)
+                return None
         else:
             def wrapped(*args, **kwargs):
                 log_name = f'{func.__qualname__}()'
                 with PerformanceLog(log_name, use_profiling=use_profiling):
                     return func(*args, **kwargs)
+                return None
         return wrapped
 
     return decorator

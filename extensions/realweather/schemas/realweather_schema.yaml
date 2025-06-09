@@ -4,6 +4,7 @@ schema;node_realweather_schema:
   allowempty: true
   mapping:
     installation: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
+    autoupdate: {type: bool, nullable: false}
     realweather:
       type: map
       nullable: false
@@ -203,6 +204,8 @@ schema;instance_realweather_schema:
                 maximum: {type: int, range: {max: 50}, nullable: false}
                 gust-minimum: {type: int, range: {min: 0}, nullable: false}
                 gust-maximum: {type: int, range: {max: 50}, nullable: false}
+                direction-minimum: {type: int, range: {min: 0, max: 359}, nullable: false}
+                direction-maximum: {type: int, range: {min: 0, max: 359}, nullable: false}
                 stability: {type: float, nullable: false}
                 fixed-reference: {type: bool, nullable: false}
             clouds:

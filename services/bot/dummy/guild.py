@@ -17,7 +17,7 @@ class DummyGuild:
         self._name = main.get('guild_name', 'n/a')
         with open(os.path.join('config', 'services', 'bot.yaml'), mode='r', encoding='utf-8') as f:
             data = yaml.load(f)
-        self._roles: dict[id, DummyRole] = {}
+        self._roles: dict[int, DummyRole] = {}
         self._members: dict[str, DummyMember] = {}
         for role, members in data.get('roles', {}).items():
             _role = DummyRole(role)
@@ -50,6 +50,7 @@ class DummyGuild:
     async def fetch_member(self, ucid: str) -> Optional[DummyMember]:
         return self.get_member(ucid)
 
-    async def bans(self) -> AsyncIterator[DummyMember]:
+    async def bans(self) -> AsyncIterator[Optional[DummyMember]]:
+        # noinspection PyUnreachableCode
         if False:
             yield

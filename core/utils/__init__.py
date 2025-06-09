@@ -7,4 +7,5 @@ from core.utils.helper import *
 from core.utils.mizedit import *
 from core.utils.os import *
 from core.utils.performance import *
+from core.utils.squadrons import *
 from core.utils.validators import *

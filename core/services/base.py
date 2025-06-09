@@ -33,7 +33,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def proxy(original_function: Callable[..., Any]):
+def proxy(original_function: Callable[..., Any] = None, *, timeout: float = 60):
     """
     Can be used as a decorator to any service method, that should act as a remote call, if the server provided
     is not on the same node.
@@ -79,12 +79,13 @@ def proxy(original_function: Callable[..., Any]):
 
         # Log an error if no valid object is found
         if node is None:
-            logger.error(f"Cannot proxy function {original_function.__name__}: no valid reference object passed!")
-            return
+            raise ValueError(
+                f"Cannot proxy function {original_function.__name__}: no valid reference object found in arguments. "
+                f"Expected 'server', 'instance', or 'node' parameter with valid node reference.")
 
         # If the node is remote, send the call synchronously
         if node.is_remote:
-            data = await self.bus.send_to_node_sync(call, node=node.name, timeout=60)
+            data = await self.bus.send_to_node_sync(call, node=node.name, timeout=timeout)
             return data.get('return')
 
         # Otherwise, call the original function directly
@@ -100,7 +101,7 @@ class Service(ABC):
         self.name = name or self.__class__.__name__
         self.running: bool = False
         self.node = node
-        self.log = logging.getLogger(self.name)
+        self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.pool = node.pool
         self.apool = node.apool
         self.config = node.config

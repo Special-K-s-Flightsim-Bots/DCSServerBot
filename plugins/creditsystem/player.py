@@ -1,7 +1,9 @@
 from contextlib import closing
 from core import Player, DataObjectFactory, utils, Plugin
 from dataclasses import field, dataclass
-from typing import cast
+from typing import cast, Optional
+
+from .squadron import Squadron
 
 
 @dataclass
@@ -9,6 +11,24 @@ from typing import cast
 class CreditPlayer(Player):
     _points: int = field(compare=False, default=-1)
     deposit: int = field(compare=False, default=0)
+    plugin: Plugin = field(compare=False, init=False)
+    config: dict = field(compare=False, init=False)
+    squadron: Optional[Squadron] = field(compare=False, init=False)
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.plugin = cast(Plugin, self.bot.cogs['CreditSystem'])
+        self.config = self.plugin.get_config(self.server)
+        with self.pool.connection() as conn:
+            row = conn.execute("""
+                SELECT s.name FROM squadrons s JOIN squadron_members sm 
+                ON s.id = sm.squadron_id AND sm.player_ucid = %s
+            """, (self.ucid,)).fetchone()
+            if row:
+                campaign_id, _ = utils.get_running_campaign(self.node, self.server)
+                self.squadron = DataObjectFactory().new(Squadron, node=self.node, name=row[0], campaign_id=campaign_id)
+            else:
+                self.squadron = None
 
     @property
     def points(self) -> int:
@@ -30,17 +50,19 @@ class CreditPlayer(Player):
 
     @points.setter
     def points(self, p: int) -> None:
-        plugin = cast(Plugin, self.bot.cogs['CreditSystem'])
-        config = plugin.get_config(self.server)
-        if not config:
-            self._points = p
+        if p == self._points:
             return
-        if 'max_points' in config and p > int(config['max_points']):
-            self._points = int(config['max_points'])
-        elif p < 0:
-            self._points = 0
+        old_points = self.points
+
+        if 'max_points' in self.config and p > int(self.config['max_points']):
+            self._points = int(self.config['max_points'])
         else:
             self._points = p
+
+        # make sure we never go below 0
+        if self._points < 0:
+            self._points = 0
+
         campaign_id, _ = utils.get_running_campaign(self.node, self.server)
         if campaign_id:
             with self.pool.connection() as conn:
@@ -52,6 +74,11 @@ class CreditPlayer(Player):
                     """, (campaign_id, self.ucid, self._points))
         else:
             self.log.debug("No campaign active, player points will vanish after a bot restart.")
+
+        if self.squadron and self.sub_slot == 0 and old_points < self._points:
+            if self.config.get('squadron_credits', False):
+                self.squadron.points += self._points - old_points
+
         # sending points to DCS
         self.bot.loop.create_task(self.server.send_to_dcs({
             'command': 'updateUserPoints',
@@ -71,3 +98,7 @@ class CreditPlayer(Player):
                     INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, remark) 
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """, (campaign_id, event, self.ucid, old_points, self._points, remark))
+
+        if self.squadron and old_points < self.points:
+            if self.config.get('squadron_credits', False):
+                self.squadron.audit(event, self._points - old_points, remark, self)

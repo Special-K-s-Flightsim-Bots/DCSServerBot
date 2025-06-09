@@ -5,6 +5,7 @@ import ctypes
 import logging
 import os
 import psutil
+import psycopg
 import shutil
 import sys
 
@@ -51,6 +52,7 @@ class MonitoringService(Service):
             self.space_warning_sent['C:'] = False
             self.space_alert_sent['C:'] = False
         self.check_autoexec()
+        self.monitoring.add_exception_type(psycopg.DatabaseError)
         self.monitoring.start()
         if self.get_config().get('time_sync', False):
             time_server = self.get_config().get('time_server', None)
@@ -104,8 +106,7 @@ class MonitoringService(Service):
         }
         if 'server' in kwargs:
             params['server'] = kwargs['server'].name
-        else:
-            params['node'] = self.node.name
+
         await self.bus.send_to_node({
             "command": "rpc",
             "service": BotService.__name__,
@@ -319,33 +320,48 @@ class MonitoringService(Service):
                 )
 
         tasks = [process_server(server) for server in self.bus.servers.values()]
-        await asyncio.gather(*tasks)
+        # run in parallel but ignore the exceptions
+        await utils.run_parallel_nofail(*tasks)
 
     @staticmethod
     def convert_bytes(size_bytes: int) -> str:
         scales = ('B', 'KB', 'MB', 'GB', 'TB')
         if size_bytes == 0:
-            return "0B"
+            return "0 B"
         idx = 0
         while size_bytes >= 1024 and idx < len(scales) - 1:
             size_bytes /= 1024.0
             idx += 1
-        return f"{size_bytes:.2f}{scales[idx]}"
+        return f"{size_bytes:.2f} {scales[idx]}"
 
     async def drive_check(self):
+        config = {
+            "warn": 10,
+            "alert": 5,
+            "message": "Available space on drive {drive} has dropped below {pct}%!\n"
+                       "Only {bytes_free} out of {bytes_total} free."
+        } | self.get_config().get('thresholds', {}).get('Drive', {})
         for drive in self.space_warning_sent.keys():
             total, free = utils.get_drive_space(drive)
-            warn_pct = (self.get_config().get('drive_warn_threshold', 10)) / 100
-            alert_pct = (self.get_config().get('drive_alert_threshold', 5)) / 100
+            warn_pct = config['warn'] / 100
+            alert_pct = config['alert'] / 100
             if (free < total * warn_pct) and not self.space_warning_sent[drive]:
-                message = (f"Your freespace on {drive} is below {warn_pct * 100}%!\n{self.convert_bytes(free)} of "
-                           f"{self.convert_bytes(total)} bytes free.")
+                message = config['message'].format(
+                    drive=drive,
+                    pct=config['warn'],
+                    bytes_free=self.convert_bytes(free),
+                    bytes_total=self.convert_bytes(total)
+                )
                 self.log.warning(message)
                 await self.node.audit(message)
                 self.space_warning_sent[drive] = True
             if (free < total * alert_pct) and not self.space_alert_sent[drive]:
-                message = (f"Your freespace on {drive} is below {alert_pct * 100}%!\n{self.convert_bytes(free)} of "
-                           f"{self.convert_bytes(total)} bytes free.")
+                message = config['message'].format(
+                    drive=drive,
+                    pct=config['alert'],
+                    bytes_free=self.convert_bytes(free),
+                    bytes_total=self.convert_bytes(total)
+                )
                 self.log.error(message)
                 await self.send_alert(title=f"Your DCS drive on node {self.node.name} is running out of space!",
                                       message=message)
@@ -363,7 +379,7 @@ class MonitoringService(Service):
                 self.drive_check()
             ]
 
-            if 'serverstats' in self.node.plugins:
+            if 'monitoring' in self.node.plugins:
                 tasks.append(self.serverload())
 
             if self.node.locals.get('nodestats', True):

@@ -12,7 +12,16 @@ schema;element_schema:
   nullable: false
   mapping:
     enabled: {type: bool, nullable: false}
+    debug: {type: bool, nullable: false}
     silent: {type: bool, nullable: false}
+    join_on: {type: str, nullable: false, enum: ['birth', 'takeoff']}
+    win_on: {type: str, nullable: false, enum: ['survival', 'landing', 'rtb']}
+    kick_on_death: {type: bool, nullable: false}
+    kick_time: {type: int, nullable: false, range: {min: 0}}
+    end_mission: {type: bool, nullable: false}
+    delayed_start: {type: int, nullable: false, range: {min: 0}}
+    win_on_noshow: {type: int, nullable: false, range: {min: 60}}
+    credit_on_leave: {type: bool, nullable: false}
 
 type: map
 func: check_main_structure

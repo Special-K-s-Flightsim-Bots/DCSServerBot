@@ -28,6 +28,7 @@ class CloudLoggingHandler(logging.Handler):
         self.node = node
         self.url = url
         self.cwd = os.getcwd()
+        self.pending_futures = set()
 
     def format_traceback(self, trace: traceback) -> tuple[str, int, list[str]]:
         ret = []
@@ -80,4 +81,15 @@ class CloudLoggingHandler(logging.Handler):
     def emit(self, record: logging.LogRecord):
         if record.levelno in [logging.ERROR, logging.CRITICAL] and record.exc_info is not None:
             with suppress(Exception):
-                asyncio.create_task(self.send_post(record))
+                loop = asyncio.get_event_loop()
+                future = asyncio.run_coroutine_threadsafe(self.send_post(record), loop)
+                self.pending_futures.add(future)
+                future.add_done_callback(lambda f: self.pending_futures.discard(f))
+
+    def close(self):
+        for future in list(self.pending_futures):
+            try:
+                future.result(timeout=1.0)
+            except Exception:
+                pass
+        super().close()

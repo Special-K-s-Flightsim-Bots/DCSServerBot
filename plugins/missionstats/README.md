@@ -13,15 +13,25 @@ DCS.release_server:
   display: true                   # false: don't show mission statistics in your status channel (default: true)
   persistence: true               # false: don't persist the mission statistics to database (default: true)
   persist_ai_statistics: false    # true: persist AI statistics to the database (default: false)
-  event_filter:                   # Optional: do not receive these events
+  event_filter:                   # Optional: do not receive these events (the events listed is the default list and will always be ignored unless defined differently!)
+    - S_EVENT_MARK_ADDED
+    - S_EVENT_MARK_REMOVED
     - S_EVENT_TOOK_CONTROL
-    - S_EVENT_BDA
-    - S_EVENT_MAX
+    - S_EVENT_DISCARD_CHAIR_AFTER_EJECTION
+    - S_EVENT_AI_ABORT_MISSION
+    - S_EVENT_SHOOTING_START
+    - S_EVENT_SHOOTING_END
   mission_end:                    # optional: display a final mission statistics embed at mission end
     persistent: true              # send a persistent mission end embed (default: non persistent) 
     channel: 1122334455667788     # channel to display the embed in
     title: Mission accomplished!  # alternative title (default: Mission Result)
 ```
+
+> [!NOTE]
+> When creating a custom event_filter, list all events that you want to EXCLUDE from being sent to the bot. Note that
+> creating a new filter starts fresh - it won't automatically include the default excluded events. If you want to keep
+> those default exclusions, you'll need to add them explicitly to your custom filter.
+
 
 ## How to disable Missionstats inside of missions
 To disable mission statistics for a specific mission, you can use the following piece of code somewhere in your mission 

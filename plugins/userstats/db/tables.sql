@@ -2,4 +2,5 @@ CREATE TABLE IF NOT EXISTS statistics (mission_id INTEGER NOT NULL, player_ucid 
 CREATE INDEX IF NOT EXISTS idx_statistics_player_ucid ON statistics(player_ucid);
 CREATE TABLE IF NOT EXISTS squadrons (id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT NULL, role BIGINT NULL, image_url TEXT NULL, channel BIGINT NULL, locked BOOLEAN NOT NULL DEFAULT FALSE);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_squadrons_name ON squadrons (name);
-CREATE TABLE IF NOT EXISTS squadron_members (squadron_id INTEGER NOT NULL, player_ucid TEXT NOT NULL, PRIMARY KEY (squadron_id, player_ucid));
+CREATE TABLE IF NOT EXISTS squadron_members (squadron_id INTEGER NOT NULL, player_ucid TEXT NOT NULL, admin BOOLEAN NOT NULL DEFAULT FALSE, PRIMARY KEY (squadron_id, player_ucid));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_squadron_members ON squadron_members (player_ucid);

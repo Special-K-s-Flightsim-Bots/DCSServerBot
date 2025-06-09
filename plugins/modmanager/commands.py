@@ -4,13 +4,15 @@ import os
 import psycopg
 
 from core import Status, Plugin, utils, Server, ServiceRegistry, PluginInstallationError, Group, get_translation
-from discord import SelectOption, TextStyle, app_commands
+from discord import SelectOption, app_commands, ButtonStyle, TextStyle
 from discord.ui import View, Select, Button, Modal, TextInput
 from services.bot import DCSServerBot
 from services.modmanager import ModManagerService, Folder
 from typing import Optional
 
 _ = get_translation(__name__.split('.')[1])
+
+WARNING_ICON = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true"
 
 
 async def get_installed_mods(service: ModManagerService, server: Server) -> list[tuple[Folder, str, str]]:
@@ -216,21 +218,25 @@ class ModManager(Plugin):
                                     row=1)
                     select.callback = derived.uninstall
                     derived.add_item(select)
-                button = Button(label=_("Download"), style=discord.ButtonStyle.primary, row=2)
+                # noinspection PyTypeChecker
+                button = Button(label=_("Download"), style=ButtonStyle.primary, row=2)
                 button.callback = derived.download
                 derived.add_item(button)
                 if server.status != Status.SHUTDOWN:
-                    button = Button(label=_("Shutdown"), style=discord.ButtonStyle.secondary, row=2)
+                    # noinspection PyTypeChecker
+                    button = Button(label=_("Shutdown"), style=ButtonStyle.secondary, row=2)
                     button.callback = derived.shutdown
                     derived.add_item(button)
                     derived.embed.set_footer(
-                        text=_("⚠️ Server {} needs to be shut down to change mods.").format(server.name))
+                        text=_("Server {} needs to be shut down to change mods.").format(server.name),
+                        icon_url=WARNING_ICON)
                 else:
                     for i in range(1, len(derived.children)):
                         # noinspection PyUnresolvedReferences
                         if isinstance(derived.children[i], Button) and derived.children[i].label == "Shutdown":
                             derived.remove_item(derived.children[i])
-                button = Button(label=_("Quit"), style=discord.ButtonStyle.red, row=2)
+                # noinspection PyTypeChecker
+                button = Button(label=_("Quit"), style=ButtonStyle.red, row=2)
                 button.callback = derived.cancel
                 derived.add_item(button)
 
@@ -245,13 +251,13 @@ class ModManager(Plugin):
                         await interaction.edit_original_response(embed=derived.embed)
                         if not await self.service.uninstall_package(server, folder, package, current):
                             derived.embed.set_footer(
-                                text=_("Mod {mod}_v{version} could not be uninstalled!").format(mod=package,
-                                                                                                version=version))
+                                text=_("Mod {mod}_v{version} could not be uninstalled!").format(
+                                    mod=package, version=version), icon_url=WARNING_ICON)
                             await interaction.edit_original_response(embed=derived.embed)
                         elif not await self.service.install_package(server, folder, package, version):
                             derived.embed.set_footer(
-                                text=_("Mod {mod}_v{version} could not be installed!").format(mod=package,
-                                                                                              version=version))
+                                text=_("Mod {mod}_v{version} could not be installed!").format(
+                                    mod=package, version=version), icon_url=WARNING_ICON)
                             await interaction.edit_original_response(embed=derived.embed)
                         else:
                             derived.embed.set_footer(text=_("Mod {} updated.").format(package))
@@ -262,7 +268,8 @@ class ModManager(Plugin):
                         derived.embed.set_footer(text=_("Installing mod {}, please wait ...").format(package))
                         await interaction.edit_original_response(embed=derived.embed)
                         if not await self.service.install_package(server, folder, package, version):
-                            derived.embed.set_footer(text=_("Installation of mod {} failed.").format(package))
+                            derived.embed.set_footer(text=_("Installation of mod {} failed.").format(package),
+                                                     icon_url=WARNING_ICON)
                         else:
                             derived.embed.set_footer(text=_("Mod {} installed.").format(package))
                             derived.installed = await get_installed_mods(self.service, server)
@@ -280,7 +287,8 @@ class ModManager(Plugin):
                 await interaction.edit_original_response(embed=derived.embed)
                 if not await self.service.uninstall_package(server, folder, mod, version):
                     derived.embed.set_footer(
-                        text=_("Mod {mod}_v{version} could not be uninstalled!").format(mod=mod, version=version))
+                        text=_("Mod {mod}_v{version} could not be uninstalled!").format(mod=mod, version=version),
+                        icon_url=WARNING_ICON)
                 else:
                     derived.embed.set_footer(text=_("Mod {} uninstalled.").format(mod))
                     derived.installed = await get_installed_mods(self.service, server)
@@ -290,10 +298,13 @@ class ModManager(Plugin):
 
             async def download(derived, interaction: discord.Interaction):
                 class UploadModal(Modal, title=_("Download a new Mod")):
+                    # noinspection PyTypeChecker
                     url = TextInput(label=_("URL / GitHub Repo"), placeholder='https://github.com/...',
                                     style=TextStyle.short, required=True)
+                    # noinspection PyTypeChecker
                     dest = TextInput(label=_("Destination (S=Saved Games / R=Root Folder)"), style=TextStyle.short,
                                      required=True, min_length=1, max_length=1)
+                    # noinspection PyTypeChecker
                     version = TextInput(label=_("Version"), style=TextStyle.short, required=False, default='latest')
 
                     async def on_submit(_, interaction: discord.Interaction) -> None:
@@ -315,7 +326,8 @@ class ModManager(Plugin):
                 await interaction.response.send_modal(modal)
                 if not await modal.wait():
                     if not utils.is_valid_url(modal.url.value):
-                        derived.embed.set_footer(text=_("{} is not a valid URL!").format(modal.url.value))
+                        derived.embed.set_footer(text=_("{} is not a valid URL!").format(modal.url.value),
+                                                 icon_url=WARNING_ICON)
                     else:
                         derived.embed.set_footer(text=_("Downloading {} , please wait ...").format(modal.url.value))
                         for child in derived.children:
@@ -327,9 +339,9 @@ class ModManager(Plugin):
                             derived.available = get_available_mods(self.service, server)
                         except aiohttp.client_exceptions.ClientResponseError as ex:
                             self.log.error(f"{ex.code}: {modal.url.value} {ex.message}")
-                            embed.set_footer(text=f"{ex.code}: {ex.message}")
+                            embed.set_footer(text=f"{ex.code}: {ex.message}", icon_url=WARNING_ICON)
                         except Exception as ex:
-                            embed.set_footer(text=_("Error: {}").format(ex.__class__.__name__))
+                            embed.set_footer(text=_("Error: {}").format(ex.__class__.__name__), icon_url=WARNING_ICON)
                         for child in derived.children:
                             child.disabled = False
                         await derived.render()

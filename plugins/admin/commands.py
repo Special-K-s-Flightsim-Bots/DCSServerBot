@@ -57,17 +57,18 @@ async def available_modules_autocomplete(interaction: discord.Interaction,
 
 
 async def installed_modules_autocomplete(interaction: discord.Interaction,
-                                         current: str) -> list[app_commands.Choice[int]]:
+                                         current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
         node = await utils.NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, "node"))
         available_modules = await node.get_installed_modules()
-        return [
+        choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=x, value=x)
             for x in available_modules
             if not current or current.casefold() in x.casefold()
         ]
+        return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -255,7 +256,7 @@ class Admin(Plugin[AdminEventListener]):
                       sel_type=PlayerType.PLAYER)]]):
 
         class BanModal(Modal):
-            reason = TextInput(label=_("Reason"), default="n/a", max_length=80, required=False)
+            reason = TextInput(label=_("Reason"), max_length=80, required=True)
             period = TextInput(label=_("Days (empty = forever)"), required=False)
 
             def __init__(self, user: Union[discord.Member, str]):
@@ -438,7 +439,8 @@ class Admin(Plugin[AdminEventListener]):
             _("Installing module {module} on node {node}, please wait ...").format(module=module, node=node.name),
             ephemeral=ephemeral)
         await node.handle_module('install', module)
-        await interaction.followup.send(content=_("Module {module} installed on node {node}.").format(
+        # use channel.send instead, as the webhook might be outdated
+        await interaction.channel.send(_("Module {module} installed on node {node}.").format(
             module=module, node=node.name))
 
     @dcs.command(name='uninstall', description=_('Uninstall modules from your DCS server'))
@@ -708,10 +710,16 @@ class Admin(Plugin[AdminEventListener]):
     async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[Node] = None,
                            ephemeral: Optional[bool] = True):
         if not node:
-            msg = _("Do you want to {} all nodes?").format(_(method))
+            question = _("Are you sure you want to proceed?")
+            message = _("This will {} **all** nodes.").format(_(method))
         else:
-            msg = _("Do you want to {method} node {node}?").format(method=_(method), node=node.name)
-        if not await utils.yn_question(interaction, msg, ephemeral=ephemeral):
+            question = _("Are you sure you want to {} node `{}`?").format(_(method), node.name)
+            message = None
+        embed = discord.Embed(color=discord.Color.red())
+        embed.description = message
+        embed.set_thumbnail(
+            url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
+        if not await utils.yn_question(interaction, question=question, embed=embed, ephemeral=ephemeral):
             await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
             return
         if method != 'upgrade' or node:
@@ -763,17 +771,38 @@ class Admin(Plugin[AdminEventListener]):
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]],
                       shutdown: Optional[bool] = True):
         async def _node_offline(node_name: str):
+            tasks = []
+            if shutdown:
+                msg = await interaction.followup.send(_("Shutting down all servers on node {} ...").format(node_name))
             for server in self.bus.servers.values():
                 if server.node.name == node_name:
                     server.maintenance = True
                     if shutdown:
-                        asyncio.create_task(server.shutdown())
+                        tasks.append(asyncio.create_task(server.shutdown()))
+            if shutdown:
+                await asyncio.gather(*tasks)
+                await msg.edit(content=_("All servers on node {} were shut down.").format(node_name))
             await interaction.followup.send(_("Node {} is now offline.").format(node_name))
             await self.bot.audit(f"took node {node_name} offline.", user=interaction.user)
 
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
+
+        if shutdown:
+            question = _("Are you sure you want to proceed?")
+            if not node:
+                message = _("This will shutdown **all** servers on **all** nodes.")
+            else:
+                message = _("This will shutdown **all** servers on node `{}`.").format(node.name)
+            embed = discord.Embed(color=discord.Color.red())
+            embed.description = message
+            embed.set_thumbnail(
+                url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
+            if not await utils.yn_question(interaction, question=question, embed=embed, ephemeral=ephemeral):
+                await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
+                return
+
         if node:
             await _node_offline(node.name)
         else:
@@ -800,7 +829,8 @@ class Admin(Plugin[AdminEventListener]):
             next_startup = 0
             for server in [x for x in self.bus.servers.values() if x.node.name == node_name]:
                 if startup:
-                    self.loop.call_later(delay=next_startup, callback=partial(asyncio.create_task, _startup(server)))
+                    self.loop.call_later(delay=next_startup,
+                                         callback=partial(asyncio.create_task, _startup(server)))
                     next_startup += startup_delay
                 else:
                     server.maintenance = False
@@ -993,6 +1023,16 @@ Please make sure you forward the following ports:
             )
             self.log.exception(ex)
 
+    @node_group.command(description=_("Shows CPU topology"))
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def cpuinfo(self, interaction: discord.Interaction,
+                      node: app_commands.Transform[Node, utils.NodeTransformer]):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        image = await node.get_cpu_info()
+        await interaction.followup.send(file=discord.File(fp=BytesIO(image), filename='cpuinfo.png'))
+
     plug = Group(name="plugin", description=_("Commands to manage your DCSServerBot plugins"))
 
     @plug.command(name='install', description=_("Install Plugin"))
@@ -1106,7 +1146,7 @@ Please make sure you forward the following ports:
             await interaction.followup.send(_("Extension {} enabled on server {} and started.").format(
                 extension, server.display_name), ephemeral=ephemeral)
 
-    @ext.command(description=_('Enable Extension'))
+    @ext.command(description=_('Disable Extension'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(extension=extensions_autocomplete)
@@ -1159,7 +1199,7 @@ Please make sure you forward the following ports:
             return
         # read the default config, if there is any
         config = self.get_config().get('uploads', {})
-        # check, if upload is enabled
+        # check if upload is enabled
         if not config.get('enabled', True):
             return
         # check if the user has the correct role to upload, defaults to Admin
@@ -1197,8 +1237,9 @@ Please make sure you forward the following ports:
             schema_path = os.path.join('plugins', name[:-4], 'schemas', name[:-4] + '_schema.yaml')
             plugin = True
         else:
-            return False
+            return
         target_file = os.path.join(target_path, att.filename)
+        # TODO: schema validation
         rc = await server.node.write_file(target_file, att.url, True)
         if rc != UploadStatus.OK:
             if rc == UploadStatus.WRITE_ERROR:

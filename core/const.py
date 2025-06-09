@@ -12,6 +12,7 @@ __all__ = [
     "QFE_TO_QNH_MB",
     "WEEKDAYS",
     "MONTH",
+    "TRAFFIC_LIGHTS",
     "SAVED_GAMES",
     "DEFAULT_TAG"
 ]
@@ -48,6 +49,12 @@ MONTH = {
     10: 'October',
     11: 'November',
     12: 'December'
+}
+
+TRAFFIC_LIGHTS = {
+    "red": "https://assets.digital.cabinet-office.gov.uk/media/559fbe1940f0b6156700004d/traffic-light-red.jpg",
+    "amber": "https://assets.digital.cabinet-office.gov.uk/media/559fbe48ed915d1592000048/traffic-light-amber.jpg",
+    "green": "https://assets.digital.cabinet-office.gov.uk/media/559fbe3e40f0b6156700004f/traffic-light-green.jpg"
 }
 
 SAVED_GAMES = os.path.expandvars(os.path.join('%USERPROFILE%', 'Saved Games'))

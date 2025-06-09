@@ -1,6 +1,8 @@
 import aiohttp
+import asyncio
 import ipaddress
 import logging
+import miniupnpc
 import os
 import pickle
 import platform
@@ -36,6 +38,7 @@ __all__ = [
     "is_open",
     "get_public_ip",
     "find_process",
+    "find_process_async",
     "is_process_running",
     "get_windows_version",
     "get_drive_space",
@@ -50,6 +53,7 @@ __all__ = [
     "get_password",
     "delete_password",
     "sanitize_filename",
+    "is_upnp_available",
     "get_win32_error_message",
     "CloudRotatingFileHandler"
 ]
@@ -63,11 +67,12 @@ def is_open(ip, port):
         return s.connect_ex((ip, int(port))) == 0
 
 
-async def get_public_ip(node: "Node"):
+async def get_public_ip(node: Optional["Node"] = None):
     for url in API_URLS:
         with suppress(aiohttp.ClientError, ValueError):
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, proxy=node.proxy, proxy_auth=node.proxy_auth) as resp:
+                async with session.get(url, proxy=node.proxy if node else None,
+                                       proxy_auth=node.proxy_auth if node else None) as resp:
                     return ipaddress.ip_address(await resp.text()).compressed
     else:
         raise TimeoutError("Public IP could not be retrieved.")
@@ -76,28 +81,40 @@ async def get_public_ip(node: "Node"):
 def find_process(proc: str, instance: Optional[str] = None) -> Generator[psutil.Process, None, None]:
     proc_set = {name.casefold() for name in proc.split("|")}
 
-    for p in psutil.process_iter(['cmdline']):
+    # Get all processes at once with their info
+    processes = {p.pid: p for p in psutil.process_iter(['name', 'cmdline'])}
+
+    # Filter by name first
+    matching_processes = {pid: p for pid, p in processes.items()
+                          if p.info['name'] and p.info['name'].casefold() in proc_set}
+
+    # Then check instance if needed
+    for p in matching_processes.values():
         try:
-            if p.name().casefold() not in proc_set:
-                continue
             if instance:
                 cmdline = p.info['cmdline']
                 if not cmdline:
                     continue
-                # Check if `instance` is part of any cmdline parameter (case-insensitive)
-                if any(instance.casefold() in c.replace('\\', '/').casefold().split('/') for c in cmdline):
+                if any(instance.casefold() in c.replace('\\', '/').casefold().split('/')
+                       for c in cmdline):
                     yield p
             else:
                 yield p
         except (psutil.AccessDenied, psutil.NoSuchProcess, IndexError):
             continue
-    return None
+
+
+async def find_process_async(proc: str, instance: Optional[str] = None):
+    def _find_first_match():
+        return next(find_process(proc, instance), None)
+
+    return await asyncio.to_thread(_find_first_match)
 
 
 def is_process_running(process: Union[subprocess.Popen, psutil.Process]):
     if isinstance(process, subprocess.Popen):
         return process.poll() is None
-    elif isinstance(process, psutil.Process):
+    else:
         return process.is_running()
 
 
@@ -235,10 +252,13 @@ def set_password(key: str, password: str, config_dir='config'):
 
 
 def get_password(key: str, config_dir='config') -> str:
+    filename = os.path.join(config_dir, '.secret', f'{key}.pkl')
     try:
-        with open(os.path.join(config_dir, '.secret', f'{key}.pkl'), mode='rb') as f:
+        with open(filename, mode='rb') as f:
+            logger.debug(f'Loading password for {key} from {filename}.')
             return str(pickle.load(f))
     except FileNotFoundError:
+        logger.debug(f'Password for {key} not found in {filename}.')
         raise ValueError(key)
 
 
@@ -294,6 +314,25 @@ def get_win32_error_message(error_code: int):
         None
     )
     return buffer.value.strip()
+
+
+def is_upnp_available() -> bool:
+    try:
+        upnp = miniupnpc.UPnP()
+        devices = upnp.discover()  # Discover UPnP-enabled devices
+        if devices > 0:
+            if upnp.selectigd():
+                # UPnP is enabled and an IGD was found.
+                return True
+            else:
+                # UPnP is enabled, but no Internet Gateway Device (IGD) is selected
+                return False
+        else:
+            # No UPnP devices detected on the network.
+            return False
+    except Exception:
+        # An UPnP device was found, but no IGD was found.
+        return False
 
 
 class CloudRotatingFileHandler(RotatingFileHandler):

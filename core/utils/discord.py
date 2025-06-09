@@ -7,12 +7,13 @@ import logging
 import os
 import re
 
+from contextlib import suppress
 from core import Status, utils
 from core.data.node import SortOrder, UploadStatus
 from core.services.registry import ServiceRegistry
 from core.translations import get_translation
 from datetime import datetime
-from discord import app_commands, Interaction, SelectOption
+from discord import app_commands, Interaction, SelectOption, ButtonStyle
 from discord.ext import commands
 from discord.ui import Button, View, Select, Item, Modal, TextInput
 from enum import Enum, auto
@@ -24,7 +25,7 @@ from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any, Callable
 from .helper import get_all_players, is_ucid, format_string
 
 if TYPE_CHECKING:
-    from core import Server, Player, Node, Instance, Plugin, Command
+    from core import Server, Player, Node, Instance, Plugin
     from services.bot import DCSServerBot
     from services.servicebus import ServiceBus
 
@@ -54,6 +55,7 @@ __all__ = [
     "escape_string",
     "print_ruler",
     "match",
+    "find_similar_names",
     "get_interaction_param",
     "get_all_linked_members",
     "NodeTransformer",
@@ -64,15 +66,14 @@ __all__ = [
     "airbase_autocomplete",
     "mission_autocomplete",
     "group_autocomplete",
-    "squadron_autocomplete",
-    "get_squadron",
     "server_selection",
     "get_ephemeral",
     "get_command",
     "ConfigModal",
     "DirectoryPicker",
     "NodeUploadHandler",
-    "ServerUploadHandler"
+    "ServerUploadHandler",
+    "DatabaseModal"
 ]
 
 # Internationalisation
@@ -108,21 +109,23 @@ async def wait_for_single_reaction(interaction: discord.Interaction, message: di
     def check_press(react: discord.Reaction, user: discord.Member):
         return (react.message.channel == interaction.channel) & (user == member) & (react.message.id == message.id)
 
-    tasks = [
+    member = interaction.user
+    pending_tasks = [
         asyncio.create_task(interaction.client.wait_for('reaction_add', check=check_press)),
         asyncio.create_task(interaction.client.wait_for('reaction_remove', check=check_press))
     ]
-    try:
-        member = interaction.user
-        done, tasks = await asyncio.wait(tasks, timeout=120, return_when=asyncio.FIRST_COMPLETED)
-        if len(done) > 0:
-            react, _ = done.pop().result()
-            return react
-        else:
-            raise TimeoutError
-    finally:
-        for task in tasks:
-            task.cancel()
+
+    done, pending = await asyncio.wait(pending_tasks, timeout=120, return_when=asyncio.FIRST_COMPLETED)
+
+    # cancel pending tasks
+    for task in pending:
+        task.cancel()
+
+    if not done:
+        raise TimeoutError
+
+    react, _ = done.pop().result()
+    return react
 
 
 async def selection_list(interaction: discord.Interaction, data: list, embed_formatter, num: int = 5,
@@ -209,13 +212,15 @@ class SelectView(View):
             self.result = select.values[0]
         self.stop()
 
-    @discord.ui.button(label='OK', style=discord.ButtonStyle.green, custom_id='sl_ok')
+    # noinspection PyTypeChecker
+    @discord.ui.button(label='OK', style=ButtonStyle.green, custom_id='sl_ok')
     async def on_ok(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
-    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red, custom_id='sl_cancel')
+    # noinspection PyTypeChecker
+    @discord.ui.button(label='Cancel', style=ButtonStyle.red, custom_id='sl_cancel')
     async def on_cancel(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -253,30 +258,27 @@ async def selection(interaction: Union[discord.Interaction, commands.Context], *
                 msg = await interaction.original_response()
         else:
             msg = await interaction.send(embed=embed, view=view)
-        if await view.wait():
-            return None
-        return view.result
+        if not await view.wait():
+            return view.result
     finally:
-        try:
-            if msg:
+        if msg:
+            with suppress(discord.NotFound):
                 await msg.delete()
-        except discord.NotFound:
-            pass
 
 
 class YNQuestionView(View):
     def __init__(self):
         super().__init__(timeout=120)
-        self.result = False
+        self.result = None
 
-    @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='yn_yes')
+    @discord.ui.button(label='Yes', style=ButtonStyle.green, custom_id='yn_yes')
     async def on_yes(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = True
         self.stop()
 
-    @discord.ui.button(label='No', style=discord.ButtonStyle.red, custom_id='yn_no')
+    @discord.ui.button(label='No', style=ButtonStyle.red, custom_id='yn_no')
     async def on_no(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -287,12 +289,14 @@ class YNQuestionView(View):
         interaction.client.log.exception(error)
 
 
-async def yn_question(ctx: Union[commands.Context, discord.Interaction], question: str,
-                      message: Optional[str] = None, ephemeral: Optional[bool] = True) -> bool:
+async def yn_question(ctx: Union[commands.Context, discord.Interaction], question: str, *,
+                      message: Optional[str] = None, embed: Optional[discord.Embed] = None,
+                      ephemeral: Optional[bool] = True) -> Optional[bool]:
     """
     :param ctx: The context in which the yn_question method is being called. It can be either a discord.py commands.Context object or a discord.Interaction object.
     :param question: The question to be displayed in the embedded message.
     :param message: An optional additional message to be displayed in the embedded message.
+    :param embed: An optional embed to be used. If None, then a default embed will be used. Replaces question and message.
     :param ephemeral: An optional boolean value indicating whether the message should be ephemeral (only visible to the user who triggered it). Default is True.
     :return: A boolean value indicating the result of the yn_question. True if the user answered "Yes", False if the user answered "No".
 
@@ -301,22 +305,22 @@ async def yn_question(ctx: Union[commands.Context, discord.Interaction], questio
     The yn_question method uses a custom view called YNQuestionView to handle the interaction. An embedded message is sent with the specified question and optional message, along with two
     * buttons for "Yes" and "No". The view listens for the user's button clicks and returns the corresponding boolean value.
     """
-    embed = discord.Embed(description=question, color=discord.Color.red())
-    if message is not None:
-        embed.add_field(name=message, value='_ _')
+    if not embed:
+        embed = discord.Embed(color=discord.Color.red())
+        if message is not None:
+            embed.description = message
+    embed.title = question
     if isinstance(ctx, discord.Interaction):
         ctx = await ctx.client.get_context(ctx)
     view = YNQuestionView()
     msg = await ctx.send(embed=embed, view=view, ephemeral=ephemeral)
     try:
-        if await view.wait():
-            return False
-        return view.result
+        if not await view.wait():
+            return view.result
     finally:
-        try:
-            await msg.delete()
-        except discord.NotFound:
-            pass
+        if msg:
+            with suppress(discord.NotFound):
+                await msg.delete()
 
 
 class PopulatedQuestionView(View):
@@ -324,21 +328,21 @@ class PopulatedQuestionView(View):
         super().__init__(timeout=120)
         self.result = None
 
-    @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='pl_yes')
+    @discord.ui.button(label='Yes', style=ButtonStyle.green, custom_id='pl_yes')
     async def on_yes(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = 'yes'
         self.stop()
 
-    @discord.ui.button(label='Later', style=discord.ButtonStyle.primary, custom_id='pl_later', emoji='⏱')
+    @discord.ui.button(label='Later', style=ButtonStyle.primary, custom_id='pl_later', emoji='⏱')
     async def on_later(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = 'later'
         self.stop()
 
-    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red, custom_id='pl_cancel')
+    @discord.ui.button(label='Cancel', style=ButtonStyle.red, custom_id='pl_cancel')
     async def on_cancel(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -366,14 +370,12 @@ async def populated_question(ctx: Union[commands.Context, discord.Interaction], 
     view = PopulatedQuestionView()
     msg = await ctx.send(embed=embed, view=view, ephemeral=ephemeral)
     try:
-        if await view.wait():
-            return None
-        return view.result
+        if not await view.wait():
+            return view.result
     finally:
-        try:
-            await msg.delete()
-        except discord.NotFound:
-            pass
+        if msg:
+            with suppress(discord.NotFound):
+                await msg.delete()
 
 
 def check_roles(roles: Iterable[Union[str, int]], member: Optional[discord.Member] = None) -> bool:
@@ -834,6 +836,35 @@ def match(name: str, member_list: list[discord.Member], min_score: Optional[int]
     return member_list[best_match_index] if best_match_index else None
 
 
+def find_similar_names(list1: list[str], list2: list[str], threshold: int = 90) -> list[tuple[str, str, int]]:
+    """
+    Compare two lists of usernames and find similar matches using fuzzy string matching.
+
+    Args:
+        list1: First list of usernames
+        list2: Second list of usernames
+        threshold: Minimum similarity score (0-100) to consider names as similar
+                  Default is 90 for high confidence matches
+
+    Returns:
+        List of tuples containing (name1, name2, similarity_score)
+    """
+    similar_names = []
+
+    for name1 in list1:
+        for name2 in list2:
+            # Calculate similarity ratio
+            similarity = fuzz.ratio(name1.lower(), name2.lower())
+
+            # If similarity is above threshold, add to results
+            if similarity >= threshold:
+                similar_names.append((name1, name2, similarity))
+
+    # Sort results by similarity score in descending order
+    similar_names.sort(key=lambda x: x[2], reverse=True)
+    return similar_names
+
+
 def get_interaction_param(interaction: discord.Interaction, name: str) -> Optional[Any]:
     """
     Returns the value of a specific parameter in a Discord interaction.
@@ -854,7 +885,7 @@ def get_interaction_param(interaction: discord.Interaction, name: str) -> Option
                     return param['value']
         return None
 
-    return inner(interaction.data['options'])
+    return inner(interaction.data.get('options', {}))
 
 
 def get_all_linked_members(interaction: discord.Interaction) -> list[discord.Member]:
@@ -1057,30 +1088,6 @@ async def group_autocomplete(interaction: discord.Interaction, current: str) -> 
     ][:25]
 
 
-async def squadron_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not await interaction.command._check_can_run(interaction):
-        return []
-    async with interaction.client.apool.connection() as conn:
-        cursor = await conn.execute("SELECT id, name FROM squadrons WHERE name ILIKE %s", ('%' + current + '%', ))
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=row[1], value=row[0])
-            async for row in cursor
-        ]
-        return choices[:25]
-
-
-def get_squadron(node: Node, *, name: Optional[str] = None, squadron_id: Optional[int] = None) -> Optional[dict]:
-    sql = "SELECT * FROM squadrons"
-    if name:
-        sql += " WHERE name = %(name)s"
-    elif squadron_id:
-        sql += " WHERE id = %(squadron_id)s"
-    with node.pool.connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cursor:
-            cursor.execute(sql, {"name": name, "squadron_id": squadron_id})
-            return cursor.fetchone()
-
-
 class UserTransformer(app_commands.Transformer):
     """
     A class for transforming interaction values to either discord.Member or ucid (str) objects and providing autocomplete choices for users.
@@ -1134,7 +1141,7 @@ class PlayerTransformer(app_commands.Transformer):
     """
 
     """
-    def __init__(self, *, active: bool = False, watchlist: Optional[bool] = None, vip: Optional[bool] = None):
+    def __init__(self, *, active: Optional[bool] = None, watchlist: Optional[bool] = None, vip: Optional[bool] = None):
         super().__init__()
         self.active = active
         self.watchlist = watchlist
@@ -1245,6 +1252,7 @@ async def get_command(bot: DCSServerBot, *, name: str,
                     return inner
         elif cmd.name == name:
             return cmd
+    raise app_commands.CommandNotFound(name, [group] if group else [])
 
 
 class ConfigModal(Modal):
@@ -1256,17 +1264,26 @@ class ConfigModal(Modal):
         if not old_values:
             old_values = {}
         for k, v in self.config.items():
-            self.add_item(TextInput(custom_id=k,
-                                    label=v.get('label'),
-                                    style=discord.TextStyle(v.get('style', 1)),
-                                    placeholder=v.get('placeholder'),
-                                    default=str(old_values.get(k)) if old_values.get(k) is not None else v.get('default', ''),
-                                    required=v.get('required', False),
-                                    min_length=v.get('min_length'),
-                                    max_length=v.get('max_length')))
+            self.add_item(TextInput(
+                custom_id=k,
+                label=v.get('label'),
+                style=discord.TextStyle(v.get('style', 1)),
+                placeholder=v.get('placeholder'),
+                default=self.parse(old_values.get(k)) if old_values.get(k) is not None else self.parse(v.get('default', '')),
+                required=v.get('required', False),
+                min_length=v.get('min_length'),
+                max_length=v.get('max_length')))
 
     @staticmethod
-    def unmap(value: str, t: str = None) -> Any:
+    def parse(value: Any) -> str:
+        if isinstance(value, bool):
+            return 'true' if value else 'false'
+        elif isinstance(value, datetime):
+            return value.strftime('%Y-%m-%d %H:%M:%S')
+        return str(value)
+
+    @staticmethod
+    def unparse(value: str, t: str = None) -> Any:
         if not t or t == str:
             return value
         elif not value:
@@ -1282,13 +1299,14 @@ class ConfigModal(Modal):
                 return False
             else:
                 raise ValueError(f"{value} is not a boolean!")
+        return value
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=self.ephemeral)
         # noinspection PyUnresolvedReferences
         self.value = {
-            v.custom_id: self.unmap(v.value, self.config[v.custom_id].get('type'))
+            v.custom_id: self.unparse(v.value, self.config[v.custom_id].get('type'))
             for v in self.children
         }
         self.stop()
@@ -1385,13 +1403,13 @@ class DirectoryPicker(discord.ui.View):
         except Exception as ex:
             interaction.client.log.exception(ex)
 
-    @discord.ui.button(label="Upload", style=discord.ButtonStyle.green, row=2)
+    @discord.ui.button(label="Upload", style=ButtonStyle.green, row=2)
     async def on_upload(self, interaction: discord.Interaction, button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
-    @discord.ui.button(label="Up", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Up", style=ButtonStyle.secondary)
     async def on_up(self, interaction: discord.Interaction, button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -1399,7 +1417,7 @@ class DirectoryPicker(discord.ui.View):
             self.dir = os.path.dirname(self.dir)
             await self.refresh(interaction)
 
-    @discord.ui.button(label="Create", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="Create", style=ButtonStyle.primary)
     async def on_create(self, interaction: discord.Interaction, button: Button):
         class TextModal(Modal, title="Create Directory"):
             name = TextInput(label="Name", max_length=80, required=True)
@@ -1421,7 +1439,7 @@ class DirectoryPicker(discord.ui.View):
                 self.dir = modal.name.value
             await self.refresh(interaction)
 
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=2)
+    @discord.ui.button(label="Cancel", style=ButtonStyle.red, row=2)
     async def on_cancel(self, interaction: discord.Interaction, button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -1492,9 +1510,11 @@ class NodeUploadHandler:
             if not directory:
                 await self.channel.send(_('Upload aborted.'))
                 return None
+
+            return directory
+
         finally:
             await msg.delete()
-        return directory
 
     async def upload_file(self, directory: str, att: discord.Attachment) -> UploadStatus:
         self.log.debug(f"Uploading {att.filename} to {self.node.name}:{directory} ...")
@@ -1571,3 +1591,188 @@ class ServerUploadHandler(NodeUploadHandler):
                 await ctx.send(_('Upload aborted.'))
                 return None
         return server
+
+
+class DatabaseModal(Modal):
+    def __init__(
+            self,
+            node: Node,
+            table_name: str,
+            columns: list[str],
+            title: str = "Data Entry Form"
+    ):
+        super().__init__(title=title)
+        self.node = node
+        self.table_name = table_name
+        self.columns = columns
+        self.column_types = {}
+        self.response = {}
+
+    async def get_column_info(self) -> dict[str, dict[str, Any]]:
+        """
+        Fetch column information from the database schema using async psycopg3.
+        Returns a dictionary of column information including type, constraints, etc.
+        """
+        query = """
+                SELECT column_name,
+                       data_type,
+                       is_nullable,
+                       column_default,
+                       character_maximum_length,
+                       numeric_precision,
+                       numeric_scale
+                FROM information_schema.columns
+                WHERE table_name = %s
+                  AND column_name = ANY (%s::text[])
+                """
+
+        columns_info = {}
+        async with self.node.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                async for row in await cur.execute(query, (self.table_name, self.columns)):
+                    columns_info[row['column_name']] = {
+                        'data_type': row['data_type'],
+                        'is_nullable': row['is_nullable'] == 'YES',
+                        'default': row['column_default'],
+                        'max_length': row['character_maximum_length'],
+                        'numeric_precision': row['numeric_precision'],
+                        'numeric_scale': row['numeric_scale']
+                    }
+
+        return columns_info
+
+    async def setup_fields(self):
+        """
+        Set up TextInput fields based on column information
+        """
+        columns_info = await self.get_column_info()
+
+        for column_name in self.columns:
+            info = columns_info[column_name]
+
+            # Store column type for validation
+            self.column_types[column_name] = info['data_type']
+
+            # Configure TextInput based on data type
+            field_params: dict[str, Any] = {
+                'label': column_name.replace('_', ' ').title(),
+                'required': not info['is_nullable'],
+                'placeholder': f"Enter {column_name.replace('_', ' ')}..."
+            }
+
+            # Add max_length for text fields
+            if info['max_length']:
+                field_params['max_length'] = min(info['max_length'], 4000)  # Discord's limit
+
+            # Configure field based on data type
+            if info['data_type'] in ('integer', 'bigint', 'smallint'):
+                field_params['placeholder'] = 'Enter a number...'
+                field_params['max_length'] = 20
+            elif info['data_type'] in ('timestamp', 'timestamp without time zone'):
+                field_params['placeholder'] = 'YYYY-MM-DD HH:MM'
+            elif info['data_type'] in ('numeric', 'decimal'):
+                field_params['placeholder'] = f'Enter a decimal number...'
+                if info['numeric_precision']:
+                    max_digits = info['numeric_precision']
+                    if info['numeric_scale']:
+                        field_params['placeholder'] += f' (max {info["numeric_scale"]} decimal places)'
+                    field_params['max_length'] = max_digits + 1  # +1 for decimal point
+
+            # Create and add the TextInput field
+            text_input = TextInput(**field_params)
+            self.add_item(text_input)
+            setattr(self, column_name, text_input)
+
+    @staticmethod
+    def validate_integer(value: str) -> int:
+        """Validate and convert integer input"""
+        try:
+            return int(value)
+        except ValueError:
+            raise ValueError(f"'{value}' is not a valid integer")
+
+    @staticmethod
+    def validate_numeric(value: str, scale: int = None) -> float:
+        """Validate and convert numeric input"""
+        try:
+            num = float(value)
+            if scale is not None:
+                decimal_str = str(num).split('.')
+                if len(decimal_str) > 1 and len(decimal_str[1]) > scale:
+                    raise ValueError(f"Number can't have more than {scale} decimal places")
+            return num
+        except ValueError as e:
+            raise ValueError(f"'{value}' is not a valid number: {str(e)}")
+
+    @staticmethod
+    def validate_timestamp(value: str) -> datetime:
+        """Validate and convert timestamp input"""
+        try:
+            return datetime.strptime(value, '%Y-%m-%d %H:%M')
+        except ValueError:
+            raise ValueError("Invalid date format. Use YYYY-MM-DD HH:MM")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # Validate and convert all inputs
+        validated_data = {}
+        columns_info = await self.get_column_info()
+
+        for column_name, column_info in columns_info.items():
+            value = getattr(self, column_name).value
+
+            # Skip empty optional fields
+            if not value and not getattr(self, column_name).required:
+                continue
+
+            # Validate based on column type
+            if column_info['data_type'] in ('integer', 'bigint', 'smallint'):
+                validated_data[column_name] = self.validate_integer(value)
+            elif column_info['data_type'] in ('numeric', 'decimal'):
+                validated_data[column_name] = self.validate_numeric(
+                    value,
+                    scale=column_info['numeric_scale']
+                )
+            elif column_info['data_type'] in ('timestamp', 'timestamp without time zone'):
+                validated_data[column_name] = self.validate_timestamp(value)
+            else:  # text, varchar, etc.
+                validated_data[column_name] = value
+
+        # Generate INSERT query
+        columns = ', '.join(validated_data.keys())
+        placeholders = ', '.join(['%s'] * len(validated_data))
+        query = f"""
+            INSERT INTO {self.table_name} ({columns})
+            VALUES ({placeholders})
+            RETURNING *
+        """
+
+        # Execute query
+        async with self.node.apool.connection() as conn:
+            async with conn.transaction():
+                async with conn.cursor(row_factory=dict_row) as cur:
+                    await cur.execute(query, list(validated_data.values()))
+                    self.response = await cur.fetchone()
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(
+            f"Data successfully inserted into {self.table_name}!",
+            ephemeral=True
+        )
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        """Handle any errors that occur during modal submission"""
+        if isinstance(error, ValueError):
+            # Handle validation errors
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                f"Validation error: {str(error)}",
+                ephemeral=True
+            )
+        else:
+            # Handle other errors
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                f"An error occurred: {str(error)}",
+                ephemeral=True
+            )
+            logger.error(f"Error while inserting a new row in {self.table_name}: {error}")

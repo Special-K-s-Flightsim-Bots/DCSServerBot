@@ -374,6 +374,7 @@ def _lua_table_to_dict(lua_table):
 
 
 def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
+    # noinspection PyArgumentList
     lua = LuaRuntime(unpack_returned_tuples=multival, encoding=encoding, max_memory=0)
     lua.execute(raw)
     variable = raw.split("=")[0].strip()

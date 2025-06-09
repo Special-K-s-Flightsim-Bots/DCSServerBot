@@ -5,7 +5,8 @@ import psycopg
 
 from copy import deepcopy
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, \
-    DataObjectFactory, PersistentReport, Channel, command, DEFAULT_TAG, Member, Group
+    DataObjectFactory, PersistentReport, Channel, command, DEFAULT_TAG, Member, Group, get_translation
+from datetime import timezone
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.utils import MISSING
@@ -14,13 +15,19 @@ from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from typing import Union, Optional, Type
 
-from .filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, SquadronFilter
+from .filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, SquadronFilter, \
+    TheatreFilter
 from .listener import UserStatisticsEventListener
 from .views import SquadronModal
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+
+from ..creditsystem.squadron import Squadron
+
 yaml = YAML()
+
+_ = get_translation(__name__.split('.')[1])
 
 
 def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *params) \
@@ -43,28 +50,6 @@ def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *param
         member = name
         period = params[i] if i < num else None
     return member, period
-
-
-async def squadron_users_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    if not await interaction.command._check_can_run(interaction):
-        return []
-    try:
-        squadron_id = utils.get_interaction_param(interaction, 'squadron')
-        if not squadron_id:
-            return []
-        async with interaction.client.apool.connection() as conn:
-            choices: list[app_commands.Choice[str]] = [
-                app_commands.Choice(name=row[0], value=row[1])
-                async for row in await conn.execute("""
-                    SELECT p.name, s.player_ucid FROM squadron_members s, players p
-                    WHERE s.player_ucid = p.ucid AND s.squadron_id = %s 
-                    AND p.name ILIKE %s 
-                """, (squadron_id, f'%{current}%'))
-            ]
-        return choices[:25]
-    except Exception as ex:
-        interaction.client.log.exception(ex)
-        return []
 
 
 class UserStatistics(Plugin[UserStatisticsEventListener]):
@@ -205,7 +190,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     async def statistics(self, interaction: discord.Interaction,
                          period: Optional[app_commands.Transform[
                              StatisticsFilter, PeriodTransformer(
-                                 flt=[PeriodFilter, CampaignFilter, MissionFilter]
+                                 flt=[PeriodFilter, CampaignFilter, MissionFilter, TheatreFilter]
                              )]] = PeriodFilter(),
                          user: Optional[app_commands.Transform[
                              Union[discord.Member, str], utils.UserTransformer]
@@ -231,7 +216,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                         _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None,
                         period: Optional[app_commands.Transform[
                             StatisticsFilter, PeriodTransformer(
-                                flt=[PeriodFilter, CampaignFilter, MissionFilter, SquadronFilter]
+                                flt=[PeriodFilter, CampaignFilter, MissionFilter, TheatreFilter, SquadronFilter]
                             )]] = PeriodFilter(), limit: Optional[app_commands.Range[int, 3, 20]] = None):
         file = 'highscore-campaign.json' if isinstance(period, CampaignFilter) else 'highscore.json'
         if not _server:
@@ -300,6 +285,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("SELECT name, role, description FROM squadrons WHERE id = %s", (squadron_id, ))
                 row = await cursor.fetchone()
+                # TODO: role changes
+                # TODO: role assignment on late add
                 if not role:
                     role = self.bot.get_role(row['role'])
                 name = row['name']
@@ -312,10 +299,18 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @app_commands.guild_only()
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.rename(squadron_id="squadron")
-    @utils.app_has_role('DCS Admin')
+    @utils.squadron_role_check()
     async def add(self, interaction: discord.Interaction, squadron_id: int,
-                  user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
+                  user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer],
+                  admin: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
+        # only DCS Admin can add admin users
+        if admin and not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message("You're not allowed to add another squadron admin.",
+                                                    ephemeral=True)
+            return
+
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         async with interaction.client.apool.connection() as conn:
@@ -336,6 +331,21 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                     prefix = f"User {ucid}"
                 else:
                     prefix = f"Member {member.display_name}"
+
+                # add the user to the database
+                try:
+                    await conn.execute("""
+                        INSERT INTO squadron_members (squadron_id, player_ucid, admin) 
+                        VALUES (%s, %s, %s)
+                    """, (squadron_id, ucid, admin))
+                    await interaction.followup.send(f"{prefix} added to the squadron.", ephemeral=ephemeral)
+                    if self.get_config().get('squadrons', {}).get('persist_list', False):
+                        await self.persist_squadron_list(squadron_id)
+                except UniqueViolation:
+                    await interaction.followup.send(f"{prefix} is a member of this or another squadron already!",
+                                                    phemeral=True)
+
+                # check, if the user needs a role
                 if role:
                     if not member:
                         if not await utils.yn_question(interaction,
@@ -359,26 +369,28 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                             await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
                         await interaction.followup.send(f"{prefix} added to the squadron.", ephemeral=ephemeral)
                         return
-                try:
-                    await conn.execute("INSERT INTO squadron_members (squadron_id, player_ucid) VALUES (%s, %s)",
-                                       (squadron_id, ucid))
-                    await interaction.followup.send(f"{prefix} added to the squadron.", ephemeral=ephemeral)
-                    if self.get_config().get('squadrons', {}).get('persist_list', False):
-                        await self.persist_squadron_list(squadron_id)
-                except UniqueViolation:
-                    await interaction.followup.send(f"{prefix} is a member of this squadron already!", ephemeral=True)
 
     @squadron.command(description='Deletes users from squadrons')
     @app_commands.guild_only()
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
-    @app_commands.autocomplete(user=squadron_users_autocomplete)
+    @app_commands.autocomplete(user=utils.squadron_users_autocomplete)
     @app_commands.rename(squadron_id="squadron")
-    @utils.app_has_role('DCS Admin')
+    @utils.squadron_role_check()
     async def delete(self, interaction: discord.Interaction, squadron_id: int, user: Optional[str] = None):
         ephemeral = utils.get_ephemeral(interaction)
         if not user:
+            if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message("You're not allowed to delete a sqaudron.", ephemeral=True)
+                return
             message = "Do you really want to delete this squadron?"
         else:
+            if (user == interaction.user and
+                    not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user)):
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message("Admins can't delete themseleves from a squadron.",
+                                                        ephemeral=True)
+                return
             message = "Do you really want to delete this user from this squadron?"
         if not await utils.yn_question(interaction, message, ephemeral=ephemeral):
             await interaction.followup.send('Aborted.')
@@ -408,6 +420,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                         await conn.execute("DELETE FROM squadron_members WHERE squadron_id = %s AND player_ucid = %s",
                                            (squadron_id, row[0]))
                 if not user:
+                    await conn.execute("DELETE FROM squadron_members WHERE squadron_id = %s", (squadron_id, ))
                     await conn.execute("DELETE FROM squadrons WHERE id = %s", (squadron_id, ))
                     await interaction.followup.send('Squadron deleted.', ephemeral=ephemeral)
                 else:
@@ -419,7 +432,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @app_commands.guild_only()
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.rename(squadron_id="squadron")
-    @utils.app_has_role('DCS Admin')
+    @utils.squadron_role_check()
     async def lock(self, interaction: discord.Interaction, squadron_id: int):
         ephemeral = utils.get_ephemeral(interaction)
         async with interaction.client.apool.connection() as conn:
@@ -432,7 +445,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @app_commands.guild_only()
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.rename(squadron_id="squadron")
-    @utils.app_has_role('DCS Admin')
+    @utils.squadron_role_check()
     async def unlock(self, interaction: discord.Interaction, squadron_id: int):
         ephemeral = utils.get_ephemeral(interaction)
         async with interaction.client.apool.connection() as conn:
@@ -535,6 +548,89 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         embed = await self.render_squadron_list(squadron_id)
         await interaction.followup.send(embed=embed)
 
+    async def get_credits(self, squadron_id: int) -> list[dict]:
+        ret = []
+        async with self.apool.connection() as conn:
+            async for row in await conn.execute("""
+                SELECT c.id, c.name
+                FROM campaigns c LEFT OUTER JOIN squadron_credits s 
+                ON (c.id = s.campaign_id AND s.squadron_id = %s) 
+                WHERE (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc') 
+            """, (squadron_id,)):
+                squadron = utils.get_squadron(node=self.node, squadron_id=squadron_id)
+                squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                                       campaign_id=row[0])
+                ret.append({"id": row[0], "name": row[1], "points": squadron_obj.points})
+        return ret
+
+    async def get_credits_log(self, squadron_id: int) -> list[dict]:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT s.event, s.old_points, s.new_points, remark, time 
+                    FROM squadron_credits_log s, campaigns c 
+                    WHERE s.squadron_id = %s AND s.campaign_id = c.id 
+                    AND (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc') 
+                    ORDER BY s.time DESC LIMIT 10
+                """, (squadron_id, ))
+                return await cursor.fetchall()
+
+    @squadron.command(name='credits', description='Credit points of a squadron')
+    @app_commands.guild_only()
+    @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
+    @app_commands.rename(squadron_id="squadron")
+    @utils.squadron_role_check()
+    async def credits(self, interaction: discord.Interaction, squadron_id: int):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        data = await self.get_credits(squadron_id)
+        if not data:
+            await interaction.followup.send(_('Squadron has no campaign credits.'), ephemeral=True)
+            return
+        name = utils.get_squadron(self.node, squadron_id=squadron_id)['name']
+        embed = discord.Embed(title=_("Campaign Credits for Squadron {}").format(name), color=discord.Color.blue())
+        campaigns = points = ''
+        for row in data:
+            campaigns += row['name'] + '\n'
+            points += f"{row['points']}\n"
+        embed.add_field(name=_('Campaign'), value=campaigns)
+        embed.add_field(name=_('Credits'), value=points)
+        embed.add_field(name='_ _', value='_ _')
+        data = await self.get_credits_log(squadron_id)
+        if len(data):
+            embed.add_field(name='▬' * 10 + ' Log ' + '▬' * 10, value='_ _', inline=False)
+            times = events = deltas = ''
+            for row in data:
+                points = row['new_points'] - row['old_points']
+                if points == 0:
+                    continue
+                times += f"<t:{int(row['time'].replace(tzinfo=timezone.utc).timestamp())}:R>\n"
+                events += row['event'].title() + '\n'
+                deltas += f"{points}\n"
+            embed.add_field(name=_('Time'), value=times)
+            embed.add_field(name=_('Event'), value=events)
+            embed.add_field(name=_('Credits'), value=deltas)
+            embed.set_footer(text=_('Log shows the last 10 events only.'))
+        await interaction.followup.send(embed=embed, ephemeral=utils.get_ephemeral(interaction))
+
+    @squadron.command(name='donate', description='Donate credit points to a squadron')
+    @app_commands.guild_only()
+    @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
+    @app_commands.rename(squadron_id="squadron")
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    async def donate(self, interaction: discord.Interaction, squadron_id: int, points: int,
+                     server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        campaign_id, name = utils.get_running_campaign(self.node, server)
+        squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
+        squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                               campaign_id=campaign_id)
+        squadron_obj.points += points
+        squadron_obj.audit(event='Admin donate', points=points, remark='')
+        await interaction.followup.send(_("{} points donated to squadron {}.").format(points, squadron['name']),
+                                        ephemeral=utils.get_ephemeral(interaction))
+
     async def render_highscore(self, highscore: Union[dict, list], *, server: Optional[Server] = None,
                                mission_end: bool = False):
         # Handle the case where highscore is a list.
@@ -544,7 +640,10 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 self.render_highscore(h, server=server, mission_end=mission_end)
                 for h in highscore
             ]
-            await asyncio.gather(*tasks)
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    self.log.exception(result)
             return
 
         # Extract and validate parameters
@@ -606,7 +705,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
     async def render_squadron_list(self, squadron_id: int):
         embed = discord.Embed(color=discord.Color.blue())
-        discord_ids = dcs_names = ""
+        discord_ids = dcs_names = admins = ""
         async with self.node.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("SELECT name, description, image_url FROM squadrons WHERE id = %s",
@@ -616,26 +715,31 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 embed.description = row['description'] or MISSING
                 embed.set_thumbnail(url=row['image_url'])
                 async for row in await cursor.execute("""
-                    SELECT DISTINCT p.discord_id, p.name
+                    SELECT DISTINCT p.discord_id, p.name, m.admin
                     FROM players p JOIN squadron_members m
                     ON p.ucid = m.player_ucid
                     AND m.squadron_id = %s
+                    ORDER BY m.admin DESC, p.name
                 """, (squadron_id, )):
                     new_discord_id = f"<@{row['discord_id']}>\n" if row['discord_id'] != -1 else 'not linked\n'
                     new_dcs_name = row['name'] + '\n'
+                    new_admin = 'Yes\n' if row['admin'] else 'No\n'
                     if len(discord_ids + new_discord_id) > 1024 or len(dcs_names + new_dcs_name) > 1024:
                         embed.add_field(name="Member", value=discord_ids)
                         embed.add_field(name="DCS Name", value=dcs_names)
-                        embed.add_field(name='_ _', value='_ _')
+                        embed.add_field(name='Admin', value=admins)
                         discord_ids = new_discord_id
                         dcs_names = new_dcs_name
+                        admins = new_admin
                     else:
                         discord_ids += new_discord_id
                         dcs_names += new_dcs_name
+                        admins += new_admin
         if discord_ids.strip():
             embed.add_field(name="Member", value=discord_ids)
             embed.add_field(name="DCS Name", value=dcs_names)
-            embed.add_field(name='_ _', value='_ _')
+            embed.add_field(name='Admin', value=admins)
+        embed.set_footer(text="Admin users can add or remove members from a squadron, as well as lock or unlock it.")
         return embed
 
     async def persist_squadron_list(self, squadron_id: int):

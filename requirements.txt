@@ -8,10 +8,10 @@ astral==3.2
 audioop-lts==0.2.1; python_version>='3.13'
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
-aiohttp==3.11.16
+aiohttp==3.12.11
 
 # Certifi: Python package for providing Mozilla's CA Bundle
-certifi==2025.1.31
+certifi==2025.4.26
 
 # Croniter: Python iterator implementing a cron schedule format
 croniter==6.0.0
@@ -20,7 +20,7 @@ croniter==6.0.0
 discord.py==2.4.0
 
 # eyeD3: Python module and program for processing ID3 tags (metadata) in MP3 files
-eyeD3==0.9.7
+eyeD3==0.9.8
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
 fastapi==0.115.12
@@ -32,7 +32,7 @@ fuzzywuzzy==0.18.0
 GitPython==3.1.44
 
 # jsonschema: An implementation of JSON Schema for Python
-jsonschema==4.23.0
+jsonschema==4.24.0
 
 # Fast LUA parser
 lupa==2.4
@@ -43,23 +43,26 @@ matplotlib>=3.9.4
 # Minidump: Windows Minidump file reader
 minidump==0.0.24; sys_platform == 'win32'
 
+# MiniUPnPC: UPnP check
+miniupnpc==2.3.3
+
 # NumPy: Package for scientific computing with Python
-numpy==2.2.4
+numpy==2.3.0
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
 openpyxl==3.1.5
 
 # Pandas: Python data analysis library
-pandas==2.2.3
+pandas==2.3.0
 
 # Packaging: A core package providing support for PEP 440 version identifiers
-packaging==24.2
+packaging==25.0
 
 # PID: Pidfile implementation by using a Unix PID file
 pid==3.0.4
 
 # Psycopg: PostgreSQL database adapter for Python
-psycopg[binary]==3.2.6
+psycopg[binary]==3.2.9
 
 # Psycopg Pool: PostgreSQL database adapter pool for Python
 psycopg-pool==3.2.6
@@ -68,7 +71,7 @@ psycopg-pool==3.2.6
 psutil==7.0.0
 
 # PyArrow: Python library providing high-performance tools for doing analytics on Arrow-based columnar data
-pyarrow==19.0.1
+pyarrow==20.0.0
 
 # pyKwalify: A Python library for YAML/JSON schema validation
 pykwalify==1.8.0
@@ -80,7 +83,7 @@ python-Levenshtein==0.27.1
 python-multipart==0.0.20
 
 # Pywin32: Set of Python extensions for MS Windows
-pywin32==309; sys_platform == 'win32'
+pywin32==310; sys_platform == 'win32'
 
 # Requests: Python HTTP library
 requests==2.32.3
@@ -89,7 +92,7 @@ requests==2.32.3
 rich==14.0.0
 
 # ruamel-yaml: YAML parser/emitter supporting roundtrip comment preservation
-ruamel.yaml==0.18.10
+ruamel.yaml==0.18.14
 
 # seaborn: Extension for Matplotlib with more and nicer graphics
 seaborn==0.13.2
@@ -108,7 +111,9 @@ tomli_w==1.2.0
 trueskill==0.4.5
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.34.0
+uvicorn==0.34.3
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==6.0.0
+
+wxpython==4.2.3

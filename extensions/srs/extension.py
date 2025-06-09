@@ -4,7 +4,6 @@ import asyncio
 import atexit
 import certifi
 import discord
-import ipaddress
 import json
 import os
 import psutil
@@ -13,13 +12,17 @@ import subprocess
 import ssl
 import sys
 import tempfile
+import zipfile
 
 if sys.platform == 'win32':
     import ctypes
 
 from configparser import RawConfigParser
+from contextlib import suppress
 from core import Extension, utils, Server, ServiceRegistry, Autoexec, get_translation, InstallException
 from discord.ext import tasks
+from io import BytesIO
+from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
 from typing import Optional
@@ -29,7 +32,9 @@ from watchdog.observers import Observer
 _ = get_translation(__name__.split('.')[1])
 
 ports: dict[int, str] = dict()
-SRS_GITHUB_URL = "https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/latest"
+SRS_GITHUB_URL = "https://api.github.com/repos/ciribob/DCS-SimpleRadioStandalone/releases/latest"
+SRS_BETA_URL = "https://api.github.com/repos/ciribob/DCS-SimpleRadioStandalone/releases"
+SRS_DOWNLOAD_URL = "https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/download/{version}/DCS-SimpleRadioStandalone-{version}.zip"
 
 __all__ = [
     "SRS"
@@ -70,12 +75,16 @@ class SRS(Extension, FileSystemEventHandler):
         self.observer: Optional[Observer] = None
         self.first_run = True
         self._inst_path: Optional[str] = None
+        self.exe_name = None
         self.clients: dict[str, set[int]] = {}
         super().__init__(server, config)
 
+    def get_config_path(self) -> str:
+        return os.path.expandvars(self.config['config'].format(server=self.server, instance=self.server.instance))
+
     def load_config(self) -> Optional[dict]:
         if 'config' in self.config:
-            self.cfg.read(os.path.expandvars(self.config['config']), encoding='utf-8')
+            self.cfg.read(self.get_config_path(), encoding='utf-8')
             return {
                 s: {_name: Autoexec.parse(_value) for _name, _value in self.cfg.items(s)}
                 for s in self.cfg.sections()
@@ -144,7 +153,7 @@ class SRS(Extension, FileSystemEventHandler):
 
         if self.config.get('autoupdate', False):
             await self.check_for_updates()
-        path = os.path.expandvars(self.config['config'])
+        path = self.get_config_path()
         if 'client_export_file_path' not in self.config:
             self.config['client_export_file_path'] = os.path.join(os.path.dirname(path), 'clients-list.json')
         dirty = self._maybe_update_config('Server Settings', 'SERVER_PORT', 'port')
@@ -215,7 +224,7 @@ class SRS(Extension, FileSystemEventHandler):
 
     async def startup(self) -> bool:
         if self.config.get('autostart', True):
-            self.log.debug(f"Launching SRS server with: \"{self.get_exe_path()}\" -cfg=\"{self.config['config']}\"")
+            self.log.debug(f"Launching SRS server with: \"{self.get_exe_path()}\" -cfg=\"{self.get_config_path()}\"")
 
             def run_subprocess():
                 if sys.platform == 'win32' and self.config.get('minimized', True):
@@ -231,7 +240,7 @@ class SRS(Extension, FileSystemEventHandler):
 
                 return subprocess.Popen([
                     self.get_exe_path(),
-                    f"-cfg={os.path.expandvars(self.config['config'])}"
+                    f"-cfg={self.get_config_path()}"
                 ], startupinfo=info, stdout=out, stderr=out, close_fds=True)
 
             try:
@@ -260,7 +269,7 @@ class SRS(Extension, FileSystemEventHandler):
                 try:
                     super().shutdown()
                     if not self.process:
-                        self.process = next(utils.find_process('SR-Server.exe', self.server.instance.name), None)
+                        self.process = next(utils.find_process(self.exe_name, self.server.instance.name), None)
                     if self.process:
                         utils.terminate_process(self.process)
                         self.process = None
@@ -277,7 +286,7 @@ class SRS(Extension, FileSystemEventHandler):
                 finally:
                     if self.observer:
                         self.stop_observer()
-            return True
+        return True
 
     def on_modified(self, event: FileSystemEvent) -> None:
         if self.loop.is_running():
@@ -291,8 +300,8 @@ class SRS(Extension, FileSystemEventHandler):
                 if client['Name'] == '---':
                     continue
                 target = set(int(x['freq']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6)
-                if client['Name'] not in self.clients:
-                    self.clients[client['Name']] = target
+                if client['ClientGuid'] not in self.clients:
+                    self.clients[client['ClientGuid']] = target
                     await self.bus.send_to_node({
                         "command": "onSRSConnect",
                         "server_name": self.server.name,
@@ -300,12 +309,12 @@ class SRS(Extension, FileSystemEventHandler):
                         "side": client['Coalition'],
                         "unit": client['RadioInfo']['unit'],
                         "unit_id": client['RadioInfo']['unitId'],
-                        "radios": list(self.clients[client['Name']])
+                        "radios": list(self.clients[client['ClientGuid']])
                     })
                 else:
-                    actual = self.clients[client['Name']]
+                    actual = self.clients[client['ClientGuid']]
                     if actual != target:
-                        self.clients[client['Name']] = target
+                        self.clients[client['ClientGuid']] = target
                         await self.bus.send_to_node({
                             "command": "onSRSUpdate",
                             "server_name": self.server.name,
@@ -313,10 +322,10 @@ class SRS(Extension, FileSystemEventHandler):
                             "side": client['Coalition'],
                             "unit": client['RadioInfo']['unit'],
                             "unit_id": client['RadioInfo']['unitId'],
-                            "radios": list(self.clients[client['Name']])
+                            "radios": list(self.clients[client['ClientGuid']])
                         })
             all_clients = set(self.clients.keys())
-            active_clients = set([x['Name'] for x in data['Clients']])
+            active_clients = set([x['ClientGuid'] for x in data['Clients']])
             # any clients disconnected?
             for client in all_clients - active_clients:
                 await self.bus.send_to_node({
@@ -348,25 +357,19 @@ class SRS(Extension, FileSystemEventHandler):
 
     def is_running(self) -> bool:
         if not self.process:
-            self.process = next(utils.find_process('SR-Server.exe', self.server.instance.name), None)
+            self.process = next(utils.find_process(self.exe_name, self.server.instance.name), None)
             running = self.process is not None and self.process.is_running()
             if not running:
                 self.log.debug("SRS: is NOT running (process)")
         else:
-            try:
-                server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
-                if server_ip == '0.0.0.0':
-                    server_ip = '127.0.0.1'
-                ipaddress.ip_address(server_ip)
-            except ValueError:
-                self.log.warning(f"Please check [Server Settings]: SERVER_IP in your {self.config.get('config')}. "
-                                 f"It does not contain a valid IP-address!")
+            server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
+            if server_ip == '0.0.0.0':
                 server_ip = '127.0.0.1'
             running = utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
             if not running:
                 self.log.debug("SRS: is NOT running (port)")
                 self.process = None
-        # start the observer, if we were started to a running SRS server
+        # start the observer if we were started to a running SRS server
         if running and not self.observer:
             self.start_observer()
         return running
@@ -394,11 +397,18 @@ class SRS(Extension, FileSystemEventHandler):
         return self._inst_path
 
     def get_exe_path(self) -> str:
-        return os.path.join(self.get_inst_path(), 'SR-Server.exe')
+        if parse(self.version) >= parse('2.2.0.0'):
+            os_dir = 'ServerCommandLine-Windows' if sys.platform == 'win32' else 'ServerCommandLine-Linux'
+            self.exe_name = 'SRS-Server-Commandline.exe' if sys.platform == 'win32' else 'SRS-Server-Commandline'
+            return os.path.join(self.get_inst_path(), os_dir, self.exe_name)
+            #return os.path.join(self.get_inst_path(), 'Server', 'SRS-Server.exe')
+        else:
+            self.exe_name = 'SR-Server.exe'
+            return os.path.join(self.get_inst_path(), self.exe_name)
 
     @property
     def version(self) -> Optional[str]:
-        return utils.get_windows_version(self.get_exe_path())
+        return utils.get_windows_version(os.path.join(self.get_inst_path(), 'SRS-AutoUpdater.exe'))
 
     async def render(self, param: Optional[dict] = None) -> dict:
         if not self.locals:
@@ -441,34 +451,55 @@ class SRS(Extension, FileSystemEventHandler):
             return False
 
     async def check_for_updates(self) -> Optional[str]:
-        try:
+        with suppress(aiohttp.ClientConnectionError):
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-                async with session.get(SRS_GITHUB_URL, proxy=self.node.proxy,
-                                       proxy_auth=self.node.proxy_auth) as response:
-                    if response.status in [200, 302]:
-                        version = response.url.raw_parts[-1]
-                        if version != self.version:
-                            return version
-                        else:
-                            return None
-        except aiohttp.ClientConnectionError:
-            return None
+                url = SRS_BETA_URL if self.config.get('beta', False) else SRS_GITHUB_URL
+                async with session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth,
+                                       raise_for_status=True) as response:
+                    data = await response.json()
+                    if isinstance(data, list):
+                        data = data[0]
+                    version = data.get('tag_name', '').strip('v')
+                    if parse(version) > parse(self.version):
+                        return version
+        return None
 
-    def do_update(self):
+    def do_update(self) -> bool:
         try:
             cwd = self.get_inst_path()
             exe_path = os.path.join(cwd, 'SRS-AutoUpdater.exe')
             args = ['-server', '-autoupdate', f'-path=\"{cwd}\"']
+            if self.config.get('beta', False):
+                args.append('-beta')
             if sys.platform == 'win32':
-                ctypes.windll.shell32.ShellExecuteW(
+                result = ctypes.windll.shell32.ShellExecuteW(
                     None, "runas", exe_path, ' '.join(args), None, 1)
+                if result <= 32:
+                    return False
             else:
                 subprocess.run([exe_path] + args, cwd=cwd, shell=False, stderr=subprocess.DEVNULL,
                                stdout=subprocess.DEVNULL)
+            return True
         except OSError as ex:
             if ex.winerror == 740:
                 self.log.error("You need to disable User Access Control (UAC) to use the DCS-SRS AutoUpdater.")
+            return False
+
+    async def do_update_fallback(self, version: str):
+        installation_dir = self.get_inst_path()
+        async with aiohttp.ClientSession() as session:
+            async with session.get(SRS_DOWNLOAD_URL.format(version=version), raise_for_status=True,
+                                   proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                with zipfile.ZipFile(BytesIO(await response.content.read())) as z:
+                    for member in z.namelist():
+                        destination_file = os.path.join(installation_dir, member)
+                        destination_path = os.path.dirname(destination_file)
+                        if member.endswith('/'):
+                            os.makedirs(destination_path, exist_ok=True)
+                            continue
+                        with open(destination_file, 'wb') as output_file:
+                            output_file.write(z.read(member))
 
     @tasks.loop(minutes=30)
     async def schedule(self):
@@ -479,6 +510,7 @@ class SRS(Extension, FileSystemEventHandler):
             if version:
                 self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
                 await asyncio.to_thread(self.do_update)
+                # await self.do_update_fallback(version)
                 self.log.info("DCS-SRS updated.")
                 bus = ServiceRegistry.get(ServiceBus)
                 await bus.send_to_node({

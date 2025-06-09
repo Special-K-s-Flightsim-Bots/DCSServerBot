@@ -118,8 +118,9 @@ class PubSub:
                 query = sql.SQL("DELETE FROM {table} WHERE id = ANY(%s::int[])").format(table=sql.Identifier(self.name))
                 await conn.execute(query, (ids_to_delete,))
 
-        await asyncio.sleep(1)  # Ensure the rest of __init__ has finished
         while not self._stop_event.is_set():
+            # wait one second to clean up any issue
+            await asyncio.sleep(1)
             with suppress(OperationalError):
                 async with await AsyncConnection.connect(self.url, autocommit=True) as conn:
                     while not self._stop_event.is_set():

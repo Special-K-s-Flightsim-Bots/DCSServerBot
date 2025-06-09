@@ -1,13 +1,18 @@
 import asyncio
 import discord
 import os
+
 from contextlib import suppress
 from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils
-from discord import SelectOption
+from discord import SelectOption, ButtonStyle
 from discord.ui import View, Select, Button
+from io import StringIO
+from ruamel.yaml import YAML
 from typing import cast, Optional, Union
 
 from services.bot import DCSServerBot
+
+WARNING_ICON = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true"
 
 
 class ServerView(View):
@@ -40,25 +45,31 @@ class ServerView(View):
 #            select.callback = self.change_preset
 #            self.add_item(select)
         if self.server.status in [Status.PAUSED, Status.STOPPED]:
-            button: Button = Button(style=discord.ButtonStyle.primary, emoji='▶️')
+            # noinspection PyTypeChecker
+            button: Button = Button(style=ButtonStyle.primary, emoji='▶️')
             button.callback = self.run
             self.add_item(button)
         elif self.server.status == Status.RUNNING:
-            button: Button = Button(style=discord.ButtonStyle.primary, emoji='⏸️')
+            # noinspection PyTypeChecker
+            button: Button = Button(style=ButtonStyle.primary, emoji='⏸️')
             button.callback = self.pause
             self.add_item(button)
         if self.server.status in [Status.RUNNING, Status.PAUSED]:
-            button: Button = Button(style=discord.ButtonStyle.primary, emoji='⏹️')
+            # noinspection PyTypeChecker
+            button: Button = Button(style=ButtonStyle.primary, emoji='⏹️')
             button.callback = self.stop_server
             self.add_item(button)
-            button: Button = Button(style=discord.ButtonStyle.primary, emoji='🔁')
+            # noinspection PyTypeChecker
+            button: Button = Button(style=ButtonStyle.primary, emoji='🔁')
             button.callback = self.reload
             self.add_item(button)
-        button: Button = Button(style=discord.ButtonStyle.primary if self.modify_mission else discord.ButtonStyle.gray,
+        # noinspection PyTypeChecker
+        button: Button = Button(style=ButtonStyle.primary if self.modify_mission else ButtonStyle.gray,
                                 emoji='⛅' if self.modify_mission else '🚫')
         button.callback = self.toggle_modify
         self.add_item(button)
-        button: Button = Button(label='Quit', style=discord.ButtonStyle.red)
+        # noinspection PyTypeChecker
+        button: Button = Button(label='Quit', style=ButtonStyle.red)
         button.callback = self.quit
         self.add_item(button)
         return self.env.embed
@@ -70,7 +81,7 @@ class ServerView(View):
         await interaction.edit_original_response(embed=self.env.embed)
         if not await self.server.loadMission(int(interaction.data['values'][0]) + 1,
                                              modify_mission=self.modify_mission):
-            self.env.embed.set_footer(text="Mission loading failed.")
+            self.env.embed.set_footer(text="Mission loading failed.", icon_url=WARNING_ICON)
             await interaction.edit_original_response(embed=self.env.embed)
         else:
             with suppress(TimeoutError, asyncio.TimeoutError):
@@ -145,7 +156,7 @@ class PresetView(View):
             select.max_values = min(10, len(options))
         else:
             select.max_values = 1
-        self.result = None
+        self.result: Optional[list[str]] = None
 
     @discord.ui.select(placeholder="Select the preset(s) you want to apply")
     async def callback(self, interaction: discord.Interaction, select: Select):
@@ -153,13 +164,15 @@ class PresetView(View):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
 
-    @discord.ui.button(label='OK', style=discord.ButtonStyle.green)
+    # noinspection PyTypeChecker
+    @discord.ui.button(label='OK', style=ButtonStyle.green)
     async def ok(self, interaction: discord.Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
-    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
+    # noinspection PyTypeChecker
+    @discord.ui.button(label='Cancel', style=ButtonStyle.red)
     async def cancel(self, interaction: discord.Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -220,7 +233,8 @@ class InfoView(View):
                 self.add_item(button)
         else:
             banned = watchlist = False
-        button = Button(label="Cancel", style=discord.ButtonStyle.red)
+        # noinspection PyTypeChecker
+        button = Button(label="Cancel", style=ButtonStyle.red)
         button.callback = self.on_cancel
         self.add_item(button)
         report = Report(self.bot, 'mission', 'info.json')
@@ -354,4 +368,95 @@ class InfoView(View):
             message += '(ucid={self.ucid}) '
         message += 'from the watchlist'
         await self.bot.audit(message, user=interaction.user)
+        self.stop()
+
+
+class ModifyView(View):
+    def __init__(self, presets: dict, mission_change: str, warehouses_change: str, options_change: str):
+        super().__init__()
+        self.presets = presets
+        self.embed = discord.Embed(color=discord.Color.blue())
+        self.render()
+        self.mission_change = self.cut(mission_change)
+        self.warehouses_change = self.cut(warehouses_change)
+        self.options_change = self.cut(options_change)
+
+        # noinspection PyTypeChecker
+        button = Button(label="Presets", style=ButtonStyle.primary)
+        button.callback = self.display_presets
+        self.add_item(button)
+
+        if self.mission_change:
+            # noinspection PyTypeChecker
+            button = Button(label="mission", style=ButtonStyle.secondary)
+            button.callback = self.display_mission
+            self.add_item(button)
+
+        if self.warehouses_change:
+            # noinspection PyTypeChecker
+            button = Button(label="warehouses", style=ButtonStyle.secondary)
+            button.callback = self.display_warehouses
+            self.add_item(button)
+
+        if self.options_change:
+            # noinspection PyTypeChecker
+            button = Button(label="options", style=ButtonStyle.secondary)
+            button.callback = self.display_options
+            self.add_item(button)
+
+        # noinspection PyTypeChecker
+        button = Button(label="Cancel", style=ButtonStyle.red)
+        button.callback = self.cancel
+        self.add_item(button)
+
+    @staticmethod
+    def cut(message: Optional[str] = None) -> str:
+        if not message or len(message) <= 4096:
+            return message
+        remark = f"``` ... {len(message) - 4096} more"
+        return message[:4096 - len(remark)] + remark
+
+    def render(self):
+        yaml = YAML()
+        yaml.indent(mapping=2, sequence=4, offset=2)
+        yaml.default_flow_style = False
+        yaml.sort_keys = True
+        stream = StringIO()
+
+        self.embed.title = 'Presets'
+        self.embed.description = 'These modifications will be applied to your mission:\n\n'
+        for k, v in self.presets.items():
+            yaml.dump(v, stream)
+            self.embed.description += "{k}:\n```yaml\n{v}\n```".format(k=k, v=stream.getvalue())
+
+    async def display_presets(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.render()
+        await interaction.edit_original_response(embed=self.embed)
+
+    async def display_mission(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.embed.title = 'mission'
+        self.embed.description = self.mission_change
+        await interaction.edit_original_response(embed=self.embed)
+
+    async def display_warehouses(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.embed.title = 'warehouses'
+        self.embed.description = self.warehouses_change
+        await interaction.edit_original_response(embed=self.embed)
+
+    async def display_options(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.embed.title = 'options'
+        self.embed.description = self.options_change
+        await interaction.edit_original_response(embed=self.embed)
+
+    async def cancel(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
         self.stop()

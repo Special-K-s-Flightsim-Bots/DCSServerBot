@@ -1,0 +1,102 @@
+schema;instance_schema:
+  type: map
+  func: is_node
+  nullable: false
+  mapping:
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
+  func: is_element
+  nullable: false
+  mapping:
+    enabled: {type: bool, nullable: false}
+    use_signup_form: {type: bool, nullable: false}
+    autostart_matches: {type: bool, nullable: false}
+    match_generation: {type: str, nullable: false, enum: ['standard', 'trueskill']}
+    coalition_passwords: {type: bool, nullable: false}
+    allow_exports: {type: bool, nullable: false}
+    auto_join: {type: bool, nullable: false}
+    delayed_start: {type: int, nullable: false, range: {min: 0}}
+    time_to_choose: {type: int, nullable: false, range: {min: 300, max: 900}}
+    remove_on_death: {type: str, nullable: false, range: {min: 1}}
+    sudden_death: {type: bool, nullable: false}
+    balance_multiplier: {type: bool, nullable: false}
+    mission: {type: any, nullable: false, func: text_or_list}
+    events:
+      type: map
+      nullable: false
+      mapping:
+        regex;(.+):
+          type: map
+          nullable: false
+          mapping:
+            message: {type: str, nullable: false, range: {min: 1}}
+            sound: {type: str, nullable: false, range: {min: 1}}
+    presets:
+      type: map
+      nullable: false
+      mapping:
+        file: {type: str, nullable: false, range: {min: 1}}
+        initial:
+          type: seq
+          nullable: false
+          sequence:
+            - {type: str, nullable: false, range: {min: 1}, unique: true}
+        even:
+          type: seq
+          nullable: false
+          sequence:
+            - {type: str, nullable: false, range: {min: 1}, unique: true}
+        uneven:
+          type: seq
+          nullable: false
+          sequence:
+            - {type: str, nullable: false, range: {min: 1}, unique: true}
+        choices:
+          type: map
+          nullable: false
+          mapping:
+            regex;(.+):
+              type: map
+              nullable: false
+              mapping:
+                costs: {type: int, nullable: false, range: {min: 0}}
+                max: {type: int, nullable: false, range: {min: 1}}
+                ticket: {type: str, nullable: false, range: {min: 1}}
+        tickets:
+          type: map
+          nullable: false
+          mapping:
+            regex;(.+):
+              type: map
+              nullable: false
+              mapping:
+                num: {required: true, type: int, nullable: false, range: {min: 0}}
+                credits: {type: int, nullable: false, range: {min: 0}}
+    channels:
+      type: map
+      nullable: false
+      mapping:
+        info: {type: int, nullable: false}
+        admin: {type: int, nullable: false}
+        streamer: {type: int, nullable: false}
+        category: {type: int, nullable: false}
+        results: {type: int, nullable: false}
+
+type: map
+func: check_main_structure
+nullable: false
+mapping:
+  DEFAULT:
+    include: 'element_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
+  commands:
+    include: 'commands_schema'
+  regex;(.+):
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

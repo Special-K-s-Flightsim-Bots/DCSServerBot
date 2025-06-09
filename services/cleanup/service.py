@@ -48,7 +48,7 @@ class CleanupService(Service):
             search_pattern = f"**/{pattern}" if recursive else pattern
             for file_path in directory.glob(search_pattern):
                 tasks.append(check_and_delete(file_path))
-        await asyncio.gather(*tasks)
+        await utils.run_parallel_nofail(*tasks)
 
     async def do_channel_cleanup(self, config: dict):
         try:

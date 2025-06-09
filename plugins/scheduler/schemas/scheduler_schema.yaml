@@ -20,7 +20,7 @@ schema;action_map:
     max_mission_time: { type: int, range: { min: 1 }, nullable: false }
     real_time: { type: int, range: { min: 1 }, nullable: false }
     idle_time: { type: int, range: { min: 1 }, nullable: false }
-    method: { type: str, enum: [ 'restart', 'rotate', 'shutdown', 'load' ], nullable: false }
+    method: { type: str, enum: ['restart', 'rotate', 'shutdown', 'stop', 'load'], nullable: false }
     mission_id: { type: any, nullable: false, func: int_or_list }
     mission_file: { type: any, nullable: false, func: str_or_list }
     populated: { type: bool, nullable: false }

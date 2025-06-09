@@ -428,3 +428,8 @@ class Tacview(Extension):
             "tacviewRealTimeTelemetryPort": self.locals.get('tacviewRealTimeTelemetryPort', 42674),
             "tacviewRemoteControlPort": self.locals.get('tacviewRemoteControlPort', 42675)
         }
+
+    async def change_config(self, config: dict):
+        if config.get('target') and not self.config.get('target'):
+            asyncio.create_task(self.check_log())
+        await super().change_config(config)

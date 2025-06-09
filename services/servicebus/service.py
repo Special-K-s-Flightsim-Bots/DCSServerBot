@@ -1,27 +1,29 @@
 from __future__ import annotations
 import asyncio
-import concurrent
 import inspect
 import json
+import socket
 import uuid
 
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import closing
 from copy import deepcopy
-from core import Server, Mission, Node, DataObjectFactory, Status, Autoexec, ServerProxy, utils, PubSub, PerformanceLog, \
-    ThreadSafeDict, Instance
-from core.services.base import Service
-from core.services.registry import ServiceRegistry
+from core import Server, Mission, Node, Status, utils, Instance
+from core.autoexec import Autoexec
+from core.data.dataobject import DataObjectFactory
 from core.data.impl.instanceimpl import InstanceImpl
 from core.data.impl.serverimpl import ServerImpl
+from core.data.proxy.serverproxy import ServerProxy
+from core.pubsub import PubSub
+from core.services.base import Service
+from core.services.registry import ServiceRegistry
+from core.utils import ThreadSafeDict
+from core.utils.performance import PerformanceLog
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from functools import reduce
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
-from queue import Queue
-from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Callable, Optional, cast, Union, Any, TYPE_CHECKING
+from typing import Optional, cast, Union, Any, TYPE_CHECKING, Callable
 
 __all__ = [
     "ServiceBus"
@@ -39,8 +41,8 @@ class ServiceBus(Service):
         super().__init__(node)
         self.bot: Optional[DCSServerBot] = None
         self.version = self.node.bot_version
-        self.listeners: dict[str, asyncio.Future] = dict()
-        self.eventListeners: list[EventListener] = []
+        self.listeners: dict[str, asyncio.Future] = {}
+        self.eventListeners: set[EventListener] = set()
         self.servers: dict[str, Server] = ThreadSafeDict()
         self.init_servers()
         self.udp_server = None
@@ -122,9 +124,8 @@ class ServiceBus(Service):
     async def stop(self):
         if self.udp_server:
             self.log.debug("- Processing unprocessed messages ...")
-            await asyncio.to_thread(self.udp_server.shutdown)
+            self.udp_server.transport.close()
             self.log.debug("- All messages processed.")
-            self.udp_server.server_close()
         await self.broadcasts_channel.close()
         self.log.debug('- Listener stopped.')
         if self.executor:
@@ -156,10 +157,10 @@ class ServiceBus(Service):
 
     def register_eventListener(self, listener: EventListener):
         self.log.debug(f'  - Registering EventListener {type(listener).__name__}')
-        self.eventListeners.append(listener)
+        self.eventListeners.add(listener)
 
     def unregister_eventListener(self, listener: EventListener):
-        self.eventListeners.remove(listener)
+        self.eventListeners.discard(listener)
         self.log.debug(f'  - EventListener {type(listener).__name__} unregistered.')
 
     def init_servers(self):
@@ -286,8 +287,9 @@ class ServiceBus(Service):
         self.node.all_nodes[node.name] = None
         self.log.info(f"- Remote node {node.name} unregistered.")
 
-    def register_server(self, data: dict) -> bool:
+    async def register_server(self, data: dict) -> bool:
         server_name = data['server_name']
+
         # check for protocol incompatibilities
         if data['hook_version'] != self.version:
             self.log.error(f'Server "{server_name}" has wrong Hook version installed. '
@@ -298,11 +300,16 @@ class ServiceBus(Service):
             return False
         self.log.debug(f'  => Registering DCS-Server "{server_name}"')
         server: ServerImpl = cast(ServerImpl, self.servers[server_name])
+
         # set the PID
         if not server.process:
-            server.process = next(utils.find_process("DCS_server.exe|DCS.exe", server.instance.name), None)
+            self.log.debug(f'  => No process of {server_name} found. Searching ...')
+            server.process = await utils.find_process_async("DCS_server.exe|DCS.exe", server.instance.name)
             if not server.process:
                 self.log.warning("Could not find active DCS process. Please check, if you have started DCS with -w!")
+            else:
+                self.log.debug(f'  => Process of {server_name} found.')
+
         # if we are an agent, initialize the server
         if not self.master:
             if 'current_mission' in data:
@@ -334,28 +341,31 @@ class ServiceBus(Service):
                 return False
             else:
                 webgui_ports[webgui_port] = s.name
+
         # check for DSMC
         if server.status == Status.RUNNING and data.get('dsmc_enabled', False) and 'DSMC' not in server.extensions:
             self.log.warning("  => DSMC is enabled for this server but DSMC extension is not loaded!")
             self.log.warning("     You need to configure DSMC on your own to prevent issues with the mission list.")
 
         # update the database and check for server name changes
-        with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute(
-                    'SELECT server_name FROM instances WHERE node=%s AND port=%s AND server_name IS NOT NULL',
-                    (self.node.name, data['port'])
-                )
-                if cursor.rowcount == 1:
-                    _server_name = cursor.fetchone()[0]
-                    if _server_name != server_name:
-                        if utils.findDCSInstances(_server_name) and not self.servers.get(_server_name):
-                            self.log.info(f'Auto-renaming server "{_server_name}" to "{server_name}"')
-                            asyncio.run(server.rename(server_name))
-                        else:
-                            self.log.warning(f'Registration of server "{server_name}" aborted due to conflict.')
-                            self.servers.pop(server_name, None)
-                            return False
+        self.log.debug(f'  => Checking the database for server {server_name} ...')
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT server_name 
+                FROM instances 
+                WHERE node=%s AND port=%s AND server_name IS NOT NULL
+            """, (self.node.name, data['port']))
+            if cursor.rowcount == 1:
+                _server_name = (await cursor.fetchone())[0]
+                if _server_name != server_name:
+                    if utils.findDCSInstances(_server_name) and not self.servers.get(_server_name):
+                        self.log.info(f'Auto-renaming server "{_server_name}" to "{server_name}"')
+                        await server.rename(server_name)
+                    else:
+                        self.log.warning(f'Registration of server "{server_name}" aborted due to conflict.')
+                        self.servers.pop(server_name, None)
+                        return False
+        self.log.debug(f'  => Database for server {server_name} checked.')
         return True
 
     def rename_server(self, server: Server, new_name: str):
@@ -363,9 +373,9 @@ class ServiceBus(Service):
         if server.name in self.servers:
             self.servers.pop(server.name, None)
         if server.name in self.udp_server.message_queue:
-            self.udp_server.message_queue[server.name].put({})
-            self.udp_server.message_queue[new_name] = Queue()
-            self.executor.submit(self.udp_server.process, new_name)
+            self.udp_server.message_queue[server.name].put_nowait({})
+            self.udp_server.message_queue[new_name] = asyncio.Queue()
+            asyncio.create_task(self.udp_server.process_messages(new_name))
 
     async def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: Optional[int] = None):
         if days:
@@ -466,8 +476,8 @@ class ServiceBus(Service):
                 server.locals['channels'] = channels
             # add eventlistener queue
             if server.name not in self.udp_server.message_queue:
-                self.udp_server.message_queue[server.name] = Queue()
-                self.executor.submit(self.udp_server.process, server.name)
+                self.udp_server.message_queue[server.name] = asyncio.Queue()
+                asyncio.create_task(self.udp_server.process_messages(server.name))
             self.log.info(f"  => Remote DCS-Server \"{server.name}\" registered.")
         except StopIteration:
             self.log.error(f"No configuration found for instance {instance} in config\\nodes.yaml")
@@ -494,7 +504,7 @@ class ServiceBus(Service):
                     self.log.debug(f"Message received for unregistered server {server_name}, ignoring.")
                 else:
                     self.log.debug('{}->HOST: {}'.format(server_name, json.dumps(data)))
-                    self.udp_server.message_queue[server_name].put(data)
+                    self.udp_server.message_queue[server_name].put_nowait(data)
             else:
                 await self.handle_rpc(data)
         else:
@@ -620,7 +630,7 @@ class ServiceBus(Service):
                 self.loop.call_soon_threadsafe(f.set_result, data)
             if data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
                 return
-        self.udp_server.message_queue[server_name].put(data)
+        self.udp_server.message_queue[server_name].put_nowait(data)
 
     async def handle_agent(self, data: dict):
         self.log.debug(f"MASTER->{self.node.name}: {json.dumps(data)}")
@@ -635,7 +645,7 @@ class ServiceBus(Service):
     async def rpc(self, obj: object, data: dict) -> Optional[dict]:
         if 'method' in data:
             method_name = data['method']
-            func = reduce(lambda attr, part: getattr(attr, part, None), method_name.split('.'), obj)
+            func: Callable = reduce(lambda attr, part: getattr(attr, part, None), method_name.split('.'), obj)
             if not func:
                 raise ValueError(f"Call to non-existing function {method_name}()")
 
@@ -711,119 +721,130 @@ class ServiceBus(Service):
         await asyncio.gather(*tasks, return_exceptions=True)
 
     async def start_udp_listener(self):
-        class RequestHandler(BaseRequestHandler):
+        class UDPProtocol(asyncio.DatagramProtocol):
+            def __init__(derived):
+                self.log.debug('Initializing UDP Protocol')
+                derived.transport = None
+                derived.message_queue: dict[str, asyncio.Queue] = {}
 
-            def handle(derived):
-                if not derived.request or not derived.request[0]:
+            def connection_made(derived, transport):
+                derived.transport = transport
+
+            def datagram_received(derived, data, addr):
+                if not data:
                     self.log.warning(f"Empty request received on port {self.node.listen_port} - ignoring.")
                     return
+
                 try:
-                    data: dict = json.loads(derived.request[0].strip())
+                    msg_data: dict = json.loads(data.strip())
                 except json.JSONDecodeError:
                     self.log.warning(f"Invalid request received on port {self.node.listen_port} - ignoring.")
                     return
-                server_name = data.get('server_name')
-                # ignore messages not containing server names
+
+                server_name = msg_data.get('server_name')
                 if not server_name:
-                    self.log.warning('Message without server_name received: {}'.format(data))
+                    self.log.warning('Message without server_name received: {}'.format(msg_data))
                     return
 
-                self.log.debug('{}->HOST: {}'.format(server_name, json.dumps(data)))
+                self.log.debug('{}->HOST: {}'.format(server_name, json.dumps(msg_data)))
+
                 server = self.servers.get(server_name)
                 if not server:
                     self.log.debug(
-                        f"Command {data['command']} received for unregistered server {server_name}, ignoring.")
+                        f"Command {msg_data['command']} received for unregistered server {server_name}, ignoring.")
                     return
+
                 server.last_seen = datetime.now(timezone.utc)
-                if 'channel' in data and data['channel'].startswith('sync-'):
-                    if data['channel'] in server.listeners:
-                        f = server.listeners.get(data['channel'])
+
+                # Handle sync channels
+                if 'channel' in msg_data and msg_data['channel'].startswith('sync-'):
+                    if msg_data['channel'] in server.listeners:
+                        f = server.listeners.get(msg_data['channel'])
                         if f and not f.done():
-                            self.loop.call_soon_threadsafe(f.set_result, data)
-                        if data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
+                            self.loop.call_soon(f.set_result, msg_data)
+                        if msg_data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
                             return
-                udp_server: MyThreadingUDPServer = cast(MyThreadingUDPServer, derived.server)
-                if server.name not in udp_server.message_queue:
-                    udp_server.message_queue[server.name] = Queue()
-                    self.executor.submit(udp_server.process, server.name)
-                udp_server.message_queue[server.name].put(data)
 
-        class MyThreadingUDPServer(ThreadingUDPServer):
-            def __init__(derived, server_address: tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
-                try:
-                    # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
-                    MyThreadingUDPServer.allow_reuse_address = True
-                    MyThreadingUDPServer.max_packet_size = 65504
-                    derived.message_queue: dict[str, Queue[dict]] = {}
-                    super().__init__(server_address, request_handler)
-                except Exception as ex:
-                    self.log.exception(ex)
+                # Create queue if doesn't exist and schedule processing
+                if server_name not in derived.message_queue:
+                    derived.message_queue[server_name] = asyncio.Queue()
+                    asyncio.create_task(derived.process_messages(server_name))
 
-            def process(derived, server_name: str):
+                derived.message_queue[server_name].put_nowait(msg_data)
+
+            async def process_messages(derived, server_name: str):
                 try:
-                    timeout = 120.0 if self.node.locals.get('slow_system', False) else 60.0
-                    data: dict = derived.message_queue[server_name].get()
-                    while data:
+                    while True:
+                        data = await derived.message_queue[server_name].get()
+
                         server: Server = self.servers.get(server_name)
                         if not server:
                             return
+
                         try:
                             command = data['command']
                             if command == 'registerDCSServer':
                                 if not server.is_remote:
-                                    if not self.register_server(data):
+                                    if not await self.register_server(data):
                                         self.log.error(f"Error while registering server {server.name}.")
                                         return
                                     if not self.master:
                                         self.log.debug(f"Registering server {server.name} on Master node ...")
-                            elif server.status == Status.UNREGISTERED and command not in ['getWeatherInfo', 'getAirbases']:
+                            elif server.status == Status.UNREGISTERED and command not in ['getWeatherInfo',
+                                                                                          'getAirbases',
+                                                                                          'onSRSConnect']:
                                 self.log.debug(
                                     f"Command {command} received for unregistered server {server.name}, ignoring.")
                                 continue
-                            if self.master:
-                                futures = [
-                                    asyncio.run_coroutine_threadsafe(
-                                        listener.processEvent(command, server, deepcopy(data)), self.loop
-                                    )
-                                    for listener in self.eventListeners
-                                    if listener.has_event(command)
-                                ]
-                                done, not_done = concurrent.futures.wait(
-                                    futures, timeout=timeout if command != 'registerDCSServer' else None)
 
-                                if not_done:
-                                    # Logging the commands that could not be processed due to timeout
-                                    self.log.warning(f"Command {data} was not processed due to a timeout.")
-                                    listeners = [x for x in self.eventListeners if x.has_event(command)]
-                                    for future in not_done:
-                                        pos = futures.index(future)
-                                        self.log.debug(f"Not processed: {listeners[pos].plugin_name}")
-                                        future.cancel()
+                            if self.master:
+                                tasks = []
+                                for listener in self.eventListeners:
+                                    if listener.has_event(command):
+                                        task = asyncio.create_task(
+                                            listener.processEvent(command, server, deepcopy(data))
+                                        )
+                                        tasks.append(task)
+
+                                if tasks:
+                                    try:
+                                        results = await asyncio.gather(*tasks, return_exceptions=True)
+                                        for listener, result in zip(self.eventListeners, results):
+                                            if isinstance(result, Exception):
+                                                self.log.error(
+                                                    f"Exception in listener {listener.plugin_name}: {result!r}")
+                                    except Exception as e:
+                                        self.log.error(f"Catastrophic error in gather: {e!r}")
                             else:
-                                asyncio.run_coroutine_threadsafe(self.send_to_node(data), self.loop)
+                                await self.send_to_node(data)
+
                         except Exception as ex:
                             self.log.exception(ex)
                         finally:
-                            derived.message_queue[server.name].task_done()
-                            data = derived.message_queue[server.name].get()
+                            derived.message_queue[server_name].task_done()
+
                 finally:
                     self.log.debug(f"Listener for server {server_name} stopped.")
                     derived.message_queue.pop(server_name, None)
 
-            def shutdown(derived):
-                super().shutdown()
-                try:
-                    for server_name in list(derived.message_queue.keys()):
-                        queue = derived.message_queue.get(server_name)
-                        if queue:
-                            if not queue.empty():
-                                queue.join()
-                            queue.put({})
-                except Exception as ex:
-                    self.log.exception(ex)
-
+        # Start the UDP server
         host = self.node.listen_address
         port = self.node.listen_port
-        self.udp_server = MyThreadingUDPServer((host, port), RequestHandler)
-        self.executor.submit(self.udp_server.serve_forever)
-        self.log.debug('  - Listener started on interface {} port {} accepting commands.'.format(host, port))
+        max_packet_size = 65504  # Maximum UDP packet size
+
+        class UDPSocket(socket.socket):
+            def __init__(self):
+                super().__init__(socket.AF_INET, socket.SOCK_DGRAM)
+                self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                self.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, max_packet_size)
+                self.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, max_packet_size)
+
+        sock = UDPSocket()
+        sock.bind((host, port))
+
+        transport, protocol = await self.loop.create_datagram_endpoint(
+            UDPProtocol,
+            sock=sock
+        )
+
+        self.udp_server = protocol

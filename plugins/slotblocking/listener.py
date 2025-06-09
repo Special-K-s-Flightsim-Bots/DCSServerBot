@@ -158,6 +158,9 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
         async with self.lock:
             if player.deposit == 0:
                 return
+            # avoid squadron payback
+            squadron = player.squadron
+            player.squadron = None
             old_points = player.points
             plane_costs = self._get_costs(server, player)
             if plane_only:
@@ -166,6 +169,7 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                 player.points += player.deposit
             player.audit('payback', old_points, reason)
             player.deposit = 0
+            player.squadron = squadron
             message = self.get_config(server).get('messages', {}).get(
                 'payback', '').format(
                 deposit=plane_costs, old_points=old_points, new_points=player.points)
@@ -230,7 +234,7 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
             if player and player.deposit == 0 and int(player.sub_slot) == 0:
                 asyncio.create_task(self._pay_for_plane(server, player, payback=True))
         elif data['eventName'] == 'mission_end':
-            # give all players their credit back, if the mission ends, and they are still airborne
+            # give all players their credits back if the mission ends, and they are still airborne
             for player in server.players.values():
                 asyncio.create_task(self._payback(server, player, 'Refund on mission end', plane_only=True))
         elif data['eventName'] == 'crash':

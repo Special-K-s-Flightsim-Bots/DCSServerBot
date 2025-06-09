@@ -9,8 +9,8 @@
         "values": [
           {
             "Name": "{campaign[name]}",
-            "Start": "{campaign[start]:%y-%m-%d}",
-            "End": "{campaign[stop]:%y-%m-%d}"
+            "Start": "{campaign[start]:%y-%m-%d %H:%Mz}",
+            "End": "{campaign[stop]:%y-%m-%d %H:%Mz}"
           }
         ]
       }

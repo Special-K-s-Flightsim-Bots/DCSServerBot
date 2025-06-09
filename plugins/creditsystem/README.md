@@ -12,6 +12,12 @@ DEFAULT:              # valid for all servers
   initial_points: 10  # The initial points a player gets (default = 0).
   max_points: 100     # The maximum points a player can get (default = unlimited).
   multiplier: 1       # multiplier for credit points on proper landings (if payback is enabled in slotblocking.yaml)
+  squadron_credits: true # enable squadron credits (see below).
+  squadron:
+    initial_points: 100 # default: 0
+    max_points: 1000    # default: unlimited
+  messages:
+    message_kill: You received {points} credit points for killing {victim}.   # if not set, no kill message will be printed!
   points_per_kill:    # How many points do players get when they kill another unit?
   - default: 1        # You get at least one point (default = 0).
   - category: Ships   # If you kill a ship. you get 2 points
@@ -74,10 +80,16 @@ If you want to specify points for ground targets, you need to select the correct
 Achiements are possible role changes, that happen when a player either reached a specific flighttime or s specific number
 of credits.
 
+## Squadron Credits (as of DCSSB 3.0.4)
+You can now gain Squadron Credits, meaning, if you are a member of any squadron, your squadron will gather credits as
+much as you do. Only points that you gain are added to the squadron, not points that you lose due to buying a plane or
+whatnot.
+To enable that, you need to set squadron_credits to true in your creditsystem.yaml (see above).
+
 ## Discord Commands
 | Command         | Parameter            | Role | Description                                           |
 |-----------------|----------------------|------|-------------------------------------------------------|
-| /credits info   |                      | DCS  | Displays the players campaign credits.                |
+| /credits info   | [member]             | DCS  | Displays the players campaign credits.                |
 | /credits donate | <@member> <donation> | DCS  | Donate any of your campaign points to another member. |
 
 ## In-Game Chat Commands
@@ -92,6 +104,10 @@ If you want to change user points based on any mission achievements, you are goo
 ```lua
   if dcsbot then
     dcsbot.addUserPoints('Special K', 10) -- add 10 points to users "Special K"'s credits. Points can be negative to take them away.
+  end
+
+  if dcsbot then
+    dcsbot.addSquadronPoints('MyFancySquadron', 10, 'Just because I love you.') -- add 10 points to squadron "MyFancySquadron"
   end
 ```
 

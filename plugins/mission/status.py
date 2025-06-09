@@ -46,7 +46,7 @@ class ServerInfo(report.EmbedElement):
         if server.node.public_ip:
             name = "Server-IP / Port"
             value = f"{host or server.node.public_ip}:{server.settings['port']}"
-        if server.settings['password']:
+        if server.settings.get('password', ''):
             if value:
                 value += '\n\n**Password**\n'
             else:
@@ -82,6 +82,10 @@ class ServerInfo(report.EmbedElement):
             else:
                 value += f"\n\n**Runtime**\n{timedelta(seconds=uptime)}"
             self.add_field(name='Date / Time in Mission', value=value)
+
+        # add a ruler at the bottom
+        await report.Ruler(self.env).render()
+
         if server.maintenance:
             footer = 'SERVER IS IN MAINTENANCE MODE, SCHEDULER WILL NOT WORK!\n\n'
         else:
@@ -95,7 +99,6 @@ class WeatherInfo(report.EmbedElement):
 
     async def render(self, server: Server):
         if server.current_mission and server.current_mission.weather:
-            await report.Ruler(self.env).render()
             weather = server.current_mission.weather
             value = f"{weather['season']['temperature']:.1f} °C"
             value += "\n\n**QNH (QFF)**\n{:.2f} inHg\n{} hPa".format(
@@ -141,6 +144,27 @@ class WeatherInfo(report.EmbedElement):
                 int(weather['wind']['at8000']['speed'] * const.METER_PER_SECOND_IN_KNOTS + 0.5))
             self.add_field(name='Visibility', value=value)
 
+            # add a ruler at the bottom
+            await report.Ruler(self.env).render()
+
+
+class IntegrityCheck(report.EmbedElement):
+
+    async def render(self, server: Server):
+        values = []
+        if not server.settings.get('advanced', {}).get('allow_trial_only_clients', True):
+            values.append("No Trial Clients")
+        if server.settings.get('require_pure_clients', False):
+            values.append("Pure Clients Required")
+        if server.settings.get('require_pure_scripts', False):
+            values.append("Pure Scripts Required")
+        if server.settings.get('require_pure_models', False):
+            values.append("Pure Models Required")
+        if server.settings.get('require_pure_textures', False):
+            values.append("Pure Textures Required")
+        if values:
+            self.add_field(name='Client Limits', value='\n'.join([f":shield: {x}" for x in values]))
+
 
 class ExtensionsInfo(report.EmbedElement):
 
@@ -149,12 +173,13 @@ class ExtensionsInfo(report.EmbedElement):
         # we don't have any extensions loaded (yet)
         if not extensions:
             return
-        await report.Ruler(self.env).render()
         footer = self.embed.footer.text or ''
         for ext in extensions:
             self.add_field(name=ext['name'], value=ext['value'])
         footer += " | ".join([f"{ext['name']} v{ext['version']}" for ext in extensions if ext.get('version')])
         self.embed.set_footer(text=footer)
+        # add a ruler at the bottom
+        await report.Ruler(self.env).render()
 
 
 class ScheduleInfo(report.EmbedElement):
@@ -165,7 +190,7 @@ class ScheduleInfo(report.EmbedElement):
         if scheduler:
             config = scheduler.get_config(server)
             if 'schedule' in config:
-                await report.Ruler(self.env).render(text="This server runs on the following schedule:")
+                self.add_field(name="This server runs on the following schedule:", value='_ _', inline=False)
                 value = ''
                 now = datetime.now()
                 tz = now.astimezone().tzinfo
@@ -194,11 +219,12 @@ class ScheduleInfo(report.EmbedElement):
                 self.add_field(name='_ _', value='✅ = Server running\n'
                                                  '❌ = Server not running\n'
                                                  '☑️ = Server shuts down without players')
+                # add a ruler at the bottom
+                await report.Ruler(self.env).render()
 
 
 class Footer(report.EmbedElement):
     async def render(self, server: Server):
-        await report.Ruler(self.env).render()
         text = self.embed.footer.text or ''
         for listener in self.bot.eventListeners:
             # noinspection PyUnresolvedReferences
@@ -229,7 +255,7 @@ class All(report.EmbedElement):
             if server.restart_time and not server.maintenance:
                 restart_in = int((server.restart_time - datetime.now(timezone.utc)).total_seconds())
                 value += f"Restart:  in {utils.format_time(restart_in)}\n"
-            if server.settings['password']:
+            if server.settings.get('password', ''):
                 name = '🔐 ' + name
                 value += f"Password: {server.settings['password']}"
             else:

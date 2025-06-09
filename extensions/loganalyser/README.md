@@ -15,8 +15,9 @@ MyNode:
       # [...]
       extensions:
         LogAnalyser:
-          restart_on_unlist: true  # enables the auto-restart on server when unlisting from the ED server list (default: false)
           message_unlist: 'Server is going to restart in {}!' # message to display to users on restarts
+          ignore_files:
+            - moose.lua   # this can be any regular expression pattern like [Mm]oose.*\.lua
           warn_times: # times when to send the restart messages
             - 120
             - 60

@@ -223,3 +223,14 @@ d) Map-specific Settings
               settings:
               - Spring, Morning, Rainy, Halo
 ```
+
+e) Mission filter
+```yaml
+        MizEdit:
+          filter: MyFancy*  # apply to all missions that start with "MyFancy" in their name
+          settings:
+          - Spring, Morning, Rainy, Halo
+          - Summer, Morning, Slight Breeze, Halo
+          - Autumn, Morning, Heavy Storm, Halo
+          - Winter, Morning, Slight Breeze, Halo
+```

@@ -41,3 +41,4 @@ schema;mizedit_schema:
           mapping:
             settings:
               include: 'settings'
+    filter: {type: str, nullable: false, range: {min: 1}}

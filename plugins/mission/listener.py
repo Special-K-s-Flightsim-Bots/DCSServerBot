@@ -5,7 +5,7 @@ import os
 import shlex
 
 from copy import deepcopy
-from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Mission, Player, Coalition, \
+from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Player, Coalition, \
     Channel, DataObjectFactory, event, chat_command, ServiceRegistry, ChatCommand, get_translation
 from datetime import datetime, timezone
 from discord.ext import tasks
@@ -192,7 +192,10 @@ class MissionEventListener(EventListener["Mission"]):
             channel_id = server.channels.get(Channel.EVENTS, -1)
         channel = self.bot.get_channel(channel_id)
         if channel:
-            message = "```" + data['message'] + "```"
+            if not data.get('raw', False):
+                message = "```" + data['message'] + "```"
+            else:
+                message = data['message']
             if 'mention' in data:
                 message = ''.join([
                     self.bot.get_role(role).mention for role in self.bot.roles[data['mention']]
@@ -238,13 +241,14 @@ class MissionEventListener(EventListener["Mission"]):
 
     @event(name="callback")
     async def callback(self, server: Server, data: dict):
-        if data['subcommand'] in ['startMission', 'restartMission', 'pause', 'shutdown']:
+        if data['subcommand'] in ['startMission', 'restartMission', 'pause', 'shutdown', 'stop_server']:
             data['command'] = data['subcommand']
             asyncio.create_task(server.send_to_dcs(data))
 
     @staticmethod
     def _update_mission(server: Server, data: dict) -> None:
         if not server.current_mission:
+            from core import Mission
             server.current_mission = DataObjectFactory().new(Mission, node=server.node, server=server,
                                                              map=data['current_map'], name=data['current_mission'])
         server.current_mission.update(data)
@@ -580,7 +584,7 @@ class MissionEventListener(EventListener["Mission"]):
         # greet the player
         if not player.member:
             # only warn for unknown users if it is a non-public server and automatch is on
-            if self.bot.locals.get('automatch', True) and server.settings['password']:
+            if self.bot.locals.get('automatch', False) and server.settings.get('password', ''):
                 admin_channel = self.bot.get_admin_channel(server)
                 if admin_channel:
                     asyncio.create_task(admin_channel.send(

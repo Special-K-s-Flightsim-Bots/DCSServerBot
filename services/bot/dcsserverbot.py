@@ -1,7 +1,7 @@
 import asyncio
 import discord
 
-from core import Channel, utils, Status, PluginError, Group, Node, DEFAULT_PLUGINS
+from core import Channel, utils, Status, PluginError, Group, Node
 from core.data.node import FatalException
 from core.listener import EventListener
 from core.services.registry import ServiceRegistry
@@ -30,7 +30,7 @@ class DCSServerBot(commands.Bot):
         self.locals = kwargs['locals']
         self.plugins = self.node.plugins
         self.bus = ServiceRegistry.get(ServiceBus)
-        self.eventListeners: list[EventListener] = self.bus.eventListeners
+        self.eventListeners: set[EventListener] = self.bus.eventListeners
         self.audit_channel = None
         self.member: Optional[discord.Member] = None
         self.lock: asyncio.Lock = asyncio.Lock()
@@ -306,6 +306,9 @@ class DCSServerBot(commands.Bot):
         except discord.NotFound:
             self.log.debug(f"Errormessage ignored, no interaction found: {error}")
             pass
+        except Exception as ex:
+            self.log.debug(f"Exception in on_app_command_error ignored: {ex}")
+            pass
 
     async def reload(self, plugin: Optional[str] = None) -> bool:
         if plugin:
@@ -351,7 +354,13 @@ class DCSServerBot(commands.Bot):
                 for name, value in kwargs.items():
                     embed.add_field(name=name.title(), value=value, inline=False)
             embed.set_footer(text=datetime.now(timezone.utc).strftime("%y-%m-%d %H:%M:%S"))
-            await self.audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
+            try:
+                await self.audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
+            except discord.errors.HTTPException as ex:
+                # ignore rate limits
+                if ex.code != 429:
+                    raise
+                self.log.warning("Audit message discarded due to Discord rate limits: " + message)
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
@@ -361,7 +370,7 @@ class DCSServerBot(commands.Bot):
                       user.id if isinstance(user, discord.Member) else None,
                       user if isinstance(user, str) else None))
 
-    def get_admin_channel(self, server: Optional["Server"]) -> Optional[discord.TextChannel]:
+    def get_admin_channel(self, server: Optional["Server"] = None) -> Optional[discord.TextChannel]:
         admin_channel = self.locals.get('channels', {}).get('admin')
         if not admin_channel:
             if server:
@@ -436,6 +445,36 @@ class DCSServerBot(commands.Bot):
                     return server
         return None
 
+    async def fetch_embed(self, embed_name: str, channel: Union[discord.TextChannel, discord.ForumChannel],
+                          server: Optional["Server"] = None):
+        async with self.apool.connection() as conn:
+            # check if we have a message persisted already
+            cursor = await conn.execute("""
+                SELECT embed, thread
+                FROM message_persistence
+                WHERE server_name = %s AND embed_name = %s
+            """, (server.name if server else 'Master', embed_name))
+            row = await cursor.fetchone()
+
+        message = None
+        if row:
+            try:
+                if channel.type == discord.ChannelType.forum:
+                    thread = cast(discord.ForumChannel, channel).get_thread(row[1])
+                    if thread:
+                        message = await thread.fetch_message(row[0])
+                else:
+                    message = await channel.fetch_message(row[0])
+            except discord.errors.NotFound:
+                pass
+            except discord.errors.DiscordException as ex:
+                self.log.warning(f"Error during update of embed {embed_name}: " + str(ex))
+                raise
+            except Exception as ex:
+                self.log.exception(ex)
+                raise
+        return message
+
     async def setEmbed(self, *, embed_name: str, embed: discord.Embed, channel_id: Union[Channel, int] = Channel.STATUS,
                        file: Optional[discord.File] = None, server: Optional["Server"] = None):
         async with self.lock:
@@ -449,6 +488,8 @@ class DCSServerBot(commands.Bot):
                     return
             else:
                 channel_id = int(channel_id)
+
+            # find the channel
             channel = self.get_channel(channel_id)
             if not channel:
                 try:
@@ -463,37 +504,18 @@ class DCSServerBot(commands.Bot):
                 self.log.error(f"Channel {channel_id} not found, can't add or change an embed in there!")
                 return
 
-            async with self.apool.connection() as conn:
-                # check if we have a message persisted already
-                cursor = await conn.execute("""
-                    SELECT embed, thread FROM message_persistence 
-                    WHERE server_name = %s AND embed_name = %s
-                """, (server.name if server else 'Master', embed_name))
-                row = await cursor.fetchone()
+            # try to read an already existing message
+            try:
+                message = await self.fetch_embed(embed_name, channel, server)
+            except Exception as ex:
+                return
 
-            message = None
-            if row:
-                try:
-                    if channel.type == discord.ChannelType.forum:
-                        thread = cast(discord.ForumChannel, channel).get_thread(row[1])
-                        if thread:
-                            message = await thread.fetch_message(row[0])
-                    else:
-                        message = await channel.fetch_message(row[0])
-                    if message:
-                        if not file:
-                            await message.edit(embed=embed)
-                        else:
-                            await message.edit(embed=embed, attachments=[file])
-                except discord.errors.NotFound:
-                    message = None
-                except discord.errors.DiscordException as ex:
-                    self.log.warning(f"Error during update of embed {embed_name}: " + str(ex))
-                    return
-                except Exception as ex:
-                    self.log.exception(ex)
-                    return
-            if not row or not message:
+            if message:
+                if not file:
+                    await message.edit(embed=embed, attachments=[])
+                else:
+                    await message.edit(embed=embed, attachments=[file])
+            else:
                 if channel.type == discord.ChannelType.forum:
                     for thread in channel.threads:
                         if thread.name.startswith(server.name):

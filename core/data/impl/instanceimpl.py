@@ -27,12 +27,22 @@ class InstanceImpl(Instance):
         self.missions_dir = os.path.expandvars(self.locals.get('missions_dir', os.path.join(self.home, 'Missions')))
         os.makedirs(self.missions_dir, exist_ok=True)
         os.makedirs(os.path.join(self.missions_dir, 'Scripts'), exist_ok=True)
+        # check / fix autoexec.cfg
         autoexec = Autoexec(instance=self)
+        # check WebGUI port
         webgui_port = self.locals.get('webgui_port')
-        if webgui_port:
+        if webgui_port and webgui_port != autoexec.webgui_port:
             autoexec.webgui_port = webgui_port
         else:
             self.locals['webgui_port'] = autoexec.webgui_port or 8088
+        # check UPnP
+        net = autoexec.net or {}
+        use_upnp = net.get('use_upnp', True)
+        if self.node.locals.get('use_upnp', True) != use_upnp:
+            net |= {
+                "use_upnp": self.node.locals.get('use_upnp', True)
+            }
+            autoexec.net = net
         server_name = None
         settings_path = os.path.join(self.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):

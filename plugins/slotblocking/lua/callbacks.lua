@@ -146,15 +146,15 @@ function balance_slots(playerID, side, slotID)
     end
 
     for _, id in base.pairs(players) do
-        local player_info = net.get_player_info(id)
+        local side = net.get_player_info(id, 'side')
         local _, slot, sub_slot = utils.getMulticrewAllParameters(id)
 
         -- only count real seats
         if sub_slot == 0 and slot ~= -1 then
-            if player_info.side == 2 then
+            if side == 2 then
                 numPlayersBlue = numPlayersBlue + 1
             end
-            if player_info.side == 1 then
+            if side == 1 then
                 numPlayersRed = numPlayersRed + 1
             end
         end
@@ -184,8 +184,7 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
         end
     end
     -- check slot restrictions by balance
-    local player_info = net.get_player_info(playerID)
-    local old_side = player_info.side
+    local old_side = net.get_player_info(playerID, 'side')
     -- if not side change happens or they want in a sub-slot, do not run balancing
     if old_side ~= side and tonumber(slotID) and dcsbot.params['slotblocking']['balancing'] then
         return balance_slots(playerID, side, slotID)

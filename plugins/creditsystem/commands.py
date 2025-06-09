@@ -187,7 +187,11 @@ class CreditSystem(Plugin[CreditSystemListener]):
                             utils.escape_string(to.display_name)))
                     return
                 if p_receiver:
+                    # make sure we do not donate to a squadron
+                    squadron = p_receiver.squadron
+                    p_receiver.squadron = None
                     p_receiver.points += donation
+                    p_receiver.squadron = squadron
                     p_receiver.audit('donation', old_points_receiver,
                                      _('Donation from member {}').format(interaction.user.display_name))
                 else:
@@ -301,7 +305,10 @@ class CreditSystem(Plugin[CreditSystemListener]):
                             utils.escape_string(to.display_name)), ephemeral=True)
                     return
                 if p_donor:
+                    squadron = p_donor.squadron
+                    p_donor.squadron = None
                     p_donor.points -= donation
+                    p_donor.squadron = squadron
                     p_donor.audit('donation', data[n]['credits'], _('Donation to member {}').format(to.display_name))
                 else:
                     await conn.execute("""
@@ -317,7 +324,11 @@ class CreditSystem(Plugin[CreditSystemListener]):
                     """, (data[n]['id'], 'donation', donor, data[n]['credits'], new_points_donor,
                           _('Donation to member {}').format(to.display_name)))
                 if p_receiver:
+                    # make sure we do not donate to a squadron
+                    squadron = p_receiver.squadron
+                    p_receiver.squadron = None
                     p_receiver.points += donation
+                    p_receiver.squadron = squadron
                     p_receiver.audit('donation', old_points_receiver,
                                      _('Donation from member {}').format(interaction.user.display_name))
                 else:

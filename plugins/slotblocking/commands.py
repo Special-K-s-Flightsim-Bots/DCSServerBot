@@ -1,9 +1,7 @@
-import discord
 import os
 import psycopg
 
-from core import Plugin, PluginRequiredError, Server, Player, PluginInstallationError, DEFAULT_TAG
-from discord.ext import commands
+from core import Plugin, PluginRequiredError, Server, PluginInstallationError, DEFAULT_TAG
 from pathlib import Path
 from services.bot import DCSServerBot
 from typing import Optional, Type

@@ -11,10 +11,15 @@ _ = get_translation(__name__.split('.')[1])
 
 
 class TrapModal(Modal):
+    # noinspection PyTypeChecker
     time = TextInput(label=_('Time (HH24:MI)'), style=TextStyle.short, required=True, min_length=5, max_length=5)
+    # noinspection PyTypeChecker
     case = TextInput(label=_('Case'), style=TextStyle.short, required=True, min_length=1, max_length=1)
+    # noinspection PyTypeChecker
     grade = TextInput(label=_('Grade'), style=TextStyle.short, required=True, min_length=1, max_length=4)
+    # noinspection PyTypeChecker
     comment = TextInput(label=_('LSO Comment'), style=TextStyle.long, required=False)
+    # noinspection PyTypeChecker
     wire = TextInput(label=_('Wire'), style=TextStyle.short, required=False, min_length=1, max_length=1)
 
     def __init__(self, bot: DCSServerBot, *, config: dict, user: Union[str, discord.Member], unit_type: str):
@@ -74,7 +79,9 @@ class TrapView(View):
     @discord.ui.select(placeholder=_('Select the plane for the trap'),
                        options=[
                            SelectOption(label=x, default=(idx == 0))
-                           for idx, x in enumerate(['AV8BNA', 'F-14A-135-GR', 'F-14B', 'FA-18C_hornet', 'Su-33'])
+                           for idx, x in enumerate([
+                               'AV8BNA', 'F-14A-135-GR', 'F-14B', 'FA-18C_hornet', 'Su-33', 'F-4E-45MC'
+                           ])
                        ])
     async def callback(self, interaction: discord.Interaction, select: Select):
         modal = TrapModal(self.bot, config=self.config, user=self.user, unit_type=select.values[0])

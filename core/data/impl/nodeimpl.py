@@ -9,6 +9,7 @@ import json
 import os
 import platform
 import psycopg
+import psycopg_pool
 import re
 import shutil
 import sqlparse
@@ -31,12 +32,12 @@ from psycopg import sql
 from psycopg.errors import UndefinedTable, InFailedSqlTransaction, ConnectionTimeout
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
-from typing import Optional, Union, Awaitable, Callable, Any
+from typing import Optional, Union, Awaitable, Callable, Any, cast
 from urllib.parse import urlparse, quote
 from version import __version__
 
 from core.autoexec import Autoexec
-from core.data.dataobject import DataObjectFactory
+from core.data.dataobject import DataObjectFactory, DataObject
 from core.data.node import Node, UploadStatus, SortOrder, FatalException
 from core.data.instance import Instance
 from core.data.impl.instanceimpl import InstanceImpl
@@ -62,6 +63,10 @@ LOGOUT_URL = 'https://api.digitalcombatsimulator.com/gameapi/logout/'
 UPDATER_URL = 'https://api.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
 LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
 
+RESTART = -1
+SHUTDOWN = -2
+UPDATE = -3
+
 # Internationalisation
 _ = get_translation('core')
 
@@ -73,6 +78,7 @@ DEFAULT_PLUGINS = [
     "admin",
     "userstats",
     "missionstats",
+    "monitoring",
     "creditsystem",
     "gamemaster",
     "cloud"
@@ -193,12 +199,12 @@ class NodeImpl(Node):
         else:
             self.after_update.pop(name, None)
 
-    async def shutdown(self, rc: int = -2):
+    async def shutdown(self, rc: int = SHUTDOWN):
         self.rc = rc
         self.is_shutdown.set()
 
     async def restart(self):
-        await self.shutdown(-1)
+        await self.shutdown(RESTART)
 
     def read_locals(self) -> dict:
         _locals = dict()
@@ -237,6 +243,9 @@ class NodeImpl(Node):
                     node['DCS']['user'] = node['DCS'].pop('dcs_user', node['DCS'].get('user'))
                     utils.set_password('DCS', password, self.config_dir)
                     dirty = True
+            if not 'use_upnp' in node:
+                node['use_upnp'] = utils.is_upnp_available()
+                dirty = True
             if dirty:
                 with open(config_file, 'w', encoding='utf-8') as f:
                     yaml.dump(data, f)
@@ -265,8 +274,12 @@ class NodeImpl(Node):
         try:
             password = utils.get_password('clusterdb', self.config_dir)
         except ValueError:
-            password = utils.get_password('database', self.config_dir)
-            utils.set_password('clusterdb', password, self.config_dir)
+            try:
+                password = utils.get_password('database', self.config_dir)
+                utils.set_password('clusterdb', password, self.config_dir)
+            except ValueError:
+                self.log.critical("You need to replace the SECRET keyword in your database URL with a proper password!")
+                exit(SHUTDOWN)
 
         cpool_url = cpool_url.replace('SECRET', quote(password) or '')
         lpool_url = lpool_url.replace('SECRET', quote(utils.get_password('database', self.config_dir)) or '')
@@ -280,7 +293,9 @@ class NodeImpl(Node):
         pool_min = self.locals.get("database", self.config.get('database')).get('pool_min', 10)
         pool_max = self.locals.get("database", self.config.get('database')).get('pool_max', 20)
         max_idle = self.locals.get("database", self.config.get('database')).get('max_idle', 10 * 60.0)
-        timeout = 60.0 if self.locals.get('slow_system', False) else 30.0
+        max_waiting = self.locals.get("database", self.config.get('database')).get('max_waiting', 0)
+        num_workers = pool_max // 2
+        timeout = 180.0 if self.locals.get('slow_system', False) else 90.0
         self.log.debug("- Initializing database pools ...")
         self.pool = ConnectionPool(lpool_url, name="SyncPool", min_size=2, max_size=10,
                                    check=ConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,
@@ -289,18 +304,18 @@ class NodeImpl(Node):
 
         self.apool = AsyncConnectionPool(conninfo=lpool_url, name="AsyncPool", min_size=pool_min, max_size=pool_max,
                                          check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,
-                                         open=False)
+                                         num_workers=num_workers, max_waiting=max_waiting, open=False)
         await self.apool.open()
 
+        # initialize the cluster pool
         if urlparse(lpool_url).path != urlparse(cpool_url).path:
             self.log.info("- Federation detected.")
-            self.cpool = AsyncConnectionPool(
-                conninfo=cpool_url, min_size=2, max_size=4, check=AsyncConnectionPool.check_connection,
-                max_idle=self.config['database'].get('max_idle', 10 * 60.0),
-                timeout=timeout, open=False)
-            await self.cpool.open()
-        else:
-            self.cpool = self.apool
+        # create the fast cluster pool
+        self.cpool = AsyncConnectionPool(
+            conninfo=cpool_url, min_size=2, max_size=4, check=AsyncConnectionPool.check_connection,
+            max_idle=max_idle, timeout=timeout, open=False)
+        await self.cpool.open()
+
         self.log.debug("- Database pools initialized.")
 
     async def close_db(self):
@@ -475,7 +490,7 @@ class NodeImpl(Node):
                         await conn.execute("""
                             UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s
                         """, (self.guild_id, ))
-            await self.shutdown(-3)
+            await self.shutdown(UPDATE)
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         if not self.dcs_branch or not self.dcs_version:
@@ -483,6 +498,9 @@ class NodeImpl(Node):
                 data = json.loads(await cfg.read())
             self.dcs_branch = data.get('branch', 'release')
             self.dcs_version = data['version']
+            if 'DEDICATED_SERVER' in await self.get_installed_modules():
+                self.log.error("You're using the OLD dedicated server, which is deprecated.\n"
+                               "Use /dcs update to update to the release branch.")
             if "openbeta" in self.dcs_branch:
                 self.log.warning("You're running DCS OpenBeta, which is discontinued.\n"
                                  "Use /dcs update if you want to switch to the release branch.")
@@ -516,7 +534,13 @@ class NodeImpl(Node):
                     self.log.exception(ex)
                     return -1
 
-            rc = await asyncio.to_thread(run_subprocess)
+            # check if there is an update running already
+            proc = next(utils.find_process("DCS_updater.exe"), None)
+            if proc:
+                self.log.info("DCS Update in progress, waiting ...")
+                rc = proc.wait()
+            else:
+                rc = await asyncio.to_thread(run_subprocess)
             if branch and rc == 0:
                 # check if the branch has been changed
                 config = os.path.join(self.installation, 'autoupdate.cfg')
@@ -636,6 +660,7 @@ class NodeImpl(Node):
                         UPDATER_URL.format(branch), proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
                     if response.status == 200:
                         return [x['version'] for x in json.loads(gzip.decompress(await response.read()))['versions2']]
+            return None
 
         async def _get_latest_versions_auth() -> Optional[list[str]]:
             user = self.locals['DCS'].get('user')
@@ -647,16 +672,18 @@ class NodeImpl(Node):
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
                 async with await session.post(LOGIN_URL, data={"login": user, "password": password},
                                               proxy=self.proxy, proxy_auth=self.proxy_auth) as r1:
+                    rc = None
                     if r1.status == 200:
                         async with await session.get(UPDATER_URL.format(branch)) as r2:
                             if r2.status == 200:
                                 result = await r2.read()
                                 try:
-                                    return [x['version'] for x in json.loads(gzip.decompress(result))['versions2']]
+                                    rc = [x['version'] for x in json.loads(gzip.decompress(result))['versions2']]
                                 except BadGzipFile:
                                     self.log.warning(f"ED response is not a GZIP: {result.decode('utf8')}")
                         async with await session.get(LOGOUT_URL):
                             pass
+                return rc
 
         if not self.locals['DCS'].get('user'):
             return await _get_latest_versions_no_auth()
@@ -687,7 +714,7 @@ class NodeImpl(Node):
                                 f"- Your DCS World version is outdated. Consider upgrading to version {new_version}.")
                         elif parse(old_version) > parse(new_version):
                             self.log.critical(
-                                f"- The DCS World version you are using has been rolled back to version {new_version}.!")
+                                f"- The DCS World version you are using has been rolled back to version {new_version}!")
                 except Exception:
                     self.log.warning("Version check failed, possible auth-server outage.")
 
@@ -822,6 +849,10 @@ class NodeImpl(Node):
                             ON CONFLICT (guild_id, node) DO UPDATE 
                             SET last_seen = (NOW() AT TIME ZONE 'UTC')
                         """, (self.guild_id, self.name))
+        except psycopg_pool.PoolTimeout:
+            current_stats = self.cpool.get_stats()
+            self.log.warning(f"Pool stats: {repr(current_stats)}")
+            raise
         except Exception as ex:
             self.log.exception(ex)
             raise
@@ -869,9 +900,11 @@ class NodeImpl(Node):
         else:
             async with self.apool.connection() as conn:
                 async with conn.transaction():
-                    await conn.execute("INSERT INTO files (guild_id, name, data) VALUES (%s, %s, %s)",
-                                       (self.guild_id, path, psycopg.Binary(await _read_file(path))))
-                    cursor = await conn.execute("SELECT currval('files_id_seq')")
+                    cursor = await conn.execute("""
+                        INSERT INTO files (guild_id, name, data) 
+                        VALUES (%s, %s, %s)
+                        RETURNING id
+                    """, (self.guild_id, path, psycopg.Binary(await _read_file(path))))
                     return (await cursor.fetchone())[0]
 
     async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
@@ -886,12 +919,12 @@ class NodeImpl(Node):
                         os.makedirs(os.path.dirname(filename), exist_ok=True)
                         async with aiofiles.open(filename, mode='wb') as outfile:
                             await outfile.write(await response.read())
+                            return UploadStatus.OK
                     except Exception as ex:
                         self.log.error(ex)
                         return UploadStatus.WRITE_ERROR
                 else:
                     return UploadStatus.READ_ERROR
-        return UploadStatus.OK
 
     async def list_directory(self, path: str, *, pattern: Union[str, list[str]] = '*',
                              order: SortOrder = SortOrder.DATE,
@@ -958,10 +991,13 @@ class NodeImpl(Node):
             try:
                 branch, old_version = await self.get_dcs_branch_and_version()
                 new_version = await self.get_latest_version(branch)
+                if not new_version:
+                    self.log.debug("DCS update check failed, no version reveived from ED.")
+                    return
             except aiohttp.ClientError:
-                self.log.warning("Update check failed, possible server outage at ED.")
+                self.log.warning("DCS update check failed, possible server outage at ED.")
                 return
-            if new_version and parse(old_version) < parse(new_version):
+            if parse(old_version) < parse(new_version):
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
                 rc = await self.update([300, 120, 60])
                 if rc == 0:
@@ -1021,6 +1057,9 @@ class NodeImpl(Node):
                             "message": message
                         }
                     })
+            elif new_version < old_version:
+                self.log.warning(f"Your current DCS version {old_version} has been reverted to version {new_version}."
+                                 f"You might want to manually downgrade the version.")
         except aiohttp.ClientError as ex:
             self.log.warning(ex)
         except Exception as ex:
@@ -1071,6 +1110,12 @@ class NodeImpl(Node):
                              os.path.join(instance.home, 'Config', 'SRS.cfg'))
         autoexec = Autoexec(instance=instance)
         autoexec.crash_report_mode = "silent"
+        if not self.locals.get('use_upnp', True):
+            net = autoexec.net or {}
+            net |= {
+                "use_upnp": False
+            }
+            autoexec.net = net
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:
             config = yaml.load(infile)
@@ -1084,7 +1129,7 @@ class NodeImpl(Node):
             yaml.dump(config, outfile)
         settings_path = os.path.join(instance.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):
-            settings = SettingsDict(self, settings_path, root='cfg')
+            settings = SettingsDict(cast(DataObject, self), settings_path, root='cfg')
             settings['port'] = instance.dcs_port
             settings['name'] = 'n/a'
         bus = ServiceRegistry.get(ServiceBus)
@@ -1205,7 +1250,7 @@ class NodeImpl(Node):
                 if service and not isinstance(service, BotService):
                     assert service is not None
                     tasks.append(service.stop())
-            await asyncio.gather(*tasks)
+            await utils.run_parallel_nofail(*tasks)
 
             # rename the directory
             os.rename(instance.home, new_home)
@@ -1228,7 +1273,10 @@ class NodeImpl(Node):
                     assert service is not None
                     service.reload()
                     tasks.append(service.start())
-            await asyncio.gather(*tasks)
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    self.log.exception(f"Failed to start service {list(ServiceRegistry.services().keys())[i]}")
         finally:
             # re-init the attached server instance
             await instance.server.reload()
@@ -1295,3 +1343,27 @@ class NodeImpl(Node):
         await bot.unload_plugin(plugin)
         self.plugins.remove(plugin)
         return True
+
+    async def get_cpu_info(self) -> Union[bytes, int]:
+        def create_image() -> bytes:
+            p_core_affinity_mask = utils.get_p_core_affinity()
+            e_core_affinity_mask = utils.get_e_core_affinity()
+            buffer = utils.create_cpu_topology_visualization(utils.get_cpus_from_affinity(p_core_affinity_mask),
+                                                             utils.get_cpus_from_affinity(e_core_affinity_mask),
+                                                             utils.get_cache_info())
+            try:
+                return buffer.getvalue()
+            finally:
+                buffer.close()
+
+        if self.node.master:
+            return create_image()
+        else:
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    cursor = await conn.execute("""
+                        INSERT INTO files (guild_id, name, data) 
+                        VALUES (%s, %s, %s)
+                        RETURNING id
+                    """, (self.guild_id, 'cpuinfo', psycopg.Binary(create_image())))
+                    return (await cursor.fetchone())[0]

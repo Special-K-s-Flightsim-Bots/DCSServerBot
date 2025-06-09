@@ -3,22 +3,28 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-# Sample workflow for building and deploying a Jekyll site to GitHub Pages
 name: Deploy Jekyll site to Pages
 
 on:
   push:
-    branches: ["development"]
+    branches:
+      - "development"    # Only run on development branch
     paths:
+      - '**/*.md'
       - 'docs/**'
       - '.github/workflows/pages.yml'
+  pull_request:
+    types: [closed]
+    branches:
+      - development  # TODO: Change to main for production
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
   pages: write
   id-token: write
 
@@ -28,31 +34,190 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Sync job
+  sync:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' && 
+      !contains(github.event.head_commit.message, 'Update documentation') &&
+      !contains(github.event.head_commit.message, 'Merge pull request')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: development
+
+      - name: Sync and commit documentation
+        run: |
+          # Ensure we have the latest development branch
+          git fetch origin development
+
+          # Create a new branch with timestamp to avoid conflicts
+          BRANCH_NAME="docs-update-$(date +%Y%m%d-%H%M%S)"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          git checkout -b $BRANCH_NAME
+          
+          # Create temporary backup directory
+          mkdir -p temp_backup
+
+          # List of files/directories to preserve
+          PRESERVE_FILES=(
+            ".gitignore"
+            "_config.yml"
+            "_layouts"
+            "_saas"
+            "Gemfile"
+            "just-the-docs.gemspec"
+            "Dockerfile"
+            "docker-compose.yml"
+            "favicon.ico"
+            "LICENSE"
+          )
+
+          # Backup all important files
+          for item in "${PRESERVE_FILES[@]}"; do
+            if [ -e "docs/$item" ]; then
+              mkdir -p "temp_backup/$(dirname "$item")"
+              cp -r "docs/$item" "temp_backup/$item"
+            fi
+          done
+
+          # Clean the docs directory
+          rm -rf docs/core docs/extensions docs/plugins docs/reports docs/services
+          rm -f docs/*.md
+
+          # Restore preserved files
+          for item in "${PRESERVE_FILES[@]}"; do
+            if [ -e "temp_backup/$item" ]; then
+              mkdir -p "docs/$(dirname "$item")"
+              cp -r "temp_backup/$item" "docs/$item"
+            fi
+          done
+
+          # Clean up temporary backup
+          rm -rf temp_backup
+
+          # Create base docs directory if it doesn't exist
+          mkdir -p docs
+
+          # Function to add Jekyll front matter and copy file
+          add_front_matter_and_copy() {
+            local src="$1"
+            local dst="$2"
+            local title=$(basename "$src" .md)
+            local rel_path=${dst#docs/}
+            local parent_dir=$(dirname "$rel_path")
+            
+            # Convert path to nav section
+            if [ "$parent_dir" = "." ]; then
+              nav_section=""
+            else
+              nav_section="nav_section: ${parent_dir}"
+            fi
+            
+            # Create front matter
+            {
+              echo "---"
+              echo "layout: default"
+              echo "title: ${title}"
+              if [ ! -z "$nav_section" ]; then
+                echo "$nav_section"
+              fi
+              echo "---"
+              echo
+              cat "$src"
+            } > "$dst"
+          }
+
+          # Copy and process root level MD files
+          find . -maxdepth 1 -name "*.md" -not -path "./docs/*" | while read src_file; do
+            dst_file="docs/$(basename "$src_file")"
+            add_front_matter_and_copy "$src_file" "$dst_file"
+          done
+          
+          # For each main directory
+          for dir in core extensions plugins reports services; do
+            if [ -d "./$dir" ]; then
+              find "./$dir" -type f -name "*.md" | while read src_file; do
+                rel_path=${src_file#./$dir/}
+                target_dir="docs/$dir/$(dirname "$rel_path")"
+                target_file="$target_dir/$(basename "$rel_path")"
+                mkdir -p "$target_dir"
+                add_front_matter_and_copy "$src_file" "$target_file"
+              done
+            fi
+          done
+
+          # Configure git
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # Add and commit changes
+          git add docs
+          
+          # Only proceed if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No documentation changes to commit"
+            echo "CHANGES_EXIST=false" >> $GITHUB_ENV
+            exit 0
+          else
+            git commit -m "Update documentation"
+            git push origin $BRANCH_NAME
+            echo "CHANGES_EXIST=true" >> $GITHUB_ENV
+          fi
+
+      - name: Create Pull Request
+        if: success() && env.CHANGES_EXIST == 'true'
+        run: |
+          gh pr create \
+            --base development \
+            --head $BRANCH_NAME \
+            --title "Update Documentation $(date +%Y-%m-%d)" \
+            --body "Automated documentation update from GitHub Actions
+
+          This PR updates the documentation to match the current project structure.
+          
+          Changes include:
+          - Synchronized documentation structure with main project
+          - Preserved configuration files, layouts, and assets
+          - Updated all markdown files"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # Build job
   build:
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.merged == true
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          ref: development
+          fetch-depth: 0  # Fetch all history so we have the latest changes
+      - name: Git Pull
+        run: git pull origin development  # Ensure we have the latest development branch
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.1' # Not needed with a .ruby-version file
-          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
-          cache-version: 0 # Increment this number if you need to re-download cached gems
+          ruby-version: '3.1'
+          bundler-cache: true
+          cache-version: 0
           working-directory: docs/
       - name: Setup Pages
         id: pages
-        uses: actions/configure-pages@v3
+        uses: actions/configure-pages@v4
+      - name: Copy README to index.md
+        run: cp README.md index.md
+        working-directory: docs/
       - name: Build with Jekyll
-        # Outputs to the './_site' directory by default
         run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
         env:
           JEKYLL_ENV: production
         working-directory: docs/
       - name: Upload artifact
-        # Automatically uploads an artifact from the './_site' directory by default
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v3
         with:
           path: docs/_site/
 
@@ -63,7 +228,12 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.merged == true
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

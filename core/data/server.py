@@ -84,9 +84,13 @@ class Server(DataObject):
             _locals['messages'] = {
                 "greeting_message_members": "{player.name}, welcome back to {server.name}!",
                 "greeting_message_unmatched": "{player.name}, please use /linkme in our Discord, if you want to see your user stats!",
+                "message_server_locked": "This server is currently locked and cannot be joined.",
+                "message_player_default_username": "Please change your default player name at the top right of the multiplayer selection list to an individual one!",
+                "message_player_username": "Your player name contains invalid characters. Please change your name to join our server.",
                 "message_ban": "You are banned from this server. Reason: {}",
                 "message_reserved": "This server is locked for specific users.\nPlease contact a server admin.",
-                "message_no_voice": 'You need to be in voice channel "{}" to use this server!'
+                "message_no_voice": 'You need to be in voice channel "{}" to use this server!',
+                "message_seat_locked": 'Your player is currently locked.'
             } | _locals.get('messages', {})
             return _locals
         return {}
@@ -186,7 +190,7 @@ class Server(DataObject):
         for player in self.players.values():
             if player.id == 1:
                 continue
-            if 'active' in kwargs and player.active != kwargs['active']:
+            if kwargs.get('active') is not None and player.active != kwargs['active']:
                 continue
             if 'ucid' in kwargs and player.ucid == kwargs['ucid']:
                 return player
@@ -203,7 +207,7 @@ class Server(DataObject):
     def get_active_players(self, *, side: Side = None) -> list[Player]:
         return [x for x in self.players.values() if x.active and (not side or side == x.side)]
 
-    def get_crew_members(self, pilot: Player):
+    def get_crew_members(self, pilot: Player) -> list[Player]:
         members = []
         if pilot:
             # now find players that have the same slot
@@ -213,7 +217,7 @@ class Server(DataObject):
         return members
 
     def is_populated(self) -> bool:
-        if self.status == Status.RUNNING and self.get_active_players():
+        if self.status in [Status.RUNNING, Status.PAUSED] and self.get_active_players():
             return True
         return False
 
@@ -304,6 +308,17 @@ class Server(DataObject):
             "to": 'coalition' if isinstance(recipient, Coalition) else 'group',
             "id": recipient.value if isinstance(recipient, Coalition) else recipient,
             "sound": sound
+        })
+
+    async def lock(self, message: Optional[str] = None):
+        await self.send_to_dcs({
+            "command": "lock_server",
+            "message": message
+        })
+
+    async def unlock(self):
+        await self.send_to_dcs({
+            "command": "unlock_server"
         })
 
     async def stop(self) -> None:

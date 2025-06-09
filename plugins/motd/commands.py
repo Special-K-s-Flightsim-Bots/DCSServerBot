@@ -149,14 +149,14 @@ class MOTD(Plugin[MOTDListener]):
                     return
                 elif handles:
                     return
-                config = config['nudge']
+                config: dict = config['nudge']
                 self.nudge_active[server_name] = {}
                 if isinstance(config, list):
                     for c in config:
-                        t = self.loop.call_later(c['delay'], partial(process_nudge, server, c))
+                        t = self.loop.call_later(int(c['delay']), partial(process_nudge, server, c))
                         self.nudge_active[server_name][c['delay']] = t
                 else:
-                    t = self.loop.call_later(config['delay'], partial(process_nudge, server, config))
+                    t = self.loop.call_later(int(config['delay']), partial(process_nudge, server, config))
                     self.nudge_active[server_name][config['delay']] = t
         except Exception as ex:
             self.log.exception(ex)

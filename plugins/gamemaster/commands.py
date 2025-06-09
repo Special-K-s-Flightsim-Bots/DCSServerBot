@@ -4,8 +4,7 @@ import os
 import psycopg
 from psycopg.rows import dict_row
 
-from core import (Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, Player, get_translation,
-                  PlayerType)
+from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, get_translation, PlayerType
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
@@ -317,7 +316,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
         await interaction.response.send_modal(modal)
         if await modal.wait():
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_('Aborted.'), ephemeral=ephemeral)
+            await interaction.response.send_message(_('Aborted.'), ephemeral=True)
             return
         try:
             servers = await utils.server_selection(self.bus, interaction,
@@ -520,7 +519,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
                         # await server.sendChatMessage(Coalition.RED, message.content, message.author.display_name)
                         pass
                 if server.channels[Channel.CHAT] and server.channels[Channel.CHAT] == message.channel.id:
-                    if message.content.startswith('/') is False:
+                    if not message.content.startswith('/'):
                         await server.sendChatMessage(Coalition.ALL, message.content, message.author.display_name)
 
     @commands.Cog.listener()

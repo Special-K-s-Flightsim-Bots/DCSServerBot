@@ -96,7 +96,7 @@ class Player(DataObject):
                         ON CONFLICT (ucid) DO UPDATE SET name=excluded.name, last_seen=excluded.last_seen
                         """, (self.ucid, self.name))
         # if automatch is enabled, try to match the user
-        if not self.member and self.bot.locals.get('automatch', True):
+        if not self.member and self.bot.locals.get('automatch', False):
             discord_user = self.bot.match_user({"ucid": self.ucid, "name": self.name})
             if discord_user:
                 self.member = discord_user
@@ -349,4 +349,16 @@ class Player(DataObject):
             "command": "deleteScreenshot",
             "id": self.id,
             "key": key
+        })
+
+    async def lock(self) -> None:
+        await self.server.send_to_dcs({
+            "command": "lock_player",
+            "ucid": self.ucid
+        })
+
+    async def unlock(self) -> None:
+        await self.server.send_to_dcs({
+            "command": "unlock_player",
+            "ucid": self.ucid
         })

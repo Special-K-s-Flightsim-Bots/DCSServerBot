@@ -104,7 +104,7 @@ class ServerImpl(Server):
     def __post_init__(self):
         super().__post_init__()
         self.is_remote = False
-        self.lock = asyncio.Lock()
+        self._lock = asyncio.Lock()
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("INSERT INTO servers (server_name) VALUES (%s) ON CONFLICT (server_name) DO NOTHING",
@@ -149,17 +149,11 @@ class ServerImpl(Server):
         if not self._options:
             path = os.path.join(self.instance.home, 'Config', 'options.lua')
             self._options = utils.SettingsDict(self, path, 'options')
-            # no options.lua, create a minimalistic one
-            if 'graphics' not in self._options:
-                self._options["graphics"] = {
-                    "visibRange": "High"
-                }
-            if 'plugins' not in self._options:
-                self._options["plugins"] = {}
-            if 'difficulty' not in self._options:
-                self._options["difficulty"] = {}
-            if 'miscellaneous' not in self._options:
-                self._options["miscellaneous"] = {}
+            # make sure the most important settings are there
+            self._options.setdefault("graphics", {}).update({"visibRange": "High"})
+            self._options.setdefault("plugins", {})
+            self._options.setdefault("difficulty", {})
+            self._options.setdefault("miscellaneous", {})
         return self._options
 
     def set_instance(self, instance: Instance):
@@ -349,6 +343,7 @@ class ServerImpl(Server):
         if filename:
             miz = await asyncio.to_thread(MizFile, filename)
             return miz.theatre
+        return None
 
     def serialize(self, message: dict):
         def _serialize_value(value: Any) -> Any:
@@ -491,10 +486,10 @@ class ServerImpl(Server):
                 self.set_affinity(self.locals.get('affinity'))
             else:
                 # make sure, we only use P-cores for DCS servers
-                p_core_affinity = utils.get_p_core_affinity()
-                if p_core_affinity:
+                e_core_affinity = utils.get_e_core_affinity()
+                if e_core_affinity:
                     self.log.info(f"  => P/E-Core CPU detected.")
-                    self.set_affinity(utils.get_cpus_from_affinity(p_core_affinity))
+                    self.set_affinity(utils.get_cpus_from_affinity(utils.get_p_core_affinity()))
             self.log.info(f"  => DCS server starting up with PID {p.pid}")
         except Exception:
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
@@ -515,7 +510,7 @@ class ServerImpl(Server):
         )
 
     async def init_extensions(self) -> list[str]:
-        async with self.lock:
+        async with self._lock:
             extensions = DEFAULT_EXTENSIONS | self.locals.get('extensions', {})
             for extension in extensions.keys():
                 try:
@@ -531,7 +526,7 @@ class ServerImpl(Server):
             return list(self.extensions.keys())
 
     async def prepare_extensions(self):
-        async with self.lock:
+        async with self._lock:
             for ext in self.extensions.values():
                 try:
                     await ext.prepare()
@@ -609,7 +604,7 @@ class ServerImpl(Server):
             raise
 
     async def _startup_extensions(self, status: Union[Status, str]) -> None:
-        async with self.lock:
+        async with self._lock:
             not_running_extensions = [
                 ext for ext in self.extensions.values() if not await asyncio.to_thread(ext.is_running)
             ]
@@ -626,7 +621,7 @@ class ServerImpl(Server):
             super().set_status(status)
 
     async def _shutdown_extensions(self, status: Union[Status, str]) -> None:
-        async with self.lock:
+        async with self._lock:
             running_extensions = [
                 ext for ext in self.extensions.values() if await asyncio.to_thread(ext.is_running)
             ]
@@ -667,7 +662,7 @@ class ServerImpl(Server):
                                                f"dcs-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.log"))
 
     async def is_running(self) -> bool:
-        async with self.lock:
+        async with self._lock:
             if not self.process or not self.process.is_running():
                 self.process = await asyncio.to_thread(
                     lambda: next(utils.find_process("DCS_server.exe|DCS.exe", self.instance.name), None)
@@ -731,6 +726,8 @@ class ServerImpl(Server):
                 orig_filename = utils.get_orig_file(new_filename)
                 # and copy the orig file over
                 shutil.copy2(orig_filename, new_filename)
+            elif new_filename != filename:
+                shutil.copy2(filename, new_filename)
             try:
                 # process all mission modifications
                 dirty = False
@@ -806,9 +803,17 @@ class ServerImpl(Server):
     async def modifyMission(self, filename: str, preset: Union[list, dict], use_orig: bool = True) -> str:
         from extensions.mizedit import MizEdit
 
+        # create a writable mission
+        new_filename = utils.create_writable_mission(filename)
         if use_orig:
-            filename = utils.get_orig_file(filename)
-        return await MizEdit.apply_presets(self, filename, preset)
+            # get the orig file
+            orig_filename = utils.get_orig_file(new_filename)
+            # and copy the orig file over
+            shutil.copy2(orig_filename, new_filename)
+        elif new_filename != filename:
+            shutil.copy2(filename, new_filename)
+        await MizEdit.apply_presets(self, new_filename, preset)
+        return new_filename
 
     async def persist_settings(self):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
@@ -929,32 +934,30 @@ class ServerImpl(Server):
     async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True,
                           use_orig: Optional[bool] = True) -> bool:
         start_index = int(self.settings['listStartIndex'])
+        mission_list = self.settings['missionList']
         # check if we re-load the running mission
         if ((isinstance(mission, int) and mission == start_index) or
             (isinstance(mission, str) and mission == self._get_current_mission_file())):
             mission = self._get_current_mission_file()
+            if not mission:
+                return False
             if use_orig:
-                # now determine the original mission name
+                new_filename = utils.create_writable_mission(mission)
                 orig_mission = utils.get_orig_file(mission)
-                # check if the orig file has been replaced
-                if os.path.exists(orig_mission) and os.path.getmtime(orig_mission) > os.path.getmtime(mission):
-                    new_filename = utils.create_writable_mission(mission)
-                    # we can't write the original one, so use the copy
-                    if new_filename != mission:
-                        shutil.copy2(orig_mission, new_filename)
-                        await self.replaceMission(start_index, new_filename)
-                    return await self.loadMission(start_index, modify_mission=modify_mission)
-            else:
+                shutil.copy2(orig_mission, new_filename)
+                if new_filename != mission:
+                    mission_list = await self.replaceMission(start_index, new_filename)
+            elif modify_mission:
                 # don't use the orig file, still make sure we have a writable mission
                 new_filename = utils.create_writable_mission(mission)
                 if new_filename != mission:
-                    await self.replaceMission(start_index, new_filename)
-                    return await self.loadMission(start_index, modify_mission=modify_mission)
+                    shutil.copy2(mission, new_filename)
+                    mission_list = await self.replaceMission(start_index, new_filename)
 
         if isinstance(mission, int):
-            if mission > len(self.settings['missionList']):
+            if mission > len(mission_list):
                 mission = 1
-            filename = self.settings['missionList'][mission - 1]
+            filename = mission_list[mission - 1]
         else:
             filename = mission
         if modify_mission:
@@ -962,7 +965,7 @@ class ServerImpl(Server):
 
         if self.status == Status.STOPPED:
             try:
-                idx = self.settings['missionList'].index(filename) + 1
+                idx = mission_list.index(filename) + 1
                 self.settings['listStartIndex'] = idx
                 self.settings['current'] = idx
                 return await self.start()
@@ -970,7 +973,7 @@ class ServerImpl(Server):
                 return False
         else:
             try:
-                idx = self.settings['missionList'].index(filename) + 1
+                idx = mission_list.index(filename) + 1
                 if idx == start_index:
                     rc = await self.send_to_dcs_sync({"command": "startMission", "filename": filename})
                 else:

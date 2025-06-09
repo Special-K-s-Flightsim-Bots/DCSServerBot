@@ -111,7 +111,7 @@ def command(
     return decorator
 
 
-class Command(app_commands.Command):
+class Command(app_commands.Command[GroupT, P, T]):
 
     def __init__(
         self,
@@ -229,16 +229,16 @@ class Group(app_commands.Group):
 
 class Plugin(commands.Cog, Generic[TEventListener]):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None, name: Optional[str] = None):
         from services.servicebus import ServiceBus
 
         super().__init__()
-        self.plugin_name = type(self).__module__.split('.')[-2]
+        self.plugin_name = name or type(self).__module__.split('.')[-2]
         self.plugin_version = getattr(sys.modules['plugins.' + self.plugin_name], '__version__')
         self.bot: DCSServerBot = bot
         self.node = bot.node
         self.bus = ServiceRegistry.get(ServiceBus)
-        self.log = logging.getLogger(__name__)
+        self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.pool = self.bot.pool
         self.apool = self.bot.apool
         self.loop = self.bot.loop
@@ -271,7 +271,7 @@ class Plugin(commands.Cog, Generic[TEventListener]):
                     if isinstance(params, list):
                         for param in params:
                             self.change_commands(param, group_commands)
-                    elif params:
+                    elif isinstance(params, dict):
                         self.change_commands(params, group_commands)
                     else:
                         self.log.warning(f"{self.__cog_name__} command {name} has no params!")
@@ -349,7 +349,7 @@ class Plugin(commands.Cog, Generic[TEventListener]):
                             INSERT INTO plugins (plugin, version) VALUES (%s, %s) 
                             ON CONFLICT (plugin) DO NOTHING
                         """, (self.plugin_name, self.plugin_version))
-                        self.log.info(f'  => {self.plugin_name.title()} installed.')
+                        self.log.info(f'  => {self.__cog_name__} installed.')
                         return True
                     else:
                         installed = (await cursor.fetchone())[0]
@@ -360,9 +360,13 @@ class Plugin(commands.Cog, Generic[TEventListener]):
                             updates_file = f'./plugins/{self.plugin_name}/db/update_v{installed}.sql'
                             if os.path.exists(updates_file):
                                 with open(updates_file, mode='r') as updates_sql:
-                                    for query in updates_sql.readlines():
+                                    for query in [
+                                        stmt.strip()
+                                        for stmt in sqlparse.split(updates_sql.read(), encoding='utf-8')
+                                        if stmt.strip()
+                                    ]:
                                         self.log.debug(query.rstrip())
-                                        await cursor.execute(query.rstrip())
+                                        await conn.execute(query.rstrip())
                                 ver, rev = installed.split('.')
                                 installed = ver + '.' + str(int(rev) + 1)
                             elif int(self.plugin_version[0]) == 3 and int(installed[0]) < 3:
@@ -371,7 +375,7 @@ class Plugin(commands.Cog, Generic[TEventListener]):
                                 ver, rev = installed.split('.')
                                 installed = ver + '.' + str(int(rev) + 1)
                             await self.migrate(installed, conn)
-                            self.log.info(f'  => {self.plugin_name.title()} migrated to version {installed}.')
+                            self.log.info(f'  => {self.__cog_name__} migrated to version {installed}.')
                             await cursor.execute('UPDATE plugins SET version = %s WHERE plugin = %s',
                                                  (self.plugin_version, self.plugin_name))
                         return False

@@ -4,7 +4,7 @@ import logging
 
 from configparser import ConfigParser
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Callable, Type, Optional, TypeVar
+from typing import TYPE_CHECKING, Callable, Type, Optional, TypeVar, Generic
 
 if TYPE_CHECKING:
     from core import Node
@@ -30,14 +30,14 @@ class DataObject:
     def __post_init__(self):
         self.pool = self.node.pool
         self.apool = self.node.apool
-        self.log = logging.getLogger(__name__)
+        self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.config = self.node.config
 
 
 T = TypeVar("T", bound=DataObject)
 
 
-class DataObjectFactory:
+class DataObjectFactory(Generic[T]):
     _instance: Optional[DataObjectFactory] = None
     _registry: dict[Type[T], Type[T]] = {}
 

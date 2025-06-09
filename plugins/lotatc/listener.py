@@ -4,7 +4,7 @@ import discord
 from core import (EventListener, event, Server, Coalition, Player, get_translation, chat_command, ChatCommand, Side,
                   Channel, utils)
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from .commands import LotAtc
@@ -16,7 +16,7 @@ _ = get_translation(__name__.split('.')[1])
 class GCI:
     name: str = field()
     coalition: Coalition = field()
-    ipaddr: str = field(init=False, default=None)
+    ipaddr: Optional[str] = field(init=False, default=None)
     radios: list[int] = field(compare=False, default_factory=list, init=False)
     lotatc: bool = field(default=False)
 

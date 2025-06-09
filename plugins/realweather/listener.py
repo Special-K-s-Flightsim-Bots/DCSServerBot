@@ -1,6 +1,10 @@
 import re
 
 from core import EventListener, chat_command, Server, Player, get_translation, Status
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import RealWeather
 
 _ = get_translation(__name__.split('.')[1])
 

@@ -1,0 +1,26 @@
+{
+  "color": "blue",
+  "title": "Squadron Preferences",
+  "elements": [
+    {
+      "type": "Graph",
+      "params": {
+        "width": 15,
+        "height": 10,
+        "cols": 2,
+        "rows": 1,
+        "elements":
+         [
+            {
+              "class": "plugins.tournament.utils.TimePreferences",
+              "params": { "col": 0, "row": 0 }
+            },
+            {
+              "class": "plugins.tournament.utils.TerrainPreferences",
+              "params": { "col": 1, "row": 0 }
+            }
+         ]
+      }
+    }
+  ]
+}

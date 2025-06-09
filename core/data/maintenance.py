@@ -1,5 +1,6 @@
 import asyncio
 
+from core import utils
 from core.data.node import Node
 from core.data.server import Server
 from core.data.const import Status, Coalition
@@ -39,14 +40,19 @@ class ServerMaintenanceManager:
             tasks.append(asyncio.create_task(self.shutdown_with_warning(server)))
         # wait for DCS servers to shut down
         if tasks:
-            await asyncio.gather(*tasks)
+            await utils.run_parallel_nofail(*tasks)
 
     async def __aexit__(self, exc_type, exc_value, traceback):
+        tasks = []
         for server in self.to_start:
             if server not in self.in_maintenance:
                 server.maintenance = False
-            try:
-                # the server was running before (being in maintenance mode), so start it again
-                await server.startup()
-            except (TimeoutError, asyncio.TimeoutError):
-                self.node.log.warning(f'Timeout while starting {server.display_name}, please check it manually!')
+            else:
+                tasks.append(server.startup())
+
+        if tasks:
+            ret = await asyncio.gather(*tasks, return_exceptions=True)
+            for idx in range(0, len(ret)):
+                server = self.in_maintenance[idx]
+                if isinstance(ret[idx], Exception):
+                    self.node.log.error(f'Timeout while starting {server.display_name}, please check it manually!')
