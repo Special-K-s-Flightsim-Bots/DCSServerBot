@@ -123,12 +123,11 @@ jobs:
           git push origin $BRANCH_NAME
 
       - name: Create Pull Request
-        # Only run if there were changes in the previous step
         if: success()
         run: |
           gh pr create \
             --base development \
-            --head $BRANCH_NAME \
+            --head "$BRANCH_NAME" \
             --title "Update Documentation $(date +%Y-%m-%d)" \
             --body "Automated documentation update from GitHub Actions
 
@@ -136,8 +135,7 @@ jobs:
           
           Changes include:
           - Synchronized documentation structure with main project
-          - Preserved Jekyll configuration files
-          - Maintained Docker setup files
+          - Preserved configuration files, layouts, and assets
           - Updated all markdown files"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
