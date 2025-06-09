@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/olympus
+---
+
 # Extension "DCS Olympus"
 [DCS Olympus](https://github.com/Pax1601/DCSOlympus) is a free and open-source mod for DCS that enables dynamic 
 real-time control through a map interface. It is a mod that needs to be installed into your servers. Best you can do

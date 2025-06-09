@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: services/music
+---
+
 # Music Service
 The music service allows you to play music (mp3 files as of now) via defined [DCS-SRS](../../extensions/README.md) 
 channels.<br>

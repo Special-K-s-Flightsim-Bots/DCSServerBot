@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/discord
+---
+
 # Plugin "Discord"
 Add some helper commands to your Discord server.
 

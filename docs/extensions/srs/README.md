@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/srs
+---
+
 # Extension "SRS"
 [SimpleRadioStandalone](http://dcssimpleradio.com/) (DCS-SRS) is an awesome tool built by CiriBob, who dedicates a lot of work and this 
 simulated real life radio experience to DCS. Many if not every server runs an SRS server too, to let their players have 

@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: services/backup
+---
+
 # Backup Service
 The backup service can be used to back up your bot configuration, the database and whatever you want to back up from 
 your servers. It runs on a configurable schedule or can be launched by commands from the [Backup plugin](../../plugins/backup/README.md).

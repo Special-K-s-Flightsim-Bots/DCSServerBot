@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/monitoring
+---
+
 # Plugin Monitoring
 This is a default plugin of DCSServerBot. It gathers load statistics of your DCS server. The plugin itself is only
 the frontend to the [Monitoring Service](../../services/monitoring/README.md).

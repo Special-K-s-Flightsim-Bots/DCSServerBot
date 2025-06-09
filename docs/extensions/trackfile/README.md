@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/trackfile
+---
+
 # Extension "Trackfile"
 Simple extension to upload a trackfile on mission change to either Discord or a path (e.g. cloud drive).
 

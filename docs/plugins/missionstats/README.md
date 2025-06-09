@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/missionstats
+---
+
 # Plugin "MissionStats"
 When enabled, this plugin will generate a persistent mission statistics embed to be displayed in the status channels and 
 detailed statistics from the in-game event system. The global DCSServerBot.lua and a plugin specific mission.lua will 

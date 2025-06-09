@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/modmanager
+---
+
 # Plugin ModManager
 This plugin belongs to the [ModManager Service](../../services/modmanager/README.md) that lets you install additional 
 packages (aka mods) into your DCS World servers. Read there for further details.</br>

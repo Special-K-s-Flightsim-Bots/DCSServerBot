@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/cloud
+---
+
 # Extension "Cloud"
 Used by the [Cloud-plugin](../../plugins/cloud/README.md) for updating the cloud server list.
 

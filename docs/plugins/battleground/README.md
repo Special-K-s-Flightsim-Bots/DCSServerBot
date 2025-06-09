@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/battleground
+---
+
 # Plugin "Battlegound"
 The Battleground plugin adds commands for the [DCSBattleground](https://github.com/Frigondin/DCSBattleground/) tool.</br> 
 The plugin use the [Coalition](../../COALITIONS.md) feature for communication with the database, so you need to set 

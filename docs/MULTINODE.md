@@ -1,3 +1,8 @@
+---
+layout: default
+title: MULTINODE
+---
+
 # Multi-Node-Setup
 Larger groups do not only run one PC with (multiple) DCS servers, but they run multiple (virtual) PCs, sometimes even 
 over multiple locations. DCSServerBot supports many of these configurations.

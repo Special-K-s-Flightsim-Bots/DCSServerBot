@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/competitive
+---
+
 # Plugin "Competitive"
 With this plugin you can increase your PvP-fun and rank players and teams according to the famous 
 [TrueSkill™️](http://research.microsoft.com/en-us/projects/trueskill) ranking system.

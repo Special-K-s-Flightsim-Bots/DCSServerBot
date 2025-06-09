@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/.
+---
+
 # Extensions
 Extensions are external programs or mods that you have added to your DCS installation like SRS, Tacview, etc. 
 DCSServerBot adds some support for them, reaching from simply displaying details about

@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/gamemaster
+---
+
 # Plugin "GameMaster"
 The GameMaster plugin adds commands that help you to interact with a running mission by either different kinds of 
 messaging, setting and clearing flags or even running lua scripts directly in your mission from out of Discord. 

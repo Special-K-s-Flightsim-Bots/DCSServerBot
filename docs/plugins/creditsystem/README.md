@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/creditsystem
+---
+
 # Plugin "CreditSystem"
 This plugin adds credits to the bot. People can gain credits atm by killing stuff. 
 

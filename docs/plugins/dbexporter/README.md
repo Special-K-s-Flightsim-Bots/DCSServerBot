@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/dbexporter
+---
+
 # Plugin DBExporter
 This plugin will dump the whole DCSServerBot database every hour to ./export/_tablename_.json files for further processing, if needed.
 

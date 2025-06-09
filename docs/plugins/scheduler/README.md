@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/scheduler
+---
+
 # Plugin Scheduler
 With this plugin you can decide when to run your DCS servers, when to run which mission and how long a specific mission 
 shall run, either in local time, real time or in mission time. Tasks that can be achieved with this solution are below 

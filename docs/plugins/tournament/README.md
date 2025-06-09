@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/tournament
+---
+
 # Plugin "Tournament"
 This plugin allows you to run tournaments supported by DCSServerBot. It is based on many other concepts of the bot, so 
 it needs some setup and understanding of how everything works. Let's dig into it.

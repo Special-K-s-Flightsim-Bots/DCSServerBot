@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/pretense
+---
+
 # Plugin Pretense
 With this plugin, you can display persistent status update embeds for your Pretense missions.
 

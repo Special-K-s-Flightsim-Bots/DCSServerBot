@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/music
+---
+
 # Plugin "Music"
 This plugin is the Discord interface to the [Music Service](../../services/music/README.md).
 

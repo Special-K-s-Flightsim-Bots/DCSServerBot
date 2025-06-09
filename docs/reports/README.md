@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: reports/.
+---
+
 # Report Framework
 One of the main goals of DCSServerBot is gathering data of your DCS World servers 
 and to display them in a useful format.<br/>

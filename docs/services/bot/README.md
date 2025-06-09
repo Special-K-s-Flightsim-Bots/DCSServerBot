@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: services/bot
+---
+
 # Bot Service
 This is the Discord bot implementation, the one that's providing all the commands and embeds that are displayed in your
 Discord server (for the Discord-less implementation, see below).

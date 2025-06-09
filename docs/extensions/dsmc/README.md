@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/dsmc
+---
+
 # Extension "DSMC"
 If you want to enable persistence for your missions, [DSMC](https://dsmcfordcs.wordpress.com/) is one way to go.
 DSMC does not need any change in your missions (but you can, see their documentation!). It will write out a new

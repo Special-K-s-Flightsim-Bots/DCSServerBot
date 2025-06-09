@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/funkman
+---
+
 # Plugin "FunkMan"
 This plugin adds support for the Moose Funkman protocol. You need to install [FunkMan](https://github.com/funkyfranky/FunkMan) for it to work.
 
