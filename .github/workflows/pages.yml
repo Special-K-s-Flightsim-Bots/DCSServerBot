@@ -125,11 +125,6 @@ jobs:
             git push origin $BRANCH_NAME
             echo "CHANGES_EXIST=true" >> $GITHUB_ENV
           fi
-          
-          git commit -m "Update documentation"
-          
-          # Push the new branch
-          git push origin $BRANCH_NAME
 
       - name: Create Pull Request
         if: success() && env.CHANGES_EXIST == 'true'
