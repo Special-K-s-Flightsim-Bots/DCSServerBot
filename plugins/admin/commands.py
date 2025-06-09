@@ -439,7 +439,8 @@ class Admin(Plugin[AdminEventListener]):
             _("Installing module {module} on node {node}, please wait ...").format(module=module, node=node.name),
             ephemeral=ephemeral)
         await node.handle_module('install', module)
-        await interaction.followup.send(content=_("Module {module} installed on node {node}.").format(
+        # use channel.send instead, as the webhook might be outdated
+        await interaction.channel.send(_("Module {module} installed on node {node}.").format(
             module=module, node=node.name))
 
     @dcs.command(name='uninstall', description=_('Uninstall modules from your DCS server'))
