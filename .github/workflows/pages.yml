@@ -161,6 +161,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: development
+          fetch-depth: 0  # Fetch all history so we have the latest changes
+      - name: Git Pull
+        run: git pull origin development  # Ensure we have the latest development branch
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -178,9 +181,6 @@ jobs:
         run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
         env:
           JEKYLL_ENV: production
-        working-directory: docs/
-      - name: Debug - List files
-        run: ls -la
         working-directory: docs/
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
