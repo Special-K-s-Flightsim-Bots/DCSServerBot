@@ -152,15 +152,15 @@ class IntegrityCheck(report.EmbedElement):
 
     async def render(self, server: Server):
         values = []
-        if not server.settings.get('advanced', {}).get('allow_trial_only_clients', True):
+        if not server.settings.get('advanced', {}).get('allow_trial_only_clients', False):
             values.append("No Trial Clients")
-        if server.settings.get('require_pure_clients', False):
+        if server.settings.get('require_pure_clients', True):
             values.append("Pure Clients Required")
         if server.settings.get('require_pure_scripts', False):
             values.append("Pure Scripts Required")
-        if server.settings.get('require_pure_models', False):
+        if server.settings.get('require_pure_models', True):
             values.append("Pure Models Required")
-        if server.settings.get('require_pure_textures', False):
+        if server.settings.get('require_pure_textures', True):
             values.append("Pure Textures Required")
         if values:
             self.add_field(name='Client Limits', value='\n'.join([f":shield: {x}" for x in values]))
