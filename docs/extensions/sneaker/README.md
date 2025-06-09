@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/sneaker
+---
+
 # Extension "Sneaker"
 Well, this "sneaked" in here somehow. Many people were asking for a moving map, and we looked at several solutions. 
 Nearly all took a lot of effort to get them running, if ever. Then we stumbled across 

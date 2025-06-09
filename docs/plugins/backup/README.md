@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/backup
+---
+
 # Plugin "Backup"
 This plugin can only be used together with the [Backup Service](../../services/backup/README.md).
 It provides the /backup command to manually start a backup.

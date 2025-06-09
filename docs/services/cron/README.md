@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: services/cron
+---
+
 # Cron Service
 You can use this service to run pre-defined actions at specific times. See [here](#actions) for examples.
 More to come.

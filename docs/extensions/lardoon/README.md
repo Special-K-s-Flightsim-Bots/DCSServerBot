@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/lardoon
+---
+
 # Extension "Lardoon"
 [Lardoon](https://github.com/b1naryth1ef/lardoon) is another web-server-based application that provides a nice search 
 interface for Tacview files. It is based on [Jambon](https://github.com/b1naryth1ef/jambon) an ACMI parser.</br>

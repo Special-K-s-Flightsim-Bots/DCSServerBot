@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: services/dashboard
+---
+
 # Dashboard Service
 The dashboard is a nice overlay over your CMD window, that runs DCSServerBot. It displays the current status of your
 servers, the number of people flying, other nodes, if you're part of a cluster and the most recent entries of your

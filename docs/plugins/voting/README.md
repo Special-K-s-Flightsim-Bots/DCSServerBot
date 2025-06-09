@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/voting
+---
+
 # Plugin "Voting"
 This plugin enables a voting system for users. People can choose from several voting options. DCSServerBot comes with 
 some pre-defined ones, like mission change, preset change, kicking or temp-banning of annoying users.

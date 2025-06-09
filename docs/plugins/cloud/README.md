@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/cloud
+---
+
 # Plugin "Cloud"
 #### _With this plugin, the world of DCSServerBot gets even bigger!_
 When using DCSServerBot in your Discord and with your DCS servers, people gather lots of statistics. As people often 

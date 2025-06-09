@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/mizedit
+---
+
 # Extension "MizEdit"
 
 One of the main concepts of DCSServerBot is to have you use any standard mission that you built or got from the

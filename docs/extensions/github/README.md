@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/github
+---
+
 # Extension "GitHub"
 Simple extension to clone or update a given repository into a directory on your server.
 

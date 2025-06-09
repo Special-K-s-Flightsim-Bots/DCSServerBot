@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/srs
+---
+
 # Plugin "SRS"
 [SimpleRadioStandalone](http://dcssimpleradio.com/) (DCS-SRS) is a radio solution for DCS World.<br>
 If you want to use SRS in DCSServerBot, in most cases it is enough to activate the respective 

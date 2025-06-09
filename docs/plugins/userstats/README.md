@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/userstats
+---
+
 # Plugin "UserStats"
 DCSServerBot comes with a built-in, database driven statistics system. It allows users to show their own 
 achievements like k/d-ratio, flight times per module, server or map, etc. For server owners, it allows you to see which 

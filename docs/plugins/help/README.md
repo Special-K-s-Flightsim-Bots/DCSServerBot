@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/help
+---
+
 # Plugin Help
 This is the help plugin. It provides interactive help in Discord and the in-game chat.
 Only commands eligible to the caller are displayed.

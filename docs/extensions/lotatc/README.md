@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/lotatc
+---
+
 # Extension "LotAtc"
 Another famous extension for DCS is [LotAtc](https://www.lotatc.com/) by D'Art. If you think about any kind of proper
 GCI or ATC work, there is no way around it. It perfectly integrates with DCS and DCS-SRS.<br/>

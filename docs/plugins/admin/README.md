@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/admin
+---
+
 # Plugin "Admin"
 This plugin supports administrative commands that are needed to operate a DCS server remotely.
 

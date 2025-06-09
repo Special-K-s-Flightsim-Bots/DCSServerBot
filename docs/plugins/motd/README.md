@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/motd
+---
+
 # Plugin MessageOfTheDay (MOTD)
 This plugin adds a message of the day to the server, that is displayed either on join or when you hop into a plane.
 

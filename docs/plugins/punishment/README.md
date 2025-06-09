@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/punishment
+---
+
 # Plugin Punishment
 The DCSServerBot auto-ban, auto-kick, auto-move-back-to-spectators module, based on the players behaviour and the 
 configuration described in here.<br>

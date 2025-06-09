@@ -1,3 +1,9 @@
+---
+layout: default
+title: MODIFY
+nav_section: extensions/mizedit
+---
+
 # Using the "modify"-Preset
 To use the "modify"-Preset, you need to understand some of the basic concepts first. A DCS miz file, that carries your
 mission is basically a ZIP file, consisting of several configuration files inside. MizEdit can amend these files and

@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: services/monitoring
+---
+
 # Monitoring Service
 This service monitors the health of your DCS servers.<p>
 It detects crashes or unwanted popups, full disks, too low server FPS or too high RAM usage. 
