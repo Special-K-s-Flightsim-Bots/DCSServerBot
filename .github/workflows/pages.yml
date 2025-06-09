@@ -3,13 +3,14 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-# Sample workflow for building and deploying a Jekyll site to GitHub Pages
 name: Deploy Jekyll site to Pages
 
 on:
   push:
-    branches: ["development"]
+    branches:
+      - "development"    # Only run on development branch
     paths:
+      - '**/*.md'
       - 'docs/**'
       - '.github/workflows/pages.yml'
 
@@ -18,7 +19,7 @@ on:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -28,30 +29,117 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Sync job
+  sync:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'Update documentation')"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: development
+
+      - name: Sync documentation
+        run: |
+          # Create temporary backup directory
+          mkdir -p temp_backup
+
+          # List of files/directories to preserve
+          PRESERVE_FILES=(
+            ".gitignore"
+            "_config.yml"
+            "_layouts"
+            "_saas"
+            "Gemfile"
+            "just-the-docs.gemspec"
+            "Dockerfile"
+            "docker-compose.yml"
+            "favicon.ico"
+            "LICENSE"
+          )
+
+          # Backup all important files
+          for item in "${PRESERVE_FILES[@]}"; do
+            if [ -e "docs/$item" ]; then
+              # Create parent directories in backup if needed
+              mkdir -p "temp_backup/$(dirname "$item")"
+              cp -r "docs/$item" "temp_backup/$item"
+            fi
+          done
+
+          # Clean the docs directory
+          rm -rf docs/core docs/extensions docs/plugins docs/reports docs/services
+          # Remove any .md files in root of docs
+          rm -f docs/*.md
+
+          # Restore preserved files
+          for item in "${PRESERVE_FILES[@]}"; do
+            if [ -e "temp_backup/$item" ]; then
+              # Create parent directories if needed
+              mkdir -p "docs/$(dirname "$item")"
+              cp -r "temp_backup/$item" "docs/$item"
+            fi
+          done
+
+          # Clean up temporary backup
+          rm -rf temp_backup
+
+          # Create base docs directory if it doesn't exist
+          mkdir -p docs
+
+          # Copy root level MD files
+          find . -maxdepth 1 -name "*.md" -not -path "./docs/*" -exec cp {} docs/ \;
+          
+          # For each main directory
+          for dir in core extensions plugins reports services; do
+            # Only process if directory exists in source
+            if [ -d "./$dir" ]; then
+              # Find all .md files in the source directory and its subdirectories
+              find "./$dir" -type f -name "*.md" | while read src_file; do
+                # Get the relative path from the main directory
+                rel_path=${src_file#./$dir/}
+                # Create the target directory structure
+                target_dir="docs/$dir/$(dirname "$rel_path")"
+                mkdir -p "$target_dir"
+                # Copy the file
+                cp "$src_file" "docs/$dir/$rel_path"
+              done
+            fi
+          done
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add docs
+          git commit -m "Update documentation" || echo "No changes to commit"
+          git push origin development
+
   # Build job
   build:
     runs-on: ubuntu-latest
+    needs: sync
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          ref: development
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.1' # Not needed with a .ruby-version file
-          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
-          cache-version: 0 # Increment this number if you need to re-download cached gems
+          ruby-version: '3.1'
+          bundler-cache: true
+          cache-version: 0
           working-directory: docs/
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v3
       - name: Build with Jekyll
-        # Outputs to the './_site' directory by default
         run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
         env:
           JEKYLL_ENV: production
         working-directory: docs/
       - name: Upload artifact
-        # Automatically uploads an artifact from the './_site' directory by default
         uses: actions/upload-pages-artifact@v1
         with:
           path: docs/_site/
