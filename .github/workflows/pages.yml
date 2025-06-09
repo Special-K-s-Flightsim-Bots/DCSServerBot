@@ -20,8 +20,9 @@ on:
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: write
-  pages: write
-  id-token: write
+  pull-requests: write
+  pages: write      # Add this
+  id-token: write   # Add this
 
 # Allow one concurrent deployment
 concurrency:
@@ -39,8 +40,12 @@ jobs:
         with:
           ref: development
 
-      - name: Sync documentation
+      - name: Sync and commit documentation
         run: |
+          # Create a new branch with timestamp to avoid conflicts
+          BRANCH_NAME="docs-update-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b $BRANCH_NAME
+          
           # Create temporary backup directory
           mkdir -p temp_backup
 
@@ -61,7 +66,6 @@ jobs:
           # Backup all important files
           for item in "${PRESERVE_FILES[@]}"; do
             if [ -e "docs/$item" ]; then
-              # Create parent directories in backup if needed
               mkdir -p "temp_backup/$(dirname "$item")"
               cp -r "docs/$item" "temp_backup/$item"
             fi
@@ -69,13 +73,11 @@ jobs:
 
           # Clean the docs directory
           rm -rf docs/core docs/extensions docs/plugins docs/reports docs/services
-          # Remove any .md files in root of docs
           rm -f docs/*.md
 
           # Restore preserved files
           for item in "${PRESERVE_FILES[@]}"; do
             if [ -e "temp_backup/$item" ]; then
-              # Create parent directories if needed
               mkdir -p "docs/$(dirname "$item")"
               cp -r "temp_backup/$item" "docs/$item"
             fi
@@ -92,28 +94,53 @@ jobs:
           
           # For each main directory
           for dir in core extensions plugins reports services; do
-            # Only process if directory exists in source
             if [ -d "./$dir" ]; then
-              # Find all .md files in the source directory and its subdirectories
               find "./$dir" -type f -name "*.md" | while read src_file; do
-                # Get the relative path from the main directory
                 rel_path=${src_file#./$dir/}
-                # Create the target directory structure
                 target_dir="docs/$dir/$(dirname "$rel_path")"
                 mkdir -p "$target_dir"
-                # Copy the file
                 cp "$src_file" "docs/$dir/$rel_path"
               done
             fi
           done
 
-      - name: Commit changes
-        run: |
+          # Configure git
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
+          
+          # Add and commit changes
           git add docs
-          git commit -m "Update documentation" || echo "No changes to commit"
-          git push origin development
+          
+          # Only proceed if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No documentation changes to commit"
+            exit 0
+          fi
+          
+          git commit -m "Update documentation"
+          
+          # Push the new branch
+          git push origin $BRANCH_NAME
+
+      - name: Create Pull Request
+        # Only run if there were changes in the previous step
+        if: success()
+        run: |
+          gh pr create \
+            --base development \
+            --head $BRANCH_NAME \
+            --title "Update Documentation $(date +%Y-%m-%d)" \
+            --body "Automated documentation update from GitHub Actions
+
+          This PR updates the documentation to match the current project structure.
+          
+          Changes include:
+          - Synchronized documentation structure with main project
+          - Preserved Jekyll configuration files
+          - Maintained Docker setup files
+          - Updated all markdown files"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Build job
   build:
