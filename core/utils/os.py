@@ -258,7 +258,7 @@ def get_password(key: str, config_dir='config') -> str:
             logger.debug(f'Loading password for {key} from {filename}.')
             return str(pickle.load(f))
     except FileNotFoundError:
-        logger.debug(f'Oassword for {key} not found in {filename}.')
+        logger.debug(f'Password for {key} not found in {filename}.')
         raise ValueError(key)
 
 
