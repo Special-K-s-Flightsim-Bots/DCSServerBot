@@ -58,8 +58,6 @@ def do_update_git() -> int:
                     # Add unstaged changes
                     for item in repo.head.commit.diff(None):
                         changed_files.add(item.a_path)
-                    # Add untracked files
-                    changed_files.update(repo.untracked_files)
                     if changed_files:
                         print('     Please revert back the changes in these files:')
                         for item in changed_files:

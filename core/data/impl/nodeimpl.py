@@ -443,8 +443,6 @@ class NodeImpl(Node):
             # Add unstaged changes
             for item in repo.head.commit.diff(None):
                 changed_files.add(item.a_path)
-            # Add untracked files
-            changed_files.update(repo.untracked_files)
             if changed_files:
                 self.log.error('     Please revert back the changes in these files:')
                 for item in changed_files:
