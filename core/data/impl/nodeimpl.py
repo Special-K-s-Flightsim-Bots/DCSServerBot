@@ -436,7 +436,13 @@ class NodeImpl(Node):
             return await self._upgrade_pending_non_git()
         except git.GitCommandError as ex:
             self.log.error('  => Autoupdate failed!')
-            changed_files = repo.index.diff(None)
+            changed_files = set()
+            # Add staged changes
+            for item in repo.index.diff(None):
+                changed_files.add(item.a_path)
+            # Add unstaged changes
+            for item in repo.head.commit.diff(None):
+                changed_files.add(item.a_path)
             if changed_files:
                 self.log.error('     Please revert back the changes in these files:')
                 for item in changed_files:

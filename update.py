@@ -49,11 +49,21 @@ def do_update_git() -> int:
                             return -1
                 except git.exc.InvalidGitRepositoryError:
                     return do_update_github()
-                except git.exc.GitCommandError:
+                except git.exc.GitCommandError as ex:
                     print('  => Autoupdate failed!')
-                    print('     Please revert back the changes in these files:')
+                    changed_files = set()
+                    # Add staged changes
                     for item in repo.index.diff(None):
-                        print(f'     ./{item.a_path}')
+                        changed_files.add(item.a_path)
+                    # Add unstaged changes
+                    for item in repo.head.commit.diff(None):
+                        changed_files.add(item.a_path)
+                    if changed_files:
+                        print('     Please revert back the changes in these files:')
+                        for item in changed_files:
+                            print(f'     ./{item.a_path}')
+                    else:
+                        print(ex)
                     return -1
             else:
                 print('- No update found for DCSServerBot.')
