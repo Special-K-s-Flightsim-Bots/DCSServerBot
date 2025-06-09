@@ -3,6 +3,7 @@ import os
 import subprocess
 import time
 import winreg
+from pathlib import Path
 
 from core import ServiceRegistry, Service, utils
 from datetime import datetime
@@ -80,10 +81,12 @@ class BackupService(Service):
             pass
         return postgres_installations
 
-    async def get_postgres_installation(self) -> str:
+    async def get_postgres_installation(self) -> Optional[str]:
+        # check the registry
         installations = self.get_postgres_installations()
-        if len(installations) == 1:
+        if len(installations) == 1 and os.path.exists(installations[0]['location']):
             return installations[0]['location']
+
         # we could not find the installation in the registry, so ask the database itself
         async with self.node.apool.connection() as conn:
             cursor = await conn.execute("""
@@ -94,7 +97,25 @@ class BackupService(Service):
                 WHERE name = 'data_directory';
             """)
             version, location = await cursor.fetchone()
-        return location
+        if os.path.exists(location):
+            return location
+
+        # check the file system itself
+        else:
+            pg_path = Path(r"C:\Program Files\PostgreSQL")
+            if not pg_path.exists():
+                return None
+
+            # Filter for integer-only directory names and convert to int for comparison
+            versions = []
+            for item in pg_path.iterdir():
+                if item.is_dir() and item.name.isdigit():
+                    versions.append(int(item.name))
+
+            if versions:
+                latest = max(versions)
+                return str(pg_path / str(latest))
+            return None
 
     @staticmethod
     def zip_path(zf: ZipFile, base: str, path: str):
@@ -154,13 +175,20 @@ class BackupService(Service):
         return rc
 
     async def backup_database(self) -> bool:
-        installation = await self.get_postgres_installation()
-        return await asyncio.to_thread(self._backup_database, installation)
+        path = self.locals['backups']['database'].get('path')
+        if not path:
+            installation = await self.get_postgres_installation()
+            if installation:
+                path = os.path.join(installation, "bin")
+            else:
+                self.log.error("Could not find PostgreSQL installation. Please set the path in the backup.yaml.")
+                return False
+        return await asyncio.to_thread(self._backup_database, path)
 
     def _backup_database(self, path: str) -> bool:
         target = self.mkdir()
         config = self.locals['backups'].get('database')
-        cmd = os.path.join(os.path.expandvars(path), "bin", "pg_dump.exe")
+        cmd = os.path.join(path, "pg_dump.exe")
         if not os.path.exists(cmd):
             raise FileNotFoundError(cmd)
 
