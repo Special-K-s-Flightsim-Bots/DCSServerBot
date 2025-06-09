@@ -252,12 +252,13 @@ def set_password(key: str, password: str, config_dir='config'):
 
 
 def get_password(key: str, config_dir='config') -> str:
+    filename = os.path.join(config_dir, '.secret', f'{key}.pkl')
     try:
-        filename = os.path.join(config_dir, '.secret', f'{key}.pkl')
-        logger.debug(f'Loading password for {key} from {filename}.')
         with open(filename, mode='rb') as f:
+            logger.debug(f'Loading password for {key} from {filename}.')
             return str(pickle.load(f))
     except FileNotFoundError:
+        logger.debug(f'Oassword for {key} not found in {filename}.')
         raise ValueError(key)
 
 
