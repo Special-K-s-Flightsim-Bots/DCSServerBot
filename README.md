@@ -1,9 +1,3 @@
----
-title: Overview
-nav_order: 1
-layout: home
----
-
 # Welcome to DCSServerBot!
 
 [![Latest Release](https://img.shields.io/github/v/release/Special-K-s-Flightsim-Bots/DCSServerBot?logo=GitHub)](https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/releases/latest)
