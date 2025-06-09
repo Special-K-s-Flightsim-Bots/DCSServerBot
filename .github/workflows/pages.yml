@@ -47,6 +47,7 @@ jobs:
 
           # Create a new branch with timestamp to avoid conflicts
           BRANCH_NAME="docs-update-$(date +%Y%m%d-%H%M%S)"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
           git checkout -b $BRANCH_NAME
           
           # Create temporary backup directory
@@ -130,7 +131,7 @@ jobs:
         run: |
           gh pr create \
             --base development \
-            --head "$BRANCH_NAME" \
+            --head $BRANCH_NAME \
             --title "Update Documentation $(date +%Y-%m-%d)" \
             --body "Automated documentation update from GitHub Actions
 
