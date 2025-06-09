@@ -298,12 +298,14 @@ class ServerImpl(Server):
         if self.settings.get('name', 'DCS Server') != self.name:
             self.settings['name'] = self.name
         # enable persistence
-        if not self.settings.get('advanced', {}).get('sav_autosave', False):
-            self.settings.setdefault('advanced', {})['sav_autosave'] = True
+        if not self.settings.get('advanced'):
+            self.settings['advanced'] = {}
+        if not self.settings['advanced'].get('sav_autosave', False):
+            self.settings['advanced']['sav_autosave'] = True
         if 'serverSettings' in self.locals:
             for key, value in self.locals['serverSettings'].items():
                 if key == 'advanced':
-                    self.settings.setdefault('advanced', {}).update(value)
+                    self.settings['advanced'].update(value)
                 else:
                     self.settings[key] = value
         self._install_luas()
