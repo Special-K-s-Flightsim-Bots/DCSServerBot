@@ -39,7 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'push' && 
-      !contains(github.event.head_commit.message, 'Update documentation')
+      !contains(github.event.head_commit.message, 'Update documentation') &&
+      !contains(github.event.head_commit.message, 'Merge pull request')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
