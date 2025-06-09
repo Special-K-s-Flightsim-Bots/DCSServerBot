@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/slotblocking
+---
+
 # Plugin "SlotBlocking"
 This is a slot blocking plugin that can be used in several ways (more to come).
 Slots can be either blocked by Discord roles (specific planes blocked for Discord Members, other ones blocked for 

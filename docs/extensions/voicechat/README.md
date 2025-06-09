@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/voicechat
+---
+
 # Extension "DCS Voice Chat"
 If you want to use the built-in Voice Chat system of DCS, you can use the VoiceChat extension.
 

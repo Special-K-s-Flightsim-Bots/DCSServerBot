@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/commands
+---
+
 # Plugin "Commands"
 This plugin is a very low level plugin that lets you generate your own discord commands, based on a descriptive language. 
 It can be used to start specific tasks on your PC, send a specific event to DCS or anything the like.

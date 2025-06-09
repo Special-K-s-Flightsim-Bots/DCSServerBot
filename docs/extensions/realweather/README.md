@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/realweather
+---
+
 # Extension "DCS Real Weather Updater"
 If you want to use real-time weather in your missions, you can do that by using [DCS-real-weather](https://github.com/evogelsa/DCS-real-weather).
 Download the release zip and unzip it to a directory of your choice on your system running your DCS servers and the 

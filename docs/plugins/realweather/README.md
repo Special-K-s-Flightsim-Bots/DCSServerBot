@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/realweather
+---
+
 # Plugin "RealWeather"
 With this plugin, you can apply real weather supplied by [DCS-real-weather](https://github.com/evogelsa/DCS-real-weather)
 to your mission.

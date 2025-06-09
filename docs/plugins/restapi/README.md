@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/restapi
+---
+
 # Plugin RestAPI
 This API provides a very simple RestAPI that you can call from your webserver to receive data from DCSServerBot.
 It is WIP, and it will be enhanced in the future.

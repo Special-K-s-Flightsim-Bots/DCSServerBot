@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/loganalyser
+---
+
 # Extension "LogAnalyser"
 This is a default extension that is loaded in any case. It will scan your dcs.log for errors and react in several ways
 according to what happened.

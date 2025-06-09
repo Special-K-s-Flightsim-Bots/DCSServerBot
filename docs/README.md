@@ -1,7 +1,6 @@
 ---
-title: Overview
-nav_order: 1
-layout: home
+layout: default
+title: README
 ---
 
 # Welcome to DCSServerBot!

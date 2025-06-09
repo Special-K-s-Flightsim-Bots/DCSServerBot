@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: services/cleanup
+---
+
 # Cleanup Service
 The cleanup service is your cleaning lady, that deletes all the unnecessary stuff from your disk or discord channels 
 after some time.

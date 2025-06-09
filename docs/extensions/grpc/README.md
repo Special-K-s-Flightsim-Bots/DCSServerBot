@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/grpc
+---
+
 # Extension "DCS-gRPC"
 [DCS-gRPC](https://github.com/DCS-gRPC) is a communication library, that is somehow similar to what DCSServerBot does 
 already. It has some differences though and comes with some other tools. This said, you can use it alongside DCSServerBot

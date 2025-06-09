@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/mission
+---
+
 # Plugin "Mission"
 The mission plugin adds commands for amending the mission list, persistent mission- and player-embeds to be displayed 
 in your status channels and ATIS like information for the missions' airports. 

@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/debug
+---
+
 # Plugin "Debug"
 Simple event debugger for DCS callbacks and DCS mission events. It dumps the whole event structure for debug purposes.
 

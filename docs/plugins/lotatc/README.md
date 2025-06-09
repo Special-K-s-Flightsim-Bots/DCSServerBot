@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/lotatc
+---
+
 # Plugin "LotAtc"
 [LotAtc](https://www.lotatc.com/) is a famous GCI tool for DCS World.<br>
 DCSServerBot supports it as an [extension](../../extensions/lotatc/README.md), to manage and display the 

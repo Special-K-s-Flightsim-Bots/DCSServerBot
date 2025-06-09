@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: services/modmanager
+---
+
 # ModManager Service
 
 This is the ModManager service, which lets you install packaged modifications (mods) to your DCS server.

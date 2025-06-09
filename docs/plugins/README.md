@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: plugins/.
+---
+
 # Plugin System
 DCSServerBot is a modular system. It already provides a rich platform and many useful tools and utilities, 
 but you can always extend the platform by writing your own custom plugin. The bot will take over the 

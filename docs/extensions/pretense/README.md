@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/pretense
+---
+
 # Extension "Pretense"
 [Pretense](https://github.com/Dzsek/pretense) is a dynamic campaign system built by Dzsek. Unfortunately he dropped
 the development of it lately, but it is still in use by many and great missions to run on your servers. That is why

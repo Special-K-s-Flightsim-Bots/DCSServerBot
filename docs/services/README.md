@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: services/.
+---
+
 # Services
 Similar to [plugins](../plugins/README.md), services are part of the modular system of DCSServerBot.<br>
 The reason to have plugins and services lies in the nature of the cluster [architecture](../ARCHITECTURE.md). If there

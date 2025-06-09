@@ -1,3 +1,8 @@
+---
+layout: default
+title: COALITIONS
+---
+
 # Coalitions
 If you want to support Blue and Red coalitions in your Discord and your DCS servers, you're good to go!
 As there are major changes to how the bot behaves with COALITIONS enabled, I decided to have a separate documentation 

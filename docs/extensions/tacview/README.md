@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: extensions/tacview
+---
+
 # Extension "Tacview"
 Many servers run [Tacview](https://www.tacview.net/) to help people analyse their flight path, weapons employment and 
 whatnot. It is an awesome tool for teaching and after action reports as well.<br/>

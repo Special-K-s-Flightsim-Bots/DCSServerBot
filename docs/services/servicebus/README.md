@@ -1,3 +1,9 @@
+---
+layout: default
+title: README
+nav_section: services/servicebus
+---
+
 # ServiceBus Service
 This is the communication-hub of DCSServerBot.<br>
 It allows you to interact between your DCS servers and DCSServerBot and between all nodes of a possible bot cluster.
