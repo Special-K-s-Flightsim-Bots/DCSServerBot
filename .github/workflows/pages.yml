@@ -116,7 +116,10 @@ jobs:
           git add docs
           
           # Only proceed if there are changes to commit
-          if git diff --staged --quiet; then
+          if ! git diff --staged --quiet; then
+            git commit -m "Update documentation"
+            git push origin $BRANCH_NAME
+          else
             echo "No documentation changes to commit"
             exit 0
           fi
