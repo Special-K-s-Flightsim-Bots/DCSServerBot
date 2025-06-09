@@ -115,10 +115,23 @@ jobs:
           # Add and commit changes
           git add docs
           
+          # Debug: Show what's staged
+          git status
+          
           # Only proceed if there are changes to commit
           if ! git diff --staged --quiet; then
             git commit -m "Update documentation"
+          
+            # Debug: Show the commit
+            git log -1
+
             git push origin $BRANCH_NAME
+
+            # Debug: Show remote branches
+            git branch -r
+            
+            # Debug: Show difference between branches
+            git log development..$BRANCH_NAME
           else
             echo "No documentation changes to commit"
             exit 0
