@@ -16,7 +16,6 @@ import traceback
 
 from datetime import datetime
 from psycopg import OperationalError
-from psycopg_pool import PoolTimeout
 
 # DCSServerBot imports
 try:
