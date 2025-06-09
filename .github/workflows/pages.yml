@@ -168,10 +168,16 @@ jobs:
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v4
+      - name: Copy README to index.md
+        run: cp README.md index.md
+        working-directory: docs/
       - name: Build with Jekyll
         run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
         env:
           JEKYLL_ENV: production
+        working-directory: docs/
+      - name: Debug - List files
+        run: ls -la
         working-directory: docs/
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
