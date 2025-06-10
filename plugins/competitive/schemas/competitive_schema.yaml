@@ -12,7 +12,6 @@ schema;element_schema:
   nullable: false
   mapping:
     enabled: {type: bool, nullable: false}
-    debug: {type: bool, nullable: false}
     silent: {type: bool, nullable: false}
     join_on: {type: str, nullable: false, enum: ['birth', 'takeoff']}
     win_on: {type: str, nullable: false, enum: ['survival', 'landing', 'rtb']}

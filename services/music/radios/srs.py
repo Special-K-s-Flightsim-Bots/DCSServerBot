@@ -3,6 +3,7 @@ import os
 import subprocess
 
 from core import Server, Status, Coalition, utils
+from packaging.version import parse
 from typing import Optional
 
 from services.music.radios.base import RadioInitError, Radio
@@ -33,9 +34,16 @@ class SRSRadio(Radio):
                 raise RadioInitError("You need to set the SRS path in your nodes.yaml!")
             self.current = file
 
+            def exe_path() -> str:
+                version = self.server.extensions['SRS'].version
+                if parse(version) >= parse('2.2.0.0'):
+                    return os.path.join(srs_inst, "ExternalAudio", "DCS-SR-ExternalAudio.exe")
+                else:
+                    return os.path.join(srs_inst, "DCS-SR-ExternalAudio.exe")
+
             def run_subprocess():
                 return subprocess.Popen([
-                    os.path.join(srs_inst, "DCS-SR-ExternalAudio.exe"),
+                    exe_path(),
                     "-f", str(self.config['frequency']),
                     "-m", self.config['modulation'],
                     "-c", str(self.config['coalition']),

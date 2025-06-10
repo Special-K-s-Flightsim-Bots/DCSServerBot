@@ -140,15 +140,17 @@ async def download_image(image_url: str) -> bytes:
     }
 
     timeout = aiohttp.ClientTimeout(total=30)  # 30 seconds total timeout
-    async with aiohttp.ClientSession(timeout=timeout) as session:
-        async with session.get(image_url, headers=headers) as response:
-            if not response.headers.get('content-type', '').startswith('image/'):
-                raise ValueError(f"URL does not point to an image: {image_url}")
-            img_data = await response.read()
-            if len(img_data) > 10 * 1024 * 1024:  # 10MB limit
-                raise ValueError(f"Image too large: {image_url}")
-            return img_data
-
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(image_url, headers=headers, raise_for_status=True) as response:
+                if not response.headers.get('content-type', '').startswith('image/'):
+                    raise ValueError(f"URL does not point to an image: {image_url}")
+                img_data = await response.read()
+                if len(img_data) > 10 * 1024 * 1024:  # 10MB limit
+                    raise ValueError(f"Image too large: {image_url}")
+                return img_data
+    except Exception as ex:
+        raise ValueError(f"Error downloading image: {ex}") from ex
 
 async def create_versus_image(team_blue_image_url: str, team_red_image_url: str, winner: str = None) -> Optional[bytes]:
     """

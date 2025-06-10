@@ -60,7 +60,10 @@ class TournamentEventListener(EventListener["Tournament"]):
         config = self.get_config(server)
         channel = self.bot.get_channel(config.get('channels', {}).get('streamer', -1))
         if channel:
-            await channel.send(COALITION_FORMATS[coalition].format(message))
+            try:
+                await channel.send(COALITION_FORMATS[coalition].format(message))
+            except Exception as ex:
+                pass
 
     async def get_active_tournament(self, server: Server) -> Optional[int]:
         async with self.apool.connection() as conn:
