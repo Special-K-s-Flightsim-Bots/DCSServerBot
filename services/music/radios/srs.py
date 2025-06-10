@@ -37,9 +37,9 @@ class SRSRadio(Radio):
             def exe_path() -> str:
                 version = self.server.extensions['SRS'].version
                 if parse(version) >= parse('2.2.0.0'):
-                    os.path.join(srs_inst, "ExternalAudio", "DCS-SR-ExternalAudio.exe")
+                    return os.path.join(srs_inst, "ExternalAudio", "DCS-SR-ExternalAudio.exe")
                 else:
-                    os.path.join(srs_inst, "DCS-SR-ExternalAudio.exe")
+                    return os.path.join(srs_inst, "DCS-SR-ExternalAudio.exe")
 
             def run_subprocess():
                 return subprocess.Popen([
