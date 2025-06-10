@@ -134,10 +134,10 @@ class Punishment(Plugin[PunishmentEventListener]):
                             # we are not initialized correctly yet
                             if not config:
                                 continue
-                            async for row in await cursor.execute(f"""
-                                SELECT * FROM pu_events_sdw 
-                                WHERE server_name = %s
-                            """, (server_name,)):
+                            await cursor.execute("""
+                                SELECT * FROM pu_events_sdw WHERE server_name = %s
+                            """, (server_name,))
+                            async for row in cursor:
                                 try:
                                     for punishment in config.get('punishments', {}):
                                         if row['points'] < punishment['points']:
