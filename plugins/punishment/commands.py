@@ -137,7 +137,8 @@ class Punishment(Plugin[PunishmentEventListener]):
                             await cursor.execute("""
                                 SELECT * FROM pu_events_sdw WHERE server_name = %s
                             """, (server_name,))
-                            async for row in cursor:
+                            rows = await cursor.fetchall()
+                            for row in rows:
                                 try:
                                     for punishment in config.get('punishments', {}):
                                         if row['points'] < punishment['points']:

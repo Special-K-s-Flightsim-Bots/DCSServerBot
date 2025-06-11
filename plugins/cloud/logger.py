@@ -69,7 +69,7 @@ class CloudLoggingHandler(logging.Handler):
         with suppress(Exception):
             async with aiohttp.ClientSession() as session:
                 # noinspection PyUnresolvedReferences
-                await self.session.post(self.url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth, json={
+                await session.post(self.url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth, json={
                     "guild_id": self.node.guild_id,
                     "version": f"{self.node.bot_version}.{self.node.sub_version}",
                     "filename": file,
