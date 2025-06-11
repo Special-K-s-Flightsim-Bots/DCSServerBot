@@ -543,8 +543,11 @@ class NodeImpl(Node):
             # check if there is an update running already
             proc = next(utils.find_process("DCS_updater.exe"), None)
             if proc:
-                self.log.info("DCS Update in progress, waiting ...")
-                rc = proc.wait()
+                self.log.info("- DCS Update already in progress, waiting ...")
+                while proc.is_running():
+                    await asyncio.sleep(1)
+                # assuming the update was a success
+                rc = 0
             else:
                 rc = await asyncio.to_thread(run_subprocess)
             if branch and rc == 0:
