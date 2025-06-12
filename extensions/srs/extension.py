@@ -276,7 +276,7 @@ class SRS(Extension, FileSystemEventHandler):
                         return True
                     else:
                         self.log.warning(f"  => Could not find a running SRS server process.")
-                        cfg_path = os.path.expandvars(self.config.get('config'))
+                        cfg_path = self.get_config_path()
                         if self.server.instance.name not in cfg_path:
                             self.log.warning(f"  => Please move your SRS configuration to "
                                              f"{os.path.join(self.server.instance.home, 'Config', 'SRS.cfg')}")
@@ -438,7 +438,7 @@ class SRS(Extension, FileSystemEventHandler):
             return False
         # do we have a proper config file?
         try:
-            cfg_path = os.path.expandvars(self.config.get('config'))
+            cfg_path = self.get_config_path()
             if not os.path.exists(cfg_path):
                 self.log.error(f"  => SRS config not found for server {self.server.name}")
                 return False
