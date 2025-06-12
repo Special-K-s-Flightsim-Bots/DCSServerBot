@@ -44,7 +44,7 @@ matplotlib>=3.9.4
 minidump==0.0.24; sys_platform == 'win32'
 
 # MiniUPnPC: UPnP check
-miniupnpc==2.2.8
+miniupnpc==2.3.2
 
 # NumPy: Package for scientific computing with Python
 numpy==2.2.6
