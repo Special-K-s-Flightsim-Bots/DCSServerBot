@@ -193,7 +193,7 @@ class CompetitiveListener(EventListener["Competitive"]):
         ]
         warning_thresholds = [(x, y) for x, y in warning_thresholds if x <= delayed_start]
 
-        while True:
+        while match.alive.get(Side.RED, []) or match.alive.get(Side.BLUE, []):
             remaining = int((end_time - datetime.now()).total_seconds())
 
             if remaining <= 0:
@@ -291,7 +291,8 @@ class CompetitiveListener(EventListener["Competitive"]):
                 delayed_start = config.get('delayed_start', 0)
                 if delayed_start > 0:
                     await self.countdown_with_warnings(match, server, delayed_start)
-                asyncio.create_task(self.start_match(server, match))
+                if not match.finished:
+                    asyncio.create_task(self.start_match(server, match))
 
     @event(name="addPlayerToMatch")
     async def addPlayerToMatch(self, server: Server, data: dict) -> None:

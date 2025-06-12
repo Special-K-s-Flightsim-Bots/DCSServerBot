@@ -7,7 +7,7 @@ import uuid
 
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
-from core import Server, Mission, Node, Status, utils, Instance
+from core import Server, Mission, Node, Status, utils, Instance, FatalException
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
 from core.data.impl.instanceimpl import InstanceImpl
@@ -73,10 +73,10 @@ class ServiceBus(Service):
                                                max_workers=100 if self.master else 20)
             await self.start_udp_listener()
 
-            # cleanup the intercom and broadcast channels
+            # clean up the intercom and broadcast channels
             await self.intercom_channel.clear()
             await self.broadcasts_channel.clear()
-            # cleanup the files
+            # clean up the files
             async with self.node.cpool.connection() as conn:
                 async with conn.transaction():
                     await conn.execute("""
@@ -91,7 +91,8 @@ class ServiceBus(Service):
             await self.switch()
 
         except Exception as ex:
-            self.log.exception(ex)
+            # we can't run without the servicebus, so better restart
+            raise FatalException(repr(ex)) from ex
 
     async def switch(self):
         from ..bot.service import BotService
@@ -697,7 +698,7 @@ class ServiceBus(Service):
                 if node_key and func_signature and func_signature['node'].annotation != 'str':
                     kwargs['node'] = self.node.all_nodes.get(node_key, None)
 
-            # Log performance and execute function
+            # Log performance and execute the function
             with PerformanceLog(f"RPC: {obj.__class__.__name__}.{method_name}()"):
                 if asyncio.iscoroutinefunction(func):
                     # If the function is asynchronous, await it directly
@@ -765,7 +766,7 @@ class ServiceBus(Service):
                         if msg_data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
                             return
 
-                # Create queue if doesn't exist and schedule processing
+                # Create a queue if it doesn't exist and schedule processing
                 if server_name not in derived.message_queue:
                     derived.message_queue[server_name] = asyncio.Queue()
                     asyncio.create_task(derived.process_messages(server_name))

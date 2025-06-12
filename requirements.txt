@@ -8,7 +8,7 @@ astral==3.2
 audioop-lts==0.2.1; python_version>='3.13'
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
-aiohttp==3.12.11
+aiohttp==3.12.12
 
 # Certifi: Python package for providing Mozilla's CA Bundle
 certifi==2025.4.26
@@ -44,10 +44,10 @@ matplotlib>=3.9.4
 minidump==0.0.24; sys_platform == 'win32'
 
 # MiniUPnPC: UPnP check
-miniupnpc==2.3.3
+miniupnpc==2.3.2
 
 # NumPy: Package for scientific computing with Python
-numpy==2.3.0
+numpy==2.2.6
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
 openpyxl==3.1.5
@@ -86,7 +86,7 @@ python-multipart==0.0.20
 pywin32==310; sys_platform == 'win32'
 
 # Requests: Python HTTP library
-requests==2.32.3
+requests==2.32.4
 
 # Rich: Python library for rich text and beautiful formatting in the terminal
 rich==14.0.0
