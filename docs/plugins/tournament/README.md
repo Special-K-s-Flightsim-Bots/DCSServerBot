@@ -240,6 +240,9 @@ need to build the respective [MizEdit](../../extensions/mizedit/README.md) prese
 > When a player disconnects or commits suicide, their opponent's squadron receives the same number of points they 
 > would have earned for killing that player normally.
 
+> [!NOTE]
+> Sample presets can be found [here](../../samples/presets_tournament.yaml).
+
 ### Tickets
 Each squadron can get tickets on signup. You can configure them in your tournaments.yaml (see above). A ticket is a 
 different credit option, which will be invalidated as soon as you use it (one time use per match).
