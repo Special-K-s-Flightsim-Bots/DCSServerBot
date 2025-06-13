@@ -80,7 +80,11 @@ class SRS(Extension, FileSystemEventHandler):
         super().__init__(server, config)
 
     def get_config_path(self) -> str:
-        return os.path.expandvars(self.config['config'].format(server=self.server, instance=self.server.instance))
+        config_path = self.config.get('config')
+        if not config_path:
+            config_path = os.path.join(self.get_inst_path(), 'server.cfg')
+            self.log.warning(f"  => {self.name}: No config parameter given, using default config path: {config_path}")
+        return os.path.expandvars(config_path.format(server=self.server, instance=self.server.instance))
 
     def load_config(self) -> Optional[dict]:
         if 'config' in self.config:
@@ -408,7 +412,10 @@ class SRS(Extension, FileSystemEventHandler):
 
     @property
     def version(self) -> Optional[str]:
-        return utils.get_windows_version(os.path.join(self.get_inst_path(), 'SRS-AutoUpdater.exe'))
+        version = utils.get_windows_version(os.path.join(self.get_inst_path(), 'SRS-AutoUpdater.exe'))
+        if not version:
+            raise InstallException(f"Can't detect the {self.name} version, SRS-AutoUpdater.exe not found!")
+        return version
 
     async def render(self, param: Optional[dict] = None) -> dict:
         if not self.locals:

@@ -275,13 +275,18 @@ class BackupService(Service):
     @tasks.loop(minutes=1)
     async def schedule(self):
         try:
+            tasks = []
             if self.node.master:
                 if self.can_run(self.locals['backups'].get('bot')):
-                    asyncio.create_task(self.backup_bot())
+                    tasks.append(asyncio.create_task(self.backup_bot()))
                 if self.can_run(self.locals['backups'].get('database')):
-                    asyncio.create_task(self.backup_database())
+                    tasks.append(asyncio.create_task(self.backup_database()))
             if self.can_run(self.locals['backups'].get('servers')):
-                asyncio.create_task((self.backup_servers()))
+                tasks.append(asyncio.create_task((self.backup_servers())))
+            ret = await asyncio.gather(*tasks, return_exceptions=True)
+            for r in ret:
+                if isinstance(r, Exception):
+                    self.log.error("Backup task failed: ", exc_info=r)
         except Exception as ex:
             self.log.exception(ex)
 

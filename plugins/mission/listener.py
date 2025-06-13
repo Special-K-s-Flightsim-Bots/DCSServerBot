@@ -176,6 +176,8 @@ class MissionEventListener(EventListener["Mission"]):
                 report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json',
                                           embed_name='mission_embed', server=server)
                 await report.render(server=server)
+            except (TimeoutError, asyncio.TimeoutError):
+                pass
             except Exception as ex:
                 self.log.exception(ex)
             finally:

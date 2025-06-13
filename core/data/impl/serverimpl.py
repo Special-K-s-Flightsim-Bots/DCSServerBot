@@ -217,12 +217,15 @@ class ServerImpl(Server):
             self._settings['listStartIndex'] = new_start + 1
 
     async def _load_mission_list(self):
-        data = await self.send_to_dcs_sync({"command": "listMissions"}, timeout=60)
-        mission_list = data['missionList']
-        if mission_list != self.settings['missionList']:
-            for m in set(self.settings['missionList']) - set(mission_list):
-                self.log.warning(f"Removed non-existing/unsupported mission from the list: {m}")
-            self.settings['missionList'] = mission_list
+        try:
+            data = await self.send_to_dcs_sync({"command": "listMissions"}, timeout=60)
+            mission_list = data['missionList']
+            if mission_list != self.settings['missionList']:
+                for m in set(self.settings['missionList']) - set(mission_list):
+                    self.log.warning(f"Removed non-existing/unsupported mission from the list: {m}")
+                self.settings['missionList'] = mission_list
+        except (TimeoutError, asyncio.TimeoutError):
+            pass
 
     def set_status(self, status: Union[Status, str]):
         if isinstance(status, str):

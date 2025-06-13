@@ -221,7 +221,7 @@ class Scheduler(Plugin[SchedulerListener]):
             await self.bot.audit(f"shut down DCS server", server=server, user=member)
 
     async def teardown(self, server: Server, config: dict):
-        # if we should not restart populated servers, wait for it to be unpopulated
+        # if we should not restart a populated server, wait for it to be unpopulated
         populated = server.is_populated()
         if populated and not config.get('populated', True):
             return
@@ -239,7 +239,11 @@ class Scheduler(Plugin[SchedulerListener]):
             # if the shutdown has been cancelled due to maintenance mode
             if not server.restart_pending:
                 return
-            await self.teardown_dcs(server)
+            try:
+                await self.teardown_dcs(server)
+            except (TimeoutError, asyncio.TimeoutError):
+                self.log.warning(f"  => DCS server \"{server.name}\" timeout while shutting down. "
+                                 f"Check the status manually.")
             server.restart_pending = False
 
     async def restart_mission(self, server: Server, config: dict, rconf: dict, max_warn_time: int):
