@@ -12,7 +12,7 @@ from core import Status, utils
 from core.data.node import SortOrder, UploadStatus
 from core.services.registry import ServiceRegistry
 from core.translations import get_translation
-from datetime import datetime
+from datetime import datetime, timedelta
 from discord import app_commands, Interaction, SelectOption, ButtonStyle
 from discord.ext import commands
 from discord.ui import Button, View, Select, Item, Modal, TextInput
@@ -66,6 +66,7 @@ __all__ = [
     "airbase_autocomplete",
     "mission_autocomplete",
     "group_autocomplete",
+    "date_autocomplete",
     "server_selection",
     "get_ephemeral",
     "get_command",
@@ -1085,6 +1086,21 @@ async def group_autocomplete(interaction: discord.Interaction, current: str) -> 
         app_commands.Choice(name=group_name, value=group_name)
         for group_name in set(player.group_name for player in server.get_active_players() if player.group_id != 0)
         if not current or current.casefold() in group_name
+    ][:25]
+
+
+async def date_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    def get_date_range(date: str):
+        try:
+            end_date = datetime.strptime(date, '%Y-%m-%d')
+        except ValueError:
+            end_date = datetime.now()
+        for days_back in range(25):
+            yield end_date - timedelta(days=days_back)
+
+    return [
+        app_commands.Choice(name=x.strftime('%Y-%m-%d'), value=x.strftime('%Y-%m-%d'))
+        for x in get_date_range(current)
     ][:25]
 
 

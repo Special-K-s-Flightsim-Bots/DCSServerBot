@@ -1,5 +1,11 @@
+from datetime import datetime, timedelta
+from io import BytesIO
+
 import discord
+import pandas as pd
 import psycopg
+from openpyxl.utils import get_column_letter
+from psycopg.rows import dict_row
 
 from core import Plugin, PluginRequiredError, utils, Report, Status, Server, command, get_translation
 from discord import app_commands
@@ -95,7 +101,7 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def sorties(self, interaction: discord.Interaction,
-                      user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]],
+                      user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None,
                       period: Optional[app_commands.Transform[
                           StatisticsFilter, PeriodTransformer(flt=[MissionStatisticsFilter])]
                       ] = MissionStatisticsFilter()):
@@ -122,8 +128,8 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
     @utils.app_has_role('DCS')
     @app_commands.autocomplete(module=player_modules_autocomplete)
     async def modulestats(self, interaction: discord.Interaction,
-                          user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]],
-                          module: Optional[str],
+                          user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None,
+                          module: Optional[str] = None,
                           period: Optional[app_commands.Transform[
                               StatisticsFilter, PeriodTransformer(
                                   flt=[PeriodFilter, CampaignFilter, MissionFilter]
@@ -154,7 +160,7 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def refuelings(self, interaction: discord.Interaction,
-                         user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]],
+                         user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None,
                          period: Optional[app_commands.Transform[
                              StatisticsFilter, PeriodTransformer(flt=[MissionStatisticsFilter])]
                          ] = MissionStatisticsFilter()):
@@ -180,7 +186,7 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def nemesis(self, interaction: discord.Interaction,
-                      user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]]):
+                      user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None):
         if not user:
             user = interaction.user
         if isinstance(user, str):
@@ -203,7 +209,7 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def antagonist(self, interaction: discord.Interaction,
-                         user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]]):
+                         user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None):
         if not user:
             user = interaction.user
         if isinstance(user, str):
@@ -221,6 +227,117 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         report = Report(self.bot, self.plugin_name, 'antagonist.json')
         env = await report.render(ucid=ucid, member_name=name)
         await interaction.followup.send(embed=env.embed, ephemeral=True)
+
+    @command(description=_('Event History'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.describe(start=_('Date in format YYYY-MM-DD, default: now - 30d'),
+                           end=_('Date in format YYYY-MM-DD, default: now'))
+    @app_commands.autocomplete(start=utils.date_autocomplete)
+    @app_commands.autocomplete(end=utils.date_autocomplete)
+    async def history(self, interaction: discord.Interaction,
+                      user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None,
+                      start: Optional[str] = None, end: Optional[str] = None):
+        if isinstance(user, str):
+            ucid = user
+        elif not user:
+            ucid = await self.bot.get_ucid_by_member(interaction.user)
+        else:
+            ucid = await self.bot.get_ucid_by_member(user)
+
+        if not ucid:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Use {} to link your account.").format(
+                (await utils.get_command(self.bot, name='linkme')).mention
+            ), ephemeral=True)
+            return
+
+        start = datetime.strptime(start, '%Y-%m-%d') if start else (datetime.now() - timedelta(days=30)).date()
+        end = datetime.strptime(end, '%Y-%m-%d') if end else datetime.now().date()
+
+        ephemeral = not utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        async with interaction.client.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT m.time, m.event, 
+                           p1.name AS init_name, m.init_id, 
+                           CASE WHEN m.init_side::integer = 1 THEN 'red' ELSE 'blue' END AS init_side,
+                           m.init_type, m.init_cat,
+                           p2.name AS target_name, m.target_id,   
+                           CASE WHEN m.target_side::integer = 1 THEN 'red' ELSE 'blue' END AS target_side,
+                           m.target_type, m.target_cat,
+                           m.weapon, m.place, m.comment
+                    FROM missionstats m 
+                    JOIN players p1 ON m.init_id = p1.ucid
+                    JOIN players p2 ON m.target_id = p2.ucid
+                    WHERE m.init_id = %(ucid)s or m.target_id = %(ucid)s
+                    AND m.time BETWEEN %(start)s AND %(end)s
+                    ORDER BY m.time DESC
+                """, {"ucid": ucid, "start": start, "end": end})
+                events_df = pd.DataFrame(await cursor.fetchall())
+
+        if events_df.empty:
+            await interaction.followup.send(_('No events found for this player in this timeframe.'),
+                                            ephemeral=ephemeral)
+            return
+
+        # Create in-memory binary stream
+        excel_binary = BytesIO()
+
+        # Define the desired column order
+        columns_order = [
+            'time',
+            'event',
+            'init_name',
+            'init_id',
+            'init_side',
+            'init_type',
+            'init_cat',
+            'target_name',
+            'target_id',
+            'target_side',
+            'target_type',
+            'target_cat',
+            'weapon',
+            'place',
+            'comment'
+        ]
+
+        # Write only the specified columns in the desired order
+        existing_columns = [col for col in columns_order if col in events_df.columns]
+
+        with pd.ExcelWriter(excel_binary, engine='openpyxl') as writer:
+            events_df[existing_columns].to_excel(writer, sheet_name='Events', index=False)
+
+            # Get the worksheet
+            worksheet = writer.sheets['Events']
+
+            for column in worksheet.columns:
+                max_length = 0
+                column_letter = get_column_letter(column[0].column)
+
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+
+                # Setting width with some padding
+                adjusted_width = max_length + 2
+                worksheet.column_dimensions[column_letter].width = adjusted_width
+
+            # Add AutoFilter
+            worksheet.auto_filter.ref = worksheet.dimensions
+
+        excel_binary.seek(0)
+        try:
+            await interaction.followup.send(file=discord.File(excel_binary, filename=f'history-{ucid}.xlsx'),
+                                            ephemeral=ephemeral)
+        finally:
+            excel_binary.close()
 
 
 async def setup(bot: DCSServerBot):
