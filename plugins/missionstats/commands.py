@@ -262,16 +262,16 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
                     SELECT m.time, m.event, 
-                           p1.name AS init_name, m.init_id, 
+                           COALESCE(p1.name, 'AI') AS init_name, m.init_id, 
                            CASE WHEN m.init_side::integer = 1 THEN 'red' ELSE 'blue' END AS init_side,
                            m.init_type, m.init_cat,
-                           p2.name AS target_name, m.target_id,   
+                           COALESCE(p2.name, 'AI / None') AS target_name, m.target_id,   
                            CASE WHEN m.target_side::integer = 1 THEN 'red' ELSE 'blue' END AS target_side,
                            m.target_type, m.target_cat,
                            m.weapon, m.place, m.comment
                     FROM missionstats m 
-                    JOIN players p1 ON m.init_id = p1.ucid
-                    JOIN players p2 ON m.target_id = p2.ucid
+                    LEFT OUTER JOIN players p1 ON m.init_id = p1.ucid
+                    LEFT OUTER JOIN players p2 ON m.target_id = p2.ucid
                     WHERE m.init_id = %(ucid)s or m.target_id = %(ucid)s
                     AND m.time BETWEEN %(start)s AND %(end)s
                     ORDER BY m.time DESC
