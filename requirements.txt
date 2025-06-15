@@ -11,7 +11,7 @@ audioop-lts==0.2.1; python_version>='3.13'
 aiohttp==3.12.12
 
 # Certifi: Python package for providing Mozilla's CA Bundle
-certifi==2025.4.26
+certifi==2025.6.15
 
 # Croniter: Python iterator implementing a cron schedule format
 croniter==6.0.0
@@ -44,10 +44,10 @@ matplotlib>=3.9.4
 minidump==0.0.24; sys_platform == 'win32'
 
 # MiniUPnPC: UPnP check
-miniupnpc==2.3.2
+miniupnpc>=2.3.2
 
 # NumPy: Package for scientific computing with Python
-numpy==2.2.6
+numpy>=2.2.6
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
 openpyxl==3.1.5
@@ -62,7 +62,7 @@ packaging==25.0
 pid==3.0.4
 
 # Psycopg: PostgreSQL database adapter for Python
-psycopg[binary]==3.2.9
+psycopg[binary]==3.2.6
 
 # Psycopg Pool: PostgreSQL database adapter pool for Python
 psycopg-pool==3.2.6

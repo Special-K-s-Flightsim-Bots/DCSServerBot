@@ -696,7 +696,7 @@ class SettingsDict(dict):
             }
         }
         if self.bus:
-            asyncio.create_task(self.bus.send_to_node(msg))
+            self.bus.loop.create_task(self.bus.send_to_node(msg))
 
     def __setitem__(self, key, value, *, sync: bool = False):
         if os.path.exists(self.path) and self.mtime < os.path.getmtime(self.path):
@@ -779,7 +779,7 @@ class RemoteSettingsDict(dict):
                     "value": value
                 }
             }
-            asyncio.create_task(self.bus.send_to_node(msg, node=self.server.node))
+            self.bus.loop.create_task(self.bus.send_to_node(msg, node=self.server.node))
 
     def __delitem__(self, key, *, sync: bool = True):
         super().__delitem__(key)
@@ -793,7 +793,7 @@ class RemoteSettingsDict(dict):
                     "key": key
                 }
             }
-            asyncio.create_task(self.bus.send_to_node(msg, node=self.server.node))
+            self.bus.loop.create_task(self.bus.send_to_node(msg, node=self.server.node))
 
 
 def tree_delete(d: dict, key: str, debug: Optional[bool] = False):

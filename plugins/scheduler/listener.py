@@ -135,6 +135,9 @@ class SchedulerListener(EventListener["Scheduler"]):
                     _mission = random.choice(_mission)
                 if not os.path.isabs(_mission):
                     _mission = os.path.join(await server.get_missions_dir(), _mission)
+                if not os.path.exists(_mission):
+                    self.log.error(f"Mission file {_mission} not found.")
+                    return
             else:
                 self.log.error(f"No mission_id or mission_file specified in {what}")
                 return
