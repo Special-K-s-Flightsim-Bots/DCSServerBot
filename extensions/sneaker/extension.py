@@ -74,7 +74,7 @@ class Sneaker(Extension):
         cfg['servers'] = [
             x for x in cfg['servers'] if x['name'] in [
                 y.name for y in self.bus.servers.values()
-                if y.status not in [Status.UNREGISTERED, Status.SHUTDOWN]
+                if y.name == self.server.name or y.status not in [Status.UNREGISTERED, Status.SHUTDOWN]
             ]
         ]
         with open(filename, mode='w', encoding='utf-8') as file:

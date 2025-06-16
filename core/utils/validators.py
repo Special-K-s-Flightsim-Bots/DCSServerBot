@@ -104,7 +104,11 @@ def file_exists(value, _, path):
     return True
 
 def unique_port(value, _, path):
-    if not isinstance(value, int) or value < 1024 or value > 65535:
+    try:
+        value = int(value)
+        if value < 1024 or value > 65535:
+            raise ValueError
+    except ValueError:
         raise SchemaError(msg=f"{value} is not a valid port", path=path)
     node = path.split("/")[1]
     if node not in ports:
