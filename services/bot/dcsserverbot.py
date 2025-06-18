@@ -196,6 +196,9 @@ class DCSServerBot(commands.Bot):
 
         try:
             await self.wait_until_ready()
+            if not self.guilds:
+                self.log.error("You need to invite your bot to a Discord server!")
+                raise FatalException()
             asyncio.create_task(register_guild_name())
             if not self.synced:
                 self.log.info(f'- Preparing Discord Bot "{self.user.name}" ...')

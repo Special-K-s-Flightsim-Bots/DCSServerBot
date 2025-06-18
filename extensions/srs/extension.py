@@ -402,10 +402,13 @@ class SRS(Extension, FileSystemEventHandler):
 
     def get_exe_path(self) -> str:
         if parse(self.version) >= parse('2.2.0.0'):
-            os_dir = 'ServerCommandLine-Windows' if sys.platform == 'win32' else 'ServerCommandLine-Linux'
-            self.exe_name = 'SRS-Server-Commandline.exe' if sys.platform == 'win32' else 'SRS-Server-Commandline'
-            return os.path.join(self.get_inst_path(), os_dir, self.exe_name)
-            #return os.path.join(self.get_inst_path(), 'Server', 'SRS-Server.exe')
+            if self.config.get('gui_server', False):
+                self.exe_name = 'SRS-Server.exe'
+                return os.path.join(self.get_inst_path(), 'Server', self.exe_name)
+            else:
+                os_dir = 'ServerCommandLine-Windows' if sys.platform == 'win32' else 'ServerCommandLine-Linux'
+                self.exe_name = 'SRS-Server-Commandline.exe' if sys.platform == 'win32' else 'SRS-Server-Commandline'
+                return os.path.join(self.get_inst_path(), os_dir, self.exe_name)
         else:
             self.exe_name = 'SR-Server.exe'
             return os.path.join(self.get_inst_path(), self.exe_name)
