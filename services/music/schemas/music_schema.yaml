@@ -15,6 +15,7 @@ schema;element_schema:
     popup: {type: str, nullable: false, range: {min: 1}}
     chat: {type: str, nullable: false, range: {min: 1}}
     pause_without_players: {type: bool, nullable: false}
+    debug: {type: bool, nullable: false}
     radios:
       type: map
       nullable: false

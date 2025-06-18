@@ -29,7 +29,7 @@ from migrate import migrate
 from packaging.version import parse
 from pathlib import Path
 from psycopg import sql
-from psycopg.errors import UndefinedTable, InFailedSqlTransaction, ConnectionTimeout
+from psycopg.errors import UndefinedTable, InFailedSqlTransaction, ConnectionTimeout, UniqueViolation
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
 from typing import Optional, Union, Awaitable, Callable, Any, cast
@@ -350,8 +350,12 @@ class NodeImpl(Node):
                 """, (self.name,))
         # initialize the nodes
         for _name, _element in self.locals.pop('instances', {}).items():
-            instance = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
-            self.instances.append(instance)
+            try:
+                instance = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
+                self.instances.append(instance)
+            except UniqueViolation:
+                self.log.error(f"Instance \"{_name}\" can't be added."
+                               f"There is an instance already with the same server name or bot port.")
 
     async def update_db(self):
         # Initialize the cluster tables ...

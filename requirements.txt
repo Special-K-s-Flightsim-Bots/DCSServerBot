@@ -8,10 +8,10 @@ astral==3.2
 audioop-lts==0.2.1; python_version>='3.13'
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
-aiohttp==3.12.12
+aiohttp==3.12.13
 
 # Certifi: Python package for providing Mozilla's CA Bundle
-certifi==2025.4.26
+certifi==2025.6.15
 
 # Croniter: Python iterator implementing a cron schedule format
 croniter==6.0.0
@@ -23,7 +23,7 @@ discord.py==2.4.0
 eyeD3==0.9.8
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.115.12
+fastapi==0.115.13
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -35,7 +35,7 @@ GitPython==3.1.44
 jsonschema==4.24.0
 
 # Fast LUA parser
-lupa==2.4
+lupa==2.5
 
 # Matplotlib: Python 2D plotting library
 matplotlib>=3.9.4
@@ -44,10 +44,10 @@ matplotlib>=3.9.4
 minidump==0.0.24; sys_platform == 'win32'
 
 # MiniUPnPC: UPnP check
-miniupnpc==2.3.2
+miniupnpc>=2.3.2
 
 # NumPy: Package for scientific computing with Python
-numpy==2.2.6
+numpy>=2.2.6
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
 openpyxl==3.1.5
@@ -62,7 +62,7 @@ packaging==25.0
 pid==3.0.4
 
 # Psycopg: PostgreSQL database adapter for Python
-psycopg[binary]==3.2.9
+psycopg[binary]==3.2.6
 
 # Psycopg Pool: PostgreSQL database adapter pool for Python
 psycopg-pool==3.2.6

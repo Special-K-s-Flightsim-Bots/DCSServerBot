@@ -74,11 +74,12 @@ class Sneaker(Extension):
         cfg['servers'] = [
             x for x in cfg['servers'] if x['name'] in [
                 y.name for y in self.bus.servers.values()
-                if y.status not in [Status.UNREGISTERED, Status.SHUTDOWN]
+                if y.name == self.server.name or y.status not in [Status.UNREGISTERED, Status.SHUTDOWN]
             ]
         ]
         with open(filename, mode='w', encoding='utf-8') as file:
             json.dump(cfg, file, indent=2)
+        self.log.debug(f"Created / updated Sneaker config file: {filename}")
 
     def _log_output(self, p: subprocess.Popen):
         for line in iter(p.stdout.readline, b''):
@@ -105,7 +106,7 @@ class Sneaker(Extension):
         try:
             async with lock:
                 if 'config' not in self.config:
-                    # we need to lock here, to avoid race conditions on parallel server startups
+                    # we need to lock here to avoid race conditions on parallel server startups
                     await asyncio.to_thread(utils.terminate_process, process)
                     self.create_config()
                     p = await asyncio.to_thread(self._run_subprocess,

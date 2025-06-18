@@ -80,7 +80,11 @@ class SRS(Extension, FileSystemEventHandler):
         super().__init__(server, config)
 
     def get_config_path(self) -> str:
-        return os.path.expandvars(self.config['config'].format(server=self.server, instance=self.server.instance))
+        config_path = self.config.get('config')
+        if not config_path:
+            config_path = os.path.join(self.get_inst_path(), 'server.cfg')
+            self.log.warning(f"  => {self.name}: No config parameter given, using default config path: {config_path}")
+        return os.path.expandvars(config_path.format(server=self.server, instance=self.server.instance))
 
     def load_config(self) -> Optional[dict]:
         if 'config' in self.config:
@@ -398,17 +402,23 @@ class SRS(Extension, FileSystemEventHandler):
 
     def get_exe_path(self) -> str:
         if parse(self.version) >= parse('2.2.0.0'):
-            os_dir = 'ServerCommandLine-Windows' if sys.platform == 'win32' else 'ServerCommandLine-Linux'
-            self.exe_name = 'SRS-Server-Commandline.exe' if sys.platform == 'win32' else 'SRS-Server-Commandline'
-            return os.path.join(self.get_inst_path(), os_dir, self.exe_name)
-            #return os.path.join(self.get_inst_path(), 'Server', 'SRS-Server.exe')
+            if self.config.get('gui_server', False):
+                self.exe_name = 'SRS-Server.exe'
+                return os.path.join(self.get_inst_path(), 'Server', self.exe_name)
+            else:
+                os_dir = 'ServerCommandLine-Windows' if sys.platform == 'win32' else 'ServerCommandLine-Linux'
+                self.exe_name = 'SRS-Server-Commandline.exe' if sys.platform == 'win32' else 'SRS-Server-Commandline'
+                return os.path.join(self.get_inst_path(), os_dir, self.exe_name)
         else:
             self.exe_name = 'SR-Server.exe'
             return os.path.join(self.get_inst_path(), self.exe_name)
 
     @property
     def version(self) -> Optional[str]:
-        return utils.get_windows_version(os.path.join(self.get_inst_path(), 'SRS-AutoUpdater.exe'))
+        version = utils.get_windows_version(os.path.join(self.get_inst_path(), 'SRS-AutoUpdater.exe'))
+        if not version:
+            raise InstallException(f"Can't detect the {self.name} version, SRS-AutoUpdater.exe not found!")
+        return version
 
     async def render(self, param: Optional[dict] = None) -> dict:
         if not self.locals:

@@ -32,7 +32,8 @@ MyNode:
           config: '{instance.home}\Config\SRS.cfg'
           host: 127.0.0.1
           port: 5002
-          minimized: true     # start SRS minimized (default: true)
+          gui_server: true    # Optional: use the SRS-Server.exe (GUI server) instead of the command line one
+          minimized: true     # Old SR-Server.exe: start SRS minimized (default: true)
           autoconnect: true   # install the appropriate DCS-SRS-AutoConnectGameGUI.lua, default: true
           awacs: true         # if you use LotAtc
           lotatc_export_port: 10712

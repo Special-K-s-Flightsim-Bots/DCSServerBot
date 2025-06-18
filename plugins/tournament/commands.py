@@ -1081,7 +1081,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 # Get the number of rows in matches_df
                 num_rows = len(matches_df) + 1  # +1 for header
 
-                # Create the formula for the dropdown (references the name column in Squadrons sheet)
+                # Create the formula for the dropdown (references the name column in the Squadrons sheet)
                 formula = f'=Squadrons!$C$2:$C${len(squadrons_df) + 1}'  # Assuming 'name' is in column C
 
                 # Create data validation object

@@ -179,8 +179,8 @@ class Music(Plugin[MusicEventListener]):
     @app_commands.autocomplete(radio_name=radios_autocomplete)
     @app_commands.autocomplete(song=all_songs_autocomplete)
     async def play(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING,
-                                                                                          Status.PAUSED])],
+                   server: app_commands.Transform[Server, utils.ServerTransformer(
+                       status=[Status.RUNNING, Status.PAUSED])],
                    radio_name: str, playlist: Optional[str] = None, song: Optional[str] = None):
         if server.status != Status.RUNNING:
             # noinspection PyUnresolvedReferences

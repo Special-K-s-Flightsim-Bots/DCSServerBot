@@ -29,6 +29,7 @@ schema;instance_srs_schema:
     config: {type: str, required: true, nullable: false}
     host: {type: str, nullable: false, range: {min: 1}}
     port: {type: int, nullable: false, func: unique_port}
+    gui_server: {type: bool, nullable: false}
     minimized: {type: bool, nullable: false}
     debug: {type: bool, nullable: false}
     awacs: {type: bool, nullable: false}

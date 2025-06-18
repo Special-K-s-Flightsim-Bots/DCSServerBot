@@ -75,6 +75,10 @@ class CloudListener(EventListener["Cloud"]):
     async def getMissionUpdate(self, server: Server, _: dict) -> None:
         if not self.updates.get(server.name):
             self.updates[server.name] = datetime.now(tz=timezone.utc)
-        if (datetime.now(tz=timezone.utc)- self.updates[server.name]).total_seconds() > 240:
-            await server.run_on_extension(extension='Cloud', method='cloud_register')
+        if (datetime.now(tz=timezone.utc) - self.updates[server.name]).total_seconds() > 240:
+            try:
+                await server.run_on_extension(extension='Cloud', method='cloud_register')
+            except ValueError:
+                self.log.debug("Cloud extension disabled, no cloud registration sent.")
+                pass
             self.updates[server.name] = datetime.now(tz=timezone.utc)

@@ -60,10 +60,13 @@ class SkyEye(Extension):
         atexit.register(self.terminate)
 
     def get_config_path(self, cfg: dict) -> str:
-        return os.path.expandvars(utils.format_string(
+        path = os.path.expandvars(utils.format_string(
             cfg.get('config', '{instance.home}\\Config\\SkyEye-{coalition}.yaml'),
             server=self.server, instance=self.server.instance, coalition=cfg.get('coalition', 'blue'))
         )
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Config file {path} does not exist.")
+        return path
 
     def load_config(self) -> Optional[dict]:
         base_config = os.path.join(os.path.dirname(self.get_exe_path()), "config.yaml")

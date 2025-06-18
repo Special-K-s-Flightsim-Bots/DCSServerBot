@@ -163,12 +163,16 @@ class MonitoringService(Service):
                 try:
                     filename = os.path.join(server.instance.home, 'Logs',
                                             f"{now.strftime('dcs-%Y%m%d-%H%M%S')}.dmp")
+
+                    # Save all handlers before create_dump
+                    root = logging.getLogger()
+                    saved_handlers = root.handlers[:]
+
                     await asyncio.to_thread(create_dump, server.process.pid, filename,
                                             MINIDUMP_TYPE.MiniDumpNormal, True)
 
-                    root = logging.getLogger()
-                    if root.handlers:
-                        root.removeHandler(root.handlers[0])
+                    # Restore the original loggers
+                    root.handlers = saved_handlers
                 except OSError:
                     self.log.debug("No minidump created due to an error (Linux?).")
             shutil.copy2(os.path.join(server.instance.home, 'Logs', 'dcs.log'),
