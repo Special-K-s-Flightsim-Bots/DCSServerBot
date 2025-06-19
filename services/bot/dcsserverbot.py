@@ -510,14 +510,19 @@ class DCSServerBot(commands.Bot):
             # try to read an already existing message
             try:
                 message = await self.fetch_embed(embed_name, channel, server)
-            except Exception as ex:
+            except Exception:
+                self.log.debug(f"Can't update embed {embed_name}, skipping.")
                 return
 
             if message:
-                if not file:
-                    await message.edit(embed=embed, attachments=[])
-                else:
-                    await message.edit(embed=embed, attachments=[file])
+                try:
+                    if not file:
+                        await message.edit(embed=embed, attachments=[])
+                    else:
+                        await message.edit(embed=embed, attachments=[file])
+                except Exception:
+                    self.log.debug(f"Can't update embed {embed_name}, skipping.")
+                    return
             else:
                 if channel.type == discord.ChannelType.forum:
                     for thread in channel.threads:

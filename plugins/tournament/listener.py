@@ -454,7 +454,9 @@ class TournamentEventListener(EventListener["Tournament"]):
         winner = data['winner']
         match_id = await self.get_active_match(server)
         if self.tasks.get(server.name):
-            self.tasks.pop(server.name).cancel()
+            task = self.tasks.pop(server.name)
+            task.cancel()
+            await task
 
         # do we have a winner?
         if winner in ['blue', 'red']:

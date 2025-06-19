@@ -633,6 +633,7 @@ class NodeImpl(Node):
             "THECHANNEL_terrain",
             "SYRIA_terrain",
             "MARIANAISLANDS_terrain",
+            "MARIANAISLANDSWWII_terrain",
             "FALKLANDS_terrain",
             "SINAIMAP_terrain",
             "KOLA_terrain",

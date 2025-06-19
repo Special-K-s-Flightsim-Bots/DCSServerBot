@@ -190,6 +190,9 @@ class ScheduleInfo(report.EmbedElement):
         if scheduler:
             config = scheduler.get_config(server)
             if 'schedule' in config:
+                if (len(config['schedule']) == 1 and list(config['schedule'].keys())[0] == '00-24' and
+                        config['schedule']['00-24'] == 'YYYYYYY'):
+                    return
                 self.add_field(name="This server runs on the following schedule:", value='_ _', inline=False)
                 value = ''
                 now = datetime.now()

@@ -34,8 +34,10 @@ class MissionEventListener(EventListener["Mission"]):
             'kill': '```ansi\n\u001b[0;34mBLUE {} in {} killed {} {} in {} with {}.```',
             'friendly_fire': '```ansi\n\u001b[1;33mBLUE {} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```ansi\n\u001b[0;34mBLUE player {} killed themselves - Ooopsie!```',
-            'change_slot': '```ansi\n\u001b[0;34m{} player {} occupied {} {}```',
-            'disconnect': '```ansi\n\u001b[0;34mBLUE player {} disconnected from server {}```'
+            'change_slot': '```ansi\n\u001b[0;34m{} player {} occupied {} {}.```',
+            'disconnect': '```ansi\n\u001b[0;34mBLUE player {} disconnected from server {}.```',
+            'S_EVENT_SHOT': '```ansi\n\u001b[0;34mBLUE {} in {} shot at {} {} in {} with {}.```',
+            'S_EVENT_HIT': '```ansi\n\u001b[0;34mBLUE {} in {} hit {} {} in {}.```'
         },
         Side.RED: {
             'takeoff': '```ansi\n\u001b[0;31mRED player {} took off from {}.```',
@@ -46,8 +48,10 @@ class MissionEventListener(EventListener["Mission"]):
             'kill': '```ansi\n\u001b[0;31mRED {} in {} killed {} {} in {} with {}.```',
             'friendly_fire': '```ansi\n\u001b[1;33mRED {} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```ansi\n\u001b[0;31mRED player {} killed themselves - Ooopsie!```',
-            'change_slot': '```ansi\n\u001b[0;31m{} player {} occupied {} {}```',
-            'disconnect': '```ansi\n\u001b[0;31mRED player {} disconnected from server {}```'
+            'change_slot': '```ansi\n\u001b[0;31m{} player {} occupied {} {}.```',
+            'disconnect': '```ansi\n\u001b[0;31mRED player {} disconnected from server {}.```',
+            'S_EVENT_SHOT': '```ansi\n\u001b[0;31mRED {} in {} shot at {} {} in {} with {}.```',
+            'S_EVENT_HIT': '```ansi\n\u001b[0;31mRED {} in {} hit {} {} in {}.```'
         },
         Side.NEUTRAL: {
             'takeoff': '```ansi\n\u001b[0;32mNEUTRAL player {} took off from {}.```',
@@ -58,8 +62,8 @@ class MissionEventListener(EventListener["Mission"]):
             'kill': '```ansi\n\u001b[0;32mNEUTRAL {} in {} killed {} {} in {} with {}.```',
             'friendly_fire': '```ansi\n\u001b[1;33mNEUTRAL {} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```ansi\n\u001b[0;32mNEUTRAL player {} killed themselves - Ooopsie!```',
-            'change_slot': '```ansi\n\u001b[0;32m{} player {} occupied {} {}```',
-            'disconnect': '```ansi\n\u001b[0;32mNEUTRAL player {} disconnected from server {}```'
+            'change_slot': '```ansi\n\u001b[0;32m{} player {} occupied {} {}.```',
+            'disconnect': '```ansi\n\u001b[0;32mNEUTRAL player {} disconnected from server {}.```'
         },
         Side.SPECTATOR: {
             'connect': '```\nPlayer {} connected to server {}```',
@@ -803,6 +807,35 @@ class MissionEventListener(EventListener["Mission"]):
                         "command": "deleteMenu",
                         "groupID": group_id
                     })
+        elif data['eventName'] == 'S_EVENT_SHOT':
+            initiator = data.get('initiator', {})
+            target = data.get('target', {})
+            if not initiator or not target:
+                return
+
+            side = Side(initiator['coalition'])
+            try:
+                self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
+                    (f"player {initiator['name']}" if initiator.get('name') else 'AI'), initiator['unit_type'],
+                    Side(target['coalition']).name, (f"player {target['name']}" if target.get('name') else 'AI'),
+                    target['unit_type'], data.get('weapon', {}).get('name', 'Gun')))
+            except KeyError:
+                pass
+
+        elif data['eventName'] == 'S_EVENT_HIT':
+            initiator = data.get('initiator', {})
+            target = data.get('target', {})
+            if not initiator or not target:
+                return
+
+            side = Side(initiator['coalition'])
+            try:
+                self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
+                    (f"player {initiator['name']}" if initiator.get('name') else 'AI'), initiator['unit_type'],
+                    Side(target['coalition']).name, (f"player {target['name']}" if target.get('name') else 'AI'),
+                    target['unit_type']))
+            except KeyError:
+                pass
 
     async def do_change_mission(self, server: Server, player: Player, params: dict):
         mission_file = os.path.expandvars(params.get('mission_file'))

@@ -1,6 +1,8 @@
 import asyncio
+import time
 
-from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel
+from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel, \
+    ThreadSafeDict
 from plugins.competitive.commands import Competitive
 from typing import Optional, TYPE_CHECKING
 
@@ -8,6 +10,10 @@ if TYPE_CHECKING:
     from .commands import Punishment
 
 _ = get_translation(__name__.split('.')[1])
+
+# we can expect any missile that has more than 120s to not hit
+# TODO: improve that by weapon
+MAX_MISSILE_TIME = 120
 
 
 class PunishmentEventListener(EventListener["Punishment"]):
@@ -17,6 +23,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         self.lock = asyncio.Lock()
         self.active_servers: set[str] = set()
         self.pending_forgiveness: dict[tuple[str, str], list[asyncio.Task]] = {}
+        self.pending_kill: dict[str, int] = ThreadSafeDict()
 
     async def processEvent(self, name: str, server: Server, data: dict) -> None:
         try:
@@ -61,9 +68,13 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
     async def _provide_forgiveness_window(self, data: dict, window: int):
         try:
-            await asyncio.wait_for(asyncio.Future(), timeout=window)
-        except (TimeoutError, asyncio.TimeoutError):
+            # wait for a '-forgive' to happen
+            await asyncio.sleep(window)
+            # it did not happen -> fulfill the punishment
             asyncio.create_task(self._punish(data))
+        except asyncio.CancelledError:
+            # if did happen -> do nothing
+            pass
 
     async def _punish(self, data: dict):
         initiator = data['initiator']
@@ -174,6 +185,16 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 event['eventName'] = 'kill'
             asyncio.create_task(self._check_punishment(event))
 
+        elif data['eventName'] == 'disconnect':
+            shot_time = self.pending_kill.pop(initiator.ucid, -1)
+            if shot_time != -1 and int(time.time()) - shot_time < MAX_MISSILE_TIME:
+                # we will not punish disconnects for now but report them
+                admin = self.bot.get_admin_channel(server)
+                if admin:
+                    await admin.send(
+                        "```" + _("Player {} ({}) disconected after being shot at less than {} seconds ago.").format(
+                            initiator.name, initiator.ucid, MAX_MISSILE_TIME) + "```")
+
     async def _send_player_points(self, player: Player):
         points = await self._get_punishment_points(player)
         if points > 0:
@@ -192,6 +213,50 @@ class PunishmentEventListener(EventListener["Punishment"]):
     async def disablePunishments(self, server: Server, _: dict) -> None:
         self.active_servers.discard(server.name)
 
+    @event(name="onMissionEvent")
+    async def onMissionEvent(self, server: Server, data: dict) -> None:
+        if data['eventName'] in ['S_EVENT_BIRTH', 'S_EVENT_LAND']:
+            player = server.get_player(name=data.get('initiator', {}).get('name'))
+            if player:
+                self.pending_kill[player.ucid] = -1
+        elif data['eventName'] in ['S_EVENT_SHOT', 'S_EVENT_HIT']:
+            victim = server.get_player(name=data.get('target', {}).get('name'))
+            if victim and victim.ucid in self.pending_kill:
+                self.pending_kill[victim.ucid] = int(time.time())
+        elif data['eventName'] in ['S_EVENT_KILL', 'S_EVENT_CRASH']:
+            player = server.get_player(name=data.get('initiator', {}).get('name'))
+            self.pending_kill.pop(player.ucid, None)
+
+    @event(name="onPlayerChangeSlot")
+    async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
+        if 'side' not in data or data['id'] == 1:
+            return
+
+        player = server.get_player(id=data['id'])
+        if not player:
+            # ignore AI players
+            return
+
+        shot_time = self.pending_kill.pop(player.ucid, None)
+        if shot_time is None:
+            # no event registered
+            return
+
+        if int(time.time()) - shot_time < MAX_MISSILE_TIME:
+            # we will not punish disconnects for now but report them
+            admin = self.bot.get_admin_channel(server)
+            if admin:
+                await admin.send(
+                    "```" + _("Player {} ({}) reslotted after being shot at less than {} seconds ago.").format(
+                        player.name, player.ucid, MAX_MISSILE_TIME) + "```")
+        else:
+            # we will not punish reslotting before landing for now but report them
+            channel_id = server.channels[Channel.EVENTS]
+            channel = self.bot.get_channel(channel_id)
+            if channel:
+                await channel.send("```" + _("Player {} ({}) reslotted before landing.").format(
+                    player.name, player.ucid) + "```")
+
     @chat_command(name="forgive", help=_("forgive another user for their infraction"))
     async def forgive(self, server: Server, player: Player, params: list[str]):
         async with self.lock:
@@ -209,10 +274,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             # wait for all tasks to be finished
             for task in all_tasks:
                 task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
+                await task
             for initiator in initiators:
                 self.pending_forgiveness.pop((initiator, player.ucid), None)
                 offender = server.get_player(ucid=initiator)

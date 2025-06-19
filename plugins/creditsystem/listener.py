@@ -84,12 +84,16 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             player: CreditPlayer = cast(CreditPlayer, server.get_player(name=data['name']))
             if not player:
                 return
+
+            config = self.plugin.get_config(server)
             old_points = player.points
             points_to_add = int(data['points'])
-            player.deposit += points_to_add * self.plugin.get_config(server).get('multiplier', 1.0)
-            player.points += points_to_add
-            if old_points != player.points:
-                player.audit('mission', old_points, data.get('reason', _('Unknown mission achievement')))
+            player.deposit += points_to_add * config.get('multiplier', 1.0)
+            # only add the credit points directly if points_on_rtb is false
+            if not config.get('points_on_rtb', False):
+                player.points += points_to_add
+                if old_points != player.points:
+                    player.audit('mission', old_points, data.get('reason', _('Unknown mission achievement')))
 
     @event(name="addSquadronPoints")
     async def addSquadronPoints(self, server: Server, data: dict) -> None:
