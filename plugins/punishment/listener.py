@@ -254,8 +254,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             channel_id = server.channels[Channel.EVENTS]
             channel = self.bot.get_channel(channel_id)
             if channel:
-                await channel.send("```" + _("Player {} ({}) reslotted before landing.").format(
-                    player.name, player.ucid) + "```")
+                await channel.send("```" + _("Player {} reslotted before landing.").format(player.name) + "```")
 
     @chat_command(name="forgive", help=_("forgive another user for their infraction"))
     async def forgive(self, server: Server, player: Player, params: list[str]):
