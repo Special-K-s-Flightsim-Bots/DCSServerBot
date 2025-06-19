@@ -2,6 +2,11 @@ schema;default_schema:
   type: map
   nullable: false
   mapping:
+    event_filter:
+      type: seq
+      nullable: false
+      sequence:
+        - {type: str, unique: true, nullable: false, enum: ['connect', 'disconnect', 'change_slot', 'friendly_fire', 'self_kill', 'kill', 'takeoff', 'landing', 'crash', 'eject', 'pilot_death', 'shot', 'hit']}
     uploads:
       type: map
       nullable: false

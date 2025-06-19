@@ -533,8 +533,10 @@ class MissionEventListener(EventListener["Mission"]):
     async def onPlayerConnect(self, server: Server, data: dict) -> None:
         if data['id'] == 1:
             return
-        self.send_dcs_event(server, Side.SPECTATOR, self.EVENT_TEXTS[Side.SPECTATOR]['connect'].format(
-            data['name'], server.name))
+        if 'connect' not in self.get_config(server).get('event_filter', []):
+            self.send_dcs_event(server, Side.SPECTATOR, self.EVENT_TEXTS[Side.SPECTATOR]['connect'].format(
+                data['name'], server.name))
+
         player: Player = server.get_player(ucid=data['ucid'])
         if not player or player.id == 1:
             player = DataObjectFactory().new(
@@ -663,8 +665,9 @@ class MissionEventListener(EventListener["Mission"]):
         if not player or not player.active:
             return
         try:
-            self.send_dcs_event(server, player.side,
-                                self.EVENT_TEXTS[player.side]['disconnect'].format(player.name, server.name))
+            if 'disconnect' not in self.get_config(server).get('event_filter', []):
+                self.send_dcs_event(server, player.side,
+                                    self.EVENT_TEXTS[player.side]['disconnect'].format(player.name, server.name))
         finally:
             await self._stop_player(server, player)
 
@@ -681,14 +684,16 @@ class MissionEventListener(EventListener["Mission"]):
             if Side(data['side']) != Side.SPECTATOR:
                 if player.ucid in server.afk:
                     del server.afk[player.ucid]
-                side = Side(data['side'])
-                self.send_dcs_event(server, side, self.EVENT_TEXTS[side]['change_slot'].format(player.side.name,
-                    data['name'], Side(data['side']).name, data['unit_type']))
+                if 'change_slot' not in self.get_config(server).get('event_filter', []):
+                    side = Side(data['side'])
+                    self.send_dcs_event(server, side, self.EVENT_TEXTS[side]['change_slot'].format(player.side.name,
+                        data['name'], Side(data['side']).name, data['unit_type']))
             else:
                 server.afk[player.ucid] = datetime.now(timezone.utc)
-                self.send_dcs_event(server, Side.SPECTATOR,
-                                    self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
-                                                                                          data['name']))
+                if 'change_slot' not in self.get_config(server).get('event_filter', []):
+                    self.send_dcs_event(server, Side.SPECTATOR,
+                                        self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
+                                                                                              data['name']))
         finally:
             await player.update(data)
             self.display_player_embed(server)
@@ -704,7 +709,12 @@ class MissionEventListener(EventListener["Mission"]):
             if data['arg1'] == 1:
                 return
             asyncio.create_task(self._disconnect(server, server.get_player(id=data['arg1'], active=True)))
-        elif data['eventName'] == 'friendly_fire' and data['arg1'] != data['arg3']:
+
+        # check the event filter first
+        if data['eventName'] in self.get_config(server).get('event_filter', []):
+            return
+
+        if data['eventName'] == 'friendly_fire' and data['arg1'] != data['arg3']:
             player1 = server.get_player(id=data['arg1'])
             player2 = server.get_player(id=data['arg3'])
             # TODO: remove if issue with Forrestal is fixed
@@ -749,6 +759,7 @@ class MissionEventListener(EventListener["Mission"]):
                 admin_channel = self.bot.get_admin_channel(server)
                 if admin_channel:
                     asyncio.create_task(admin_channel.send(message))
+
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
             player = server.get_player(id=data['arg1'])
             side = player.side if player else Side.UNKNOWN
@@ -783,6 +794,7 @@ class MissionEventListener(EventListener["Mission"]):
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
+        config = self.get_config(server)
         if data['eventName'] == 'S_EVENT_BIRTH':
             _player = data.get('initiator', {}).get('name')
             if not _player:
@@ -807,10 +819,14 @@ class MissionEventListener(EventListener["Mission"]):
                         "command": "deleteMenu",
                         "groupID": group_id
                     })
-        elif data['eventName'] == 'S_EVENT_SHOT':
+        elif data['eventName'] == 'S_EVENT_SHOT' and 'shot' not in config.get('event_filter', []):
             initiator = data.get('initiator', {})
             target = data.get('target', {})
             if not initiator or not target:
+                return
+
+            # do not report AI vs AI
+            if not initiator.get('name') and not target.get('name'):
                 return
 
             side = Side(initiator['coalition'])
@@ -822,10 +838,14 @@ class MissionEventListener(EventListener["Mission"]):
             except KeyError:
                 pass
 
-        elif data['eventName'] == 'S_EVENT_HIT':
+        elif data['eventName'] == 'S_EVENT_HIT' and 'hit' not in config.get('event_filter', []):
             initiator = data.get('initiator', {})
             target = data.get('target', {})
             if not initiator or not target:
+                return
+
+            # do not report AI vs AI
+            if not initiator.get('name') and not target.get('name'):
                 return
 
             side = Side(initiator['coalition'])
