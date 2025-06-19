@@ -42,7 +42,7 @@ class SRSRadio(Radio):
                     return os.path.join(srs_inst, "DCS-SR-ExternalAudio.exe")
 
             def run_subprocess() -> subprocess.Popen:
-                def _log_output(self, p: subprocess.Popen):
+                def _log_output(p: subprocess.Popen):
                     for line in iter(p.stdout.readline, b''):
                         self.log.debug(line.decode('utf-8').rstrip())
 
