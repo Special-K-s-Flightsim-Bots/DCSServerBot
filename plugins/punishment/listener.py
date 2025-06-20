@@ -187,13 +187,14 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         elif data['eventName'] == 'disconnect':
             shot_time = self.pending_kill.pop(initiator.ucid, -1)
-            if shot_time != -1 and int(time.time()) - shot_time < MAX_MISSILE_TIME:
+            delta_time = int(time.time()) - shot_time
+            if shot_time != -1 and delta_time < MAX_MISSILE_TIME:
                 # we will not punish disconnects for now but report them
                 admin = self.bot.get_admin_channel(server)
                 if admin:
                     await admin.send(
-                        "```" + _("Player {} ({}) disconected after being shot at less than {} seconds ago.").format(
-                            initiator.name, initiator.ucid, MAX_MISSILE_TIME) + "```")
+                        "```" + _("Player {} ({}) disconected after being shot at {} seconds ago.").format(
+                            initiator.name, initiator.ucid, delta_time) + "```")
 
     async def _send_player_points(self, player: Player):
         points = await self._get_punishment_points(player)
@@ -243,13 +244,14 @@ class PunishmentEventListener(EventListener["Punishment"]):
             # no event registered
             return
 
-        if int(time.time()) - shot_time < MAX_MISSILE_TIME:
+        delta_time = int(time.time()) - shot_time
+        if delta_time < MAX_MISSILE_TIME:
             # we will not punish disconnects for now but report them
             admin = self.bot.get_admin_channel(server)
             if admin:
                 await admin.send(
-                    "```" + _("Player {} ({}) reslotted after being shot at less than {} seconds ago.").format(
-                        player.name, player.ucid, MAX_MISSILE_TIME) + "```")
+                    "```" + _("Player {} ({}) reslotted after being shot at {} seconds ago.").format(
+                        player.name, player.ucid, delta_time) + "```")
         else:
             # we will not punish reslotting before landing for now but report them
             channel_id = server.channels[Channel.EVENTS]
