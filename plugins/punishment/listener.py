@@ -2,7 +2,7 @@ import asyncio
 import time
 
 from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel, \
-    ThreadSafeDict
+    ThreadSafeDict, Side
 from plugins.competitive.commands import Competitive
 from typing import Optional, TYPE_CHECKING
 
@@ -40,9 +40,16 @@ class PunishmentEventListener(EventListener["Punishment"]):
         return await super().can_run(command, server, player)
 
     @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, _: dict) -> None:
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
         if self.get_config(server).get('enabled', True):
             self.active_servers.add(server.name)
+            # initialize players on bot restarts
+            if 'sync' in data['channel']:
+                for player in data['players']:
+                    if player['id'] == 1:
+                        continue
+                    if int(player['slot']) > 0:
+                        self.pending_kill[player['ucid']] = -1
         else:
             self.active_servers.discard(server.name)
 
@@ -224,8 +231,12 @@ class PunishmentEventListener(EventListener["Punishment"]):
             victim = server.get_player(name=data.get('target', {}).get('name'))
             if victim and victim.ucid in self.pending_kill:
                 self.pending_kill[victim.ucid] = int(time.time())
-        elif data['eventName'] in ['S_EVENT_KILL', 'S_EVENT_CRASH']:
+        elif data['eventName'] == 'S_EVENT_CRASH':
             player = server.get_player(name=data.get('initiator', {}).get('name'))
+            if player:
+                self.pending_kill.pop(player.ucid, None)
+        elif data['eventName'] == 'S_EVENT_KILL':
+            player = server.get_player(name=data.get('target', {}).get('name'))
             if player:
                 self.pending_kill.pop(player.ucid, None)
 
