@@ -2,7 +2,7 @@ import asyncio
 import time
 
 from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel, \
-    ThreadSafeDict, Side
+    ThreadSafeDict
 from plugins.competitive.commands import Competitive
 from typing import Optional, TYPE_CHECKING
 
@@ -11,9 +11,9 @@ if TYPE_CHECKING:
 
 _ = get_translation(__name__.split('.')[1])
 
-# we can expect any missile that has more than 120s to not hit
+# we can expect any missile that was in the air for more than 60s to not hit
 # TODO: improve that by weapon
-MAX_MISSILE_TIME = 120
+MAX_MISSILE_TIME = 60
 
 
 class PunishmentEventListener(EventListener["Punishment"]):
@@ -257,12 +257,12 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         delta_time = int(time.time()) - shot_time
         if delta_time < MAX_MISSILE_TIME:
-            # we will not punish disconnects for now but report them
-            admin = self.bot.get_admin_channel(server)
-            if admin:
-                await admin.send(
-                    "```" + _("Player {} ({}) reslotted after being shot at {} seconds ago.").format(
-                        player.name, player.ucid, delta_time) + "```")
+            event = {
+                "eventName": "reslot",
+                "server_name": server.name,
+                "initiator": player
+            }
+            asyncio.create_task(self._check_punishment(event))
         else:
             # we will not punish reslotting before landing for now but report them
             channel_id = server.channels[Channel.EVENTS]
