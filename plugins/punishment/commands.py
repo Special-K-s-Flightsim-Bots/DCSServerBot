@@ -49,6 +49,8 @@ class Punishment(Plugin[PunishmentEventListener]):
         member = self.bot.get_member_by_ucid(ucid)
         admin_channel = self.bot.get_admin_channel(server)
         if punishment['action'] == 'ban':
+            # we must not punish for reslots here
+            self.eventlistener.pending_kill.pop(ucid, None)
             await self.bus.ban(ucid, self.plugin_name, reason, punishment.get('days', 3))
             if member:
                 message = _("Member {member} banned by {banned_by} for {reason}.").format(
@@ -83,6 +85,8 @@ class Punishment(Plugin[PunishmentEventListener]):
             return
 
         if punishment['action'] == 'kick' and player.active:
+            # we must not punish for reslots here
+            self.eventlistener.pending_kill.pop(ucid, None)
             await server.kick(player, reason)
             if admin_channel:
                 await admin_channel.send(
@@ -90,6 +94,8 @@ class Punishment(Plugin[PunishmentEventListener]):
                         player=player.display_name, ucid=player.ucid, kicked_by=self.bot.member.name, reason=reason))
 
         elif punishment['action'] == 'move_to_spec':
+            # we must not punish for reslots here
+            self.eventlistener.pending_kill.pop(ucid, None)
             await server.move_to_spectators(player)
             await player.sendUserMessage(_("You've been kicked back to spectators because of: {}.").format(reason))
             if admin_channel:
