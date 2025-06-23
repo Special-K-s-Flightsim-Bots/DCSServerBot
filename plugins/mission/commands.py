@@ -1094,14 +1094,25 @@ class Mission(Plugin[MissionEventListener]):
     @utils.app_has_role('DCS Admin')
     async def unlock(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
-                     player: app_commands.Transform[Player, utils.PlayerTransformer()]):
-        if not player:
+                     user: app_commands.Transform[
+                         Union[discord.Member, str], utils.UserTransformer(sel_type=PlayerType.PLAYER)
+                     ]):
+        if isinstance(user, discord.Member):
+            ucid = await self.bot.get_ucid_by_member(user)
+        else:
+            ucid = user
+
+        if not ucid:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
             return
-        await player.unlock()
+
+        await server.send_to_dcs({
+            "command": "unlock_player",
+            "ucid": ucid
+        })
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(_("Player {} has been unlocked.").format(player.display_name),
+        await interaction.response.send_message(_("Player has been unlocked."),
                                                 ephemeral=utils.get_ephemeral(interaction))
 
     @player.command(description=_('Moves a player to spectators\n'))
