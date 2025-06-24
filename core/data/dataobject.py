@@ -33,6 +33,9 @@ class DataObject:
         self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.config = self.node.config
 
+    def __hash__(self):
+        return hash(self.name)
+
 
 T = TypeVar("T", bound=DataObject)
 
