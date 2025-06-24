@@ -345,26 +345,8 @@ class MissionEventListener(EventListener["Mission"]):
             self.log.error("Player threshold configured, but channel is incorrect")
         self.alert_fired[server.name] = True
 
-    async def _load_weather_data(self, server: Server):
-        timeout = 300 if server.is_remote else 180
-        try:
-            data = await server.send_to_dcs_sync({"command": "getWeatherInfo"}, timeout=timeout)
-            server.current_mission.weather = data.get('weather')
-            server.current_mission.clouds = data.get('clouds')
-            self.display_mission_embed(server)
-        except (TimeoutError, asyncio.TimeoutError):
-            self.log.error(f"Timeout during _load_weather_data(server={server.name})!")
-
-    async def _load_airbases(self, server: Server):
-        timeout = 300 if server.is_remote else 180
-        try:
-            server.current_mission.airbases = (await server.send_to_dcs_sync({
-                "command": "getAirbases"
-            }, timeout=timeout)).get('airbases')
-        except (TimeoutError, asyncio.TimeoutError):
-            self.log.error(f"Timeout during _load_airbases(server={server.name})!")
-
-    async def _upload_user_roles(self, server: Server, player: Player):
+    @staticmethod
+    async def _upload_user_roles(server: Server, player: Player):
         if not player.member or not player.verified:
             roles = []
         else:
@@ -406,10 +388,10 @@ class MissionEventListener(EventListener["Mission"]):
             asyncio.create_task(self._update_bans(server))
             # get the weather async (if not filled already)
             if not data.get('weather'):
-                asyncio.create_task(self._load_weather_data(server))
+                asyncio.create_task(server.send_to_dcs({"command": "getWeatherInfo"}))
             # get the airbases async (if not filled already)
             if not data.get('airbases'):
-                asyncio.create_task(self._load_airbases(server))
+                asyncio.create_task(server.send_to_dcs({"command": "getAirbases"}))
         server.afk.clear()
         # all players are inactive for now
         for p in server.players.values():
@@ -455,6 +437,16 @@ class MissionEventListener(EventListener["Mission"]):
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
+    @event(name="getWeatherInfo")
+    async def getWeatherInfo(self, server: Server, data: dict):
+        server.current_mission.weather = data.get('weather')
+        server.current_mission.clouds = data.get('clouds')
+        self.display_mission_embed(server)
+
+    @event(name="getAirbases")
+    async def getAirbases(self, server: Server, data: dict):
+        server.current_mission.airbases = data.get('airbases')
+
     @event(name="onMissionLoadBegin")
     async def onMissionLoadBegin(self, server: Server, data: dict) -> None:
         server.status = Status.LOADING
@@ -467,10 +459,10 @@ class MissionEventListener(EventListener["Mission"]):
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
         self._update_mission(server, data)
         if not data.get('weather'):
-            asyncio.create_task(self._load_weather_data(server))
+            asyncio.create_task(server.send_to_dcs({"command": "getWeatherInfo"}))
         # get the airbases async (if not filled already)
         if not data.get('airbases'):
-            asyncio.create_task(self._load_airbases(server))
+            asyncio.create_task(server.send_to_dcs({"command": "getAirbases"}))
         asyncio.create_task(self._update_bans(server))
         self.display_mission_embed(server)
 

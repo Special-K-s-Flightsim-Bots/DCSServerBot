@@ -45,7 +45,7 @@ class Punishment(Plugin[PunishmentEventListener]):
         await conn.execute("UPDATE pu_events SET target_id = %s WHERE target_id = %s", (new_ucid, old_ucid))
 
     async def punish(self, server: Server, ucid: str, punishment: dict, reason: str, points: Optional[float] = None):
-        player: Player = server.get_player(ucid=ucid, active=True)
+        player: Player = server.get_player(ucid=ucid)
         member = self.bot.get_member_by_ucid(ucid)
         admin_channel = self.bot.get_admin_channel(server)
         if punishment['action'] == 'ban':
