@@ -44,7 +44,7 @@
       "type": "Graph",
       "params":
       {
-        "width": 25,
+        "width": 24,
         "height": 25,
         "dpi": 100,
         "cols": 1,

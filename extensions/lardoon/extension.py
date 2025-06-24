@@ -188,4 +188,4 @@ class Lardoon(Extension):
     async def get_ports(self) -> dict:
         return {
             "Lardoon": self.config['bind'].split(':')[1]
-        }
+        } if self.enabled else {}

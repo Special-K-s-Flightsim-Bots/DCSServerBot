@@ -190,4 +190,4 @@ class Sneaker(Extension):
     def get_ports(self) -> dict:
         return {
             "Sneaker": self.config['bind'].split(':')[1]
-        }
+        } if self.enabled else {}

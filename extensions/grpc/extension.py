@@ -128,4 +128,4 @@ class gRPC(Extension):
     async def get_ports(self) -> dict:
         return {
             "gRPC": self.locals.get('port', 50051)
-        }
+        } if self.enabled else {}

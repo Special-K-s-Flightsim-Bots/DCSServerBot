@@ -321,4 +321,4 @@ class Olympus(Extension):
         return {
             "Olympus " + self.backend_tag.capitalize(): self.config.get(self.backend_tag, {}).get('port', 3001),
             "Olympus " + self.frontend_tag.capitalize(): self.config.get(self.frontend_tag, {}).get('port', 3000)
-        }
+        } if self.enabled else {}
