@@ -393,7 +393,7 @@ _ _
 
             if server.status == Status.SHUTDOWN:
                 await server.init_extensions()
-            for ext in server.instance.locals.get('extensions').keys():
+            for ext in server.instance.locals.get('extensions', {}).keys():
                 try:
                     rc = await server.run_on_extension(ext, 'get_ports')
                     for key, value in rc.items():
