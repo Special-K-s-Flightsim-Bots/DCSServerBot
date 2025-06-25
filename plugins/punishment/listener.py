@@ -228,7 +228,11 @@ class PunishmentEventListener(EventListener["Punishment"]):
             if player:
                 self.pending_kill[player.ucid] = -1
         elif data['eventName'] in ['S_EVENT_SHOT', 'S_EVENT_HIT']:
+            initiator = server.get_player(name=data.get('initiator', {}).get('name'))
             victim = server.get_player(name=data.get('target', {}).get('name'))
+            # ignore teamkills
+            if initiator and victim and initiator.side == victim.side:
+                return
             if victim and victim.ucid in self.pending_kill:
                 self.pending_kill[victim.ucid] = int(time.time())
         elif data['eventName'] == 'S_EVENT_CRASH':
