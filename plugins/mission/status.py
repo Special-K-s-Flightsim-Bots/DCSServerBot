@@ -18,9 +18,9 @@ STATUS_IMG = {
     Status.SHUTTING_DOWN:
         'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/shutting_down_256.png?raw=true',
     Status.SHUTDOWN:
-        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true',
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/development/images/shutdown_256.png?raw=true',
     Status.UNREGISTERED:
-        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true'
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/development/images/unregistered_256.png?raw=true'
 }
 
 
