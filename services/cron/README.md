@@ -102,9 +102,9 @@ DEFAULT:
 ```
 
 e) popup
-Send a popup
+Send a popup to a running server.
 ```yaml
-DEFAULT:
+DCS.server_release:
   actions:
     - cron: '55 3 * * 1'                # Send a message to everyone at Mo, 03:55h
       action:
@@ -114,7 +114,20 @@ DEFAULT:
           timeout: 20
 ```
 
-f) purge_channel
+f) broadcast
+Send a popup to all running servers.
+```yaml
+DEFAULT:
+  actions:
+    - cron: '55 3 * * 1'                # Send a message to everyone at Mo, 03:55h
+      action:
+        type: broadcast                     
+        params:
+          message: Server will shut down in 5 mins!
+          timeout: 20
+```
+
+g) purge_channel
 Delete messages from a Discord channel.
 ```yaml
 DEFAULT:
@@ -130,7 +143,7 @@ DEFAULT:
           ignore: 119922883377446655    # ignore this user id AND message id (either the bot's or persistent messages in the channel); can be either an ID or a list of IDs
 ```
 
-g) dcs_update
+h) dcs_update
 Run a DCS update at a specific time.
 ```yaml
 DEFAULT:

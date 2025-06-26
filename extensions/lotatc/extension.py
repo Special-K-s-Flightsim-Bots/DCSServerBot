@@ -345,4 +345,4 @@ class LotAtc(Extension, FileSystemEventHandler):
     async def get_ports(self) -> dict:
         return {
             "LotAtc": self.locals.get('port', 10310)
-        }
+        } if self.enabled else {}

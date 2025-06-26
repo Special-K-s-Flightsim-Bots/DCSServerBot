@@ -462,6 +462,10 @@ class ServerImpl(Server):
 
         # check if all missions are existing
         missions = []
+        try:
+            start_mission = self.settings['missionList'][int(self.settings['listStartIndex']) - 1]
+        except IndexError:
+            start_mission = None
         for mission in self.settings['missionList']:
             if '.dcssb' in mission:
                 _mission = os.path.join(os.path.dirname(os.path.dirname(mission)), os.path.basename(mission))
@@ -478,6 +482,12 @@ class ServerImpl(Server):
                 self.log.warning(f"Removing mission {mission} from serverSettings.lua as it could not be found!")
         if len(missions) != len(self.settings['missionList']):
             self.settings['missionList'] = missions
+            if start_mission:
+                try:
+                    idx = missions.index(start_mission) + 1
+                except ValueError:
+                    idx = 1
+                self.settings['listStartIndex'] = idx
             self.log.warning('Removed non-existent missions from serverSettings.lua')
         self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.instance.name))
         try:

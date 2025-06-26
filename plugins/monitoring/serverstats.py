@@ -58,33 +58,28 @@ class TopTheatresPerServer(report.EmbedElement):
 
         where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
-            SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name,
-                   m.mission_theatre, 
+            SELECT m.mission_theatre, 
                    COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600), 0) AS playtime 
             FROM missions m, statistics s
             WHERE m.id = s.mission_id
             {where_clause}
             AND {period.filter(self.env.bot)}
-            GROUP BY 1, 2 
-            ORDER BY 3 DESC
+            GROUP BY 1
+            ORDER BY 2 DESC
         """
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                servers = theatres = playtimes = ''
+                theatres = playtimes = ''
                 await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
-                    servers += utils.escape_string(row['server_name'])[:30] + '\n'
                     theatres += utils.escape_string(row['mission_theatre'])[:20] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
 
-        if len(servers) > 0:
-            if not server_name:
-                self.add_field(name='Server', value=servers)
+        if len(theatres) > 0:
             self.add_field(name='TOP Theatre' if not server_name else f"TOP Theatres", value=theatres)
             self.add_field(name='Playtime (h)', value=playtimes)
-            if server_name:
-                self.add_field(name='_ _', value='_ _')
+            self.add_field(name='_ _', value='_ _')
 
 
 class TopMissionPerServer(report.EmbedElement):
@@ -92,44 +87,31 @@ class TopMissionPerServer(report.EmbedElement):
     async def render(self, server_name: Optional[str], period: StatisticsFilter, limit: int):
 
         where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
-        limit_clause = f"WHERE rn <= {limit}" if server_name else "WHERE rn = 1"
         sql = f"""
-            SELECT server_name, mission_name, playtime 
-            FROM (
-                SELECT server_name, mission_name, playtime, 
-                       ROW_NUMBER() OVER(PARTITION BY server_name ORDER BY playtime DESC) AS rn 
-                FROM (
-                    SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name, 
-                           trim(regexp_replace(m.mission_name, '{self.bot.filter['mission_name']}', ' ', 'g')) AS mission_name, 
-                           ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime 
-                    FROM missions m, statistics s 
-                    WHERE m.id = s.mission_id 
-                    AND s.hop_off IS NOT NULL
-                    {where_clause}
-                    AND {period.filter(self.env.bot)}
-                    GROUP BY 1, 2
-                ) AS x
-            ) AS y 
-            {limit_clause}
-            ORDER BY 3 DESC
+            SELECT trim(regexp_replace(m.mission_name, '{self.bot.filter['mission_name']}', ' ', 'g')) AS mission_name, 
+                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime 
+            FROM missions m, statistics s 
+            WHERE m.id = s.mission_id 
+            AND s.hop_off IS NOT NULL
+            {where_clause}
+            AND {period.filter(self.env.bot)}
+            GROUP BY 1
+            ORDER BY 2 DESC
+            LIMIT {limit}
         """
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                servers = missions = playtimes = ''
+                missions = playtimes = ''
                 await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
-                    servers += utils.escape_string(row['server_name'])[:30] + '\n'
                     missions += row['mission_name'][:20] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
 
-        if len(servers) > 0:
-            if not server_name:
-                self.add_field(name='Server', value=servers)
+        if len(missions) > 0:
             self.add_field(name='TOP Mission' if not server_name else f"TOP {limit} Missions", value=missions)
             self.add_field(name='Playtime (h)', value=playtimes)
-            if server_name:
-                self.add_field(name='_ _', value='_ _')
+            self.add_field(name='_ _', value='_ _')
 
 
 class TopModulesPerServer(report.EmbedElement):

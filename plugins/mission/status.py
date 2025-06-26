@@ -1,10 +1,10 @@
 import asyncio
-from zoneinfo import ZoneInfo
 
-from core import const, report, Status, Server, utils, ServiceRegistry, Plugin, Side
+from core import const, report, Status, Server, utils, ServiceRegistry, Plugin, Side, cache_with_expiration
 from datetime import datetime, timedelta, timezone
 from services.bot import BotService
 from typing import Optional, cast
+from zoneinfo import ZoneInfo
 
 STATUS_IMG = {
     Status.LOADING:
@@ -18,9 +18,9 @@ STATUS_IMG = {
     Status.SHUTTING_DOWN:
         'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/shutting_down_256.png?raw=true',
     Status.SHUTDOWN:
-        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true',
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/development/images/shutdown_256.png?raw=true',
     Status.UNREGISTERED:
-        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true'
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/development/images/unregistered_256.png?raw=true'
 }
 
 
@@ -95,6 +95,19 @@ class ServerInfo(report.EmbedElement):
         self.embed.set_footer(text=footer)
 
 
+@cache_with_expiration(expiration=300)
+async def get_visibility(server: Server) -> int:
+    try:
+        ret = await server.send_to_dcs_sync({
+            "command": "getFog"
+        })
+        if ret['visibility']:
+            return int(ret['visibility'])
+    except (TimeoutError, asyncio.TimeoutError):
+        pass
+    return 0
+
+
 class WeatherInfo(report.EmbedElement):
 
     async def render(self, server: Server):
@@ -124,14 +137,7 @@ class WeatherInfo(report.EmbedElement):
 
             visibility = weather['visibility']['distance']
             if server.status == Status.RUNNING:
-                try:
-                    ret = await server.send_to_dcs_sync({
-                        "command": "getFog"
-                    })
-                    if ret['visibility']:
-                        visibility = int(ret['visibility'])
-                except (TimeoutError, asyncio.TimeoutError):
-                    pass
+                visibility = (await get_visibility(server)) or visibility
             value = "{:,} m / {:.2f} SM".format(int(visibility), visibility / const.METERS_IN_SM) \
                 if visibility < 30000 else "10 km / 6 SM (+)"
             value += ("\n\n**Wind**\n"
@@ -190,6 +196,9 @@ class ScheduleInfo(report.EmbedElement):
         if scheduler:
             config = scheduler.get_config(server)
             if 'schedule' in config:
+                if (len(config['schedule']) == 1 and list(config['schedule'].keys())[0] == '00-24' and
+                        config['schedule']['00-24'] == 'YYYYYYY'):
+                    return
                 self.add_field(name="This server runs on the following schedule:", value='_ _', inline=False)
                 value = ''
                 now = datetime.now()

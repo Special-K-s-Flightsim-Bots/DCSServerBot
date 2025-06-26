@@ -80,7 +80,14 @@ async def cmd(node: Node, cmd: str):
 
 
 async def popup(node: Node, server: Server, message: str, to: Optional[str] = 'all', timeout: Optional[int] = 10):
-    await server.sendPopupMessage(Coalition(to), message, timeout)
+    if server.status == Status.RUNNING:
+        await server.sendPopupMessage(Coalition(to), message, timeout)
+
+
+async def broadcast(node: Node, message: str, to: Optional[str] = 'all', timeout: Optional[int] = 10):
+    bus = ServiceRegistry.get(ServiceBus)
+    for server in [x for x in bus.servers.values() if x.status == Status.RUNNING]:
+        await server.sendPopupMessage(Coalition(to), message, timeout)
 
 
 async def purge_channel(node: Node, channel: Union[int, list[int]], older_than: int = None,

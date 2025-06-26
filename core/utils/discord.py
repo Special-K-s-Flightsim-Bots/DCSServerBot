@@ -121,6 +121,7 @@ async def wait_for_single_reaction(interaction: discord.Interaction, message: di
     # cancel pending tasks
     for task in pending:
         task.cancel()
+        await task
 
     if not done:
         raise TimeoutError

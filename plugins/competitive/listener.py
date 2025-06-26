@@ -272,6 +272,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                 else:
                     if match.timer_task:
                         match.timer_task.cancel()
+                        await match.timer_task
                         match.timer_task = None
                     match.first_join = None
 

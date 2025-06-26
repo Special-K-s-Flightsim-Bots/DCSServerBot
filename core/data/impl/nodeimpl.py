@@ -118,7 +118,25 @@ class NodeImpl(Node):
             from os import system
             system(f"title DCSServerBot v{self.bot_version}.{self.sub_version} - {self.node.name}")
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
+
+        # check GIT and branch
+        try:
+            import git
+
+            try:
+                with closing(git.Repo('.')) as repo:
+                    if repo.active_branch.name == 'development':
+                        self.log.info(f'- Development version detected.')
+            except git.InvalidGitRepositoryError:
+                self.log.warning(f'- Your installation is corrupt. Run repair.cmd.')
+
+        except ImportError:
+            self.log.info('- ZIP installation detected.')
+
+        # check Python-version
         self.log.info(f'- Python version {platform.python_version()} detected.')
+
+        # install plugins
         await asyncio.to_thread(self.install_plugins)
         self.plugins: list[str] = [x.lower() for x in self.config.get('plugins', DEFAULT_PLUGINS)]
         for plugin in [x.lower() for x in self.config.get('opt_plugins', [])]:

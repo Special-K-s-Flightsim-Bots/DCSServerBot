@@ -427,7 +427,7 @@ class Tacview(Extension):
         return {
             "tacviewRealTimeTelemetryPort": self.locals.get('tacviewRealTimeTelemetryPort', 42674),
             "tacviewRemoteControlPort": self.locals.get('tacviewRemoteControlPort', 42675)
-        }
+        } if self.enabled else {}
 
     async def change_config(self, config: dict):
         if config.get('target') and not self.config.get('target'):

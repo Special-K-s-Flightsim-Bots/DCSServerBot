@@ -27,10 +27,13 @@ DEFAULT:
     human: 12
     AI: 8
     reason: Friendly fire on a team member
-  - event: collision_hit    # if you hit another team member, you get 5 points, 1 if it was an AI.
+  - event: collision_hit    # If you hit another team member, you get 5 points, 1 if it was an AI.
     human: 5
     AI: 1
     reason: Colliding with a team member
+  - event: reslot           # If you re-slotted when being shot at, you get 30 points (you stole a kill)
+    default: 30
+    reason: Respawning when being shot at
   forgive: 30               # People can forgive others in-between of 30 seconds (default) with the .forgive in-game chat command.
   punishments:              # list of punishments, based on the users penalty points
   - points: 100             # we temp-ban the player when they reached 100 points.

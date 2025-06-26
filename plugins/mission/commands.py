@@ -1906,7 +1906,7 @@ class Mission(Plugin[MissionEventListener]):
         period = PeriodFilter()
         for ucid in [ucid1, ucid2]:
             report = Report(self.bot, 'userstats', 'userstats.json')
-            env = await report.render(member=ucid, server_name=None, period=period.period, flt=period)
+            env = await report.render(member=ucid, member_name=ucid, server_name=None, period=period.period, flt=period)
             try:
                 file = discord.File(fp=env.buffer, filename=env.filename)
                 await interaction.followup.send(embed=env.embed, file=file, ephemeral=ephemeral)
