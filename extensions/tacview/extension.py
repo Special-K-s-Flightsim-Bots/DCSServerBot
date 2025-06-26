@@ -250,7 +250,7 @@ class Tacview(Extension):
             logfile = os.path.expandvars(
                 self.config.get('log', os.path.join(self.server.instance.home, 'Logs', 'dcs.log'))
             )
-            while not (self.stop_event.is_set() and self.server.status in [Status.RUNNING, Status.PAUSED]):
+            while not (self.stop_event.is_set() and self.server.status in [Status.RUNNING, Status.PAUSED, Status.SHUTTING_DOWN]):
                 try:
                     while not os.path.exists(logfile):
                         self.log_pos = 0
