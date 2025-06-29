@@ -224,7 +224,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         # airstarts reset the reslot timer directly on birth
-        if data['eventName'] == 'S_EVENT_BIRTH' and not data['place']:
+        if data['eventName'] == 'S_EVENT_BIRTH' and not data.get('place'):
             player = server.get_player(name=data.get('initiator', {}).get('name'))
             if player:
                 self.pending_kill[player.ucid] = -1
