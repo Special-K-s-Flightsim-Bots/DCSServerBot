@@ -58,17 +58,18 @@ async def parse_input(self, kwargs: dict, params: list[Any]):
                 new_args[param['callback']] = None
         elif 'event' in param:
             server = kwargs['server']
-            if server.status not in [Status.PAUSED, Status.RUNNING]:
+            if server.status in [Status.PAUSED, Status.RUNNING]:
+                try:
+                    cmd = {
+                        "command": param['event']
+                    }
+                    if 'params' in param:
+                        cmd |= param['params']
+                    data: dict = await kwargs['server'].send_to_dcs_sync(cmd)
+                    if data:
+                        new_args[param['event']] = data
+                except (TimeoutError, asyncio.TimeoutError):
+                    new_args[param['event']] = None
+            else:
                 new_args[param['event']] = None
-            try:
-                cmd = {
-                    "command": param['event']
-                }
-                if 'params' in param:
-                    cmd |= param['params']
-                data: dict = await kwargs['server'].send_to_dcs_sync(cmd)
-                if data:
-                    new_args[param['event']] = data
-            except (TimeoutError, asyncio.TimeoutError):
-                new_args[param['event']] = None
-    return new_args
+        return new_args
