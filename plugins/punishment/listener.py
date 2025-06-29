@@ -2,7 +2,7 @@ import asyncio
 import time
 
 from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel, \
-    ThreadSafeDict, Coalition
+    ThreadSafeDict
 from plugins.competitive.commands import Competitive
 from typing import Optional, TYPE_CHECKING
 
