@@ -151,7 +151,11 @@ class BotService(Service):
         await super().stop()
 
     async def alert(self, title: str, message: str, server: Optional[Server] = None) -> None:
-        mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['Alert'] if role is not None])
+        try:
+            mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['Alert'] if role is not None])
+        except AttributeError:
+            self.log.error(f"Alert-Role {self.bot.roles['Alert']} not found.")
+            mentions = ""
         embed = utils.create_warning_embed(title=title, text=utils.escape_string(message))
         admin_channel = self.bot.get_admin_channel(server)
         audit_channel = self.bot.get_channel(self.bot.locals.get('channels', {}).get('audit', -1))

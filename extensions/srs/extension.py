@@ -384,7 +384,7 @@ class SRS(Extension, FileSystemEventHandler):
                 self._inst_path = os.path.join(os.path.expandvars(self.config.get('installation')))
                 if not os.path.exists(self._inst_path):
                     raise InstallException(
-                        f"The {self.name} installation dir can not be found at {self.config.get('installation')}!")
+                        f"The {self.name} installation dir could not be found at {self.config.get('installation')}!")
             elif sys.platform == 'win32':
                     import winreg
 
@@ -426,7 +426,7 @@ class SRS(Extension, FileSystemEventHandler):
         host = self.config.get('host', self.node.public_ip)
         value = f"{host}:{self.locals['Server Settings']['SERVER_PORT']}"
         show_passwords = self.config.get('show_passwords', True)
-        if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'] and \
+        if show_passwords and self.locals['General Settings'].get('EXTERNAL_AWACS_MODE', False) and \
                 'External AWACS Mode Settings' in self.locals:
             blue = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD']
             red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD']

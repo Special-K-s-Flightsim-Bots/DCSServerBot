@@ -308,8 +308,9 @@ class Scheduler(Plugin[SchedulerListener]):
                     else:
                         self.log.debug(f"Scheduler: Restarting mission on server {server.name} ...")
                         await server.restart(modify_mission=modify_mission, use_orig=use_orig)
-                    await self.bot.audit(f"{self.plugin_name.title()} restarted mission "
-                                         f"{server.current_mission.display_name}", server=server)
+                    mission_name = server.current_mission.display_name if server.current_mission else ""
+                    await self.bot.audit(f"{self.plugin_name.title()} restarted mission {mission_name}",
+                                         server=server)
                 except (TimeoutError, asyncio.TimeoutError):
                     await self.bot.audit(f"{self.plugin_name.title()}: Timeout while starting server",
                                          server=server)
@@ -599,7 +600,7 @@ class Scheduler(Plugin[SchedulerListener]):
             await interaction.response.send_message(
                 "DCS server \"{name}\" is stopped.\nPlease use {command} instead.".format(
                     name=server.display_name,
-                    command=(await utils.get_command(self.bot, group=group.name, name=self.start.name)).mention),
+                    command=(await utils.get_command(self.bot, group=self.group.name, name=self.start.name)).mention),
                 ephemeral=True)
             return
         elif server.status in [Status.LOADING, Status.SHUTTING_DOWN]:
@@ -607,7 +608,7 @@ class Scheduler(Plugin[SchedulerListener]):
             await interaction.response.send_message(
                 "DCS server \"{name}\" is {status}.\nPlease wait or use {command} force instead.".format(
                     name=server.display_name, status=server.status.value.lower(),
-                    command=(await utils.get_command(self.bot, group=group.name, name=self.shutdown.name)).mention
+                    command=(await utils.get_command(self.bot, group=self.group.name, name=self.shutdown.name)).mention
                 ),
                 ephemeral=True)
             return
