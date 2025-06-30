@@ -72,4 +72,5 @@ async def parse_input(self, kwargs: dict, params: list[Any]):
                     new_args[param['event']] = None
             else:
                 new_args[param['event']] = None
-        return new_args
+
+    return new_args
