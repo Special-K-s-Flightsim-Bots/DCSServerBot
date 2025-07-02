@@ -194,6 +194,9 @@ class RealWeather(Extension):
             rw_home = os.path.expandvars(self.config['installation'])
 
             def run_subprocess():
+                # delete the mission_unpacked directory which might still be there from formeer RW runs
+                utils.safe_rmtree(os.path.join(cwd, 'mission_unpacked'))
+                # run RW
                 process = subprocess.Popen([os.path.join(rw_home, 'realweather.exe')],
                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd)
                 stdout, stderr = process.communicate()
