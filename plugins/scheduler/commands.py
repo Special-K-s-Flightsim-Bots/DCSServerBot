@@ -540,13 +540,16 @@ class Scheduler(Plugin[SchedulerListener]):
                 await server.setStartIndex(mission_id + 1)
             else:
                 mission = await server.get_current_mission_file()
-            embed.description += f"\n- Using mission \"{os.path.basename(mission)[:-4]}\" ..."
-            if run_extensions:
-                embed.description += "\n- Applying extensions"
-                if use_orig:
-                    embed.description += " to the original mission file ..."
-                else:
-                    embed.description += " to the current mission file ..."
+            if mission:
+                embed.description += f"\n- Using mission \"{os.path.basename(mission)[:-4]}\" ..."
+                if run_extensions:
+                    embed.description += "\n- Applying extensions"
+                    if use_orig:
+                        embed.description += " to the original mission file ..."
+                    else:
+                        embed.description += " to the current mission file ..."
+            else:
+                embed.description += f"\n- Starting without a mission ..."
             await msg.edit(embed=embed)
             task = asyncio.create_task(self.launch_dcs(server, interaction.user, modify_mission=run_extensions,
                                                        use_orig=use_orig))

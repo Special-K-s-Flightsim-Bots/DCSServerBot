@@ -214,10 +214,16 @@ class Punishment(Plugin[PunishmentEventListener]):
                     VALUES (%s, %s, %s, %s) 
                 """, (ucid, server.name, reason, points))
 
+        if points >= 0:
+            message = _('User punished with {} points.').format(points)
+        else:
+            message = _('The users punishment points have been reduced by {} points.').format(abs(points))
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(_('User punished with {} points.').format(points), ephemeral=ephemeral)
-        await self.bot.audit(_("punished user {ucid} with {points} points.").format(ucid=ucid, points=points),
-                             user=interaction.user)
+        await interaction.response.send_message(message, ephemeral=ephemeral)
+        await self.bot.audit(
+            _("changed punishment points of user {ucid} by {points} points.").format(ucid=ucid, points=points),
+            user=interaction.user
+        )
 
     @command(description=_('Deletes a users punishment points'))
     @app_commands.guild_only()
