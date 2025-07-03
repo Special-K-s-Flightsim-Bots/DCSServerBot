@@ -463,7 +463,7 @@ class ServerImpl(Server):
         # check if all missions are existing
         missions = []
         try:
-            start_mission = self.settings['missionList'][int(self.settings['listStartIndex']) - 1]
+            start_mission = self.settings['missionList'][int(self.settings.get('listStartIndex', 1)) - 1]
         except IndexError:
             start_mission = None
         for mission in self.settings['missionList']:
