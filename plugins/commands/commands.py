@@ -29,7 +29,7 @@ class Commands(Plugin):
         if 'args' in config:
             cmd.extend([utils.format_string(x, **kwargs) for x in shlex.split(config['args'])])
         if 'cwd' in config:
-            cwd = os.path.expandvars(config['cwd'])
+            cwd = os.path.expandvars(utils.format_string(config['cwd'], **kwargs))
         else:
             cwd = None
         if config.get('shell', False):
