@@ -1,5 +1,6 @@
 import asyncio
 import discord
+import math
 import os
 import psycopg
 import random
@@ -202,7 +203,11 @@ class Scheduler(Plugin[SchedulerListener]):
                                                                when=utils.format_time(warn_time)))
             self.log.debug(f"Scheduler: Warning for {server.name} @ {warn_time} fired.")
 
-        tasks = [asyncio.create_task(do_warn(i)) for i in warn_times if i <= restart_in]
+        tasks = [
+            asyncio.create_task(do_warn(i))
+            for i in warn_times
+            if math.ceil(i/(60 if i >= 60 else 1)) <= math.ceil(restart_in/(60 if i >= 60 else 1))
+        ]
         await utils.run_parallel_nofail(*tasks)
         # sleep until the restart should happen
         await asyncio.sleep(min(restart_in, min(warn_times)))
@@ -308,8 +313,9 @@ class Scheduler(Plugin[SchedulerListener]):
                     else:
                         self.log.debug(f"Scheduler: Restarting mission on server {server.name} ...")
                         await server.restart(modify_mission=modify_mission, use_orig=use_orig)
-                    await self.bot.audit(f"{self.plugin_name.title()} restarted mission "
-                                         f"{server.current_mission.display_name}", server=server)
+                    mission_name = server.current_mission.display_name if server.current_mission else ""
+                    await self.bot.audit(f"{self.plugin_name.title()} restarted mission {mission_name}",
+                                         server=server)
                 except (TimeoutError, asyncio.TimeoutError):
                     await self.bot.audit(f"{self.plugin_name.title()}: Timeout while starting server",
                                          server=server)
@@ -534,13 +540,16 @@ class Scheduler(Plugin[SchedulerListener]):
                 await server.setStartIndex(mission_id + 1)
             else:
                 mission = await server.get_current_mission_file()
-            embed.description += f"\n- Using mission \"{os.path.basename(mission)[:-4]}\" ..."
-            if run_extensions:
-                embed.description += "\n- Applying extensions"
-                if use_orig:
-                    embed.description += " to the original mission file ..."
-                else:
-                    embed.description += " to the current mission file ..."
+            if mission:
+                embed.description += f"\n- Using mission \"{os.path.basename(mission)[:-4]}\" ..."
+                if run_extensions:
+                    embed.description += "\n- Applying extensions"
+                    if use_orig:
+                        embed.description += " to the original mission file ..."
+                    else:
+                        embed.description += " to the current mission file ..."
+            else:
+                embed.description += f"\n- Starting without a mission ..."
             await msg.edit(embed=embed)
             task = asyncio.create_task(self.launch_dcs(server, interaction.user, modify_mission=run_extensions,
                                                        use_orig=use_orig))
@@ -599,7 +608,7 @@ class Scheduler(Plugin[SchedulerListener]):
             await interaction.response.send_message(
                 "DCS server \"{name}\" is stopped.\nPlease use {command} instead.".format(
                     name=server.display_name,
-                    command=(await utils.get_command(self.bot, group=group.name, name=self.start.name)).mention),
+                    command=(await utils.get_command(self.bot, group=self.group.name, name=self.start.name)).mention),
                 ephemeral=True)
             return
         elif server.status in [Status.LOADING, Status.SHUTTING_DOWN]:
@@ -607,7 +616,7 @@ class Scheduler(Plugin[SchedulerListener]):
             await interaction.response.send_message(
                 "DCS server \"{name}\" is {status}.\nPlease wait or use {command} force instead.".format(
                     name=server.display_name, status=server.status.value.lower(),
-                    command=(await utils.get_command(self.bot, group=group.name, name=self.shutdown.name)).mention
+                    command=(await utils.get_command(self.bot, group=self.group.name, name=self.shutdown.name)).mention
                 ),
                 ephemeral=True)
             return

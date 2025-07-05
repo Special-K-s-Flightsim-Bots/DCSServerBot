@@ -193,7 +193,16 @@ class RealWeather(Extension):
             cwd = await self.server.get_missions_dir()
             rw_home = os.path.expandvars(self.config['installation'])
 
+            def cleanup(cwd: str):
+                # delete the mission_unpacked directory which might still be there from formeer RW runs
+                mission_unpacked_dir = os.path.join(cwd, 'mission_unpacked')
+                if os.path.exists(mission_unpacked_dir):
+                    utils.safe_rmtree(mission_unpacked_dir)
+
             def run_subprocess():
+                # double check that no mission_unpacked dir is there
+                cleanup(cwd)
+                # run RW
                 process = subprocess.Popen([os.path.join(rw_home, 'realweather.exe')],
                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd)
                 stdout, stderr = process.communicate()
@@ -211,7 +220,10 @@ class RealWeather(Extension):
                     self.log.debug(output)
 
             async with self.lock:
-                await asyncio.to_thread(run_subprocess)
+                try:
+                    await asyncio.to_thread(run_subprocess)
+                finally:
+                    cleanup(cwd)
 
             # check if DCS Real Weather corrupted the miz file
             await asyncio.to_thread(MizFile, tmpname)

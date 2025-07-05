@@ -76,7 +76,7 @@ def desanitize(self, _filename: str = None) -> None:
         if _filename:
             self.log.error('SLmod is installed, it will overwrite your custom MissionScripting.lua again!')
         self.log.info('- Desanitizing MissionScripting')
-        # don't fail, if no backup could be created (for whatever reason)
+        # don't fail if no backup could be created (for whatever reason)
         with suppress(Exception):
             shutil.copyfile(filename, backup)
         shutil.copyfile(os.path.join(self.node.config_dir, 'MissionScripting.lua'), filename)
@@ -103,7 +103,8 @@ def desanitize(self, _filename: str = None) -> None:
         if dirty:
             self.log.info(f'- Desanitizing {filename}')
             # backup original file
-            shutil.copyfile(filename, backup)
+            with suppress(Exception):
+                shutil.copyfile(filename, backup)
             with open(filename, mode='w', encoding='utf-8') as outfile:
                 outfile.writelines(output)
     except (OSError, IOError) as e:

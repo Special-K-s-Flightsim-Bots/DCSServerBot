@@ -463,7 +463,7 @@ class ServerImpl(Server):
         # check if all missions are existing
         missions = []
         try:
-            start_mission = self.settings['missionList'][int(self.settings['listStartIndex']) - 1]
+            start_mission = self.settings['missionList'][int(self.settings.get('listStartIndex', 1)) - 1]
         except IndexError:
             start_mission = None
         for mission in self.settings['missionList']:
@@ -767,10 +767,7 @@ class ServerImpl(Server):
                             await self.addMission(new_filename)
                 return new_filename
             except Exception as ex:
-                if isinstance(ex, UnsupportedMizFileException):
-                    self.log.error(ex)
-                else:
-                    self.log.exception(ex)
+                self.log.error(ex)
                 if filename != new_filename and os.path.exists(new_filename):
                     os.remove(new_filename)
                 return filename

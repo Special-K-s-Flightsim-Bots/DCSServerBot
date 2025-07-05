@@ -173,6 +173,7 @@ class ModuleStats2(report.EmbedElement):
             WHERE m.event IN ('S_EVENT_HIT', 'S_EVENT_KILL') 
             AND m.mission_id = s.mission_id AND m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW()) 
             AND m.target_cat IS NOT NULL AND m.init_id = %(ucid)s AND m.init_type = %(module)s
+            AND m.init_side <> m.target_side
         """
         inner_sql2 += ' AND ' + flt.filter(self.env.bot)
         inner_sql2 += " GROUP BY 1, 2"

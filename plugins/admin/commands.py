@@ -1274,6 +1274,8 @@ Please make sure you forward the following ports:
                 await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
             except discord.NotFound:
                 await self.bot.audit(f"Can't assign autorole {autorole}. This role does not exist.")
+            except Exception as ex:
+                self.log.exception(ex)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):

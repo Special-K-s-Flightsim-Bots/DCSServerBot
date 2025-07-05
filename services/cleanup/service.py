@@ -57,16 +57,19 @@ class CleanupService(Service):
             self.log.error(f"Could not purge channel {config['channel']}: {ex}")
 
     async def do_cleanup(self, instance: Optional[Instance] = None) -> None:
-        if instance:
-            for name, config in self.get_config(instance.server).items():
-                self.log.debug(f"- Running cleanup for {name} ...")
-                if 'directory' in config:
-                    await self.do_directory_cleanup(instance, config)
-        else:
-            for name, config in self.get_config().items():
-                if 'channel' in config:
-                    self.log.debug(f"- Running channel cleanup ...")
-                    await self.do_channel_cleanup(config)
+        try:
+            if instance:
+                for name, config in self.get_config(instance.server).items():
+                    self.log.debug(f"- Running cleanup for {name} ...")
+                    if 'directory' in config:
+                        await self.do_directory_cleanup(instance, config)
+            else:
+                for name, config in self.get_config().items():
+                    if 'channel' in config:
+                        self.log.debug(f"- Running channel cleanup ...")
+                        await self.do_channel_cleanup(config)
+        except Exception:
+            self.log.exception("Error in cleanup:", exc_info=True)
 
     @tasks.loop(hours=12)
     async def schedule(self):

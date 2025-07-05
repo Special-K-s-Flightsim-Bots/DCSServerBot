@@ -45,7 +45,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             self.active_servers.add(server.name)
             # initialize players on bot restarts
             if 'sync' in data['channel']:
-                for player in data['players']:
+                for player in data.get('players', []):
                     if player['id'] == 1:
                         continue
                     if int(player['slot']) > 0:
@@ -223,11 +223,19 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
-        if data['eventName'] in ['S_EVENT_BIRTH', 'S_EVENT_LAND']:
+        # airstarts reset the reslot timer directly on birth
+        if data['eventName'] == 'S_EVENT_BIRTH' and not data.get('place'):
             player = server.get_player(name=data.get('initiator', {}).get('name'))
             if player:
                 self.pending_kill[player.ucid] = -1
-        elif data['eventName'] in ['S_EVENT_SHOT', 'S_EVENT_HIT']:
+
+        # else, we reset it on takeoffs and landings (to avoid punishing ground collisions)
+        elif data['eventName'] in ['S_EVENT_LAND', 'S_EVENT_TAKEOFF']:
+            player = server.get_player(name=data.get('initiator', {}).get('name'))
+            if player:
+                self.pending_kill[player.ucid] = -1
+
+        elif data['eventName'] == 'S_EVENT_SHOT':
             initiator = server.get_player(name=data.get('initiator', {}).get('name'))
             victim = server.get_player(name=data.get('target', {}).get('name'))
             # ignore teamkills
@@ -235,10 +243,12 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 return
             if victim and victim.ucid in self.pending_kill:
                 self.pending_kill[victim.ucid] = int(time.time())
-        elif data['eventName'] == 'S_EVENT_CRASH':
+
+        elif data['eventName'] in ['S_EVENT_CRASH', 'S_EVENT_EJECTION', 'S_EVENT_UNIT_LOST']:
             player = server.get_player(name=data.get('initiator', {}).get('name'))
-            if player:
+            if player and player.sub_slot == 0:
                 self.pending_kill.pop(player.ucid, None)
+
         elif data['eventName'] == 'S_EVENT_KILL':
             player = server.get_player(name=data.get('target', {}).get('name'))
             if player:

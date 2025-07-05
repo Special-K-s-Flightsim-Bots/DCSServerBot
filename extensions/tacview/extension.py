@@ -174,7 +174,7 @@ class Tacview(Extension):
                 self._inst_path = os.path.join(os.path.expandvars(self.config.get('installation')))
                 if not os.path.exists(self._inst_path):
                     raise InstallException(
-                        f"The {self.name} installation dir can not be found at {self.config.get('installation')}!")
+                        f"The {self.name} installation dir could not be found at {self.config.get('installation')}!")
             elif sys.platform == 'win32':
                 try:
                     import winreg
