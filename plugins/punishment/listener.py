@@ -45,7 +45,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             self.active_servers.add(server.name)
             # initialize players on bot restarts
             if 'sync' in data['channel']:
-                for player in data['players']:
+                for player in data.get('players', []):
                     if player['id'] == 1:
                         continue
                     if int(player['slot']) > 0:

@@ -170,7 +170,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             update = True
         elif data['eventName'] == 'S_EVENT_KILL':
             killer = data['initiator']
-            victim = data['target']
+            victim = data.get('target')
             if killer and victim:
                 coalition: Coalition = self.COALITION[killer['coalition']]
                 # no stats for Neutral
@@ -219,6 +219,8 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             if name in stats['coalitions'][win_coalition.name]['airbases'] or \
                     name not in stats['coalitions'][lose_coalition.name]['airbases']:
                 return
+            if not stats['coalitions'][win_coalition.name]['airbases']:
+                stats['coalitions'][win_coalition.name]['airbases'] = []
             stats['coalitions'][win_coalition.name]['airbases'].append(name)
             if 'captures' not in stats['coalitions'][win_coalition.name]:
                 stats['coalitions'][win_coalition.name]['captures'] = 1

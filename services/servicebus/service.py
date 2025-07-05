@@ -587,7 +587,7 @@ class ServiceBus(Service):
         except Exception as ex:
             if isinstance(ex, TimeoutError) or isinstance(ex, asyncio.TimeoutError):
                 self.log.warning(f"Timeout error during an RPC call: {data['method']}!", exc_info=True)
-            else:
+            elif not isinstance(ex, (ValueError, AttributeError, IndexError)):
                 self.log.exception(ex)
             if data.get('channel', '').startswith('sync-'):
                 await self.send_to_node({
