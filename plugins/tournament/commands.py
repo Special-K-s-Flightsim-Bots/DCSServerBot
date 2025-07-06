@@ -2483,7 +2483,7 @@ class Tournament(Plugin[TournamentEventListener]):
         if not filename.startswith('tournament') or not filetype.startswith('xls'):
             return
 
-        if not utils.check_roles(['DCS Admin', 'GameMaster'], message.author):
+        if not utils.check_roles(set(self.bot.roles['DCS Admin'] + self.bot.roles['GameMaster']), message.author):
             await message.channel.send(_("You need to be DCS Admin or GameMaster to upload data."))
             return
 
