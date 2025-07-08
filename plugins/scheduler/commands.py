@@ -186,8 +186,10 @@ class Scheduler(Plugin[SchedulerListener]):
             nonlocal warn_text
 
             sleep_time = restart_in - warn_time
-            if sleep_time > 0:
+            if sleep_time > 0 and server.restart_pending:
                 await asyncio.sleep(sleep_time)
+            if not server.restart_pending:
+                return
             if server.status == Status.RUNNING:
                 if isinstance(times, dict):
                     warn_text = times[warn_time]
