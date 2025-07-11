@@ -25,6 +25,7 @@ schema;element_schema:
     initial_points: {type: any, nullable: false, func: int_or_list, enum: ['initiator']}
     max_points: {type: int, range: {min: 1}, nullable: false}
     multiplier: {type: float, nullable: false}
+    points_on_rtb: {type: bool, nullable: false}
     squadron_credits: {type: bool, nullable: false}
     squadron:
       type: map
