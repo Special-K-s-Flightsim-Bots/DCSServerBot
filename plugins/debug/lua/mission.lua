@@ -55,7 +55,7 @@ function onDebugEvent(event)
     if not event then
         return
     end
-    log.write('EVENT DEBUGGER', log.DEBUG, event_by_id[event.id] .. '(' .. JSON:encode(sanitizer(event)) .. ')')
+    log.write('EVENT DEBUGGER', log.DEBUG, tostring(event_by_id[event.id]) .. '(' .. JSON:encode(sanitizer(event)) .. ')')
 end
 
 
