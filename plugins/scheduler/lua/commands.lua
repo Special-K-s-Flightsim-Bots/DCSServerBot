@@ -17,7 +17,7 @@ end
 
 function dcsbot.shutdown(json)
     log.write('DCSServerBot', log.DEBUG, 'Scheduler: shutdown()')
-	Sim.exitProcess()
+	DCS.exitProcess()
 end
 
 function handlePassword(json, settings, passwordKey, passwordHashKey)
@@ -43,5 +43,5 @@ end
 
 function dcsbot.reloadScripts(json)
     log.write('DCSServerBot', log.DEBUG, 'Scheduler: reloadScripts()')
-    Sim.reloadUserScripts()
+    DCS.reloadUserScripts()
 end

@@ -70,11 +70,11 @@ local function loadPlugin(plugin)
     loadFile(hook_path, "hook", plugin, env)
 end
 
-if Sim.isServer() then
+if DCS.isServer() then
 	if config.SERVER_USER ~= nil then
 		net.set_name(config.SERVER_USER)
 	end
-	Sim.setUserCallbacks(dcsbotgui)  -- here we set our callbacks
+	DCS.setUserCallbacks(dcsbotgui)  -- here we set our callbacks
 	for file in lfs.dir(lfs.writedir() .. 'Scripts/net/DCSServerBot') do
 		if (file ~= '.' and file ~= '..' and file:sub(-4) ~= '.lua') then
 			log.write('DCSServerBot', log.DEBUG, 'Loading plugin ' .. file)

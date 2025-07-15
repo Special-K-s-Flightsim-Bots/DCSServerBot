@@ -37,4 +37,4 @@ function gamemaster.onPlayerTryChangeSlot(playerID, side, slotID)
     end
 end
 
-Sim.setUserCallbacks(gamemaster)
+DCS.setUserCallbacks(gamemaster)

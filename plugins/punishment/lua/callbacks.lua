@@ -8,4 +8,4 @@ function punishment.onMissionLoadEnd()
     utils.loadScript('punishment/mission.lua')
 end
 
-Sim.setUserCallbacks(punishment)
+DCS.setUserCallbacks(punishment)

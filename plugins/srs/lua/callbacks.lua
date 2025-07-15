@@ -22,4 +22,4 @@ function dcs_srs.onPlayerTryChangeSlot(playerID, side, slotID)
     end
 end
 
-Sim.setUserCallbacks(dcs_srs)
+DCS.setUserCallbacks(dcs_srs)

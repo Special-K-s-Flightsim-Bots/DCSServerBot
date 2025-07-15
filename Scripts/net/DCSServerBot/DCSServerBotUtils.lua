@@ -68,12 +68,12 @@ function getCategory(id)
 
 	-- Sometimes we get empty object id (seems like DCS API bug)
 	if id ~= nil and id ~= "" then
-		_killed_target_category = Sim.getUnitTypeAttribute(id, "category")
+		_killed_target_category = DCS.getUnitTypeAttribute(id, "category")
 
 		-- Below, simple hack to get the proper category when DCS API is not returning correct value
 		if _killed_target_category == nil then
-			local _killed_target_cat_check_ship = Sim.getUnitTypeAttribute(id, "DeckLevel")
-			local _killed_target_cat_check_plane = Sim.getUnitTypeAttribute(id, "WingSpan")
+			local _killed_target_cat_check_ship = DCS.getUnitTypeAttribute(id, "DeckLevel")
+			local _killed_target_cat_check_plane = DCS.getUnitTypeAttribute(id, "WingSpan")
 			if _killed_target_cat_check_ship ~= nil and _killed_target_cat_check_plane == nil then
 				_killed_target_category = "Ships"
 			elseif _killed_target_cat_check_ship == nil and _killed_target_cat_check_plane ~= nil then
@@ -113,7 +113,7 @@ function getMulticrewAllParameters(PlayerId)
 			else
 				_master_slot = tonumber(_player_slot)
 			end
-			_master_type = Sim.getUnitType(_master_slot)
+			_master_type = DCS.getUnitType(_master_slot)
 
 		else
 			-- Deal with the special slots added by Combined Arms and Spectators
