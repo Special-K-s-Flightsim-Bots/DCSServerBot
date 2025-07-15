@@ -8,4 +8,4 @@ function creditsystem.onMissionLoadEnd()
     utils.loadScript('creditsystem/mission.lua')
 end
 
-DCS.setUserCallbacks(creditsystem)
+Sim.setUserCallbacks(creditsystem)

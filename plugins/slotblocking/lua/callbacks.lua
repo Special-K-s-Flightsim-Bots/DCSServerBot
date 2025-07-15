@@ -65,9 +65,9 @@ end
 
 function restrict_slots(playerID, side, slotID)
     local player = net.get_player_info(playerID, 'ucid')
-    local unit_name = DCS.getUnitProperty(slotID, DCS.UNIT_NAME)
-    local group_name = DCS.getUnitProperty(slotID, DCS.UNIT_GROUPNAME)
-    local unit_type = DCS.getUnitType(slotID)
+    local unit_name = Sim.getUnitProperty(slotID, Sim.UNIT_NAME)
+    local group_name = Sim.getUnitProperty(slotID, Sim.UNIT_GROUPNAME)
+    local unit_type = Sim.getUnitType(slotID)
     local points
     -- check levels if any
     for id, unit in pairs(dcsbot.params['slotblocking']['restricted']) do
@@ -191,4 +191,4 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
     end
 end
 
-DCS.setUserCallbacks(slotblock)
+Sim.setUserCallbacks(slotblock)
