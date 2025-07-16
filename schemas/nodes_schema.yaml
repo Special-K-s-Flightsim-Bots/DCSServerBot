@@ -46,6 +46,16 @@ mapping:
           minimized: {type: bool, nullable: false}
           user: {type: str, nullable: false, range: {min: 1}}
           password: {type: str, nullable: false, range: {min: 1}}
+          allow_unsafe_api:
+            type: seq
+            nullable: false
+            sequence:
+              - {type: str, nullable: false, unique: true, enum: ['scripting', 'gui', 'userhook']}
+          allow_dostring_in:
+            type: seq
+            nullable: false
+            sequence:
+              - {type: str, nullable: false, unique: true, enum: ['scripting', 'config', 'mission', 'gui', 'export']}
       extensions:
         include: 'node_extensions_schema'
       instances:

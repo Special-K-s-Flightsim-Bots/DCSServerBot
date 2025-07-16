@@ -94,6 +94,8 @@ class Autoexec:
             return value.__repr__().lower()
         elif isinstance(value, str):
             return '"' + value + '"'
+        elif isinstance(value, list):
+            return repr(set(value))
         else:
             return value
 
