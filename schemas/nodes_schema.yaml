@@ -50,7 +50,7 @@ mapping:
             type: seq
             nullable: false
             sequence:
-              - {type: str, nullable: false, unique: true, enum: ['scripting', 'gui', 'userhook']}
+              - {type: str, nullable: false, unique: true, enum: ['scripting', 'gui', 'userhooks']}
           allow_dostring_in:
             type: seq
             nullable: false
