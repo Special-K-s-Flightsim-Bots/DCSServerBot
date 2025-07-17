@@ -14,10 +14,11 @@ away due to punishment points a player gets due to team-kills or the like.
 ## Configuration
 The CreditSystem is configured with a file named config\plugins\creditsystem.yaml. You'll find a sample file in that directory:
 ```yaml
-DEFAULT:              # valid for all servers
-  initial_points: 10  # The initial points a player gets (default = 0).
-  max_points: 100     # The maximum points a player can get (default = unlimited).
-  multiplier: 1       # multiplier for credit points on proper landings (if payback is enabled in slotblocking.yaml)
+DEFAULT:                # valid for all servers
+  initial_points: 10    # The initial points a player gets (default = 0).
+  max_points: 100       # The maximum points a player can get (default = unlimited).
+  multiplier: 1.0       # multiplier for credit points on proper landings if payback is enabled in slotblocking.yaml (default: 1.0)
+  points_on_rtb: false  # only give credit points on RTB (default: false)
   squadron_credits: true # enable squadron credits (see below).
   squadron:
     initial_points: 100 # default: 0

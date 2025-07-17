@@ -278,7 +278,7 @@ function myplugin.onPlayerConnect(id)
     dcsbot.sendBotTable(msg)
 end
 
-DCS.setUserCallbacks(myplugin)
+Sim.setUserCallbacks(myplugin)
 ```
 
 ### lua/commands.lua
@@ -292,7 +292,7 @@ local dcsbot = base.dcsbot
 
 function dcsbot.pauseMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: pauseMission()') 
-    DCS.setPause(true)
+    Sim.setPause(true)
 end
 ```
 
