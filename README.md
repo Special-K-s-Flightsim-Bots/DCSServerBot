@@ -368,7 +368,7 @@ NODENAME:                       # this will usually be your hostname
     allow_unsafe_api:           # as of DCS 2.9.18: allow dostring_in only in these environments
       - scripting
       - gui
-      - userhook
+      - userhooks
     allow_dostring_in:          # as of DCS 2.9.18: allow dostring_in only targeting these contexts
       - scripting
       - config
