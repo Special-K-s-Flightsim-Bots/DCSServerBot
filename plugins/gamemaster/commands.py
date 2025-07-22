@@ -533,7 +533,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
                 AND c.coalition_leave IS NULL
             """, (member.id, )):
                 server = self.bot.get_server(row[0])
-                if not server:
+                if not server or 'coalitions' not in server.locals:
                     return
                 roles = {
                     'red': self.bot.get_role(server.locals['coalitions']['red_role']),
