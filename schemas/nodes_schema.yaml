@@ -55,7 +55,7 @@ mapping:
             type: seq
             nullable: false
             sequence:
-              - {type: str, nullable: false, unique: true, enum: ['scripting', 'config', 'mission', 'gui', 'export']}
+              - {type: str, nullable: false, unique: true, enum: ['server', 'scripting', 'config', 'mission', 'gui', 'export']}
       extensions:
         include: 'node_extensions_schema'
       instances:
