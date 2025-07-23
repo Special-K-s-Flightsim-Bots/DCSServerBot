@@ -461,7 +461,7 @@ class SRS(Extension, FileSystemEventHandler):
             return False
 
     async def check_for_updates(self) -> Optional[str]:
-        with suppress(aiohttp.ClientConnectionError):
+        with suppress(aiohttp.ClientError):
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
                 url = SRS_BETA_URL if self.config.get('beta', False) else SRS_GITHUB_URL
