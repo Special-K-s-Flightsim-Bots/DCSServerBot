@@ -11,7 +11,7 @@ audioop-lts==0.2.1; python_version>='3.13'
 aiohttp==3.12.13
 
 # Certifi: Python package for providing Mozilla's CA Bundle
-certifi==2025.6.15
+certifi==2025.7.14
 
 # Croniter: Python iterator implementing a cron schedule format
 croniter==6.0.0
@@ -23,7 +23,7 @@ discord.py==2.4.0
 eyeD3==0.9.8
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.115.13
+fastapi==0.116.1
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -32,7 +32,7 @@ fuzzywuzzy==0.18.0
 GitPython==3.1.44
 
 # jsonschema: An implementation of JSON Schema for Python
-jsonschema==4.24.0
+jsonschema==4.25.0
 
 # Fast LUA parser
 lupa==2.5
@@ -53,7 +53,7 @@ numpy>=2.2.6
 openpyxl==3.1.5
 
 # Pandas: Python data analysis library
-pandas==2.3.0
+pandas==2.3.1
 
 # Packaging: A core package providing support for PEP 440 version identifiers
 packaging==25.0
@@ -71,7 +71,7 @@ psycopg-pool==3.2.6
 psutil==7.0.0
 
 # PyArrow: Python library providing high-performance tools for doing analytics on Arrow-based columnar data
-pyarrow==20.0.0
+pyarrow==21.0.0
 
 # pyKwalify: A Python library for YAML/JSON schema validation
 pykwalify==1.8.0
@@ -83,7 +83,7 @@ python-Levenshtein==0.27.1
 python-multipart==0.0.20
 
 # Pywin32: Set of Python extensions for MS Windows
-pywin32==310; sys_platform == 'win32'
+pywin32==311; sys_platform == 'win32'
 
 # Requests: Python HTTP library
 requests==2.32.4
@@ -101,7 +101,7 @@ seaborn==0.13.2
 sqlparse==0.5.3
 
 # TimetoneFinder: Find the right timezones for a given coordinate
-timezonefinder==6.5.9
+timezonefinder>=6.5.9
 
 # tomli: Python TOML parser
 tomli==2.2.1
@@ -111,9 +111,10 @@ tomli_w==1.2.0
 trueskill==0.4.5
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.34.3
+uvicorn==0.35.0
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==6.0.0
 
+# wxPython: GUI library to build Windows-like UI components
 wxpython==4.2.3
