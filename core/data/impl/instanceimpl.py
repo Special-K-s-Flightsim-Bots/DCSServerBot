@@ -48,7 +48,7 @@ class InstanceImpl(Instance):
             dirty |= True
         # set new security settings (as of DCS 2.9.18)
         allow_unsafe_api = dcs_config.get('allow_unsafe_api', ["userhooks"])
-        allow_dostring_in = dcs_config.get('allow_dostring_in', ["mission"])
+        allow_dostring_in = dcs_config.get('allow_dostring_in', ["server", "mission"])
         if set(allow_unsafe_api) != set(net.get('allow_unsafe_api', set())):
             net['allow_unsafe_api'] = allow_unsafe_api
             dirty |= True
