@@ -101,7 +101,7 @@ seaborn==0.13.2
 sqlparse==0.5.3
 
 # TimetoneFinder: Find the right timezones for a given coordinate
-timezonefinder>=6.5.9
+timezonefinder==6.5.9
 
 # tomli: Python TOML parser
 tomli==2.2.1
