@@ -226,13 +226,9 @@ async def run_node(name, config_dir=None, no_autoupdate=False) -> int:
     loop = asyncio.get_running_loop()
     loop.set_exception_handler(handle_exception)
 
-    try:
-        async with NodeImpl(name=name, config_dir=config_dir) as node:
-            await Main(node, no_autoupdate=no_autoupdate).run()
-            return node.rc
-    except Exception as ex:
-        log.exception(ex)
-        raise
+    async with NodeImpl(name=name, config_dir=config_dir) as node:
+        await Main(node, no_autoupdate=no_autoupdate).run()
+        return node.rc
 
 
 if __name__ == "__main__":
