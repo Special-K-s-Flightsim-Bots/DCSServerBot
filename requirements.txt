@@ -8,7 +8,7 @@ astral==3.2
 audioop-lts==0.2.1; python_version>='3.13'
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
-aiohttp==3.12.13
+aiohttp==3.12.14
 
 # Certifi: Python package for providing Mozilla's CA Bundle
 certifi==2025.7.14
@@ -29,7 +29,7 @@ fastapi==0.116.1
 fuzzywuzzy==0.18.0
 
 # GitPython: Python library for interacting with git repositories
-GitPython==3.1.44
+GitPython==3.1.45
 
 # jsonschema: An implementation of JSON Schema for Python
 jsonschema==4.25.0
@@ -101,7 +101,7 @@ seaborn==0.13.2
 sqlparse==0.5.3
 
 # TimetoneFinder: Find the right timezones for a given coordinate
-timezonefinder>=6.5.9
+timezonefinder==6.5.9
 
 # tomli: Python TOML parser
 tomli==2.2.1
