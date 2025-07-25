@@ -77,6 +77,7 @@ class SRS(Extension, FileSystemEventHandler):
         self._inst_path: Optional[str] = None
         self.exe_name = None
         self.clients: dict[str, set[int]] = {}
+        self.client_names: dict[str, str] = {}
         super().__init__(server, config)
 
     def get_config_path(self) -> str:
@@ -306,6 +307,7 @@ class SRS(Extension, FileSystemEventHandler):
                 target = set(int(x['freq']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6)
                 if client['ClientGuid'] not in self.clients:
                     self.clients[client['ClientGuid']] = target
+                    self.client_names[client['ClientGuid']] = client['Name']
                     await self.bus.send_to_node({
                         "command": "onSRSConnect",
                         "server_name": self.server.name,
@@ -335,9 +337,10 @@ class SRS(Extension, FileSystemEventHandler):
                 await self.bus.send_to_node({
                     "command": "onSRSDisconnect",
                     "server_name": self.server.name,
-                    "player_name": client
+                    "player_name": self.client_names[client]
                 })
                 del self.clients[client]
+                del self.client_names[client]
         except Exception:
             pass
 
@@ -358,6 +361,7 @@ class SRS(Extension, FileSystemEventHandler):
             self.observer.join(timeout=10)
             self.observer = None
             self.clients.clear()
+            self.client_names.clear()
 
     def is_running(self) -> bool:
         if not self.process:
