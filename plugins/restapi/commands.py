@@ -6,12 +6,12 @@ import random
 import shutil
 import uvicorn
 
-from core import Plugin, DEFAULT_TAG
+from core import Plugin, DEFAULT_TAG, Side
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, APIRouter, Form
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Optional
+from typing import Optional, Any
 from uvicorn import Config
 
 app: Optional[FastAPI] = None
@@ -32,12 +32,14 @@ class RestAPI(Plugin):
         cfg = self.locals[DEFAULT_TAG]
         prefix = cfg.get('prefix', '')
         self.router = APIRouter()
+        self.router.add_api_route(prefix + "/servers", self.servers, methods=["GET"])
         self.router.add_api_route(prefix + "/topkills", self.topkills, methods=["GET"])
         self.router.add_api_route(prefix + "/topkdr", self.topkdr, methods=["GET"])
         self.router.add_api_route(prefix + "/trueskill", self.trueskill, methods=["GET"])
         self.router.add_api_route(prefix + "/getuser", self.getuser, methods=["POST"])
         self.router.add_api_route(prefix + "/missilepk", self.missilepk, methods=["POST"])
         self.router.add_api_route(prefix + "/stats", self.stats, methods=["POST"])
+        self.router.add_api_route(prefix + "/credits", self.credits, methods=["POST"])
         self.router.add_api_route(prefix + "/linkme", self.linkme, methods=["POST"])
         self.app = app
         self.config = Config(app=self.app, host=cfg['listen'], port=cfg['port'], log_level=logging.ERROR,
@@ -62,6 +64,41 @@ class RestAPI(Plugin):
                             os.path.join(self.node.config_dir, 'plugins', 'restapi.yaml'))
             config = super().read_locals()
         return config
+
+    async def servers(self):
+        servers = []
+        for server in self.bot.servers.values():
+            data: dict[str, Any] = {
+                'name': server.name,
+                'status': server.status.value,
+                'address': f"{server.node.public_ip}:{server.settings.get('port', 10308)}",
+                'password': server.settings.get('password', '')
+            }
+            if server.current_mission:
+                mission = data['mission'] = {}
+                mission['name'] = server.current_mission.name
+                uptime = mission['uptime'] = int(server.current_mission.mission_time)
+                if isinstance(server.current_mission.date, datetime):
+                    date = server.current_mission.date.timestamp()
+                    real_time = date + server.current_mission.start_time + uptime
+                    mission['date_time'] = str(datetime.fromtimestamp(real_time))
+                else:
+                    mission['date_time'] = '{} {}'.format(server.current_mission.date,
+                                                          timedelta(seconds=server.current_mission.start_time + uptime))
+
+                mission['theatre'] = server.current_mission.map
+                blue = len(server.get_active_players(side=Side.BLUE))
+                red = len(server.get_active_players(side=Side.RED))
+                if server.current_mission.num_slots_blue:
+                    mission['blue_slots'] = server.current_mission.num_slots_blue
+                    mission['blue_slots_used'] = blue
+                if server.current_mission.num_slots_red:
+                    mission['red_slots'] = server.current_mission.num_slots_red
+                    mission['red_slots_used'] = red
+                if server.restart_time and not server.maintenance:
+                    mission['restart_time'] = int(server.restart_time.timestamp())
+            servers.append(data)
+        return servers
 
     async def topkills(self):
         async with self.apool.connection() as conn:
@@ -154,13 +191,16 @@ class RestAPI(Plugin):
                     self.log.debug("No UCID found.")
                     return {}
                 await cursor.execute("""
-                    SELECT overall.kills, overall.deaths, overall.aakills, 
+                    SELECT overall.kills, overall.deaths, overall.aakills, overall.takeoffs, overall.landings, 
+                           overall.ejections, overall.crashes, overall.teamkills, 
                            ROUND(CASE WHEN overall.deaths = 0 
                                       THEN overall.aakills 
                                       ELSE overall.aakills/overall.deaths::DECIMAL END, 2) AS "aakdr", 
                            lastsession.kills AS "lastSessionKills", lastsession.deaths AS "lastSessionDeaths"
                     FROM (
-                        SELECT SUM(kills) as "kills", SUM(deaths) AS "deaths", SUM(pvp) AS "aakills"
+                        SELECT SUM(kills) as "kills", SUM(deaths) AS "deaths", SUM(pvp) AS "aakills", 
+                               SUM(takeoffs) AS "takeoffs", SUM(landings) AS "landings", SUM(ejections) AS "ejections",
+                               SUM(crashes) AS "crashes", SUM(teamkills) AS "teamkills"
                         FROM statistics
                         WHERE player_ucid = %s
                     ) overall, (
@@ -190,6 +230,31 @@ class RestAPI(Plugin):
                 """, (ucid,))
                 data['kdrByModule'] = await cursor.fetchall()
                 return data
+
+    async def credits(self, nick: str = Form(default=None), date: str = Form(default=None)):
+        self.log.debug(f'Calling /credits with nick="{nick}", date="{date}"')
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT ucid
+                    FROM players
+                    WHERE name = %s
+                      AND DATE_TRUNC('second', last_seen) = DATE_TRUNC('second', %s)
+                """, (nick, datetime.fromisoformat(date)))
+                row = await cursor.fetchone()
+                if row:
+                    ucid = row['ucid']
+                    self.log.debug(f'Found UCID: {ucid}')
+                else:
+                    self.log.debug("No UCID found.")
+                    return {}
+                await cursor.execute("""
+                    SELECT c.id, c.name, COALESCE(SUM(s.points), 0) AS credits 
+                    FROM campaigns c LEFT OUTER JOIN credits s ON (c.id = s.campaign_id AND s.player_ucid = %s) 
+                    WHERE (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc') 
+                    GROUP BY 1, 2
+                """, (ucid, ))
+                return await cursor.fetchone()
 
     async def linkme(self,
                      discord_id: str = Form(..., description="Discord user ID (snowflake)", example="123456789012345678"),
