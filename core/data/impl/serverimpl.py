@@ -23,7 +23,7 @@ from core import utils, Server
 from core.data.dataobject import DataObjectFactory
 from core.data.const import Status, Channel, Coalition
 from core.extension import Extension, InstallException, UninstallException
-from core.mizfile import MizFile, UnsupportedMizFileException
+from core.mizfile import MizFile
 from core.data.node import UploadStatus
 from core.utils.performance import performance_log
 from dataclasses import dataclass, field
@@ -159,8 +159,7 @@ class ServerImpl(Server):
     def set_instance(self, instance: Instance):
         self._instance = instance
         self.locals |= self.instance.locals
-        if self.name != 'n/a':
-            self.prepare()
+        self.prepare()
 
     def start_observer(self):
         if not self.observer:
@@ -945,7 +944,7 @@ class ServerImpl(Server):
 
     async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True,
                           use_orig: Optional[bool] = True) -> bool:
-        start_index = int(self.settings['listStartIndex'])
+        start_index = int(self.settings.get('listStartIndex', 1))
         mission_list = self.settings['missionList']
         # check if we re-load the running mission
         if ((isinstance(mission, int) and mission == start_index) or
