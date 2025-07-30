@@ -442,7 +442,7 @@ If you need any further assistance, please visit the support discord, listed in 
                     if not bot.get('no_discord', False):
                         channels = {
                             "Status Channel": _("To display the mission and player status."),
-                            "Chat Channel": _("[bright_black]Optional:[/]: An in-game chat replication.")
+                            "Chat Channel": _("Optional: An in-game chat replication.")
                         }
                         if not bot.get('channels', {}).get('admin'):
                             channels['Admin Channel'] = _("For admin commands.")

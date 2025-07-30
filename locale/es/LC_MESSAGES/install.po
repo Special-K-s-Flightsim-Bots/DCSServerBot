@@ -245,8 +245,8 @@ msgid "To display the mission and player status."
 msgstr "Para mostrar la información del servidor, misión y estado de jugadores"
 
 # Chat Channel
-msgid "[bright_black]Optional:[/]: An in-game chat replication."
-msgstr "[bright_black]Opcional:[/]: Replicado del chat interno de DCS."
+msgid "Optional: An in-game chat replication."
+msgstr "Opcional: Replicado del chat interno de DCS."
 
 # Admin Channel
 msgid "For admin commands."

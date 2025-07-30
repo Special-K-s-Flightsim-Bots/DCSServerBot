@@ -45,7 +45,7 @@ class ServerInfo(report.EmbedElement):
         name = value = ""
         if server.node.public_ip:
             name = "Server-IP / Port"
-            value = f"{host or server.node.public_ip}:{server.settings['port']}"
+            value = f"{host or server.node.public_ip}:{server.settings.get('port', 10308)}"
         if server.settings.get('password', ''):
             if value:
                 value += '\n\n**Password**\n'
@@ -257,7 +257,7 @@ class All(report.EmbedElement):
             if server.status == Status.SHUTDOWN:
                 continue
             name = f"{server.name} [{len(server.players) + 1}/{server.settings.get('maxPlayers', 16)}]"
-            value = f"IP/Port:  {server.node.public_ip}:{server.settings['port']}\n"
+            value = f"IP/Port:  {server.node.public_ip}:{server.settings.get('port', 10308)}\n"
             if server.current_mission:
                 value += f"Mission:  {server.current_mission.name}\n"
                 value += f"Uptime:   {utils.convert_time(int(server.current_mission.mission_time))}\n"

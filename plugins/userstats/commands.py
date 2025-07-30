@@ -218,14 +218,14 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                             StatisticsFilter, PeriodTransformer(
                                 flt=[PeriodFilter, CampaignFilter, MissionFilter, TheatreFilter, SquadronFilter]
                             )]] = PeriodFilter(), limit: Optional[app_commands.Range[int, 3, 20]] = None):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
         file = 'highscore-campaign.json' if isinstance(period, CampaignFilter) else 'highscore.json'
         if not _server:
             report = PaginationReport(interaction, self.plugin_name, file)
             await report.render(interaction=interaction, server_name=None, flt=period, period=period.period,
                                 limit=limit)
         else:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.defer()
             report = Report(self.bot, self.plugin_name, file)
             env = await report.render(interaction=interaction, server_name=_server.name, flt=period,
                                       limit=limit)
@@ -273,6 +273,23 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                      channel: Optional[discord.TextChannel] = None):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(SquadronModal(self, name, locked=locked, role=role, channel=channel))
+
+    @squadron.command(description='Info about a squadron')
+    @app_commands.guild_only()
+    @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
+    @app_commands.rename(squadron_id="squadron")
+    @utils.app_has_role('DCS Admin')
+    async def info(self, interaction: discord.Interaction,  squadron_id: int):
+        async with interaction.client.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("SELECT name, role, description FROM squadrons WHERE id = %s", (squadron_id, ))
+                row = await cursor.fetchone()
+        embed = discord.Embed(title=_('Info about Squadron {}').format(row['name']),
+                              description=row['description'])
+        if row['role']:
+            embed.add_field(name="Role", value=self.bot.get_role(row['role']).name)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed)
 
     @squadron.command(description='Edit a squadron')
     @app_commands.guild_only()
