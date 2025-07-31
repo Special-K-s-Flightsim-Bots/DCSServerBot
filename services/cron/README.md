@@ -156,3 +156,15 @@ DEFAULT:
             - 120
             - 60
 ```
+
+i) node_shutdown
+Shutdown / restart the bot.
+```yaml
+DEFAULT:
+  actions:
+    - cron: '0 3 * * *'     # run every night at 03:00
+      action:
+        type: node_shutdown  # restart the bot
+        params:
+          restart: true
+```
