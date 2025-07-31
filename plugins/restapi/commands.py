@@ -6,10 +6,12 @@ import random
 import shutil
 import uvicorn
 
-from core import Plugin, DEFAULT_TAG, Side
+from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, APIRouter, Form
 from psycopg.rows import dict_row
+
+from plugins.creditsystem.squadron import Squadron
 from services.bot import DCSServerBot
 from typing import Optional, Any
 from uvicorn import Config
@@ -33,6 +35,7 @@ class RestAPI(Plugin):
         prefix = cfg.get('prefix', '')
         self.router = APIRouter()
         self.router.add_api_route(prefix + "/servers", self.servers, methods=["GET"])
+        self.router.add_api_route(prefix + "/squadrons", self.squadrons, methods=["GET"])
         self.router.add_api_route(prefix + "/topkills", self.topkills, methods=["GET"])
         self.router.add_api_route(prefix + "/topkdr", self.topkdr, methods=["GET"])
         self.router.add_api_route(prefix + "/trueskill", self.trueskill, methods=["GET"])
@@ -40,6 +43,8 @@ class RestAPI(Plugin):
         self.router.add_api_route(prefix + "/missilepk", self.missilepk, methods=["POST"])
         self.router.add_api_route(prefix + "/stats", self.stats, methods=["POST"])
         self.router.add_api_route(prefix + "/credits", self.credits, methods=["POST"])
+        self.router.add_api_route(prefix + "/squadron_members", self.squadron_members, methods=["POST"])
+        self.router.add_api_route(prefix + "/squadron_credits", self.squadron_credits, methods=["POST"])
         self.router.add_api_route(prefix + "/linkme", self.linkme, methods=["POST"])
         self.app = app
         self.config = Config(app=self.app, host=cfg['listen'], port=cfg['port'], log_level=logging.ERROR,
@@ -99,6 +104,22 @@ class RestAPI(Plugin):
                     mission['restart_time'] = int(server.restart_time.timestamp())
             servers.append(data)
         return servers
+
+    async def squadrons(self):
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                squadrons: list[dict] = []
+                async for row in await cursor.execute("""
+                    SELECT * FROM squadrons ORDER BY name
+                """):
+                    squadrons.append({
+                        "name": row['name'],
+                        "description": row['description'],
+                        "image_url": row['image_url'],
+                        "locked": row['locked'],
+                        "role": self.bot.get_role(row['role']).name
+                    })
+        return squadrons
 
     async def topkills(self):
         async with self.apool.connection() as conn:
@@ -255,6 +276,36 @@ class RestAPI(Plugin):
                     GROUP BY 1, 2
                 """, (ucid, ))
                 return await cursor.fetchone()
+
+    async def squadron_members(self, name: str = Form(default=None)):
+        self.log.debug(f'Calling /squadron_members with name="{name}"')
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT p.name, DATE_TRUNC('second', p.last_seen) AS "date"  
+                    FROM players p JOIN squadron_members sm ON sm.player_ucid = p.ucid
+                                   JOIN squadrons s ON sm.squadron_id = s.id
+                    WHERE s.name = %s
+                """, (name, ))
+                return await cursor.fetchall()
+
+    async def squadron_credits(self, name: str = Form(default=None)):
+        self.log.debug(f'Calling /squadron_members with name="{name}"')
+        ret = []
+        async with self.apool.connection() as conn:
+            async for row in await conn.execute("""
+                    SELECT c.id, c.name
+                    FROM campaigns c 
+                    LEFT OUTER JOIN squadron_credits s ON c.id = s.campaign_id
+                    JOIN squadrons s2 ON s.squadron_id = s2.id
+                    WHERE (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc') 
+                    AND s2.name = %s
+                """, (name, )):
+                squadron = utils.get_squadron(node=self.node, name=name)
+                squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                                       campaign_id=row[0])
+                ret.append({"campaign": row[1], "credits": squadron_obj.points})
+        return ret
 
     async def linkme(self,
                      discord_id: str = Form(..., description="Discord user ID (snowflake)", example="123456789012345678"),
