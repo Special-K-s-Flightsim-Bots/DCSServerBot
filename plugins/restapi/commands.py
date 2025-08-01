@@ -10,6 +10,7 @@ from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, APIRouter, Form
 from psycopg.rows import dict_row
+from psycopg import sql
 
 from plugins.creditsystem.squadron import Squadron
 from services.bot import DCSServerBot
@@ -36,9 +37,9 @@ class RestAPI(Plugin):
         self.router = APIRouter()
         self.router.add_api_route(prefix + "/servers", self.servers, methods=["GET"])
         self.router.add_api_route(prefix + "/squadrons", self.squadrons, methods=["GET"])
-        self.router.add_api_route(prefix + "/topkills", self.topkills, methods=["GET"])
-        self.router.add_api_route(prefix + "/topkdr", self.topkdr, methods=["GET"])
-        self.router.add_api_route(prefix + "/trueskill", self.trueskill, methods=["GET"])
+        self.router.add_api_route(prefix + "/topkills", self.topkills, methods=["GET", "POST"])
+        self.router.add_api_route(prefix + "/topkdr", self.topkdr, methods=["GET", "POST"])
+        self.router.add_api_route(prefix + "/trueskill", self.trueskill, methods=["GET", "POST"])
         self.router.add_api_route(prefix + "/getuser", self.getuser, methods=["POST"])
         self.router.add_api_route(prefix + "/missilepk", self.missilepk, methods=["POST"])
         self.router.add_api_route(prefix + "/stats", self.stats, methods=["POST"])
@@ -121,7 +122,7 @@ class RestAPI(Plugin):
                     })
         return squadrons
 
-    async def topkills(self):
+    async def topkills(self, limit: int = Form(default=10)):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
@@ -130,11 +131,11 @@ class RestAPI(Plugin):
                     FROM statistics s, players p 
                     WHERE s.player_ucid = p.ucid 
                     AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
-                    GROUP BY 1 ORDER BY 2 DESC LIMIT 10
-                """)
+                    GROUP BY 1 ORDER BY 2 DESC LIMIT {limit}
+                """.format(limit=limit if limit else 10))
                 return await cursor.fetchall()
 
-    async def topkdr(self):
+    async def topkdr(self, limit: int = Form(default=10)):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
@@ -143,11 +144,11 @@ class RestAPI(Plugin):
                     FROM statistics s, players p 
                     WHERE s.player_ucid = p.ucid 
                     AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
-                    GROUP BY 1 ORDER BY 4 DESC LIMIT 10
-                """)
+                    GROUP BY 1 ORDER BY 4 DESC LIMIT {limit}
+                """.format(limit=limit if limit else 10))
                 return await cursor.fetchall()
 
-    async def trueskill(self):
+    async def trueskill(self, limit: int = Form(default=10)):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
@@ -157,8 +158,8 @@ class RestAPI(Plugin):
                     FROM statistics s, players p, trueskill t 
                     WHERE s.player_ucid = p.ucid 
                     AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
-                    GROUP BY 1,4 ORDER BY 4 DESC LIMIT 10
-                """)
+                    GROUP BY 1,4 ORDER BY 4 DESC LIMIT {limit}
+                """.format(limit=limit if limit else 10))
                 return await cursor.fetchall()
 
     async def getuser(self, nick: str = Form(default=None)):
