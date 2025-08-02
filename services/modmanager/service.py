@@ -113,15 +113,14 @@ class ModManagerService(Service):
                         if not await self.uninstall_package(server, folder, package['name'], installed):
                             self.log.warning(f"- Package {package['name']}_v{installed} could not be uninstalled on "
                                              f"server {server.name}!")
-                        elif not await self.install_package(server, folder, package['name'], _version):
+                        elif not await self.install_package(server, folder, package['name'], _version,
+                                                            package.get('repo')):
                             self.log.warning(f"- Package {package['name']}_v{_version} could not be installed on "
                                              f"server {server.name}!")
                         else:
                             self.log.info(f"- Package {package['name']}_v{installed} updated to v{_version}.")
                 finally:
-                    if maintenance:
-                        server.maintenance = maintenance
-                    else:
+                    if not maintenance:
                         server.maintenance = False
 
     @staticmethod
@@ -184,7 +183,7 @@ class ModManagerService(Service):
         with suppress(StopIteration):
             package = next(x for x in config.get('packages', []) if x['name'] == package_name and x['source'] == folder.value)
             if 'repo' in package:
-                remote_versions = {x[0] for x in await self.get_repo_versions(package['repo'])}
+                remote_versions = {x for x in await self.get_repo_versions(package['repo'])}
         return sorted(local_versions | remote_versions)
 
     @staticmethod

@@ -424,7 +424,7 @@ class Server(DataObject):
     async def persist_settings(self):
         raise NotImplementedError()
 
-    async def render_extensions(self) -> list:
+    async def render_extensions(self) -> list[dict]:
         raise NotImplementedError()
 
     async def is_running(self) -> bool:
