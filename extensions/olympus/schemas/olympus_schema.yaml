@@ -86,5 +86,5 @@ schema;instance_olympus_schema:
       nullable: false
       mapping:
         SRSPort: {type: int, nullable: false, func: unique_port}
-        WSPort: {type: int, nullable: false, func: unique_port}
+        WSPort: {required: true, type: int, nullable: false, func: unique_port}
         WSEndpoint: {type: str, nullable: false, range: {min: 1}}

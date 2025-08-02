@@ -207,7 +207,9 @@ class Olympus(Extension):
             if extension:
                 self.locals['audio'] = {
                     "SRSPort": extension.config.get('port', extension.locals['Server Settings']['SERVER_PORT'])
-                } | self.config.get('audio', {})
+                } | self.config.get('audio', {
+                    "WSPort": 4000
+                })
         with open(self.config_path, mode='w', encoding='utf-8') as cfg:
             json.dump(self.locals, cfg, indent=2)
         return True
