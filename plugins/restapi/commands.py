@@ -13,6 +13,7 @@ from psycopg.rows import dict_row
 from psycopg import sql
 
 from plugins.creditsystem.squadron import Squadron
+from plugins.userstats.filter import StatisticsFilter, PeriodFilter
 from services.bot import DCSServerBot
 from typing import Optional, Any
 from uvicorn import Config
@@ -43,6 +44,7 @@ class RestAPI(Plugin):
         self.router.add_api_route(prefix + "/getuser", self.getuser, methods=["POST"])
         self.router.add_api_route(prefix + "/missilepk", self.missilepk, methods=["POST"])
         self.router.add_api_route(prefix + "/stats", self.stats, methods=["POST"])
+        self.router.add_api_route(prefix + "/highscore", self.highscore, methods=["GET", "POST"])
         self.router.add_api_route(prefix + "/credits", self.credits, methods=["POST"])
         self.router.add_api_route(prefix + "/squadron_members", self.squadron_members, methods=["POST"])
         self.router.add_api_route(prefix + "/squadron_credits", self.squadron_credits, methods=["POST"])
@@ -161,6 +163,64 @@ class RestAPI(Plugin):
                     GROUP BY 1,4 ORDER BY 4 DESC LIMIT {limit}
                 """.format(limit=limit if limit else 10))
                 return await cursor.fetchall()
+
+    async def highscore(self, server_name: str = Form(default=None), period: str = Form(default='all'),
+                        limit: int = Form(default=10)):
+        highscore = {}
+        flt = StatisticsFilter.detect(self.bot, period) or PeriodFilter(period)
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                sql = """
+                      SELECT p.name AS nick,
+                             DATE_TRUNC('second', p.last_seen) AS "date",
+                             ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))) AS playtime
+                      FROM statistics s,
+                           players p,
+                           missions m
+                      WHERE p.ucid = s.player_ucid
+                        AND s.mission_id = m.id
+                      """
+                if server_name:
+                    sql += "AND m.server_name = %(server_name)s"
+                sql += ' AND ' + flt.filter(self.bot)
+                sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
+                await cursor.execute(sql, {"server_name": server_name})
+                highscore['playtime'] = await cursor.fetchall()
+
+                sql_parts = {
+                    'Air Targets': 'SUM(s.kills_planes+s.kills_helicopters)',
+                    'Ships': 'SUM(s.kills_ships)',
+                    'Air Defence': 'SUM(s.kills_sams)',
+                    'Ground Targets': 'SUM(s.kills_ground)',
+                    'KD-Ratio': 'CASE WHEN SUM(deaths_planes + deaths_helicopters + deaths_ships + deaths_sams + '
+                                'deaths_ground) = 0 THEN SUM(s.kills) ELSE SUM(s.kills::DECIMAL)/SUM((deaths_planes + '
+                                'deaths_helicopters + deaths_ships + deaths_sams + deaths_ground)::DECIMAL) END',
+                    'PvP-KD-Ratio': 'CASE WHEN SUM(s.deaths_pvp) = 0 THEN SUM(s.pvp) ELSE SUM(s.pvp::DECIMAL)/SUM('
+                                    's.deaths_pvp::DECIMAL) END',
+                    'Most Efficient Killers': 'SUM(s.kills::DECIMAL) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))::DECIMAL / 3600.0)',
+                    'Most Wasteful Pilots': 'SUM(s.crashes::DECIMAL) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))::DECIMAL / 3600.0)'
+                }
+
+                for kill_type in sql_parts.keys():
+                    sql = f"""
+                        SELECT p.name AS nick, 
+                               DATE_TRUNC('second', p.last_seen) AS "date",
+                               {sql_parts[kill_type]} AS value 
+                        FROM players p, statistics s, missions m 
+                        WHERE s.player_ucid = p.ucid AND s.mission_id = m.id
+                    """
+                    if server_name:
+                        sql += "AND m.server_name = %(server_name)s"
+                    sql += ' AND ' + flt.filter(self.bot)
+                    sql += f' GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0'
+                    if kill_type in ['Most Efficient Killers', 'Most Wasteful Pilots']:
+                        sql += f" AND SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))) > 1800"
+                    sql += f' ORDER BY 3 DESC LIMIT {limit}'
+
+                    await cursor.execute(sql, {"server_name": server_name})
+                    highscore[kill_type] = await cursor.fetchall()
+
+        return highscore
 
     async def getuser(self, nick: str = Form(default=None)):
         async with self.apool.connection() as conn:
