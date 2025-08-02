@@ -195,7 +195,8 @@ class Tacview(Extension):
 
     async def render(self, param: Optional[dict] = None) -> dict:
         if not self.locals:
-            return {}
+            raise NotImplementedError()
+
         name = 'Tacview'
         if not self.locals.get('tacviewModuleEnabled', True):
             value = 'disabled'

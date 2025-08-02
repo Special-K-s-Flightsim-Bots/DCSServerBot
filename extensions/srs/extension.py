@@ -426,7 +426,8 @@ class SRS(Extension, FileSystemEventHandler):
 
     async def render(self, param: Optional[dict] = None) -> dict:
         if not self.locals:
-            return {}
+            raise NotImplementedError()
+
         host = self.config.get('host', self.node.public_ip)
         value = f"{host}:{self.locals['Server Settings']['SERVER_PORT']}"
         show_passwords = self.config.get('show_passwords', True)

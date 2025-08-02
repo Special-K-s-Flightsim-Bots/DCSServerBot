@@ -167,21 +167,21 @@ class LotAtc(Extension, FileSystemEventHandler):
         return utils.get_windows_version(os.path.join(self.home, r'bin', 'lotatc.dll'))
 
     async def render(self, param: Optional[dict] = None) -> dict:
-        if self.locals:
-            host = self.config.get('host', self.node.public_ip)
-            value = f"{host}:{self.locals.get('port', 10310)}"
-            show_passwords = self.config.get('show_passwords', True)
-            blue = self.locals.get('blue_password', '')
-            red = self.locals.get('red_password', '')
-            if show_passwords and (blue or red):
-                value += f"\n🔹 Pass: {blue}\n🔸 Pass: {red}"
-            return {
-                "name": "LotAtc",
-                "version": self.version,
-                "value": value
-            }
-        else:
-            return {}
+        if not self.locals:
+            raise NotImplementedError()
+
+        host = self.config.get('host', self.node.public_ip)
+        value = f"{host}:{self.locals.get('port', 10310)}"
+        show_passwords = self.config.get('show_passwords', True)
+        blue = self.locals.get('blue_password', '')
+        red = self.locals.get('red_password', '')
+        if show_passwords and (blue or red):
+            value += f"\n🔹 Pass: {blue}\n🔸 Pass: {red}"
+        return {
+            "name": "LotAtc",
+            "version": self.version,
+            "value": value
+        }
 
     def is_installed(self) -> bool:
         if not super().is_installed():
