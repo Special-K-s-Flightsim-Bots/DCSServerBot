@@ -4,6 +4,17 @@ schema;default_schema:
   mapping:
     SavedGames: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
     RootFolder: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
+    packages:
+      type: seq
+      nullable: false
+      sequence:
+        - type: map
+          nullable: false
+          mapping:
+            name: {type: str, required: true, nullable: false, range: {min: 1}}
+            version: {type: text, required: true, nullable: false}
+            source: {type: str, enum: ['SavedGames', 'RootFolder'], required: true, nullable: false}
+            repo: {type: url, nullable: false}
 
 schema;instance_schema:
   type: map
