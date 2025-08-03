@@ -81,10 +81,11 @@ DEFAULT:
     - pilot_death
     - shot
     - hit
-  uploads:              # Configure how mission uploads are handled
-    enabled: true       # Here you can disable the feature at all (default: true = enabled)
+  uploads:                      # Configure how mission uploads are handled
+    enabled: true               # Here you can disable the feature at all (default: true = enabled)
+    channel: 112233445566778899 # Optional: mission upload channel (default: admin channel)
     discord:
-      - DCS Admin       # Define which roles are allowed to upload missions (default: DCS Admin)
+      - DCS Admin               # Define which roles are allowed to upload missions (default: DCS Admin)
 ```
 
 ## Auto-Scanning
