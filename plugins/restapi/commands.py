@@ -6,7 +6,7 @@ import random
 import shutil
 import uvicorn
 
-from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils
+from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, APIRouter, Form
 from psycopg.rows import dict_row
@@ -105,6 +105,13 @@ class RestAPI(Plugin):
                     mission['red_slots_used'] = red
                 if server.restart_time and not server.maintenance:
                     mission['restart_time'] = int(server.restart_time.timestamp())
+
+            # add extensions
+            if server.status in [Status.RUNNING, Status.PAUSED]:
+                data['extensions'] = await server.render_extensions()
+            else:
+                data['extensions'] = []
+
             servers.append(data)
         return servers
 
