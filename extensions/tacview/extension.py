@@ -359,6 +359,8 @@ class Tacview(Extension):
             lines.append(TACVIEW_EXPORT_LINE)
             async with aiofiles.open(export_file, mode='w', encoding='utf-8') as outfile:
                 await outfile.writelines(lines)
+        # load the configuration
+        self.locals = self.load_config()
         self.log.info(f"  => {self.name} {self.version} installed into instance {self.server.instance.name}.")
         return True
 

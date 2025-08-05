@@ -267,6 +267,7 @@ class LotAtc(Extension, FileSystemEventHandler):
         major_version, _ = self.get_inst_version()
         from_path = os.path.join(self.get_inst_path(), 'server', major_version)
         shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True)
+        self.locals = self.load_config()
         self.log.info(f"  => {self.name} {self.version} installed into instance {self.server.instance.name}.")
 
     async def uninstall(self):

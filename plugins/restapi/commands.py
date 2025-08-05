@@ -10,7 +10,6 @@ from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, APIRouter, Form
 from psycopg.rows import dict_row
-from psycopg import sql
 
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
