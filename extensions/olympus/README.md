@@ -11,6 +11,8 @@ DCS_MERCS:
   - name: DCSOlympus
     version: latest
     source: SavedGames
+    # uncomment for auto-update:
+    # repo: https://github.com/Pax1601/DCSOlympus
 ```
 To use the DCS Olympus client, you need [Node.js](https://nodejs.org/download/release/latest-v20.x/) installed.
 Click on the link, download and install it. Remember the installation location, as you need to provide it in the 
