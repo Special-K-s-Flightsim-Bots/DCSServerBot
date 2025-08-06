@@ -9,10 +9,9 @@ import uvicorn
 from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, APIRouter, Form
-from psycopg.rows import dict_row
-
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
+from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from typing import Optional, Any
 from uvicorn import Config
@@ -45,6 +44,7 @@ class RestAPI(Plugin):
         self.router.add_api_route(prefix + "/stats", self.stats, methods=["POST"])
         self.router.add_api_route(prefix + "/highscore", self.highscore, methods=["GET", "POST"])
         self.router.add_api_route(prefix + "/credits", self.credits, methods=["POST"])
+        self.router.add_api_route(prefix + "/traps", self.traps, methods=["POST"])
         self.router.add_api_route(prefix + "/squadron_members", self.squadron_members, methods=["POST"])
         self.router.add_api_route(prefix + "/squadron_credits", self.squadron_credits, methods=["POST"])
         self.router.add_api_route(prefix + "/linkme", self.linkme, methods=["POST"])
@@ -343,6 +343,32 @@ class RestAPI(Plugin):
                     GROUP BY 1, 2
                 """, (ucid, ))
                 return await cursor.fetchone()
+
+    async def traps(self, nick: str = Form(default=None), date: str = Form(default=None),
+                    limit: int = Form(default=10)):
+        self.log.debug(f'Calling /traps with nick="{nick}", date="{date}"')
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT ucid
+                    FROM players
+                    WHERE name = %s
+                      AND DATE_TRUNC('second', last_seen) = DATE_TRUNC('second', %s)
+                """, (nick, datetime.fromisoformat(date)))
+                row = await cursor.fetchone()
+                if row:
+                    ucid = row['ucid']
+                    self.log.debug(f'Found UCID: {ucid}')
+                else:
+                    self.log.debug("No UCID found.")
+                    return {}
+                await cursor.execute(f"""
+                    SELECT unit_type, grade, comment, place, trapcase, wire, night, points, time
+                    FROM traps
+                    WHERE player_ucid = %s
+                    ORDER BY time DESC LIMIT {limit}
+                """, (ucid, ))
+                return await cursor.fetchall()
 
     async def squadron_members(self, name: str = Form(default=None)):
         self.log.debug(f'Calling /squadron_members with name="{name}"')
