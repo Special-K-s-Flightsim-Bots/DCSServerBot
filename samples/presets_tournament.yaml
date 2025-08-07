@@ -10,11 +10,11 @@ sanitize:
     f5_nearest_ac: false
   difficulty:
     externalViews: false
-    spectatorExternalViews: true
+    spectatorExternalViews: false
     optionsView: optview_myaircraft
   forcedOptions:
     externalViews: false
-    spectatorExternalViews: true
+    spectatorExternalViews: false
     optionsView: optview_myaircraft
     fuel: false
     spottingDot: 2
