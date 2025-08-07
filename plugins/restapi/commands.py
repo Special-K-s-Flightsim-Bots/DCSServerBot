@@ -19,6 +19,8 @@ from typing import Optional, Any
 from uvicorn import Config
 
 from . import __version__
+from .models import (TopKill, ServerInfo, SquadronInfo, TopKDR, Trueskill, Highscore, UserEntry, MissilePK, PlayerStats,
+                     CampaignCredits, TrapEntry, SquadronMember, SquadronCampaignCredit, LinkMeResponse)
 
 app: Optional[FastAPI] = None
 
@@ -38,20 +40,118 @@ class RestAPI(Plugin):
         cfg = self.locals[DEFAULT_TAG]
         prefix = cfg.get('prefix', '')
         self.router = APIRouter()
-        self.router.add_api_route(prefix + "/servers", self.servers, methods=["GET"])
-        self.router.add_api_route(prefix + "/squadrons", self.squadrons, methods=["GET"])
-        self.router.add_api_route(prefix + "/topkills", self.topkills, methods=["GET"])
-        self.router.add_api_route(prefix + "/topkdr", self.topkdr, methods=["GET",])
-        self.router.add_api_route(prefix + "/trueskill", self.trueskill, methods=["GET"])
-        self.router.add_api_route(prefix + "/getuser", self.getuser, methods=["POST"])
-        self.router.add_api_route(prefix + "/missilepk", self.missilepk, methods=["POST"])
-        self.router.add_api_route(prefix + "/stats", self.stats, methods=["POST"])
-        self.router.add_api_route(prefix + "/highscore", self.highscore, methods=["GET"])
-        self.router.add_api_route(prefix + "/credits", self.credits, methods=["POST"])
-        self.router.add_api_route(prefix + "/traps", self.traps, methods=["POST"])
-        self.router.add_api_route(prefix + "/squadron_members", self.squadron_members, methods=["POST"])
-        self.router.add_api_route(prefix + "/squadron_credits", self.squadron_credits, methods=["POST"])
-        self.router.add_api_route(prefix + "/linkme", self.linkme, methods=["POST"])
+        self.router.add_api_route(
+            prefix + "/servers", self.servers,
+            methods = ["GET"],
+            response_model = list[ServerInfo],
+            description = "List all servers, the active mission (if any) and the active extensions",
+            summary = "Server list",
+            tags = ["Info"]
+        )
+        self.router.add_api_route(
+            prefix + "/squadrons", self.squadrons,
+            methods = ["GET"],
+            response_model = list[SquadronInfo],
+            description = "List all squadrons and their roles",
+            summary = "Squadron list",
+            tags = ["Info"]
+        )
+        self.router.add_api_route(
+            prefix + "/squadron_members", self.squadron_members,
+            methods = ["POST"],
+            response_model = list[SquadronMember],
+            description = "List squadron members",
+            summary = "Squadron Members",
+            tags = ["Info"]
+        )
+        self.router.add_api_route(
+            prefix + "/getuser", self.getuser,
+            methods = ["POST"],
+            response_model = list[UserEntry],
+            description = "Get users by name",
+            summary = "User list",
+            tags = ["Info"]
+        )
+        self.router.add_api_route(
+            prefix + "/linkme", self.linkme,
+            methods=["POST"],
+            response_model=LinkMeResponse,
+            description="Link your Discord account to your DCS account",
+            summary="Link Discord to DCS",
+            tags=["Info"]
+        )
+        self.router.add_api_route(
+            prefix + "/topkills", self.topkills,
+            methods = ["GET"],
+            response_model = list[TopKill],
+            description = "Get AA top kills statistics for players",
+            summary = "AA-Top Kills",
+            tags = ["Statistics"]
+        )
+        self.router.add_api_route(
+            prefix + "/topkdr", self.topkdr,
+            methods = ["GET"],
+            response_model = list[TopKDR],
+            description = "Get AA top KDR statistics for players",
+            summary = "AA-Top KDR",
+            tags = ["Statistics"]
+        )
+        self.router.add_api_route(
+            prefix + "/trueskill", self.trueskill,
+            methods = ["GET"],
+            response_model = list[Trueskill],
+            description = "Get TrueSkill:tm: statistics for players",
+            summary = "TrueSkill:tm:",
+            tags = ["Statistics"]
+        )
+        self.router.add_api_route(
+            prefix + "/missilepk", self.missilepk,
+            methods = ["POST"],
+            response_model = list[MissilePK],
+            description = "Get missile PK statistics for players",
+            summary = "Missile PK",
+            tags = ["Statistics"]
+        )
+        self.router.add_api_route(
+            prefix + "/stats", self.stats,
+            methods = ["POST"],
+            response_model = PlayerStats,
+            description = "Get player statistics",
+            summary = "Player Statistics",
+            tags = ["Statistics"]
+        )
+        self.router.add_api_route(
+            prefix + "/highscore", self.highscore,
+            methods = ["GET"],
+            response_model = Highscore,
+            description = "Get highscore statistics for players",
+            summary = "Highscore",
+            tags = ["Statistics"]
+        )
+        self.router.add_api_route(
+            prefix + "/traps", self.traps,
+            methods = ["POST"],
+            response_model = list[TrapEntry],
+            description = "Get traps for players",
+            summary = "Carrier Traps",
+            tags = ["Statistics"]
+        )
+        self.router.add_api_route(
+            prefix + "/credits", self.credits,
+            methods = ["POST"],
+            response_model = CampaignCredits,
+            description = "Get campaign credits for players",
+            summary = "Campaign Credits",
+            tags = ["Credits"]
+        )
+        self.router.add_api_route(
+            prefix + "/squadron_credits", self.squadron_credits,
+            methods = ["POST"],
+            response_model = list[SquadronCampaignCredit],
+            description = "List squadron campaign credits",
+            summary = "Squadron Credits",
+            tags = ["Credits"]
+        )
 
         # add debug endpoints
         if cfg.get('debug', False):
@@ -149,7 +249,9 @@ class RestAPI(Plugin):
             else:
                 data['extensions'] = []
 
-            servers.append(data)
+            # validate the data against the schema and return it
+            servers.append(ServerInfo.model_validate(data))
+
         return servers
 
     async def squadrons(self):
@@ -180,7 +282,7 @@ class RestAPI(Plugin):
                     AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
                     GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}
                 """.format(limit=limit if limit else 10))
-                return await cursor.fetchall()
+                return [TopKill.model_validate(result) for result in await cursor.fetchall()]
 
     async def topkdr(self, limit: int = Query(default=10)):
         async with self.apool.connection() as conn:
@@ -194,7 +296,7 @@ class RestAPI(Plugin):
                     AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
                     GROUP BY 1, 2 ORDER BY 5 DESC LIMIT {limit}
                 """.format(limit=limit if limit else 10))
-                return await cursor.fetchall()
+                return [TopKDR.model_validate(result) for result in await cursor.fetchall()]
 
     async def trueskill(self, limit: int = Query(default=10)):
         async with self.apool.connection() as conn:
@@ -208,7 +310,7 @@ class RestAPI(Plugin):
                     AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
                     GROUP BY 1, 2, 5 ORDER BY 5 DESC LIMIT {limit}
                 """.format(limit=limit if limit else 10))
-                return await cursor.fetchall()
+                return [Trueskill.model_validate(result) for result in await cursor.fetchall()]
 
     async def highscore(self, server_name: str = Query(default=None), period: str = Query(default='all'),
                         limit: int = Query(default=10)):
@@ -218,7 +320,7 @@ class RestAPI(Plugin):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 sql = """
                       SELECT p.name AS nick, DATE_TRUNC('second', p.last_seen) AS "date",
-                             ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))) AS playtime
+                             ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS playtime
                       FROM statistics s,
                            players p,
                            missions m
@@ -264,7 +366,7 @@ class RestAPI(Plugin):
                     await cursor.execute(sql, {"server_name": server_name})
                     highscore[kill_type] = await cursor.fetchall()
 
-        return highscore
+        return Highscore.model_validate(highscore, by_alias=True)
 
     async def getuser(self, nick: str = Form(default=None)):
         async with self.apool.connection() as conn:
@@ -277,7 +379,7 @@ class RestAPI(Plugin):
                     WHERE name ILIKE %s 
                     ORDER BY 2 DESC
                 """, ('%' + nick + '%',))
-                return await cursor.fetchall()
+                return [UserEntry.model_validate(result) for result in await cursor.fetchall()]
 
     async def missilepk(self, nick: str = Form(default=None), date: str = Form(default=None)):
         async with self.apool.connection() as conn:
@@ -355,7 +457,7 @@ class RestAPI(Plugin):
                     ORDER BY 2 DESC
                 """, (ucid,))
                 data['kdrByModule'] = await cursor.fetchall()
-                return data
+                return PlayerStats.model_validate(data)
 
     async def credits(self, nick: str = Form(default=None), date: str = Form(default=None)):
         self.log.debug(f'Calling /credits with nick="{nick}", date="{date}"')
@@ -380,7 +482,7 @@ class RestAPI(Plugin):
                     WHERE (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc') 
                     GROUP BY 1, 2
                 """, (ucid, ))
-                return await cursor.fetchone()
+                return CampaignCredits.model_validate(await cursor.fetchone())
 
     async def traps(self, nick: str = Form(default=None), date: str = Form(default=None),
                     limit: int = Form(default=10)):
@@ -406,7 +508,7 @@ class RestAPI(Plugin):
                     WHERE player_ucid = %s
                     ORDER BY time DESC LIMIT {limit}
                 """, (ucid, ))
-                return await cursor.fetchall()
+                return [TrapEntry.model_validate(result) for result in await cursor.fetchall()]
 
     async def squadron_members(self, name: str = Form(default=None)):
         self.log.debug(f'Calling /squadron_members with name="{name}"')
@@ -495,16 +597,16 @@ class RestAPI(Plugin):
                 else:
                     token = await create_token()
                     expiry_timestamp = (datetime.now() + timedelta(hours=48)).isoformat()
-                    # Set bit_field for new user
+                    # Set bit_field for a new user
                     rc = 0  # Default bit_field for new user
                     if force:
                         rc |= BIT_FORCE_OPERATION  # Set force operation flag
 
-        return {
+        return LinkMeResponse.model_validate({
             "token": token,
             "timestamp": expiry_timestamp,
             "rc": rc
-        }
+        })
 
 
 async def setup(bot: DCSServerBot):

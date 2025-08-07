@@ -41,5 +41,12 @@ The following commands are available through the API
 | /squadron_members | POST       | name: string                                          | [{"name": string, "date": date}]                                                                                                                                                                                                                                           | Lists the members of the squadron with that name.                                     |
 | /linkme           | POST       | discord_id: string, force: bool                       | {"token": 1234, "timestamp": "2025-02-03 xx:xx:xx...", "rc": 0}                                                                                                                                                                                                            | Same as /linkme in discord. Returns a new token that can be used in the in-game chat. |
 
+> [!NOTE]
+> To access the API documentation, you can enable debug and access the documentation with these links: 
+> http://localhost:9876/docs
+> http://localhost:9876/redoc
+> Please refer to the [OpenAPI specification](https://swagger.io/specification/) for more information and the 
+> warning about debug above.
+
 > [!IMPORTANT]
 > It is advisable to use a reverse proxy like nginx and maybe SSL encryption between your webserver and this endpoint. 
