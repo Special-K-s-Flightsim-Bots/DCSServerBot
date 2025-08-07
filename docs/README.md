@@ -345,7 +345,7 @@ NODENAME:                       # this will usually be your hostname
   listen_address: 0.0.0.0       # Optional: On which interface should the bot listen? Default is 127.0.0.1.
   public_ip: 88.77.66.55        # Optional: Your public IP. ONLY if you have a static IP (!), put this in here to speedup the startup-process of the bot.
   slow_system: false            # Optional: if you are using a slower PC to run your servers, you should set this to true (default: false)
-  use_upnp: true                # The bot will auto-detect, if there is an UPnP IGD available and configure this setting initially for you! If you do NOT want to use UPnP, even IF it is abailable, put this to false.
+  use_upnp: true                # The bot will auto-detect, if there is an UPnP IGD available and configure this setting initially for you! If you do NOT want to use UPnP, even IF it is available, put this to false.
   preferred_master: true        # cluster only: this node should be the preferred master node (default: false)
   heartbeat: 30                 # cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
   cloud_drive: false            # cluster only: set this to false, if you do not have the bot installed on a cloud drive (default and recommended: true) 
@@ -370,6 +370,17 @@ NODENAME:                       # this will usually be your hostname
     cloud: true                 # If you have installed DCS on a NAS or cloud drive, autoupdate and desanitization will only take place once on all your nodes.
     desanitize: true            # Desanitize your MissionScripting.lua after each update. Default is true.
     minimized: true             # Start DCS minimized (default: true)
+    allow_unsafe_api:           # as of DCS 2.9.18: allow dostring_in only in these environments
+      - scripting
+      - gui
+      - userhooks
+    allow_dostring_in:          # as of DCS 2.9.18: allow dostring_in only targeting these contexts
+      - scripting
+      - config
+      - server
+      - mission
+      - gui
+      - export
     user: xxxx                  # Your DCS username (only needed for specific use-cases)
     password: xxxx              # Your DCS password (will be auto-moved by the bot to a secret place)
   instances:
