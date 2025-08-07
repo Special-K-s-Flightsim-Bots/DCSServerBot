@@ -8,13 +8,17 @@ import uvicorn
 
 from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status
 from datetime import datetime, timedelta, timezone
-from fastapi import FastAPI, APIRouter, Form
+from fastapi import FastAPI, APIRouter, Form, Query
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+from fastapi.openapi.utils import get_openapi
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from typing import Optional, Any
 from uvicorn import Config
+
+from . import __version__
 
 app: Optional[FastAPI] = None
 
@@ -36,18 +40,52 @@ class RestAPI(Plugin):
         self.router = APIRouter()
         self.router.add_api_route(prefix + "/servers", self.servers, methods=["GET"])
         self.router.add_api_route(prefix + "/squadrons", self.squadrons, methods=["GET"])
-        self.router.add_api_route(prefix + "/topkills", self.topkills, methods=["GET", "POST"])
-        self.router.add_api_route(prefix + "/topkdr", self.topkdr, methods=["GET", "POST"])
-        self.router.add_api_route(prefix + "/trueskill", self.trueskill, methods=["GET", "POST"])
+        self.router.add_api_route(prefix + "/topkills", self.topkills, methods=["GET"])
+        self.router.add_api_route(prefix + "/topkdr", self.topkdr, methods=["GET",])
+        self.router.add_api_route(prefix + "/trueskill", self.trueskill, methods=["GET"])
         self.router.add_api_route(prefix + "/getuser", self.getuser, methods=["POST"])
         self.router.add_api_route(prefix + "/missilepk", self.missilepk, methods=["POST"])
         self.router.add_api_route(prefix + "/stats", self.stats, methods=["POST"])
-        self.router.add_api_route(prefix + "/highscore", self.highscore, methods=["GET", "POST"])
+        self.router.add_api_route(prefix + "/highscore", self.highscore, methods=["GET"])
         self.router.add_api_route(prefix + "/credits", self.credits, methods=["POST"])
         self.router.add_api_route(prefix + "/traps", self.traps, methods=["POST"])
         self.router.add_api_route(prefix + "/squadron_members", self.squadron_members, methods=["POST"])
         self.router.add_api_route(prefix + "/squadron_credits", self.squadron_credits, methods=["POST"])
         self.router.add_api_route(prefix + "/linkme", self.linkme, methods=["POST"])
+
+        # add debug endpoints
+        if cfg.get('debug', False):
+            self.log.warning("RestAPI: Debug is enabled, you might expose your API functions!")
+
+            # Enable OpenAPI schema
+            app.add_api_route("/openapi.json",
+                              lambda: get_openapi(
+                                  title="DCSServerBot REST API",
+                                  version=__version__,
+                                  description="REST functions to be used for DCSServerBot.",
+                                  routes=app.routes,
+                              ),
+                              include_in_schema=False
+                              )
+
+            # Enable Swagger UI
+            app.add_api_route("/docs",
+                              lambda: get_swagger_ui_html(
+                                  openapi_url="/openapi.json",
+                                  title="DCSServerBot REST API - Swagger UI",
+                              ),
+                              include_in_schema=False
+                              )
+
+            # Enable ReDoc
+            app.add_api_route("/redoc",
+                              lambda: get_redoc_html(
+                                  openapi_url="/openapi.json",
+                                  title="DCSServerBot REST API - ReDoc",
+                              ),
+                              include_in_schema=False
+                              )
+
         self.app = app
         self.config = Config(app=self.app, host=cfg['listen'], port=cfg['port'], log_level=logging.ERROR,
                              use_colors=False)
@@ -130,55 +168,56 @@ class RestAPI(Plugin):
                     })
         return squadrons
 
-    async def topkills(self, limit: int = Form(default=10)):
+    async def topkills(self, limit: int = Query(default=10)):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
-                    SELECT p.name AS "fullNickname", SUM(pvp) AS "AAkills", SUM(deaths) AS "deaths", 
-                           CASE WHEN SUM(deaths) = 0 THEN SUM(pvp) ELSE SUM(pvp)/SUM(deaths::DECIMAL) END AS "AAKDR" 
+                    SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date",
+                    SUM(pvp) AS "AAkills", SUM(deaths) AS "deaths", 
+                    CASE WHEN SUM(deaths) = 0 THEN SUM(pvp) ELSE SUM(pvp)/SUM(deaths::DECIMAL) END AS "AAKDR" 
                     FROM statistics s, players p 
                     WHERE s.player_ucid = p.ucid 
                     AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
-                    GROUP BY 1 ORDER BY 2 DESC LIMIT {limit}
+                    GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}
                 """.format(limit=limit if limit else 10))
                 return await cursor.fetchall()
 
-    async def topkdr(self, limit: int = Form(default=10)):
+    async def topkdr(self, limit: int = Query(default=10)):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
-                    SELECT p.name AS "fullNickname", SUM(pvp) AS "AAkills", SUM(deaths) AS "deaths", 
-                           CASE WHEN SUM(deaths) = 0 THEN SUM(pvp) ELSE SUM(pvp)/SUM(deaths::DECIMAL) END AS "AAKDR" 
+                    SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date",
+                    SUM(pvp) AS "AAkills", SUM(deaths) AS "deaths", 
+                    CASE WHEN SUM(deaths) = 0 THEN SUM(pvp) ELSE SUM(pvp)/SUM(deaths::DECIMAL) END AS "AAKDR" 
                     FROM statistics s, players p 
                     WHERE s.player_ucid = p.ucid 
                     AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
-                    GROUP BY 1 ORDER BY 4 DESC LIMIT {limit}
+                    GROUP BY 1, 2 ORDER BY 5 DESC LIMIT {limit}
                 """.format(limit=limit if limit else 10))
                 return await cursor.fetchall()
 
-    async def trueskill(self, limit: int = Form(default=10)):
+    async def trueskill(self, limit: int = Query(default=10)):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
-                    SELECT 
-                        p.name AS "fullNickname", SUM(pvp) AS "AAkills", SUM(deaths) AS "deaths", 
-                        t.skill_mu AS "TrueSkill" 
+                    SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date",
+                    SUM(pvp) AS "AAkills", SUM(deaths) AS "deaths", t.skill_mu AS "TrueSkill" 
                     FROM statistics s, players p, trueskill t 
                     WHERE s.player_ucid = p.ucid 
+                    AND t.player_ucid = p.ucid
                     AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
-                    GROUP BY 1,4 ORDER BY 4 DESC LIMIT {limit}
+                    GROUP BY 1, 2, 5 ORDER BY 5 DESC LIMIT {limit}
                 """.format(limit=limit if limit else 10))
                 return await cursor.fetchall()
 
-    async def highscore(self, server_name: str = Form(default=None), period: str = Form(default='all'),
-                        limit: int = Form(default=10)):
+    async def highscore(self, server_name: str = Query(default=None), period: str = Query(default='all'),
+                        limit: int = Query(default=10)):
         highscore = {}
         flt = StatisticsFilter.detect(self.bot, period) or PeriodFilter(period)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 sql = """
-                      SELECT p.name AS nick,
-                             DATE_TRUNC('second', p.last_seen) AS "date",
+                      SELECT p.name AS nick, DATE_TRUNC('second', p.last_seen) AS "date",
                              ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))) AS playtime
                       FROM statistics s,
                            players p,
@@ -209,8 +248,7 @@ class RestAPI(Plugin):
 
                 for kill_type in sql_parts.keys():
                     sql = f"""
-                        SELECT p.name AS nick, 
-                               DATE_TRUNC('second', p.last_seen) AS "date",
+                        SELECT p.name AS nick, DATE_TRUNC('second', p.last_seen) AS "date",
                                {sql_parts[kill_type]} AS value 
                         FROM players p, statistics s, missions m 
                         WHERE s.player_ucid = p.ucid AND s.mission_id = m.id
@@ -472,7 +510,7 @@ class RestAPI(Plugin):
 async def setup(bot: DCSServerBot):
     global app
 
-    app = FastAPI(docs_url=None, redoc_url=None)
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     restapi = RestAPI(bot)
     await bot.add_cog(restapi)
     app.include_router(restapi.router)
