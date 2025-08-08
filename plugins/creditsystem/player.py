@@ -20,11 +20,13 @@ class CreditPlayer(Player):
         self.plugin = cast(Plugin, self.bot.cogs['CreditSystem'])
         self.config = self.plugin.get_config(self.server)
         with self.pool.connection() as conn:
-            row = conn.execute("""
+            cursor = conn.execute("""
                 SELECT s.name FROM squadrons s JOIN squadron_members sm 
                 ON s.id = sm.squadron_id AND sm.player_ucid = %s
-            """, (self.ucid,)).fetchone()
-            if row:
+            """, (self.ucid,))
+            # a squadron needs to be unambiguous to be linked to a player
+            if cursor.rowcount == 1:
+                row = cursor.fetchone()
                 campaign_id, _ = utils.get_running_campaign(self.node, self.server)
                 self.squadron = DataObjectFactory().new(Squadron, node=self.node, name=row[0], campaign_id=campaign_id)
             else:
