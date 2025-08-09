@@ -543,7 +543,7 @@ class Scheduler(Plugin[SchedulerListener]):
             else:
                 mission = await server.get_current_mission_file()
             if mission:
-                embed.description += f"\n- Using mission \"{os.path.basename(mission)[:-4]}\" ..."
+                embed.description += f"\n- Using mission \"{utils.escape_string(os.path.basename(mission)[:-4])}\" ..."
                 if run_extensions:
                     embed.description += "\n- Applying extensions"
                     if use_orig:

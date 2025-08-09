@@ -22,6 +22,18 @@ class UserEntry(BaseModel):
     }
 
 
+class ServerStats(BaseModel):
+    totalPlayers: int
+    avgPlaytime: int
+    totalPlaytime: int
+    activePlayers: int
+    totalSorties: int
+    totalKills: int
+    totalDeaths: int
+    totalAAKills: int
+    totalAADeaths: int
+
+
 class MissionInfo(BaseModel):
     name: str
     uptime: int
@@ -329,7 +341,7 @@ class TrapEntry(BaseModel):
 
 
 class SquadronMember(BaseModel):
-    name: str = Field(..., description="Player name")
+    nick: str = Field(..., description="Player name")
     date: datetime = Field(..., description="Last seen timestamp")
 
     model_config = {
@@ -338,7 +350,7 @@ class SquadronMember(BaseModel):
         },
         "json_schema_extra": {
             "example": {
-                "name": "Player1",
+                "nick": "Player1",
                 "date": "2025-08-07T12:00:00"
             }
         }

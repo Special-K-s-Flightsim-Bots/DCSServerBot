@@ -1,26 +1,18 @@
-import asyncio
-import logging
-import os
 import psycopg
 import random
-import shutil
-import uvicorn
 
-from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status
+from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, APIRouter, Form, Query
-from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
-from fastapi.openapi.utils import get_openapi
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from typing import Optional, Any
-from uvicorn import Config
 
-from . import __version__
+from services.webservice import WebService
 from .models import (TopKill, ServerInfo, SquadronInfo, TopKDR, Trueskill, Highscore, UserEntry, MissilePK, PlayerStats,
-                     CampaignCredits, TrapEntry, SquadronMember, SquadronCampaignCredit, LinkMeResponse)
+                     CampaignCredits, TrapEntry, SquadronMember, SquadronCampaignCredit, LinkMeResponse, ServerStats)
 
 app: Optional[FastAPI] = None
 
@@ -34,183 +26,157 @@ BIT_FORCE_OPERATION = 4
 class RestAPI(Plugin):
 
     def __init__(self, bot: DCSServerBot):
-        global app
-
         super().__init__(bot)
-        cfg = self.locals[DEFAULT_TAG]
-        prefix = cfg.get('prefix', '')
-        self.router = APIRouter()
-        self.router.add_api_route(
-            prefix + "/servers", self.servers,
+        self.web_service = ServiceRegistry.get(WebService)
+        self.app = self.web_service.app
+        self.register_routes()
+
+    def register_routes(self):
+        prefix = self.locals.get(DEFAULT_TAG, {}).get('prefix', '')
+        router = APIRouter(prefix=prefix)
+        router.add_api_route(
+            "/serverstats", self.serverstats,
+            methods = ["GET"],
+            response_model = ServerStats,
+            description = "List the statistics of a whole group",
+            summary = "Server Statistics",
+            tags = ["Info"]
+        )
+        router.add_api_route(
+            "/servers", self.servers,
             methods = ["GET"],
             response_model = list[ServerInfo],
             description = "List all servers, the active mission (if any) and the active extensions",
             summary = "Server list",
             tags = ["Info"]
         )
-        self.router.add_api_route(
-            prefix + "/squadrons", self.squadrons,
+        router.add_api_route(
+            "/squadrons", self.squadrons,
             methods = ["GET"],
             response_model = list[SquadronInfo],
             description = "List all squadrons and their roles",
             summary = "Squadron list",
             tags = ["Info"]
         )
-        self.router.add_api_route(
-            prefix + "/squadron_members", self.squadron_members,
+        router.add_api_route(
+            "/squadron_members", self.squadron_members,
             methods = ["POST"],
             response_model = list[SquadronMember],
             description = "List squadron members",
             summary = "Squadron Members",
             tags = ["Info"]
         )
-        self.router.add_api_route(
-            prefix + "/getuser", self.getuser,
+        router.add_api_route(
+            "/getuser", self.getuser,
             methods = ["POST"],
             response_model = list[UserEntry],
             description = "Get users by name",
             summary = "User list",
             tags = ["Info"]
         )
-        self.router.add_api_route(
-            prefix + "/linkme", self.linkme,
+        router.add_api_route(
+            "/linkme", self.linkme,
             methods=["POST"],
             response_model=LinkMeResponse,
             description="Link your Discord account to your DCS account",
             summary="Link Discord to DCS",
             tags=["Info"]
         )
-        self.router.add_api_route(
-            prefix + "/topkills", self.topkills,
+        router.add_api_route(
+            "/topkills", self.topkills,
             methods = ["GET"],
             response_model = list[TopKill],
             description = "Get AA top kills statistics for players",
             summary = "AA-Top Kills",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
-            prefix + "/topkdr", self.topkdr,
+        router.add_api_route(
+            "/topkdr", self.topkdr,
             methods = ["GET"],
             response_model = list[TopKDR],
             description = "Get AA top KDR statistics for players",
             summary = "AA-Top KDR",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
-            prefix + "/trueskill", self.trueskill,
+        router.add_api_route(
+            "/trueskill", self.trueskill,
             methods = ["GET"],
             response_model = list[Trueskill],
             description = "Get TrueSkill:tm: statistics for players",
             summary = "TrueSkill:tm:",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
-            prefix + "/missilepk", self.missilepk,
+        router.add_api_route(
+            "/missilepk", self.missilepk,
             methods = ["POST"],
             response_model = list[MissilePK],
             description = "Get missile PK statistics for players",
             summary = "Missile PK",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
-            prefix + "/stats", self.stats,
+        router.add_api_route(
+            "/stats", self.stats,
             methods = ["POST"],
             response_model = PlayerStats,
             description = "Get player statistics",
             summary = "Player Statistics",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
-            prefix + "/highscore", self.highscore,
+        router.add_api_route(
+            "/highscore", self.highscore,
             methods = ["GET"],
             response_model = Highscore,
             description = "Get highscore statistics for players",
             summary = "Highscore",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
-            prefix + "/traps", self.traps,
+        router.add_api_route(
+            "/traps", self.traps,
             methods = ["POST"],
             response_model = list[TrapEntry],
             description = "Get traps for players",
             summary = "Carrier Traps",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
-            prefix + "/credits", self.credits,
+        router.add_api_route(
+            "/credits", self.credits,
             methods = ["POST"],
             response_model = CampaignCredits,
             description = "Get campaign credits for players",
             summary = "Campaign Credits",
             tags = ["Credits"]
         )
-        self.router.add_api_route(
-            prefix + "/squadron_credits", self.squadron_credits,
+        router.add_api_route(
+            "/squadron_credits", self.squadron_credits,
             methods = ["POST"],
             response_model = list[SquadronCampaignCredit],
             description = "List squadron campaign credits",
             summary = "Squadron Credits",
             tags = ["Credits"]
         )
+        self.app.include_router(router)
 
-        # add debug endpoints
-        if cfg.get('debug', False):
-            self.log.warning("RestAPI: Debug is enabled, you might expose your API functions!")
-
-            # Enable OpenAPI schema
-            app.add_api_route("/openapi.json",
-                              lambda: get_openapi(
-                                  title="DCSServerBot REST API",
-                                  version=__version__,
-                                  description="REST functions to be used for DCSServerBot.",
-                                  routes=app.routes,
-                              ),
-                              include_in_schema=False
-                              )
-
-            # Enable Swagger UI
-            app.add_api_route("/docs",
-                              lambda: get_swagger_ui_html(
-                                  openapi_url="/openapi.json",
-                                  title="DCSServerBot REST API - Swagger UI",
-                              ),
-                              include_in_schema=False
-                              )
-
-            # Enable ReDoc
-            app.add_api_route("/redoc",
-                              lambda: get_redoc_html(
-                                  openapi_url="/openapi.json",
-                                  title="DCSServerBot REST API - ReDoc",
-                              ),
-                              include_in_schema=False
-                              )
-
-        self.app = app
-        self.config = Config(app=self.app, host=cfg['listen'], port=cfg['port'], log_level=logging.ERROR,
-                             use_colors=False)
-        self.server: uvicorn.Server = uvicorn.Server(config=self.config)
-        self.task = None
-
-    async def cog_load(self) -> None:
-        await super().cog_load()
-        self.task = asyncio.create_task(self.server.serve())
-
-    async def cog_unload(self):
-        self.server.should_exit = True
-        await self.task
-        await super().cog_unload()
-
-    def read_locals(self) -> dict:
-        config = super().read_locals()
-        if not config:
-            self.log.info('No restapi.yaml found, copying the sample.')
-            shutil.copyfile('samples/plugins/restapi.yaml',
-                            os.path.join(self.node.config_dir, 'plugins', 'restapi.yaml'))
-            config = super().read_locals()
-        return config
+    async def serverstats(self):
+        self.log.debug('Calling /serverstats')
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT COUNT(p.ucid) AS "totalPlayers", 
+                           ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS "totalPlaytime",
+                           ROUND(AVG(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS "avgPlaytime",
+                           SUM(CASE WHEN s.hop_off IS NULL THEN 1 ELSE 0 END) AS "activePlayers",
+                           SUM(s.takeoffs) AS "totalSorties",
+                           SUM(s.kills) AS "totalKills",
+                           SUM(s.deaths) AS "totalDeaths",
+                           SUM(s.pvp) AS "totalAAKills",
+                           SUM(s.deaths_pvp) AS "totalAADeaths"
+                    FROM players p JOIN statistics s 
+                    ON p.ucid = s.player_ucid
+                """)
+                return ServerStats.model_validate(await cursor.fetchone())
 
     async def servers(self):
+        self.log.debug('Calling /servers')
         servers = []
         for server in self.bot.servers.values():
             data: dict[str, Any] = {
@@ -255,6 +221,7 @@ class RestAPI(Plugin):
         return servers
 
     async def squadrons(self):
+        self.log.debug('Calling /squadrons')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 squadrons: list[dict] = []
@@ -271,6 +238,7 @@ class RestAPI(Plugin):
         return squadrons
 
     async def topkills(self, limit: int = Query(default=10)):
+        self.log.debug(f'Calling /topkills with limit={limit}')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
@@ -285,6 +253,7 @@ class RestAPI(Plugin):
                 return [TopKill.model_validate(result) for result in await cursor.fetchall()]
 
     async def topkdr(self, limit: int = Query(default=10)):
+        self.log.debug(f'Calling /topkdr with limit={limit}')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
@@ -299,6 +268,7 @@ class RestAPI(Plugin):
                 return [TopKDR.model_validate(result) for result in await cursor.fetchall()]
 
     async def trueskill(self, limit: int = Query(default=10)):
+        self.log.debug(f'Calling /trueskill with limit={limit}')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
@@ -314,6 +284,7 @@ class RestAPI(Plugin):
 
     async def highscore(self, server_name: str = Query(default=None), period: str = Query(default='all'),
                         limit: int = Query(default=10)):
+        self.log.debug(f'Calling /highscore with server_name="{server_name}", period="{period}", limit={limit}')
         highscore = {}
         flt = StatisticsFilter.detect(self.bot, period) or PeriodFilter(period)
         async with self.apool.connection() as conn:
@@ -369,6 +340,7 @@ class RestAPI(Plugin):
         return Highscore.model_validate(highscore, by_alias=True)
 
     async def getuser(self, nick: str = Form(default=None)):
+        self.log.debug(f'Calling /getuser with nick="{nick}"')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
@@ -382,6 +354,7 @@ class RestAPI(Plugin):
                 return [UserEntry.model_validate(result) for result in await cursor.fetchall()]
 
     async def missilepk(self, nick: str = Form(default=None), date: str = Form(default=None)):
+        self.log.debug(f'Calling /missilepk with nick="{nick}", date="{date}"')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
@@ -515,7 +488,7 @@ class RestAPI(Plugin):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
-                    SELECT p.name, DATE_TRUNC('second', p.last_seen) AS "date"  
+                    SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date"  
                     FROM players p JOIN squadron_members sm ON sm.player_ucid = p.ucid
                                    JOIN squadrons s ON sm.squadron_id = s.id
                     WHERE s.name = %s
@@ -523,7 +496,7 @@ class RestAPI(Plugin):
                 return await cursor.fetchall()
 
     async def squadron_credits(self, name: str = Form(default=None)):
-        self.log.debug(f'Calling /squadron_members with name="{name}"')
+        self.log.debug(f'Calling /squadron_credits with name="{name}"')
         ret = []
         async with self.apool.connection() as conn:
             async for row in await conn.execute("""
@@ -610,9 +583,4 @@ class RestAPI(Plugin):
 
 
 async def setup(bot: DCSServerBot):
-    global app
-
-    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-    restapi = RestAPI(bot)
-    await bot.add_cog(restapi)
-    app.include_router(restapi.router)
+    await bot.add_cog(RestAPI(bot))
