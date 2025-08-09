@@ -30,8 +30,8 @@ class ServerStats(BaseModel):
     totalSorties: int
     totalKills: int
     totalDeaths: int
-    totalAAKills: int
-    totalAADeaths: int
+    totalPvPKills: int
+    totalPvPDeaths: int
 
 
 class MissionInfo(BaseModel):
@@ -111,18 +111,18 @@ class SquadronInfo(BaseModel):
 class TopKill(BaseModel):
     nick: str = Field(..., description="Player's nickname")
     date: datetime = Field(..., description="Last seen date of that player in ISO-format")
-    AAkills: int = Field(..., description="Number of PvP kills")
-    deaths: int = Field(..., description="Number of deaths by other players")
-    AAKDR: float = Field(..., description="Kill/Death ratio for PvP")
+    kills: int = Field(..., description="Number of kills")
+    deaths: int = Field(..., description="Number of deaths")
+    kdr: float = Field(..., description="Kill/Death ratio")
 
     model_config = {
         "json_schema_extra": {
             "example": {
                 "nick": "Special K",
                 "date": "2025-01-01T00:00:00",
-                "AAkills": 10,
+                "kills": 10,
                 "deaths": 2,
-                "AAKDR": 5.0
+                "kdr": 5.0
             }
         }
     }
@@ -135,8 +135,8 @@ class TopKDR(TopKill):
 class Trueskill(BaseModel):
     nick: str = Field(..., description="Player's nickname")
     date: datetime = Field(..., description="Last seen date of that player in ISO-format")
-    AAkills: int = Field(..., description="Number of PvP kills")
-    deaths: int = Field(..., description="Number of deaths by other players")
+    kills_pvp: int = Field(..., description="Number of PvP kills")
+    deaths_pvp: int = Field(..., description="Number of deaths by other players")
     TrueSkill: float = Field(..., description="TrueSkill:tm: Rating of that player")
 
     model_config = {
@@ -148,8 +148,8 @@ class Trueskill(BaseModel):
             "example": {
                 "nick": "Special K",
                 "date": "2025-01-01T00:00:00",
-                "AAkills": 10,
-                "deaths": 2,
+                "kills_pvp": 10,
+                "deaths_pvp": 2,
                 "TrueSkill": 18.6
             }
         }
@@ -240,20 +240,23 @@ class MissilePK(BaseModel):
 
 class ModuleStats(BaseModel):
     module: str = Field(..., description="Aircraft/module name")
-    kills: int = Field(..., description="Number of PvP-kills with this module")
-    kdr: Decimal = Field(..., description="PvP-Kill/Death ratio with this module")
+    kills: Optional[int] = Field(None, description="Number of PvP-kills with this module")
+    kdr: Optional[Decimal] = Field(None, description="PvP-Kill/Death ratio with this module")
 
 
 class PlayerStats(BaseModel):
+    playtime: int = Field(..., description="Total playtime in seconds")
     kills: int = Field(..., description="Total kills")
     deaths: int = Field(..., description="Total deaths")
-    aakills: int = Field(..., description="Air-to-air kills")
+    kills_pvp: int = Field(..., description="Total PvP kills")
+    deaths_pvp: int = Field(..., description="Total PvP deaths")
     takeoffs: int = Field(..., description="Number of takeoffs")
     landings: int = Field(..., description="Number of landings")
     ejections: int = Field(..., description="Number of ejections")
     crashes: int = Field(..., description="Number of crashes")
     teamkills: int = Field(..., description="Number of team kills")
-    aakdr: Decimal = Field(..., description="Air-to-air kill/death ratio")
+    kdr: Decimal = Field(..., description="Kill/death ratio")
+    kdr_pvp: Decimal = Field(..., description="PvP Kill/death ratio")
     lastSessionKills: int = Field(..., description="Kills in last session")
     lastSessionDeaths: int = Field(..., description="Deaths in last session")
     killsByModule: list[ModuleStats] = Field(default_factory=list, description="PvP-Kills breakdown by module")
@@ -265,15 +268,18 @@ class PlayerStats(BaseModel):
         },
         "json_schema_extra": {
             "example": {
+                "playtime": 3600,
                 "kills": 100,
                 "deaths": 20,
-                "aakills": 50,
+                "kills_pvp": 50,
+                "deaths_pvp": 20,
                 "takeoffs": 200,
                 "landings": 180,
                 "ejections": 5,
                 "crashes": 15,
                 "teamkills": 2,
-                "aakdr": 2.5,
+                "kdr": 2.5,
+                "kdr_pvp": 2.5,
                 "lastSessionKills": 10,
                 "lastSessionDeaths": 2,
                 "killsByModule": [

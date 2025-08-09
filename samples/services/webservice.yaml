@@ -1,0 +1,4 @@
+DEFAULT:
+  debug: true       # Optional: enable /docs, /redoc and /openapi.json endpoints (see warning in README!)
+  listen: 0.0.0.0   # The listner address (default: 0.0.0.0)
+  port: 9876        # The webservice port (default: 9876)

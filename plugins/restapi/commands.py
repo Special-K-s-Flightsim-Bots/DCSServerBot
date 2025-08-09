@@ -86,16 +86,16 @@ class RestAPI(Plugin):
             "/topkills", self.topkills,
             methods = ["GET"],
             response_model = list[TopKill],
-            description = "Get AA top kills statistics for players",
-            summary = "AA-Top Kills",
+            description = "Get top kills statistics for players",
+            summary = "Top Kills",
             tags = ["Statistics"]
         )
         router.add_api_route(
             "/topkdr", self.topkdr,
             methods = ["GET"],
             response_model = list[TopKDR],
-            description = "Get AA top KDR statistics for players",
-            summary = "AA-Top KDR",
+            description = "Get top KDR statistics for players",
+            summary = "Top KDR",
             tags = ["Statistics"]
         )
         router.add_api_route(
@@ -168,8 +168,8 @@ class RestAPI(Plugin):
                            SUM(s.takeoffs) AS "totalSorties",
                            SUM(s.kills) AS "totalKills",
                            SUM(s.deaths) AS "totalDeaths",
-                           SUM(s.pvp) AS "totalAAKills",
-                           SUM(s.deaths_pvp) AS "totalAADeaths"
+                           SUM(s.pvp) AS "totalPvPKills",
+                           SUM(s.deaths_pvp) AS "totalPvPDeaths"
                     FROM players p JOIN statistics s 
                     ON p.ucid = s.player_ucid
                 """)
@@ -243,11 +243,10 @@ class RestAPI(Plugin):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
                     SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date",
-                    SUM(pvp) AS "AAkills", SUM(deaths) AS "deaths", 
-                    CASE WHEN SUM(deaths) = 0 THEN SUM(pvp) ELSE SUM(pvp)/SUM(deaths::DECIMAL) END AS "AAKDR" 
-                    FROM statistics s, players p 
-                    WHERE s.player_ucid = p.ucid 
-                    AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
+                    SUM(s.kills) AS "kills", SUM(s.deaths) AS "deaths",
+                    CASE WHEN SUM(s.deaths) = 0 THEN SUM(s.kills) ELSE SUM(s.kills)/SUM(s.deaths::DECIMAL) END AS "kdr" 
+                    FROM statistics s JOIN players p 
+                    ON s.player_ucid = p.ucid 
                     GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}
                 """.format(limit=limit if limit else 10))
                 return [TopKill.model_validate(result) for result in await cursor.fetchall()]
@@ -258,11 +257,10 @@ class RestAPI(Plugin):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
                     SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date",
-                    SUM(pvp) AS "AAkills", SUM(deaths) AS "deaths", 
-                    CASE WHEN SUM(deaths) = 0 THEN SUM(pvp) ELSE SUM(pvp)/SUM(deaths::DECIMAL) END AS "AAKDR" 
-                    FROM statistics s, players p 
-                    WHERE s.player_ucid = p.ucid 
-                    AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
+                    SUM(s.kills) AS "kills", SUM(s.deaths) AS "deaths", 
+                    CASE WHEN SUM(s.deaths) = 0 THEN SUM(s.kills) ELSE SUM(s.kills)/SUM(s.deaths::DECIMAL) END AS "kdr" 
+                    FROM statistics s JOIN players p 
+                    ON s.player_ucid = p.ucid 
                     GROUP BY 1, 2 ORDER BY 5 DESC LIMIT {limit}
                 """.format(limit=limit if limit else 10))
                 return [TopKDR.model_validate(result) for result in await cursor.fetchall()]
@@ -273,7 +271,7 @@ class RestAPI(Plugin):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
                     SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date",
-                    SUM(pvp) AS "AAkills", SUM(deaths) AS "deaths", t.skill_mu AS "TrueSkill" 
+                    SUM(pvp) AS "kills_pvp", SUM(deaths_pvp) AS "deaths_pvp", t.skill_mu AS "TrueSkill" 
                     FROM statistics s, players p, trueskill t 
                     WHERE s.player_ucid = p.ucid 
                     AND t.player_ucid = p.ucid
@@ -392,20 +390,25 @@ class RestAPI(Plugin):
                     self.log.debug("No UCID found.")
                     return {}
                 await cursor.execute("""
-                    SELECT overall.kills, overall.deaths, overall.aakills, overall.takeoffs, overall.landings, 
-                           overall.ejections, overall.crashes, overall.teamkills, 
+                    SELECT overall.playtime, overall.kills, overall.deaths, overall.kills_pvp, overall.deaths_pvp, 
+                           overall.takeoffs, overall.landings, overall.ejections, overall.crashes, overall.teamkills, 
                            ROUND(CASE WHEN overall.deaths = 0 
-                                      THEN overall.aakills 
-                                      ELSE overall.aakills/overall.deaths::DECIMAL END, 2) AS "aakdr", 
+                                      THEN overall.kills 
+                                      ELSE overall.kills/overall.deaths::DECIMAL END, 2) AS "kdr", 
+                           ROUND(CASE WHEN overall.deaths_pvp = 0 
+                                      THEN overall.kills_pvp 
+                                      ELSE overall.kills/overall.deaths_pvp::DECIMAL END, 2) AS "kdr_pvp", 
                            lastsession.kills AS "lastSessionKills", lastsession.deaths AS "lastSessionDeaths"
                     FROM (
-                        SELECT SUM(kills) as "kills", SUM(deaths) AS "deaths", SUM(pvp) AS "aakills", 
+                        SELECT ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(hop_off, NOW() AT TIME ZONE 'UTC') - hop_on))))::INTEGER AS playtime, 
+                               SUM(kills) as "kills", SUM(deaths) AS "deaths", 
+                               SUM(pvp) AS "kills_pvp", SUM(deaths_pvp) AS "deaths_pvp",
                                SUM(takeoffs) AS "takeoffs", SUM(landings) AS "landings", SUM(ejections) AS "ejections",
                                SUM(crashes) AS "crashes", SUM(teamkills) AS "teamkills"
                         FROM statistics
                         WHERE player_ucid = %s
                     ) overall, (
-                        SELECT SUM(pvp) AS "kills", SUM(deaths) AS "deaths"
+                        SELECT SUM(kills) AS "kills", SUM(deaths) AS "deaths"
                         FROM statistics
                         WHERE (player_ucid, mission_id) = (
                             SELECT player_ucid, max(mission_id) FROM statistics WHERE player_ucid = %s GROUP BY 1
@@ -414,19 +417,19 @@ class RestAPI(Plugin):
                 """, (ucid, ucid))
                 data = await cursor.fetchone()
                 await cursor.execute("""
-                    SELECT slot AS "module", SUM(pvp) AS "kills" 
+                    SELECT slot AS "module", SUM(kills) AS "kills" 
                     FROM statistics 
                     WHERE player_ucid = %s 
-                    GROUP BY 1 HAVING SUM(pvp) > 1 
+                    GROUP BY 1 HAVING SUM(kills) > 1 
                     ORDER BY 2 DESC
                 """, (ucid,))
                 data['killsByModule'] = await cursor.fetchall()
                 await cursor.execute("""
                     SELECT slot AS "module", 
-                           CASE WHEN SUM(deaths) = 0 THEN SUM(pvp) ELSE SUM(pvp) / SUM(deaths::DECIMAL) END AS "kdr" 
+                           CASE WHEN SUM(deaths) = 0 THEN SUM(kills) ELSE SUM(kills) / SUM(deaths::DECIMAL) END AS "kdr" 
                     FROM statistics 
                     WHERE player_ucid = %s 
-                    GROUP BY 1 HAVING SUM(pvp) > 1 
+                    GROUP BY 1 HAVING SUM(kills) > 1 
                     ORDER BY 2 DESC
                 """, (ucid,))
                 data['kdrByModule'] = await cursor.fetchall()

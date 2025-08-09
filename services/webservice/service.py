@@ -18,7 +18,7 @@ class WebService(Service):
         super().__init__(node)
         cfg = self.get_config()
         self.app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-        self.config = Config(app=self.app, host=cfg.get('host', '0.0.0.0'), port=cfg.get('port', 9876),
+        self.config = Config(app=self.app, host=cfg.get('listen', '0.0.0.0'), port=cfg.get('port', 9876),
                              log_level=logging.ERROR, use_colors=False)
         self.server: uvicorn.Server = uvicorn.Server(config=self.config)
         self.task = None
