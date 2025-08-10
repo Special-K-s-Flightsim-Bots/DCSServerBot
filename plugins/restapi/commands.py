@@ -3,15 +3,15 @@ import random
 
 from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry
 from datetime import datetime, timedelta, timezone
-from fastapi import FastAPI, APIRouter, Form, Query
+from fastapi import FastAPI, APIRouter, Form, Query, HTTPException
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Optional, Any
-
 from services.webservice import WebService
-from .models import (TopKill, ServerInfo, SquadronInfo, TopKDR, Trueskill, Highscore, UserEntry, MissilePK, PlayerStats,
+from typing import Optional, Any, Union
+
+from .models import (TopKill, ServerInfo, SquadronInfo, TopKDR, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronMember, SquadronCampaignCredit, LinkMeResponse, ServerStats)
 
 app: Optional[FastAPI] = None
@@ -107,11 +107,11 @@ class RestAPI(Plugin):
             tags = ["Statistics"]
         )
         router.add_api_route(
-            "/missilepk", self.missilepk,
+            "/weaponpk", self.weaponpk,
             methods = ["POST"],
-            response_model = list[MissilePK],
-            description = "Get missile PK statistics for players",
-            summary = "Missile PK",
+            response_model = list[WeaponPK],
+            description = "Get PK statistics for all weapons of a specific players",
+            summary = "Weapon PK",
             tags = ["Statistics"]
         )
         router.add_api_route(
@@ -149,15 +149,35 @@ class RestAPI(Plugin):
         router.add_api_route(
             "/squadron_credits", self.squadron_credits,
             methods = ["POST"],
-            response_model = list[SquadronCampaignCredit],
-            description = "List squadron campaign credits",
+            response_model = SquadronCampaignCredit,
+            description = "Squadron campaign credits",
             summary = "Squadron Credits",
             tags = ["Credits"]
         )
         self.app.include_router(router)
 
+    async def get_ucid(self, nick: str, date: Union[str, datetime]) -> str:
+        if isinstance(date, str):
+            date = datetime.fromisoformat(date)
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT ucid
+                    FROM players
+                    WHERE name = %s
+                      AND DATE_TRUNC('second', last_seen) = DATE_TRUNC('second', %s)
+                """, (nick, date))
+                row = await cursor.fetchone()
+                if not row:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Player {nick} not found with specified date"
+                    )
+                return row['ucid']
+
     async def serverstats(self):
         self.log.debug('Calling /serverstats')
+        serverstats = {}
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
@@ -173,7 +193,28 @@ class RestAPI(Plugin):
                     FROM players p JOIN statistics s 
                     ON p.ucid = s.player_ucid
                 """)
-                return ServerStats.model_validate(await cursor.fetchone())
+                serverstats = await cursor.fetchone()
+                await cursor.execute("""
+                    WITH date_series AS (
+                        SELECT generate_series(
+                            DATE_TRUNC('day', (now() AT TIME ZONE 'utc') - interval '7 days'),
+                            DATE_TRUNC('day', now() AT TIME ZONE 'utc'),
+                            interval '1 day'
+                        ) AS date
+                    ),
+                    player_counts AS (
+                        SELECT DATE_TRUNC('day', s.hop_on) AS date, COUNT(DISTINCT player_ucid) as player_count
+                        FROM statistics s
+                        WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '7 days'
+                        GROUP BY 1
+                    )
+                    SELECT ds.date, COALESCE(pc.player_count, 0) as player_count
+                    FROM date_series ds
+                    LEFT JOIN player_counts pc ON ds.date = pc.date
+                    ORDER BY ds.date
+                """)
+                serverstats['daily_players'] = await cursor.fetchall()
+        return ServerStats.model_validate(serverstats)
 
     async def servers(self):
         self.log.debug('Calling /servers')
@@ -335,9 +376,9 @@ class RestAPI(Plugin):
                     await cursor.execute(sql, {"server_name": server_name})
                     highscore[kill_type] = await cursor.fetchall()
 
-        return Highscore.model_validate(highscore, by_alias=True)
+        return Highscore.model_validate(highscore)
 
-    async def getuser(self, nick: str = Form(default=None)):
+    async def getuser(self, nick: str = Form(...)):
         self.log.debug(f'Calling /getuser with nick="{nick}"')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -351,44 +392,30 @@ class RestAPI(Plugin):
                 """, ('%' + nick + '%',))
                 return [UserEntry.model_validate(result) for result in await cursor.fetchall()]
 
-    async def missilepk(self, nick: str = Form(default=None), date: str = Form(default=None)):
-        self.log.debug(f'Calling /missilepk with nick="{nick}", date="{date}"')
+    async def weaponpk(self, nick: str = Form(...), date: str = Form(...)):
+        self.log.debug(f'Calling /weaponpk with nick="{nick}", date="{date}"')
+        ucid = await self.get_ucid(nick, date)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
-                    SELECT weapon, shots, hits, 
-                           ROUND(CASE WHEN shots = 0 THEN 0 ELSE hits/shots::DECIMAL END, 2) AS "pk"
+                    SELECT x.weapon, x.shots, x.hits, 
+                           ROUND(CASE WHEN x.shots = 0 THEN 0 ELSE x.hits / x.shots::DECIMAL END, 2) AS "pk"
                     FROM (
                         SELECT weapon, SUM(CASE WHEN event='S_EVENT_SHOT' THEN 1 ELSE 0 END) AS "shots", 
                                SUM(CASE WHEN event='S_EVENT_HIT' THEN 1 ELSE 0 END) AS "hits" 
                         FROM missionstats 
-                        WHERE init_id = (SELECT ucid FROM players WHERE name = %s AND last_seen = %s)
-                        AND weapon IS NOT NULL
+                        WHERE init_id = %s AND weapon IS NOT NULL
                         GROUP BY weapon
                     ) x
-                    ORDER BY 4 DESC
-                """, (nick, datetime.fromisoformat(date)))
-                return {
-                    "missilePK": dict([(row['weapon'], row['pk']) async for row in cursor])
-                }
+                    ORDER BY 2 DESC
+                """, (ucid, ))
+                return [WeaponPK.model_validate(result) for result in await cursor.fetchall()]
 
-    async def stats(self, nick: str = Form(default=None), date: str = Form(default=None)):
+    async def stats(self, nick: str = Form(...), date: str = Form(...)):
         self.log.debug(f'Calling /stats with nick="{nick}", date="{date}"')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
-                    SELECT ucid
-                    FROM players
-                    WHERE name = %s
-                      AND DATE_TRUNC('second', last_seen) = DATE_TRUNC('second', %s)
-                """, (nick, datetime.fromisoformat(date)))
-                row = await cursor.fetchone()
-                if row:
-                    ucid = row['ucid']
-                    self.log.debug(f'Found UCID: {ucid}')
-                else:
-                    self.log.debug("No UCID found.")
-                    return {}
+                ucid = await self.get_ucid(nick, date)
                 await cursor.execute("""
                     SELECT overall.playtime, overall.kills, overall.deaths, overall.kills_pvp, overall.deaths_pvp, 
                            overall.takeoffs, overall.landings, overall.ejections, overall.crashes, overall.teamkills, 
@@ -406,15 +433,15 @@ class RestAPI(Plugin):
                                SUM(takeoffs) AS "takeoffs", SUM(landings) AS "landings", SUM(ejections) AS "ejections",
                                SUM(crashes) AS "crashes", SUM(teamkills) AS "teamkills"
                         FROM statistics
-                        WHERE player_ucid = %s
+                        WHERE player_ucid = %(ucid)s
                     ) overall, (
                         SELECT SUM(kills) AS "kills", SUM(deaths) AS "deaths"
                         FROM statistics
                         WHERE (player_ucid, mission_id) = (
-                            SELECT player_ucid, max(mission_id) FROM statistics WHERE player_ucid = %s GROUP BY 1
+                            SELECT player_ucid, max(mission_id) FROM statistics WHERE player_ucid = %(ucid)s GROUP BY 1
                         )
                     ) lastsession
-                """, (ucid, ucid))
+                """, {"ucid": ucid})
                 data = await cursor.fetchone()
                 await cursor.execute("""
                     SELECT slot AS "module", SUM(kills) AS "kills" 
@@ -435,29 +462,23 @@ class RestAPI(Plugin):
                 data['kdrByModule'] = await cursor.fetchall()
                 return PlayerStats.model_validate(data)
 
-    async def credits(self, nick: str = Form(default=None), date: str = Form(default=None)):
-        self.log.debug(f'Calling /credits with nick="{nick}", date="{date}"')
+    async def credits(self, nick: str = Form(...), date: str = Form(...), campaign: str = Form(default=None)):
+        self.log.debug(f'Calling /credits with nick="{nick}", date="{date}", campaign="{campaign}"')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
-                    SELECT ucid
-                    FROM players
-                    WHERE name = %s
-                      AND DATE_TRUNC('second', last_seen) = DATE_TRUNC('second', %s)
-                """, (nick, datetime.fromisoformat(date)))
-                row = await cursor.fetchone()
-                if row:
-                    ucid = row['ucid']
-                    self.log.debug(f'Found UCID: {ucid}')
+                ucid = await self.get_ucid(nick, date)
+                # if a campaign was passed, use that, else use the current running campaign
+                if campaign:
+                    where = "WHERE c.name = %(campaign)s"
                 else:
-                    self.log.debug("No UCID found.")
-                    return {}
-                await cursor.execute("""
+                    where = "WHERE (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc')"
+                await cursor.execute(f"""
                     SELECT c.id, c.name, COALESCE(SUM(s.points), 0) AS credits 
-                    FROM campaigns c LEFT OUTER JOIN credits s ON (c.id = s.campaign_id AND s.player_ucid = %s) 
-                    WHERE (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc') 
+                    FROM campaigns c LEFT OUTER JOIN credits s 
+                    ON (c.id = s.campaign_id AND s.player_ucid = %(ucid)s) 
+                    {where}
                     GROUP BY 1, 2
-                """, (ucid, ))
+                """, {"ucid": ucid, "campaign": campaign})
                 return CampaignCredits.model_validate(await cursor.fetchone())
 
     async def traps(self, nick: str = Form(default=None), date: str = Form(default=None),
@@ -465,19 +486,7 @@ class RestAPI(Plugin):
         self.log.debug(f'Calling /traps with nick="{nick}", date="{date}"')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
-                    SELECT ucid
-                    FROM players
-                    WHERE name = %s
-                      AND DATE_TRUNC('second', last_seen) = DATE_TRUNC('second', %s)
-                """, (nick, datetime.fromisoformat(date)))
-                row = await cursor.fetchone()
-                if row:
-                    ucid = row['ucid']
-                    self.log.debug(f'Found UCID: {ucid}')
-                else:
-                    self.log.debug("No UCID found.")
-                    return {}
+                ucid = await self.get_ucid(nick, date)
                 await cursor.execute(f"""
                     SELECT unit_type, grade, comment, place, trapcase, wire, night, points, time
                     FROM traps
@@ -486,7 +495,7 @@ class RestAPI(Plugin):
                 """, (ucid, ))
                 return [TrapEntry.model_validate(result) for result in await cursor.fetchall()]
 
-    async def squadron_members(self, name: str = Form(default=None)):
+    async def squadron_members(self, name: str = Form(...)):
         self.log.debug(f'Calling /squadron_members with name="{name}"')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -496,25 +505,32 @@ class RestAPI(Plugin):
                                    JOIN squadrons s ON sm.squadron_id = s.id
                     WHERE s.name = %s
                 """, (name, ))
-                return await cursor.fetchall()
+                return [SquadronMember.model_validate(result) for result in await cursor.fetchall()]
 
-    async def squadron_credits(self, name: str = Form(default=None)):
+    async def squadron_credits(self, name: str = Form(...), campaign: str = Form(default=None)):
         self.log.debug(f'Calling /squadron_credits with name="{name}"')
-        ret = []
+        # if a campaign was passed, use that, else use the current running campaign
+        if campaign:
+            where = "WHERE c.name = %(campaign)s"
+        else:
+            where = "WHERE (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc')"
         async with self.apool.connection() as conn:
-            async for row in await conn.execute("""
-                    SELECT c.id, c.name
-                    FROM campaigns c 
-                    LEFT OUTER JOIN squadron_credits s ON c.id = s.campaign_id
-                    JOIN squadrons s2 ON s.squadron_id = s2.id
-                    WHERE (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc') 
-                    AND s2.name = %s
-                """, (name, )):
+            cursor = await conn.execute(f"""
+                SELECT c.id, c.name
+                FROM campaigns c 
+                LEFT OUTER JOIN squadron_credits s ON c.id = s.campaign_id
+                JOIN squadrons s2 ON s.squadron_id = s2.id
+                {where} 
+                AND s2.name = %(name)s
+            """, {"name": name, "campaign": campaign})
+            row = await cursor.fetchone()
+            if row:
                 squadron = utils.get_squadron(node=self.node, name=name)
                 squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
                                                        campaign_id=row[0])
-                ret.append({"campaign": row[1], "credits": squadron_obj.points})
-        return ret
+                return SquadronCampaignCredit.model_validate({"campaign": row[1], "credits": squadron_obj.points})
+            else:
+                return {}
 
     async def linkme(self,
                      discord_id: str = Form(..., description="Discord user ID (snowflake)", example="123456789012345678"),

@@ -22,6 +22,11 @@ class UserEntry(BaseModel):
     }
 
 
+class DailyPlayers(BaseModel):
+    date: datetime
+    player_count: int
+
+
 class ServerStats(BaseModel):
     totalPlayers: int
     avgPlaytime: int
@@ -32,6 +37,7 @@ class ServerStats(BaseModel):
     totalDeaths: int
     totalPvPKills: int
     totalPvPDeaths: int
+    daily_players: list[DailyPlayers]
 
 
 class MissionInfo(BaseModel):
@@ -220,8 +226,11 @@ class Highscore(BaseModel):
     }
 
 
-class MissilePK(BaseModel):
-    missilePK: dict[str, Decimal] = Field(..., description="Missile Probability of Kill by weapon type")
+class WeaponPK(BaseModel):
+    weapon: str = Field(..., description="Weapon type")
+    shots: int = Field(..., description="Number of shots fired")
+    hits: int = Field(..., description="Number of hits")
+    pk: Decimal = Field(..., description="Probability of killing")
 
     model_config = {
         "json_encoders": {
@@ -229,10 +238,10 @@ class MissilePK(BaseModel):
         },
         "json_schema_extra": {
             "example": {
-                "missilePK": {
-                    "AIM-120C": 0.75,
-                    "AIM-9X": 0.85
-                }
+                "weapon": "AIM-120C",
+                "shots": 20,
+                "hits": 10,
+                "pk": 0.5
             }
         }
     }
@@ -363,8 +372,8 @@ class SquadronMember(BaseModel):
     }
 
 class SquadronCampaignCredit(BaseModel):
-    campaign: str = Field(..., description="Campaign name")
-    credits: float = Field(..., description="Squadron's credits in the campaign")
+    campaign: Optional[str] = Field(None, description="Campaign name")
+    credits: Optional[float] = Field(None, description="Squadron's credits in the campaign")
 
     model_config = {
         "json_schema_extra": {
