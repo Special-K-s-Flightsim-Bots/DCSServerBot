@@ -222,14 +222,7 @@ class Olympus(Extension):
         except FileNotFoundError:
             lines = []
 
-        # Count occurrences of OLYMPUS_EXPORT_LINE
-        olympus_lines = lines.count(OLYMPUS_EXPORT_LINE)
-
-        # Only modify if we have 0 or more than 1 occurrence
-        if olympus_lines != 1:
-            # Remove any existing OLYMPUS_EXPORT_LINE
-            lines = [line for line in lines if line != OLYMPUS_EXPORT_LINE]
-            # Add exactly one at the end
+        if OLYMPUS_EXPORT_LINE not in lines:
             lines.append(OLYMPUS_EXPORT_LINE)
             async with aiofiles.open(export_file, mode='w', encoding='utf-8') as outfile:
                 await outfile.writelines(lines)
