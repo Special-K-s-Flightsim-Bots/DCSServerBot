@@ -875,7 +875,7 @@ class NodeImpl(Node):
                         elif parse(version) < parse(__version__):
                             if master != self.name:
                                 raise FatalException(f"This node uses DCSServerBot version {__version__} "
-                                                     f"where the cluster uses version {version}!")
+                                                     f"where the master uses version {version}!")
                             self.master = True
                             await self._upgrade(conn)
 
