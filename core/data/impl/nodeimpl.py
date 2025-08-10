@@ -517,9 +517,6 @@ class NodeImpl(Node):
                 """, (self.guild_id, ))
             await self.shutdown(UPDATE)
         elif self.master:
-            # in the unlikely event that we are here and no update is to be done, reset the cluser table
-            self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
-                             "Rolling back the cluser version to my version.")
             await conn.execute("""
                UPDATE cluster
                SET update_pending = FALSE, version = %s
@@ -872,6 +869,8 @@ class NodeImpl(Node):
                             # avoid update loops if we are the master
                             if master == self.name:
                                 self.master = True
+                                self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
+                                                 "Rolling back the cluser version to my version.")
                             await self._upgrade(conn)
                             return self.master
                         elif parse(version) < parse(__version__):
