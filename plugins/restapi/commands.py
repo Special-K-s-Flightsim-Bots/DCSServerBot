@@ -1,7 +1,7 @@
 import psycopg
 import random
 
-from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry
+from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, PluginInstallationError
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, APIRouter, Form, Query, HTTPException
 from plugins.creditsystem.squadron import Squadron
@@ -28,6 +28,9 @@ class RestAPI(Plugin):
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
         self.web_service = ServiceRegistry.get(WebService)
+        if not self.web_service.is_running():
+            raise PluginInstallationError(plugin=self.plugin_name, reason="WebService is not running")
+
         self.app = self.web_service.app
         self.register_routes()
 

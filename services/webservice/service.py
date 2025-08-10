@@ -17,15 +17,18 @@ class WebService(Service):
     def __init__(self, node: NodeImpl):
         super().__init__(node)
         cfg = self.get_config()
-        self.app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-        self.config = Config(app=self.app, host=cfg.get('listen', '0.0.0.0'), port=cfg.get('port', 9876),
-                             log_level=logging.ERROR, use_colors=False)
-        self.server: uvicorn.Server = uvicorn.Server(config=self.config)
-        self.task = None
+        if cfg:
+            self.app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+            self.config = Config(app=self.app, host=cfg.get('listen', '0.0.0.0'), port=cfg.get('port', 9876),
+                                 log_level=logging.ERROR, use_colors=False)
+            self.server: uvicorn.Server = uvicorn.Server(config=self.config)
+            self.task = None
 
-        # add debug endpoints
-        if cfg.get('debug', False):
-            self.add_debug_routes()
+            # add debug endpoints
+            if cfg.get('debug', False):
+                self.add_debug_routes()
+        else:
+            self.app = None
 
     def add_debug_routes(self):
         self.log.warning("WebService: Debug is enabled, you might expose your API functions!")
@@ -60,11 +63,12 @@ class WebService(Service):
                                )
 
     async def start(self):
-        await super().start()
-        self.task = asyncio.create_task(self.server.serve())
+        if self.app and self.server:
+            await super().start()
+            self.task = asyncio.create_task(self.server.serve())
 
     async def stop(self):
         if self.task:
             self.server.should_exit = True
             await self.task
-        await super().stop()
+            await super().stop()
