@@ -99,7 +99,7 @@ class SquadronInfo(BaseModel):
     description: str = Field(..., description="Description of the squadron")
     image_url: str = Field(..., description="URL to the squadron's image")
     locked: bool = Field(..., description="Whether the squadron is locked")
-    role: str = Field(..., description="Discord role name associated with the squadron")
+    role: Optional[str] = Field(None, description="Discord role name associated with the squadron")
 
     model_config = {
         "json_schema_extra": {
