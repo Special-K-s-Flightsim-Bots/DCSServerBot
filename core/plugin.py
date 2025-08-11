@@ -476,8 +476,8 @@ class Plugin(commands.Cog, Generic[TEventListener]):
             else:
                 return element
 
-        default = deepcopy(filter_element(self.locals.get(DEFAULT_TAG, {})))
-        specific = deepcopy(filter_element(self.locals.get(server.node.name, self.locals).get(server.instance.name, {})))
+        default = deepcopy(filter_element(self.locals.get(DEFAULT_TAG) or {}))
+        specific = deepcopy(filter_element(self.locals.get(server.node.name, self.locals).get(server.instance.name) or {}))
         return default, specific
 
     def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
