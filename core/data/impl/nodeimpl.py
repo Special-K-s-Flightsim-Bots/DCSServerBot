@@ -506,19 +506,27 @@ class NodeImpl(Node):
             self.log.debug('- No update found for DCSServerBot.')
         return rc
 
-    async def upgrade(self):
+    async def _upgrade(self, conn: psycopg.AsyncConnection):
         # We do not want to run an upgrade, if we are on a cloud drive, so just restart in this case
         if not self.master and self.locals.get('cloud_drive', True):
             await self.restart()
-            return
         elif await self.upgrade_pending():
             if self.master:
-                async with self.cpool.connection() as conn:
-                    async with conn.transaction():
-                        await conn.execute("""
-                            UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s
-                        """, (self.guild_id, ))
+                await conn.execute("""
+                    UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s
+                """, (self.guild_id, ))
             await self.shutdown(UPDATE)
+        elif self.master:
+            await conn.execute("""
+               UPDATE cluster
+               SET update_pending = FALSE, version = %s
+               WHERE guild_id = %s
+           """, (__version__, self.guild_id))
+
+    async def upgrade(self):
+        async with self.cpool.connection() as conn:
+            async with conn.transaction():
+                await self._upgrade(conn)
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         if not self.dcs_branch or not self.dcs_version:
@@ -858,8 +866,18 @@ class NodeImpl(Node):
                         if update_pending:
                             return await handle_upgrade(master)
                         elif parse(version) > parse(__version__):
-                            await self.upgrade()
-                            return False
+                            # avoid update loops if we are the master
+                            if master == self.name:
+                                self.master = True
+                                self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
+                                                 "Rolling back the cluser version to my version.")
+                            await self._upgrade(conn)
+                        elif parse(version) < parse(__version__):
+                            if master != self.name:
+                                raise FatalException(f"This node uses DCSServerBot version {__version__} "
+                                                     f"where the master uses version {version}!")
+                            self.master = True
+                            await self._upgrade(conn)
 
                         # I am the master
                         if master == self.name:
@@ -885,6 +903,9 @@ class NodeImpl(Node):
             current_stats = self.cpool.get_stats()
             self.log.warning(f"Pool stats: {repr(current_stats)}")
             raise
+        except FatalException as ex:
+            self.log.critical(ex)
+            exit(SHUTDOWN)
         except Exception as ex:
             self.log.exception(ex)
             raise

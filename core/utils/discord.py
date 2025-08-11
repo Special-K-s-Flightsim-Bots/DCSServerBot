@@ -1594,13 +1594,16 @@ class ServerUploadHandler(NodeUploadHandler):
         self.server = server
 
     @staticmethod
-    async def get_server(message: discord.Message) -> Optional[Server]:
+    async def get_server(message: discord.Message, channel_id: Optional[int] = None) -> Optional[Server]:
         from services.bot import BotService
         from services.servicebus import ServiceBus
 
         bot = ServiceRegistry.get(BotService).bot
         server = bot.get_server(message, admin_only=True)
-        if not server and message.channel.id == bot.locals.get('channels', {}).get('admin'):
+        if not channel_id:
+            channel_id = bot.locals.get('channels', {}).get('admin')
+
+        if not server and message.channel.id == channel_id:
             bus = ServiceRegistry.get(ServiceBus)
             ctx = await bot.get_context(message)
             server = await utils.server_selection(bus, ctx, title=_("To which server do you want to upload?"))

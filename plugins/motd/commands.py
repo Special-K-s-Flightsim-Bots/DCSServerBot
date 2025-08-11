@@ -146,9 +146,9 @@ class MOTD(Plugin[MOTDListener]):
                 if server.status != Status.RUNNING:
                     if handles:
                         await self._cancel_handles(server)
-                    return
+                    continue
                 elif handles:
-                    return
+                    continue
                 config: dict = config['nudge']
                 self.nudge_active[server_name] = {}
                 if isinstance(config, list):

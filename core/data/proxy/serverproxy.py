@@ -222,7 +222,7 @@ class ServerProxy(Server):
         }, node=self.node.name, timeout=timeout)
         self.name = new_name
 
-    async def render_extensions(self) -> list:
+    async def render_extensions(self) -> list[dict]:
         if not self._extensions:
             timeout = 60 if not self.node.slow_system else 120
             data = await self.bus.send_to_node_sync({

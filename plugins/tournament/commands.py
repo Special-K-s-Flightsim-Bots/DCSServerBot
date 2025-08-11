@@ -1809,7 +1809,8 @@ class Tournament(Plugin[TournamentEventListener]):
             mission_id = server.settings['listStartIndex'] - 1
 
         # prepare the mission
-        embed.description += _("\n- Using mission {} ...").format(os.path.basename(mission_list[mission_id]))
+        embed.description += _("\n- Using mission {} ...").format(
+            utils.escape_string(os.path.basename(mission_list[mission_id])))
         await msg.edit(embed=embed)
         await self.prepare_mission(server, match_id, round_number, mission_id)
 
@@ -1846,7 +1847,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 embed.set_thumbnail(url=squadrons[side]['image_url'])
             embed.description = _("You can **now** join the server.")
             embed.add_field(name=_("Server"), value=server.name)
-            embed.add_field(name=_("IP:Port"), value=f"{server.node.public_ip}:{server.settings['port']}")
+            embed.add_field(name=_("IP:Port"), value=f"{server.node.public_ip}:{server.settings.get('port', 10308)}")
             embed.add_field(name=_("Password"), value=server.settings.get('password', ''))
             embed.add_field(name=_("Terrain"), value=server.current_mission.map)
             embed.set_footer(text=_("Please keep in mind that you can only use {} planes!").format(

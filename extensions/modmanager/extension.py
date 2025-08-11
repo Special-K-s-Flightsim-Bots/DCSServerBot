@@ -28,10 +28,10 @@ class ModManager(Extension):
 
     async def render(self, param: Optional[dict] = None) -> dict:
         mods = self.modules.get(self.server.name)
-        if mods:
-            return {
-                "name": "Required Mods",
-                "value": '\n'.join([f"- {mod}" for mod in mods])
-            }
-        else:
+        if not mods:
             raise NotImplementedError()
+
+        return {
+            "name": "Required Mods",
+            "value": '\n'.join([f"- {mod}" for mod in mods])
+        }

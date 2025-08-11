@@ -2091,7 +2091,39 @@ class Mission(Plugin[MissionEventListener]):
             return
 
         # check if we are in the correct channel
-        server = await MissionUploadHandler.get_server(message)
+        server = None
+        for node_name, node in self.locals.items():
+            if node_name == 'commands':
+                continue
+            if node_name == DEFAULT_TAG:
+                channel = node.get('uploads', {}).get('channel')
+                if channel:
+                    if message.channel.id == channel:
+                        server = await MissionUploadHandler.get_server(message, channel)
+                    break
+            elif 'uploads' in node:
+                channel = node.get('uploads', {}).get('channel')
+                if message.channel.id == channel:
+                    server = next((
+                        server for server in self.bus.servers.values()
+                        if server.instance.name == node_name
+                    ), None)
+                    break
+            else:
+                for instance_name, instance in node.items():
+                    channel = instance.get('uploads', {}).get('channel')
+                    if message.channel.id == channel:
+                        server = next((
+                            server for server in self.bus.servers.values()
+                            if server.instance.name == instance_name
+                        ), None)
+                        break
+                else:
+                    continue
+                break
+        else:
+            server = await MissionUploadHandler.get_server(message)
+
         if not server:
             return
 

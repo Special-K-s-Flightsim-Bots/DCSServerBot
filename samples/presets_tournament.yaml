@@ -1,0 +1,402 @@
+default:
+  files:
+    - sounds/siren.ogg
+sanitize:
+  accidental_failures: false
+  miscellaneous:
+    f10_awacs: false
+    F2_view_effects: 1
+    f11_free_camera: false
+    f5_nearest_ac: false
+  difficulty:
+    externalViews: false
+    spectatorExternalViews: false
+    optionsView: optview_myaircraft
+  forcedOptions:
+    externalViews: false
+    spectatorExternalViews: false
+    optionsView: optview_myaircraft
+    fuel: false
+    spottingDot: 2
+    miniHUD: false
+    birds: 0
+    permitCrash: true
+    immortal: false
+    cockpitSatusBarAllowed: false
+    cockpitVisualRM: false
+    easyFlight: false
+    radio: false
+    labels: 0
+    wakeTurbulence: false
+    unrestrictedSATNAV: true
+    userMarks: true
+    padlock: false
+    civTraffic: ""
+    weapons: false
+    easyCommunication: false
+    geffect: realistic
+switch_sides:
+  modify:
+    - file: warehouses
+      debug: true
+      for-each: airports/$'{coalition}' == 'BLUE'
+      replace:
+        coalition: xxx
+    - file: warehouses
+      debug: true
+      for-each: airports/$'{coalition}' == 'RED'
+      replace:
+        coalition: BLUE
+    - file: warehouses
+      debug: true
+      for-each: airports/$'{coalition}' == 'xxx'
+      replace:
+        coalition: RED
+    - file: mission
+      variables:
+        red_planes: coalition/red
+        blue_planes: coalition/blue
+      for-each: coalition
+      replace:
+        red: $blue_planes
+        blue: $red_planes
+    - file: mission
+      for-each: coalition/blue
+      where: $'{name}' == 'red'
+      replace:
+        name: blue
+    - file: mission
+      for-each: coalition/red
+      where: $'{name}' == 'blue'
+      replace:
+        name: red
+AWACS:
+  modify:
+    debug: true
+    file: mission
+    for-each: coalition/${side}/country/*/plane/group/$'{task}' == 'AWACS'
+    replace:
+      lateActivation: false
+AIM-120B:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '24'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 24
+AIM-120C:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/${wsType} == [4,4,7,106]
+    replace:
+      initialAmount: ${initialAmount} + {num}
+AIM-54C MK60C:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '405'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 405
+AIM-54A MK47A:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '322'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 322
+R-77:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '19'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 19
+SD-10:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '307'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 307
+AIM-7P:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '397'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 397
+R27-ER:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '14'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 14
+R27-ET:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '16'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 16
+R27-R:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '13'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 13
+R27-T:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '15'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 15
+R-73:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '18'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 18
+PL-5EII:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '306'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 306
+AIM-9L:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '267'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 267
+AIM-9M:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '22'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 22
+AIM-9X:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '136'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 136
+JF-17 KG-600:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '462'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 15
+        - 45
+        - 462
+F18 Fuel Tank 330G:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '587'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 1
+        - 3
+        - 43
+        - 587
+F15C/E Fuel Tank 610G:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '1716'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 1
+        - 3
+        - 43
+        - 1716
+F16 Center 300G Fuel Tank:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '12'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 1
+        - 3
+        - 43
+        - 12
+F16 Wing 370G Fuel Tank:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '11'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 1
+        - 3
+        - 43
+        - 11
+JF-17 Wing Tank 800L:
+  modify:
+    debug: true
+    file: warehouses
+    variables:
+      side: $'{side}'.upper()
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '465'
+    replace:
+      initialAmount: ${initialAmount} + {num}
+      wsType:
+        - 4
+        - 4
+        - 7
+        - 465
+disable_group:
+  modify:
+    - debug: true
+      for-each: coalition/${side}/country/*/plane/group/$'{name}' == '{group}'
+      replace:
+        lateActivation: true
+    - debug: true
+      for-each: coalition/${side}/country/*/plane/group/$'{name}' == '{group}'/units/$'{skill}' == 'Client'
+      replace:
+        skill: Random
+enable_group:
+  modify:
+    - debug: true
+      for-each: coalition/${side}/country/*/plane/group/$'{name}' == '{group}'
+      replace:
+        lateActivation: false
+    - debug: true
+      for-each: coalition/${side}/country/*/plane/group/$'{name}' == '{group}'/units/$'{skill}' != 'Client'
+      replace:
+        skill: Client

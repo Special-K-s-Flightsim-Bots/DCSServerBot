@@ -117,20 +117,19 @@ class SRC(Extension):
         return True
 
     async def render(self, param: Optional[dict] = None) -> dict:
-        rc = {}
-        if self.locals:
-            host = self.config.get('host', self.node.public_ip)
-            value = f"{host}:{self.locals['SERVER_TCP_PORT']}"
-            show_passwords = self.config.get('show_passwords', True)
-            if show_passwords:
-                blue = self.locals.get('PASSWORDS', {}).get('BLUE')
-                red = self.locals.get('PASSWORDS', {}).get('RED')
-                if blue or red:
-                    value += f'\n🔹 Pass: {blue}\n🔸 Pass: {red}'
-            rc = {
-                "name": self.name,
-                "version": self.version,
-                "value": value
-            }
-        return rc
-    
+        if not self.locals:
+            raise NotImplementedError()
+
+        host = self.config.get('host', self.node.public_ip)
+        value = f"{host}:{self.locals['SERVER_TCP_PORT']}"
+        show_passwords = self.config.get('show_passwords', True)
+        if show_passwords:
+            blue = self.locals.get('PASSWORDS', {}).get('BLUE')
+            red = self.locals.get('PASSWORDS', {}).get('RED')
+            if blue or red:
+                value += f'\n🔹 Pass: {blue}\n🔸 Pass: {red}'
+        rc = {
+            "name": self.name,
+            "version": self.version,
+            "value": value
+        }

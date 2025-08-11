@@ -232,8 +232,8 @@ msgid "To display the mission and player status."
 msgstr "显示任务和玩家状态."
 
 # Chat Channel
-msgid "[bright_black]Optional:[/]: An in-game chat replication."
-msgstr "[bright_black]可选:[/]: 游戏内聊天同步频道."
+msgid "Optional: An in-game chat replication."
+msgstr "可选: 游戏内聊天同步频道."
 
 # Admin Channel
 msgid "For admin commands."

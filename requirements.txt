@@ -8,10 +8,10 @@ astral==3.2
 audioop-lts==0.2.1; python_version>='3.13'
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
-aiohttp==3.12.14
+aiohttp==3.12.15
 
 # Certifi: Python package for providing Mozilla's CA Bundle
-certifi==2025.7.14
+certifi==2025.8.3
 
 # Croniter: Python iterator implementing a cron schedule format
 croniter==6.0.0
@@ -89,7 +89,7 @@ pywin32==311; sys_platform == 'win32'
 requests==2.32.4
 
 # Rich: Python library for rich text and beautiful formatting in the terminal
-rich==14.0.0
+rich==14.1.0
 
 # ruamel-yaml: YAML parser/emitter supporting roundtrip comment preservation
 ruamel.yaml==0.18.14
