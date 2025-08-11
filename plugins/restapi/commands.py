@@ -1,8 +1,12 @@
+import discord
 import psycopg
 import random
 
+from discord import app_commands
+
 from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, PluginInstallationError
 from datetime import datetime, timedelta, timezone
+from discord.ext import tasks
 from fastapi import FastAPI, APIRouter, Form, Query, HTTPException
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
@@ -159,6 +163,14 @@ class RestAPI(Plugin):
         )
         self.app.include_router(router)
 
+    async def cog_load(self) -> None:
+        await super().cog_load()
+        self.refresh_views.start()
+
+    async def cog_unload(self) -> None:
+        self.refresh_views.cancel()
+        await super().cog_unload()
+
     async def get_ucid(self, nick: str, date: Union[str, datetime]) -> str:
         if isinstance(date, str):
             date = datetime.fromisoformat(date)
@@ -184,17 +196,7 @@ class RestAPI(Plugin):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
-                    SELECT COUNT(DISTINCT p.ucid) AS "totalPlayers", 
-                           ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))) / 3600)::INTEGER AS "totalPlaytime",
-                           ROUND(AVG(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS "avgPlaytime",
-                           SUM(CASE WHEN s.hop_off IS NULL THEN 1 ELSE 0 END) AS "activePlayers",
-                           COUNT(*) AS "totalSorties",
-                           SUM(s.kills) AS "totalKills",
-                           SUM(s.deaths) AS "totalDeaths",
-                           SUM(s.pvp) AS "totalPvPKills",
-                           SUM(s.deaths_pvp) AS "totalPvPDeaths"
-                    FROM players p JOIN statistics s 
-                    ON p.ucid = s.player_ucid
+                    SELECT * FROM mv_serverstats
                 """)
                 serverstats = await cursor.fetchone()
                 await cursor.execute("""
@@ -602,6 +604,14 @@ class RestAPI(Plugin):
             "timestamp": expiry_timestamp,
             "rc": rc
         })
+
+    @tasks.loop(hours=1)
+    async def refresh_views(self):
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    REFRESH MATERIALIZED VIEW mv_serverstats;
+                """)
 
 
 async def setup(bot: DCSServerBot):
