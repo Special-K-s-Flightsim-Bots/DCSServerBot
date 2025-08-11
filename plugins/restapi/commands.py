@@ -268,17 +268,17 @@ class RestAPI(Plugin):
         self.log.debug('Calling /squadrons')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                squadrons: list[dict] = []
+                squadrons: list[SquadronInfo] = []
                 async for row in await cursor.execute("""
                     SELECT * FROM squadrons ORDER BY name
                 """):
-                    squadrons.append({
+                    squadrons.append(SquadronInfo.model_validate({
                         "name": row['name'],
                         "description": row['description'],
                         "image_url": row['image_url'],
                         "locked": row['locked'],
-                        "role": self.bot.get_role(row['role']).name
-                    })
+                        "role": self.bot.get_role(row['role']).name if row['role'] else None
+                    }))
         return squadrons
 
     async def topkills(self, limit: int = Query(default=10)):
