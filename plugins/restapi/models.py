@@ -26,6 +26,18 @@ class DailyPlayers(BaseModel):
     date: datetime
     player_count: int
 
+    model_config = {
+            "json_encoders": {
+                datetime: lambda v: v.isoformat()
+            },
+            "json_schema_extra": {
+                "example": {
+                    "date": "2025-08-07T12:00:00",
+                    "player_count": 100
+                }
+            }
+    }
+
 
 class ServerStats(BaseModel):
     totalPlayers: int
@@ -39,6 +51,20 @@ class ServerStats(BaseModel):
     totalPvPDeaths: int
     daily_players: list[DailyPlayers]
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "totalPlayers": 100,
+                "avgPlaytime": 120,
+                "totalPlaytime": 3600,
+                "activePlayers": 50,
+                "totalSorties": 100,
+                "totalKills": 100,
+                "totalDeaths": 50,
+            }
+        }
+    }
+
 
 class MissionInfo(BaseModel):
     name: str
@@ -51,10 +77,34 @@ class MissionInfo(BaseModel):
     red_slots_used: Optional[int] = None
     restart_time: Optional[int] = None
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "name": "Training Mission",
+                "uptime": 3600,
+                "date_time": "2025-08-07 12:00:00",
+                "theatre": "Caucasus",
+                "blue_slots": 20,
+                "blue_slots_used": 5,
+                "red_slots": 20,
+            }
+        }
+    }
+
 class ExtensionInfo(BaseModel):
     name: str
     version: Optional[str] = None
     value: str
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "name": "SRS",
+                "version": "1.9.0.0",
+                "value": "127.0.0.1:5002"
+            }
+        }
+    }
 
 class ServerInfo(BaseModel):
     name: str
@@ -252,6 +302,19 @@ class ModuleStats(BaseModel):
     kills: Optional[int] = Field(None, description="Number of PvP-kills with this module")
     kdr: Optional[Decimal] = Field(None, description="PvP-Kill/Death ratio with this module")
 
+    model_config = {
+        "json_encoders": {
+            Decimal: lambda v: float(v)
+        },
+        "json_schema_extra": {
+            "example": {
+                "module": "F/A-18C",
+                "kills": 30,
+                "kdr": 2.5
+            }
+        }
+    }
+
 
 class PlayerStats(BaseModel):
     playtime: int = Field(..., description="Total playtime in seconds")
@@ -383,6 +446,25 @@ class SquadronCampaignCredit(BaseModel):
             }
         }
     }
+
+
+class PlayerSquadron(BaseModel):
+    name: str = Field(..., description="Squadron name")
+    image_url: str = Field(..., description="URL of the squadron's image")
+
+    model_config = {
+            "json_schema_extra": {
+                "example": {
+                    "name": "Red Devils",
+                    "image_url": "https://example.com/squadron-logo.png"
+                }
+            }
+        }
+
+
+class PlayerInfo(PlayerStats):
+    credits: CampaignCredits = Field(..., description="Campaign credits of this player")
+    squadrons: list[PlayerSquadron] = Field(default_factory=list, description="Squadrons the player is a member of")
 
 
 class LinkMeResponse(BaseModel):

@@ -72,7 +72,7 @@ class WebService(Service):
         self.app.add_api_route("/openapi.json",
                                lambda: get_openapi(
                                    title="DCSServerBot REST API",
-                                   version=self.node.bot_version,
+                                   version=f"{self.node.bot_version}.{self.node.sub_version}",
                                    description="REST functions to be used for DCSServerBot.",
                                    routes=self.app.routes,
                                ),
