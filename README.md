@@ -7,13 +7,15 @@
 You've found a comprehensive solution that helps you administrate your DCS World servers. It has a Discord integration 
 ([now optional](#dcsserverbot-installation-non-discord)!) with slash-commands, built in per-server and per-user 
 statistics, optional cloud-based statistics, [Coalitions](./COALITIONS.md)-support, a whole 
-[Tournament-System](./plugins/tournament/README.md) and much more!<br> 
+[Tournament-System](./plugins/tournament/README.md), a third-party [web-frontend](https://github.com/Penfold-88/DCS-Statistics-Dashboard) for
+statistics and much more!
+<p> 
 With its plugin system and reporting framework, DCSServerBot can be enhanced very easily to support whatever might come 
 into your mind. DCSServerBot is a solution for DCS server admins built by a DCS server admin.
-
+<p>
 This documentation shows you the main features, how to install and configure the bot and some more sophisticated 
 stuff at the bottom, if you for instance run multiple servers maybe even over multiple locations. 
-
+<p>
 Now let's see what DCSServerBot can do for you (installation-instructions [below](#installation))!
 
 ---
