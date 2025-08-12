@@ -1,8 +1,5 @@
-import discord
 import psycopg
 import random
-
-from discord import app_commands
 
 from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, PluginInstallationError
 from datetime import datetime, timedelta, timezone
@@ -16,7 +13,8 @@ from services.webservice import WebService
 from typing import Optional, Any, Union
 
 from .models import (TopKill, ServerInfo, SquadronInfo, TopKDR, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
-                     CampaignCredits, TrapEntry, SquadronMember, SquadronCampaignCredit, LinkMeResponse, ServerStats)
+                     CampaignCredits, TrapEntry, SquadronMember, SquadronCampaignCredit, LinkMeResponse, ServerStats,
+                     PlayerInfo, PlayerSquadron)
 
 app: Optional[FastAPI] = None
 
@@ -130,6 +128,14 @@ class RestAPI(Plugin):
             tags = ["Statistics"]
         )
         router.add_api_route(
+            "/player_info", self.player_info,
+            methods = ["POST"],
+            response_model = PlayerInfo,
+            description = "Get player information",
+            summary = "Player Information",
+            tags = ["Statistics"]
+        )
+        router.add_api_route(
             "/highscore", self.highscore,
             methods = ["GET"],
             response_model = Highscore,
@@ -160,6 +166,14 @@ class RestAPI(Plugin):
             description = "Squadron campaign credits",
             summary = "Squadron Credits",
             tags = ["Credits"]
+        )
+        router.add_api_route(
+            "/player_squadrons", self.player_squadrons,
+            methods = ["POST"],
+            response_model = list[PlayerSquadron],
+            description = "List of player squadrons",
+            summary = "Player Squadrons",
+            tags = ["Info"]
         )
         self.app.include_router(router)
 
@@ -422,15 +436,18 @@ class RestAPI(Plugin):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 ucid = await self.get_ucid(nick, date)
                 await cursor.execute("""
-                    SELECT overall.playtime, overall.kills, overall.deaths, overall.kills_pvp, overall.deaths_pvp, 
-                           overall.takeoffs, overall.landings, overall.ejections, overall.crashes, overall.teamkills, 
-                           ROUND(CASE WHEN overall.deaths = 0 
+                    SELECT COALESCE(overall.playtime, 0) AS playtime, COALESCE(overall.kills, 0) as kills, 
+                           COALESCE(overall.deaths, 0) AS deaths, COALESCE(overall.kills_pvp, 0) AS kills_pvp, 
+                           COALESCE(overall.deaths_pvp, 0) AS deaths_pvp, COALESCE(overall.takeoffs, 0) AS takeoffs, 
+                           COALESCE(overall.landings, 0) AS landings, COALESCE(overall.ejections, 0) AS ejections, 
+                           COALESCE(overall.crashes, 0) AS crashes, COALESCE(overall.teamkills, 0) AS teamkills, 
+                           COALESCE(ROUND(CASE WHEN overall.deaths = 0 
                                       THEN overall.kills 
-                                      ELSE overall.kills/overall.deaths::DECIMAL END, 2) AS "kdr", 
-                           ROUND(CASE WHEN overall.deaths_pvp = 0 
+                                      ELSE overall.kills/overall.deaths::DECIMAL END, 2), 0) AS "kdr", 
+                           COALESCE(ROUND(CASE WHEN overall.deaths_pvp = 0 
                                       THEN overall.kills_pvp 
-                                      ELSE overall.kills/overall.deaths_pvp::DECIMAL END, 2) AS "kdr_pvp", 
-                           lastsession.kills AS "lastSessionKills", lastsession.deaths AS "lastSessionDeaths"
+                                      ELSE overall.kills/overall.deaths_pvp::DECIMAL END, 2), 0) AS "kdr_pvp", 
+                           COALESCE(lastsession.kills, 0) AS "lastSessionKills", COALESCE(lastsession.deaths, 0) AS "lastSessionDeaths"
                     FROM (
                         SELECT ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(hop_off, NOW() AT TIME ZONE 'UTC') - hop_on))))::INTEGER AS playtime, 
                                SUM(kills) as "kills", SUM(deaths) AS "deaths", 
@@ -466,6 +483,27 @@ class RestAPI(Plugin):
                 """, (ucid,))
                 data['kdrByModule'] = await cursor.fetchall()
                 return PlayerStats.model_validate(data)
+
+    async def player_info(self, nick: str = Form(...), date: str = Form(...)):
+        self.log.debug(f'Calling /player_info with nick="{nick}", date="{date}"')
+        player_info = dict(await self.stats(nick, date))
+        # add credits
+        player_info['credits'] = await self.credits(nick, date, None)
+        # add squadrons
+        player_info['squadrons'] = await self.player_squadrons(nick, date)
+        return PlayerInfo.model_validate(player_info)
+
+    async def player_squadrons(self, nick: str = Form(...), date: str = Form(...)):
+        self.log.debug(f'Calling /player_squadrons with nick="{nick}", date="{date}"')
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                ucid = await self.get_ucid(nick, date)
+                await cursor.execute("""
+                    SELECT name, image_url
+                    FROM squadrons s JOIN squadron_members sm ON sm.squadron_id = s.id
+                    WHERE sm.player_ucid = %s
+                """, (ucid, ))
+                return [PlayerSquadron.model_validate(result) for result in await cursor.fetchall()]
 
     async def credits(self, nick: str = Form(...), date: str = Form(...), campaign: str = Form(default=None)):
         self.log.debug(f'Calling /credits with nick="{nick}", date="{date}", campaign="{campaign}"')
