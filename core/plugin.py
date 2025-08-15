@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import aiofiles
 import asyncio
 import discord.errors
 import inspect
@@ -337,10 +338,10 @@ class Plugin(commands.Cog, Generic[TEventListener]):
                     if cursor.rowcount == 0:
                         tables_file = f'./plugins/{self.plugin_name}/db/tables.sql'
                         if os.path.exists(tables_file):
-                            with open(tables_file, mode='r') as tables_sql:
+                            async with aiofiles.open(tables_file, mode='r') as tables_sql:
                                 for query in [
                                     stmt.strip()
-                                    for stmt in sqlparse.split(tables_sql.read(), encoding='utf-8')
+                                    for stmt in sqlparse.split(await tables_sql.read(), encoding='utf-8')
                                     if stmt.strip()
                                 ]:
                                     self.log.debug(query.rstrip())
@@ -359,10 +360,10 @@ class Plugin(commands.Cog, Generic[TEventListener]):
                         while parse(installed) < parse(self.plugin_version):
                             updates_file = f'./plugins/{self.plugin_name}/db/update_v{installed}.sql'
                             if os.path.exists(updates_file):
-                                with open(updates_file, mode='r') as updates_sql:
+                                async with aiofiles.open(updates_file, mode='r') as updates_sql:
                                     for query in [
                                         stmt.strip()
-                                        for stmt in sqlparse.split(updates_sql.read(), encoding='utf-8')
+                                        for stmt in sqlparse.split(await updates_sql.read(), encoding='utf-8')
                                         if stmt.strip()
                                     ]:
                                         self.log.debug(query.rstrip())

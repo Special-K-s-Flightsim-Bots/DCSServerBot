@@ -225,6 +225,7 @@ class ServiceBus(Service):
                         await self.send_init(server)
                     if server.maintenance:
                         self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
+
                     if utils.is_open(server.instance.dcs_host, server.instance.webgui_port):
                         calls[server.name] = asyncio.create_task(
                             server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)

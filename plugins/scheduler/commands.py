@@ -453,6 +453,10 @@ class Scheduler(Plugin[SchedulerListener]):
 
     @tasks.loop(minutes=1.0)
     async def check_state(self):
+        # do not change the state if an update is pending
+        if self.node.update_pending:
+            return
+
         next_startup = 0
         startup_delay = self.get_config().get('startup_delay', 10)
         for server_name, server in self.bot.servers.items():
