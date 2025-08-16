@@ -15,7 +15,7 @@ from typing import Optional, Any
 _ = get_translation(__name__.split('.')[1])
 
 TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(os.path.join('%USERPROFILE%', 'Documents', 'Tacview')))
-TACVIEW_EXPORT_LINE = "local Tacviewlfs=require('lfs');dofile(Tacviewlfs.writedir()..'Scripts/TacviewGameExport.lua')\n"
+TACVIEW_EXPORT_LINE = "local Tacviewlfs=require('lfs');dofile(Tacviewlfs.writedir()..'Scripts/TacviewGameExport.lua')"
 TACVIEW_PATTERN_MATCH = r'Successfully saved \[(?P<filename>.*?\.acmi)\]'
 
 rtt_ports: dict[int, str] = dict()
@@ -355,8 +355,11 @@ class Tacview(Extension):
                 lines = await infile.readlines()
         except FileNotFoundError:
             lines = []
-        if TACVIEW_EXPORT_LINE not in lines:
-            lines.append(TACVIEW_EXPORT_LINE)
+        for line in lines:
+            if TACVIEW_EXPORT_LINE in line:
+                break
+        else:
+            lines.append(TACVIEW_EXPORT_LINE + '\n')
             async with aiofiles.open(export_file, mode='w', encoding='utf-8') as outfile:
                 await outfile.writelines(lines)
         # load the configuration

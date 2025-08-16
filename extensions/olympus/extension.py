@@ -19,7 +19,7 @@ from extensions.srs import SRS
 
 _ = get_translation(__name__.split('.')[1])
 
-OLYMPUS_EXPORT_LINE = "pcall(function() local olympusLFS=require('lfs');dofile(olympusLFS.writedir()..[[Mods\\Services\\Olympus\\Scripts\\OlympusCameraControl.lua]]); end,nil)\n"
+OLYMPUS_EXPORT_LINE = "pcall(function() local olympusLFS=require('lfs');dofile(olympusLFS.writedir()..[[Mods\\Services\\Olympus\\Scripts\\OlympusCameraControl.lua]]); end,nil)"
 ANSI_ESCAPE_RE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
 server_ports: dict[int, str] = dict()
@@ -222,8 +222,11 @@ class Olympus(Extension):
         except FileNotFoundError:
             lines = []
 
-        if OLYMPUS_EXPORT_LINE not in lines:
-            lines.append(OLYMPUS_EXPORT_LINE)
+        for line in lines:
+            if OLYMPUS_EXPORT_LINE in line:
+                break
+        else:
+            lines.append(OLYMPUS_EXPORT_LINE + '\n')
             async with aiofiles.open(export_file, mode='w', encoding='utf-8') as outfile:
                 await outfile.writelines(lines)
 
