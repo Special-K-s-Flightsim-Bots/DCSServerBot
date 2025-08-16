@@ -127,6 +127,8 @@ class PeriodFilter(StatisticsFilter):
             return period.capitalize() + 's '
         elif period in ['day', 'week', 'month', 'year']:
             return period.capitalize() + 'ly '
+        elif '-' in period:
+            return period + '\n'
         else:
             return period
 
