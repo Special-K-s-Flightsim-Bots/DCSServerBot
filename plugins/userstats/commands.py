@@ -693,7 +693,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             self.log.warning(f"Channel ID missing for highscore '{period}'")
             return
 
-        # Handle report rendering based on mission_end flag
+        # Handle report rendering based on the mission_end flag
         try:
             if not mission_end:
                 # Persistent highscore rendering
