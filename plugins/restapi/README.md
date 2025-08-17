@@ -13,7 +13,7 @@ You can configure the RestAPI endpoints in your config\plugins\restapi.yaml like
 ```yaml
 DEFAULT:
   prefix: /stats            # Optional: use this prefix
-  enpoints:                 # endpoint configuration
+  endpoints:                 # endpoint configuration
     servers:                # /servers
       filter:               # config parameter (in this case, the server filter list)
         - 'MyPrivateServer' # Do not show a server named "MyPrivateServer"
