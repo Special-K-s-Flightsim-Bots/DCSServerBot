@@ -1,7 +1,10 @@
+import re
+
 import psycopg
 import random
 
-from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, PluginInstallationError
+from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, PluginInstallationError, \
+    Server
 from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
 from fastapi import FastAPI, APIRouter, Form, Query, HTTPException
@@ -185,6 +188,9 @@ class RestAPI(Plugin):
         self.refresh_views.cancel()
         await super().cog_unload()
 
+    def get_endpoint_config(self, endpoint: str):
+        return self.get_config().get('endpoints', {}).get(endpoint, {})
+
     async def get_ucid(self, nick: str, date: Union[str, datetime]) -> str:
         if isinstance(date, str):
             date = datetime.fromisoformat(date)
@@ -237,8 +243,16 @@ class RestAPI(Plugin):
 
     async def servers(self):
         self.log.debug('Calling /servers')
+
+        def filter_servers(servers: list[Server]):
+            config = self.get_endpoint_config('servers')
+            for s in servers:
+                for f in config.get('filter', []):
+                    if not re.match(f, s.name):
+                        yield s
+
         servers = []
-        for server in self.bot.servers.values():
+        for server in filter_servers(list(self.bot.servers.values())):
             data: dict[str, Any] = {
                 'name': server.name,
                 'status': server.status.value,
@@ -531,7 +545,7 @@ class RestAPI(Plugin):
                         status_code=404,
                         detail=f"No credits found for player {nick}"
                     )
-                return CampaignCredits.model_validate(await cursor.fetchone())
+                return CampaignCredits.model_validate(row)
 
     async def traps(self, nick: str = Form(default=None), date: str = Form(default=None),
                     limit: int = Form(default=10)):

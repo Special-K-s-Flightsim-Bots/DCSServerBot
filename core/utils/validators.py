@@ -41,6 +41,7 @@ __all__ = [
     "str_csv_or_list",
     "check_main_structure",
     "is_node",
+    "is_server",
     "validate"
 ]
 
@@ -68,12 +69,12 @@ class NodeData:
         # Only initialize the attributes once
         try:
             config_path = Path(os.path.join(COMMAND_LINE_ARGS.config, 'nodes.yaml'))
-            self._data = yaml.load(config_path.read_text(encoding='utf-8'))
-            self._nodes: list[str] = list(self._data.keys())
+            data = yaml.load(config_path.read_text(encoding='utf-8'))
+            self._nodes: list[str] = list(data.keys())
             self._instances: dict[str, list[str]] = {
-                node: list(self._data[node]['instances'].keys())
+                node: list(data[node]['instances'].keys())
                 for node in self._nodes
-                if self._data[node] and self._data[node].get('instances')
+                if data[node] and data[node].get('instances')
             }
             self._all_instances: dict[str, int] = {}
             for node, instances in self._instances.items():
@@ -82,6 +83,13 @@ class NodeData:
         except Exception:
             raise CoreError(msg="nodes.yaml seems to be corrupt, can't initialize the node/instance-validation!")
 
+        try:
+            config_path = Path(os.path.join(COMMAND_LINE_ARGS.config, 'servers.yaml'))
+            data = yaml.load(config_path.read_text(encoding='utf-8'))
+            self._servers = list(data.keys())
+        except Exception:
+            raise CoreError(msg="servers.yaml seems to be corrupt, can't initialize the server-validation!")
+
     @property
     def nodes(self):
         return self._nodes
@@ -89,6 +97,10 @@ class NodeData:
     @property
     def instances(self):
         return self._instances
+
+    @property
+    def servers(self):
+        return self._servers
 
     @property
     def all_instances(self):
@@ -265,6 +277,22 @@ def is_node(value, rule_obj, path):
         if instance not in node_data.all_instances:
             return False
     return True
+
+def is_server(value, rule_obj, path):
+    if isinstance(value, list):
+        for server in value:
+            if not is_server(server, rule_obj, path):
+                raise SchemaError(f'No server with name/pattern "{server}" found.')
+        return True
+
+    node_data = get_node_data()
+    try:
+        for server in node_data.servers:
+            if re.match(value, server):
+                return True
+        return False
+    except re.error as ex:
+        raise SchemaError(f'Invalid regular expression: "{ex.pattern}"', path=path)
 
 def is_element(value, rule_obj, path):
     node_data = get_node_data()

@@ -6,3 +6,21 @@ mapping:
     nullable: false
     mapping:
       prefix: {type: str, nullable: false}
+      endpoints:
+        type: map
+        nullable: false
+        mapping:
+          servers:
+            type: map
+            nullable: false
+            mapping:
+              filter:
+                type: seq
+                nullable: false
+                func: is_server
+                sequence:
+                  - type: str
+                    nullable: false
+                    unique: true
+          regex;(.+):
+            type: any
