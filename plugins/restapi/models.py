@@ -463,7 +463,7 @@ class PlayerSquadron(BaseModel):
 
 
 class PlayerInfo(PlayerStats):
-    credits: CampaignCredits = Field(..., description="Campaign credits of this player")
+    credits: Optional[CampaignCredits] = Field(None, description="Campaign credits of this player")
     squadrons: list[PlayerSquadron] = Field(default_factory=list, description="Squadrons the player is a member of")
 
 

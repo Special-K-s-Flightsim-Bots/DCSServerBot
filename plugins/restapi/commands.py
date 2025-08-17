@@ -200,7 +200,7 @@ class RestAPI(Plugin):
                 if not row:
                     raise HTTPException(
                         status_code=404,
-                        detail=f"Player {nick} not found with specified date"
+                        detail=f"Player {nick} not found"
                     )
                 return row['ucid']
 
@@ -488,7 +488,10 @@ class RestAPI(Plugin):
         self.log.debug(f'Calling /player_info with nick="{nick}", date="{date}"')
         player_info = dict(await self.stats(nick, date))
         # add credits
-        player_info['credits'] = await self.credits(nick, date, None)
+        try:
+            player_info['credits'] = await self.credits(nick, date, None)
+        except HTTPException:
+            player_info['credits'] = None
         # add squadrons
         player_info['squadrons'] = await self.player_squadrons(nick, date)
         return PlayerInfo.model_validate(player_info)
@@ -522,6 +525,12 @@ class RestAPI(Plugin):
                     {where}
                     GROUP BY 1, 2
                 """, {"ucid": ucid, "campaign": campaign})
+                row = await cursor.fetchone()
+                if not row:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"No credits found for player {nick}"
+                    )
                 return CampaignCredits.model_validate(await cursor.fetchone())
 
     async def traps(self, nick: str = Form(default=None), date: str = Form(default=None),
@@ -567,13 +576,15 @@ class RestAPI(Plugin):
                 AND s2.name = %(name)s
             """, {"name": name, "campaign": campaign})
             row = await cursor.fetchone()
-            if row:
-                squadron = utils.get_squadron(node=self.node, name=name)
-                squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
-                                                       campaign_id=row[0])
-                return SquadronCampaignCredit.model_validate({"campaign": row[1], "credits": squadron_obj.points})
-            else:
-                return {}
+            if not row:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Squadron {name} does not have any credits"
+                )
+            squadron = utils.get_squadron(node=self.node, name=name)
+            squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                                   campaign_id=row[0])
+            return SquadronCampaignCredit.model_validate({"campaign": row[1], "credits": squadron_obj.points})
 
     async def linkme(self,
                      discord_id: str = Form(..., description="Discord user ID (snowflake)", example="123456789012345678"),
