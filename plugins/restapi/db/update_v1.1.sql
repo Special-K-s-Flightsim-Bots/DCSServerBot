@@ -1,3 +1,4 @@
+DROP MATERIALIZED VIEW IF EXISTS mv_serverstats;
 CREATE MATERIALIZED VIEW mv_serverstats AS
 SELECT m.server_name, COUNT(DISTINCT p.ucid) AS "totalPlayers",
        ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))) / 3600)::INTEGER AS "totalPlaytime",

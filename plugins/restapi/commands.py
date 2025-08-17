@@ -1,7 +1,6 @@
-import re
-
 import psycopg
 import random
+import re
 
 from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, PluginInstallationError, \
     Server
@@ -13,7 +12,7 @@ from plugins.userstats.filter import StatisticsFilter, PeriodFilter
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.webservice import WebService
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, Literal
 
 from .models import (TopKill, ServerInfo, SquadronInfo, TopKDR, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronMember, SquadronCampaignCredit, LinkMeResponse, ServerStats,
@@ -191,17 +190,21 @@ class RestAPI(Plugin):
     def get_endpoint_config(self, endpoint: str):
         return self.get_config().get('endpoints', {}).get(endpoint, {})
 
-    async def get_ucid(self, nick: str, date: Union[str, datetime]) -> str:
-        if isinstance(date, str):
+    async def get_ucid(self, nick: str, date: Optional[Union[str, datetime]] = None) -> str:
+        if date and isinstance(date, str):
             date = datetime.fromisoformat(date)
+            where = "AND DATE_TRUNC('second', last_seen) = DATE_TRUNC('second', %(date)s)"
+        else:
+            where = ""
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
+                await cursor.execute(f"""
                     SELECT ucid
                     FROM players
-                    WHERE name = %s
-                      AND DATE_TRUNC('second', last_seen) = DATE_TRUNC('second', %s)
-                """, (nick, date))
+                    WHERE name = %(nick)s
+                    {where}
+                    ORDER BY last_seen DESC
+                """, {"nick": nick, "date": date})
                 row = await cursor.fetchone()
                 if not row:
                     raise HTTPException(
@@ -210,16 +213,31 @@ class RestAPI(Plugin):
                     )
                 return row['ucid']
 
-    async def serverstats(self):
-        self.log.debug('Calling /serverstats')
+    async def serverstats(self, server_name: str = Query(default=None)):
+        self.log.debug(f'Calling /serverstats with server_name = {server_name}')
         serverstats = {}
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
-                    SELECT * FROM mv_serverstats
-                """)
+                if server_name:
+                    where = "WHERE server_name = %(server_name)s"
+                else:
+                    where = ""
+                await cursor.execute(f"""
+                    SELECT SUM("totalPlayers") AS "totalPlayers", SUM("totalPlaytime") AS "totalPlaytime",
+                           SUM("avgPlaytime") AS "avgPlaytime", SUM("activePlayers") AS "activePlayers",
+                           SUM("totalSorties") AS "totalSorties", SUM("totalKills") AS "totalKills",
+                           SUM("totalDeaths") AS "totalDeaths", SUM("totalPvPKills") AS "totalPvPKills",
+                           SUM("totalPvPDeaths") AS "totalPvPDeaths" 
+                    FROM mv_serverstats
+                    {where}
+                """, {"server_name": server_name})
                 serverstats = await cursor.fetchone()
-                await cursor.execute("""
+
+                if server_name:
+                    join = f"JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
+                else:
+                    join = ""
+                await cursor.execute(f"""
                     WITH date_series AS (
                         SELECT generate_series(
                             DATE_TRUNC('day', (now() AT TIME ZONE 'utc') - interval '7 days'),
@@ -229,7 +247,8 @@ class RestAPI(Plugin):
                     ),
                     player_counts AS (
                         SELECT DATE_TRUNC('day', s.hop_on) AS date, COUNT(DISTINCT player_ucid) as player_count
-                        FROM statistics s
+                        FROM statistics s 
+                        {join}
                         WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '7 days'
                         GROUP BY 1
                     )
@@ -237,7 +256,7 @@ class RestAPI(Plugin):
                     FROM date_series ds
                     LEFT JOIN player_counts pc ON ds.date = pc.date
                     ORDER BY ds.date
-                """)
+                """, {"server_name": server_name})
                 serverstats['daily_players'] = await cursor.fetchall()
         return ServerStats.model_validate(serverstats)
 
@@ -315,47 +334,63 @@ class RestAPI(Plugin):
                     }))
         return squadrons
 
-    async def topkills(self, limit: int = Query(default=10)):
-        self.log.debug(f'Calling /topkills with limit={limit}')
+    async def top_players(self, what: Literal['kills', 'kdr'], limit: Optional[int] = 10,
+                          server_name: Optional[str] = None):
+        if what == 'kills':
+            order_column = 3
+        else:
+            order_column = 5
+
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
-                    SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date",
-                    SUM(s.kills) AS "kills", SUM(s.deaths) AS "deaths",
-                    CASE WHEN SUM(s.deaths) = 0 THEN SUM(s.kills) ELSE SUM(s.kills)/SUM(s.deaths::DECIMAL) END AS "kdr" 
-                    FROM statistics s JOIN players p 
-                    ON s.player_ucid = p.ucid 
-                    GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}
-                """.format(limit=limit if limit else 10))
+                if server_name:
+                    join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
+                else:
+                    join = ""
+                await cursor.execute(f"""
+                    SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date", SUM(s.kills) AS "kills", 
+                    SUM(s.pvp) AS "kills_pvp",
+                    SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths", 
+                    CASE WHEN SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) = 0 
+                         THEN SUM(s.kills) 
+                         ELSE SUM(s.kills::DECIMAL) / SUM((s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground)::DECIMAL) 
+                    END AS "kdr",
+                    SUM(s.deaths_pvp) AS "deaths_pvp",
+                    CASE WHEN SUM(s.deaths_pvp) = 0 
+                         THEN SUM(s.pvp) ELSE SUM(s.pvp::DECIMAL) / SUM(s.deaths_pvp::DECIMAL) 
+                    END AS "kdr_pvp"
+                    FROM statistics s 
+                    JOIN players p ON s.player_ucid = p.ucid 
+                    {join}
+                    GROUP BY 1, 2 ORDER BY {order_column} DESC LIMIT {limit}
+                """, {"server_name": server_name})
                 return [TopKill.model_validate(result) for result in await cursor.fetchall()]
 
-    async def topkdr(self, limit: int = Query(default=10)):
-        self.log.debug(f'Calling /topkdr with limit={limit}')
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
-                    SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date",
-                    SUM(s.kills) AS "kills", SUM(s.deaths) AS "deaths", 
-                    CASE WHEN SUM(s.deaths) = 0 THEN SUM(s.kills) ELSE SUM(s.kills)/SUM(s.deaths::DECIMAL) END AS "kdr" 
-                    FROM statistics s JOIN players p 
-                    ON s.player_ucid = p.ucid 
-                    GROUP BY 1, 2 ORDER BY 5 DESC LIMIT {limit}
-                """.format(limit=limit if limit else 10))
-                return [TopKDR.model_validate(result) for result in await cursor.fetchall()]
+    async def topkills(self, limit: int = Query(default=10), server_name: str = Query(default=None)):
+        self.log.debug(f'Calling /topkills with limit={limit}, server_name={server_name}')
+        return await self.top_players('kills', limit, server_name)
 
-    async def trueskill(self, limit: int = Query(default=10)):
-        self.log.debug(f'Calling /trueskill with limit={limit}')
+    async def topkdr(self, limit: int = Query(default=10), server_name: str = Query(default=None)):
+        self.log.debug(f'Calling /topkdr with limit={limit}, server_bane={server_name}')
+        return await self.top_players('kdr', limit, server_name)
+
+    async def trueskill(self, limit: int = Query(default=10), server_name: str = Query(default=None)):
+        self.log.debug(f'Calling /trueskill with limit={limit}, server_name={server_name}')
+        if server_name:
+            join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
+        else:
+            join = ""
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
+                await cursor.execute(f"""
                     SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date",
                     SUM(pvp) AS "kills_pvp", SUM(deaths_pvp) AS "deaths_pvp", t.skill_mu AS "TrueSkill" 
-                    FROM statistics s, players p, trueskill t 
-                    WHERE s.player_ucid = p.ucid 
-                    AND t.player_ucid = p.ucid
-                    AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
+                    FROM statistics s JOIN players p ON s.player_ucid = p.ucid
+                    JOIN trueskill t ON t.player_ucid = p.ucid
+                    {join}
+                    WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
                     GROUP BY 1, 2, 5 ORDER BY 5 DESC LIMIT {limit}
-                """.format(limit=limit if limit else 10))
+                """, {"server_name": server_name})
                 return [Trueskill.model_validate(result) for result in await cursor.fetchall()]
 
     async def highscore(self, server_name: str = Query(default=None), period: str = Query(default='all'),
@@ -429,31 +464,42 @@ class RestAPI(Plugin):
                 """, ('%' + nick + '%',))
                 return [UserEntry.model_validate(result) for result in await cursor.fetchall()]
 
-    async def weaponpk(self, nick: str = Form(...), date: str = Form(...)):
-        self.log.debug(f'Calling /weaponpk with nick="{nick}", date="{date}"')
+    async def weaponpk(self, nick: str = Form(...), date: Optional[str] = Form(None),
+                       server_name: Optional[str] = Form(None)):
+        self.log.debug(f'Calling /weaponpk with nick="{nick}", date="{date}", server_name="{server_name}"')
         ucid = await self.get_ucid(nick, date)
+        if server_name:
+            join = "JOIN missions m ON ms.mission_id = m.id AND m.server_name = %(server_name)s"
+        else:
+            join = ""
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
+                await cursor.execute(f"""
                     SELECT x.weapon, x.shots, x.hits, 
                            ROUND(CASE WHEN x.shots = 0 THEN 0 ELSE x.hits / x.shots::DECIMAL END, 2) AS "pk"
                     FROM (
                         SELECT weapon, SUM(CASE WHEN event='S_EVENT_SHOT' THEN 1 ELSE 0 END) AS "shots", 
                                SUM(CASE WHEN event='S_EVENT_HIT' THEN 1 ELSE 0 END) AS "hits" 
-                        FROM missionstats 
-                        WHERE init_id = %s AND weapon IS NOT NULL
+                        FROM missionstats ms
+                        {join}
+                        WHERE init_id = %(ucid)s AND weapon IS NOT NULL
                         GROUP BY weapon
                     ) x
                     ORDER BY 2 DESC
-                """, (ucid, ))
+                """, {"ucid": ucid, "server_name": server_name})
                 return [WeaponPK.model_validate(result) for result in await cursor.fetchall()]
 
-    async def stats(self, nick: str = Form(...), date: str = Form(...)):
+    async def stats(self, nick: str = Form(...), date: Optional[str] = Form(None),
+                    server_name: Optional[str] = Form(None)):
         self.log.debug(f'Calling /stats with nick="{nick}", date="{date}"')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 ucid = await self.get_ucid(nick, date)
-                await cursor.execute("""
+                if server_name:
+                    join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
+                else:
+                    join = ""
+                await cursor.execute(f"""
                     SELECT COALESCE(overall.playtime, 0) AS playtime, COALESCE(overall.kills, 0) as kills, 
                            COALESCE(overall.deaths, 0) AS deaths, COALESCE(overall.kills_pvp, 0) AS kills_pvp, 
                            COALESCE(overall.deaths_pvp, 0) AS deaths_pvp, COALESCE(overall.takeoffs, 0) AS takeoffs, 
@@ -467,13 +513,14 @@ class RestAPI(Plugin):
                                       ELSE overall.kills/overall.deaths_pvp::DECIMAL END, 2), 0) AS "kdr_pvp", 
                            COALESCE(lastsession.kills, 0) AS "lastSessionKills", COALESCE(lastsession.deaths, 0) AS "lastSessionDeaths"
                     FROM (
-                        SELECT ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(hop_off, NOW() AT TIME ZONE 'UTC') - hop_on))))::INTEGER AS playtime, 
-                               SUM(kills) as "kills", SUM(deaths) AS "deaths", 
-                               SUM(pvp) AS "kills_pvp", SUM(deaths_pvp) AS "deaths_pvp",
-                               SUM(takeoffs) AS "takeoffs", SUM(landings) AS "landings", SUM(ejections) AS "ejections",
-                               SUM(crashes) AS "crashes", SUM(teamkills) AS "teamkills"
-                        FROM statistics
-                        WHERE player_ucid = %(ucid)s
+                        SELECT ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS playtime, 
+                               SUM(s.kills) as "kills", SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths", 
+                               SUM(s.pvp) AS "kills_pvp", SUM(s.deaths_pvp) AS "deaths_pvp",
+                               SUM(s.takeoffs) AS "takeoffs", SUM(s.landings) AS "landings", SUM(s.ejections) AS "ejections",
+                               SUM(s.crashes) AS "crashes", SUM(s.teamkills) AS "teamkills"
+                        FROM statistics s
+                        {join}
+                        WHERE s.player_ucid = %(ucid)s
                     ) overall, (
                         SELECT SUM(kills) AS "kills", SUM(deaths) AS "deaths"
                         FROM statistics
@@ -481,30 +528,33 @@ class RestAPI(Plugin):
                             SELECT player_ucid, max(mission_id) FROM statistics WHERE player_ucid = %(ucid)s GROUP BY 1
                         )
                     ) lastsession
-                """, {"ucid": ucid})
+                """, {"ucid": ucid, "server_name": server_name})
                 data = await cursor.fetchone()
-                await cursor.execute("""
-                    SELECT slot AS "module", SUM(kills) AS "kills" 
-                    FROM statistics 
-                    WHERE player_ucid = %s 
-                    GROUP BY 1 HAVING SUM(kills) > 1 
+                await cursor.execute(f"""
+                    SELECT s.slot AS "module", SUM(s.kills) AS "kills" 
+                    FROM statistics s
+                    {join}
+                    WHERE s.player_ucid = %(ucid)s 
+                    GROUP BY 1 HAVING SUM(s.kills) > 1 
                     ORDER BY 2 DESC
-                """, (ucid,))
+                """, {"ucid": ucid, "server_name": server_name})
                 data['killsByModule'] = await cursor.fetchall()
-                await cursor.execute("""
-                    SELECT slot AS "module", 
-                           CASE WHEN SUM(deaths) = 0 THEN SUM(kills) ELSE SUM(kills) / SUM(deaths::DECIMAL) END AS "kdr" 
-                    FROM statistics 
-                    WHERE player_ucid = %s 
+                await cursor.execute(f"""
+                    SELECT s.slot AS "module", 
+                           CASE WHEN SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) = 0 
+                                THEN SUM(s.kills) ELSE SUM(s.kills)::DECIMAL / SUM((s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground)::DECIMAL) END AS "kdr" 
+                    FROM statistics s
+                    {join}
+                    WHERE player_ucid = %(ucid)s 
                     GROUP BY 1 HAVING SUM(kills) > 1 
                     ORDER BY 2 DESC
-                """, (ucid,))
+                """, {"ucid": ucid, "server_name": server_name})
                 data['kdrByModule'] = await cursor.fetchall()
                 return PlayerStats.model_validate(data)
 
-    async def player_info(self, nick: str = Form(...), date: str = Form(...)):
-        self.log.debug(f'Calling /player_info with nick="{nick}", date="{date}"')
-        player_info = dict(await self.stats(nick, date))
+    async def player_info(self, nick: str = Form(...), date: str = Form(...), server_name: Optional[str] = Form(None)):
+        self.log.debug(f'Calling /player_info with nick="{nick}", date="{date}", server_name="{server_name}"')
+        player_info = dict(await self.stats(nick, date, server_name))
         # add credits
         try:
             player_info['credits'] = await self.credits(nick, date, None)
@@ -514,7 +564,7 @@ class RestAPI(Plugin):
         player_info['squadrons'] = await self.player_squadrons(nick, date)
         return PlayerInfo.model_validate(player_info)
 
-    async def player_squadrons(self, nick: str = Form(...), date: str = Form(...)):
+    async def player_squadrons(self, nick: str = Form(...), date: Optional[str] = Form(None)):
         self.log.debug(f'Calling /player_squadrons with nick="{nick}", date="{date}"')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -526,7 +576,8 @@ class RestAPI(Plugin):
                 """, (ucid, ))
                 return [PlayerSquadron.model_validate(result) for result in await cursor.fetchall()]
 
-    async def credits(self, nick: str = Form(...), date: str = Form(...), campaign: str = Form(default=None)):
+    async def credits(self, nick: str = Form(...), date: Optional[str] = Form(None),
+                      campaign: Optional[str] = Form(default=None)):
         self.log.debug(f'Calling /credits with nick="{nick}", date="{date}", campaign="{campaign}"')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -551,18 +602,23 @@ class RestAPI(Plugin):
                     )
                 return CampaignCredits.model_validate(row)
 
-    async def traps(self, nick: str = Form(default=None), date: str = Form(default=None),
-                    limit: int = Form(default=10)):
-        self.log.debug(f'Calling /traps with nick="{nick}", date="{date}"')
+    async def traps(self, nick: str = Form(None), date: Optional[str] = Form(None),
+                    limit: int = Form(10), server_name: Optional[str] = Form(None)):
+        self.log.debug(f'Calling /traps with nick="{nick}", date="{date}", server_name="{server_name}"')
+        if server_name:
+            join = "JOIN missions m ON t.mission_id = m.id AND m.server_name = %(server_name)s"
+        else:
+            join = ""
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 ucid = await self.get_ucid(nick, date)
                 await cursor.execute(f"""
-                    SELECT unit_type, grade, comment, place, trapcase, wire, night, points, time
-                    FROM traps
-                    WHERE player_ucid = %s
+                    SELECT t.unit_type, t.grade, t.comment, t.place, t.trapcase, t.wire, t.night, t.points, t.time
+                    FROM traps t
+                    {join}
+                    WHERE t.player_ucid = %(ucid)s
                     ORDER BY time DESC LIMIT {limit}
-                """, (ucid, ))
+                """, {"ucid": ucid, "server_name": server_name})
                 return [TrapEntry.model_validate(result) for result in await cursor.fetchall()]
 
     async def squadron_members(self, name: str = Form(...)):

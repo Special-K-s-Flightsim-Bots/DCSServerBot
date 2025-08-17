@@ -170,6 +170,9 @@ class TopKill(BaseModel):
     kills: int = Field(..., description="Number of kills")
     deaths: int = Field(..., description="Number of deaths")
     kdr: float = Field(..., description="Kill/Death ratio")
+    kills_pvp: int = Field(..., description="Number of kills in PvP")
+    deaths_pvp: int = Field(..., description="Number of deaths in PvP")
+    kdr_pvp: float = Field(..., description="Kill/Death ratio in PvP")
 
     model_config = {
         "json_schema_extra": {
@@ -178,7 +181,10 @@ class TopKill(BaseModel):
                 "date": "2025-01-01T00:00:00",
                 "kills": 10,
                 "deaths": 2,
-                "kdr": 5.0
+                "kdr": 5.0,
+                "kills_pvp": 5,
+                "deaths_pvp": 0,
+                "kdr_pvp": 5.0
             }
         }
     }
