@@ -247,9 +247,13 @@ class RestAPI(Plugin):
         def filter_servers(servers: list[Server]):
             config = self.get_endpoint_config('servers')
             for s in servers:
+                dirty = False
                 for f in config.get('filter', []):
-                    if not re.match(f, s.name):
-                        yield s
+                    if re.match(f, s.name):
+                        dirty = True
+                        break
+                if not dirty:
+                    yield s
 
         servers = []
         for server in filter_servers(list(self.bot.servers.values())):
