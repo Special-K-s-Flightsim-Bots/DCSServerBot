@@ -81,16 +81,13 @@ class Monitoring(Plugin[MonitoringListener]):
         if await super().install():
             try:
                 async with self.apool.connection() as conn:
-                    await conn.execute("""
-                        UPDATE plugins 
-                        SET version = (
-                            SELECT version FROM plugins WHERE plugin = 'serverstats'
-                        ) 
-                        WHERE plugin = 'monitoring'
-                        """)
-                    cursor = await conn.execute("DELETE FROM plugins WHERE plugin = 'serverstats' RETURNING plugin")
+                    cursor = await conn.execute("SELECT version FROM plugins WHERE plugin = 'serverstats'")
                     row = await cursor.fetchone()
                     if row:
+                        async with conn.transaction():
+                            await conn.execute("UPDATE plugins SET version = %s WHERE plugin = 'monitoring'",
+                                               (row[0], ))
+                            await conn.execute("DELETE FROM plugins WHERE plugin = 'serverstats'")
                         self.log.info("  => Migrating serverstats to monitoring. Restart triggered ...")
                         await self.node.restart()
                 return True

@@ -898,6 +898,9 @@ class NodeImpl(Node):
         except FatalException as ex:
             self.log.critical(ex)
             exit(SHUTDOWN)
+        except InFailedSqlTransaction:
+            # we should only be here when the CLUSTER table does not exist yet
+            raise
         except Exception as ex:
             self.log.exception(ex)
             raise
