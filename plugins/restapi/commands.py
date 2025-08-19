@@ -15,8 +15,8 @@ from services.webservice import WebService
 from typing import Optional, Any, Union, Literal
 
 from .models import (TopKill, ServerInfo, SquadronInfo, TopKDR, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
-                     CampaignCredits, TrapEntry, SquadronMember, SquadronCampaignCredit, LinkMeResponse, ServerStats,
-                     PlayerInfo, PlayerSquadron)
+                     CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
+                     PlayerSquadron)
 
 app: Optional[FastAPI] = None
 
@@ -68,7 +68,7 @@ class RestAPI(Plugin):
         router.add_api_route(
             "/squadron_members", self.squadron_members,
             methods = ["POST"],
-            response_model = list[SquadronMember],
+            response_model = list[UserEntry],
             description = "List squadron members",
             summary = "Squadron Members",
             tags = ["Info"]
@@ -317,29 +317,37 @@ class RestAPI(Plugin):
 
         return servers
 
-    async def squadrons(self):
-        self.log.debug('Calling /squadrons')
+    async def squadrons(self, limit: int = Query(default=None), offset: int = Query(default=0)):
+        self.log.debug(f'Calling /squadrons with limit={limit}, offset={offset}')
+        if limit:
+            sql_part = f"LIMIT {limit} OFFSET {offset}"
+        else:
+            sql_part = ""
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 squadrons: list[SquadronInfo] = []
-                async for row in await cursor.execute("""
-                    SELECT * FROM squadrons ORDER BY name
+                async for row in await cursor.execute(f"""
+                    SELECT * FROM squadrons 
+                    ORDER BY name
+                    {sql_part}
                 """):
+                    members = await self.squadron_members(row['name'])
                     squadrons.append(SquadronInfo.model_validate({
                         "name": row['name'],
                         "description": row['description'],
                         "image_url": row['image_url'],
                         "locked": row['locked'],
-                        "role": self.bot.get_role(row['role']).name if row['role'] else None
+                        "role": self.bot.get_role(row['role']).name if row['role'] else None,
+                        "members": members
                     }))
         return squadrons
 
-    async def top_players(self, what: Literal['kills', 'kdr'], limit: Optional[int] = 10,
+    async def top_players(self, what: Literal['kills', 'kdr'], limit: Optional[int] = 10, offset: Optional[int] = 0,
                           server_name: Optional[str] = None):
         if what == 'kills':
             order_column = 3
         else:
-            order_column = 5
+            order_column = 6
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -362,19 +370,23 @@ class RestAPI(Plugin):
                     FROM statistics s 
                     JOIN players p ON s.player_ucid = p.ucid 
                     {join}
-                    GROUP BY 1, 2 ORDER BY {order_column} DESC LIMIT {limit}
+                    GROUP BY 1, 2 ORDER BY {order_column} DESC 
+                    LIMIT {limit} OFFSET {offset}
                 """, {"server_name": server_name})
                 return [TopKill.model_validate(result) for result in await cursor.fetchall()]
 
-    async def topkills(self, limit: int = Query(default=10), server_name: str = Query(default=None)):
+    async def topkills(self, limit: int = Query(default=10), offset: int = Query(default=0),
+                       server_name: str = Query(default=None)):
         self.log.debug(f'Calling /topkills with limit={limit}, server_name={server_name}')
-        return await self.top_players('kills', limit, server_name)
+        return await self.top_players('kills', limit, offset, server_name)
 
-    async def topkdr(self, limit: int = Query(default=10), server_name: str = Query(default=None)):
+    async def topkdr(self, limit: int = Query(default=10), offset: int = Query(default=0),
+                     server_name: str = Query(default=None)):
         self.log.debug(f'Calling /topkdr with limit={limit}, server_bane={server_name}')
-        return await self.top_players('kdr', limit, server_name)
+        return await self.top_players('kdr', limit, offset, server_name)
 
-    async def trueskill(self, limit: int = Query(default=10), server_name: str = Query(default=None)):
+    async def trueskill(self, limit: int = Query(default=10), offset: int = Query(default=0),
+                        server_name: str = Query(default=None)):
         self.log.debug(f'Calling /trueskill with limit={limit}, server_name={server_name}')
         if server_name:
             join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
@@ -389,7 +401,8 @@ class RestAPI(Plugin):
                     JOIN trueskill t ON t.player_ucid = p.ucid
                     {join}
                     WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
-                    GROUP BY 1, 2, 5 ORDER BY 5 DESC LIMIT {limit}
+                    GROUP BY 1, 2, 5 ORDER BY 5 DESC 
+                    LIMIT {limit} OFFSET {offset}
                 """, {"server_name": server_name})
                 return [Trueskill.model_validate(result) for result in await cursor.fetchall()]
 
@@ -603,7 +616,8 @@ class RestAPI(Plugin):
                 return CampaignCredits.model_validate(row)
 
     async def traps(self, nick: str = Form(None), date: Optional[str] = Form(None),
-                    limit: int = Form(10), server_name: Optional[str] = Form(None)):
+                    limit: Optional[int] = Form(10), offset: Optional[int] = Form(0),
+                    server_name: Optional[str] = Form(None)):
         self.log.debug(f'Calling /traps with nick="{nick}", date="{date}", server_name="{server_name}"')
         if server_name:
             join = "JOIN missions m ON t.mission_id = m.id AND m.server_name = %(server_name)s"
@@ -617,7 +631,8 @@ class RestAPI(Plugin):
                     FROM traps t
                     {join}
                     WHERE t.player_ucid = %(ucid)s
-                    ORDER BY time DESC LIMIT {limit}
+                    ORDER BY time DESC 
+                    LIMIT {limit} OFFSET {offset}
                 """, {"ucid": ucid, "server_name": server_name})
                 return [TrapEntry.model_validate(result) for result in await cursor.fetchall()]
 
@@ -631,7 +646,7 @@ class RestAPI(Plugin):
                                    JOIN squadrons s ON sm.squadron_id = s.id
                     WHERE s.name = %s
                 """, (name, ))
-                return [SquadronMember.model_validate(result) for result in await cursor.fetchall()]
+                return [UserEntry.model_validate(result) for result in await cursor.fetchall()]
 
     async def squadron_credits(self, name: str = Form(...), campaign: str = Form(default=None)):
         self.log.debug(f'Calling /squadron_credits with name="{name}"')

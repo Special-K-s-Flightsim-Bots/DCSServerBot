@@ -150,6 +150,7 @@ class SquadronInfo(BaseModel):
     image_url: str = Field(..., description="URL to the squadron's image")
     locked: bool = Field(..., description="Whether the squadron is locked")
     role: Optional[str] = Field(None, description="Discord role name associated with the squadron")
+    members: list[UserEntry] = Field(default_factory=list)
 
     model_config = {
         "json_schema_extra": {
@@ -423,22 +424,6 @@ class TrapEntry(BaseModel):
         }
     }
 
-
-class SquadronMember(BaseModel):
-    nick: str = Field(..., description="Player name")
-    date: datetime = Field(..., description="Last seen timestamp")
-
-    model_config = {
-        "json_encoders": {
-            datetime: lambda v: v.isoformat()
-        },
-        "json_schema_extra": {
-            "example": {
-                "nick": "Player1",
-                "date": "2025-08-07T12:00:00"
-            }
-        }
-    }
 
 class SquadronCampaignCredit(BaseModel):
     campaign: Optional[str] = Field(None, description="Campaign name")

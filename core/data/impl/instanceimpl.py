@@ -46,15 +46,16 @@ class InstanceImpl(Instance):
         if use_upnp != net.get('use_upnp', True):
             net['use_upnp'] = use_upnp
             dirty |= True
-        # set new security settings (as of DCS 2.9.18)
-        allow_unsafe_api = dcs_config.get('allow_unsafe_api', ["userhooks"])
-        allow_dostring_in = dcs_config.get('allow_dostring_in', ["server", "mission"])
-        if set(allow_unsafe_api) != set(net.get('allow_unsafe_api', set())):
-            net['allow_unsafe_api'] = allow_unsafe_api
-            dirty |= True
-        if set(allow_dostring_in) != net.get('allow_dostring_in', set()):
-            net['allow_dostring_in'] = allow_dostring_in
-            dirty |= True
+        # removed as of DCS 2.9.19
+#        # set new security settings (as of DCS 2.9.18)
+#        allow_unsafe_api = dcs_config.get('allow_unsafe_api', ["userhooks"])
+#        allow_dostring_in = dcs_config.get('allow_dostring_in', ["server", "mission"])
+#        if set(allow_unsafe_api) != set(net.get('allow_unsafe_api', set())):
+#            net['allow_unsafe_api'] = allow_unsafe_api
+#            dirty |= True
+#        if set(allow_dostring_in) != net.get('allow_dostring_in', set()):
+#            net['allow_dostring_in'] = allow_dostring_in
+#            dirty |= True
         if dirty:
             autoexec.net = net
 
