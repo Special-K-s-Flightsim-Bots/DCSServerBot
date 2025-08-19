@@ -3,10 +3,8 @@ import discord
 from core import Server, get_translation, utils
 from datetime import datetime, timezone
 from discord import TextStyle, ButtonStyle
-from discord.ui import Modal, TextInput, View, TextDisplay, Label
+from discord.ui import Modal, TextInput, View
 from typing import Union, Optional
-
-from .listener import GameMasterEventListener
 
 _ = get_translation(__name__.split('.')[1])
 
