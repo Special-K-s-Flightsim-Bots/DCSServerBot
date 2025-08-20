@@ -14,9 +14,9 @@ from services.bot import DCSServerBot
 from services.webservice import WebService
 from typing import Optional, Any, Union, Literal
 
-from .models import (TopKill, ServerInfo, SquadronInfo, TopKDR, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
+from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
-                     PlayerSquadron)
+                     PlayerSquadron, LeaderBoard)
 
 app: Optional[FastAPI] = None
 
@@ -90,6 +90,14 @@ class RestAPI(Plugin):
             tags=["Info"]
         )
         router.add_api_route(
+            "/leaderboard", self.leaderboard,
+            methods = ["GET"],
+            response_model = LeaderBoard,
+            description = "Get leaderbord information",
+            summary = "Leaderboard",
+            tags = ["Statistics"]
+        )
+        router.add_api_route(
             "/topkills", self.topkills,
             methods = ["GET"],
             response_model = list[TopKill],
@@ -100,7 +108,7 @@ class RestAPI(Plugin):
         router.add_api_route(
             "/topkdr", self.topkdr,
             methods = ["GET"],
-            response_model = list[TopKDR],
+            response_model = list[TopKill],
             description = "Get top KDR statistics for players",
             summary = "Top KDR",
             tags = ["Statistics"]
@@ -342,7 +350,7 @@ class RestAPI(Plugin):
                     }))
         return squadrons
 
-    async def top_players(self, what: Literal['kills', 'kdr'], limit: Optional[int] = 10, offset: Optional[int] = 0,
+    async def leaderboard(self, what: Literal['kills', 'kdr'], limit: Optional[int] = 10, offset: Optional[int] = 0,
                           server_name: Optional[str] = None):
         if what == 'kills':
             order_column = 3
@@ -356,34 +364,57 @@ class RestAPI(Plugin):
                 else:
                     join = ""
                 await cursor.execute(f"""
-                    SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date", SUM(s.kills) AS "kills", 
-                    SUM(s.pvp) AS "kills_pvp",
-                    SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths", 
-                    CASE WHEN SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) = 0 
-                         THEN SUM(s.kills) 
-                         ELSE SUM(s.kills::DECIMAL) / SUM((s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground)::DECIMAL) 
-                    END AS "kdr",
-                    SUM(s.deaths_pvp) AS "deaths_pvp",
-                    CASE WHEN SUM(s.deaths_pvp) = 0 
-                         THEN SUM(s.pvp) ELSE SUM(s.pvp::DECIMAL) / SUM(s.deaths_pvp::DECIMAL) 
-                    END AS "kdr_pvp"
-                    FROM statistics s 
-                    JOIN players p ON s.player_ucid = p.ucid 
-                    {join}
-                    GROUP BY 1, 2 ORDER BY {order_column} DESC 
-                    LIMIT {limit} OFFSET {offset}
-                """, {"server_name": server_name})
-                return [TopKill.model_validate(result) for result in await cursor.fetchall()]
+                    WITH result_with_count AS (
+                        SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date", SUM(s.kills) AS "kills", 
+                        SUM(s.pvp) AS "kills_pvp",
+                        SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths", 
+                        CASE WHEN SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) = 0 
+                             THEN SUM(s.kills) 
+                             ELSE SUM(s.kills::DECIMAL) / SUM((s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground)::DECIMAL) 
+                        END AS "kdr",
+                        SUM(s.deaths_pvp) AS "deaths_pvp",
+                        CASE WHEN SUM(s.deaths_pvp) = 0 
+                             THEN SUM(s.pvp) ELSE SUM(s.pvp::DECIMAL) / SUM(s.deaths_pvp::DECIMAL) 
+                        END AS "kdr_pvp",
+                        COUNT(*) OVER() as total_count
+                        FROM statistics s 
+                        JOIN players p ON s.player_ucid = p.ucid 
+                        {join}
+                        GROUP BY 1, 2 
+                        ORDER BY {order_column} DESC 
+                        LIMIT %(limit)s
+                        OFFSET %(offset)s
+                    )
+                    SELECT * FROM result_with_count
+                """, {"server_name": server_name, "limit": limit, "offset": offset})
+                rows = await cursor.fetchall()
+                if not rows:
+                    return {
+                        'items': [],
+                        'total_count': 0,
+                        'offset': 0
+                    }
+
+                # get and remove total count
+                total_count = rows[0]['total_count']
+                for row in rows:
+                    del row['total_count']
+
+                return LeaderBoard.model_validate({
+                    'items': [row for row in rows],
+                    'total_count': total_count,
+                    'offset': offset
+                })
 
     async def topkills(self, limit: int = Query(default=10), offset: int = Query(default=0),
                        server_name: str = Query(default=None)):
         self.log.debug(f'Calling /topkills with limit={limit}, server_name={server_name}')
-        return await self.top_players('kills', limit, offset, server_name)
+        return (await self.leaderboard('kills', limit, offset, server_name)).items
 
     async def topkdr(self, limit: int = Query(default=10), offset: int = Query(default=0),
                      server_name: str = Query(default=None)):
         self.log.debug(f'Calling /topkdr with limit={limit}, server_bane={server_name}')
-        return await self.top_players('kdr', limit, offset, server_name)
+        return (await self.leaderboard('kdr', limit, offset, server_name)).items
 
     async def trueskill(self, limit: int = Query(default=10), offset: int = Query(default=0),
                         server_name: str = Query(default=None)):

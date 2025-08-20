@@ -191,8 +191,10 @@ class TopKill(BaseModel):
     }
 
 
-class TopKDR(TopKill):
-    ...
+class LeaderBoard(BaseModel):
+    items: list[TopKill]
+    total_count: int
+    offset: int
 
 
 class Trueskill(BaseModel):
