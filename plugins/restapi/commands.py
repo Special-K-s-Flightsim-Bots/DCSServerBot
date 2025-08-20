@@ -350,19 +350,24 @@ class RestAPI(Plugin):
                     }))
         return squadrons
 
-    async def leaderboard(self, what: Literal['kills', 'kdr'], limit: Optional[int] = 10, offset: Optional[int] = 0,
+    async def leaderboard(self, what: Literal['kills', 'kdr'], order: Literal['ASC', 'DESC'] = 'DESC',
+                          query: Optional[str] = None, limit: Optional[int] = 10, offset: Optional[int] = 0,
                           server_name: Optional[str] = None):
         if what == 'kills':
             order_column = 3
         else:
             order_column = 6
+        if server_name:
+            join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
+        else:
+            join = ""
+        if query:
+            where = "WHERE p.name ILIKE %(query)s"
+        else:
+            where = ""
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                if server_name:
-                    join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
-                else:
-                    join = ""
                 await cursor.execute(f"""
                     WITH result_with_count AS (
                         SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date", SUM(s.kills) AS "kills", 
@@ -380,13 +385,14 @@ class RestAPI(Plugin):
                         FROM statistics s 
                         JOIN players p ON s.player_ucid = p.ucid 
                         {join}
+                        {where}
                         GROUP BY 1, 2 
-                        ORDER BY {order_column} DESC 
+                        ORDER BY {order_column} {order} 
                         LIMIT %(limit)s
                         OFFSET %(offset)s
                     )
                     SELECT * FROM result_with_count
-                """, {"server_name": server_name, "limit": limit, "offset": offset})
+                """, {"server_name": server_name, "query": f"%{query}%", "limit": limit, "offset": offset})
                 rows = await cursor.fetchall()
                 if not rows:
                     return {
