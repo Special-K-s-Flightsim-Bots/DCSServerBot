@@ -350,8 +350,7 @@ class RestAPI(Plugin):
                     }))
         return squadrons
 
-    async def leaderboard(self, what: Literal['kills', 'kills_pvp', 'deaths', 'kdr', 'deaths_pvp', 'kdr_pvp', 'playtime'],
-                          order: Literal['asc', 'desc'] = 'desc', query: Optional[str] = None,
+    async def leaderboard(self, what: str, order: Literal['asc', 'desc'] = 'desc', query: Optional[str] = None,
                           limit: Optional[int] = 10, offset: Optional[int] = 0, server_name: Optional[str] = None):
         columns = {
             "kills": 3,
@@ -363,7 +362,11 @@ class RestAPI(Plugin):
             "playtime": 9,
             "credits": 10
         }
-        order_column = columns[what]
+        try:
+            order_column = columns[what]
+        except KeyError:
+            raise HTTPException(status_code=400, detail="Invalid ordering column supplied")
+
         if server_name:
             join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
         else:

@@ -39,6 +39,7 @@ MyNode:
           lotatc_export_port: 10712
           blue_password: blue
           red_password: red
+          show_passwords: false   # Optional: do not show red/blue passwords in the status embed (default: true)
           radio_effect_override: false                # optional: disable radio effects (LOS, etc)
           global_lobby_frequencies: 248.22,30.0,127.0 # optional: set your music channels in here
           autostart: true     # optional: if you manage your SRS servers outside of DCSSB, set that to false
