@@ -351,7 +351,7 @@ class RestAPI(Plugin):
         return squadrons
 
     async def leaderboard(self, what: Literal['kills', 'kills_pvp', 'deaths', 'kdr', 'deaths_pvp', 'kdr_pvp'],
-                          order: Literal['ASC', 'DESC'] = 'DESC', query: Optional[str] = None,
+                          order: Literal['asc', 'desc'] = 'desc', query: Optional[str] = None,
                           limit: Optional[int] = 10, offset: Optional[int] = 0, server_name: Optional[str] = None):
         columns = {
             "kills": 3,
