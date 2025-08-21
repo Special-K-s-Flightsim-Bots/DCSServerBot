@@ -366,10 +366,6 @@ class RestAPI(Plugin):
             join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
         else:
             join = ""
-        if query:
-            where = "WHERE p.name ILIKE %(query)s"
-        else:
-            where = ""
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -390,7 +386,6 @@ class RestAPI(Plugin):
                         FROM statistics s 
                         JOIN players p ON s.player_ucid = p.ucid 
                         {join}
-                        {where}
                         GROUP BY 1, 2 
                         ORDER BY {order_column} {order} 
                         LIMIT %(limit)s
@@ -413,7 +408,7 @@ class RestAPI(Plugin):
                     del row['total_count']
 
                 return LeaderBoard.model_validate({
-                    'items': [row for row in rows],
+                    'items': [row for row in rows if not query or query.casefold() in row['name'].casefold()],
                     'total_count': total_count,
                     'offset': offset
                 })
