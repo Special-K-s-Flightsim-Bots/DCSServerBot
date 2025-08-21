@@ -425,12 +425,12 @@ class RestAPI(Plugin):
     async def topkills(self, limit: int = Query(default=10), offset: int = Query(default=0),
                        server_name: str = Query(default=None)):
         self.log.debug(f'Calling /topkills with limit={limit}, server_name={server_name}')
-        return (await self.leaderboard('kills', limit, offset, server_name)).items
+        return (await self.leaderboard('kills', 'desc', None, limit, offset, server_name)).items
 
     async def topkdr(self, limit: int = Query(default=10), offset: int = Query(default=0),
                      server_name: str = Query(default=None)):
         self.log.debug(f'Calling /topkdr with limit={limit}, server_bane={server_name}')
-        return (await self.leaderboard('kdr', limit, offset, server_name)).items
+        return (await self.leaderboard('kdr', 'desc', None, limit, offset, server_name)).items
 
     async def trueskill(self, limit: int = Query(default=10), offset: int = Query(default=0),
                         server_name: str = Query(default=None)):
