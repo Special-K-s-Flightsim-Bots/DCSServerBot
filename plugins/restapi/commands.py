@@ -350,7 +350,7 @@ class RestAPI(Plugin):
                     }))
         return squadrons
 
-    async def leaderboard(self, what: Literal['kills', 'kills_pvp', 'deaths', 'kdr', 'deaths_pvp', 'kdr_pvp'],
+    async def leaderboard(self, what: Literal['kills', 'kills_pvp', 'deaths', 'kdr', 'deaths_pvp', 'kdr_pvp', 'playtime'],
                           order: Literal['asc', 'desc'] = 'desc', query: Optional[str] = None,
                           limit: Optional[int] = 10, offset: Optional[int] = 0, server_name: Optional[str] = None):
         columns = {
@@ -359,7 +359,9 @@ class RestAPI(Plugin):
             "deaths": 5,
             "kdr": 6,
             "deaths_pvp": 7,
-            "kdr_pvp": 8
+            "kdr_pvp": 8,
+            "playtime": 9,
+            "credits": 10
         }
         order_column = columns[what]
         if server_name:
@@ -382,9 +384,13 @@ class RestAPI(Plugin):
                         CASE WHEN SUM(s.deaths_pvp) = 0 
                              THEN SUM(s.pvp) ELSE SUM(s.pvp::DECIMAL) / SUM(s.deaths_pvp::DECIMAL) 
                         END AS "kdr_pvp",
+                        ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS playtime,
+                        MAX(COALESCE(c.points, 0)) AS "credits",
                         COUNT(*) OVER() as total_count
                         FROM statistics s 
                         JOIN players p ON s.player_ucid = p.ucid 
+                        LEFT OUTER JOIN credits c ON c.player_ucid = s.player_ucid
+                        LEFT OUTER JOIN campaigns ca ON ca.id = c.campaign_id AND NOW() AT TIME ZONE 'utc' BETWEEN ca.start AND COALESCE(ca.stop, NOW() AT TIME ZONE 'utc')
                         {join}
                         GROUP BY 1, 2 
                         ORDER BY {order_column} {order} 
@@ -408,7 +414,7 @@ class RestAPI(Plugin):
                     del row['total_count']
 
                 return LeaderBoard.model_validate({
-                    'items': [row for row in rows if not query or query.casefold() in row['name'].casefold()],
+                    'items': [row for row in rows if not query or query.casefold() in row['nick'].casefold()],
                     'total_count': total_count,
                     'offset': offset
                 })

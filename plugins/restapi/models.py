@@ -175,6 +175,8 @@ class TopKill(BaseModel):
     kills_pvp: int = Field(..., description="Number of kills in PvP")
     deaths_pvp: int = Field(..., description="Number of deaths in PvP")
     kdr_pvp: float = Field(..., description="Kill/Death ratio in PvP")
+    playtime: int = Field(..., description="Total playtime in seconds")
+    credits: int = Field(..., description="Total credits earned")
 
     model_config = {
         "json_schema_extra": {
