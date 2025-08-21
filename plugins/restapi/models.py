@@ -166,6 +166,7 @@ class SquadronInfo(BaseModel):
 
 
 class TopKill(BaseModel):
+    row_num: int = Field(..., description="Row number")
     nick: str = Field(..., description="Player's nickname")
     date: datetime = Field(..., description="Last seen date of that player in ISO-format")
     kills: int = Field(..., description="Number of kills")

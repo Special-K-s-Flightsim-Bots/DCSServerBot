@@ -396,7 +396,8 @@ class RestAPI(Plugin):
                         LIMIT %(limit)s
                         OFFSET %(offset)s
                     )
-                    SELECT * FROM result_with_count
+                    SELECT ROW_NUMBER() OVER (ORDER BY {order_column} {order}) as row_num, * 
+                    FROM result_with_count
                 """, {"server_name": server_name, "query": f"%{query}%", "limit": limit, "offset": offset})
                 rows = await cursor.fetchall()
                 if not rows:
