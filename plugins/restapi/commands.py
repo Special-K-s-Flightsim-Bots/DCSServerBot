@@ -392,9 +392,9 @@ class RestAPI(Plugin):
                         COUNT(*) OVER() as total_count
                         FROM statistics s 
                         JOIN players p ON s.player_ucid = p.ucid 
+                        {join}
                         LEFT OUTER JOIN credits c ON c.player_ucid = s.player_ucid
                         LEFT OUTER JOIN campaigns ca ON ca.id = c.campaign_id AND NOW() AT TIME ZONE 'utc' BETWEEN ca.start AND COALESCE(ca.stop, NOW() AT TIME ZONE 'utc')
-                        {join}
                         GROUP BY 1, 2 
                         ORDER BY {order_column} {order} 
                         LIMIT %(limit)s
