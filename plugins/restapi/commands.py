@@ -350,13 +350,18 @@ class RestAPI(Plugin):
                     }))
         return squadrons
 
-    async def leaderboard(self, what: Literal['kills', 'kdr'], order: Literal['ASC', 'DESC'] = 'DESC',
-                          query: Optional[str] = None, limit: Optional[int] = 10, offset: Optional[int] = 0,
-                          server_name: Optional[str] = None):
-        if what == 'kills':
-            order_column = 3
-        else:
-            order_column = 6
+    async def leaderboard(self, what: Literal['kills', 'kills_pvp', 'deaths', 'kdr', 'deaths_pvp', 'kdr_pvp'],
+                          order: Literal['ASC', 'DESC'] = 'DESC', query: Optional[str] = None,
+                          limit: Optional[int] = 10, offset: Optional[int] = 0, server_name: Optional[str] = None):
+        columns = {
+            "kills": 3,
+            "kills_pvp": 4,
+            "deaths": 5,
+            "kdr": 6,
+            "deaths_pvp": 7,
+            "kdr_pvp": 8
+        }
+        order_column = columns[what]
         if server_name:
             join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
         else:

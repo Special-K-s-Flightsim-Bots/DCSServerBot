@@ -85,7 +85,7 @@ class LotAtc(Plugin[LotAtcEventListener]):
         if version:
             await interaction.followup.send(_("LotAtc update to version {} available!").format(version),
                                             ephemeral=ephemeral)
-            if not utils.yn_question(interaction, _("Do you want to update LotAtc now?"), ephemeral=ephemeral):
+            if not await utils.yn_question(interaction, _("Do you want to update LotAtc now?"), ephemeral=ephemeral):
                 await interaction.followup.send(_("Aborted."), ephemeral=ephemeral)
                 return
             await server.run_on_extension(extension='LotAtc', method='do_update')
@@ -153,31 +153,26 @@ class LotAtc(Plugin[LotAtcEventListener]):
                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
                        autoupdate: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
+        config = await self._configure(interaction, server, True, autoupdate)
+        msg = await interaction.followup.send(_("Installing LotAtc on server {} ...").format(server.display_name),
+                                              ephemeral=ephemeral)
+
         if 'LotAtc' in await server.init_extensions():
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                _("LotAtc already installed on server {}").format(server.display_name), ephemeral=ephemeral)
+            await msg.edit(content=_("LotAtc already installed on server {}").format(server.display_name))
             return
 
         if 'LotAtc' not in server.node.extensions:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                _("LotAtc is not configured on node {}").format(server.node.name), ephemeral=ephemeral)
+            await msg.edit(content=_("LotAtc is not configured on node {}").format(server.node.name))
             return
 
-        config = await self._configure(interaction, server, True, autoupdate)
         if server.status in [Status.STOPPED, Status.SHUTDOWN]:
             try:
                 await server.install_extension(name="LotAtc", config=config)
-                await interaction.followup.send(
-                    _("LotAtc installed on server {}.").format(server.display_name), ephemeral=ephemeral)
+                await msg.edit(content=_("LotAtc installed on server {}.").format(server.display_name))
             except InstallException:
-                await interaction.followup.send(
-                    _("LotAtc could not be installed on server {}!").format(server.display_name), ephemeral=ephemeral)
+                await msg.edit(content=_("LotAtc could not be installed on server {}!").format(server.display_name))
         else:
-            await interaction.followup.send(
-                _("Server {} needs to be shut down to install LotAtc.").format(server.display_name),
-                ephemeral=ephemeral)
+            await msg.edit(content=_("Server {} needs to be shut down to install LotAtc.").format(server.display_name))
 
     @lotatc.command(name='uninstall', description=_('Uninstall LotAtc'))
     @app_commands.guild_only()
@@ -186,23 +181,21 @@ class LotAtc(Plugin[LotAtcEventListener]):
                          server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])]):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
-        await interaction.response.defer(ephemeral=ephemeral)
+        await interaction.response.send_message(_("Uninstalling LotAtc from server {} ...").format(server.display_name),
+                                                ephemeral=ephemeral)
+        msg = await interaction.original_response()
+
         if 'LotAtc' not in await server.init_extensions():
-            await interaction.followup.send(_("LotAtc not installed on server {}").format(server.display_name),
-                                            ephemeral=ephemeral)
+            await msg.edit(content=_("LotAtc not installed on server {}").format(server.display_name))
             return
         if server.status in [Status.STOPPED, Status.SHUTDOWN]:
             try:
                 await server.uninstall_extension(name="LotAtc")
-                await interaction.followup.send(
-                    _("LotAtc uninstalled on server {}.").format(server.display_name), ephemeral=ephemeral)
+                await msg.edit(content=_("LotAtc uninstalled on server {}.").format(server.display_name))
             except UninstallException:
-                await interaction.followup.send(
-                    _("LotAtc could not be uninstalled on server {}!").format(server.display_name), ephemeral=ephemeral)
+                await msg.edit(content=_("LotAtc could not be uninstalled on server {}!").format(server.display_name))
         else:
-            await interaction.followup.send(
-                _("Server {} needs to be shut down to uninstall LotAtc.").format(server.display_name),
-                ephemeral=ephemeral)
+            await msg.edit(content=_("Server {} needs to be shut down to uninstall LotAtc.").format(server.display_name))
 
     # New command group "/gci"
     gci = Group(name="gci", description=_("Commands to manage GCIs"))

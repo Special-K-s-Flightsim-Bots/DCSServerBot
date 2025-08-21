@@ -240,7 +240,7 @@ class ServerImpl(Server):
                     self._make_missions_unique()
                 super().set_status(status)
             elif self._status in [Status.UNREGISTERED, Status.LOADING] and new_status in [Status.RUNNING, Status.PAUSED]:
-                # only check the mission list, if we started that server
+                # only check the mission list if we started that server
                 if self._status == Status.LOADING:
                     if self.locals.get('validate_missions', True):
                         asyncio.create_task(self._load_mission_list())
