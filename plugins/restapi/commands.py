@@ -594,16 +594,9 @@ class RestAPI(Plugin):
                 """, {"ucid": ucid, "server_name": server_name})
                 data = await cursor.fetchone()
                 await cursor.execute(f"""
-                    SELECT s.slot AS "module", SUM(s.kills) AS "kills" 
-                    FROM statistics s
-                    {join}
-                    WHERE s.player_ucid = %(ucid)s 
-                    GROUP BY 1 HAVING SUM(s.kills) > 1 
-                    ORDER BY 2 DESC
-                """, {"ucid": ucid, "server_name": server_name})
-                data['killsByModule'] = await cursor.fetchall()
-                await cursor.execute(f"""
                     SELECT s.slot AS "module", 
+                           SUM(s.kills) AS "kills",
+                           SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths",
                            CASE WHEN SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) = 0 
                                 THEN SUM(s.kills) ELSE SUM(s.kills)::DECIMAL / SUM((s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground)::DECIMAL) END AS "kdr" 
                     FROM statistics s
@@ -612,10 +605,11 @@ class RestAPI(Plugin):
                     GROUP BY 1 HAVING SUM(kills) > 1 
                     ORDER BY 2 DESC
                 """, {"ucid": ucid, "server_name": server_name})
-                data['kdrByModule'] = await cursor.fetchall()
+                data['module_stats'] = await cursor.fetchall()
                 return PlayerStats.model_validate(data)
 
-    async def player_info(self, nick: str = Form(...), date: str = Form(...), server_name: Optional[str] = Form(None)):
+    async def player_info(self, nick: str = Form(...), date: Optional[str] = Form(None),
+                          server_name: Optional[str] = Form(None)):
         self.log.debug(f'Calling /player_info with nick="{nick}", date="{date}", server_name="{server_name}"')
         player_info = dict(await self.stats(nick, date, server_name))
         # add credits

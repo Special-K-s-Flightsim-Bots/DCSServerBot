@@ -311,8 +311,9 @@ class WeaponPK(BaseModel):
 
 class ModuleStats(BaseModel):
     module: str = Field(..., description="Aircraft/module name")
-    kills: Optional[int] = Field(None, description="Number of PvP-kills with this module")
-    kdr: Optional[Decimal] = Field(None, description="PvP-Kill/Death ratio with this module")
+    kills: Optional[int] = Field(None, description="Number of kills with this module")
+    deaths: Optional[int] = Field(None, description="Number of deaths with this module")
+    kdr: Optional[Decimal] = Field(None, description="Kill/Death ratio with this module")
 
     model_config = {
         "json_encoders": {
@@ -322,7 +323,8 @@ class ModuleStats(BaseModel):
             "example": {
                 "module": "F/A-18C",
                 "kills": 30,
-                "kdr": 2.5
+                "deaths": 10,
+                "kdr": 3.0
             }
         }
     }
@@ -343,8 +345,7 @@ class PlayerStats(BaseModel):
     kdr_pvp: Decimal = Field(..., description="PvP Kill/death ratio")
     lastSessionKills: int = Field(..., description="Kills in last session")
     lastSessionDeaths: int = Field(..., description="Deaths in last session")
-    killsByModule: list[ModuleStats] = Field(default_factory=list, description="PvP-Kills breakdown by module")
-    kdrByModule: list[ModuleStats] = Field(default_factory=list, description="PvP-KDR breakdown by module")
+    module_stats: list[ModuleStats] = Field(default_factory=list, description="Statistics by module")
 
     model_config = {
         "json_encoders": {
