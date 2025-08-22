@@ -14,9 +14,6 @@ import sys
 import tempfile
 import zipfile
 
-if sys.platform == 'win32':
-    import ctypes
-
 from configparser import RawConfigParser
 from contextlib import suppress
 from core import Extension, utils, Server, ServiceRegistry, Autoexec, get_translation, InstallException
@@ -78,6 +75,7 @@ class SRS(Extension, FileSystemEventHandler):
         self.exe_name = None
         self.clients: dict[str, set[int]] = {}
         self.client_names: dict[str, str] = {}
+        self.lock = asyncio.Lock()
         super().__init__(server, config)
 
     def get_config_path(self) -> str:
@@ -156,8 +154,7 @@ class SRS(Extension, FileSystemEventHandler):
     async def prepare(self) -> bool:
         global ports
 
-        if self.config.get('autoupdate', False):
-            await self.check_for_updates()
+        await self.handle_update()
         path = self.get_config_path()
         if 'client_export_file_path' not in self.config:
             self.config['client_export_file_path'] = os.path.join(os.path.dirname(path), 'clients-list.json')
@@ -514,59 +511,66 @@ class SRS(Extension, FileSystemEventHandler):
             await asyncio.to_thread(run_subprocess)
             os.remove(os.path.join(installation_dir, 'VC_redist.x64.exe'))
 
-    @tasks.loop(minutes=30)
-    async def schedule(self):
+    async def handle_update(self):
+        # don't run if autoupdate is disabled
         if not self.config.get('autoupdate', False):
             return
-        try:
-            version = await self.check_for_updates()
-            if version:
-                self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
-                #await asyncio.to_thread(self.do_update_old)
-                await self.do_update(version)
-                # await self.do_update_fallback(version)
-                self.log.info("DCS-SRS updated.")
-                bus = ServiceRegistry.get(ServiceBus)
-                await bus.send_to_node({
-                    "command": "rpc",
-                    "service": BotService.__name__,
-                    "method": "audit",
-                    "params": {
-                        "message": f"{self.name} updated to version {version} on node {self.node.name}."
-                    }
-                })
-                if isinstance(self.config.get('autoupdate'), dict):
-                    config = self.config.get('autoupdate')
-                    servers = []
-                    for instance in self.node.instances:
-                        if instance.locals.get('extensions', {}).get(self.name) and instance.locals['extensions'][self.name].get('enabled', True):
-                            servers.append(instance.server.display_name)
-                    embed = discord.Embed(
-                        colour=discord.Colour.blue(),
-                        title=config.get(
-                            'title', 'DCS-SRS has been updated to version {}!').format(version),
-                        url=f"https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/{version}")
-                    embed.set_thumbnail(url="https://github.com/ciribob/DCS-SimpleRadioStandalone/blob/master/Scripts/DCS-SRS/Theme/icon.png")
-                    embed.description = config.get('description', 'The following servers have been updated:')
-                    embed.add_field(name=_('Server'),
-                                    value='\n'.join([f'- {x}' for x in servers]), inline=False)
-                    embed.set_footer(
-                        text=config.get('footer', 'Please make sure you update your DCS-SRS client also!'))
-                    params = {
-                        "channel": config['channel'],
-                        "embed": embed.to_dict()
-                    }
-                    if 'mention' in config:
-                        params['mention'] = config['mention']
+
+        # make sure we're not called twice
+        async with self.lock:
+            try:
+                version = await self.check_for_updates()
+                if version:
+                    self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
+                    #await asyncio.to_thread(self.do_update_old)
+                    await self.do_update(version)
+                    # await self.do_update_fallback(version)
+                    self.log.info("DCS-SRS updated.")
+                    bus = ServiceRegistry.get(ServiceBus)
                     await bus.send_to_node({
                         "command": "rpc",
                         "service": BotService.__name__,
-                        "method": "send_message",
-                        "params": params
+                        "method": "audit",
+                        "params": {
+                            "message": f"{self.name} updated to version {version} on node {self.node.name}."
+                        }
                     })
+                    if isinstance(self.config.get('autoupdate'), dict):
+                        config = self.config.get('autoupdate')
+                        servers = []
+                        for instance in self.node.instances:
+                            if instance.locals.get('extensions', {}).get(self.name) and instance.locals['extensions'][self.name].get('enabled', True):
+                                servers.append(instance.server.display_name)
+                        embed = discord.Embed(
+                            colour=discord.Colour.blue(),
+                            title=config.get(
+                                'title', 'DCS-SRS has been updated to version {}!').format(version),
+                            url=f"https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/{version}")
+                        embed.set_thumbnail(url="https://github.com/ciribob/DCS-SimpleRadioStandalone/blob/master/Scripts/DCS-SRS/Theme/icon.png")
+                        embed.description = config.get('description', 'The following servers have been updated:')
+                        embed.add_field(name=_('Server'),
+                                        value='\n'.join([f'- {x}' for x in servers]), inline=False)
+                        embed.set_footer(
+                            text=config.get('footer', 'Please make sure you update your DCS-SRS client also!'))
+                        params = {
+                            "channel": config['channel'],
+                            "embed": embed.to_dict()
+                        }
+                        if 'mention' in config:
+                            params['mention'] = config['mention']
+                        await bus.send_to_node({
+                            "command": "rpc",
+                            "service": BotService.__name__,
+                            "method": "send_message",
+                            "params": params
+                        })
 
-        except Exception as ex:
-            self.log.exception(ex)
+            except Exception as ex:
+                self.log.exception(ex)
+
+    @tasks.loop(minutes=30)
+    async def schedule(self):
+        await self.handle_update()
 
     async def get_ports(self) -> dict:
         if self.enabled:

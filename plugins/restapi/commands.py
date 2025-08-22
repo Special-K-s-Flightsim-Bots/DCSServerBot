@@ -200,7 +200,10 @@ class RestAPI(Plugin):
 
     async def get_ucid(self, nick: str, date: Optional[Union[str, datetime]] = None) -> str:
         if date and isinstance(date, str):
-            date = datetime.fromisoformat(date)
+            try:
+                date = datetime.fromisoformat(date)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid date format")
             where = "AND DATE_TRUNC('second', last_seen) = DATE_TRUNC('second', %(date)s)"
         else:
             where = ""
