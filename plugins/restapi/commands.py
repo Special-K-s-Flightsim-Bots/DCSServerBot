@@ -648,7 +648,7 @@ class RestAPI(Plugin):
                           server_name: Optional[str] = Form(None)):
         self.log.debug(f'Calling /player_info with nick="{nick}", date="{date}", server_name="{server_name}"')
         player_info: dict[str, Any] = {
-            'overall': dict(await self.stats(nick, date, server_name), last_session=False),
+            'overall': dict(await self.stats(nick, date, server_name, last_session=False)),
             'last_session': dict(await self.stats(nick, date, server_name, last_session=True)),
             'module_stats': await self.modulestats(nick, date, server_name)
         }
