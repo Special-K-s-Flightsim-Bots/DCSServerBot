@@ -563,11 +563,27 @@ class RestAPI(Plugin):
                 else:
                     join = ""
                 await cursor.execute(f"""
-                    SELECT COALESCE(overall.playtime, 0) AS playtime, COALESCE(overall.kills, 0) as kills, 
-                           COALESCE(overall.deaths, 0) AS deaths, COALESCE(overall.kills_pvp, 0) AS kills_pvp, 
-                           COALESCE(overall.deaths_pvp, 0) AS deaths_pvp, COALESCE(overall.takeoffs, 0) AS takeoffs, 
-                           COALESCE(overall.landings, 0) AS landings, COALESCE(overall.ejections, 0) AS ejections, 
-                           COALESCE(overall.crashes, 0) AS crashes, COALESCE(overall.teamkills, 0) AS teamkills, 
+                    SELECT COALESCE(overall.playtime, 0) AS playtime, 
+                           COALESCE(overall.kills, 0) as kills, 
+                           COALESCE(overall.deaths, 0) AS deaths, 
+                           COALESCE(overall.kills_pvp, 0) AS kills_pvp, 
+                           COALESCE(overall.deaths_pvp, 0) AS deaths_pvp,
+                           COALESCE(overall.kills_ground, 0) AS kills_ground,
+                           COALESCE(overall.kills_planes, 0) AS kills_planes,
+                           COALESCE(overall.kills_helicopters, 0) AS kills_helicopters,
+                           COALESCE(overall.kills_ships, 0) AS kills_ships,
+                           COALESCE(overall.kills_sams, 0) AS kills_sams, 
+                           COALESCE(overall.deaths_ground, 0) AS deaths_ground,
+                           COALESCE(overall.deaths_planes, 0) AS deaths_planes,
+                           COALESCE(overall.deaths_helicopters, 0) AS deaths_helicopters,
+                           COALESCE(overall.deaths_ships, 0) AS deaths_ships,
+                           COALESCE(overall.deaths_sams, 0) AS deaths_sams, 
+                           COALESCE(overall.deaths_ground, 0) AS deaths_ground,
+                           COALESCE(overall.takeoffs, 0) AS takeoffs, 
+                           COALESCE(overall.landings, 0) AS landings, 
+                           COALESCE(overall.ejections, 0) AS ejections, 
+                           COALESCE(overall.crashes, 0) AS crashes, 
+                           COALESCE(overall.teamkills, 0) AS teamkills, 
                            COALESCE(ROUND(CASE WHEN overall.deaths = 0 
                                       THEN overall.kills 
                                       ELSE overall.kills/overall.deaths::DECIMAL END, 2), 0) AS "kdr", 
@@ -577,10 +593,25 @@ class RestAPI(Plugin):
                            COALESCE(lastsession.kills, 0) AS "lastSessionKills", COALESCE(lastsession.deaths, 0) AS "lastSessionDeaths"
                     FROM (
                         SELECT ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS playtime, 
-                               SUM(s.kills) as "kills", SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths", 
-                               SUM(s.pvp) AS "kills_pvp", SUM(s.deaths_pvp) AS "deaths_pvp",
-                               SUM(s.takeoffs) AS "takeoffs", SUM(s.landings) AS "landings", SUM(s.ejections) AS "ejections",
-                               SUM(s.crashes) AS "crashes", SUM(s.teamkills) AS "teamkills"
+                               SUM(s.kills) as "kills", 
+                               SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths", 
+                               SUM(s.pvp) AS "kills_pvp", 
+                               SUM(s.deaths_pvp) AS "deaths_pvp",
+                               SUM(s.kills_sams) AS "kills_sams",
+                               SUM(s.kills_ships) AS "kills_ships",
+                               SUM(s.kills_ground) AS "kills_ground",
+                               SUM(s.kills_planes) AS "kills_planes",
+                               SUM(s.kills_helicopters) AS "kills_helicopters",
+                               SUM(s.deaths_sams) AS "deaths_sams",
+                               SUM(s.deaths_ships) AS "deaths_ships",
+                               SUM(s.deaths_ground) AS "deaths_ground",
+                               SUM(s.deaths_planes) AS "deaths_planes",
+                               SUM(s.deaths_helicopters) AS "deaths_helicopters",
+                               SUM(s.takeoffs) AS "takeoffs", 
+                               SUM(s.landings) AS "landings", 
+                               SUM(s.ejections) AS "ejections",
+                               SUM(s.crashes) AS "crashes", 
+                               SUM(s.teamkills) AS "teamkills"
                         FROM statistics s
                         {join}
                         WHERE s.player_ucid = %(ucid)s
