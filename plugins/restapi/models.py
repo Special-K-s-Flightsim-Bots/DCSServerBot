@@ -329,13 +329,22 @@ class ModuleStats(BaseModel):
         }
     }
 
-
 class PlayerStats(BaseModel):
     playtime: int = Field(..., description="Total playtime in seconds")
     kills: int = Field(..., description="Total kills")
     deaths: int = Field(..., description="Total deaths")
     kills_pvp: int = Field(..., description="Total PvP kills")
     deaths_pvp: int = Field(..., description="Total PvP deaths")
+    kills_planes: int = Field(..., description="Total plane kills")
+    kills_helicopters: int = Field(..., description="Total helicopter kills")
+    kills_ships: int = Field(..., description="Total ship kills")
+    kills_sams: int = Field(..., description="Total SAM kills")
+    kills_ground: int = Field(..., description="Total ground kills")
+    deaths_planes: int = Field(..., description="Total plane deaths")
+    deaths_helicopters: int = Field(..., description="Total helicopter deaths")
+    deaths_ships: int = Field(..., description="Total ship deaths")
+    deaths_sams: int = Field(..., description="Total SAM deaths")
+    deaths_ground: int = Field(..., description="Total ground deaths")
     takeoffs: int = Field(..., description="Number of takeoffs")
     landings: int = Field(..., description="Number of landings")
     ejections: int = Field(..., description="Number of ejections")
@@ -343,9 +352,6 @@ class PlayerStats(BaseModel):
     teamkills: int = Field(..., description="Number of team kills")
     kdr: Decimal = Field(..., description="Kill/death ratio")
     kdr_pvp: Decimal = Field(..., description="PvP Kill/death ratio")
-    lastSessionKills: int = Field(..., description="Kills in last session")
-    lastSessionDeaths: int = Field(..., description="Deaths in last session")
-    module_stats: list[ModuleStats] = Field(default_factory=list, description="Statistics by module")
 
     model_config = {
         "json_encoders": {
@@ -459,7 +465,10 @@ class PlayerSquadron(BaseModel):
         }
 
 
-class PlayerInfo(PlayerStats):
+class PlayerInfo(BaseModel):
+    overall: PlayerStats = Field(..., description="Overall statistics")
+    last_session: PlayerStats = Field(..., description="Statistics of the last session")
+    module_stats: list[ModuleStats] = Field(default_factory=list, description="Statistics by module")
     credits: Optional[CampaignCredits] = Field(None, description="Campaign credits of this player")
     squadrons: list[PlayerSquadron] = Field(default_factory=list, description="Squadrons the player is a member of")
 

@@ -16,7 +16,7 @@ from typing import Optional, Any, Union, Literal
 
 from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
-                     PlayerSquadron, LeaderBoard)
+                     PlayerSquadron, LeaderBoard, ModuleStats)
 
 app: Optional[FastAPI] = None
 
@@ -553,96 +553,91 @@ class RestAPI(Plugin):
                 return [WeaponPK.model_validate(result) for result in await cursor.fetchall()]
 
     async def stats(self, nick: str = Form(...), date: Optional[str] = Form(None),
-                    server_name: Optional[str] = Form(None)):
-        self.log.debug(f'Calling /stats with nick="{nick}", date="{date}"')
+                    server_name: Optional[str] = Form(None), last_session: Optional[bool] = Form(False)):
+        self.log.debug(f'Calling /stats with nick="{nick}", date="{date}", server_name="{server_name}", '
+                       f'last_session="{last_session}"')
+
+        ucid = await self.get_ucid(nick, date)
+        if server_name:
+            join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
+        else:
+            join = ""
+        query = f"""
+            SELECT ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS playtime, 
+                   SUM(s.kills) as "kills", 
+                   SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths", 
+                   SUM(s.pvp) AS "kills_pvp", 
+                   SUM(s.deaths_pvp) AS "deaths_pvp",
+                   SUM(s.kills_sams) AS "kills_sams",
+                   SUM(s.kills_ships) AS "kills_ships",
+                   SUM(s.kills_ground) AS "kills_ground",
+                   SUM(s.kills_planes) AS "kills_planes",
+                   SUM(s.kills_helicopters) AS "kills_helicopters",
+                   SUM(s.deaths_sams) AS "deaths_sams",
+                   SUM(s.deaths_ships) AS "deaths_ships",
+                   SUM(s.deaths_ground) AS "deaths_ground",
+                   SUM(s.deaths_planes) AS "deaths_planes",
+                   SUM(s.deaths_helicopters) AS "deaths_helicopters",
+                   SUM(s.takeoffs) AS "takeoffs", 
+                   SUM(s.landings) AS "landings", 
+                   SUM(s.ejections) AS "ejections",
+                   SUM(s.crashes) AS "crashes", 
+                   SUM(s.teamkills) AS "teamkills"
+            FROM statistics s
+            {join}
+            WHERE s.player_ucid = %(ucid)s
+        """
+        if last_session:
+            query += """
+                AND (s.player_ucid, s.mission_id) = (
+                    SELECT player_ucid, max(mission_id) 
+                    FROM statistics 
+                    WHERE player_ucid = %(ucid)s GROUP BY 1
+                )
+            """
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                ucid = await self.get_ucid(nick, date)
-                if server_name:
-                    join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
-                else:
-                    join = ""
-                await cursor.execute(f"""
-                    SELECT COALESCE(overall.playtime, 0) AS playtime, 
-                           COALESCE(overall.kills, 0) as kills, 
-                           COALESCE(overall.deaths, 0) AS deaths, 
-                           COALESCE(overall.kills_pvp, 0) AS kills_pvp, 
-                           COALESCE(overall.deaths_pvp, 0) AS deaths_pvp,
-                           COALESCE(overall.kills_ground, 0) AS kills_ground,
-                           COALESCE(overall.kills_planes, 0) AS kills_planes,
-                           COALESCE(overall.kills_helicopters, 0) AS kills_helicopters,
-                           COALESCE(overall.kills_ships, 0) AS kills_ships,
-                           COALESCE(overall.kills_sams, 0) AS kills_sams, 
-                           COALESCE(overall.deaths_ground, 0) AS deaths_ground,
-                           COALESCE(overall.deaths_planes, 0) AS deaths_planes,
-                           COALESCE(overall.deaths_helicopters, 0) AS deaths_helicopters,
-                           COALESCE(overall.deaths_ships, 0) AS deaths_ships,
-                           COALESCE(overall.deaths_sams, 0) AS deaths_sams, 
-                           COALESCE(overall.deaths_ground, 0) AS deaths_ground,
-                           COALESCE(overall.takeoffs, 0) AS takeoffs, 
-                           COALESCE(overall.landings, 0) AS landings, 
-                           COALESCE(overall.ejections, 0) AS ejections, 
-                           COALESCE(overall.crashes, 0) AS crashes, 
-                           COALESCE(overall.teamkills, 0) AS teamkills, 
-                           COALESCE(ROUND(CASE WHEN overall.deaths = 0 
-                                      THEN overall.kills 
-                                      ELSE overall.kills/overall.deaths::DECIMAL END, 2), 0) AS "kdr", 
-                           COALESCE(ROUND(CASE WHEN overall.deaths_pvp = 0 
-                                      THEN overall.kills_pvp 
-                                      ELSE overall.kills/overall.deaths_pvp::DECIMAL END, 2), 0) AS "kdr_pvp", 
-                           COALESCE(lastsession.kills, 0) AS "lastSessionKills", COALESCE(lastsession.deaths, 0) AS "lastSessionDeaths"
-                    FROM (
-                        SELECT ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS playtime, 
-                               SUM(s.kills) as "kills", 
-                               SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths", 
-                               SUM(s.pvp) AS "kills_pvp", 
-                               SUM(s.deaths_pvp) AS "deaths_pvp",
-                               SUM(s.kills_sams) AS "kills_sams",
-                               SUM(s.kills_ships) AS "kills_ships",
-                               SUM(s.kills_ground) AS "kills_ground",
-                               SUM(s.kills_planes) AS "kills_planes",
-                               SUM(s.kills_helicopters) AS "kills_helicopters",
-                               SUM(s.deaths_sams) AS "deaths_sams",
-                               SUM(s.deaths_ships) AS "deaths_ships",
-                               SUM(s.deaths_ground) AS "deaths_ground",
-                               SUM(s.deaths_planes) AS "deaths_planes",
-                               SUM(s.deaths_helicopters) AS "deaths_helicopters",
-                               SUM(s.takeoffs) AS "takeoffs", 
-                               SUM(s.landings) AS "landings", 
-                               SUM(s.ejections) AS "ejections",
-                               SUM(s.crashes) AS "crashes", 
-                               SUM(s.teamkills) AS "teamkills"
-                        FROM statistics s
-                        {join}
-                        WHERE s.player_ucid = %(ucid)s
-                    ) overall, (
-                        SELECT SUM(kills) AS "kills", SUM(deaths) AS "deaths"
-                        FROM statistics
-                        WHERE (player_ucid, mission_id) = (
-                            SELECT player_ucid, max(mission_id) FROM statistics WHERE player_ucid = %(ucid)s GROUP BY 1
-                        )
-                    ) lastsession
-                """, {"ucid": ucid, "server_name": server_name})
+                await cursor.execute(query, {"ucid": ucid, "server_name": server_name})
                 data = await cursor.fetchone()
-                await cursor.execute(f"""
-                    SELECT s.slot AS "module", 
-                           SUM(s.kills) AS "kills",
-                           SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths",
-                           CASE WHEN SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) = 0 
-                                THEN SUM(s.kills) ELSE SUM(s.kills)::DECIMAL / SUM((s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground)::DECIMAL) END AS "kdr" 
-                    FROM statistics s
-                    {join}
-                    WHERE player_ucid = %(ucid)s 
-                    GROUP BY 1 HAVING SUM(kills) > 1 
-                    ORDER BY 2 DESC
-                """, {"ucid": ucid, "server_name": server_name})
-                data['module_stats'] = await cursor.fetchall()
-                return PlayerStats.model_validate(data)
+                data['kdr'] = data['kills'] / data['deaths'] if data['deaths'] > 0 else data['kills']
+                data['kdr_pvp'] = data['kills_pvp'] / data['deaths_pvp'] if data['deaths_pvp'] > 0 else data['kills_pvp']
+
+        return PlayerStats.model_validate(data)
+
+    async def modulestats(self, nick: str = Form(...), date: Optional[str] = Form(None),
+                               server_name: Optional[str] = Form(None)):
+        self.log.debug(f'Calling /modulestats with nick="{nick}", date="{date}", server_name="{server_name}"')
+
+        ucid = await self.get_ucid(nick, date)
+        if server_name:
+            join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
+        else:
+            join = ""
+        query = f"""
+            SELECT s.slot AS "module", 
+                   SUM(s.kills) AS "kills",
+                   SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths",
+                   CASE WHEN SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) = 0 
+                        THEN SUM(s.kills) ELSE SUM(s.kills)::DECIMAL / SUM((s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground)::DECIMAL) END AS "kdr" 
+            FROM statistics s
+            {join}
+            WHERE player_ucid = %(ucid)s 
+            GROUP BY 1 HAVING SUM(kills) > 1 
+            ORDER BY 2 DESC
+        """
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(query, {"ucid": ucid, "server_name": server_name})
+                return [ModuleStats.model_validate(result) for result in await cursor.fetchall()]
 
     async def player_info(self, nick: str = Form(...), date: Optional[str] = Form(None),
                           server_name: Optional[str] = Form(None)):
         self.log.debug(f'Calling /player_info with nick="{nick}", date="{date}", server_name="{server_name}"')
-        player_info = dict(await self.stats(nick, date, server_name))
+        player_info: dict[str, Any] = {
+            'overall': dict(await self.stats(nick, date, server_name), last_session=False),
+            'last_session': dict(await self.stats(nick, date, server_name, last_session=True)),
+            'module_stats': await self.modulestats(nick, date, server_name)
+        }
         # add credits
         try:
             player_info['credits'] = await self.credits(nick, date, None)
