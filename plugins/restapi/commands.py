@@ -138,6 +138,14 @@ class RestAPI(Plugin):
             tags = ["Statistics"]
         )
         router.add_api_route(
+            "/modulestats", self.stats,
+            methods = ["POST"],
+            response_model = ModuleStats,
+            description = "Get module statistics",
+            summary = "Module Statistics",
+            tags = ["Statistics"]
+        )
+        router.add_api_route(
             "/player_info", self.player_info,
             methods = ["POST"],
             response_model = PlayerInfo,
