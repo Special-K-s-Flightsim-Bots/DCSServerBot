@@ -13,6 +13,7 @@ You can configure the RestAPI endpoints in your config\plugins\restapi.yaml like
 ```yaml
 DEFAULT:
   prefix: /stats            # Optional: use this prefix
+  api_key: aaabbbcccc       # Optional: API key to be used to secure the API
   endpoints:                 # endpoint configuration
     servers:                # /servers
       filter:               # config parameter (in this case, the server filter list)

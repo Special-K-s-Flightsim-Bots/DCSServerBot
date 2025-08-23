@@ -6,7 +6,7 @@ from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, Se
     Server
 from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
-from fastapi import FastAPI, APIRouter, Form, Query, HTTPException
+from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
 from psycopg.rows import dict_row
@@ -14,6 +14,7 @@ from services.bot import DCSServerBot
 from services.webservice import WebService
 from typing import Optional, Any, Union, Literal
 
+from .bearer import APIKeyBearer
 from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
                      PlayerSquadron, LeaderBoard, ModuleStats)
@@ -40,11 +41,17 @@ class RestAPI(Plugin):
 
     def register_routes(self):
         prefix = self.locals.get(DEFAULT_TAG, {}).get('prefix', '')
+        api_key = self.locals.get(DEFAULT_TAG, {}).get('api_key')
+        if api_key:
+            dependencies = [Depends(APIKeyBearer(api_key))]
+        else:
+            dependencies = None
         router = APIRouter(prefix=prefix)
         router.add_api_route(
             "/serverstats", self.serverstats,
             methods = ["GET"],
             response_model = ServerStats,
+            dependencies = dependencies,
             description = "List the statistics of a whole group",
             summary = "Server Statistics",
             tags = ["Info"]
@@ -53,6 +60,7 @@ class RestAPI(Plugin):
             "/servers", self.servers,
             methods = ["GET"],
             response_model = list[ServerInfo],
+            dependencies = dependencies,
             description = "List all servers, the active mission (if any) and the active extensions",
             summary = "Server list",
             tags = ["Info"]
@@ -61,6 +69,7 @@ class RestAPI(Plugin):
             "/squadrons", self.squadrons,
             methods = ["GET"],
             response_model = list[SquadronInfo],
+            dependencies = dependencies,
             description = "List all squadrons and their roles",
             summary = "Squadron list",
             tags = ["Info"]
@@ -69,6 +78,7 @@ class RestAPI(Plugin):
             "/squadron_members", self.squadron_members,
             methods = ["POST"],
             response_model = list[UserEntry],
+            dependencies = dependencies,
             description = "List squadron members",
             summary = "Squadron Members",
             tags = ["Info"]
@@ -77,6 +87,7 @@ class RestAPI(Plugin):
             "/getuser", self.getuser,
             methods = ["POST"],
             response_model = list[UserEntry],
+            dependencies = dependencies,
             description = "Get users by name",
             summary = "User list",
             tags = ["Info"]
@@ -85,6 +96,7 @@ class RestAPI(Plugin):
             "/linkme", self.linkme,
             methods=["POST"],
             response_model=LinkMeResponse,
+            dependencies = dependencies,
             description="Link your Discord account to your DCS account",
             summary="Link Discord to DCS",
             tags=["Info"]
@@ -93,6 +105,7 @@ class RestAPI(Plugin):
             "/leaderboard", self.leaderboard,
             methods = ["GET"],
             response_model = LeaderBoard,
+            dependencies = dependencies,
             description = "Get leaderbord information",
             summary = "Leaderboard",
             tags = ["Statistics"]
@@ -101,6 +114,7 @@ class RestAPI(Plugin):
             "/topkills", self.topkills,
             methods = ["GET"],
             response_model = list[TopKill],
+            dependencies = dependencies,
             description = "Get top kills statistics for players",
             summary = "Top Kills",
             tags = ["Statistics"]
@@ -109,6 +123,7 @@ class RestAPI(Plugin):
             "/topkdr", self.topkdr,
             methods = ["GET"],
             response_model = list[TopKill],
+            dependencies = dependencies,
             description = "Get top KDR statistics for players",
             summary = "Top KDR",
             tags = ["Statistics"]
@@ -117,6 +132,7 @@ class RestAPI(Plugin):
             "/trueskill", self.trueskill,
             methods = ["GET"],
             response_model = list[Trueskill],
+            dependencies = dependencies,
             description = "Get TrueSkill:tm: statistics for players",
             summary = "TrueSkill:tm:",
             tags = ["Statistics"]
@@ -125,6 +141,7 @@ class RestAPI(Plugin):
             "/weaponpk", self.weaponpk,
             methods = ["POST"],
             response_model = list[WeaponPK],
+            dependencies = dependencies,
             description = "Get PK statistics for all weapons of a specific players",
             summary = "Weapon PK",
             tags = ["Statistics"]
@@ -133,6 +150,7 @@ class RestAPI(Plugin):
             "/stats", self.stats,
             methods = ["POST"],
             response_model = PlayerStats,
+            dependencies = dependencies,
             description = "Get player statistics",
             summary = "Player Statistics",
             tags = ["Statistics"]
@@ -141,6 +159,7 @@ class RestAPI(Plugin):
             "/modulestats", self.stats,
             methods = ["POST"],
             response_model = ModuleStats,
+            dependencies = dependencies,
             description = "Get module statistics",
             summary = "Module Statistics",
             tags = ["Statistics"]
@@ -149,6 +168,7 @@ class RestAPI(Plugin):
             "/player_info", self.player_info,
             methods = ["POST"],
             response_model = PlayerInfo,
+            dependencies = dependencies,
             description = "Get player information",
             summary = "Player Information",
             tags = ["Statistics"]
@@ -157,6 +177,7 @@ class RestAPI(Plugin):
             "/highscore", self.highscore,
             methods = ["GET"],
             response_model = Highscore,
+            dependencies = dependencies,
             description = "Get highscore statistics for players",
             summary = "Highscore",
             tags = ["Statistics"]
@@ -165,6 +186,7 @@ class RestAPI(Plugin):
             "/traps", self.traps,
             methods = ["POST"],
             response_model = list[TrapEntry],
+            dependencies = dependencies,
             description = "Get traps for players",
             summary = "Carrier Traps",
             tags = ["Statistics"]
@@ -173,6 +195,7 @@ class RestAPI(Plugin):
             "/credits", self.credits,
             methods = ["POST"],
             response_model = CampaignCredits,
+            dependencies = dependencies,
             description = "Get campaign credits for players",
             summary = "Campaign Credits",
             tags = ["Credits"]
@@ -181,6 +204,7 @@ class RestAPI(Plugin):
             "/squadron_credits", self.squadron_credits,
             methods = ["POST"],
             response_model = SquadronCampaignCredit,
+            dependencies = dependencies,
             description = "Squadron campaign credits",
             summary = "Squadron Credits",
             tags = ["Credits"]
@@ -189,6 +213,7 @@ class RestAPI(Plugin):
             "/player_squadrons", self.player_squadrons,
             methods = ["POST"],
             response_model = list[PlayerSquadron],
+            dependencies = dependencies,
             description = "List of player squadrons",
             summary = "Player Squadrons",
             tags = ["Info"]
