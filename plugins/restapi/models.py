@@ -106,43 +106,6 @@ class ExtensionInfo(BaseModel):
         }
     }
 
-class ServerInfo(BaseModel):
-    name: str
-    status: str
-    address: str
-    password: str = ""
-    mission: Optional[MissionInfo] = None
-    extensions: list[ExtensionInfo] = Field(default_factory=list)
-
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "name": "DCS Server",
-                "status": "running",
-                "address": "127.0.0.1:10308",
-                "password": "secret",
-                "mission": {
-                    "name": "Training Mission",
-                    "uptime": 3600,
-                    "date_time": "2025-08-07 12:00:00",
-                    "theatre": "Caucasus",
-                    "blue_slots": 20,
-                    "blue_slots_used": 5,
-                    "red_slots": 20,
-                    "red_slots_used": 3,
-                    "restart_time": 1691424000
-                },
-                "extensions": [
-                    {
-                        "name": "SRS",
-                        "version": "1.9.0.0",
-                        "value": "127.0.0.1:5002"
-                    }
-                ]
-            }
-        }
-    }
-
 
 class SquadronInfo(BaseModel):
     name: str = Field(..., description="Name of the squadron")
@@ -390,6 +353,52 @@ class PlayerStats(BaseModel):
     }
 
 
+class PlayerEntry(BaseModel):
+    nick: str = Field(..., description="Player name")
+    current_server: str = Field(..., description="Current server")
+    unit_type: str = Field(..., description="Type of aircraft")
+    callsign: str = Field(..., description="Callsign of the aircraft")
+
+
+class ServerInfo(BaseModel):
+    name: str
+    status: str
+    address: str
+    password: str = ""
+    mission: Optional[MissionInfo] = None
+    extensions: list[ExtensionInfo] = Field(default_factory=list)
+    player_list: list[PlayerEntry] = Field(default_factory=list)
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "name": "DCS Server",
+                "status": "running",
+                "address": "127.0.0.1:10308",
+                "password": "secret",
+                "mission": {
+                    "name": "Training Mission",
+                    "uptime": 3600,
+                    "date_time": "2025-08-07 12:00:00",
+                    "theatre": "Caucasus",
+                    "blue_slots": 20,
+                    "blue_slots_used": 5,
+                    "red_slots": 20,
+                    "red_slots_used": 3,
+                    "restart_time": 1691424000
+                },
+                "extensions": [
+                    {
+                        "name": "SRS",
+                        "version": "1.9.0.0",
+                        "value": "127.0.0.1:5002"
+                    }
+                ]
+            }
+        }
+    }
+
+
 class CampaignCredits(BaseModel):
     id: int = Field(..., description="Campaign ID")
     name: str = Field(..., description="Campaign name")
@@ -466,6 +475,7 @@ class PlayerSquadron(BaseModel):
 
 
 class PlayerInfo(BaseModel):
+    current_server: Optional[str] = Field(None, description="Current server")
     overall: PlayerStats = Field(..., description="Overall statistics")
     last_session: PlayerStats = Field(..., description="Statistics of the last session")
     module_stats: list[ModuleStats] = Field(default_factory=list, description="Statistics by module")

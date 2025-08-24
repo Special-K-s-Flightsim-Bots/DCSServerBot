@@ -3,7 +3,7 @@ import random
 import re
 
 from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, PluginInstallationError, \
-    Server
+    Server, async_cache
 from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
 from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends
@@ -11,13 +11,14 @@ from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
+from services.servicebus import ServiceBus
 from services.webservice import WebService
 from typing import Optional, Any, Union, Literal
 
 from .bearer import APIKeyBearer
 from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
-                     PlayerSquadron, LeaderBoard, ModuleStats)
+                     PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry)
 
 app: Optional[FastAPI] = None
 
@@ -152,6 +153,14 @@ class RestAPI(Plugin):
             tags = ["Statistics"]
         )
         router.add_api_route(
+            "/current_server", self.current_server,
+            methods = ["GET"],
+            response_model = Optional[str],
+            description = "Server name a player is flying on",
+            summary = "Current Server",
+            tags = ["Info"]
+        )
+        router.add_api_route(
             "/player_info", self.player_info,
             methods = ["POST"],
             response_model = PlayerInfo,
@@ -212,6 +221,7 @@ class RestAPI(Plugin):
     def get_endpoint_config(self, endpoint: str):
         return self.get_config().get('endpoints', {}).get(endpoint, {})
 
+    @async_cache
     async def get_ucid(self, nick: str, date: Optional[Union[str, datetime]] = None) -> str:
         if date and isinstance(date, str):
             try:
@@ -336,6 +346,14 @@ class RestAPI(Plugin):
                 data['extensions'] = await server.render_extensions()
             else:
                 data['extensions'] = []
+
+            # add current players
+            data['player'] = [PlayerEntry.model_validate({
+                "nick": player.name,
+                "current_server": server.name,
+                "unit_type": player.unit_type,
+                "callsign": player.unit_callsign
+            }) for player in server.players.values()]
 
             # validate the data against the schema and return it
             servers.append(ServerInfo.model_validate(data))
@@ -644,10 +662,19 @@ class RestAPI(Plugin):
                 await cursor.execute(query, {"ucid": ucid, "server_name": server_name})
                 return [ModuleStats.model_validate(result) for result in await cursor.fetchall()]
 
+    async def current_server(self, nick: str = Query(...), date: Optional[str] = Query(None)) -> Optional[str]:
+        ucid = await self.get_ucid(nick, date)
+        bus = ServiceRegistry.get(ServiceBus)
+        for server in bus.servers.values():
+            if server.get_player(ucid=ucid) is not None:
+                return server.name
+        return None
+
     async def player_info(self, nick: str = Form(...), date: Optional[str] = Form(None),
                           server_name: Optional[str] = Form(None)):
         self.log.debug(f'Calling /player_info with nick="{nick}", date="{date}", server_name="{server_name}"')
         player_info: dict[str, Any] = {
+            'current_server': await self.current_server(nick, date),
             'overall': dict(await self.stats(nick, date, server_name, last_session=False)),
             'last_session': dict(await self.stats(nick, date, server_name, last_session=True)),
             'module_stats': await self.modulestats(nick, date, server_name)
