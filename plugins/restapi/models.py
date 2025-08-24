@@ -355,7 +355,6 @@ class PlayerStats(BaseModel):
 
 class PlayerEntry(BaseModel):
     nick: str = Field(..., description="Player name")
-    current_server: str = Field(..., description="Current server")
     unit_type: str = Field(..., description="Type of aircraft")
     callsign: str = Field(..., description="Callsign of the aircraft")
 

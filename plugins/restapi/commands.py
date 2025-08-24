@@ -350,7 +350,6 @@ class RestAPI(Plugin):
             # add current players
             data['player'] = [PlayerEntry.model_validate({
                 "nick": player.name,
-                "current_server": server.name,
                 "unit_type": player.unit_type,
                 "callsign": player.unit_callsign
             }) for player in server.players.values()]
