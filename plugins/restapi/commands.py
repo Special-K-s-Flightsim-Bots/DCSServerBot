@@ -608,36 +608,42 @@ class RestAPI(Plugin):
         else:
             join = ""
         query = f"""
-            SELECT ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS playtime, 
-                   SUM(s.kills) as "kills", 
-                   SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths", 
-                   SUM(s.pvp) AS "kills_pvp", 
-                   SUM(s.deaths_pvp) AS "deaths_pvp",
-                   SUM(s.kills_sams) AS "kills_sams",
-                   SUM(s.kills_ships) AS "kills_ships",
-                   SUM(s.kills_ground) AS "kills_ground",
-                   SUM(s.kills_planes) AS "kills_planes",
-                   SUM(s.kills_helicopters) AS "kills_helicopters",
-                   SUM(s.deaths_sams) AS "deaths_sams",
-                   SUM(s.deaths_ships) AS "deaths_ships",
-                   SUM(s.deaths_ground) AS "deaths_ground",
-                   SUM(s.deaths_planes) AS "deaths_planes",
-                   SUM(s.deaths_helicopters) AS "deaths_helicopters",
-                   SUM(s.takeoffs) AS "takeoffs", 
-                   SUM(s.landings) AS "landings", 
-                   SUM(s.ejections) AS "ejections",
-                   SUM(s.crashes) AS "crashes", 
-                   SUM(s.teamkills) AS "teamkills"
+            SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))), 0)::INTEGER AS playtime, 
+                   COALESCE(SUM(s.kills), 0) as "kills", 
+                   COALESCE(SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground), 0) AS "deaths", 
+                   COALESCE(SUM(s.pvp), 0) AS "kills_pvp", 
+                   COALESCE(SUM(s.deaths_pvp), 0) AS "deaths_pvp",
+                   COALESCE(SUM(s.kills_sams), 0) AS "kills_sams",
+                   COALESCE(SUM(s.kills_ships), 0) AS "kills_ships",
+                   COALESCE(SUM(s.kills_ground), 0) AS "kills_ground",
+                   COALESCE(SUM(s.kills_planes), 0) AS "kills_planes",
+                   COALESCE(SUM(s.kills_helicopters), 0) AS "kills_helicopters",
+                   COALESCE(SUM(s.deaths_sams), 0) AS "deaths_sams",
+                   COALESCE(SUM(s.deaths_ships), 0) AS "deaths_ships",
+                   COALESCE(SUM(s.deaths_ground), 0) AS "deaths_ground",
+                   COALESCE(SUM(s.deaths_planes), 0) AS "deaths_planes",
+                   COALESCE(SUM(s.deaths_helicopters), 0) AS "deaths_helicopters",
+                   COALESCE(SUM(s.takeoffs), 0) AS "takeoffs", 
+                   COALESCE(SUM(s.landings), 0) AS "landings", 
+                   COALESCE(SUM(s.ejections), 0) AS "ejections",
+                   COALESCE(SUM(s.crashes), 0) AS "crashes", 
+                   COALESCE(SUM(s.teamkills), 0) AS "teamkills"
             FROM statistics s
             {join}
             WHERE s.player_ucid = %(ucid)s
         """
         if last_session:
-            query += """
+            if server_name:
+                inner_query = f"AND m2.server_name = %(server_name)s"
+            else:
+                inner_query = ""
+            query += f"""
                 AND (s.player_ucid, s.mission_id) = (
                     SELECT player_ucid, max(mission_id) 
-                    FROM statistics 
-                    WHERE player_ucid = %(ucid)s GROUP BY 1
+                    FROM statistics s1 JOIN missions m2 ON s1.mission_id = m2.id 
+                    {inner_query}
+                    WHERE player_ucid = %(ucid)s 
+                    GROUP BY 1
                 )
             """
         async with self.apool.connection() as conn:
@@ -645,7 +651,6 @@ class RestAPI(Plugin):
                 await cursor.execute(query, {"ucid": ucid, "server_name": server_name})
                 data = await cursor.fetchone()
                 if data:
-                    self.log.info(f'Query result: {data}')
                     data['kdr'] = data['kills'] / data['deaths'] if data['deaths'] > 0 else data['kills']
                     data['kdr_pvp'] = data['kills_pvp'] / data['deaths_pvp'] if data['deaths_pvp'] > 0 else data['kills_pvp']
 
