@@ -570,7 +570,11 @@ class RestAPI(Plugin):
                     WHERE name ILIKE %s 
                     ORDER BY 2 DESC
                 """, ('%' + nick + '%',))
-                return [UserEntry.model_validate(result) for result in await cursor.fetchall()]
+                return [UserEntry.model_validate({
+                    "nick": result["nick"],
+                    "date": result["date"],
+                    "current_server": await self.current_server(result["nick"], result["date"])
+                }) for result in await cursor.fetchall()]
 
     async def weaponpk(self, nick: str = Form(...), date: Optional[str] = Form(None),
                        server_name: Optional[str] = Form(None)):
@@ -777,7 +781,11 @@ class RestAPI(Plugin):
                                    JOIN squadrons s ON sm.squadron_id = s.id
                     WHERE s.name = %s
                 """, (name, ))
-                return [UserEntry.model_validate(result) for result in await cursor.fetchall()]
+                return [UserEntry.model_validate({
+                    "nick": result["nick"],
+                    "date": result["date"],
+                    "current_server": await self.current_server(result["nick"], result["date"])
+                }) for result in await cursor.fetchall()]
 
     async def squadron_credits(self, name: str = Form(...), campaign: str = Form(default=None)):
         self.log.debug(f'Calling /squadron_credits with name="{name}"')

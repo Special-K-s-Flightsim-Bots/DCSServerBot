@@ -8,6 +8,7 @@ from typing import Optional
 class UserEntry(BaseModel):
     nick: str = Field(..., description="Player nickname")
     date: datetime = Field(..., description="Last seen timestamp")
+    current_server: Optional[str] = Field(None, description="Current server")
 
     model_config = {
         "json_encoders": {
@@ -16,7 +17,8 @@ class UserEntry(BaseModel):
         "json_schema_extra": {
             "example": {
                 "nick": "Player1",
-                "date": "2025-08-07T12:00:00"
+                "date": "2025-08-07T12:00:00",
+                "current_server": "My Fancy Server",
             }
         }
     }
