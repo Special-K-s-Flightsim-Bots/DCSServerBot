@@ -645,6 +645,7 @@ class RestAPI(Plugin):
                 await cursor.execute(query, {"ucid": ucid, "server_name": server_name})
                 data = await cursor.fetchone()
                 if data:
+                    self.log.info(f'Query result: {data}')
                     data['kdr'] = data['kills'] / data['deaths'] if data['deaths'] > 0 else data['kills']
                     data['kdr_pvp'] = data['kills_pvp'] / data['deaths_pvp'] if data['deaths_pvp'] > 0 else data['kills_pvp']
 
