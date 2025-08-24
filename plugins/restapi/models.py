@@ -355,26 +355,33 @@ class PlayerStats(BaseModel):
 
 class PlayerEntry(BaseModel):
     nick: str = Field(..., description="Player name")
+    side: str = Field(..., description="Player side")
     unit_type: str = Field(..., description="Type of aircraft")
     callsign: str = Field(..., description="Callsign of the aircraft")
+    radios: list[int] = Field(..., description="List of radios")
 
 
 class ServerInfo(BaseModel):
-    name: str
-    status: str
-    address: str
-    password: str = ""
-    mission: Optional[MissionInfo] = None
+    name: str = Field(..., description="Name of the server")
+    status: str = Field(..., description="Server status")
+    address: str = Field(..., description="IP address and port")
+    password: str = Field(..., description="Server password")
+    restart_time: Optional[datetime] = Field(None, description="Restart time")
+    mission: Optional[MissionInfo] = Field(None, description="Mission info")
     extensions: list[ExtensionInfo] = Field(default_factory=list)
-    player_list: list[PlayerEntry] = Field(default_factory=list)
+    players: list[PlayerEntry] = Field(default_factory=list)
 
     model_config = {
+        "json_encoders": {
+            datetime: lambda v: v.isoformat()
+        },
         "json_schema_extra": {
             "example": {
                 "name": "DCS Server",
                 "status": "running",
                 "address": "127.0.0.1:10308",
                 "password": "secret",
+                "restart_time": "2025-08-07 12:00:00",
                 "mission": {
                     "name": "Training Mission",
                     "uptime": 3600,

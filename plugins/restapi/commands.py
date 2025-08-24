@@ -13,12 +13,13 @@ from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.servicebus import ServiceBus
 from services.webservice import WebService
-from typing import Optional, Any, Union, Literal
+from typing import Optional, Any, Union, Literal, cast
 
 from .bearer import APIKeyBearer
 from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
                      PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry)
+from ..srs.commands import SRS
 
 app: Optional[FastAPI] = None
 
@@ -295,7 +296,17 @@ class RestAPI(Plugin):
                 serverstats['daily_players'] = await cursor.fetchall()
         return ServerStats.model_validate(serverstats)
 
-    async def servers(self):
+    async def get_srs_channels(self, server_name: str, nick: str) -> list[int]:
+        srs: Optional[SRS] = cast(Optional[SRS], self.bot.cogs.get('SRS'))
+        if not srs:
+            return []
+        player = srs.eventlistener.srs_users.get(server_name, {}).get(nick)
+        if player:
+            return player.get('radios', [])
+        else:
+            return []
+
+    async def servers(self, server_name: Optional[str] = Query(default=None)) -> list[ServerInfo]:
         self.log.debug('Calling /servers')
 
         def filter_servers(servers: list[Server]):
@@ -310,12 +321,13 @@ class RestAPI(Plugin):
                     yield s
 
         servers = []
-        for server in filter_servers(list(self.bot.servers.values())):
+        for server in filter_servers([s for s in self.bot.servers.values() if not server_name or s.name == server_name]):
             data: dict[str, Any] = {
                 'name': server.name,
                 'status': server.status.value,
                 'address': f"{server.node.public_ip}:{server.settings.get('port', 10308)}",
-                'password': server.settings.get('password', '')
+                'password': server.settings.get('password', ''),
+                'restart_time': server.restart_time,
             }
             if server.current_mission:
                 mission = data['mission'] = {}
@@ -348,10 +360,12 @@ class RestAPI(Plugin):
                 data['extensions'] = []
 
             # add current players
-            data['player'] = [PlayerEntry.model_validate({
+            data['players'] = [PlayerEntry.model_validate({
                 "nick": player.name,
-                "unit_type": player.unit_type,
-                "callsign": player.unit_callsign
+                "side": player.side.name,
+                "unit_type": player.unit_type if player.unit_type != '?' else "",
+                "callsign": player.unit_callsign,
+                "radios": await self.get_srs_channels(server.name, player.name)
             }) for player in server.players.values()]
 
             # validate the data against the schema and return it
@@ -630,8 +644,9 @@ class RestAPI(Plugin):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(query, {"ucid": ucid, "server_name": server_name})
                 data = await cursor.fetchone()
-                data['kdr'] = data['kills'] / data['deaths'] if data['deaths'] > 0 else data['kills']
-                data['kdr_pvp'] = data['kills_pvp'] / data['deaths_pvp'] if data['deaths_pvp'] > 0 else data['kills_pvp']
+                if data:
+                    data['kdr'] = data['kills'] / data['deaths'] if data['deaths'] > 0 else data['kills']
+                    data['kdr_pvp'] = data['kills_pvp'] / data['deaths_pvp'] if data['deaths_pvp'] > 0 else data['kills_pvp']
 
         return PlayerStats.model_validate(data)
 
