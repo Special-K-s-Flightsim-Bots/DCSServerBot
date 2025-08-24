@@ -690,7 +690,7 @@ class RestAPI(Plugin):
         ucid = await self.get_ucid(nick, date)
         bus = ServiceRegistry.get(ServiceBus)
         for server in bus.servers.values():
-            if server.get_player(ucid=ucid) is not None:
+            if server.get_player(ucid=ucid, active=True) is not None:
                 return server.name
         return None
 
