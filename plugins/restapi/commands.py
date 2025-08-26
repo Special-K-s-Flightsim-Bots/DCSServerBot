@@ -7,6 +7,7 @@ from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, Se
 from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
 from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends
+from fastapi.security import APIKeyHeader
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
 from psycopg.rows import dict_row
@@ -15,7 +16,6 @@ from services.servicebus import ServiceBus
 from services.webservice import WebService
 from typing import Optional, Any, Union, Literal, cast
 
-from .bearer import APIKeyBearer
 from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
                      PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry)
@@ -44,10 +44,18 @@ class RestAPI(Plugin):
     def register_routes(self):
         prefix = self.locals.get(DEFAULT_TAG, {}).get('prefix', '')
         api_key = self.locals.get(DEFAULT_TAG, {}).get('api_key')
+
         if api_key:
-            dependencies = [Depends(APIKeyBearer(api_key))]
+            api_key_header = APIKeyHeader(name="X-API-Key")
+
+            def get_api_key(api_key_in_header: str = Depends(api_key_header)):
+                if api_key_in_header != str(api_key):
+                    raise HTTPException(status_code=403, detail="Invalid API Key")
+
+            dependencies = [Depends(get_api_key)]
         else:
             dependencies = None
+
         router = APIRouter(prefix=prefix, dependencies=dependencies)
         router.add_api_route(
             "/serverstats", self.serverstats,

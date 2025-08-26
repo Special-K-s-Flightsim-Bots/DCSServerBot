@@ -6,7 +6,7 @@ mapping:
     nullable: false
     mapping:
       prefix: {type: str, nullable: false}
-      api_key: {type: str, nullable: false}
+      api_key: {type: text, nullable: false}
       endpoints:
         type: map
         nullable: false

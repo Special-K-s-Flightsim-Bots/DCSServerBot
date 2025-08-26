@@ -1950,7 +1950,9 @@ class Mission(Plugin[MissionEventListener]):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 cursor = await conn.execute("""
-                    SELECT ucid FROM bans WHERE banned_until < (NOW() AT TIME ZONE 'utc')
+                    SELECT ucid FROM bans 
+                    WHERE banned_by <> 'cloud'
+                    AND banned_until < (NOW() AT TIME ZONE 'utc')
                 """)
                 rows = await cursor.fetchall()
                 for row in rows:

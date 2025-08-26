@@ -5,6 +5,7 @@ mapping:
     type: map
     nullable: false
     mapping:
+      banlist: {type: str, nullable: false, enum: ['pvp', 'pve']}
       dcs-ban: {type: bool, nullable: false}
       discord-ban: {type: bool, nullable: false}
       watchlist_only: {type: bool, nullable: false}

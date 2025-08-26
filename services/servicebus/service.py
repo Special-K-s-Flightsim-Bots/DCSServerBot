@@ -411,7 +411,7 @@ class ServiceBus(Service):
     async def unban(self, ucid: str):
         async with self.apool.connection() as conn:
             async with conn.transaction():
-                await conn.execute("DELETE FROM bans WHERE ucid = %s", (ucid, ))
+                await conn.execute("UPDATE bans SET banned_until = NOW() AT TIME ZONE 'UTC' WHERE ucid = %s", (ucid, ))
         for server in self.servers.values():
             if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
                 continue
@@ -423,14 +423,18 @@ class ServiceBus(Service):
             if player:
                 player.banned = False
 
-    async def bans(self) -> list[dict]:
+    async def bans(self, *, expired: bool = False) -> list[dict]:
+        if expired:
+            where = ""
+        else:
+            where = "WHERE b.banned_until >= (now() AT TIME ZONE 'utc')"
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
+                await cursor.execute(f"""
                     SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, b.reason, 
-                           b.banned_until 
+                           b.banned_at, b.banned_until 
                     FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid 
-                    WHERE b.banned_until >= (now() AT TIME ZONE 'utc')
+                    {where}
                 """)
                 return [x async for x in cursor]
 

@@ -248,12 +248,7 @@ class Punishment(Plugin[PunishmentEventListener]):
                     for ucid in ucids:
                         await conn.execute('DELETE FROM pu_events WHERE init_id = %s', (ucid, ))
                         await conn.execute('DELETE FROM pu_events_sdw WHERE init_id = %s', (ucid, ))
-                        await conn.execute("DELETE FROM bans WHERE ucid = %s", (ucid, ))
-                        for server_name, server in self.bot.servers.items():
-                            await server.send_to_dcs({
-                                "command": "unban",
-                                "ucid": ucid
-                            })
+                        await self.bus.unban(ucid)
 
             await interaction.followup.send(
                 _("All punishment points deleted and player unbanned (if they were banned by the bot before)."),

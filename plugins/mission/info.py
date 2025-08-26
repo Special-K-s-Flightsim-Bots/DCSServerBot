@@ -16,7 +16,7 @@ class Header(report.EmbedElement):
                    CASE WHEN w.player_ucid IS NOT NULL THEN TRUE ELSE FALSE END AS watchlist, w.reason as watch_reason, 
                    w.created_by, w.created_at, p.vip
             FROM players p 
-            LEFT OUTER JOIN bans b ON (b.ucid = p.ucid) 
+            LEFT OUTER JOIN bans b ON (b.ucid = p.ucid AND b.banned_until > NOW() AT TIME ZONE 'utc') 
             LEFT OUTER JOIN watchlist w ON (w.player_ucid = p.ucid)
             WHERE p.discord_id = 
         """
@@ -47,7 +47,7 @@ class Header(report.EmbedElement):
                                    w.reason as watch_reason, w.created_by, w.created_at, FALSE as vip 
                             FROM bans b LEFT OUTER JOIN watchlist w
                             ON b.ucid = w.player_ucid 
-                            WHERE ucid = %s
+                            WHERE ucid = %s AND b.banned_until > NOW() AT TIME ZONE 'utc'
                         """, (member,))
                         rows = await cursor.fetchall()
                         if not rows:
@@ -71,7 +71,7 @@ class Header(report.EmbedElement):
                     last_seen = row['last_seen']
                 banned = row['banned'] or banned
                 watchlist = row['watchlist'] or watchlist
-        if first_seen and last_seen:
+        if first_seen < datetime(2999, 12, 31) and last_seen > datetime(1970, 1, 1):
             self.add_datetime_field('Last seen', last_seen.replace(tzinfo=timezone.utc))
             self.add_datetime_field('First seen', first_seen.replace(tzinfo=timezone.utc))
         if rows:
