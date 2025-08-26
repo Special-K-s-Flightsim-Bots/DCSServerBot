@@ -421,13 +421,13 @@ If you need any further assistance, please visit the support discord, listed in 
                         "home": os.path.join(SAVED_GAMES, instance)
                     }
                     if srs_path:
-                        srs_config = os.path.join('{instance.home}', 'Config', 'SRS.cfg')
                         node['instances'][instance]['extensions'] = {
                             "SRS": {
-                                "config": srs_config,
+                                "config": "{instance.home}/Config/SRS.cfg",
                                 "port": srs_port
                             }
                         }
+                        srs_config = os.path.join(SAVED_GAMES, instance, 'Config', 'SRS.cfg')
                         if not os.path.exists(os.path.expandvars(srs_config)):
                             if os.path.exists(os.path.join(srs_path, "server.cfg")):
                                 shutil.copy2(os.path.join(srs_path, "server.cfg"), os.path.expandvars(srs_config))
