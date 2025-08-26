@@ -98,11 +98,11 @@ class CreditSystemListener(EventListener["CreditSystem"]):
     @event(name="addSquadronPoints")
     async def addSquadronPoints(self, server: Server, data: dict) -> None:
         if data['points'] != 0:
-            squadron = self.squadrons.get(data['name'])
+            squadron = self.squadrons.get(data['squadron'])
             if not squadron:
                 campaign_id, name = utils.get_running_campaign(self.node, server)
-                squadron = DataObjectFactory().new(Squadron, node=self, name=data['name'], campaign_id=campaign_id)
-                self.squadrons[data['name']] = squadron
+                squadron = DataObjectFactory().new(Squadron, node=self, name=data['squadron'], campaign_id=campaign_id)
+                self.squadrons[data['squadron']] = squadron
             old_points = squadron.points
             squadron.points += int(data['points'])
             if old_points != squadron.points:
