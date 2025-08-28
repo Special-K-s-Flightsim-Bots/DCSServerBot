@@ -61,6 +61,8 @@ class Lardoon(Extension):
             p = next(utils.find_process(os.path.basename(cmd), self.config['bind']), None)
             if p:
                 self.log.debug("- Running Lardoon process found.")
+            else:
+                self.log.debug(f"- Running Lardoon process not found: {os.path.basename(cmd)} -bind {self.config['bind']}")
             return p
         else:
             return p
@@ -78,7 +80,6 @@ class Lardoon(Extension):
 
         async with lock:
             if not self.process or not self.process.is_running():
-
                 def log_output(proc: subprocess.Popen):
                     for line in iter(proc.stdout.readline, b''):
                         self.log.info(line.decode('utf-8').rstrip())
