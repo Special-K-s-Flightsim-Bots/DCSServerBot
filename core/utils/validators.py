@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import re
+import sys
 import threading
 
 from core.const import DEFAULT_TAG
@@ -49,8 +50,12 @@ __all__ = [
 from ruamel.yaml import YAML
 yaml = YAML()
 
-# Node-global unique ports
-ports: dict[str, dict[int, str]] = {}
+# Global ports that survive multiple loads
+if 'ports' not in vars(sys):
+    ports: dict[str, dict[int, str]] = {}
+    setattr(sys, 'ports', ports)
+else:
+    ports = getattr(sys, 'ports')
 
 
 class NodeData:

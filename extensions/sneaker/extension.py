@@ -47,7 +47,7 @@ class Sneaker(Extension):
             cmd = self.config.get('cmd')
             if not cmd:
                 return
-            process = next(utils.find_process(os.path.basename(cmd)), None)
+            process = next(utils.find_process(os.path.basename(cmd), self.config['bind']), None)
             if process:
                 self.log.debug("- Running Sneaker process found.")
 
