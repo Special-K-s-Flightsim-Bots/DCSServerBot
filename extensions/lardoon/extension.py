@@ -72,13 +72,16 @@ class Lardoon(Extension):
             'tacviewExportPath')) or TACVIEW_DEFAULT_DIR
 
     async def startup(self) -> bool:
-        global lock
+        global lock, process
 
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Lardoon needs Tacview to be enabled in your server!')
             return False
 
         async with lock:
+            if self.config.get('use_single_process', True):
+                self.process = process
+
             if not self.process or not self.process.is_running():
                 def log_output(proc: subprocess.Popen):
                     for line in iter(proc.stdout.readline, b''):
@@ -108,7 +111,7 @@ class Lardoon(Extension):
                     return False
 
         if self.config.get('use_single_process', True):
-            global process, servers, tacview_dirs
+            global servers, tacview_dirs
 
             process = self.process
             servers.add(self.server.name)
