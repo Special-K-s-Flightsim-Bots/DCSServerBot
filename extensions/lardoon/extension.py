@@ -61,8 +61,6 @@ class Lardoon(Extension):
             p = next(utils.find_process(os.path.basename(cmd), self.config['bind']), None)
             if p:
                 self.log.debug("- Running Lardoon process found.")
-            else:
-                self.log.debug(f"- Running Lardoon process not found: {os.path.basename(cmd)} -bind {self.config['bind']}")
             return p
         else:
             return p
