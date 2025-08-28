@@ -433,8 +433,11 @@ class Plugin(commands.Cog, Generic[TEventListener]):
             path = f'./plugins/{self.plugin_name}/schemas'
             if os.path.exists(path) and validation in ['strict', 'lazy']:
                 schema_files = [str(x) for x in Path(path).glob('*.yaml')]
-                schema_files.append('schemas/commands_schema.yaml')
-                utils.validate(filename, schema_files, raise_exception=(validation == 'strict'))
+                if schema_files:
+                    schema_files.append('schemas/commands_schema.yaml')
+                    utils.validate(filename, schema_files, raise_exception=(validation == 'strict'))
+                else:
+                    self.log.warning(f'  - No schema files found for plugin {self.plugin_name}.')
 
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
         except MarkedYAMLError as ex:

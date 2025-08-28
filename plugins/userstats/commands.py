@@ -238,29 +238,33 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
     @command(description='Delete statistics for users')
     @app_commands.guild_only()
-    @utils.app_has_roles(['DCS', 'DCS Admin'])
-    async def delete_statistics(self, interaction: discord.Interaction, user: Optional[discord.Member]):
+    @utils.app_has_roles(['DCS Admin'])
+    async def delete_statistics(self, interaction: discord.Interaction,
+                                user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
+
         if not user:
             user = interaction.user
-        elif user != interaction.user and not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
+        if isinstance(user, discord.Member):
+            ucid = await self.bot.get_ucid_by_member(user)
+            name = user.display_name
+        else:
+            ucid = user
+            name = user
+
+        if not ucid:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                f'You are not allowed to delete statistics of user {user.display_name}!')
+            await interaction.response.send_message(_("User {} is not linked.").format(name), ephemeral=True)
             return
-        member = DataObjectFactory().new(Member, name=user.name, node=self.node, member=user)
-        if not member.verified:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                f"User {user.display_name} has non-verified links. Statistics can't be deleted.", ephemeral=True)
-            return
+
         ephemeral = utils.get_ephemeral(interaction)
-        if await utils.yn_question(interaction, f'I\'m going to **DELETE ALL STATISTICS** of user '
-                                                f'"{user.display_name}".\n\nAre you sure?', ephemeral=ephemeral):
+        if await utils.yn_question(
+                interaction, _('I\'m going to **DELETE ALL STATISTICS** of user "{}".\n\nAre you sure?').format(name),
+                ephemeral=ephemeral):
             async with self.apool.connection() as conn:
                 async with conn.transaction():
                     for plugin in self.bot.cogs.values():  # type: Plugin
-                        await plugin.prune(conn, ucids=[member.ucid])
-                await interaction.followup.send(f'Statistics for user "{user.display_name}" have been wiped.',
+                        await plugin.prune(conn, ucids=[ucid])
+                await interaction.followup.send(_('Statistics for user "{}" have been wiped.').format(name),
                                                 ephemeral=ephemeral)
 
     # New command group "/squadron"

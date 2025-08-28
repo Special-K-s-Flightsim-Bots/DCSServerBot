@@ -145,7 +145,10 @@ class Service(ABC):
             validation = self.node.config.get('validation', 'lazy')
             if os.path.exists(path) and validation in ['strict', 'lazy']:
                 schema_files = [str(x) for x in Path(path).glob('*.yaml')]
-                utils.validate(filename, schema_files, raise_exception=(validation == 'strict'))
+                if schema_files:
+                    utils.validate(filename, schema_files, raise_exception=(validation == 'strict'))
+                else:
+                    self.log.warning(f'No schema file for service "{self.name}" found.')
 
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
         except (MarkedYAMLError, PyKwalifyException) as ex:
