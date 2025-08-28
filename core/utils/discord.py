@@ -1060,9 +1060,12 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
     """
     def get_name(base_dir: str, path: str):
         try:
-            return os.path.relpath(path, base_dir).replace('.dcssb' + os.path.sep, '')[:-4]
+            name = os.path.relpath(path, base_dir).replace('.dcssb' + os.path.sep, '')[:-4]
+            if len(name) > 100:
+                raise ValueError("Mission name exceeds maximum length")
+            return name
         except ValueError:
-            return os.path.basename(path)[:-4]
+            return (os.path.basename(path)[:-4])[:100]
 
     if not await interaction.command._check_can_run(interaction):
         return []
