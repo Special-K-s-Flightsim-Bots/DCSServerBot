@@ -92,15 +92,28 @@ download to the current channel. Discord limits may apply.</br>
 | /extension disable | extension                           | all           | Admin     | Disables an extension.                                                                                                                           |
 
 ## Config File Uploads
-All configuration files utilized by the bot itself (such as `main.yaml`) or by various plugins (like `<plugin>.yaml`) 
+All configuration files used by the bot itself (such as `main.yaml`) or by various plugins (like `<plugin>.yaml`) 
 can be uploaded via the admin channels, provided this feature is enabled. When these files are updated, they will 
 overwrite the existing ones, and depending on the file type, either the specific plugin will be reloaded or the entire 
-bot will be restarted (subject to a security confirmation). You also have the ability to set specific roles that are 
-permitted to upload files.
+bot will be restarted (subject to a security confirmation). You can also set specific roles that are permitted to upload 
+files.
 
 > [!NOTE]
 > **The modifications will take place on the node which oversees the server associated with the particular admin channel!**<br>
 > If you're using a central cloud folder for your configurations, the existing configuration in that folder will be replaced.
+
+## Default files for /node add_instance
+If you want your new instances to have specific settings, you can provide default files in your config directory.
+
+__These files are supported:__
+* autoexec.cfg
+* options.lua
+* serverSettings.lua
+
+The files act as templates, which means that several data will be replaced automatically (e.g., ports).
+
+> [!NOTE]
+> An existing mission list will be cleared from your serverSettings.lua.
 
 ## Tables
 ### Bans

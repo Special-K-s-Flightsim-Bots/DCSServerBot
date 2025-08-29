@@ -137,16 +137,20 @@ class Tacview(Extension):
             if name == 'tacviewExportPath':
                 path = os.path.normpath(os.path.expandvars(self.config.get('tacviewExportPath'))) or TACVIEW_DEFAULT_DIR
                 os.makedirs(path, exist_ok=True)
-                dirty = self.set_option(options, name, path) or dirty
+                dirty |= self.set_option(options, name, path)
             # Unbelievable but true. Tacview can only work with strings as ports.
             elif name in ['tacviewRealTimeTelemetryPort', 'tacviewRemoteControlPort']:
-                dirty = self.set_option(options, name, str(value)) or dirty
+                dirty |= self.set_option(options, name, str(value))
             else:
-                dirty = self.set_option(options, name, value) or dirty
+                dirty |= self.set_option(options, name, value)
 
         if not options['Tacview'].get('tacviewPlaybackDelay', 0):
             self.log.warning(
                 f'  => {self.server.name}: tacviewPlaybackDelay is not set, you might see performance issues!')
+        elif options['Tacview']['tacviewRealTimeTelemetryEnabled']:
+            self.log.warning(
+                f'  => {self.server.name}: tacviewPlaybackDelay is set, disabling real time telemetry.')
+            dirty |= self.set_option(options, 'tacviewRealTimeTelemetryEnabled', False)
         if dirty:
             self.server.options['plugins'] = options
             self.locals = options['Tacview']

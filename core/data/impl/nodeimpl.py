@@ -1159,20 +1159,36 @@ class NodeImpl(Node):
             "webgui_port": max_webgui_port + 2 if max_webgui_port != -1 else 8088
         })
         os.makedirs(os.path.join(instance.home, 'Config'), exist_ok=True)
-        # should we copy from a template
         if template:
+            # copy from a template
             _template = next(x for x in self.node.instances if x.name == template)
-            shutil.copy2(os.path.join(_template.home, 'Config', 'autoexec.cfg'),
-                         os.path.join(instance.home, 'Config'))
-            shutil.copy2(os.path.join(_template.home, 'Config', 'serverSettings.lua'),
-                         os.path.join(instance.home, 'Config'))
-            shutil.copy2(os.path.join(_template.home, 'Config', 'options.lua'),
-                         os.path.join(instance.home, 'Config'))
-            shutil.copy2(os.path.join(_template.home, 'Config', 'network.vault'),
-                         os.path.join(instance.home, 'Config'))
+            if os.path.exists(os.path.join(_template.home, 'Config', 'autoexec.cfg')):
+                shutil.copy2(os.path.join(_template.home, 'Config', 'autoexec.cfg'),
+                             os.path.join(instance.home, 'Config'))
+            if os.path.exists(os.path.join(_template.home, 'Config', 'serverSettings.lua')):
+                shutil.copy2(os.path.join(_template.home, 'Config', 'serverSettings.lua'),
+                             os.path.join(instance.home, 'Config'))
+            if os.path.exists(os.path.join(_template.home, 'Config', 'options.lua')):
+                shutil.copy2(os.path.join(_template.home, 'Config', 'options.lua'),
+                             os.path.join(instance.home, 'Config'))
+            if os.path.exists(os.path.join(_template.home, 'Config', 'network.vault')):
+                shutil.copy2(os.path.join(_template.home, 'Config', 'network.vault'),
+                             os.path.join(instance.home, 'Config'))
             if _template.extensions and _template.extensions.get('SRS'):
                 shutil.copy2(os.path.expandvars(_template.extensions['SRS']['config']),
                              os.path.join(instance.home, 'Config', 'SRS.cfg'))
+        else:
+            # copy default files, if they exist
+            if os.path.exists(os.path.join(self.config, 'autoexec.cfg')):
+                shutil.copy2(os.path.join(self.config, 'autoexec.cfg'),
+                             os.path.join(instance.home, 'Config'))
+            if os.path.exists(os.path.join(self.config, 'serverSettings.lua')):
+                shutil.copy2(os.path.join(self.config, 'serverSettings.lua'),
+                             os.path.join(instance.home, 'Config'))
+            if os.path.exists(os.path.join(self.config, 'options.lua')):
+                shutil.copy2(os.path.join(self.config, 'options.lua'),
+                             os.path.join(instance.home, 'Config'))
+
         autoexec = Autoexec(instance=instance)
         autoexec.crash_report_mode = "silent"
         if not self.locals.get('use_upnp', True):
@@ -1197,6 +1213,8 @@ class NodeImpl(Node):
             settings = SettingsDict(cast(DataObject, self), settings_path, root='cfg')
             settings['port'] = instance.dcs_port
             settings['name'] = 'n/a'
+            settings['missionList'] = []
+            settings['listStartIndex'] = 0
         bus = ServiceRegistry.get(ServiceBus)
         server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name='n/a', bus=bus)
         instance.server = server
