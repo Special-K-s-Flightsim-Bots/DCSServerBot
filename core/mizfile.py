@@ -55,6 +55,9 @@ class MizFile:
         for terrain in os.listdir(maps_path):
             terrain_path = os.path.join(maps_path, terrain)
             entry_lua = os.path.join(terrain_path, "entry.lua")
+            # sometimes, terrain folders stay even if the terrain is being uninstalled
+            if not os.path.exists(entry_lua):
+                continue
             pattern = r'local self_ID\s*=\s*"(.*?)";'
             with open(entry_lua, "r", encoding="utf-8") as file:
                 match = re.search(pattern, file.read())
