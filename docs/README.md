@@ -12,13 +12,15 @@ title: README
 You've found a comprehensive solution that helps you administrate your DCS World servers. It has a Discord integration 
 ([now optional](#dcsserverbot-installation-non-discord)!) with slash-commands, built in per-server and per-user 
 statistics, optional cloud-based statistics, [Coalitions](./COALITIONS.md)-support, a whole 
-[Tournament-System](./plugins/tournament/README.md) and much more!<br> 
+[Tournament-System](./plugins/tournament/README.md), a third-party [web-frontend](https://github.com/Penfold-88/DCS-Statistics-Dashboard) for
+statistics and much more!
+<p> 
 With its plugin system and reporting framework, DCSServerBot can be enhanced very easily to support whatever might come 
 into your mind. DCSServerBot is a solution for DCS server admins built by a DCS server admin.
-
+<p>
 This documentation shows you the main features, how to install and configure the bot and some more sophisticated 
 stuff at the bottom, if you for instance run multiple servers maybe even over multiple locations. 
-
+<p>
 Now let's see what DCSServerBot can do for you (installation-instructions [below](#installation))!
 
 ---
@@ -259,7 +261,7 @@ desanitizations are required and conducts them.
 > [!IMPORTANT]
 > DCSServerBot needs write-permissions on the DCS-installation directory.<br>
 > You can usually achieve that by giving the "User group" write permissions on it. Right-click on your DCS installation
-> folder,<br>select Properties -> Security -> Edit, select "Users (...)" and tick Modify below. Then press the OK button.
+> folder,<br>select Properties → Security → Edit, select "Users (...)" and tick Modify below. Then press the OK button.
 > There might be a question about changing the permission on all subdirectories — say yes in that case. 
 
 Your MissionScripting.lua should look like this after a successful bot start:
@@ -273,12 +275,11 @@ do
 	--_G['package'] = nil
 end
 ```
-
-### Custom MissionScripting.lua
-If you want to use a **custom MissionScripting.lua** that has more sanitization (for instance for LotAtc, Moose, 
-OverlordBot or the like) or additional lines to be loaded (for instance for LotAtc, or DCS-gRPC), place the 
-MissionScripting.lua of your choice in the config directory of the bot. It will then be replaced on every bot startup.
-
+> [!TIP]
+> To use a custom MissionScripting.lua with enhanced desanitization (such as for LotAtc, Moose, OverlordBot, or 
+> similar) or to load additional features (like LotAtc or DCS-gRPC), place your custom MissionScripting.lua file in 
+> the config directory of the bot. 
+> The custom script will then be used instead of the default one.
 ---
 
 ## Configuration
@@ -345,7 +346,7 @@ NODENAME:                       # this will usually be your hostname
   listen_address: 0.0.0.0       # Optional: On which interface should the bot listen? Default is 127.0.0.1.
   public_ip: 88.77.66.55        # Optional: Your public IP. ONLY if you have a static IP (!), put this in here to speedup the startup-process of the bot.
   slow_system: false            # Optional: if you are using a slower PC to run your servers, you should set this to true (default: false)
-  use_upnp: true                # The bot will auto-detect, if there is an UPnP IGD available and configure this setting initially for you! If you do NOT want to use UPnP, even IF it is abailable, put this to false.
+  use_upnp: true                # The bot will auto-detect, if there is an UPnP IGD available and configure this setting initially for you! If you do NOT want to use UPnP, even IF it is available, put this to false.
   preferred_master: true        # cluster only: this node should be the preferred master node (default: false)
   heartbeat: 30                 # cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
   cloud_drive: false            # cluster only: set this to false, if you do not have the bot installed on a cloud drive (default and recommended: true) 
@@ -370,6 +371,17 @@ NODENAME:                       # this will usually be your hostname
     cloud: true                 # If you have installed DCS on a NAS or cloud drive, autoupdate and desanitization will only take place once on all your nodes.
     desanitize: true            # Desanitize your MissionScripting.lua after each update. Default is true.
     minimized: true             # Start DCS minimized (default: true)
+    allow_unsafe_api:           # as of DCS 2.9.18: allow dostring_in only in these environments
+      - scripting
+      - gui
+      - userhooks
+    allow_dostring_in:          # as of DCS 2.9.18: allow dostring_in only targeting these contexts
+      - scripting
+      - config
+      - server
+      - mission
+      - gui
+      - export
     user: xxxx                  # Your DCS username (only needed for specific use-cases)
     password: xxxx              # Your DCS password (will be auto-moved by the bot to a secret place)
   instances:
