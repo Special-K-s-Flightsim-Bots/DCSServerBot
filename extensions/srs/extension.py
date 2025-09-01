@@ -156,49 +156,41 @@ class SRS(Extension, FileSystemEventHandler):
 
         await self.handle_update()
         path = self.get_config_path()
+        dirty = False
         if 'client_export_file_path' not in self.config:
             self.config['client_export_file_path'] = os.path.join(os.path.dirname(path), 'clients-list.json')
-        dirty = self._maybe_update_config('Server Settings', 'SERVER_PORT', 'port')
-        dirty = self._maybe_update_config('Server Settings', 'CLIENT_EXPORT_FILE_PATH',
-                                          'client_export_file_path') or dirty
+        dirty |= self._maybe_update_config('Server Settings', 'SERVER_PORT', 'port')
+        dirty |= self._maybe_update_config('Server Settings', 'CLIENT_EXPORT_FILE_PATH',
+                                           'client_export_file_path')
         self.config['client_export_enabled'] = True
-        dirty = self._maybe_update_config('General Settings', 'CLIENT_EXPORT_ENABLED',
-                                          'client_export_enabled') or dirty
+        dirty |= self._maybe_update_config('General Settings', 'CLIENT_EXPORT_ENABLED',
+                                           'client_export_enabled')
         # enable SRS on spectators for slot blocking
         self.config['spectators_audio_disabled'] = False
-        dirty = self._maybe_update_config('General Settings', 'SPECTATORS_AUDIO_DISABLED',
-                                          'spectators_audio_disabled') or dirty
+        dirty |= self._maybe_update_config('General Settings', 'SPECTATORS_AUDIO_DISABLED',
+                                           'spectators_audio_disabled')
         # disable effects (for music plugin)
         # TODO: better alignment with the music plugin!
-        dirty = self._maybe_update_config('General Settings', 'RADIO_EFFECT_OVERRIDE',
-                                          'radio_effect_override') or dirty
-        dirty = self._maybe_update_config('General Settings', 'GLOBAL_LOBBY_FREQUENCIES',
-                                          'global_lobby_frequencies') or dirty
+        dirty |= self._maybe_update_config('General Settings', 'RADIO_EFFECT_OVERRIDE',
+                                           'radio_effect_override')
+        dirty |= self._maybe_update_config('General Settings', 'GLOBAL_LOBBY_FREQUENCIES',
+                                           'global_lobby_frequencies')
         extension = self.server.extensions.get('LotAtc')
         if extension:
             self.config['lotatc'] = True
             self.config['lotatc_export_port'] = self.config.get('lotatc_export_port', 10712)
-            dirty = self._maybe_update_config('General Settings',
-                                              'LOTATC_EXPORT_ENABLED',
-                                              'lotatc') or dirty
-            dirty = self._maybe_update_config('General Settings',
-                                              'LOTATC_EXPORT_IP',
-                                              '127.0.0.1') or dirty
-            dirty = self._maybe_update_config('General Settings',
-                                              'LOTATC_EXPORT_PORT',
-                                              'lotatc_export_port') or dirty
+            dirty |= self._maybe_update_config('General Settings','LOTATC_EXPORT_ENABLED','lotatc')
+            dirty |= self._maybe_update_config('General Settings','LOTATC_EXPORT_IP','127.0.0.1')
+            dirty |= self._maybe_update_config('General Settings','LOTATC_EXPORT_PORT',
+                                               'lotatc_export_port')
             self.config['awacs'] = True
 
         if self.config.get('awacs', True):
-            dirty = self._maybe_update_config('General Settings',
-                                              'EXTERNAL_AWACS_MODE',
-                                              'awacs') or dirty
-            dirty = self._maybe_update_config('External AWACS Mode Settings',
-                                              'EXTERNAL_AWACS_MODE_BLUE_PASSWORD',
-                                              'blue_password') or dirty
-            dirty = self._maybe_update_config('External AWACS Mode Settings',
-                                              'EXTERNAL_AWACS_MODE_RED_PASSWORD',
-                                              'red_password') or dirty
+            dirty |= self._maybe_update_config('General Settings','EXTERNAL_AWACS_MODE','awacs')
+            dirty |= self._maybe_update_config('External AWACS Mode Settings',
+                                               'EXTERNAL_AWACS_MODE_BLUE_PASSWORD','blue_password')
+            dirty |= self._maybe_update_config('External AWACS Mode Settings',
+                                               'EXTERNAL_AWACS_MODE_RED_PASSWORD','red_password')
 
         if dirty:
             with open(path, mode='w', encoding='utf-8') as ini:
@@ -473,7 +465,7 @@ class SRS(Extension, FileSystemEventHandler):
                     if isinstance(data, list):
                         data = data[0]
                     version = data.get('tag_name', '').strip('v')
-                    if parse(version) > parse(self.version):
+                    if parse(version) != parse(self.version):
                         return version
         return None
 
