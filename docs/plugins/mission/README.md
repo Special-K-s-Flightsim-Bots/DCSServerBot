@@ -73,10 +73,25 @@ DEFAULT:
 You can configure the behaviour of the mission plugin with an optional config/plugins/mission.yaml:
 ```yaml
 DEFAULT:
-  uploads:              # Configure how mission uploads are handled
-    enabled: true       # Here you can disable the feature at all (default: true = enabled)
+  event_filter:       # do NOT report these events (default: [])
+    - connect
+    - disconnect
+    - change_slot
+    - friendly_fire
+    - self_kill
+    - kill
+    - takeoff
+    - landing
+    - crash
+    - eject
+    - pilot_death
+    - shot
+    - hit
+  uploads:                      # Configure how mission uploads are handled
+    enabled: true               # Here you can disable the feature at all (default: true = enabled)
+    channel: 112233445566778899 # Optional: mission upload channel (default: admin channel)
     discord:
-      - DCS Admin       # Define which roles are allowed to upload missions (default: DCS Admin)
+      - DCS Admin               # Define which roles are allowed to upload missions (default: DCS Admin)
 ```
 
 ## Auto-Scanning
