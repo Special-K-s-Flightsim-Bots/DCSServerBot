@@ -1,5 +1,6 @@
 DEFAULT:
   update_interval: 60         # interval in seconds when the embed should update (default = 60)
 DCS.release_server:
-  json_file_path: '{instance.home}\Missions\Saves\player_stats.json' # this is the default
+  json_file_path: '{instance.home}\Missions\Saves\player_stats.json'        # this is the default
+  #json_file_path: '{instance.home}\Missions\Saves\player_stats_v2.0.json'  # use this for Pretense v2.0
   channel: 1122334455667788   # channel, where to upload the stats into (default: Status channel)

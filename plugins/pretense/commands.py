@@ -48,8 +48,10 @@ class Pretense(Plugin):
         try:
             file_data = await server.node.read_file(json_file_path)
         except FileNotFoundError:
-            await interaction.followup.send(_("No player_stats.json found on this server! Is Pretense active?"),
-                                            ephemeral=True)
+            await interaction.followup.send(
+                _("No {} found on this server! Is Pretense active?").format(os.path.basename(json_file_path)),
+                ephemeral=True
+            )
             return
         content = file_data.decode(encoding='utf-8')
         data = json.loads(content)
@@ -82,7 +84,7 @@ class Pretense(Plugin):
             await server.node.remove_file(path)
             await interaction.followup.send(_("Pretense persistence reset."))
         if what == 'statistics' or what == 'both':
-            path = os.path.join(await server.get_missions_dir(), 'Saves', "player_stats.json")
+            path = os.path.join(await server.get_missions_dir(), 'Saves', "player_stats*.json")
             await server.node.remove_file(path)
             await interaction.followup.send(_("Pretense statistics reset."))
 
@@ -127,7 +129,7 @@ class Pretense(Plugin):
             return
         server: Server = self.bot.get_server(message, admin_only=True)
         for attachment in message.attachments:
-            if not (attachment.filename == 'player_stats.json' or
+            if not (attachment.filename in ['player_stats.json', 'player_stats_v2.0.json'] or
                     (attachment.filename.startswith('pretense') and attachment.filename.endswith('.json'))):
                 continue
             if not server:

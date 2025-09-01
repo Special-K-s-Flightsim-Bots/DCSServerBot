@@ -81,9 +81,13 @@ class Lardoon(Extension):
                 self.process = process
 
             if not self.process or not self.process.is_running():
-                def log_output(proc: subprocess.Popen):
-                    for line in iter(proc.stdout.readline, b''):
-                        self.log.info(line.decode('utf-8').rstrip())
+                def log_stream(proc: subprocess.Popen, stream: str):
+                    pipe = proc.stdout if stream == 'stdout' else proc.stderr
+                    for line in iter(pipe.readline, b''):
+                        if stream == 'stdout':
+                            self.log.debug(line.decode('utf-8').rstrip())
+                        else:
+                            self.log.error(line.decode('utf-8').rstrip())
 
                 def run_subprocess():
                     if self.config.get('use_single_process', True):
@@ -95,9 +99,10 @@ class Lardoon(Extension):
                     self.log.debug(f"Launching Lardoon server with {cmd} serve --bind {self.config['bind']}")
                     proc = subprocess.Popen([cmd, "serve", "--bind", self.config['bind']],
                                             executable=os.path.expandvars(self.config['cmd']), cwd=cwd,
-                                            stdout=out, stderr=subprocess.STDOUT)
+                                            stdout=out, stderr=subprocess.PIPE)
                     if self.config.get('debug', False):
-                        Thread(target=log_output, args=(proc,), daemon=True).start()
+                        Thread(target=log_stream, args=(proc, 'stdout'), daemon=True).start()
+                    Thread(target=log_stream, args=(proc, 'stderr'), daemon=True).start()
                     return proc
 
                 p = await asyncio.to_thread(run_subprocess)

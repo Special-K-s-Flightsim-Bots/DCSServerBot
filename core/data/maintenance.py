@@ -8,10 +8,11 @@ from core.utils.helper import format_time
 
 
 class ServerMaintenanceManager:
-    def __init__(self, node: Node, warn_times: list[int], message: str):
+    def __init__(self, node: Node, *, warn_times: list[int] = None, message: str = None, shutdown: bool = True):
         self.node: Node = node
-        self.warn_times: list[int] = warn_times
-        self.message: str = message
+        self.warn_times: list[int] = warn_times or [120, 60, 10]
+        self.message: str = message or "Server is going down for maintenance in {}"
+        self.shutdown: bool = shutdown
         self.to_start: list[Server] = []
         self.in_maintenance: list[Server] = []
 
@@ -37,7 +38,8 @@ class ServerMaintenanceManager:
             else:
                 server.maintenance = True
             self.to_start.append(server)
-            tasks.append(asyncio.create_task(self.shutdown_with_warning(server)))
+            if self.shutdown:
+                tasks.append(asyncio.create_task(self.shutdown_with_warning(server)))
         # wait for DCS servers to shut down
         if tasks:
             await utils.run_parallel_nofail(*tasks)
@@ -47,7 +49,7 @@ class ServerMaintenanceManager:
         for server in self.to_start:
             if server not in self.in_maintenance:
                 server.maintenance = False
-            else:
+            elif self.shutdown:
                 tasks.append(server.startup())
 
         if tasks:

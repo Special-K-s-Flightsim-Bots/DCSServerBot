@@ -592,8 +592,11 @@ class NodeImpl(Node):
             return rc
 
         self.update_pending = True
-        async with ServerMaintenanceManager(self.node, warn_times,
-                                            _('Server is going down for a DCS update in {}!')):
+        async with ServerMaintenanceManager(
+                self.node,
+                warn_times = warn_times,
+                message = _('Server is going down for a DCS update in {}!')
+        ):
             self.log.info(f"Updating {self.installation} ...")
             # call before update hooks
             for callback in self.before_update.values():
@@ -639,8 +642,11 @@ class NodeImpl(Node):
                 startupinfo=startupinfo
             )
 
-        async with ServerMaintenanceManager(self.node, [120, 60, 10],
-                                            _('Server is going down to {what}'.format(what=what) + ' a module in {}!')):
+        async with ServerMaintenanceManager(
+                self.node,
+                warn_times = [120, 60, 10],
+                message = _('Server is going down to {what}'.format(what=what) + ' a module in {}!')
+        ):
             await asyncio.to_thread(run_subprocess)
 
     @cache_with_expiration(expiration=60)

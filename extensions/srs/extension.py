@@ -16,7 +16,8 @@ import zipfile
 
 from configparser import RawConfigParser
 from contextlib import suppress
-from core import Extension, utils, Server, ServiceRegistry, Autoexec, get_translation, InstallException
+from core import (Extension, utils, ServiceRegistry, Autoexec, get_translation, InstallException, Server,
+                  ServerMaintenanceManager)
 from discord.ext import tasks
 from io import BytesIO
 from packaging.version import parse
@@ -470,38 +471,47 @@ class SRS(Extension, FileSystemEventHandler):
         return None
 
     async def do_update(self, version: str):
-        vc_redist = False
-        installation_dir = self.get_inst_path()
-        async with aiohttp.ClientSession() as session:
-            async with session.get(SRS_DOWNLOAD_URL.format(version=version), raise_for_status=True,
-                                   proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
-                with zipfile.ZipFile(BytesIO(await response.content.read())) as z:
-                    for member in z.namelist():
-                        if os.path.basename(member) == 'VC_redist.x64.exe':
-                            vc_redist = True
-                        destination_file = os.path.join(installation_dir, member)
-                        destination_path = os.path.dirname(destination_file)
-                        if member.endswith('/'):
-                            os.makedirs(destination_path, exist_ok=True)
-                            continue
-                        with open(destination_file, 'wb') as output_file:
-                            output_file.write(z.read(member))
-        if vc_redist:
-            def run_subprocess():
-                self.log.info("Installing Visual Studio Redistributable ...")
-                exe_path = os.path.join(installation_dir, 'VC_redist.x64.exe')
-                try:
-                    subprocess.run([exe_path, '/install', '/quiet', '/norestart'],
-                                   cwd=installation_dir, check=True)
-                except subprocess.CalledProcessError as ex:
-                    # Return code 1638 means "Already installed" - this is OK
-                    if ex.returncode == 1638:
-                        self.log.info("Visual Studio Redistributable is already installed.")
-                    else:
-                        raise
+        # make sure the monitoring does not interfere
+        async with ServerMaintenanceManager(self.node, shutdown=False):
+            # stop any existing SRS process
+            for process in [
+                next(utils.find_process(os.path.basename(self.get_exe_path()), server.instance.name), None)
+                for server in self.bus.servers.values()
+            ]:
+                if process and process.is_running():
+                    process.terminate()
+            vc_redist = False
+            installation_dir = self.get_inst_path()
+            async with aiohttp.ClientSession() as session:
+                async with session.get(SRS_DOWNLOAD_URL.format(version=version), raise_for_status=True,
+                                       proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                    with zipfile.ZipFile(BytesIO(await response.content.read())) as z:
+                        for member in z.namelist():
+                            if os.path.basename(member) == 'VC_redist.x64.exe':
+                                vc_redist = True
+                            destination_file = os.path.join(installation_dir, member)
+                            destination_path = os.path.dirname(destination_file)
+                            if member.endswith('/'):
+                                os.makedirs(destination_path, exist_ok=True)
+                                continue
+                            with open(destination_file, 'wb') as output_file:
+                                output_file.write(z.read(member))
+            if vc_redist:
+                def run_subprocess():
+                    self.log.info("Installing Visual Studio Redistributable ...")
+                    exe_path = os.path.join(installation_dir, 'VC_redist.x64.exe')
+                    try:
+                        subprocess.run([exe_path, '/install', '/quiet', '/norestart'],
+                                       cwd=installation_dir, check=True)
+                    except subprocess.CalledProcessError as ex:
+                        # Return code 1638 means "Already installed" - this is OK
+                        if ex.returncode == 1638:
+                            self.log.info("Visual Studio Redistributable is already installed.")
+                        else:
+                            raise
 
-            await asyncio.to_thread(run_subprocess)
-            os.remove(os.path.join(installation_dir, 'VC_redist.x64.exe'))
+                await asyncio.to_thread(run_subprocess)
+                os.remove(os.path.join(installation_dir, 'VC_redist.x64.exe'))
 
     async def handle_update(self):
         # don't run if autoupdate is disabled
@@ -514,9 +524,7 @@ class SRS(Extension, FileSystemEventHandler):
                 version = await self.check_for_updates()
                 if version:
                     self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
-                    #await asyncio.to_thread(self.do_update_old)
                     await self.do_update(version)
-                    # await self.do_update_fallback(version)
                     self.log.info("DCS-SRS updated.")
                     bus = ServiceRegistry.get(ServiceBus)
                     await bus.send_to_node({
