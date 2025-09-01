@@ -476,7 +476,7 @@ class SRS(Extension, FileSystemEventHandler):
                     if isinstance(data, list):
                         data = data[0]
                     version = data.get('tag_name', '').strip('v')
-                    if parse(version) > parse(self.version):
+                    if parse(version) != parse(self.version):
                         return version
         return None
 
