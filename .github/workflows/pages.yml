@@ -49,13 +49,9 @@ jobs:
 
       - name: Sync and commit documentation
         run: |
-          # Ensure we have the latest development branch
-          git fetch origin development
-
-          # Create a new branch with timestamp to avoid conflicts
-          BRANCH_NAME="docs-update-$(date +%Y%m%d-%H%M%S)"
-          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
-          git checkout -b $BRANCH_NAME
+          # Remove the branch creation parts and commit directly
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
           
           # Create temporary backup directory
           mkdir -p temp_backup
@@ -154,42 +150,17 @@ jobs:
           
           # Add and commit changes
           git add docs
-          
-          # Only proceed if there are changes to commit
-          if git diff --staged --quiet; then
-            echo "No documentation changes to commit"
-            echo "CHANGES_EXIST=false" >> $GITHUB_ENV
-            exit 0
-          else
+          if ! git diff --staged --quiet; then
             git commit -m "Update documentation"
-            git push origin $BRANCH_NAME
-            echo "CHANGES_EXIST=true" >> $GITHUB_ENV
+            git push origin development
           fi
-
-      - name: Create Pull Request
-        if: success() && env.CHANGES_EXIST == 'true'
-        run: |
-          gh pr create \
-            --base development \
-            --head $BRANCH_NAME \
-            --title "Update Documentation $(date +%Y-%m-%d)" \
-            --body "Automated documentation update from GitHub Actions
-
-          This PR updates the documentation to match the current project structure.
-          
-          Changes include:
-          - Synchronized documentation structure with main project
-          - Preserved configuration files, layouts, and assets
-          - Updated all markdown files"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Build job
   build:
     runs-on: ubuntu-latest
     if: |
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.merged == true
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/development')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -232,8 +203,8 @@ jobs:
       group: "pages-deploy-${{ github.ref }}"
       cancel-in-progress: false
     if: |
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.merged == true
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/development')
     permissions:
       pages: write
       id-token: write
