@@ -27,6 +27,7 @@ permissions:
   pull-requests: write
   pages: write
   id-token: write
+  actions: write
 
 # Allow one concurrent deployment
 concurrency:
@@ -208,7 +209,16 @@ jobs:
     permissions:
       pages: write
       id-token: write
+      actions: write
     steps:
+      - name: Check Pages status
+        run: |
+          if ! gh api repos/${{ github.repository }}/pages &>/dev/null; then
+            echo "::error::GitHub Pages not enabled. Please enable it in repository settings."
+            exit 1
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Add a small delay to let other workflows settle (aka CodeQL)
       - name: Wait for other workflows
         run: sleep 30
