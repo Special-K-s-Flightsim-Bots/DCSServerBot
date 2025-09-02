@@ -16,8 +16,9 @@ MyNode:
   # [...]
   extensions:
     Lardoon:
+      use_single_process: true      # Start one Lardoon process per node (default: true) 
       cmd: '%USERPROFILE%\Documents\GitHub\lardoon\lardoon.exe'
-      bind: 0.0.0.0:3113            # IP and port the Lardoon server is listening to
+      bind: 0.0.0.0:3113            # IP and port the (single) Lardoon server is listening to
       url: https://myfancyhost.com  # Alternate hostname to be displayed in your status embed 
       minutes: 5                    # Number of minutes the Lardoon database is updated
   # [...]
@@ -27,9 +28,16 @@ MyNode:
       extensions:
         Lardoon:
           enabled: true
-          debug: true               # Show the Lardoon console output in the DCSSB console. Default = false
+          debug: true                   # Show the Lardoon console output in the DCSSB console. Default = false
+          bind: 0.0.0.0:3113            # Optional: IP and port this Lardoon server is listening to (only needed if use_single_process is false)
+          url: https://myfancyhost.com  # Optional: Alternate hostname to be displayed in your status embed (only needed if use_single_process is false)
+          minutes: 5                    # Optional: Number of minutes the Lardoon database is updated (only needed if use_single_process is false)
           tacviewExportPath: 'G:\My Drive\Tacview Files'  # Alternative drive for tacview files (default: auto-detect from Tacview)
 ```
-Don't forget to add some kind of security before exposing services like that to the outside world, with for instance
-a nginx reverse proxy.</br>
+Remember to add some kind of security before exposing services like that to the outside world, with for instance
+an nginx reverse proxy.</br>
 If you plan to build Lardoon on your own, I'd recommend the fork of [Team LimaKilo](https://github.com/team-limakilo/lardoon).
+
+> [!IMPORTANT]
+> If you want to start multiple Lardoon processes, set use_single_process to false and make sure that you add a "bind"
+> parameter to each instance configuration.
