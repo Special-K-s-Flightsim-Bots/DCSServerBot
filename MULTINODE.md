@@ -77,8 +77,9 @@ A standard PostgreSQL installation does not allow remote access to the database.
 In addition, you would need to allow external access to your database by forwarding the database port (default: 5432)
 from your router to the PC running the database. You can also get a cloud database. There are many providers out there
 where you can rent one for relatively small money.
+> [!IMPORTANT]
 > For a secure communication, you should consider enabling SSL in your database. A howto for that would be too much
-> for this little guide, but there are lots of guides available in the web how to do that.
+> for this little guide, but there are lots of guides available on the web how to do that.
 
 ## Running multiple versions of DCS World on one PC
 One DCSServerBot node can run as many DCS servers as your PC can handle, but they all share the very same DCS World 
@@ -88,6 +89,7 @@ DCSServerBot uses the hostname of the PC as node name, if not specified otherwis
 the same PC, you need to specify an additional parameter -n (or --node) on startup (e.g. `run -n node01`).<br>
 This will start a new node (you'll be prompted for the installation of it, if it does not exist yet), with the name
 "node01". 
+> [!IMPORTANT]
 > The node-name has to be unique in your **whole cluster**.
 
 ## Running multiple Nodes on multiple PCs
@@ -129,6 +131,7 @@ what the bot will create during a default installation also.
 
 ### Moving a Server from one Node / Instance to another
 Each server is loosely coupled to an instance on a node. You can migrate a server to another instance though, by using
-the `/server migrate` command. Please keep in mind that - unless you use a central missions directory - the necessary
-missions (or scripts) for this server might not be available on the other node and the migration will end up in a state
-that you had not planned.
+the `/server migrate` command. 
+> [!NOTE]
+> Unless you use a central missions directory, the necessary missions (or scripts) for this server might not be 
+> available on the other node and the migration will end up in an incomplete state.
