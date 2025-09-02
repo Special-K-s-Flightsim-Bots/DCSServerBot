@@ -556,9 +556,11 @@ class RestAPI(Plugin):
                     if server_name:
                         sql += "AND m.server_name = %(server_name)s"
                     sql += ' AND ' + flt.filter(self.bot)
+                    # only flighttimes of over an hour count for most efficient / wasteful
+                    if not (flt.period and (flt.period in ['day', 'today', 'yesterday'] or flt.period.startswith(
+                            'mission_id:'))) and kill_type in ['Most Efficient Killers', 'Most Wasteful Pilots']:
+                        sql += f" AND EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)) >= 3600"
                     sql += f' GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0'
-                    if kill_type in ['Most Efficient Killers', 'Most Wasteful Pilots']:
-                        sql += f" AND SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))) > 1800"
                     sql += f' ORDER BY 3 DESC LIMIT {limit}'
 
                     await cursor.execute(sql, {"server_name": server_name})
