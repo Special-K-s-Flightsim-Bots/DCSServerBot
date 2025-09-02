@@ -1,5 +1,7 @@
-
 source "https://rubygems.org"
 gem "github-pages", group: :jekyll_plugins
-gem "jekyll-remote-theme"
-gem "webrick", "~> 1.8", group: :development
+gem "jekyll"
+gem "json"
+gem "just-the-docs"
+
+gem "webrick", group: :development
