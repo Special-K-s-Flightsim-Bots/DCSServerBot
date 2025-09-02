@@ -30,7 +30,7 @@ permissions:
 
 # Allow one concurrent deployment
 concurrency:
-  group: "pages"
+  group: "pages-deployment-${{ github.ref }}"
   cancel-in-progress: false
 
 jobs:
@@ -238,6 +238,9 @@ jobs:
       pages: write
       id-token: write
     steps:
+      # Add a small delay to let other workflows settle (aka CodeQL)
+      - name: Wait for other workflows
+        run: sleep 30
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v3
