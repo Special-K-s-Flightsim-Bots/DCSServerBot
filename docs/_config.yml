@@ -1,7 +1,7 @@
 repository: Special-K-s-Flightsim-Bots/DCSServerBot
 title: DCSServerBot
 description: A Python tool to manage DCS-servers via Discord
-theme: just-the-docs
+remote_theme: just-the-docs/just-the-docs
 color_scheme: dcsserverbot
 
 gh_edit_link: true
@@ -33,3 +33,6 @@ aux_links:
   GitHub: https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot
   Discord: https://discord.gg/h2zGDH9szZ
   Patreon: https://www.patreon.com/DCS_SpecialK
+
+plugins:
+  - jekyll-remote-theme
