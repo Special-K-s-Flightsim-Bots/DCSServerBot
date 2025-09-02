@@ -26,9 +26,6 @@ permissions:
   contents: write
   pages: write
   id-token: write
-  actions: write
-  deployments: write
-  pull-requests: write
 
 # Allow one concurrent deployment
 concurrency:
@@ -39,19 +36,18 @@ jobs:
   # Sync job
   sync:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'    # Simplified condition
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           ref: development
 
       - name: Sync and commit documentation
         run: |
-          # Remove the branch creation parts and commit directly
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          
           # Create temporary backup directory
           mkdir -p temp_backup
 
@@ -158,13 +154,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     needs: sync
-    if: |
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/development')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           ref: development
           fetch-depth: 0  # Fetch all history so we have the latest changes
       - name: Git Pull
@@ -179,6 +173,8 @@ jobs:
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Copy README to index.md
         run: cp README.md index.md
         working-directory: docs/
@@ -199,19 +195,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
-    permissions:
-      pages: write
-      id-token: write
-      actions: write
-      deployments: write  # Add this
-    concurrency:
-      group: "pages-deploy-${{ github.ref }}"
-      cancel-in-progress: false
-    if: |
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/development')
     steps:
-      # Remove the Check Pages status step as it's causing issues
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v3
