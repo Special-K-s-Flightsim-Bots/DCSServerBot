@@ -161,8 +161,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: development
           fetch-depth: 0  # Fetch all history so we have the latest changes
-      - name: Git Pull
-        run: git pull origin development  # Ensure we have the latest development branch
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -173,8 +171,12 @@ jobs:
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Dependencies
+        run: |
+          cd docs
+          bundle add webrick
+          bundle add just-the-docs
+          bundle install
       - name: Copy README to index.md
         run: cp README.md index.md
         working-directory: docs/

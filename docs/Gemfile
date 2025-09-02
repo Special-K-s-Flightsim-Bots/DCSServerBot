@@ -1,7 +1,10 @@
-source "https://rubygems.org"
-gem "github-pages", group: :jekyll_plugins
-gem "jekyll"
-gem "json"
-gem "just-the-docs"
 
-gem "webrick", group: :development
+source "https://rubygems.org"
+
+gem "jekyll", "~> 4.3.2"
+gem "just-the-docs", "~> 0.7.0"  # Specify a recent version
+gem "webrick", "~> 1.8"
+
+group :jekyll_plugins do
+  gem "jekyll-feed", "~> 0.12"
+end
