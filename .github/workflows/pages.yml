@@ -139,28 +139,11 @@ jobs:
             fi
           done
 
-          # Configure git
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          
-          # Add and commit changes
-          git add docs
-          if ! git diff --staged --quiet; then
-            git commit -m "Update documentation"
-            git push origin development
-          fi
-
   # Build job
   build:
     runs-on: ubuntu-latest
     needs: sync
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: development
-          fetch-depth: 0  # Fetch all history so we have the latest changes
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -171,12 +154,6 @@ jobs:
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v4
-      - name: Install Dependencies
-        run: |
-          cd docs
-          bundle add webrick
-          bundle add just-the-docs
-          bundle install
       - name: Copy README to index.md
         run: cp README.md index.md
         working-directory: docs/
