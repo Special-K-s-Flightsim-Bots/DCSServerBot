@@ -111,7 +111,6 @@ jobs:
               echo "---"
               echo "layout: default"
               echo "title: ${title}"
-              echo "nav_enabled: true"
               if [ ! -z "$nav_section" ]; then
                 echo "$nav_section"
               fi
