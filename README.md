@@ -612,12 +612,12 @@ You can map your Discord roles to these internal roles like described in the exa
 variant, you add your UCIDs as a list below each group.<br>
 Non-Discord installations usually only need the "Admin" and "DCS Admin" roles.
 
-| Role           | Description                                                                                                                                         |
-|----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| Admin          | People with this role are allowed to manage the server, start it up, shut it down, update it, change the password and gather the server statistics. |
-| DCS Admin      | People with this role are allowed to restart missions, managing the mission list, ban and unban people.                                             |
-| DCS            | People with this role are allowed to chat, check their statistics and gather information about running missions and players.                        |
-| GameMaster     | People with this role can see both [Coalitions](./COALITIONS.md) and run specific commands that are helpful in missions.                            |
+| Role            | Description                                                                                                                                          |
+|:----------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| Admin           | People with this role are allowed to manage the server, start it up, shut it down, update it, change the password and gather the server statistics.  |
+| DCS Admin       | People with this role are allowed to restart missions, managing the mission list, ban and unban people.                                              |
+| DCS             | People with this role are allowed to chat, check their statistics and gather information about running missions and players.                         |
+| GameMaster      | People with this role can see both [Coalitions](./COALITIONS.md) and run specific commands that are helpful in missions.                             |
 
 See [Coalitions](./COALITIONS.md) for coalition roles.
 
@@ -776,12 +776,12 @@ DCSServerBot has an extensible architecture. You can more or less overwrite, enh
 The easiest way to start developing for DCSServerBot would be to read up the concepts and to look at some examples.
 I have created some READMEs for you that you can start with:
 
-| Component | Description                                                                                                                        | Documentation                    |
-|-----------|------------------------------------------------------------------------------------------------------------------------------------|----------------------------------|
-| Plugin    | A plugin provides Discord or in-game commands. It handles events from DCS and runs on the master node only.                        | [README](./plugins/README.md)    |
-| Service   | A service runs once onto each node of your cluster. Some services are master bound.                                                | [README](./services/README.md)   |
-| Extension | An extension runs for each supported server, but on the node the server is running on. It can access all resources of that server. | [README](./extensions/README.md) |                             
-| Reports   | The reporting framework allows you to create your own customized reports for DCSServerBot or overwrite existing ones.              | [README](./reports/README.md)    |
+| Component  | Description                                                                                                                         | Documentation                     |
+|:-----------|:------------------------------------------------------------------------------------------------------------------------------------|:----------------------------------|
+| Plugin     | A plugin provides Discord or in-game commands. It handles events from DCS and runs on the master node only.                         | [README](./plugins/README.md)     |
+| Service    | A service runs once onto each node of your cluster. Some services are master bound.                                                 | [README](./services/README.md)    |
+| Extension  | An extension runs for each supported server, but on the node the server is running on. It can access all resources of that server.  | [README](./extensions/README.md)  |                             
+| Reports    | The reporting framework allows you to create your own customized reports for DCSServerBot or overwrite existing ones.               | [README](./reports/README.md)     |
 
 > [!NOTE]
 > If you decide to develop something that might be of interest for other community members, I highly encourage you to 
