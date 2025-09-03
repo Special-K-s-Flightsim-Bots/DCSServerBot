@@ -47,6 +47,8 @@ jobs:
           ref: development
 
       - name: Sync and commit documentation
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Create temporary backup directory
           mkdir -p temp_backup
