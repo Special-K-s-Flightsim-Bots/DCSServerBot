@@ -699,6 +699,7 @@ class NodeImpl(Node):
 
     @cache_with_expiration(expiration=120)
     async def get_available_dcs_versions(self, branch: str) -> Optional[list[str]]:
+
         async def _get_latest_versions_no_auth() -> Optional[list[str]]:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
@@ -1049,12 +1050,13 @@ class NodeImpl(Node):
             self.log.warning("DCS update check failed, possible server outage at ED.")
         return None
 
-    async def do_dcs_update(self, new_version: str):
+    async def dcs_update(self, *, branch: Optional[str] = None, version: Optional[str] = None,
+                         warn_times: list[int] = None, announce: Optional[bool] = True):
         from services.bot import BotService
         from services.servicebus import ServiceBus
 
         self.log.info('A new version of DCS World is available. Auto-updating ...')
-        rc = await self.update(warn_times=[300, 120, 60], version=new_version)
+        rc = await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
         if rc == 0:
             bus = ServiceRegistry.get(ServiceBus)
             await bus.send_to_node({
@@ -1062,16 +1064,16 @@ class NodeImpl(Node):
                 "service": BotService.__name__,
                 "method": "audit",
                 "params": {
-                    "message": f"DCS World updated to version {new_version} on node {self.node.name}."
+                    "message": f"DCS World updated to version {version} on node {self.node.name}."
                 }
             })
-            if isinstance(self.locals['DCS'].get('autoupdate'), dict):
+            if announce and isinstance(self.locals['DCS'].get('autoupdate'), dict):
                 config = self.locals['DCS'].get('autoupdate')
                 embed = discord.Embed(
                     colour=discord.Colour.blue(),
                     title=config.get(
-                        'title', 'DCS has been updated to version {}!').format(new_version),
-                    url=f"https://www.digitalcombatsimulator.com/en/news/changelog/stable/{new_version}/")
+                        'title', 'DCS has been updated to version {}!').format(version),
+                    url=f"https://www.digitalcombatsimulator.com/en/news/changelog/stable/{version}/")
                 embed.description = config.get('description', 'The following servers have been updated:')
                 embed.set_thumbnail(url="https://forum.dcs.world/uploads/monthly_2023_10/"
                                         "icons_4.png.f3290f2c17710d5ab3d0ec5f1bf99064.png")
@@ -1097,7 +1099,7 @@ class NodeImpl(Node):
             if rc == 2:
                 message = f"DCS World update on node {self.name} was aborted (check disk space)!"
             elif rc in [3, 350]:
-                message = (f"DCS World has been updated to version {new_version} on node {self.name}.\n"
+                message = (f"DCS World has been updated to version {version} on node {self.name}.\n"
                            f"The updater has requested a **reboot** of the system!")
             else:
                 message = (f"DCS World could not be updated on node {self.name} due to an error ({rc}): "
@@ -1121,7 +1123,7 @@ class NodeImpl(Node):
         try:
             version = await self.is_dcs_update_available()
             if version:
-                await self.do_dcs_update(version)
+                await self.dcs_update(version=version)
 
         except aiohttp.ClientError as ex:
             self.log.warning(ex)
@@ -1144,7 +1146,7 @@ class NodeImpl(Node):
         # check for updates
         new_version = await self.is_dcs_update_available()
         if new_version:
-            await self.do_dcs_update(new_version)
+            await self.dcs_update(version=new_version)
         self.update_pending = False
 
     async def add_instance(self, name: str, *, template: str = "") -> "Instance":

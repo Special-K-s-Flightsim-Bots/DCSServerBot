@@ -153,7 +153,8 @@ class Node:
     async def upgrade(self):
         raise NotImplementedError()
 
-    async def update(self, warn_times: list[int], branch: Optional[str] = None, version: Optional[str] = None) -> int:
+    async def dcs_update(self, branch: Optional[str] = None, version: Optional[str] = None,
+                         warn_times: list[int] = None, announce: Optional[bool] = True):
         raise NotImplementedError()
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:

@@ -6,6 +6,7 @@ import builtins
 import functools
 import hashlib
 import importlib
+import inspect
 import json
 import logging
 import luadata
@@ -476,11 +477,19 @@ def dynamic_import(package_name: str):
 def async_cache(func):
     cache = {}
 
+    def get_cache_key(*args, **kwargs):
+        signature = inspect.signature(func)
+        bound_args = signature.bind(*args, **kwargs)
+        bound_args.apply_defaults()
+        arg_set = frozenset(v for k, v in bound_args.arguments.items() if k not in ["self", "interaction"])
+        cache_key = (func.__name__, arg_set)
+        return cache_key
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         # Create a cache key from both args and kwargs
         # We need to freeze kwargs into an immutable form to use as dict key
-        cache_key = (args, frozenset(kwargs.items()))
+        cache_key = get_cache_key(*args, **kwargs)
 
         if cache_key in cache:
             return cache[cache_key]
@@ -505,8 +514,12 @@ def cache_with_expiration(expiration: int):
         cache_expiry: dict[Any, float] = {}
 
         def get_cache_key(*args, **kwargs):
-            hashable_kwargs = {k: tuple(v) if isinstance(v, list) else v for k, v in kwargs.items()}
-            return args, frozenset(hashable_kwargs.items())
+            signature = inspect.signature(func)
+            bound_args = signature.bind(*args, **kwargs)
+            bound_args.apply_defaults()
+            arg_set = frozenset(v for k, v in bound_args.arguments.items() if k not in ["self", "interaction"])
+            cache_key = (func.__name__, arg_set)
+            return cache_key
 
         def check_cache(cache_key):
             if cache_key in cache and cache_key in cache_expiry:

@@ -104,7 +104,8 @@ class NodeProxy(Node):
             "method": "upgrade"
         }, node=self.name)
 
-    async def update(self, warn_times: list[int], branch: Optional[str] = None, version: Optional[str] = None) -> int:
+    async def dcs_update(self, branch: Optional[str] = None, version: Optional[str] = None,
+                         warn_times: list[int] = None, announce: Optional[bool] = True):
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
@@ -112,7 +113,8 @@ class NodeProxy(Node):
             "params": {
                 "warn_times": warn_times,
                 "branch": branch or "",
-                "version": version or ""
+                "version": version or "",
+                "announce": announce
             }
         }, node=self.name, timeout=600)
         return data['return']

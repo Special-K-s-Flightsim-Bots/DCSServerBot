@@ -2,10 +2,9 @@ import discord
 import os
 import pandas as pd
 
-from core import Plugin, Report, ReportEnv, command, utils, get_translation, Status
+from core import Plugin, Report, ReportEnv, command, utils, get_translation, Status, async_cache
 from discord import app_commands, Interaction, ButtonStyle, TextStyle
 from discord.ui import View, Select, Button, Modal, TextInput, Item
-from functools import cache
 from io import BytesIO
 from services.bot import DCSServerBot
 from typing import cast, Optional, Literal, Any
@@ -15,7 +14,7 @@ from .listener import HelpListener
 _ = get_translation(__name__.split('.')[1])
 
 
-@cache
+@async_cache
 async def get_commands(interaction: discord.Interaction) -> dict[str, app_commands.Command]:
     cmds: dict[str, app_commands.Command] = dict()
     for cmd in interaction.client.tree.get_commands(guild=interaction.guild):

@@ -6,7 +6,7 @@ import psycopg
 import shutil
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
-    PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS
+    PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, async_cache
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
@@ -176,10 +176,17 @@ async def installable_plugins(interaction: discord.Interaction, current: str) ->
 
 async def get_dcs_branches(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     current_branch, _ = await interaction.client.node.get_dcs_branch_and_version()
+    testing = (interaction.client.node.locals.get('DCS', {}).get('user') is not None)
     if 'dcs_server' not in current_branch:
         branches = [('Release', 'release')]
+        if testing:
+            branches.append(('Testing', 'testing'))
+            branches.append(('Nightly', 'nightly'))
     else:
         branches = [('Release', 'dcs_server.release')]
+        if testing:
+            branches.append(('Testing', 'dcs_server.testing'))
+            branches.append(('Nightly', 'dcs_server.nightly'))
     return [
         app_commands.Choice(name=x[0], value=x[1])
         for x in branches
@@ -190,7 +197,7 @@ async def get_dcs_branches(interaction: discord.Interaction, current: str) -> li
 async def get_dcs_versions(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    versions = await interaction.client.node.get_available_dcs_versions(interaction.client.node.dcs_branch)
+    versions = await interaction.client.node.get_available_dcs_versions(utils.get_interaction_param(interaction, 'branch'))
     return [
         app_commands.Choice(name=x, value=x)
         for x in versions[::-1][:25]
@@ -354,6 +361,7 @@ class Admin(Plugin[AdminEventListener]):
     async def update(self, interaction: discord.Interaction,
                      node: app_commands.Transform[Node, utils.NodeTransformer],
                      warn_time: app_commands.Range[int, 0] = 60,
+                     announce: bool = True,
                      branch: Optional[str] = None,
                      version: Optional[str] = None,
                      force: Optional[bool] = False):
@@ -395,7 +403,8 @@ class Admin(Plugin[AdminEventListener]):
         msg = await interaction.followup.send(_("Updating DCS World to the newest version, please wait ..."),
                                         ephemeral=ephemeral)
         try:
-            rc = await node.update(warn_times=[warn_time] or [120, 60], branch=branch, version=new_version)
+            rc = await node.dcs_update(warn_times=[warn_time] or [120, 60], branch=branch, version=new_version,
+                                       announce=announce)
             if rc == 0:
                 branch, new_version = await node.get_dcs_branch_and_version()
                 await msg.edit(content=_("DCS updated to version {version}@{branch} on node {name}."
