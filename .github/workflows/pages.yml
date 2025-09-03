@@ -138,12 +138,22 @@ jobs:
               done
             fi
           done
+      - name: Upload the directory as an artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: docs
+          path: docs
 
   # Build job
   build:
     runs-on: ubuntu-latest
     needs: sync
     steps:
+      - name: Download the artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: docs
+          path: docs
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
