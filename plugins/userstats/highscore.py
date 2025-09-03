@@ -147,7 +147,7 @@ class HighscoreElement(report.GraphElement):
             {where_part}
             AND {flt.filter(self.env.bot)}
             GROUP BY 1, 2 
-            HAVING SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))::DECIMAL / 3600.0 > 0
+            HAVING {sql_parts[kill_type]} > 0
             ORDER BY 3 DESC LIMIT {limit}
         """
 
