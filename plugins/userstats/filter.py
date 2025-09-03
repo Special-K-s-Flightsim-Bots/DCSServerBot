@@ -82,7 +82,7 @@ class PeriodFilter(StatisticsFilter):
                 continue
 
         # If none of the formats match, raise an error
-        raise ValueError("Date format is not supported")
+        raise ValueError(f"Date format {date_str} is not supported")
 
     def filter(self, bot: DCSServerBot) -> str:
         if self.period and self.period.startswith('period:'):
