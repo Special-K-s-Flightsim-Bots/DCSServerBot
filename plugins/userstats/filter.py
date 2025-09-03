@@ -45,12 +45,12 @@ class StatisticsFilter(ABC):
             return TheatreFilter(period)
         elif MonthFilter.supports(bot, period):
             return MonthFilter(period)
-        elif PeriodFilter.supports(bot, period):
-            return PeriodFilter(period)
         elif CampaignFilter.supports(bot, period):
             return CampaignFilter(period)
         elif SquadronFilter.supports(bot, period):
             return SquadronFilter(period)
+        elif PeriodFilter.supports(bot, period):
+            return PeriodFilter(period)
         return None
 
 
