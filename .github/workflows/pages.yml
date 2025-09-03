@@ -149,8 +149,6 @@ jobs:
             git commit -m "Update documentation"
             git push origin development
           fi
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
   # Build job
   build:
