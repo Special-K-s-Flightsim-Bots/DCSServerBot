@@ -412,8 +412,15 @@ If you need any further assistance, please visit the support discord, listed in 
             if not instances:
                 print(_("No configured DCS servers found."))
             for name, instance in instances:
-                if Confirm.ask(_('\n[i]DCS server "{}" found.[/i]\n'
-                                 'Would you like to manage this server through DCSServerBot?').format(name), default=True):
+                if not name or name in ['n/a', 'DCS Server']:
+                    print(_("DCS Server without name found in Saved Games\\{}.").format(instance))
+                    if not Confirm.ask(_("Would you like to give it a name?"), default=True):
+                        continue
+                    name = Prompt.ask("Please enter a server name:")
+                else:
+                    print(_('\n[i]DCS Server "{}" found.[/i]\n').format(name))
+
+                if Confirm.ask(_('Would you like to manage this server through DCSServerBot?'), default=True):
                     self.log.info(_("Adding instance {instance} with server {name} ...").format(instance=instance,
                                                                                                 name=name))
                     node['instances'][instance] = {
@@ -484,6 +491,7 @@ If you need any further assistance, please visit the support discord, listed in 
                     else:
                         scheduler[instance] = {}
                     self.log.info(_("Instance {} configured.").format(instance))
+
         print(_("\n\nAll set. Writing / updating your config files now..."))
         if master:
             os.makedirs(config_dir, exist_ok=True)
