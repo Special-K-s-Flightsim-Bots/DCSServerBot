@@ -40,7 +40,7 @@ class TrapModal(Modal):
         if self.case.value not in ['1', '2', '3']:
             raise TypeError(_('Case needs to be one of 1, 2 or 3.'))
         grade = self.grade.value.upper()
-        if grade not in self.config['ratings'].keys():
+        if grade not in self.config['grades'].keys():
             raise ValueError(_("Grade has to be one of {}.").format(
                 ', '.join([utils.escape_string(x) for x in self.config['ratings'].keys()])))
         if self.wire.value and self.wire.value not in ['1', '2', '3', '4']:
@@ -58,7 +58,7 @@ class TrapModal(Modal):
                                        trapcase) 
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (-1, ucid, self.unit_type, self.grade.value, self.comment.value, 'n/a', night,
-                      self.config['ratings'][grade], self.wire.value, self.case.value))
+                      self.config['grades'][grade]['rating'], self.wire.value, self.case.value))
             self.success = True
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
