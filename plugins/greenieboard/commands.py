@@ -244,10 +244,10 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
                   user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
         config = self.get_config()
-        if 'ratings' not in config:
+        if 'grades' not in config:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _('You need to specify ratings in your greenieboard.yaml to use {}!').format(
+                _('You need to specify grades in your greenieboard.yaml to use {}!').format(
                     (await utils.get_command(self.bot, group='traps', name='add')).mention
                 ), ephemeral=True)
             return
