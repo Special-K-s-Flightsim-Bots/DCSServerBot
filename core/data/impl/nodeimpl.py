@@ -1187,14 +1187,14 @@ class NodeImpl(Node):
                              os.path.join(instance.home, 'Config', 'SRS.cfg'))
         else:
             # copy default files, if they exist
-            if os.path.exists(os.path.join(self.config, 'autoexec.cfg')):
-                shutil.copy2(os.path.join(self.config, 'autoexec.cfg'),
+            if os.path.exists(os.path.join(self.config_dir, 'autoexec.cfg')):
+                shutil.copy2(os.path.join(self.config_dir, 'autoexec.cfg'),
                              os.path.join(instance.home, 'Config'))
-            if os.path.exists(os.path.join(self.config, 'serverSettings.lua')):
-                shutil.copy2(os.path.join(self.config, 'serverSettings.lua'),
+            if os.path.exists(os.path.join(self.config_dir, 'serverSettings.lua')):
+                shutil.copy2(os.path.join(self.config_dir, 'serverSettings.lua'),
                              os.path.join(instance.home, 'Config'))
-            if os.path.exists(os.path.join(self.config, 'options.lua')):
-                shutil.copy2(os.path.join(self.config, 'options.lua'),
+            if os.path.exists(os.path.join(self.config_dir, 'options.lua')):
+                shutil.copy2(os.path.join(self.config_dir, 'options.lua'),
                              os.path.join(instance.home, 'Config'))
 
         autoexec = Autoexec(instance=instance)
