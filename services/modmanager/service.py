@@ -301,7 +301,7 @@ class ModManagerService(Service):
         for zip_path in zfile.namelist():
             parts = zip_path.split('/')
             if (len(parts) >= 2 and package_name in parts[0] and
-                    parts[1].lower() in ['mods', 'scripts', 'kneeboard', 'liveries']):
+                    parts[1].lower() in ['coremods', 'mods', 'scripts', 'kneeboard', 'liveries']):
                 return True
         return False
 
