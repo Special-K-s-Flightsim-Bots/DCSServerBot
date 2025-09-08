@@ -7,8 +7,10 @@ import logging
 import os
 import psutil
 import re
+import shutil
 import ssl
 import subprocess
+import tempfile
 import zipfile
 
 from contextlib import suppress
@@ -107,14 +109,35 @@ class SkyEye(Extension):
     async def download_whisper_file(self, name: str):
         whisper_path = os.path.join(os.path.dirname(self.get_exe_path()), "whisper.bin")
         async with aiohttp.ClientSession() as session:
-            async with session.get(WHISPER_URL.format(name), raise_for_status=True, proxy=self.node.proxy,
-                                   proxy_auth=self.node.proxy_auth) as response:
-                with open(whisper_path, 'wb') as f:
-                    while True:
-                        chunk = await response.content.read(1024 * 1024)
-                        if not chunk:
-                            break
-                        f.write(chunk)
+            # Check the size of the remote file
+            head_resp = await session.head(WHISPER_URL.format(name), allow_redirects=True, proxy=self.node.proxy,
+                                           proxy_auth=self.node.proxy_auth)
+            remote_size = int(head_resp.headers['Content-Length'])
+
+            # Check the size of the local file
+            if os.path.exists(whisper_path):
+                local_size = os.path.getsize(whisper_path)
+            else:
+                local_size = 0
+
+            # Download and update the file only if there's a new version available online
+            if remote_size != local_size:
+                if local_size == 0:
+                    what = 'download'
+                else:
+                    what = 'updat'
+                self.log.info(f"  => {self.name}: {what.title()}ing whisper model...")
+                async with session.get(WHISPER_URL.format(name), raise_for_status=True, proxy=self.node.proxy,
+                                       proxy_auth=self.node.proxy_auth) as response:
+                    with open(whisper_path, 'wb') as f:
+                        while True:
+                            chunk = await response.content.read(1024 * 1024)
+                            if not chunk:
+                                break
+                            f.write(chunk)
+                self.log.info(f"  => {self.name}: Whisper model {what}ed.")
+            else:
+                self.log.debug(f"  => {self.name}: Whisper model up-to-date.")
 
     def _maybe_update_config(self, cfg: dict, key: str, value: Any):
         if not value:
@@ -133,12 +156,7 @@ class SkyEye(Extension):
 
         # make sure we have a local model, unless configured otherwise
         if cfg.get('recognizer', 'openai-whisper-local') == 'openai-whisper-local':
-            self.log.warning(f"  => {self.name}: Local Whisper model configured. This has a performance impact on your system!")
-            whisper_path = os.path.join(os.path.dirname(self.get_exe_path()), "whisper.bin")
-            if not os.path.exists(whisper_path):
-                self.log.info(f"  => {self.name}: Downloading whisper model...")
-                await self.download_whisper_file(cfg.get('whisper-model', 'ggml-small.en.bin'))
-                self.log.info(f"  => {self.name}: Whisper model downloaded.")
+            await self.download_whisper_file(cfg.get('whisper-model', 'ggml-small.en.bin'))
             dirty |= self._maybe_update_config(cfg, 'recognizer', 'openai-whisper-local')
             dirty |= self._maybe_update_config(cfg,'recognizer-lock-path',
                                                os.path.join(os.path.dirname(self.get_exe_path()), 'recognizer.lck'))
@@ -462,16 +480,17 @@ class SkyEye(Extension):
         async with aiohttp.ClientSession() as session:
             async with session.get(SKYEYE_DOWNLOAD_URL.format(version), raise_for_status=True, proxy=self.node.proxy,
                                    proxy_auth=self.node.proxy_auth) as response:
-                with zipfile.ZipFile(BytesIO(await response.content.read())) as z:
-                    root_folder = z.namelist()[0].split('/')[0]
-                    for member in z.namelist():
-                        relative_path = os.path.relpath(member, start=root_folder)
-                        if relative_path == ".":
-                            continue
-                        destination_path = os.path.join(installation_dir, relative_path)
-                        if member.endswith('/'):
-                            os.makedirs(destination_path, exist_ok=True)
-                        else:
-                            os.makedirs(os.path.dirname(destination_path), exist_ok=True)
-                            with open(destination_path, 'wb') as output_file:
-                                output_file.write(z.read(member))
+                zipdata = BytesIO(await response.content.read())
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    with zipfile.ZipFile(zipdata) as z:
+                        z.extractall(tmpdir)
+                    root_folder = os.path.join(tmpdir, 'skyeye-windows-amd64')
+                    for item in os.listdir(root_folder):
+                        source_path = os.path.join(root_folder, item)
+                        destination_path = os.path.join(installation_dir, item)
+                        if os.path.exists(destination_path):
+                            if os.path.isdir(destination_path):
+                                shutil.rmtree(destination_path)
+                            else:
+                                os.remove(destination_path)
+                        shutil.move(source_path, destination_path)
