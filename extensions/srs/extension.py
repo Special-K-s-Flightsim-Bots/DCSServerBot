@@ -490,9 +490,7 @@ class SRS(Extension, FileSystemEventHandler):
                                 if process and process.is_running():
                                     process.terminate()
                         # unpack files
-                        # Extract everything except VC_redist.x64.exe first
-                        members_to_extract = [m for m in z.namelist() if os.path.basename(m) != 'VC_redist.x64.exe']
-                        z.extractall(path=installation_dir, members=members_to_extract)
+                        z.extractall(path=installation_dir)
 
                         # Handle VC_redist.x64.exe separately if needed
                         if 'VC_redist.x64.exe' in [os.path.basename(m) for m in z.namelist()]:
