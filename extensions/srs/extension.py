@@ -146,6 +146,8 @@ class SRS(Extension, FileSystemEventHandler):
     def _maybe_update_config(self, section, key, value_key):
         if value_key in self.config:
             value = self.config[value_key]
+            if section not in self.cfg:
+                self.cfg[section] = {}
             if not self.cfg[section].get(key) or Autoexec.parse(self.cfg[section][key]) != value:
                 self.cfg.set(section, key, value)
                 self.log.info(f"  => {self.server.name}: [{section}][{key}] set to {self.config[value_key]}")
@@ -197,6 +199,9 @@ class SRS(Extension, FileSystemEventHandler):
             with open(path, mode='w', encoding='utf-8') as ini:
                 self.cfg.write(ini)
             self.locals = self.load_config()
+        # Check IP settings
+        if self.cfg['Server Settings']['SERVER_IP'] != '0.0.0.0':
+            self.log.warning(f"  => {self.server.name}: SERVER_IP is not set to 0.0.0.0 in your {self.get_config_path()}")
         # Check port conflicts
         port = self.config.get('port', int(self.cfg['Server Settings'].get('SERVER_PORT', '5002')))
         if ports.get(port, self.server.name) != self.server.name:
@@ -444,7 +449,7 @@ class SRS(Extension, FileSystemEventHandler):
         # do we have a proper config file?
         try:
             cfg_path = self.get_config_path()
-            if not os.path.exists(cfg_path):
+            if not os.path.exists(cfg_path) or not os.path.isfile(cfg_path):
                 self.log.error(f"  => SRS config not found for server {self.server.name}")
                 return False
             if self.server.instance.name not in cfg_path:
@@ -473,29 +478,25 @@ class SRS(Extension, FileSystemEventHandler):
     async def do_update(self, version: str):
         # make sure the monitoring does not interfere
         async with ServerMaintenanceManager(self.node, shutdown=False):
-            # stop any existing SRS process
-            for process in [
-                next(utils.find_process(os.path.basename(self.get_exe_path()), server.instance.name), None)
-                for server in self.bus.servers.values()
-            ]:
-                if process and process.is_running():
-                    process.terminate()
             vc_redist = False
             installation_dir = self.get_inst_path()
             async with aiohttp.ClientSession() as session:
                 async with session.get(SRS_DOWNLOAD_URL.format(version=version), raise_for_status=True,
                                        proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
                     with zipfile.ZipFile(BytesIO(await response.content.read())) as z:
-                        for member in z.namelist():
-                            if os.path.basename(member) == 'VC_redist.x64.exe':
-                                vc_redist = True
-                            destination_file = os.path.join(installation_dir, member)
-                            destination_path = os.path.dirname(destination_file)
-                            if member.endswith('/'):
-                                os.makedirs(destination_path, exist_ok=True)
-                                continue
-                            with open(destination_file, 'wb') as output_file:
-                                output_file.write(z.read(member))
+                        # stop any existing SRS process
+                        for exe in ['SR-ClientRadio.exe', 'SR-Server.exe', 'SRS-Server-Commandline.exe']:
+                            for process in utils.find_process(os.path.basename(exe)):
+                                if process and process.is_running():
+                                    process.terminate()
+                        # unpack files
+                        # Extract everything except VC_redist.x64.exe first
+                        members_to_extract = [m for m in z.namelist() if os.path.basename(m) != 'VC_redist.x64.exe']
+                        z.extractall(path=installation_dir, members=members_to_extract)
+
+                        # Handle VC_redist.x64.exe separately if needed
+                        if 'VC_redist.x64.exe' in [os.path.basename(m) for m in z.namelist()]:
+                            vc_redist = True
             if vc_redist:
                 def run_subprocess():
                     self.log.info("Installing Visual Studio Redistributable ...")

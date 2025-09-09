@@ -535,6 +535,8 @@ class ServerImpl(Server):
                             continue
                         if ext.is_installed():
                             self.extensions[extension] = ext
+                except InstallException as ex:
+                    self.log.error(f"  => Error while loading extension {extension}: {ex} - skipped")
                 except Exception as ex:
                     self.log.exception(ex)
             return list(self.extensions.keys())
