@@ -231,7 +231,7 @@ class NodeProxy(Node):
         }, timeout=timeout, node=self.name)
         return UploadStatus(data["return"])
 
-    @cache_with_expiration(expiration=60)
+#    @cache_with_expiration(expiration=60)
     async def list_directory(self, path: str, *, pattern: Union[str, list[str]] = '*',
                              order: SortOrder = SortOrder.DATE,
                              is_dir: bool = False, ignore: list[str] = None, traverse: bool = False
