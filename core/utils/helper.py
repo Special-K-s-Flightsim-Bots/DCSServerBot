@@ -485,7 +485,7 @@ def async_cache(func):
         # Convert unhashable types to hashable forms
         hashable_args = []
         for k, v in bound_args.arguments.items():
-            if k not in ["self", "interaction"]:
+            if k not in ["interaction"]:
                 # Convert lists to tuples, and handle nested lists
                 if isinstance(v, list):
                     hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
@@ -533,7 +533,7 @@ def cache_with_expiration(expiration: int):
             # Convert unhashable types to hashable forms
             hashable_args = []
             for k, v in bound_args.arguments.items():
-                if k not in ["self", "interaction"]:
+                if k not in ["interaction"]:
                     # Convert lists to tuples, and handle nested lists
                     if isinstance(v, list):
                         hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
