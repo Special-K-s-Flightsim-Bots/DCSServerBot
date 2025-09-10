@@ -26,8 +26,8 @@ like monitoring the availability of your servers, a lot of Discord slash-command
 LotAtc, DCS Olympus, and others.
 
 The solution itself is made for anything from single-server environments up to large scale, worldwide installations with
-high availability requirements. There are nearly no limits. If you are interested into some deeper insights to the
-bots architecture, read [here](./ARCHITECTURE.md)
+high-availability requirements. There are nearly no limits. If you are interested into some deeper insights to the
+bot-architecture, read [here](./ARCHITECTURE.md)
 
 ### Node
 A node is an installation of DCSServerBot on one PC. The usual user will have one installation, meaning one node.
@@ -43,17 +43,18 @@ normal client installation of DCS World to run a server, but the [Dedicated Serv
 A service is a component that runs on each node. Services can be combined with plugins, if they provide additional
 Discord commands, like the Music service. Some services only run on the master node, like the Bot service for instance.
 
-| Service    | Scope                                                                                                     | Plugin      | Documentation                             |
-|------------|-----------------------------------------------------------------------------------------------------------|-------------|-------------------------------------------|
-| Backup     | Backup your bot- and DCS-configuration, your missions, database, etc.                                     | Backup      | [README](./services/backup/README.md)     |
-| Bot        | The Discord bot handling all discord commands. There is a Discord-free variant available also (see blow)! |             | [README](./services/bot/README.md)        |
-| Cleanup    | Cleanup log-files, track-files, etc. from your disk.                                                      |             | [README](./services/cleanup/README.md)    |
-| Dashboard  | Nice console graphics display to show the status of your bot / servers.                                   |             | [README](./services/dashboard/README.md)  |
-| Monitoring | Availability- and performance-monitoring of your DCS servers.                                             | ServerStats | [README](./services/monitoring/README.md) |
-| Music      | Play music over different SRS-radios on your servers.                                                     | Music       | [README](./services/music/README.md)      |
-| ModManager | Manage mods that needs to be installed / updated in your DCS servers.                                     | ModManager  | [README](./services/modmanager/README.md) |
-| Cron       | Schedule tasks based on a cron-like configuration.                                                        |             | [README](./services/cron/README.md)       |
-| ServiceBus | Communication hub between every node of the bot cluster and all DCS-servers.                              |             | [README](./services/servicebus/README.md) |
+| Service     | Scope                                                                                                     | Plugin      | Documentation                             |
+|:------------|:----------------------------------------------------------------------------------------------------------|:------------|:------------------------------------------|
+| Backup      | Backup your bot- and DCS-configuration, your missions, database, etc.                                     | Backup      | [README](./services/backup/README.md)     |
+| Bot         | The Discord bot handling all discord commands. There is a Discord-free variant available also (see blow)! |             | [README](./services/bot/README.md)        |
+| Cleanup     | Cleanup log-files, track-files, etc. from your disk.                                                      |             | [README](./services/cleanup/README.md)    |
+| Cron        | Schedule tasks based on a cron-like configuration.                                                        |             | [README](./services/cron/README.md)       |
+| Dashboard   | Nice console graphics display to show the status of your bot / servers.                                   |             | [README](./services/dashboard/README.md)  |
+| ModManager  | Manage mods that needs to be installed / updated in your DCS servers.                                     | ModManager  | [README](./services/modmanager/README.md) |
+| Monitoring  | Availability- and performance-monitoring of your DCS servers.                                             | ServerStats | [README](./services/monitoring/README.md) |
+| Music       | Play music over different SRS-radios on your servers.                                                     | Music       | [README](./services/music/README.md)      |
+| ServiceBus  | Communication hub between every node of the bot cluster and all DCS-servers.                              |             | [README](./services/servicebus/README.md) |
+| WebService  | A simple webserver to provide support for REST-endpoints and embedded websites.                           |             | [README](./services/webservice/README.md) |
 
 ### Plugins
 A plugin is an expansion of the bot that can be controlled via Discord commands and sometimes in-game chat commands. 
@@ -61,9 +62,9 @@ DCSServerBot comes with a rich set of default plugins, but it can be enhanced wi
 from time to time, but you as a community member can also create your own plugins (and maybe share them with others). 
 
 | Plugin        | Scope                                                                                           | Optional | Depending on                          | Documentation                               |
-|---------------|-------------------------------------------------------------------------------------------------|----------|---------------------------------------|---------------------------------------------|
-| GameMaster    | Interaction with the running mission (inform users, set flags, etc)                             | no       |                                       | [README](./plugins/gamemaster/README.md)    |
-| Mission       | Handling of missions, comparable to the WebGUI.                                                 | no       | GameMaster                            | [README](./plugins/mission/README.md)       |
+|:--------------|:------------------------------------------------------------------------------------------------|:--------:|:--------------------------------------|:--------------------------------------------|
+| GameMaster    | Interaction with the running mission (inform users, set flags, etc)                             |    no    |                                       | [README](./plugins/gamemaster/README.md)    |
+| Mission       | Handling of missions, comparable to the WebGUI.                                                 |    no    | GameMaster                            | [README](./plugins/mission/README.md)       |
 | Admin         | Admin commands to manage your DCS server.                                                       | yes[^1]  |                                       | [README](./plugins/admin/README.md)         |
 | Help          | Interactive help commands for Discord and in-game chat                                          | yes[^1]  |                                       | [README](./plugins/help/README.md)          |
 | UserStats     | Users statistics system.                                                                        | yes[^1]  | Mission                               | [README](./plugins/userstats/README.md)     |
@@ -72,28 +73,29 @@ from time to time, but you as a community member can also create your own plugin
 | Cloud         | Cloud-based statistics and connection to the [DGSA](#dgsa) global ban system.                   | yes[^1]  | Userstats                             | [README](./plugins/cloud/README.md)         |
 | MissionStats  | Detailed users statistics / mission statistics.                                                 | yes[^1]  | Userstats                             | [README](./plugins/missionstats/README.md)  |
 | Monitoring    | Monitoring and sstatistics for your DCS servers.                                                | yes[^1]  | Userstats                             | [README](plugins/monitoring/README.md)      |
-| Backup        | Create a backup of your database, server or bot configurations.                                 | yes      |                                       | [README](./plugins/backup/README.md)        |
-| Battleground  | Support for [DCS Battleground](https://github.com/Frigondin/DCSBattleground)                    | yes      |                                       | [README](./plugins/battleground/README.md)  |
-| Battleground2 | Support for the new version of [DCS Battleground](https://github.com/Frigondin/DCSBattleground) | yes      |                                       | [README](./plugins/battleground2/README.md) |
-| Commands      | Create custom discord commands.                                                                 | yes      |                                       | [README](./plugins/commands/README.md)      |
-| Competitive   | Support for PvP communities, especially with TrueSkill™️ ranking system.                        | yes      | Mission                               | [README](./plugins/competitive/README.md)   |
-| DBExporter    | Export the DCSServerBot database or singular tables as json.                                    | yes      |                                       | [README](./plugins/dbexporter/README.md)    |
-| Discord       | Discord helper commands.                                                                        | yes      |                                       | [README](./plugins/discord/README.md)       |
-| FunkMan       | Support for [FunkMan](https://github.com/funkyfranky/FunkMan)                                   | yes      |                                       | [README](./plugins/funkman/README.md)       |
-| GreenieBoard  | Greenieboard and LSO quality mark analysis (Super Carrier and Moose.AIRBOSS / FunkMan)          | yes      | Missionstats                          | [README](./plugins/greenieboard/README.md)  |
-| LotAtc        | Upload LotAtc Transponder files to your servers.                                                | yes      |                                       | [README](./plugins/lotatc/README.md)        |
-| MOTD          | Message for players on join or when they jump in a module.                                      | yes      | Mission, MissionStats                 | [README](./plugins/motd/README.md)          |
-| Music         | Upload and play music over SRS.                                                                 | yes      |                                       | [README](./plugins/music/README.md)         |
-| ModManager    | Install or update mods into your DCS server.                                                    | yes      |                                       | [README](./plugins/modmanager/README.md)    |
-| Pretense      | Commands for Pretense missions.                                                                 | yes      |                                       | [README](./plugins/pretense/README.md)      |
-| Punishment    | Punish users for team-hits or team-kills.                                                       | yes      | Mission                               | [README](./plugins/punishment/README.md)    |
-| RealWeather   | Apply real weather to your missions (also available as an extension).                           | yes      |                                       | [README](./plugins/realweather/README.md)   |
-| RestAPI       | Simple REST-API to query users and statistics (WIP).                                            | yes      | Userstats, MissionStats               | [README](./plugins/restapi/README.md)       |
-| SlotBlocking  | Slot blocking either based on discord roles or credits.                                         | yes      | Mission, CreditSystem                 | [README](./plugins/slotblocking/README.md)  |
-| SRS           | Display players activity on SRS, show active channels and enable slot blocking.                 | yes      | MissionStats                          | [README](./plugins/srs/README.md)           |
-| Tacview       | Install or uninstall Tacview from your server(s) and do a basic configuration.                  | yes      |                                       | [README](./plugins/tacview/README.md)       |
-| Tournament    | A full fledged tournament system for your group.                                                | yes      | GameMaster, MissionStats, Competitive | [README](./plugins/tournament/README.md)    |
-| Voting        | Simple voting system for players to be able to change missions, weather, etc.                   | yes      |                                       | [README](./plugins/voting/README.md)        |
+| Backup        | Create a backup of your database, server or bot configurations.                                 |   yes    |                                       | [README](./plugins/backup/README.md)        |
+| Battleground  | Support for [DCS Battleground](https://github.com/Frigondin/DCSBattleground)                    |   yes    |                                       | [README](./plugins/battleground/README.md)  |
+| Battleground2 | Support for the new version of [DCS Battleground](https://github.com/Frigondin/DCSBattleground) |   yes    |                                       | [README](./plugins/battleground2/README.md) |
+| Commands      | Create custom discord commands.                                                                 |   yes    |                                       | [README](./plugins/commands/README.md)      |
+| Competitive   | Support for PvP communities, especially with TrueSkill™️ ranking system.                        |   yes    | Mission                               | [README](./plugins/competitive/README.md)   |
+| DBExporter    | Export the DCSServerBot database or singular tables as json.                                    |   yes    |                                       | [README](./plugins/dbexporter/README.md)    |
+| Debug         | Enables debug logging of DCS Hook- and MSE-events into the dcs.log or extra logfiles.           |   yes    |                                       | [README](./plugins/debug/README.md)         |
+| Discord       | Discord helper commands.                                                                        |   yes    |                                       | [README](./plugins/discord/README.md)       |
+| FunkMan       | Support for [FunkMan](https://github.com/funkyfranky/FunkMan)                                   |   yes    |                                       | [README](./plugins/funkman/README.md)       |
+| GreenieBoard  | Greenieboard and LSO quality mark analysis (Super Carrier and Moose.AIRBOSS / FunkMan)          |   yes    | Missionstats                          | [README](./plugins/greenieboard/README.md)  |
+| LotAtc        | Upload LotAtc Transponder files to your servers.                                                |   yes    |                                       | [README](./plugins/lotatc/README.md)        |
+| MOTD          | Message for players on join or when they jump in a module.                                      |   yes    | Mission, MissionStats                 | [README](./plugins/motd/README.md)          |
+| Music         | Upload and play music over SRS.                                                                 |   yes    |                                       | [README](./plugins/music/README.md)         |
+| ModManager    | Install or update mods into your DCS server.                                                    |   yes    |                                       | [README](./plugins/modmanager/README.md)    |
+| Pretense      | Commands for Pretense missions.                                                                 |   yes    |                                       | [README](./plugins/pretense/README.md)      |
+| Punishment    | Punish users for team-hits or team-kills.                                                       |   yes    | Mission                               | [README](./plugins/punishment/README.md)    |
+| RealWeather   | Apply real weather to your missions (also available as an extension).                           |   yes    |                                       | [README](./plugins/realweather/README.md)   |
+| RestAPI       | Simple REST-API to query users and statistics (WIP).                                            |   yes    | Userstats, MissionStats               | [README](./plugins/restapi/README.md)       |
+| SlotBlocking  | Slot blocking either based on discord roles or credits.                                         |   yes    | Mission, CreditSystem                 | [README](./plugins/slotblocking/README.md)  |
+| SRS           | Display players activity on SRS, show active channels and enable slot blocking.                 |   yes    | MissionStats                          | [README](./plugins/srs/README.md)           |
+| Tacview       | Install or uninstall Tacview from your server(s) and do a basic configuration.                  |   yes    |                                       | [README](./plugins/tacview/README.md)       |
+| Tournament    | A full fledged tournament system for your group.                                                |   yes    | GameMaster, MissionStats, Competitive | [README](./plugins/tournament/README.md)    |
+| Voting        | Simple voting system for players to be able to change missions, weather, etc.                   |   yes    |                                       | [README](./plugins/voting/README.md)        |
 
 [^1] These plugins are loaded by the bot by default, but they are not mandatory to operate the bot.<br> 
 &nbsp;&nbsp;&nbsp;&nbsp;If you do not want to load any of them, define a list of `plugins` in your main.yaml and only<br>
@@ -110,17 +112,17 @@ Many DCS admins use extensions or add-ons like DCS-SRS, Tacview, LotAtc, etc.</b
 DCSServerBot supports some of them already and can add a bit of quality of life.
 
 | Extension   | Scope                                                                                                      | Documentation                                |
-|-------------|------------------------------------------------------------------------------------------------------------|----------------------------------------------|
+|:------------|:-----------------------------------------------------------------------------------------------------------|:---------------------------------------------|
 | Cloud       | Registers your servers to the cloud server list.                                                           | [README](./plugins/cloud/README.md)          |
 | DSMC        | DSMC mission handling, should be activated when dealing with DSMC missions.                                | [README](./extensions/dsmc/README.md)        |
-| gRPC        | Support gRPC, a communication framework with DCS World.                                                    | [README](./extensions/grpc/README.md)        |
 | GitHub      | Clone / update a Git repository into a directory on your server.                                           | [README](./extensions/github/README.md)      |
+| gRPC        | Support gRPC, a communication framework with DCS World.                                                    | [README](./extensions/grpc/README.md)        |
 | Lardoon     | Webgui for Tacview with search options.                                                                    | [README](./extensions/lardoon/README.md)     |
 | LogAnalyser | Analyses the dcs.log on the fly and does some helpful things. Activated per default.                       | [README](./extensions/loganalyser/README.md) |
 | LotAtc      | GCI- and ATC-extension for DCS World. Simple display only extension.                                       | [README](./extensions/lotatc/README.md)      |
 | MizEdit     | My own invention, can be used to modify your missions. Very powerful!                                      | [README](./extensions/mizedit/README.md)     |
-| Olympus     | Real-time control of your DCS missions through a map interface.                                            | [README](./extensions/olympus/README.md)     |
 | ModManager  | Use mods within your DCS World servers.                                                                    | [README](./extensions/modmanager/README.md)  |
+| Olympus     | Real-time control of your DCS missions through a map interface.                                            | [README](./extensions/olympus/README.md)     |
 | Pretense    | Dynamic campaign framework by Dzsek.                                                                       | [README](./extensions/pretense/README.md)    |
 | RealWeather | Real weather for your missions using DCS Real Weather.                                                     | [README](./extensions/realweather/README.md) |
 | SkyEye      | AI Powered GCI Bot for DCS                                                                                 | [README](./extensions/skyeye/README.md)      |
@@ -532,25 +534,28 @@ roles:                                          # Roles mapping. The bot uses in
 > for the Discord TOKEN. GitHub will automatically revoke it from Discord for security reasons.
 
 > [!IMPORTANT]
-> The bot role needs to be above any other role in your Discord server that it has to be able to manage.<br>
+> The bot role needs to be moved above any other role in your Discord server that it has to manage.<br>
 > If you, for example, want the bot to give the "Online" role to people, it has to be below the bot's role.
 
 > [!TIP]
-> The bot will remove the Discord TOKEN on the first startup from your bot.yaml.<br>
+> The bot will remove the Discord TOKEN from your bot.yaml on the first startup.<br>
 > If you want to replace the Discord TOKEN later, re-add the line into your bot.yaml and DCSServerBot will replace 
 > the internally saved Discord TOKEN with this one.
 > `token: NEW_TOKEN`
 
 ### Mission File Handling
-As DCSServerBot can change your missions by using specific extensions (MizEdit, DCS RealWeather, etc.) it can always 
-happen, that a mission gets replaced by something else. DCS locks the running mission, so I had to find a way of 
-creating a new mission without touching the running one, allowing smart mission changes during runtime (players should
-not be kicked on mission changes) and rollbacks to the original, not changed version of that mission.<br>
-To do so, DCSServerBot creates special mission files and even its own directory to handle mission changes.
+When modifying missions using tools like MizEdit or RealWeather, the DCSServerBot creates a copy of the mission file 
+that's currently being run. This is because the file is locked by the running DCS process, preventing direct 
+overwriting.
+The bot then loads the saved copy instead, ensuring smooth gameplay without interruptions or player disconnections. 
+In such cases, it also maintains the ability to roll back to the original, unmodified version of the mission if needed.
+For this purpose, DCSServerBot creates a directory .dcssb to save the original mission files (.orig) and copies of the 
+running mission, if needed.
 
 #### .dcssb sub-directory
 DCSServerBot creates its own directory below your Missions-directory. This is needed to allow changes of .miz files,
-that are locked by DCS. Whenever a Missions\x.miz file is locked, a similar file is created in Missions\.dcssb\x.miz. 
+that are locked by DCS (see above). Whenever a Missions\x.miz file is locked, a similar file is created in 
+Missions\.dcssb\x.miz. 
 This file is then changed and loaded. Whenever you change the mission again, the earlier file (Missions\x.miz) is 
 changed again. This happens in a round-robin way.
 
