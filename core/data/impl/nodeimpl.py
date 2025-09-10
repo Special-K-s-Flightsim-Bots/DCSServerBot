@@ -376,6 +376,7 @@ class NodeImpl(Node):
                                f"There is an instance already with the same server name or bot port.")
 
     async def update_db(self):
+        rc = 0
         # Initialize the cluster tables ...
         async with self.cpool.connection() as conn:
             async with conn.transaction():
@@ -434,10 +435,10 @@ class NodeImpl(Node):
                         cursor = await conn.execute('SELECT version FROM version')
                         self.db_version = (await cursor.fetchone())[0]
                         rc = await asyncio.to_thread(migrate, self.node, old_version, self.db_version)
-                        if rc != -2:
-                            self.log.info(f'- Database upgraded from {old_version} to {self.db_version}.')
-                        if rc in [-1, -2]:
-                            sys.exit(rc)
+        if rc != -2:
+            self.log.info(f'- Database upgraded from {old_version} to {self.db_version}.')
+        if rc in [-1, -2]:
+            sys.exit(rc)
 
     def install_plugins(self):
         for file in Path('plugins').glob('*.zip'):
