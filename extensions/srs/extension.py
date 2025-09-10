@@ -178,6 +178,12 @@ class SRS(Extension, FileSystemEventHandler):
                                            'radio_effect_override')
         dirty |= self._maybe_update_config('General Settings', 'GLOBAL_LOBBY_FREQUENCIES',
                                            'global_lobby_frequencies')
+        # new HTTP server (as of SRS 2.3)
+        dirty |= self._maybe_update_config('Server Settings', 'HTTP_SERVER_ENABLED',
+                                           'http_server_enabled')
+        dirty |= self._maybe_update_config('Server Settings', 'HTTP_SERVER_PORT',
+                                           'http_server_port')
+
         extension = self.server.extensions.get('LotAtc')
         if extension:
             self.config['lotatc'] = True

@@ -1,10 +1,23 @@
 schema;node_srs_schema:
   type: map
   nullable: false
-  allowempty: true
+  allowempty: true  # allow additional parameters
   mapping:
     installation: {type: str, nullable: false, range: {min: 1}, func: file_exists}
-    autoupdate: {type: any, nullable: false, func: bool_or_map, enum: ['autoupdate']}
+    autoupdate: {type: bool, nullable: false}
+    announce:
+      type: map
+      nullable: false
+      mapping:
+        channel: { type: int, nullable: false }
+        title: { type: str, nullable: false, range: { min: 1 } }
+        description: { type: str, nullable: false, range: { min: 1 } }
+        footer: { type: str, nullable: false, range: { min: 1 } }
+        mention:
+          type: seq
+          nullable: false
+          sequence:
+            - { type: text, nullable: false }
     beta: {type: bool, nullable: false}
     autostart: {type: bool, nullable: false}
     host: {type: str, nullable: false, range: {min: 1}}
@@ -20,10 +33,11 @@ schema;node_srs_schema:
     always_on: {type: bool, nullable: false}
     radio_effect_override: {type: bool, nullable: false}
     global_lobby_frequencies: {type: str, nullable: false, range: {min: 1}}
+
 schema;instance_srs_schema:
   type: map
   nullable: false
-  allowempty: true
+  allowempty: true  # allow additional parameters
   mapping:
     enabled: {type: bool, nullable: false}
     config: {type: str, required: true, nullable: false}
@@ -44,3 +58,5 @@ schema;instance_srs_schema:
     radio_effect_override: {type: bool, nullable: false}
     global_lobby_frequencies: {type: str, nullable: false, range: {min: 1}}
     lotatc_export_port: {type: int, nullable: false, func: unique_port}
+    http_server_enabled: {type: bool, nullable: false}
+    http_server_port: {type: int, nullable: false, func: unique_port}
