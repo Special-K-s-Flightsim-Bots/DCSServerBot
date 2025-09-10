@@ -435,8 +435,8 @@ class NodeImpl(Node):
                         cursor = await conn.execute('SELECT version FROM version')
                         self.db_version = (await cursor.fetchone())[0]
                         rc = await asyncio.to_thread(migrate, self.node, old_version, self.db_version)
-        if rc != -2:
-            self.log.info(f'- Database upgraded from {old_version} to {self.db_version}.')
+                        if rc != -2:
+                            self.log.info(f'- Database upgraded from {old_version} to {self.db_version}.')
         if rc in [-1, -2]:
             sys.exit(rc)
 
