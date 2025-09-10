@@ -208,8 +208,8 @@ def migrate_3_12(node: Node) -> int:
 def migrate_3_13(node: Node) -> int:
     ignore = ['.dcssb']
     nodes = yaml.load(Path(os.path.join(node.config_dir, 'nodes.yaml')).read_text(encoding='utf-8'))
-    for node in nodes:
-        for name, instance in nodes[node].get('instances', {}).items():
+    for data in nodes:
+        for name, instance in nodes[data].get('instances', {}).items():
             home = os.path.expandvars(instance.get('home', os.path.join(SAVED_GAMES, name)))
             missions_dir = instance.get('missions_dir', os.path.join(home, 'Missions'))
             for file in Path(missions_dir).rglob('*.orig'):
@@ -224,20 +224,20 @@ def migrate_3_13(node: Node) -> int:
 def migrate_3_15(node: Node) -> int:
     file = Path(os.path.join(node.config_dir, 'nodes.yaml'))
     nodes = yaml.load(file.read_text(encoding='utf-8'))
-    data = nodes[node.name]
     dirty = False
-    if isinstance(data.get('DCS', {}).get('autoupdate'), dict):
-        data['DCS']['announce'] = data['DCS'].pop('autoupdate')
-        data['DCS']['autoupdate'] = True
-        dirty = True
-
-    for name, extension in data['extensions'].items():
-        if name not in ['SRS', 'LotAtc']:
-            continue
-        if isinstance(extension.get('autoupdate'), dict):
-            extension['announce'] = extension.pop('autoupdate')
-            extension['autoupdate'] = True
+    for data in nodes:
+        if isinstance(data.get('DCS', {}).get('autoupdate'), dict):
+            data['DCS']['announce'] = data['DCS'].pop('autoupdate')
+            data['DCS']['autoupdate'] = True
             dirty = True
+
+        for name, extension in data['extensions'].items():
+            if name not in ['SRS', 'LotAtc']:
+                continue
+            if isinstance(extension.get('autoupdate'), dict):
+                extension['announce'] = extension.pop('autoupdate')
+                extension['autoupdate'] = True
+                dirty = True
 
     if dirty:
         with open(file, mode='w', encoding='utf-8') as outfile:
