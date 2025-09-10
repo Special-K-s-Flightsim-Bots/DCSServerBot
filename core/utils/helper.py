@@ -485,9 +485,12 @@ def async_cache(func):
         # Convert unhashable types to hashable forms
         hashable_args = []
         for k, v in bound_args.arguments.items():
-            if k not in ["interaction"]:
+            if k not in ["interaction"]:  # Removed "self" from exclusion list
+                # For the self-parameter, use its id as part of the key
+                if k == "self":
+                    hashable_args.append(id(v))
                 # Convert lists to tuples, and handle nested lists
-                if isinstance(v, list):
+                elif isinstance(v, list):
                     hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
                 else:
                     hashable_args.append(v)
@@ -533,12 +536,14 @@ def cache_with_expiration(expiration: int):
             # Convert unhashable types to hashable forms
             hashable_args = []
             for k, v in bound_args.arguments.items():
-                if k not in ["interaction"]:
-                    # Convert lists to tuples, and handle nested lists
-                    if isinstance(v, list):
-                        hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
-                    else:
-                        hashable_args.append(v)
+                # For the self-parameter, use its id as part of the key
+                if k == "self":
+                    hashable_args.append(id(v))
+                # Convert lists to tuples, and handle nested lists
+                elif isinstance(v, list):
+                    hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
+                else:
+                    hashable_args.append(v)
 
             # Use tuple instead of frozenset to preserve order and handle nested structures
             arg_tuple = tuple(hashable_args)

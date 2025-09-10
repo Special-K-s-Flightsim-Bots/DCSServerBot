@@ -281,9 +281,8 @@ if __name__ == "__main__":
                 Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
                 rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
     except PermissionError as ex:
-        # do not restart again
         log.error(f"There is a permission error: {ex}", exc_info=True)
-        log.error(f"Did you run DCSServerBot as Admin before? If yes, delete dcssb_{args.node}.pid and try again.")
+        # do not restart again
         exit(-2)
     except PidFileError:
         log.error(f"Process already running for node {args.node}!")
