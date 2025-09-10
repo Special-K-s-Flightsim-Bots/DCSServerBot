@@ -208,8 +208,8 @@ def migrate_3_12(node: Node) -> int:
 def migrate_3_13(node: Node) -> int:
     ignore = ['.dcssb']
     nodes = yaml.load(Path(os.path.join(node.config_dir, 'nodes.yaml')).read_text(encoding='utf-8'))
-    for data in nodes:
-        for name, instance in nodes[data].get('instances', {}).items():
+    for name in nodes.keys():
+        for name, instance in nodes[name].get('instances', {}).items():
             home = os.path.expandvars(instance.get('home', os.path.join(SAVED_GAMES, name)))
             missions_dir = instance.get('missions_dir', os.path.join(home, 'Missions'))
             for file in Path(missions_dir).rglob('*.orig'):
@@ -225,7 +225,7 @@ def migrate_3_15(node: Node) -> int:
     file = Path(os.path.join(node.config_dir, 'nodes.yaml'))
     nodes = yaml.load(file.read_text(encoding='utf-8'))
     dirty = False
-    for data in nodes:
+    for data in nodes.values():
         if isinstance(data.get('DCS', {}).get('autoupdate'), dict):
             data['DCS']['announce'] = data['DCS'].pop('autoupdate')
             data['DCS']['autoupdate'] = True
