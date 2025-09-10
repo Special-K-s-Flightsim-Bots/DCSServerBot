@@ -138,6 +138,8 @@ def migrate(node: Node, old_version: str, new_version: str) -> int:
         return migrate_3_12(node)
     elif old_version == 'v3.12' and new_version == 'v3.13':
         return migrate_3_13(node)
+    elif old_version == 'v3.14' and new_version == 'v3.15':
+        return migrate_3_15(node)
     return 0
 
 def migrate_3_11(node: Node) -> int:
@@ -162,10 +164,15 @@ def migrate_3_11(node: Node) -> int:
 
 
 def migrate_3_12(node: Node) -> int:
+    filename = os.path.join(node.config_dir, 'services', 'scheduler.yaml')
+    if os.path.exists(filename):
+        shutil.move(filename, os.path.join(node.config_dir, 'services', 'core.yaml'))
+
     filename = os.path.join(node.config_dir, 'main.yaml')
     if not os.path.exists(filename):
         node.log.error('main.yaml not found. Exiting.')
         return -2
+
     with open(filename, mode='r', encoding='utf-8') as infile:
         data = yaml.load(infile)
     if 'ovgme' in data.get('opt_plugins', []):
@@ -195,9 +202,6 @@ def migrate_3_12(node: Node) -> int:
                 yaml.dump(data, outfile)
             node.log.info("  => node.yaml auto-migrated, please check")
         return -1
-    filename = os.path.join(node.config_dir, 'services', 'scheduler.yaml')
-    if os.path.exists(filename):
-        shutil.move(filename, os.path.join(node.config_dir, 'services', 'core.yaml'))
     return 0
 
 
@@ -215,6 +219,33 @@ def migrate_3_13(node: Node) -> int:
                 os.makedirs(os.path.dirname(new_file), exist_ok=True)
                 shutil.move(file, new_file)
     return 0
+
+
+def migrate_3_15(node: Node) -> int:
+    file = Path(os.path.join(node.config_dir, 'nodes.yaml'))
+    nodes = yaml.load(file.read_text(encoding='utf-8'))
+    data = nodes[node.name]
+    dirty = False
+    if isinstance(data.get('DCS', {}).get('autoupdate'), dict):
+        data['DCS']['announce'] = data['DCS'].pop('autoupdate')
+        data['DCS']['autoupdate'] = True
+        dirty = True
+
+    for name, extension in data['extensions'].items():
+        if name not in ['SRS', 'LotAtc']:
+            continue
+        if isinstance(extension.get('autoupdate'), dict):
+            extension['announce'] = extension.pop('autoupdate')
+            extension['autoupdate'] = True
+            dirty = True
+
+    if dirty:
+        with open(file, mode='w', encoding='utf-8') as outfile:
+            yaml.dump(nodes, outfile)
+        node.log.info("  => node.yaml auto-migrated, please check")
+        return -1
+    return 0
+
 
 def migrate_3(node: str):
     cfg = ConfigParser()

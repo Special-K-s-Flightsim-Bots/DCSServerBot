@@ -433,8 +433,11 @@ class NodeImpl(Node):
                                 await conn.execute(query.rstrip())
                         cursor = await conn.execute('SELECT version FROM version')
                         self.db_version = (await cursor.fetchone())[0]
-                        await asyncio.to_thread(migrate, self.node, old_version, self.db_version)
-                        self.log.info(f'- Database upgraded from {old_version} to {self.db_version}.')
+                        rc = await asyncio.to_thread(migrate, self.node, old_version, self.db_version)
+                        if rc != -2:
+                            self.log.info(f'- Database upgraded from {old_version} to {self.db_version}.')
+                        if rc in [-1, -2]:
+                            sys.exit(rc)
 
     def install_plugins(self):
         for file in Path('plugins').glob('*.zip'):
@@ -1067,8 +1070,8 @@ class NodeImpl(Node):
                     "message": f"DCS World updated to version {version} on node {self.node.name}."
                 }
             })
-            if announce and isinstance(self.locals['DCS'].get('autoupdate'), dict):
-                config = self.locals['DCS'].get('autoupdate')
+            config = self.config.get('announce')
+            if config and announce:
                 embed = discord.Embed(
                     colour=discord.Colour.blue(),
                     title=config.get(

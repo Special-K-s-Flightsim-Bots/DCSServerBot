@@ -309,8 +309,8 @@ class LotAtc(Extension, FileSystemEventHandler):
                         "message": f"{self.name} updated to version {version} on node {self.node.name}."
                     }
                 })
-                if isinstance(self.config.get('autoupdate'), dict):
-                    config = self.config.get('autoupdate')
+                config = self.config.get('announce')
+                if config:
                     servers = []
                     for instance in self.node.instances:
                         if (instance.locals.get('extensions', {}).get(self.name) and

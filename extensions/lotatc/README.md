@@ -13,12 +13,12 @@ MyNode:
     LotAtc:
       installation: '%ProgramFiles%\LotAtc' # the installation path to your LotAtc installation
       autoupdate: true                      # auto update LotAtc, if a new version is available online (default: false)
-#      autoupdate:           # alternative configuration with a message being posted to Discord after every update
-#        title: LotAtc has been updated to version {}!
-#        description: 'The following servers will be updated on the next restart:'
-#        footer: Please make sure you update your LotAtc client also!
-#        mention:            # Optional mentioning
-#          - DCS
+      announce:             # Optional: post a message to Discord after every update
+        title: LotAtc has been updated to version {}!
+        description: 'The following servers will be updated on the next restart:'
+        footer: Please make sure you update your LotAtc client also!
+        mention:            # Optional mentioning
+          - DCS
   instances:
     DCS.release_server:
       # [...]

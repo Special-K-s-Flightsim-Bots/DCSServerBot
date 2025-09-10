@@ -356,14 +356,14 @@ NODENAME:                       # this will usually be your hostname
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.
-#    autoupdate:                 # alternative configuration with a message being posted to Discord after every update
-#      channel: 11223344556677
-#      title: DCS has been updated to version {}!
-#      description: 'The following servers have been updated:'
-#      footer: Please make sure you update your DCS client to join!
-#      mention:                  # Optional mentioning
-#        - Admin
-#        - DCS Admin
+    announce:                   # Optional: post a message to Discord after every update
+      channel: 11223344556677
+      title: DCS has been updated to version {}!
+      description: 'The following servers have been updated:'
+      footer: Please make sure you update your DCS client to join!
+      mention:                  # Optional mentioning
+        - Admin
+        - DCS Admin
     use_upnp: true              # Do you want to use UPnP to forward your DCS ports automatically? If not set, the global setting will be used.
     cloud: true                 # If you have installed DCS on a NAS or cloud drive, autoupdate and desanitization will only take place once on all your nodes.
     desanitize: true            # Desanitize your MissionScripting.lua after each update. Default is true.
