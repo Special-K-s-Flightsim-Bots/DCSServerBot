@@ -14,8 +14,8 @@ schema;default_schema:
   type: map
   nullable: false
   mapping:
-    SavedGames: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
-    RootFolder: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
+    SavedGames: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
+    RootFolder: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
     packages:
       include: 'package_schema'
 

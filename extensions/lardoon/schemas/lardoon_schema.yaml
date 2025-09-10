@@ -16,4 +16,4 @@ schema;instance_lardoon_schema:
     minutes: {type: int, nullable: false}
     bind: {type: str, pattern: '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5}', nullable: false}
     url: {type: url, nullable: false}
-    tacviewExportPath: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+    tacviewExportPath: {type: str, nullable: false, range: {min: 1}, func: dir_exists}

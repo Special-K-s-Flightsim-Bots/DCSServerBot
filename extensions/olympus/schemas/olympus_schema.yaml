@@ -2,7 +2,7 @@ schema;node_olympus_schema:
   type: map
   nullable: false
   mapping:
-    nodejs: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+    nodejs: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
     debug: {type: bool, nullable: false}
     show_passwords: {type: bool, nullable: false}
     authentication:
@@ -46,7 +46,7 @@ schema;instance_olympus_schema:
       required: true
       allowempty: true
       mapping:
-        path: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+        path: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
         port: {type: int, required: true, nullable: false, func: unique_port}
         customAuthHeaders:
           type: map
@@ -85,6 +85,6 @@ schema;instance_olympus_schema:
       type: map
       nullable: false
       mapping:
-        SRSPort: {type: int, nullable: false, func: unique_port}
+        SRSPort: {type: int, nullable: false, func: obsolete}
         WSPort: {required: true, type: int, nullable: false, func: unique_port}
         WSEndpoint: {type: str, nullable: false, range: {min: 1}}

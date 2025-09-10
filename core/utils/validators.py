@@ -116,8 +116,20 @@ def get_node_data() -> NodeData:
 
 def file_exists(value, _, path):
     if path and path.split("/")[1] in [DEFAULT_TAG, COMMAND_LINE_ARGS.node]:
-        if not os.path.exists(os.path.expandvars(value)):
-            raise SchemaError(msg=f'File "{value}" does not exist', path=path)
+        filename = os.path.expandvars(value)
+        if not os.path.exists(filename) or not os.path.isfile(filename):
+            raise SchemaError(msg=f'File "{value}" does not exist or is no file', path=path)
+    return True
+
+def dir_exists(value, _, path):
+    if path and path.split("/")[1] in [DEFAULT_TAG, COMMAND_LINE_ARGS.node]:
+        filename = os.path.expandvars(value)
+        if not os.path.exists(filename) or not os.path.isdir(filename):
+            raise SchemaError(msg=f'Directory "{value}" does not exist or is no directory', path=path)
+    return True
+
+def obsolete(value, rule, path):
+    logger.warning(f'"{os.path.basename(path)}" is obsolete and will be set by the bot: Path "{path}"')
     return True
 
 def unique_port(value, _, path):

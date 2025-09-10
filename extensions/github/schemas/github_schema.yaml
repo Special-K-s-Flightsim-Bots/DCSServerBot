@@ -4,5 +4,5 @@ schema;github_schema:
   mapping:
     enabled: {type: bool, nullable: false}
     repo: {type: url, required: true, nullable: false}
-    target: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
+    target: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
     filter: {type: str, nullable: false, range: {min: 1}}

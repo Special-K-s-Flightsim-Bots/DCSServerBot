@@ -26,7 +26,7 @@ mapping:
         type: map
         nullable: false
         mapping:
-          installation: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
+          installation: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
           autoupdate: {type: bool, nullable: false}
           announce:
             type: map
@@ -65,8 +65,8 @@ mapping:
             type: map
             nullable: false
             mapping:
-              home: {type: str, nullable: false, range: {min: 1}, func: file_exists}
-              missions_dir: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+              home: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
+              missions_dir: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
               mission_rewrite: {type: bool, nullable: false}
               autoscan: {type: bool, nullable: false}
               bot_port: {type: int, required: true, nullable: false, func: unique_port}

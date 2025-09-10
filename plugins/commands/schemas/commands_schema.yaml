@@ -4,7 +4,7 @@ schema;cmd_execute_schema:
   mapping:
     cmd: {type: str, required: true, nullable: false, range: {min: 1}}
     args: {type: str, nullable: false, range: {min: 1}}
-    cwd: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+    cwd: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
     shell: {type: bool, nullable: false}
 
 schema;cmd_event_schema:

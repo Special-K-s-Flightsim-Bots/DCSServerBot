@@ -11,7 +11,7 @@ mapping:
         type: map
         nullable: false
         mapping:
-          path: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
+          path: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
           password: {type: str, nullable: false}
           schedule:
             type: map
@@ -63,7 +63,7 @@ mapping:
                 nullable: false
                 range: {min: 1}
                 unique: true
-                func: file_exists
+                func: dir_exists
           schedule:
             type: map
             nullable: false

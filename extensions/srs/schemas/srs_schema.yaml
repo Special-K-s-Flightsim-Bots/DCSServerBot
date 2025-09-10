@@ -3,7 +3,7 @@ schema;node_srs_schema:
   nullable: false
   allowempty: true  # allow additional parameters
   mapping:
-    installation: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+    installation: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
     autoupdate: {type: bool, nullable: false}
     announce:
       type: map
