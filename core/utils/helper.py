@@ -481,8 +481,20 @@ def async_cache(func):
         signature = inspect.signature(func)
         bound_args = signature.bind(*args, **kwargs)
         bound_args.apply_defaults()
-        arg_set = frozenset(v for k, v in bound_args.arguments.items() if k not in ["self", "interaction"])
-        cache_key = (func.__name__, arg_set)
+
+        # Convert unhashable types to hashable forms
+        hashable_args = []
+        for k, v in bound_args.arguments.items():
+            if k not in ["self", "interaction"]:
+                # Convert lists to tuples, and handle nested lists
+                if isinstance(v, list):
+                    hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
+                else:
+                    hashable_args.append(v)
+
+        # Use tuple instead of frozenset to preserve order and handle nested structures
+        arg_tuple = tuple(hashable_args)
+        cache_key = (func.__name__, arg_tuple)
         return cache_key
 
     @functools.wraps(func)
@@ -517,8 +529,20 @@ def cache_with_expiration(expiration: int):
             signature = inspect.signature(func)
             bound_args = signature.bind(*args, **kwargs)
             bound_args.apply_defaults()
-            arg_set = frozenset(v for k, v in bound_args.arguments.items() if k not in ["self", "interaction"])
-            cache_key = (func.__name__, arg_set)
+
+            # Convert unhashable types to hashable forms
+            hashable_args = []
+            for k, v in bound_args.arguments.items():
+                if k not in ["self", "interaction"]:
+                    # Convert lists to tuples, and handle nested lists
+                    if isinstance(v, list):
+                        hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
+                    else:
+                        hashable_args.append(v)
+
+            # Use tuple instead of frozenset to preserve order and handle nested structures
+            arg_tuple = tuple(hashable_args)
+            cache_key = (func.__name__, arg_tuple)
             return cache_key
 
         def check_cache(cache_key):
