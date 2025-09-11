@@ -231,7 +231,7 @@ def migrate_3_15(node: Node) -> int:
             data['DCS']['autoupdate'] = True
             dirty = True
 
-        for name, extension in data['extensions'].items():
+        for name, extension in data.get('extensions', {}).items():
             if name not in ['SRS', 'LotAtc']:
                 continue
             if isinstance(extension.get('autoupdate'), dict):
