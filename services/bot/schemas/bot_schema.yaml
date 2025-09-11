@@ -75,7 +75,6 @@ mapping:
       DCS:
         type: seq
         nullable: false
-        required: true
         sequence:
           - type: text
             nullable: false
