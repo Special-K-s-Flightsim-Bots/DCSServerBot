@@ -1,13 +1,13 @@
 import asyncio
 import os
 import subprocess
+import sys
 import time
-import winreg
-from pathlib import Path
 
 from core import ServiceRegistry, Service, utils
 from datetime import datetime
 from discord.ext import tasks
+from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 from zipfile import ZipFile
@@ -60,6 +60,8 @@ class BackupService(Service):
 
     @staticmethod
     def get_postgres_installations() -> list[dict]:
+        import winreg
+
         postgres_installations = []
         try:
             with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\PostgreSQL\Installations") as key:
@@ -82,10 +84,11 @@ class BackupService(Service):
         return postgres_installations
 
     async def get_postgres_installation(self) -> Optional[str]:
-        # check the registry
-        installations = self.get_postgres_installations()
-        if len(installations) == 1 and os.path.exists(installations[0]['location']):
-            return installations[0]['location']
+        if sys.platform == 'win32':
+            # check the registry
+            installations = self.get_postgres_installations()
+            if len(installations) == 1 and os.path.exists(installations[0]['location']):
+                return installations[0]['location']
 
         # we could not find the installation in the registry, so ask the database itself
         async with self.node.apool.connection() as conn:

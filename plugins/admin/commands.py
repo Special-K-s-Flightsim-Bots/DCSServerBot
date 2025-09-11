@@ -4,6 +4,7 @@ import discord
 import os
 import psycopg
 import shutil
+import sys
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
     PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, async_cache
@@ -1034,6 +1035,7 @@ Please make sure you forward the following ports:
 
     @node_group.command(description=_("Shows CPU topology"))
     @app_commands.guild_only()
+    @app_commands.check(lambda interaction: sys.platform == 'win32')
     @utils.app_has_role('Admin')
     async def cpuinfo(self, interaction: discord.Interaction,
                       node: app_commands.Transform[Node, utils.NodeTransformer]):

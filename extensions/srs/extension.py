@@ -391,13 +391,13 @@ class SRS(Extension, FileSystemEventHandler):
                     raise InstallException(
                         f"The {self.name} installation dir could not be found at {self.config.get('installation')}!")
             elif sys.platform == 'win32':
-                    import winreg
+                import winreg
 
-                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\DCS-SR-Standalone", 0)
-                    self._inst_path = winreg.QueryValueEx(key, 'SRPathStandalone')[0]
-                    if not os.path.exists(self._inst_path):
-                        raise InstallException(f"Can't detect the {self.name} installation dir, "
-                                               "please specify it manually in your nodes.yaml!")
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\DCS-SR-Standalone", 0)
+                self._inst_path = winreg.QueryValueEx(key, 'SRPathStandalone')[0]
+                if not os.path.exists(self._inst_path):
+                    raise InstallException(f"Can't detect the {self.name} installation dir, "
+                                           "please specify it manually in your nodes.yaml!")
             else:
                 self._inst_path = os.path.join(os.path.expandvars('%ProgramFiles%'), 'DCS-SimpleRadio-Standalone')
                 if not os.path.exists(self._inst_path):
