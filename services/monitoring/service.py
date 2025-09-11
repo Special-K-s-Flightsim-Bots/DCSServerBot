@@ -45,12 +45,13 @@ class MonitoringService(Service):
 
     async def start(self):
         await super().start()
-        install_drive = os.path.splitdrive(os.path.expandvars(self.node.locals['DCS']['installation']))[0]
-        self.space_warning_sent[install_drive] = False
-        self.space_alert_sent[install_drive] = False
-        if install_drive != 'C:':
-            self.space_warning_sent['C:'] = False
-            self.space_alert_sent['C:'] = False
+        if sys.platform == 'win32' and 'DCS' in self.node.locals:
+            install_drive = os.path.splitdrive(os.path.expandvars(self.node.locals['DCS']['installation']))[0]
+            self.space_warning_sent[install_drive] = False
+            self.space_alert_sent[install_drive] = False
+            if install_drive != 'C:':
+                self.space_warning_sent['C:'] = False
+                self.space_alert_sent['C:'] = False
         self.check_autoexec()
         self.monitoring.add_exception_type(psycopg.DatabaseError)
         self.monitoring.start()
