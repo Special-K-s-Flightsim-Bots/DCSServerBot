@@ -162,6 +162,7 @@ class Mission(Plugin[MissionEventListener]):
                 await migrate_function(self)
             else:
                 migrate_function(self)
+            self.locals = self.read_locals()
 
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
         await conn.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))

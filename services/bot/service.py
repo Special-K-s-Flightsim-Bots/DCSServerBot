@@ -105,7 +105,7 @@ class BotService(Service):
                             locals=self.locals)
         else:
             def get_prefix(client, message):
-                prefixes = [self.locals.get('command_prefix', '.')]
+                prefixes = []
                 # Allow users to @mention the bot instead of using a prefix
                 return commands.when_mentioned_or(*prefixes)(client, message)
 

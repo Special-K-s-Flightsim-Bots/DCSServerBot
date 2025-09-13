@@ -298,14 +298,6 @@ def migrate_3(node: str):
                 if plugin_name in ['backup', 'ovgme', 'music']:
                     shutil.move(f'config/plugins/{plugin_name}.yaml', f'config/services/{plugin_name}.yaml')
                     print(f"- Migrated config/{plugin_name}.json to config/services/{plugin_name}.yaml")
-                elif plugin_name == 'commands':
-                    data = yaml.load(Path('config/plugins/commands.yaml').read_text(encoding='utf-8'))
-                    data[DEFAULT_TAG] = {
-                        "command_prefix": cfg['BOT']['COMMAND_PREFIX']
-                    }
-                    with open('config/plugins/commands.yaml', mode='w', encoding='utf-8') as out:
-                        yaml.dump(data, out)
-                    print("- Migrated config/commands.json to config/plugins/commands.yaml")
                 else:
                     print(f"- Migrated config/{plugin_name}.json to config/plugins/{plugin_name}.yaml")
 

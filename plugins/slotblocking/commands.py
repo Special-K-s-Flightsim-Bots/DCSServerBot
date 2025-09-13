@@ -64,6 +64,7 @@ class SlotBlocking(Plugin[SlotBlockingListener]):
                 server_data[DEFAULT_TAG].pop('message_server_full', None)
             with open(server_config, mode='w', encoding='utf-8') as outfile:
                 yaml.dump(server_data, outfile)
+        self.locals = self.read_locals()
 
     def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
                    use_cache: Optional[bool] = True) -> dict:

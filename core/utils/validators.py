@@ -30,6 +30,7 @@ _types: dict[Type, str] = {
 
 __all__ = [
     "file_exists",
+    "dir_exists",
     "seq_or_map",
     "bool_or_map",
     "str_or_map",
@@ -115,15 +116,21 @@ def get_node_data() -> NodeData:
     return NodeData()
 
 def file_exists(value, _, path):
-    if path and path.split("/")[1] in [DEFAULT_TAG, COMMAND_LINE_ARGS.node]:
+    if path and path.split("/")[1] in [DEFAULT_TAG, COMMAND_LINE_ARGS.node, 'backups', 'commands']:
         filename = os.path.expandvars(value)
+        # do not check files with replacements
+        if '{' in filename:
+            return True
         if not os.path.exists(filename) or not os.path.isfile(filename):
             raise SchemaError(msg=f'File "{value}" does not exist or is no file', path=path)
     return True
 
 def dir_exists(value, _, path):
-    if path and path.split("/")[1] in [DEFAULT_TAG, COMMAND_LINE_ARGS.node]:
+    if path and path.split("/")[1] in [DEFAULT_TAG, COMMAND_LINE_ARGS.node, 'backups', 'commands']:
         filename = os.path.expandvars(value)
+        # do not check dirs with replacements
+        if '{' in filename:
+            return True
         if not os.path.exists(filename) or not os.path.isdir(filename):
             raise SchemaError(msg=f'Directory "{value}" does not exist or is no directory', path=path)
     return True

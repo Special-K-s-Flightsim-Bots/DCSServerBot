@@ -142,8 +142,11 @@ class Monitoring(Plugin[MonitoringListener]):
                             }
                         )
                 os.remove(plugin_yaml)
+                self.locals = self.read_locals()
             if service:
                 yaml.dump(service, Path(service_yaml).open('w', encoding='utf-8'))
+                await ServiceRegistry.get(MonitoringService).stop()
+                await ServiceRegistry.get(MonitoringService).start()
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
                     server: Optional[str] = None) -> None:

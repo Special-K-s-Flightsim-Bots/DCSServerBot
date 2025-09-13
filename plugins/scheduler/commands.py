@@ -91,6 +91,7 @@ class Scheduler(Plugin[SchedulerListener]):
                 change_instance(instance)
         with open(config, mode='w', encoding='utf-8') as outfile:
             yaml.dump(data, outfile)
+        self.locals = self.read_locals()
 
     @staticmethod
     async def check_server_state(server: Server, config: dict) -> Status:

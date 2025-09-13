@@ -22,7 +22,7 @@ from discord.ext import commands, tasks
 from discord.utils import MISSING, _shorten
 from packaging.version import parse
 from pathlib import Path
-from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List, Generic
+from typing import Type, Optional, TYPE_CHECKING, Union, Any, Callable, Generic
 
 from .const import DEFAULT_TAG
 from .listener import TEventListener
@@ -59,7 +59,7 @@ def command(
     description: Union[str, locale_str] = MISSING,
     nsfw: bool = False,
     auto_locale_strings: bool = True,
-    extras: Dict[Any, Any] = MISSING,
+    extras: dict[Any, Any] = MISSING,
 ) -> Callable[[CommandCallback[GroupT, P, T]], Command[GroupT, P, T]]:
     """Creates an application command from a regular function.
 
@@ -122,9 +122,9 @@ class Command(app_commands.Command[GroupT, P, T]):
         callback: CommandCallback[GroupT, P, T],
         nsfw: bool = False,
         parent: Optional[Group] = None,
-        guild_ids: Optional[List[int]] = None,
+        guild_ids: Optional[list[int]] = None,
         auto_locale_strings: bool = True,
-        extras: Dict[Any, Any] = MISSING,
+        extras: dict[Any, Any] = MISSING,
     ):
         from services.bot import BotService
 
@@ -142,7 +142,7 @@ class Command(app_commands.Command[GroupT, P, T]):
                 ((num_servers == 1 and nodes == 1) or not bot.locals.get('channels', {}).get('admin'))):
             del self._params['server']
 
-    async def _do_call(self, interaction: Interaction, params: Dict[str, Any]) -> T:
+    async def _do_call(self, interaction: Interaction, params: dict[str, Any]) -> T:
         if 'node' in inspect.signature(self._callback).parameters and 'node' not in params:
             params['node'] = interaction.client.node
         if 'server' in inspect.signature(self._callback).parameters and 'server' not in params:
@@ -175,7 +175,7 @@ class Group(app_commands.Group):
         description: Union[str, locale_str] = MISSING,
         nsfw: bool = False,
         auto_locale_strings: bool = True,
-        extras: Dict[Any, Any] = MISSING,
+        extras: dict[Any, Any] = MISSING,
     ) -> Callable[[CommandCallback[GroupT, P, T]], Command[GroupT, P, T]]:
         """A decorator that creates an application command from a regular function under this group.
 

@@ -92,6 +92,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 path = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
                 with open(path, mode='w', encoding='utf-8') as outfile:
                     yaml.dump(self.locals, outfile)
+                self.locals = self.read_locals()
                 self.log.warning(f"New file {path} written, please check for possible errors.")
 
     async def cog_unload(self):
