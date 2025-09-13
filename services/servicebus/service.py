@@ -254,6 +254,10 @@ class ServiceBus(Service):
             else:
                 self.log.info(f"- {num} local DCS servers registered.")
 
+            # init profanity filter, if needed
+            if any(server.locals.get('profanity_filter', False) for server in local_servers):
+                utils.init_profanity_filter(self.node)
+
     async def register_remote_servers(self, node: Node):
         await self.send_to_node({
             "command": "rpc",

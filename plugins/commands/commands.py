@@ -414,7 +414,7 @@ async def __{name}_callback(interaction: discord.Interaction):
                 # register the command
                 self.bot.tree.add_command(slash_cmd)
                 self.commands[name] = cmd  # keep the YAML data
-                self.log.info(f"    - Custom command /{name} added.")
+                self.log.info(f"     - Custom command /{name} added.")
 
             except Exception as ex:
                 self.log.error(f"Failed to register command `{name}`: {ex}", exc_info=True)

@@ -23,7 +23,8 @@ __all__ = [
     "create_writable_mission",
     "get_orig_file",
     "lua_pattern_to_python_regex",
-    "format_frequency"
+    "format_frequency",
+    "init_profanity_filter"
 ]
 
 
@@ -71,6 +72,7 @@ def desanitize(self, _filename: str = None) -> None:
     except PermissionError:
         self.log.error(f"Can't desanitize {filename}, no write permissions!")
         raise
+
     backup = filename.replace('.lua', '.bak')
     if os.path.exists(os.path.join(self.node.config_dir, 'MissionScripting.lua')):
         if _filename:
@@ -155,17 +157,15 @@ def create_writable_mission(filename: str) -> str:
         filename = filename[:-5]
     try:
         with open(filename, mode='a'):
-            new_filename = filename
+            return filename
     except PermissionError:
         if '.dcssb' in filename:
-            new_filename = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
-                                        os.path.basename(filename))
+            return os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
+                                os.path.basename(filename))
         else:
             dirname = os.path.join(os.path.dirname(filename), '.dcssb')
             os.makedirs(dirname, exist_ok=True)
-            new_filename = os.path.join(dirname, os.path.basename(filename))
-    return new_filename
-
+            return os.path.join(dirname, os.path.basename(filename))
 
 def get_orig_file(filename: str, *, create_file: bool = True) -> Optional[str]:
     if filename.endswith('.orig'):
@@ -225,3 +225,20 @@ def format_frequency(frequency_hz: int, *, band: bool = True) -> str:
         return f"{frequency_mhz:.1f} MHz ({_band})"
     else:
         return f"{frequency_mhz:.1f} MHz"
+
+
+def init_profanity_filter(node: Node):
+    # Profanity filter
+    language = node.config.get('language', 'en')
+    wordlist = os.path.join(node.config_dir, 'profanity.txt')
+    if not os.path.exists(wordlist):
+        shutil.copy2(os.path.join('samples', 'wordlists', f"{language}.txt"), wordlist)
+    with open(wordlist, mode='r', encoding='utf-8') as wl:
+        words = [x.strip() for x in wl.readlines() if not x.startswith('#')]
+    targetfile = os.path.join(os.path.expandvars(node.locals['DCS']['installation']), 'Data', 'censor.lua')
+    bakfile = targetfile.replace('.lua', '.bak')
+    if not os.path.exists(bakfile):
+        shutil.copy2(targetfile, bakfile)
+    with open(targetfile, mode='wb') as outfile:
+        outfile.write((f"{language.upper()} = " + luadata.serialize(
+            words, indent='\t', indent_level=0)).encode('utf-8'))

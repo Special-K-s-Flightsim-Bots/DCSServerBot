@@ -65,6 +65,14 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
     if name ~= name2 then
         return false, config['messages']['message_player_username']
     end
+    -- check if player uses profanity
+    if config['profanity_filter'] then
+        local name2 = Censorship.censor(name)
+        log.write('DCSServerBot', log.DEBUG, 'Censored nickname: ' .. name2)
+        if name ~= name2 then
+            return false, config['messages']['message_player_inappropriate_username']
+        end
+    end
     -- check bans including the SMART ban system
     ipaddr = utils.getIP(addr)
     if isBanned(ucid) then
