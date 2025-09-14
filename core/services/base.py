@@ -165,8 +165,8 @@ class Service(ABC):
         if server.node.name not in self._config:
             self._config[server.node.name] = {}
         if server.instance.name not in self._config[server.node.name]:
-            self._config[server.node.name][server.instance.name] = (
-                    self.locals.get(DEFAULT_TAG, {}) |
+            self._config[server.node.name][server.instance.name] = utils.deep_merge(
+                    self.locals.get(DEFAULT_TAG, {}),
                     self.locals.get(server.node.name, self.locals).get(server.instance.name, {})
             )
         return self._config.get(server.node.name, {}).get(server.instance.name, {})

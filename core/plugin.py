@@ -497,7 +497,7 @@ class Plugin(commands.Cog, Generic[TEventListener]):
             self._config[server.node.name] = {}
         if server.instance.name not in self._config[server.node.name] or not use_cache:
             default, specific = self.get_base_config(server)
-            self._config[server.node.name][server.instance.name] = default | specific
+            self._config[server.node.name][server.instance.name] = utils.deep_merge(default, specific)
         return self._config[server.node.name][server.instance.name]
 
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str) -> None:

@@ -80,7 +80,7 @@ class Server(DataObject):
                 raise YAMLError(config_file, ex)
             if data.get(self.name) is None and self.name != 'n/a':
                 self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')
-            _locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
+            _locals = utils.deep_merge(data.get(DEFAULT_TAG, {}), data.get(self.name, {}))
             _locals['messages'] = {
                 "greeting_message_members": "{player.name}, welcome back to {server.name}!",
                 "greeting_message_unmatched": "{player.name}, please use /linkme in our Discord, if you want to see your user stats!",
