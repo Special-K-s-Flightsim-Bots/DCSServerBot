@@ -1,5 +1,3 @@
-version: "3.5"
-
 services:
   jekyll:
     build:
@@ -10,4 +8,4 @@ services:
       - .:/usr/src/app
     stdin_open: true
     tty: true
-    command: bundle exec jekyll serve -H 0.0.0.0 -t --force_polling
+    command: bundle exec jekyll serve -H 0.0.0.0 -t --force_polling --verbose

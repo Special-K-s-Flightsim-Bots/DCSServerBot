@@ -37,8 +37,5 @@ aux_links:
 kramdown:
   gfm_quirks: [paragraph_end]
   gfm_emojis: true
-  syntax_highlighter: coderay
-  syntax_highlighter_opts:
-    line_numbers: table
-    bold_every: 5
+  syntax_highlighter: rouge
   header_links: true
