@@ -27,7 +27,8 @@ local default_names = {
     'Jugador',
     '玩家',
     'Hráč',
-    '플레이어'
+    '플레이어',
+    'User'
 }
 
 local function locate(table, value)
