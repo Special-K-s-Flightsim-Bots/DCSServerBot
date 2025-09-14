@@ -11,7 +11,7 @@ audioop-lts==0.2.1; python_version>='3.13'
 aiohttp==3.12.15
 
 # Certifi: Python package for providing Mozilla's CA Bundle
-certifi==2025.8.3
+certifi>=2025.8.3
 
 # Croniter: Python iterator implementing a cron schedule format
 croniter==6.0.0
@@ -29,7 +29,7 @@ fastapi==0.116.1
 fuzzywuzzy==0.18.0
 
 # GitPython: Python library for interacting with git repositories
-GitPython==3.1.45
+GitPython>=3.1.45
 
 # Jinja web template framework
 jinja2==3.1.6
@@ -53,10 +53,10 @@ miniupnpc>=2.3.2
 numpy>=2.2.6
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
-openpyxl==3.1.5
+openpyxl>=3.1.5
 
 # Pandas: Python data analysis library
-pandas==2.3.2
+pandas>=2.3.2
 
 # Packaging: A core package providing support for PEP 440 version identifiers
 packaging==25.0
@@ -68,7 +68,7 @@ pid==3.0.4
 pip-tools==7.5.0
 
 # Psycopg: PostgreSQL database adapter for Python
-psycopg[binary]==3.2.6
+psycopg[binary]>=3.2.6
 
 # Psycopg Pool: PostgreSQL database adapter pool for Python
 psycopg-pool==3.2.6
