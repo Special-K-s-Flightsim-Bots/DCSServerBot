@@ -8,6 +8,7 @@ import hashlib
 import importlib
 import inspect
 import json
+import keyword
 import logging
 import luadata
 import os
@@ -79,7 +80,8 @@ __all__ = [
     "YAMLError",
     "DictWrapper",
     "format_dict_pretty",
-    "show_dict_diff"
+    "show_dict_diff",
+    "to_valid_pyfunc_name"
 ]
 
 logger = logging.getLogger(__name__)
@@ -1170,3 +1172,29 @@ def show_dict_diff(old_dict: dict[str, Any], new_dict: dict[str, Any], context_l
     result.append("```")
 
     return '\n'.join(result)
+
+
+def to_valid_pyfunc_name(raw_name: str) -> str:
+    """
+    Convert an arbitrary name (e.g. 'test-1') into a legal Python identifier.
+
+    Rules applied (in order):
+
+    1. Replace every character that is **not** `[A-Za-z0-9_]` with an underscore.
+    2. If the resulting string starts with a digit, prepend an underscore.
+    3. If the result is a Python keyword (`def`, `class`, …), prefix it with an underscore as well.
+
+    The function returns the sanitized name; the original name is kept unchanged.
+    """
+    # 1️⃣  Replace everything that is not a word character
+    cleaned = re.sub(r'\W', '_', raw_name)
+
+    # 2️⃣  If it starts with a digit, add a leading underscore
+    if re.match(r'^\d', cleaned):
+        cleaned = '_' + cleaned
+
+    # 3️⃣  Avoid Python keywords
+    if keyword.iskeyword(cleaned):
+        cleaned = '_' + cleaned
+
+    return cleaned

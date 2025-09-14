@@ -330,6 +330,7 @@ class Commands(Plugin):
             return
 
         for name, cmd in self.locals["commands"].items():
+            sanitized_name = utils.to_valid_pyfunc_name(name)
             try:
                 checks: list = []
                 if "roles" in cmd:
@@ -343,14 +344,14 @@ class Commands(Plugin):
                     kw_only = self.annotated_params(params)
                     kw_as_args = ", ".join(f"{n}={n}" for n in params.keys())
                     src = f"""
-async def __{name}_callback(interaction: discord.Interaction, {kw_only}):
+async def __{sanitized_name}_callback(interaction: discord.Interaction, {kw_only}):
    await interaction.response.defer()
    await self.exec_slash_command(interaction, {kw_as_args})
                     """
                 else:
                     # no options – only interaction
                     src = f"""
-async def __{name}_callback(interaction: discord.Interaction):
+async def __{sanitized_name}_callback(interaction: discord.Interaction):
     await interaction.response.defer()
     await self.exec_slash_command(interaction)
                     """
@@ -372,7 +373,7 @@ async def __{name}_callback(interaction: discord.Interaction):
                     },
                     local_ns,
                 )
-                _callback = local_ns[f"__{name}_callback"]
+                _callback = local_ns[f"__{sanitized_name}_callback"]
                 _callback.__module__ = self.__module__
                 _callback.__discord_app_commands_guild_only__ = True
                 _callback.__discord_app_commands_contexts__ = app_commands.AppCommandContext(guild=True)
@@ -417,7 +418,7 @@ async def __{name}_callback(interaction: discord.Interaction):
                 self.log.info(f"     - Custom command /{name} added.")
 
             except Exception as ex:
-                self.log.error(f"Failed to register command `{name}`: {ex}", exc_info=True)
+                self.log.error(f"Failed to register command `{name}`: {ex}")
 
     def _unregister_commands(self):
         for name in list(self.commands.keys()):
