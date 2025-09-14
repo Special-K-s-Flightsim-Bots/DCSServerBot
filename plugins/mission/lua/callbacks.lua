@@ -70,6 +70,11 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
         local name2 = Censorship.censor(name)
         log.write('DCSServerBot', log.DEBUG, 'Censored nickname: ' .. name2)
         if name ~= name2 then
+            local msg = {
+                command = 'sendMessage',
+                message = 'User ' .. name .. ' (ucid=' .. ucid .. ') rejected due to inappropriate nickname.'
+            }
+            utils.sendBotTable(msg, dcsbot.params['mission']['channels']['admin'])
             return false, config['messages']['message_player_inappropriate_username']
         end
     end
