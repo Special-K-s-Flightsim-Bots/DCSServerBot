@@ -22,15 +22,14 @@ _ = get_translation(__name__.split('.')[1])
 OLYMPUS_EXPORT_LINE = "pcall(function() local olympusLFS=require('lfs');dofile(olympusLFS.writedir()..[[Mods\\Services\\Olympus\\Scripts\\OlympusCameraControl.lua]]); end,nil)"
 ANSI_ESCAPE_RE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
-server_ports: dict[int, str] = dict()
-client_ports: dict[int, str] = dict()
-
 __all__ = [
     "Olympus"
 ]
 
 
 class Olympus(Extension):
+    _server_ports: dict[int, str] = dict()
+    _client_ports: dict[int, str] = dict()
 
     CONFIG_DICT = {
         "backend_port": {
@@ -96,7 +95,7 @@ class Olympus(Extension):
         try:
             with open(self.config_path, mode='r', encoding='utf-8') as file:
                 return json.load(file)
-        except Exception:
+        except (FileNotFoundError, ValueError, TypeError):
             self.log.warning(f"{self.name}: Config file not found or corrupt, using defaults")
             elevation_provider = {
                 "provider": "https://srtm.fasma.org/{lat}{lng}.SRTMGL3S.hgt.zip",
@@ -154,8 +153,6 @@ class Olympus(Extension):
         }
 
     async def prepare_olympus_json(self) -> bool:
-        global server_ports, client_ports
-
         try:
             os.chmod(self.config_path, stat.S_IWUSR)
         except FileNotFoundError:
@@ -165,17 +162,17 @@ class Olympus(Extension):
                 f"  => {self.server.name}: No write permission on olympus.json, skipping {self.name}.")
             return False
         server_port = self.config.get(self.backend_tag, {}).get('port', 3001)
-        if server_ports.get(server_port, self.server.name) != self.server.name:
+        if type(self)._server_ports.get(server_port, self.server.name) != self.server.name:
             self.log.error(f"  => {self.server.name}: {self.name} server.port {server_port} already in use by "
-                           f"server {server_ports[server_port]}!")
+                           f"server {type(self)._server_ports[server_port]}!")
             return False
-        server_ports[server_port] = self.server.name
+        type(self)._server_ports[server_port] = self.server.name
         client_port = self.config.get(self.frontend_tag, {}).get('port', 3000)
-        if client_ports.get(client_port, self.server.name) != self.server.name:
+        if type(self)._client_ports.get(client_port, self.server.name) != self.server.name:
             self.log.error(f"  => {self.server.name}: {self.name} client.port {client_port} already in use by "
-                           f"server {client_ports[client_port]}!")
+                           f"server {type(self)._client_ports[client_port]}!")
             return False
-        client_ports[client_port] = self.server.name
+        type(self)._client_ports[client_port] = self.server.name
 
         self.locals = self.load_config()
         default_address = '*' if self.version == '1.0.3.0' else 'localhost'

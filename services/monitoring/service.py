@@ -30,8 +30,6 @@ __all__ = [
     "MonitoringService"
 ]
 
-last_wait_time = 0
-
 
 @ServiceRegistry.register(depends_on=[ServiceBus])
 class MonitoringService(Service):
@@ -241,8 +239,6 @@ class MonitoringService(Service):
                 self.log.exception(ex)
 
     async def nodestats(self):
-        global last_wait_time
-
         bus = ServiceRegistry.get(ServiceBus)
         pstats: dict = self.apool.get_stats()
         async with self.apool.connection() as conn:

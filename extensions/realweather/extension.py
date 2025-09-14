@@ -40,10 +40,10 @@ class RealWeatherException(Exception):
 
 
 class RealWeather(Extension):
+    _lock = asyncio.Lock()
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
-        self.lock = asyncio.Lock()
         self.metar = None
 
     @property
@@ -219,7 +219,7 @@ class RealWeather(Extension):
                 if self.config.get('debug', False):
                     self.log.debug(output)
 
-            async with self.lock:
+            async with type(self)._lock:
                 try:
                     await asyncio.to_thread(run_subprocess)
                 finally:

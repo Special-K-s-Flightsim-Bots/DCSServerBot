@@ -26,7 +26,6 @@ from watchdog.observers import Observer
 
 _ = get_translation(__name__.split('.')[1])
 
-ports: dict[int, str] = dict()
 UPDATER_CODE = '4dctdtna'
 
 __all__ = [
@@ -35,6 +34,7 @@ __all__ = [
 
 
 class LotAtc(Extension, FileSystemEventHandler):
+    _ports: dict[int, str] = dict()
 
     CONFIG_DICT = {
         "port": {
@@ -81,8 +81,6 @@ class LotAtc(Extension, FileSystemEventHandler):
                                    "please specify it manually in your nodes.yaml!")
 
     async def prepare(self) -> bool:
-        global ports
-
         await self.update_instance(False)
         config = self.config.copy()
         if 'enabled' in config:
@@ -116,11 +114,12 @@ class LotAtc(Extension, FileSystemEventHandler):
                                                                              indent_level=0)).encode('utf-8'))
             self.log.debug(f"  => New {path} written.")
         port = self.locals.get('port', 10310)
-        if port in ports and ports[port] != self.server.name:
-            self.log.error(f"  => {self.server.name}: {self.name} port {port} already in use by server {ports[port]}!")
+        if type(self)._ports.get(port, self.server.name) != self.server.name:
+            self.log.error(
+                f"  => {self.server.name}: {self.name} port {port} already in use by server {type(self)._ports[port]}!")
             return False
         else:
-            ports[port] = self.server.name
+            type(self)._ports[port] = self.server.name
         return await super().prepare()
 
     # File Event Handlers

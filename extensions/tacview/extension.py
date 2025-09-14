@@ -18,9 +18,6 @@ TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(os.path.join('%USERPRO
 TACVIEW_EXPORT_LINE = "local Tacviewlfs=require('lfs');dofile(Tacviewlfs.writedir()..'Scripts/TacviewGameExport.lua')"
 TACVIEW_PATTERN_MATCH = r'Successfully saved \[(?P<filename>.*?\.acmi)\]'
 
-rtt_ports: dict[int, str] = dict()
-rcp_ports: dict[int, str] = dict()
-
 __all__ = [
     "Tacview",
     "TACVIEW_DEFAULT_DIR"
@@ -28,6 +25,8 @@ __all__ = [
 
 
 class Tacview(Extension):
+    _rtt_ports: dict[int, str] = dict()
+    _rcp_ports: dict[int, str] = dict()
 
     CONFIG_DICT = {
         "tacviewRealTimeTelemetryPort": {
@@ -126,8 +125,6 @@ class Tacview(Extension):
         return False
 
     async def prepare(self) -> bool:
-        global rtt_ports, rcp_ports
-
         await self.update_instance(False)
         options = self.server.options['plugins']
         dirty = False
@@ -155,17 +152,17 @@ class Tacview(Extension):
             self.server.options['plugins'] = options
             self.locals = options['Tacview']
         rtt_port = int(self.locals.get('tacviewRealTimeTelemetryPort', 42674))
-        if rtt_ports.get(rtt_port, self.server.name) != self.server.name:
+        if type(self)._rtt_ports.get(rtt_port, self.server.name) != self.server.name:
             self.log.error(f"  =>  {self.server.name}: tacviewRealTimeTelemetryPort {rtt_port} already in use by "
-                           f"server {rtt_ports[rtt_port]}!")
+                           f"server {type(self)._rtt_ports[rtt_port]}!")
             return False
-        rtt_ports[rtt_port] = self.server.name
+        type(self)._rtt_ports[rtt_port] = self.server.name
         rcp_port = int(self.locals.get('tacviewRemoteControlPort', 42675))
-        if rcp_ports.get(rcp_port, self.server.name) != self.server.name:
+        if type(self)._rcp_ports.get(rcp_port, self.server.name) != self.server.name:
             self.log.error(f"  =>  {self.server.name}: tacviewRemoteControlPort {rcp_port} already in use by "
-                           f"server {rcp_ports[rcp_port]}!")
+                           f"server {type(self)._rcp_ports[rcp_port]}!")
             return False
-        rcp_ports[rcp_port] = self.server.name
+        type(self)._rcp_ports[rcp_port] = self.server.name
         return True
 
     @property
@@ -240,7 +237,7 @@ class Tacview(Extension):
                     # best case we find the default line Tacview put in the Export.lua
                     if line == TACVIEW_EXPORT_LINE:
                         break
-                    # at least we found it, might still be wrong
+                    # at least we found it, it might still be wrong
                     elif not line.strip().startswith('--') and 'TacviewGameExport.lua'.casefold() in line.casefold():
                         break
                 else:

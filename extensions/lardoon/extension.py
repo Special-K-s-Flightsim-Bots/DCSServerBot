@@ -17,15 +17,12 @@ __all__ = [
     "Lardoon"
 ]
 
-# Globals
-process: Optional[psutil.Process] = None
-servers: set[str] = set()
-imports: set[str] = set()
-tacview_dirs: dict[str, set[str]] = {}
-lock = asyncio.Lock()
-
 
 class Lardoon(Extension):
+    _process: Optional[psutil.Process] = None
+    _servers: set[str] = set()
+    _tacview_dirs: dict[str, set[str]] = {}
+    _lock = asyncio.Lock()
 
     CONFIG_DICT = {
         "bind": {
@@ -47,9 +44,7 @@ class Lardoon(Extension):
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
         if self.config.get('use_single_process', True):
-            global process
-
-            process = self.process = self.find_running_process(process)
+            type(self)._process = self.process = self.find_running_process(type(self)._process)
         else:
             self.process = self.find_running_process(None)
 
@@ -70,15 +65,13 @@ class Lardoon(Extension):
             'tacviewExportPath')) or TACVIEW_DEFAULT_DIR
 
     async def startup(self) -> bool:
-        global lock, process
-
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Lardoon needs Tacview to be enabled in your server!')
             return False
 
-        async with lock:
+        async with type(self)._lock:
             if self.config.get('use_single_process', True):
-                self.process = process
+                self.process = type(self)._process
 
             if not self.process or not self.process.is_running():
                 def log_stream(proc: subprocess.Popen, stream: str):
@@ -114,14 +107,12 @@ class Lardoon(Extension):
                     return False
 
         if self.config.get('use_single_process', True):
-            global servers, tacview_dirs
-
-            process = self.process
-            servers.add(self.server.name)
+            type(self)._process = self.process
+            type(self)._servers.add(self.server.name)
             tacview_dir = self._get_tacview_dir()
-            if tacview_dir not in tacview_dirs:
-                tacview_dirs[tacview_dir] = set()
-            tacview_dirs[tacview_dir].add(self.server.name)
+            if tacview_dir not in type(self)._tacview_dirs:
+                type(self)._tacview_dirs[tacview_dir] = set()
+            type(self)._tacview_dirs[tacview_dir].add(self.server.name)
         else:
             self._schedule.start()
         return await super().startup()
@@ -131,9 +122,7 @@ class Lardoon(Extension):
             utils.terminate_process(self.process)
             self.process = None
             if self.config.get('use_single_process', True):
-                global process
-
-                process = None
+                type(self)._process = None
             return True
         except Exception as ex:
             self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
@@ -142,13 +131,11 @@ class Lardoon(Extension):
     def shutdown(self) -> bool:
         super().shutdown()
         if self.config.get('use_single_process', True):
-            global process, servers
-
-            if self.server.name in servers:
-                servers.remove(self.server.name)
+            if self.server.name in type(self)._servers:
+                type(self)._servers.remove(self.server.name)
             tacview_dir = self._get_tacview_dir()
-            tacview_dirs[tacview_dir].discard(self.server.name)
-            if not servers:
+            type(self)._tacview_dirs[tacview_dir].discard(self.server.name)
+            if not type(self)._servers:
                 return self.terminate()
             return True
         else:
@@ -157,9 +144,7 @@ class Lardoon(Extension):
 
     def is_running(self) -> bool:
         if self.config.get('use_single_process', True):
-            global process, servers
-
-            return process is not None and process.is_running() and self.server.name in servers
+            return type(self)._process and type(self)._process.is_running() and self.server.name in type(self)._servers
         else:
             return self.process is not None and self.process.is_running()
 
@@ -210,16 +195,14 @@ class Lardoon(Extension):
 
         cmd = os.path.expandvars(self.config['cmd'])
         if self.config.get('use_single_process', True):
-            global lock, tacview_dirs
-
-            for tacview_dir, server_list in tacview_dirs.items():
+            for tacview_dir, server_list in type(self)._tacview_dirs.items():
                 if not server_list:
                     continue
                 try:
-                    async with lock:
+                    async with type(self)._lock:
                         self.log.debug("Lardoon: Scheduled import run ...")
                         await asyncio.to_thread(run_subprocess, ["import", "-p", tacview_dir])
-                    async with lock:
+                    async with type(self)._lock:
                         self.log.debug("Lardoon: Scheduled prune run ...")
                         await asyncio.to_thread(run_subprocess, ["prune", "--no-dry-run"])
                 except Exception as ex:

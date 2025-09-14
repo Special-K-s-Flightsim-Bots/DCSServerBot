@@ -29,7 +29,6 @@ from watchdog.observers import Observer
 
 _ = get_translation(__name__.split('.')[1])
 
-ports: dict[int, str] = dict()
 SRS_GITHUB_URL = "https://api.github.com/repos/ciribob/DCS-SimpleRadioStandalone/releases/latest"
 SRS_BETA_URL = "https://api.github.com/repos/ciribob/DCS-SimpleRadioStandalone/releases"
 SRS_DOWNLOAD_URL = "https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/download/{version}/DCS-SimpleRadioStandalone-{version}.zip"
@@ -40,6 +39,8 @@ __all__ = [
 
 
 class SRS(Extension, FileSystemEventHandler):
+    _ports: dict[int, str] = dict()
+    _lock = asyncio.Lock()
 
     CONFIG_DICT = {
         "port": {
@@ -76,7 +77,6 @@ class SRS(Extension, FileSystemEventHandler):
         self.exe_name = None
         self.clients: dict[str, set[int]] = {}
         self.client_names: dict[str, str] = {}
-        self.lock = asyncio.Lock()
         super().__init__(server, config)
 
     def get_config_path(self) -> str:
@@ -155,8 +155,6 @@ class SRS(Extension, FileSystemEventHandler):
         return False
 
     async def prepare(self) -> bool:
-        global ports
-
         await self.handle_update()
         path = self.get_config_path()
         dirty = False
@@ -210,11 +208,12 @@ class SRS(Extension, FileSystemEventHandler):
             self.log.warning(f"  => {self.server.name}: SERVER_IP is not set to 0.0.0.0 in your {self.get_config_path()}")
         # Check port conflicts
         port = self.config.get('port', int(self.cfg['Server Settings'].get('SERVER_PORT', '5002')))
-        if ports.get(port, self.server.name) != self.server.name:
-            self.log.error(f"  => {self.server.name}: {self.name} port {port} already in use by server {ports[port]}!")
+        if type(self)._ports.get(port, self.server.name) != self.server.name:
+            self.log.error(
+                f"  => {self.server.name}: {self.name} port {port} already in use by server {type(self)._ports[port]}!")
             return False
         else:
-            ports[port] = self.server.name
+            type(self)._ports[port] = self.server.name
         if self.config.get('autoconnect', True):
             await self.enable_autoconnect()
             self.log.info('  => SRS autoconnect is enabled for this server.')
@@ -250,7 +249,7 @@ class SRS(Extension, FileSystemEventHandler):
                 ], startupinfo=info, stdout=out, stderr=out, close_fds=True)
 
             try:
-                async with self.lock:
+                async with type(self)._lock:
                     if self.is_running():
                         return True
                     p = await asyncio.to_thread(run_subprocess)
@@ -524,7 +523,7 @@ class SRS(Extension, FileSystemEventHandler):
             return
 
         # make sure we're not called twice
-        async with self.lock:
+        async with type(self)._lock:
             try:
                 version = await self.check_for_updates()
                 if version:
