@@ -8,10 +8,10 @@ if %ERRORLEVEL% EQU 9009 (
 SET VENV=%USERPROFILE%\.dcssb
 if not exist "%VENV%" (
     echo Creating the Python Virtual Environment
-    python -m pip install --upgrade pip
     python -m venv "%VENV%"
     "%VENV%\Scripts\python.exe" -m pip install --upgrade pip
-    "%VENV%\Scripts\python.exe" -m pip install --no-cache-dir --prefer-binary -r requirements.txt
+    "%VENV%\Scripts\pip" install pip-tools
+    "%VENV%\Scripts\pip-sync" requirements.txt
 ) else (
     "%VENV%\Scripts\python.exe" -m pip install --upgrade pip
 )

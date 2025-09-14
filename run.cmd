@@ -28,11 +28,11 @@ DEL dcssb_%node_name%.pid 2>NUL
 
 SET VENV=%USERPROFILE%\.dcssb
 if not exist "%VENV%" (
-    echo Creating the Python Virtual Environment. This may take some time...
-    python -m pip install --upgrade pip
+    echo Creating the Python Virtual Environment
     python -m venv "%VENV%"
     "%VENV%\Scripts\python.exe" -m pip install --upgrade pip
-    "%VENV%\Scripts\python.exe" -m pip install --no-cache-dir --prefer-binary -r requirements.txt
+    "%VENV%\Scripts\pip" install pip-tools
+    "%VENV%\Scripts\pip-sync" requirements.txt
 )
 
 SET PROGRAM=run.py
