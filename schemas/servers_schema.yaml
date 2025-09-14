@@ -70,6 +70,7 @@ mapping:
           greeting_message_unmatched: {type: str, nullable: false, range: {min: 1}}
           message_player_username: {type: str, nullable: false, range: {min: 1}}
           message_player_default_username: {type: str, nullable: false, range: {min: 1}}
+          message_player_inappropriate_username: {type: str, nullable: false, range: {min: 1}}
           message_ban: {type: str, nullable: false, range: {min: 1}}
           message_reserved: {type: str, nullable: false, range: {min: 1}}
           message_no_voice: {type: str, nullable: false, range: {min: 1}}
