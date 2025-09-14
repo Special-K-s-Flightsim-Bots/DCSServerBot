@@ -3,6 +3,7 @@ local base      = _G
 local dcsbot    = base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
 local Censorship= base.require('censorship')
+local textutil = base.require('textutil')
 
 dcsbot.banList = dcsbot.banList or {}
 dcsbot.locked = dcsbot.locked or {}
@@ -33,7 +34,7 @@ local default_names = {
 
 local function locate(table, value)
     for i = 1, #table do
-        if table[i]:lower() == value:lower() then return true end
+        if textutil.Utf8ToUpperCase(table[i]) == textutil.Utf8ToUpperCase(value) then return true end
     end
     return false
 end
