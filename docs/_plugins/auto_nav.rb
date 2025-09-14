@@ -7,6 +7,7 @@
 # structure and uses the file title (first H1) or the filename as fallback.
 # ------------------------------------------------------------------
 module AutoNav
+  Jekyll.logger.info "AutoNav", "Plugin file is being loaded"
   class Generator < Jekyll::Generator
     safe true
     priority :low

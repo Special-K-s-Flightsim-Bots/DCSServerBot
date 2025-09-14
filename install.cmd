@@ -19,7 +19,7 @@ if not exist "%VENV%" (
     python -m pip install --upgrade pip
     python -m venv "%VENV%"
     "%VENV%\Scripts\python.exe" -m pip install --upgrade pip
-    "%VENV%\Scripts\python.exe" -m pip install -r requirements.txt
+    "%VENV%\Scripts\python.exe" -m pip install --no-cache-dir --prefer-binary -r requirements.txt
 )
 "%VENV%\Scripts\python" install.py %*
 echo Please press any key to continue...

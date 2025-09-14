@@ -18,7 +18,10 @@ from version import __version__
 
 
 def install_requirements() -> subprocess.CompletedProcess:
-    return subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
+    return subprocess.run([
+        sys.executable,
+        '-m', 'pip', 'install', '--no-cache-dir', '--prefer-binary', '-r', 'requirements.txt'
+    ])
 
 
 def do_update_git() -> int:
