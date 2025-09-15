@@ -235,10 +235,15 @@ def init_profanity_filter(node: Node):
         shutil.copy2(os.path.join('samples', 'wordlists', f"{language}.txt"), wordlist)
     with open(wordlist, mode='r', encoding='utf-8') as wl:
         words = [x.strip() for x in wl.readlines() if not x.startswith('#')]
+
     targetfile = os.path.join(os.path.expandvars(node.locals['DCS']['installation']), 'Data', 'censor.lua')
     bakfile = targetfile.replace('.lua', '.bak')
-    if not os.path.exists(bakfile):
-        shutil.copy2(targetfile, bakfile)
-    with open(targetfile, mode='wb') as outfile:
-        outfile.write((f"{language.upper()} = " + luadata.serialize(
-            words, indent='\t', indent_level=0)).encode('utf-8'))
+    try:
+        if not os.path.exists(bakfile):
+            shutil.copy2(targetfile, bakfile)
+        with open(targetfile, mode='wb') as outfile:
+            outfile.write((f"{language.upper()} = " + luadata.serialize(
+                words, indent='\t', indent_level=0)).encode('utf-8'))
+    except PermissionError:
+        node.log.warning(
+            f"The bot needs write permission on your DCS installation directory to update the profanity filter.")
