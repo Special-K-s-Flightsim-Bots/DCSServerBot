@@ -520,6 +520,9 @@ Example:
 wxpython==4.2.3
 ```
 
+To install these libraries, you can use this command in a cmd windows in your bot's installation directory:
+`%USERPROFILE%\.dcssb\Scripts\pip install -r requirements.local`
+
 ## Auto-Migration
 DCSServerBot was invented to ease the life of DCS server admins. That said, you should take care of your 
 fellow admins and create code that migrates database tables / entries or any config file that needs to be
