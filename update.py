@@ -29,10 +29,13 @@ def install_requirements() -> subprocess.CompletedProcess:
     ])
 
     # Then run pip-sync to synchronize the environment with requirements.txt
-    return subprocess.run([
+    cmd = [
         sys.executable,
         '-m', 'piptools', 'sync', 'requirements.txt'
-    ])
+    ]
+    if os.path.exists('requirements.local'):
+        cmd.append('requirements.local')
+    return subprocess.run(cmd)
 
 
 def do_update_git() -> int:
