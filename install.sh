@@ -20,11 +20,11 @@ if [ -z "$python_version" ]; then
 fi
 
 # Required minimum Python version
-required_version="3.9"
+required_version="3.10"
 
 # Compare Python versions
 if [ "$(printf '%s\n' "$required_version" "$python_version" | sort -V | head -n1)" != "$required_version" ]; then
-    echo "Python version must be >= 3.9. Detected version: $python_version"
+    echo "Python version must be >= 3.10. Detected version: $python_version"
     echo "Please upgrade your Python installation."
     exit 1
 fi
@@ -35,10 +35,10 @@ VENV="$HOME/.dcssb"
 # Check if virtual environment exists
 if [ ! -d "$VENV" ]; then
     echo "Creating the Python Virtual Environment. This may take some time..."
-    python -m pip install --upgrade pip
     python -m venv "$VENV"
     "$VENV/bin/python" -m pip install --upgrade pip
-    "$VENV/bin/python" -m pip install -r requirements.txt
+    "$VENV/bin/pip" install pip-tools
+    "$VENV/bin/pip-sync" requirements.txt
 fi
 
 # Run the install.py script with arguments
