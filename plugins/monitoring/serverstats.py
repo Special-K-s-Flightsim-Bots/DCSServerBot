@@ -451,7 +451,7 @@ class UserEngagement(report.GraphElement):
                                int(bar1_height), ha='center', va='center', color='black',
                                fontsize=10, weight='bold')
 
-            # Annotate on top of the total height (new + returning players)
+            # Annotate on top of the total height (new and returning players)
             if total_height > 0:
                 self.axes.text(bar1[i].get_x() + bar1[i].get_width() / 2, total_height,
                                int(total_height), ha='center', va='bottom', color='white',
@@ -528,7 +528,7 @@ class UsersPerMissionTime(report.GraphElement):
         if query_results:
             df = pd.DataFrame.from_records(query_results)
         else:
-            # Create an empty DataFrame with "time" and "users" columns if query returns nothing
+            # Create an empty DataFrame with "time" and "users" columns if the query returned nothing
             df = pd.DataFrame(columns=['time', 'users'])
 
         all_hours = pd.DataFrame({'time': np.arange(0, 24)})  # Ensure "time" covers all hours in a day
@@ -554,7 +554,7 @@ class UsersPerMissionTime(report.GraphElement):
         self.axes.set_xticklabels([f"{hour:02d}h" for hour in range(24)], color='white')
         self.axes.tick_params(axis='y', colors='white')
 
-        # Add annotations for user count above the bars
+        # Add annotations for the user-count above the bars
         for bar in barplot.patches:
             height = bar.get_height()
             if height > 0:

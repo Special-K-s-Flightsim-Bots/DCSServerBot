@@ -194,13 +194,13 @@ class RealWeather(Extension):
             rw_home = os.path.expandvars(self.config['installation'])
 
             def cleanup(cwd: str):
-                # delete the mission_unpacked directory which might still be there from formeer RW runs
+                # delete the mission_unpacked directory which might still be there from former RW runs
                 mission_unpacked_dir = os.path.join(cwd, 'mission_unpacked')
                 if os.path.exists(mission_unpacked_dir):
                     utils.safe_rmtree(mission_unpacked_dir)
 
             def run_subprocess():
-                # double check that no mission_unpacked dir is there
+                # double-check that no mission_unpacked dir is there
                 cleanup(cwd)
                 # run RW
                 process = subprocess.Popen([os.path.join(rw_home, 'realweather.exe')],

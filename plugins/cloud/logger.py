@@ -3,7 +3,6 @@ import asyncio
 import discord
 import logging
 import psycopg
-import traceback
 import os
 import zipfile
 
@@ -30,7 +29,7 @@ class CloudLoggingHandler(logging.Handler):
         self.cwd = os.getcwd()
         self.pending_futures = set()
 
-    def format_traceback(self, trace: traceback) -> tuple[str, int, list[str]]:
+    def format_traceback(self, trace) -> tuple[str, int, list[str]]:
         ret = []
         file = None
         line = -1

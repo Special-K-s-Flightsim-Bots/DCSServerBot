@@ -1,5 +1,5 @@
 # Plugin RestAPI
-This API provides a very simple RestAPI that you can user together with the [WebService](../../services/webservice/README.md).
+This API provides a very simple RestAPI that you can use together with the [WebService](../../services/webservice/README.md).
 You can use it to power the [DCS Statistics Dasboard](https://github.com/Penfold-88/DCS-Statistics-Dashboard).
 
 ## Configuration
@@ -46,5 +46,5 @@ The following commands are available through the API
 | /linkme           | POST       | discord_id: string, force: bool                       | Same as /linkme in discord. Returns a new token that can be used in the in-game chat. |
 
 > [!NOTE]
-> To get a more detailled API-documentation, please enable debug in your WebService config and 
+> To get more detailled API documentation, please enable debug in your WebService config and 
 > access https://localhost:9876/docs.

@@ -405,7 +405,7 @@ class Scheduler(Plugin[SchedulerListener]):
                 warn_times = Scheduler.get_warn_times(config)
             else:
                 warn_times = [0]
-            # we check the warn times from small to large, to find the first that fits
+            # we check the warn-times from small to large to find the first that fits
             for warn_time in sorted(warn_times):
                 if 'local_times' in rconf:
                     restart_time = datetime.now() + timedelta(seconds=warn_time)

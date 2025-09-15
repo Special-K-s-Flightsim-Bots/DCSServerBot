@@ -328,7 +328,7 @@ def is_upnp_available() -> bool:
             # No UPnP devices detected on the network.
             return False
     except Exception:
-        # An UPnP device was found, but no IGD was found.
+        # A UPnP device was found, but no IGD was found.
         return False
 
 

@@ -2,9 +2,9 @@ DEFAULT:
   music_dir: G:\My Drive\Music    # Directory where your music is (or where it is uploaded). For clusters, it should be a cloud drive like here.
   popup: Now playing {song} on {frequency}{modulation}  # optional - popup message when a song starts to play
   chat: Now playing {song} on {frequency}{modulation}   # optional - chat message when a song starts to play
-  pause_without_players: false    # Pause music, when no player is active (default: true)
+  pause_without_players: false    # Pause music if no player is active (default: true)
   radios:
-    Radio 1:                      # Name of the radio, can be anything
+    Radio 1:                      # Name of the radio - can be anything
       type: SRSRadio              # we currently only support SRS, so this has to be in
       mode: 1                     # mode 1 = repeat (at the end of the list), mode 2 = shuffle
       frequency: '30.0'           # channel where the music should be played

@@ -203,7 +203,7 @@ class LogAnalyser(Extension):
         filename, line_number, error_message = match.groups()
         basename = os.path.basename(filename)
 
-        # Get the ignore patterns from config, default to an empty list if not present
+        # Get the ignore-pattern from config. Defaults to an empty list if not present.
         ignore_patterns = self.config.get('ignore_files', [])
 
         # Check if the filename matches any of the regex patterns

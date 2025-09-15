@@ -159,7 +159,7 @@ class NodeImpl(Node):
             self._master = await self.heartbeat()
             self.log.info("- Starting as {} ...".format("Single / Master" if self._master else "Agent"))
         except (UndefinedTable, InFailedSqlTransaction):
-            # some master tables have changed, so do the update first
+            # some master tables have changed, do the update first
             self._master = True
         if self._master:
             try:
@@ -511,7 +511,7 @@ class NodeImpl(Node):
         return rc
 
     async def _upgrade(self, conn: psycopg.AsyncConnection):
-        # We do not want to run an upgrade, if we are on a cloud drive, so just restart in this case
+        # We do not want to run an upgrade if we are on a cloud drive. Just restart in this case.
         if not self.master and self.locals.get('cloud_drive', True):
             await self.restart()
         elif await self.upgrade_pending():
@@ -1041,7 +1041,7 @@ class NodeImpl(Node):
             await ServiceRegistry.get(BotService).rename_server(server, new_name)
         # update the ServiceBus
         ServiceRegistry.get(ServiceBus).rename_server(server, new_name)
-        # change the proxy name for remote servers (local ones will be renamed by ServerImpl)
+        # change the proxy name for remote servers (ServerImpl will rename local ones)
         if server.is_remote:
             server.name = new_name
 
@@ -1197,7 +1197,7 @@ class NodeImpl(Node):
                 shutil.copy2(os.path.expandvars(_template.extensions['SRS']['config']),
                              os.path.join(instance.home, 'Config', 'SRS.cfg'))
         else:
-            # copy default files, if they exist
+            # copy default files if they exist
             if os.path.exists(os.path.join(self.config_dir, 'autoexec.cfg')):
                 shutil.copy2(os.path.join(self.config_dir, 'autoexec.cfg'),
                              os.path.join(instance.home, 'Config'))
@@ -1292,7 +1292,7 @@ class NodeImpl(Node):
             await asyncio.to_thread(instance.server.stop_observer)
 
         try:
-            # test rename it, to make sure it works
+            # test-rename it to make sure it works
             new_home = os.path.join(os.path.dirname(instance.home), new_name)
             os.rename(instance.home, new_home)
             os.rename(new_home, instance.home)

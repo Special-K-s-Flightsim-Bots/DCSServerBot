@@ -7,7 +7,7 @@ import shutil
 import sys
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
-    PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, async_cache
+    PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
@@ -1140,7 +1140,7 @@ Please make sure you forward the following ports:
 
         elif server.status in [Status.RUNNING, Status.PAUSED]:
             await server.config_extension(extension, {"enabled": True})
-            # do we need to initialise the extension?
+            # do we need to initialize the extension?
             try:
                 await server.run_on_extension(extension=extension, method='enable')
             except ValueError:
@@ -1205,10 +1205,10 @@ Please make sure you forward the following ports:
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # ignore bot messages or messages that do not contain yaml attachments
+        # ignore bot messages or messages that do not contain YAML attachments
         if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.yaml'):
             return
-        # read the default config, if there is any
+        # read the default config if there is any
         config = self.get_config().get('uploads', {})
         # check if upload is enabled
         if not config.get('enabled', True):
@@ -1216,7 +1216,7 @@ Please make sure you forward the following ports:
         # check if the user has the correct role to upload, defaults to Admin
         if not utils.check_roles(config.get('discord', self.bot.roles['Admin']), message.author):
             return
-        # check if the upload happens in the servers admin channel (if provided)
+        # check if the upload happens in the server's admin-channel (if provided)
         server: Server = self.bot.get_server(message, admin_only=True)
         ctx = await self.bot.get_context(message)
         if not server:

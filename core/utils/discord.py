@@ -911,26 +911,46 @@ def get_all_linked_members(interaction: discord.Interaction) -> list[discord.Mem
 
 class ServerTransformer(app_commands.Transformer):
     """
+    A transformer for Discord application commands that handles server selection.
 
-    :class:`ServerTransformer` is a class that is used for transforming and autocompleting servers as a selection for application commands.
+    This class converts string inputs into Server objects and provides autocomplete
+    functionality for server selection in slash commands.
 
-    .. attribute:: status
+    Attributes:
+        status (list[Status]): Optional list of status values to filter servers by.
+        maintenance (bool): Optional filter for servers in maintenance mode.
 
-        An optional attribute that specifies the list of status values to filter the servers by.
-
-        :type: list of :class:`Status`
-        :default: None
-
-    :param status: An optional parameter that specifies the list of status values to filter the servers by.
-    :type status: list of :class:`Status`
-
+    Example:
+        ```python
+        @app_commands.command(name="restart")
+        async def restart_server(
+            interaction: discord.Interaction,
+            server: app_commands.Transform[Server, ServerTransformer(status=[Status.RUNNING])]
+        ):
+            # Command will only show running servers in autocomplete
+            await server.restart()
+        ```
     """
+
     def __init__(self, *, status: list[Status] = None, maintenance: Optional[bool] = None):
         super().__init__()
         self.status: list[Status] = status
         self.maintenance = maintenance
 
     async def transform(self, interaction: discord.Interaction, value: Optional[str]) -> Server:
+        """
+        Converts a server name into a Server object.
+
+        Args:
+            interaction: The interaction context
+            value: The server name to convert
+
+        Returns:
+            The corresponding Server object
+
+        Raises:
+            app_commands.TransformerError: If server not found
+        """
         if value:
             server = interaction.client.servers.get(value)
             if not server:
@@ -940,6 +960,19 @@ class ServerTransformer(app_commands.Transformer):
         return server
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        """
+        Provides server name suggestions for autocomplete.
+
+        Filters servers based on status, maintenance mode, and user input.
+        Only shows servers the user has permission to access.
+
+        Args:
+            interaction: The interaction context
+            current: Current text input by user
+
+        Returns:
+            List of server name suggestions (max 25)
+        """
         if not await interaction.command._check_can_run(interaction):
             return []
         try:

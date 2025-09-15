@@ -79,7 +79,7 @@ With this method, you can change the following values in your mission (to be ext
 * fog
 * halo (including sub-structures like listed in your mission file)
 * requiredModules (set this to [] to remove any module requirements from your mission)
-* accidental_failures (set this to false, to remove any failures from your mission)
+* accidental_failures (set this to `false` to remove any failures from your mission)
 * forcedOptions (force any mission option)
 * miscellaneous (set any miscellaneous option)
 * difficulty (set any difficulty option)
@@ -100,7 +100,7 @@ start_time has different options:
 > The moments are calculated based on the current theatre and date. If you change the date through MizEdit, you need to
 > set that prior to the start_time!
 > 
-> Thanks @davidp57 for contributing the moments part!
+> Thanks, @davidp57 for contributing the moments-part!
 
 #### b) Attaching Files
 If you want to attach files to your mission (e.g. sounds but others like scripts, etc.), you can do it like this:

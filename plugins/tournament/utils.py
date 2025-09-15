@@ -60,7 +60,7 @@ def create_groups(squadrons: list[tuple[int, float]], num_groups: int) -> list[l
         List of groups, where each group is a list of squadron IDs
 
     Raises:
-        ValueError: If number of groups is invalid or if there aren't enough squadrons
+        ValueError: If the number of groups is invalid, or if there aren't enough squadrons
     """
     if num_groups <= 0:
         raise ValueError("Number of groups must be positive")
@@ -154,14 +154,14 @@ async def download_image(image_url: str) -> bytes:
 
 async def create_versus_image(team_blue_image_url: str, team_red_image_url: str, winner: str = None) -> Optional[bytes]:
     """
-    Create a versus image or winner image depending on if winner is specified.
+    Create a versus image or winner image depending on if a winner is specified.
     :param team_blue_image_url: Blue team image URL
     :param team_red_image_url: Red team image URL
-    :param winner: Optional - either 'blue' or 'red' to indicate winner
+    :param winner: Optional - either 'blue' or 'red' to indicate the winner
     """
 
     def get_content_bbox(img):
-        """Get bounding box of non-transparent content."""
+        """Get a bounding box of non-transparent content."""
         alpha = img.getchannel('A')
         bbox = alpha.getbbox()
         return bbox if bbox else (0, 0, img.width, img.height)
@@ -256,7 +256,7 @@ async def create_versus_image(team_blue_image_url: str, team_red_image_url: str,
                                               winner_img.height + 2 * glow_size),
                                              (0, 0, 0, 0))
 
-                # Create glow effect using multiple passes
+                # Create a glow effect using multiple passes
                 glow = winner_img.copy()
                 glow = glow.convert('RGBA')
                 for i in range(glow_size):
@@ -288,7 +288,7 @@ async def create_versus_image(team_blue_image_url: str, team_red_image_url: str,
             total_width = img1.width + img2.width + spacing
             max_height = max(img1.height, img2.height)
 
-            # Create new image with transparent background
+            # Create new image with a transparent background
             combined_image = Image.new('RGBA', (total_width, max_height), (255, 255, 255, 0))
 
             # Calculate vertical positions
@@ -406,7 +406,7 @@ async def create_winner_image(winner_image_url: str) -> Optional[bytes]:
                     end_y = center[1] + int(math.sin(math.radians(angle)) * (winner_size[1] // 2 + 50))
                     draw.line([center, (end_x, end_y)], fill=glow_color, width=10)
 
-                # Add circular glow
+                # Add a circular glow
                 glow = winner_img.copy()
                 glow = glow.filter(ImageFilter.GaussianBlur(glow_size))
                 mask = Image.new('L', glow.size, 0)
@@ -438,7 +438,7 @@ async def create_winner_image(winner_image_url: str) -> Optional[bytes]:
             subtitle_text = "CHAMPION"
 
             # Calculate text positions - moved lower with extra spacing
-            base_text_y = canvas_size[1] - extra_bottom_space + 20  # Start text higher up from bottom
+            base_text_y = canvas_size[1] - extra_bottom_space + 20  # Start text higher up from the bottom
 
             # Calculate text positions
             for i, (text, font) in enumerate([(title_text, title_font), (subtitle_text, subtitle_font)]):
@@ -447,7 +447,7 @@ async def create_winner_image(winner_image_url: str) -> Optional[bytes]:
                 x = (canvas_size[0] - text_width) // 2
                 y = base_text_y + (i * 50)  # Stack the text lines
 
-                # Draw text with golden gradient effect
+                # Draw text with a golden gradient effect
                 for offset in range(3):  # Create 3D effect
                     draw.text((x - offset, y - offset), text, font=font,
                               fill=(255 - offset * 20, 215 - offset * 20, offset * 20, 255))
@@ -532,7 +532,7 @@ def create_tournament_sheet(squadrons_df: pd.DataFrame, matches_df: pd.DataFrame
     # Start writing from row 2 to leave space for headers
     row = 2
 
-    # Write group stage header
+    # Write a group stage header
     ws.cell(row=1, column=1, value="Groups").font = Font(bold=True)
 
     # Write groups and squadrons
@@ -576,7 +576,7 @@ def create_tournament_sheet(squadrons_df: pd.DataFrame, matches_df: pd.DataFrame
                     ws.cell(row=row + 2, column=column,
                             value=f'Winner: {winner_name}').font = Font(italic=True)
 
-                row += 4  # Space for next match
+                row += 4  # Space for the next match
         else:
             # Elimination stages - place them progressively to the right
             column = 3 + (stage - 1) * 3  # Each stage moves 3 columns to the right

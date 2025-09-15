@@ -5,7 +5,7 @@ import psycopg
 
 from copy import deepcopy
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, \
-    DataObjectFactory, PersistentReport, Channel, command, DEFAULT_TAG, Member, Group, get_translation
+    DataObjectFactory, PersistentReport, Channel, command, DEFAULT_TAG, Group, get_translation
 from datetime import timezone
 from discord import app_commands
 from discord.ext import commands, tasks
@@ -367,7 +367,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                     await interaction.followup.send(f"{prefix} is a member of this or another squadron already!",
                                                     ephemeral=True)
 
-                # check, if the user needs a role
+                # check if the user needs a role
                 if role:
                     if not member:
                         if not await utils.yn_question(interaction,
@@ -655,7 +655,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
     async def render_highscore(self, highscore: Union[dict, list], *, server: Optional[Server] = None,
                                mission_end: bool = False):
-        # Handle the case where highscore is a list.
+        # Handle the case where the highscore is a list.
         if isinstance(highscore, list):
             # Use asyncio.gather to process multiple items concurrently
             tasks = [
@@ -669,7 +669,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             return
 
         # Extract and validate parameters
-        kwargs = highscore.get('params', {}).copy()  # Use a shallow copy instead of deepcopy
+        kwargs = highscore.get('params', {}).copy()  # Use a shallow copy instead of a deepcopy
 
         if mission_end != kwargs.get('mission_end', False):
             return
@@ -684,7 +684,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             self.log.warning(f"Skipping faulty highscore element due to missing key: {ex}")
             return
 
-        # Detect the stats filter to use, if necessary
+        # Detect the stats-filter to use if necessary
         flt = StatisticsFilter.detect(self.bot, period) if period else None
 
         # Determine the report file and embed name
@@ -818,7 +818,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                             })
                             await self.render_highscore(config)
 
-            # Render server-specific highscores
+            # Render server-specific-highscores
             for server in self.bus.servers.values():
                 server_config = self.locals.get(server.node.name, self.locals).get(server.instance.name)
                 if server_config and server_config.get('highscore'):

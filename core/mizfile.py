@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import importlib
 import io
 import logging
@@ -13,7 +14,7 @@ import zipfile
 from astral import LocationInfo
 from astral.sun import sun
 from core import utils
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from packaging.version import parse, Version
 from timezonefinder import TimezoneFinder
 from typing import Union, Optional
@@ -220,12 +221,12 @@ class MizFile:
         self.mission['start_time'] = value
 
     @property
-    def date(self) -> date:
+    def date(self) -> datetime.date:
         value = self.mission['date']
-        return date(value['Year'], value['Month'], value['Day'])
+        return datetime.date(value['Year'], value['Month'], value['Day'])
 
     @date.setter
-    def date(self, value: date) -> None:
+    def date(self, value: datetime.date) -> None:
         self.mission['date'] = {"Day": value.day, "Year": value.year, "Month": value.month}
 
     @property

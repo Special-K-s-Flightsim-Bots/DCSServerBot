@@ -1089,7 +1089,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 matches_sheet.add_data_validation(dv)
 
                 # Apply data validation to squadron columns
-                for row in range(2, num_rows + 1):  # Start from row 2 to skip header
+                for row in range(2, num_rows + 1):  # Start from row 2 to skip the header
                     for col_name, col_index in squadron_cols.items():
                         cell = matches_sheet.cell(row=row, column=col_index)
                         cell.value = squadron_name_map.get(matches_df.iloc[row - 2][col_name])
@@ -1484,7 +1484,7 @@ class Tournament(Plugin[TournamentEventListener]):
             'red': utils.get_squadron(self.node, squadron_id=match['squadron_red'])
         }
 
-        # backup the serversettings.lua
+        # back-up the serversettings.lua
         filename = os.path.join(server.instance.home, 'Config', 'serverSettings.lua')
         orig_file = filename + '.orig'
         if not os.path.exists(orig_file):

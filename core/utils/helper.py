@@ -29,7 +29,7 @@ import math
 from collections.abc import Mapping
 from copy import deepcopy
 from croniter import croniter
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, tzinfo
 from difflib import unified_diff
 from importlib import import_module
 from pathlib import Path
@@ -87,7 +87,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def parse_time(time_str: str, tz: datetime.tzinfo = None) -> datetime:
+def parse_time(time_str: str, tz: tzinfo = None) -> datetime:
     fmt, time_str = ('%H:%M', time_str.replace('24:', '00:')) \
         if time_str.find(':') > -1 else ('%H', time_str.replace('24', '00'))
     ret = datetime.strptime(time_str, fmt)
@@ -96,7 +96,7 @@ def parse_time(time_str: str, tz: datetime.tzinfo = None) -> datetime:
     return ret
 
 
-def is_in_timeframe(time: datetime, timeframe: str, tz: datetime.tzinfo = None) -> bool:
+def is_in_timeframe(time: datetime, timeframe: str, tz: tzinfo = None) -> bool:
     """
     Check if a given time falls within a specified timeframe.
 
@@ -887,7 +887,7 @@ def hash_password(password: str) -> str:
     # Generate an 11 character alphanumeric string
     key = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(11))
 
-    # Create a 32 byte digest using the Blake2b hash algorithm
+    # Create a 32-byte-digest using the "Blake2b" hash algorithm
     # with the password as the input and the key as the key
     password_bytes = password.encode('utf-8')
     key_bytes = key.encode('utf-8')

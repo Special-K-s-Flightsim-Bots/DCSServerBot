@@ -278,7 +278,7 @@ class KDRatio(report.MultiGraphElement):
             ax.set_title('Player\nkilled by', color='white', fontsize=15)
             ax.axis('off')
             ax.set_xlim(- 2.5 * width, 2.5 * width)
-            if legend is True:
+            if legend:
                 ax.legend(labels, fontsize=15, loc=3, ncol=6, mode='expand',
                           bbox_to_anchor=(0.6, -0.2, 2.8, 0.4), columnspacing=1, frameon=False)
             # Chart was drawn, return True
@@ -299,7 +299,7 @@ class KDRatio(report.MultiGraphElement):
             center, r = self.axes[1].patches[i].center, self.axes[1].patches[i].r
             bar_height = sum([item.get_height() for item in self.axes[2].patches])
 
-            # draw top connecting line
+            # draw the top connecting line
             x = r * np.cos(np.pi / 180 * theta2) + center[0]
             y = r * np.sin(np.pi / 180 * theta2) + center[1]
             con = ConnectionPatch(xyA=(-0.2 / 2, bar_height), coordsA=self.axes[2].transData,
@@ -309,7 +309,7 @@ class KDRatio(report.MultiGraphElement):
             con.set_linestyle('dashed')
             self.axes[2].add_artist(con)
 
-            # draw bottom connecting line
+            # draw the bottom connecting line
             x = r * np.cos(np.pi / 180 * theta1) + center[0]
             y = r * np.sin(np.pi / 180 * theta1) + center[1]
             con = ConnectionPatch(xyA=(-0.2 / 2, 0), coordsA=self.axes[2].transData,
@@ -332,7 +332,7 @@ class KDRatio(report.MultiGraphElement):
             center, r = self.axes[1].patches[i].center, self.axes[1].patches[i].r
             bar_height = sum([item.get_height() for item in self.axes[0].patches])
 
-            # draw top connecting line
+            # draw the top connecting line
             x = r * np.cos(np.pi / 180 * theta2) + center[0]
             y = r * np.sin(np.pi / 180 * theta2) + center[1]
             con = ConnectionPatch(xyA=(0.2 / 2, 0), coordsA=self.axes[0].transData,
@@ -342,7 +342,7 @@ class KDRatio(report.MultiGraphElement):
             con.set_linestyle('dashed')
             self.axes[0].add_artist(con)
 
-            # draw bottom connecting line
+            # draw the bottom connecting line
             x = r * np.cos(np.pi / 180 * theta1) + center[0]
             y = r * np.sin(np.pi / 180 * theta1) + center[1]
             con = ConnectionPatch(xyA=(0.2 / 2, bar_height), coordsA=self.axes[0].transData,

@@ -1,7 +1,7 @@
 # Extension "LogAnalyser"
 This is a default extension that is loaded in any case. It will scan your dcs.log for errors and react in several ways
 according to what happened.
-Currently these actions are implemented:
+Currently, these actions are implemented:
 - Restart the mission on server unlisting.
 - Print script errors to the audit channel (if configured).
 
