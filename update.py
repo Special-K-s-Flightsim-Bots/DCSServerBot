@@ -1,8 +1,6 @@
 import io
 import os
 import re
-from pathlib import Path
-
 import requests
 import shutil
 import subprocess
@@ -13,6 +11,7 @@ import zipfile
 from contextlib import closing
 from core import utils, COMMAND_LINE_ARGS
 from packaging import version
+from pathlib import Path
 from typing import Iterable
 from version import __version__
 
@@ -138,7 +137,7 @@ def do_update_github() -> int:
     current_version = re.sub('^v', '', __version__)
     latest_version = re.sub('^v', '', response.json()[0]["tag_name"])
 
-    if version.parse(latest_version) != version.parse(current_version):
+    if version.parse(latest_version) > version.parse(current_version):
         print('- Updating myself...')
 
         zip_url = response.json()[0]['zipball_url']
@@ -176,10 +175,7 @@ def do_update_github() -> int:
             if rc.returncode:
                 print('  => Autoupdate failed!')
                 return -1
-        if version.parse(latest_version) > version.parse(current_version):
-            print(f'  => DCSServerBot updated to the latest version {latest_version}.')
-        else:
-            print(f'  => DCSServerBot reverted back to the previous version {latest_version}.')
+        print(f'  => DCSServerBot updated to the latest version {latest_version}.')
     else:
         print('- No update found for DCSServerBot.')
     return 0
