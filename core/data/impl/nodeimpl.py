@@ -622,9 +622,16 @@ class NodeImpl(Node):
                     await self.get_dcs_branch_and_version()
                     if rc not in [0, 350]:
                         return rc
-                if self.locals['DCS'].get('desanitize', True):
-                    if not self.locals['DCS'].get('cloud', False) or self.master:
+                # Patch DCS files
+                if not self.locals['DCS'].get('cloud', False) or self.master:
+                    if self.locals['DCS'].get('desanitize', True):
                         utils.desanitize(self)
+                    # init profanity filter, if needed
+                    if any(
+                            instance.server.locals.get('profanity_filter', False)
+                            for instance in self.instances if instance.server
+                    ):
+                        utils.init_profanity_filter(self)
                 # call after update hooks
                 for callback in self.after_update.values():
                     await callback()
