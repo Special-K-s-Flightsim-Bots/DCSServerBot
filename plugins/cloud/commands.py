@@ -328,6 +328,8 @@ class Cloud(Plugin[CloudListener]):
                     await guild.ban(user, reason='DGSA: ' + reason)
         except aiohttp.ClientError:
             self.log.warning("Cloud service unavailable.")
+        except discord.Forbidden:
+            self.log.error('DCSServerBot needs the "Ban Members" permission.')
 
     @cloud_bans.before_loop
     async def before_cloud_bans(self):
