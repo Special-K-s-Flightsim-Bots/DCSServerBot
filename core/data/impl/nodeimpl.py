@@ -471,8 +471,8 @@ class NodeImpl(Node):
                 changed_files.add(item.a_path)
             if changed_files:
                 self.log.error('     Please revert back the changes in these files:')
-                for item in changed_files:
-                    self.log.error(f'     ./{item.a_path}')
+                for path in changed_files:
+                    self.log.error(f'     ./{path}')
             else:
                 self.log.error(ex)
         except ValueError as ex:
