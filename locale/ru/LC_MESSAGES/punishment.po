@@ -19,7 +19,7 @@ msgid "Player with ucid {ucid} banned by {banned_by} for {reason}."
 msgstr "Игрок с ucid {ucid}) был забанен пользователем {banned_by}. Причина: {reason}."
 
 msgid "Player {player} (ucid={ucid}) kicked by {kicked_by} for {reason}."
-msgstr "Игрок с ucid {ucid}) был кикнут пользователем {banned_by}. Причина: {reason}."
+msgstr "Игрок с ucid {ucid}) был кикнут пользователем {kicked_by}. Причина: {reason}."
 
 msgid "You've been kicked back to spectators because of: {}."
 msgstr "Вы были перенесены в зрители. Причина: {}."
