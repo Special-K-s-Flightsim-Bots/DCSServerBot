@@ -15,11 +15,8 @@ from typing import Optional, Any
 _ = get_translation(__name__.split('.')[1])
 
 TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(os.path.join('%USERPROFILE%', 'Documents', 'Tacview')))
-TACVIEW_EXPORT_LINE = "local Tacviewlfs=require('lfs');dofile(Tacviewlfs.writedir()..'Scripts/TacviewGameExport.lua')\n"
+TACVIEW_EXPORT_LINE = "local Tacviewlfs=require('lfs');dofile(Tacviewlfs.writedir()..'Scripts/TacviewGameExport.lua')"
 TACVIEW_PATTERN_MATCH = r'Successfully saved \[(?P<filename>.*?\.acmi)\]'
-
-rtt_ports: dict[int, str] = dict()
-rcp_ports: dict[int, str] = dict()
 
 __all__ = [
     "Tacview",
@@ -28,6 +25,8 @@ __all__ = [
 
 
 class Tacview(Extension):
+    _rtt_ports: dict[int, str] = dict()
+    _rcp_ports: dict[int, str] = dict()
 
     CONFIG_DICT = {
         "tacviewRealTimeTelemetryPort": {
@@ -126,8 +125,6 @@ class Tacview(Extension):
         return False
 
     async def prepare(self) -> bool:
-        global rtt_ports, rcp_ports
-
         await self.update_instance(False)
         options = self.server.options['plugins']
         dirty = False
@@ -137,31 +134,35 @@ class Tacview(Extension):
             if name == 'tacviewExportPath':
                 path = os.path.normpath(os.path.expandvars(self.config.get('tacviewExportPath'))) or TACVIEW_DEFAULT_DIR
                 os.makedirs(path, exist_ok=True)
-                dirty = self.set_option(options, name, path) or dirty
+                dirty |= self.set_option(options, name, path)
             # Unbelievable but true. Tacview can only work with strings as ports.
             elif name in ['tacviewRealTimeTelemetryPort', 'tacviewRemoteControlPort']:
-                dirty = self.set_option(options, name, str(value)) or dirty
+                dirty |= self.set_option(options, name, str(value))
             else:
-                dirty = self.set_option(options, name, value) or dirty
+                dirty |= self.set_option(options, name, value)
 
         if not options['Tacview'].get('tacviewPlaybackDelay', 0):
             self.log.warning(
                 f'  => {self.server.name}: tacviewPlaybackDelay is not set, you might see performance issues!')
+        elif options['Tacview']['tacviewRealTimeTelemetryEnabled']:
+            self.log.warning(
+                f'  => {self.server.name}: tacviewPlaybackDelay is set, disabling real time telemetry.')
+            dirty |= self.set_option(options, 'tacviewRealTimeTelemetryEnabled', False)
         if dirty:
             self.server.options['plugins'] = options
             self.locals = options['Tacview']
         rtt_port = int(self.locals.get('tacviewRealTimeTelemetryPort', 42674))
-        if rtt_ports.get(rtt_port, self.server.name) != self.server.name:
+        if type(self)._rtt_ports.get(rtt_port, self.server.name) != self.server.name:
             self.log.error(f"  =>  {self.server.name}: tacviewRealTimeTelemetryPort {rtt_port} already in use by "
-                           f"server {rtt_ports[rtt_port]}!")
+                           f"server {type(self)._rtt_ports[rtt_port]}!")
             return False
-        rtt_ports[rtt_port] = self.server.name
+        type(self)._rtt_ports[rtt_port] = self.server.name
         rcp_port = int(self.locals.get('tacviewRemoteControlPort', 42675))
-        if rcp_ports.get(rcp_port, self.server.name) != self.server.name:
+        if type(self)._rcp_ports.get(rcp_port, self.server.name) != self.server.name:
             self.log.error(f"  =>  {self.server.name}: tacviewRemoteControlPort {rcp_port} already in use by "
-                           f"server {rcp_ports[rcp_port]}!")
+                           f"server {type(self)._rcp_ports[rcp_port]}!")
             return False
-        rcp_ports[rcp_port] = self.server.name
+        type(self)._rcp_ports[rcp_port] = self.server.name
         return True
 
     @property
@@ -236,7 +237,7 @@ class Tacview(Extension):
                     # best case we find the default line Tacview put in the Export.lua
                     if line == TACVIEW_EXPORT_LINE:
                         break
-                    # at least we found it, might still be wrong
+                    # at least we found it, it might still be wrong
                     elif not line.strip().startswith('--') and 'TacviewGameExport.lua'.casefold() in line.casefold():
                         break
                 else:
@@ -354,8 +355,11 @@ class Tacview(Extension):
                 lines = await infile.readlines()
         except FileNotFoundError:
             lines = []
-        if TACVIEW_EXPORT_LINE not in lines:
-            lines.append(TACVIEW_EXPORT_LINE)
+        for line in lines:
+            if TACVIEW_EXPORT_LINE in line:
+                break
+        else:
+            lines.append(TACVIEW_EXPORT_LINE + '\n')
             async with aiofiles.open(export_file, mode='w', encoding='utf-8') as outfile:
                 await outfile.writelines(lines)
         # load the configuration

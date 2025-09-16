@@ -14,16 +14,15 @@ from typing import Optional
 
 _ = get_translation(__name__.split('.')[1])
 
-process: Optional[psutil.Process] = None
-servers: set[str] = set()
-lock = asyncio.Lock()
-
 __all__ = [
     "Sneaker"
 ]
 
 
 class Sneaker(Extension):
+    _process: Optional[psutil.Process] = None
+    _servers: set[str] = set()
+    _lock = asyncio.Lock()
 
     CONFIG_DICT = {
         "bind": {
@@ -39,16 +38,14 @@ class Sneaker(Extension):
     }
 
     def __init__(self, server: Server, config: dict):
-        global process
-
         super().__init__(server, config)
         self.bus = ServiceRegistry.get(ServiceBus)
-        if self.enabled and (not process or not process.is_running()):
+        if self.enabled and (not type(self)._process or not type(self)._process.is_running()):
             cmd = self.config.get('cmd')
             if not cmd:
                 return
-            process = next(utils.find_process(os.path.basename(cmd)), None)
-            if process:
+            type(self)._process = next(utils.find_process(os.path.basename(cmd), self.config['bind']), None)
+            if type(self)._process:
                 self.log.debug("- Running Sneaker process found.")
 
     def create_config(self):
@@ -98,48 +95,42 @@ class Sneaker(Extension):
         return p
 
     async def startup(self) -> bool:
-        global process, servers, lock
-
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Sneaker needs Tacview to be enabled in your server!')
             return False
         try:
-            async with lock:
+            async with type(self)._lock:
                 if 'config' not in self.config:
                     # we need to lock here to avoid race conditions on parallel server startups
-                    await asyncio.to_thread(utils.terminate_process, process)
+                    await asyncio.to_thread(utils.terminate_process, type(self)._process)
                     self.create_config()
                     p = await asyncio.to_thread(self._run_subprocess,
                                                 os.path.join(self.node.config_dir, 'sneaker.json'))
-                    process = psutil.Process(p.pid)
-                elif not process or not process.is_running():
+                    type(self)._process = psutil.Process(p.pid)
+                elif not type(self)._process or not type(self)._process.is_running():
                     p = await asyncio.to_thread(self._run_subprocess, os.path.expandvars(self.config['config']))
-                    process = psutil.Process(p.pid)
+                    type(self)._process = psutil.Process(p.pid)
                     atexit.register(self.terminate)
-            servers.add(self.server.name)
+            type(self)._servers.add(self.server.name)
             return await super().startup()
         except Exception as ex:
             self.log.error(f"Error during launch of {self.config['cmd']}: {str(ex)}")
             return False
 
     def terminate(self) -> bool:
-        global process
-
         try:
-            if process:
-                utils.terminate_process(process)
-                process = None
+            if type(self)._process:
+                utils.terminate_process(type(self)._process)
+                type(self)._process = None
             return True
         except Exception as ex:
             self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
             return False
 
     def shutdown(self) -> bool:
-        global process, servers
-
         try:
-            servers.remove(self.server.name)
-            if not servers:
+            type(self)._servers.remove(self.server.name)
+            if not type(self)._servers:
                 super().shutdown()
                 return self.terminate()
             elif 'config' not in self.config:
@@ -147,7 +138,7 @@ class Sneaker(Extension):
                     self.create_config()
                     try:
                         p = self._run_subprocess(os.path.join(self.node.config_dir, 'sneaker.json'))
-                        process = psutil.Process(p.pid)
+                        type(self)._process = psutil.Process(p.pid)
                     except Exception as ex:
                         self.log.error(f"Error during launch of {self.config['cmd']}: {str(ex)}")
                         return False
@@ -159,9 +150,7 @@ class Sneaker(Extension):
             return False
 
     def is_running(self) -> bool:
-        global process, servers
-
-        return process is not None and process.is_running() and self.server.name in servers
+        return type(self)._process and type(self)._process.is_running() and self.server.name in type(self)._servers
 
     @property
     def version(self) -> Optional[str]:

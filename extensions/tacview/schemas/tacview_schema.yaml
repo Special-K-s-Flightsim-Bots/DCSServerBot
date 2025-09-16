@@ -3,7 +3,7 @@ schema;node_tacview_schema:
   allowempty: true  # we might want to specify additional tacview parameters, which are then not validated
   nullable: false
   mapping:
-    installation: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+    installation: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
     tacviewExportPath: {type: str, nullable: false, range: {min: 1}}
 schema;instance_tacview_schema:
   type: map

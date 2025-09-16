@@ -91,6 +91,7 @@ class Scheduler(Plugin[SchedulerListener]):
                 change_instance(instance)
         with open(config, mode='w', encoding='utf-8') as outfile:
             yaml.dump(data, outfile)
+        self.locals = self.read_locals()
 
     @staticmethod
     async def check_server_state(server: Server, config: dict) -> Status:
@@ -404,7 +405,7 @@ class Scheduler(Plugin[SchedulerListener]):
                 warn_times = Scheduler.get_warn_times(config)
             else:
                 warn_times = [0]
-            # we check the warn times from small to large, to find the first that fits
+            # we check the warn-times from small to large to find the first that fits
             for warn_time in sorted(warn_times):
                 if 'local_times' in rconf:
                     restart_time = datetime.now() + timedelta(seconds=warn_time)
@@ -453,6 +454,10 @@ class Scheduler(Plugin[SchedulerListener]):
 
     @tasks.loop(minutes=1.0)
     async def check_state(self):
+        # do not change the state if an update is pending
+        if self.node.update_pending:
+            return
+
         next_startup = 0
         startup_delay = self.get_config().get('startup_delay', 10)
         for server_name, server in self.bot.servers.items():

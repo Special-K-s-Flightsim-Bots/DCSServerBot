@@ -86,7 +86,7 @@ async def migrate_3_11(self: Plugin):
         if 'slotblocking' not in self.node.plugins:
             instance.pop('message_server_full', None)
 
-    # first of all, reorganise the messages in servers.yaml
+    # first, re-organize the messages in servers.yaml
     server_config = os.path.join(self.node.config_dir, 'servers.yaml')
     server_data = yaml.load(Path(server_config).read_text(encoding='utf-8'))
     # make sure we have a default tag

@@ -1,0 +1,126 @@
+ # AIOFiles: File support for python's asyncio
+aiofiles==24.1.0
+
+# Astral: Get times for solar events (morning, noon, etc.)
+astral==3.2
+
+# For discord.py on Python 3.13
+audioop-lts==0.2.2; python_version>='3.13'
+
+# AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
+aiohttp==3.12.15
+
+# Certifi: Python package for providing Mozilla's CA Bundle
+certifi>=2025.8.3
+
+# Croniter: Python iterator implementing a cron schedule format
+croniter==6.0.0
+
+# discord.py: The python interface for the Discord API
+discord.py==2.6.3
+
+# eyeD3: Python module and program for processing ID3 tags (metadata) in MP3 files
+eyeD3==0.9.8
+
+# FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
+fastapi==0.116.1
+
+# FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
+fuzzywuzzy==0.18.0
+
+# GitPython: Python library for interacting with git repositories
+GitPython>=3.1.45
+
+# Jinja web template framework
+jinja2==3.1.6
+
+# jsonschema: An implementation of JSON Schema for Python
+jsonschema==4.25.1
+
+# Fast LUA parser
+lupa==2.5
+
+# Matplotlib: Python 2D plotting library
+matplotlib>=3.9.4
+
+# Minidump: Windows Minidump file reader
+minidump==0.0.24; sys_platform == 'win32'
+
+# MiniUPnPC: UPnP check
+miniupnpc>=2.3.2
+
+# NumPy: Package for scientific computing with Python
+numpy>=2.2.6
+
+# Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
+openpyxl>=3.1.5
+
+# Pandas: Python data analysis library
+pandas>=2.3.2
+
+# Packaging: A core package providing support for PEP 440 version identifiers
+packaging==25.0
+
+# PID: Pidfile implementation by using a Unix PID file
+pid==3.0.4
+
+# PIP-Tools: Tools to manage requirements
+pip-tools==7.5.0
+
+# Psycopg: PostgreSQL database adapter for Python
+psycopg[binary]>=3.2.6
+
+# Psycopg Pool: PostgreSQL database adapter pool for Python
+psycopg-pool==3.2.6
+
+# PSUtil: Cross-platform library to access system details and process utilities
+psutil==7.0.0
+
+# PyArrow: Python library providing high-performance tools for doing analytics on Arrow-based columnar data
+pyarrow==21.0.0
+
+# pyKwalify: A Python library for YAML/JSON schema validation
+pykwalify==1.8.0
+
+# python-Levenshtein: Python extension for computing string edit distances and similarities
+python-Levenshtein==0.27.1
+
+# python-multipart: A library for parsing multipart/form-data input requests
+python-multipart==0.0.20
+
+# Pywin32: Set of Python extensions for MS Windows
+pywin32==311; sys_platform == 'win32'
+
+# Requests: Python HTTP library
+requests==2.32.5
+
+# Rich: Python library for rich text and beautiful formatting in the terminal
+rich==14.1.0
+
+# ruamel-yaml: YAML parser/emitter supporting roundtrip comment preservation
+ruamel.yaml==0.18.15
+
+# seaborn: Extension for Matplotlib with more and nicer graphics
+seaborn==0.13.2
+
+# SQL parser, to allow multiline SQLs
+sqlparse==0.5.3
+
+# TimetoneFinder: Find the right timezones for a given coordinate
+timezonefinder==6.5.9
+
+# tomli: Python TOML parser
+tomli==2.2.1
+tomli_w==1.2.0
+
+# TrueSkill: Python module implementing the TrueSkill rating system
+trueskill==0.4.5
+
+# Uvicorn: ASGI server implemented using asyncio and uvloop
+uvicorn==0.35.0
+
+# Watchdog: API library and shell utilities to monitor file system events
+watchdog==6.0.0
+
+# wxPython: GUI library to build Windows-like UI components
+# wxpython==4.2.3

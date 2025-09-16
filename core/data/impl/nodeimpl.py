@@ -159,7 +159,7 @@ class NodeImpl(Node):
             self._master = await self.heartbeat()
             self.log.info("- Starting as {} ...".format("Single / Master" if self._master else "Agent"))
         except (UndefinedTable, InFailedSqlTransaction):
-            # some master tables have changed, so do the update first
+            # some master tables have changed, do the update first
             self._master = True
         if self._master:
             try:
@@ -376,6 +376,7 @@ class NodeImpl(Node):
                                f"There is an instance already with the same server name or bot port.")
 
     async def update_db(self):
+        rc = 0
         # Initialize the cluster tables ...
         async with self.cpool.connection() as conn:
             async with conn.transaction():
@@ -433,8 +434,11 @@ class NodeImpl(Node):
                                 await conn.execute(query.rstrip())
                         cursor = await conn.execute('SELECT version FROM version')
                         self.db_version = (await cursor.fetchone())[0]
-                        await asyncio.to_thread(migrate, self.node, old_version, self.db_version)
-                        self.log.info(f'- Database upgraded from {old_version} to {self.db_version}.')
+                        rc = await asyncio.to_thread(migrate, self.node, old_version, self.db_version)
+                        if rc != -2:
+                            self.log.info(f'- Database upgraded from {old_version} to {self.db_version}.')
+        if rc in [-1, -2]:
+            sys.exit(rc)
 
     def install_plugins(self):
         for file in Path('plugins').glob('*.zip'):
@@ -507,7 +511,7 @@ class NodeImpl(Node):
         return rc
 
     async def _upgrade(self, conn: psycopg.AsyncConnection):
-        # We do not want to run an upgrade, if we are on a cloud drive, so just restart in this case
+        # We do not want to run an upgrade if we are on a cloud drive. Just restart in this case.
         if not self.master and self.locals.get('cloud_drive', True):
             await self.restart()
         elif await self.upgrade_pending():
@@ -592,8 +596,11 @@ class NodeImpl(Node):
             return rc
 
         self.update_pending = True
-        async with ServerMaintenanceManager(self.node, warn_times,
-                                            _('Server is going down for a DCS update in {}!')):
+        async with ServerMaintenanceManager(
+                self.node,
+                warn_times = warn_times,
+                message = _('Server is going down for a DCS update in {}!')
+        ):
             self.log.info(f"Updating {self.installation} ...")
             # call before update hooks
             for callback in self.before_update.values():
@@ -615,9 +622,16 @@ class NodeImpl(Node):
                     await self.get_dcs_branch_and_version()
                     if rc not in [0, 350]:
                         return rc
-                if self.locals['DCS'].get('desanitize', True):
-                    if not self.locals['DCS'].get('cloud', False) or self.master:
+                # Patch DCS files
+                if not self.locals['DCS'].get('cloud', False) or self.master:
+                    if self.locals['DCS'].get('desanitize', True):
                         utils.desanitize(self)
+                    # init profanity filter, if needed
+                    if any(
+                            instance.server.locals.get('profanity_filter', False)
+                            for instance in self.instances if instance.server
+                    ):
+                        utils.init_profanity_filter(self)
                 # call after update hooks
                 for callback in self.after_update.values():
                     await callback()
@@ -639,8 +653,11 @@ class NodeImpl(Node):
                 startupinfo=startupinfo
             )
 
-        async with ServerMaintenanceManager(self.node, [120, 60, 10],
-                                            _('Server is going down to {what}'.format(what=what) + ' a module in {}!')):
+        async with ServerMaintenanceManager(
+                self.node,
+                warn_times = [120, 60, 10],
+                message = _('Server is going down to {what}'.format(what=what) + ' a module in {}!')
+        ):
             await asyncio.to_thread(run_subprocess)
 
     @cache_with_expiration(expiration=60)
@@ -693,6 +710,7 @@ class NodeImpl(Node):
 
     @cache_with_expiration(expiration=120)
     async def get_available_dcs_versions(self, branch: str) -> Optional[list[str]]:
+
         async def _get_latest_versions_no_auth() -> Optional[list[str]]:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
@@ -745,18 +763,10 @@ class NodeImpl(Node):
                 if not self.locals['DCS'].get('cloud', False) or self.master:
                     self.autoupdate.start()
             else:
-                branch, old_version = await self.get_dcs_branch_and_version()
-                try:
-                    new_version = await self.get_latest_version(branch)
-                    if new_version:
-                        if parse(old_version) < parse(new_version):
-                            self.log.warning(
-                                f"- Your DCS World version is outdated. Consider upgrading to version {new_version}.")
-                        elif parse(old_version) > parse(new_version):
-                            self.log.critical(
-                                f"- The DCS World version you are using has been rolled back to version {new_version}!")
-                except Exception:
-                    self.log.warning("Version check failed, possible auth-server outage.")
+                new_version = await self.is_dcs_update_available()
+                if new_version:
+                    self.log.warning(
+                        f"- Your DCS World version is outdated. Consider upgrading to version {new_version}.")
 
     async def unregister(self):
         async with self.cpool.connection() as conn:
@@ -854,7 +864,7 @@ class NodeImpl(Node):
                 self.suspect[node.name] = node
 
         try:
-            # do not do any checks, if we are supposed to shut down
+            # do not do any checks if we are supposed to shut down
             if self.node.is_shutdown.is_set():
                 return self.master
 
@@ -906,6 +916,9 @@ class NodeImpl(Node):
         except FatalException as ex:
             self.log.critical(ex)
             exit(SHUTDOWN)
+        except InFailedSqlTransaction:
+            # we should only be here when the CLUSTER table does not exist yet
+            raise
         except Exception as ex:
             self.log.exception(ex)
             raise
@@ -1028,91 +1041,101 @@ class NodeImpl(Node):
             await ServiceRegistry.get(BotService).rename_server(server, new_name)
         # update the ServiceBus
         ServiceRegistry.get(ServiceBus).rename_server(server, new_name)
-        # change the proxy name for remote servers (local ones will be renamed by ServerImpl)
+        # change the proxy name for remote servers (ServerImpl will rename local ones)
         if server.is_remote:
             server.name = new_name
 
-    @tasks.loop(minutes=5.0)
-    async def autoupdate(self):
+    async def is_dcs_update_available(self) -> Optional[str]:
+        branch, old_version = await self.get_dcs_branch_and_version()
+        try:
+            new_version = await self.get_latest_version(branch)
+            if not new_version:
+                self.log.debug("DCS update check failed, no version received from ED.")
+            elif parse(old_version) < parse(new_version):
+                return new_version
+            elif new_version < old_version:
+                self.log.warning(
+                    f"Your current DCS version {old_version} has been reverted to version {new_version}."
+                    f"You might want to manually downgrade the version.")
+        except aiohttp.ClientError:
+            self.log.warning("DCS update check failed, possible server outage at ED.")
+        return None
+
+    async def dcs_update(self, *, branch: Optional[str] = None, version: Optional[str] = None,
+                         warn_times: list[int] = None, announce: Optional[bool] = True):
         from services.bot import BotService
         from services.servicebus import ServiceBus
 
-        # don't run, if an update is currently running
+        self.log.info('A new version of DCS World is available. Auto-updating ...')
+        rc = await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
+        if rc == 0:
+            bus = ServiceRegistry.get(ServiceBus)
+            await bus.send_to_node({
+                "command": "rpc",
+                "service": BotService.__name__,
+                "method": "audit",
+                "params": {
+                    "message": f"DCS World updated to version {version} on node {self.node.name}."
+                }
+            })
+            config = self.config.get('announce')
+            if config and announce:
+                embed = discord.Embed(
+                    colour=discord.Colour.blue(),
+                    title=config.get(
+                        'title', 'DCS has been updated to version {}!').format(version),
+                    url=f"https://www.digitalcombatsimulator.com/en/news/changelog/stable/{version}/")
+                embed.description = config.get('description', 'The following servers have been updated:')
+                embed.set_thumbnail(url="https://forum.dcs.world/uploads/monthly_2023_10/"
+                                        "icons_4.png.f3290f2c17710d5ab3d0ec5f1bf99064.png")
+                embed.add_field(name=_('Server'),
+                                value='\n'.join([
+                                    f'- {x.display_name}' for x in bus.servers.values() if not x.is_remote
+                                ]), inline=False)
+                embed.set_footer(
+                    text=config.get('footer', 'Please make sure you update your DCS client to join!'))
+                params = {
+                    "channel": config['channel'],
+                    "embed": embed.to_dict()
+                }
+                if 'mention' in config:
+                    params['mention'] = config['mention']
+                await bus.send_to_node({
+                    "command": "rpc",
+                    "service": BotService.__name__,
+                    "method": "send_message",
+                    "params": params
+                })
+        else:
+            if rc == 2:
+                message = f"DCS World update on node {self.name} was aborted (check disk space)!"
+            elif rc in [3, 350]:
+                message = (f"DCS World has been updated to version {version} on node {self.name}.\n"
+                           f"The updater has requested a **reboot** of the system!")
+            else:
+                message = (f"DCS World could not be updated on node {self.name} due to an error ({rc}): "
+                           f"{utils.get_win32_error_message(rc)}!")
+            self.log.error(message)
+            await ServiceRegistry.get(ServiceBus).send_to_node({
+                "command": "rpc",
+                "service": BotService.__name__,
+                "method": "alert",
+                "params": {
+                    "title": "DCS Update Issue",
+                    "message": message
+                }
+            })
+
+    @tasks.loop(minutes=5.0)
+    async def autoupdate(self):
+        # don't run if an update is currently running
         if self.update_pending:
             return
         try:
-            try:
-                branch, old_version = await self.get_dcs_branch_and_version()
-                new_version = await self.get_latest_version(branch)
-                if not new_version:
-                    self.log.debug("DCS update check failed, no version reveived from ED.")
-                    return
-            except aiohttp.ClientError:
-                self.log.warning("DCS update check failed, possible server outage at ED.")
-                return
-            if parse(old_version) < parse(new_version):
-                self.log.info('A new version of DCS World is available. Auto-updating ...')
-                rc = await self.update([300, 120, 60])
-                if rc == 0:
-                    bus = ServiceRegistry.get(ServiceBus)
-                    await bus.send_to_node({
-                        "command": "rpc",
-                        "service": BotService.__name__,
-                        "method": "audit",
-                        "params": {
-                            "message": f"DCS World updated to version {new_version} on node {self.node.name}."
-                        }
-                    })
-                    if isinstance(self.locals['DCS'].get('autoupdate'), dict):
-                        config = self.locals['DCS'].get('autoupdate')
-                        embed = discord.Embed(
-                            colour=discord.Colour.blue(),
-                            title=config.get(
-                                'title', 'DCS has been updated to version {}!').format(new_version),
-                            url=f"https://www.digitalcombatsimulator.com/en/news/changelog/stable/{new_version}/")
-                        embed.description = config.get('description', 'The following servers have been updated:')
-                        embed.set_thumbnail(url="https://forum.dcs.world/uploads/monthly_2023_10/"
-                                                "icons_4.png.f3290f2c17710d5ab3d0ec5f1bf99064.png")
-                        embed.add_field(name=_('Server'),
-                                        value='\n'.join([
-                                            f'- {x.display_name}' for x in bus.servers.values() if not x.is_remote
-                                        ]), inline=False)
-                        embed.set_footer(
-                            text=config.get('footer', 'Please make sure you update your DCS client to join!'))
-                        params = {
-                            "channel": config['channel'],
-                            "embed": embed.to_dict()
-                        }
-                        if 'mention' in config:
-                            params['mention'] = config['mention']
-                        await bus.send_to_node({
-                            "command": "rpc",
-                            "service": BotService.__name__,
-                            "method": "send_message",
-                            "params": params
-                        })
-                else:
-                    if rc == 2:
-                        message = f"DCS World update on node {self.name} was aborted (check disk space)!"
-                    elif rc in [3, 350]:
-                        message = (f"DCS World has been updated to version {new_version} on node {self.name}.\n"
-                                   f"The updater has requested a **reboot** of the system!")
-                    else:
-                        message = (f"DCS World could not be updated on node {self.name} due to an error ({rc}): "
-                                   f"{utils.get_win32_error_message(rc)}!")
-                    self.log.error(message)
-                    await ServiceRegistry.get(ServiceBus).send_to_node({
-                        "command": "rpc",
-                        "service": BotService.__name__,
-                        "method": "alert",
-                        "params": {
-                            "title": "DCS Update Issue",
-                            "message": message
-                        }
-                    })
-            elif new_version < old_version:
-                self.log.warning(f"Your current DCS version {old_version} has been reverted to version {new_version}."
-                                 f"You might want to manually downgrade the version.")
+            version = await self.is_dcs_update_available()
+            if version:
+                await self.dcs_update(version=version)
+
         except aiohttp.ClientError as ex:
             self.log.warning(ex)
         except Exception as ex:
@@ -1122,12 +1145,20 @@ class NodeImpl(Node):
     async def before_autoupdate(self):
         from services.servicebus import ServiceBus
 
+        # make sure the Scheduler does not interact
+        self.update_pending = True
         # wait for all servers to be in a proper state
         while True:
             bus = ServiceRegistry.get(ServiceBus)
             if bus and bus.servers and all(server.status != Status.UNREGISTERED for server in bus.servers.values()):
                 break
             await asyncio.sleep(1)
+
+        # check for updates
+        new_version = await self.is_dcs_update_available()
+        if new_version:
+            await self.dcs_update(version=new_version)
+        self.update_pending = False
 
     async def add_instance(self, name: str, *, template: str = "") -> "Instance":
         from services.servicebus import ServiceBus
@@ -1147,20 +1178,36 @@ class NodeImpl(Node):
             "webgui_port": max_webgui_port + 2 if max_webgui_port != -1 else 8088
         })
         os.makedirs(os.path.join(instance.home, 'Config'), exist_ok=True)
-        # should we copy from a template
         if template:
+            # copy from a template
             _template = next(x for x in self.node.instances if x.name == template)
-            shutil.copy2(os.path.join(_template.home, 'Config', 'autoexec.cfg'),
-                         os.path.join(instance.home, 'Config'))
-            shutil.copy2(os.path.join(_template.home, 'Config', 'serverSettings.lua'),
-                         os.path.join(instance.home, 'Config'))
-            shutil.copy2(os.path.join(_template.home, 'Config', 'options.lua'),
-                         os.path.join(instance.home, 'Config'))
-            shutil.copy2(os.path.join(_template.home, 'Config', 'network.vault'),
-                         os.path.join(instance.home, 'Config'))
+            if os.path.exists(os.path.join(_template.home, 'Config', 'autoexec.cfg')):
+                shutil.copy2(os.path.join(_template.home, 'Config', 'autoexec.cfg'),
+                             os.path.join(instance.home, 'Config'))
+            if os.path.exists(os.path.join(_template.home, 'Config', 'serverSettings.lua')):
+                shutil.copy2(os.path.join(_template.home, 'Config', 'serverSettings.lua'),
+                             os.path.join(instance.home, 'Config'))
+            if os.path.exists(os.path.join(_template.home, 'Config', 'options.lua')):
+                shutil.copy2(os.path.join(_template.home, 'Config', 'options.lua'),
+                             os.path.join(instance.home, 'Config'))
+            if os.path.exists(os.path.join(_template.home, 'Config', 'network.vault')):
+                shutil.copy2(os.path.join(_template.home, 'Config', 'network.vault'),
+                             os.path.join(instance.home, 'Config'))
             if _template.extensions and _template.extensions.get('SRS'):
                 shutil.copy2(os.path.expandvars(_template.extensions['SRS']['config']),
                              os.path.join(instance.home, 'Config', 'SRS.cfg'))
+        else:
+            # copy default files if they exist
+            if os.path.exists(os.path.join(self.config_dir, 'autoexec.cfg')):
+                shutil.copy2(os.path.join(self.config_dir, 'autoexec.cfg'),
+                             os.path.join(instance.home, 'Config'))
+            if os.path.exists(os.path.join(self.config_dir, 'serverSettings.lua')):
+                shutil.copy2(os.path.join(self.config_dir, 'serverSettings.lua'),
+                             os.path.join(instance.home, 'Config'))
+            if os.path.exists(os.path.join(self.config_dir, 'options.lua')):
+                shutil.copy2(os.path.join(self.config_dir, 'options.lua'),
+                             os.path.join(instance.home, 'Config'))
+
         autoexec = Autoexec(instance=instance)
         autoexec.crash_report_mode = "silent"
         if not self.locals.get('use_upnp', True):
@@ -1185,6 +1232,8 @@ class NodeImpl(Node):
             settings = SettingsDict(cast(DataObject, self), settings_path, root='cfg')
             settings['port'] = instance.dcs_port
             settings['name'] = 'n/a'
+            settings['missionList'] = []
+            settings['listStartIndex'] = 0
         bus = ServiceRegistry.get(ServiceBus)
         server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name='n/a', bus=bus)
         instance.server = server
@@ -1243,7 +1292,7 @@ class NodeImpl(Node):
             await asyncio.to_thread(instance.server.stop_observer)
 
         try:
-            # test rename it, to make sure it works
+            # test-rename it to make sure it works
             new_home = os.path.join(os.path.dirname(instance.home), new_name)
             os.rename(instance.home, new_home)
             os.rename(new_home, instance.home)

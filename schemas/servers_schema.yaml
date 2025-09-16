@@ -10,7 +10,7 @@ schema;settings_schema:
     maxPlayers: {type: text, nullable: false}
     name: {type: str, nullable: false, range: {min: 1}}
     password: {type: str, nullable: false}
-    port: {type: text, nullable: false, func: unique_port}
+    port: {type: text, nullable: false}
     mode: {type: text, nullable: false}
     require_pure_clients: {type: bool, nullable: false}
     require_pure_models: {type: bool, nullable: false}
@@ -70,6 +70,7 @@ mapping:
           greeting_message_unmatched: {type: str, nullable: false, range: {min: 1}}
           message_player_username: {type: str, nullable: false, range: {min: 1}}
           message_player_default_username: {type: str, nullable: false, range: {min: 1}}
+          message_player_inappropriate_username: {type: str, nullable: false, range: {min: 1}}
           message_ban: {type: str, nullable: false, range: {min: 1}}
           message_reserved: {type: str, nullable: false, range: {min: 1}}
           message_no_voice: {type: str, nullable: false, range: {min: 1}}

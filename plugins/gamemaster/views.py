@@ -6,8 +6,6 @@ from discord import TextStyle, ButtonStyle
 from discord.ui import Modal, TextInput, View
 from typing import Union, Optional
 
-from .listener import GameMasterEventListener
-
 _ = get_translation(__name__.split('.')[1])
 
 
@@ -20,11 +18,23 @@ class CampaignModal(Modal):
     end = TextInput(label=_("End (UTC)"), placeholder="yyyy-mm-dd hh24:mi", required=False)
     # noinspection PyTypeChecker
     description = TextInput(label=_("Description"), required=False, style=TextStyle.long)
+    # noinspection PyTypeChecker
+    image_url = TextInput(label=_("Image URL"), required=False, style=TextStyle.short)
 
-    def __init__(self, eventlistener: GameMasterEventListener):
+    def __init__(self, name: Optional[str] = None, start: Optional[datetime] = None, end: Optional[datetime] = None,
+                 description: Optional[str] = None, image_url: Optional[str] = None):
         super().__init__(title=_("Campaign Info"))
-        self.eventlistener = eventlistener
-        self.start.default = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+        if name:
+            self.remove_item(self.name)
+            self.title = _("Edit Campaign {}".format(name))
+        if start:
+            self.start.default = start.strftime("%Y-%m-%d %H:%M")
+        else:
+            self.start.default = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+        if end:
+            self.end.default = end.strftime("%Y-%m-%d %H:%M")
+        self.description.default = description
+        self.image_url.default = image_url
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         try:
@@ -32,14 +42,14 @@ class CampaignModal(Modal):
         except ValueError:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _("Format for {} needs to be yyyy-mm-dd hh24:mi!").format(self.start.label), ephemeral=True)
+                _("Format for {} needs to be yyyy-mm-dd hh24:mi!").format(self.start.value), ephemeral=True)
             raise
         try:
             self.end = datetime.strptime(self.end.value, '%Y-%m-%d %H:%M') if self.end.value else None
         except ValueError:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _("Format for {} needs to be yyyy-mm-dd hh24:mi!").format(self.end.label), ephemeral=True)
+                _("Format for {} needs to be yyyy-mm-dd hh24:mi!").format(self.end.value), ephemeral=True)
             raise
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()

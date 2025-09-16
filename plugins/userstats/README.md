@@ -50,7 +50,7 @@ instance2:
 | /statistics        | [user] [period]                  | all           | DCS                          | Display your own statistics or that of a specific user. A period can be supplied.                 |
 | /highscore         | [server] [period]                | all           | DCS                          | Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship) |
 | /reset_statistics  | [server]                         | admin-channel | Admin                        | Deletes the statistics. If a server is provided, only this server is affected.                    |
-| /delete_statistics | [user]                           | all           | DCS, DCS Admin               | Lets a user delete their own statistics, or an DCS Admin do it for any user.                      |
+| /delete_statistics | <user>                           | all           | DCS Admin                    | Delete statistics of a user.                                                                      |
 | /squadron create   | <name> <locked> [role] [channel] | all           | DCS Admin                    | Create a new squadron and give it an optional auto-role and persistent channel.                   |
 | /squadron add      | <name> <user>                    | all           | DCS Admin                    | Adds a user to a squadron.                                                                        |
 | /squadron delete   | <name> [user]                    | all           | DCS Admin                    | Deletes a user from a squadron or a whole squadron.                                               |

@@ -4,7 +4,6 @@ mapping:
   no_discord: {type: bool, nullable: false}
   token: {type: str, nullable: false, range: {min: 1}}
   owner: {type: int, nullable: false}
-  command_prefix: {type: str, range: {min: 1, max: 1}, nullable: false}
   automatch: {type: bool, nullable: false}
   autoban: {type: bool, nullable: false}
   autorole:
@@ -75,7 +74,6 @@ mapping:
       DCS:
         type: seq
         nullable: false
-        required: true
         sequence:
           - type: text
             nullable: false

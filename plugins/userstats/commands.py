@@ -5,7 +5,7 @@ import psycopg
 
 from copy import deepcopy
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, \
-    DataObjectFactory, PersistentReport, Channel, command, DEFAULT_TAG, Member, Group, get_translation
+    DataObjectFactory, PersistentReport, Channel, command, DEFAULT_TAG, Group, get_translation
 from datetime import timezone
 from discord import app_commands
 from discord.ext import commands, tasks
@@ -92,6 +92,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 path = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
                 with open(path, mode='w', encoding='utf-8') as outfile:
                     yaml.dump(self.locals, outfile)
+                self.locals = self.read_locals()
                 self.log.warning(f"New file {path} written, please check for possible errors.")
 
     async def cog_unload(self):
@@ -238,29 +239,33 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
     @command(description='Delete statistics for users')
     @app_commands.guild_only()
-    @utils.app_has_roles(['DCS', 'DCS Admin'])
-    async def delete_statistics(self, interaction: discord.Interaction, user: Optional[discord.Member]):
+    @utils.app_has_roles(['DCS Admin'])
+    async def delete_statistics(self, interaction: discord.Interaction,
+                                user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
+
         if not user:
             user = interaction.user
-        elif user != interaction.user and not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
+        if isinstance(user, discord.Member):
+            ucid = await self.bot.get_ucid_by_member(user)
+            name = user.display_name
+        else:
+            ucid = user
+            name = user
+
+        if not ucid:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                f'You are not allowed to delete statistics of user {user.display_name}!')
+            await interaction.response.send_message(_("User {} is not linked.").format(name), ephemeral=True)
             return
-        member = DataObjectFactory().new(Member, name=user.name, node=self.node, member=user)
-        if not member.verified:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                f"User {user.display_name} has non-verified links. Statistics can't be deleted.", ephemeral=True)
-            return
+
         ephemeral = utils.get_ephemeral(interaction)
-        if await utils.yn_question(interaction, f'I\'m going to **DELETE ALL STATISTICS** of user '
-                                                f'"{user.display_name}".\n\nAre you sure?', ephemeral=ephemeral):
+        if await utils.yn_question(
+                interaction, _('I\'m going to **DELETE ALL STATISTICS** of user "{}".\n\nAre you sure?').format(name),
+                ephemeral=ephemeral):
             async with self.apool.connection() as conn:
                 async with conn.transaction():
                     for plugin in self.bot.cogs.values():  # type: Plugin
-                        await plugin.prune(conn, ucids=[member.ucid])
-                await interaction.followup.send(f'Statistics for user "{user.display_name}" have been wiped.',
+                        await plugin.prune(conn, ucids=[ucid])
+                await interaction.followup.send(_('Statistics for user "{}" have been wiped.').format(name),
                                                 ephemeral=ephemeral)
 
     # New command group "/squadron"
@@ -362,7 +367,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                     await interaction.followup.send(f"{prefix} is a member of this or another squadron already!",
                                                     ephemeral=True)
 
-                # check, if the user needs a role
+                # check if the user needs a role
                 if role:
                     if not member:
                         if not await utils.yn_question(interaction,
@@ -650,7 +655,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
     async def render_highscore(self, highscore: Union[dict, list], *, server: Optional[Server] = None,
                                mission_end: bool = False):
-        # Handle the case where highscore is a list.
+        # Handle the case where the highscore is a list.
         if isinstance(highscore, list):
             # Use asyncio.gather to process multiple items concurrently
             tasks = [
@@ -664,7 +669,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             return
 
         # Extract and validate parameters
-        kwargs = highscore.get('params', {}).copy()  # Use a shallow copy instead of deepcopy
+        kwargs = highscore.get('params', {}).copy()  # Use a shallow copy instead of a deepcopy
 
         if mission_end != kwargs.get('mission_end', False):
             return
@@ -679,7 +684,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             self.log.warning(f"Skipping faulty highscore element due to missing key: {ex}")
             return
 
-        # Detect the stats filter to use, if necessary
+        # Detect the stats-filter to use if necessary
         flt = StatisticsFilter.detect(self.bot, period) if period else None
 
         # Determine the report file and embed name
@@ -693,7 +698,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             self.log.warning(f"Channel ID missing for highscore '{period}'")
             return
 
-        # Handle report rendering based on mission_end flag
+        # Handle report rendering based on the mission_end flag
         try:
             if not mission_end:
                 # Persistent highscore rendering
@@ -813,7 +818,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                             })
                             await self.render_highscore(config)
 
-            # Render server-specific highscores
+            # Render server-specific-highscores
             for server in self.bus.servers.values():
                 server_config = self.locals.get(server.node.name, self.locals).get(server.instance.name)
                 if server_config and server_config.get('highscore'):

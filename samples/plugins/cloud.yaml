@@ -6,11 +6,13 @@
 # statistics system.                                          #
 ################################################################
 DEFAULT:
-  dcs-ban: false                        # true: subscribe to the global ban service for DCS users.
-  discord-ban: false                    # true: subscrive to the global ban service for Discord users.
+  banlist: both                         # One of pvp, pve or both. For DCS bans / watchlist only (default: both).
+  dcs-ban: false                        # true: subscribe to the global ban service for DCS users (default: false).
+  discord-ban: false                    # true: subscribe to the global ban service for Discord users (default: false).
+  watchlist_only: false                 # true: a player being on the global banlist will be added to the watchlist only (default: false, does not work with dcs-ban: true)
   host: dcsserverbot-prod.herokuapp.com # Don't change that until told otherwise.
   port: 443                             # Don't change that until told otherwise.
   protocol: https                       # Don't change that until told otherwise.
-  register: true                        # True, participate with Special K's server statistics (please do that!)
+  register: true                        # True, send general statistics to my community stats (please do that!)
   upload_errors: true                   # True, upload exceptions to the central error database, so that I can see what happened in your bot (and fix it)
 #  token: xxxyyyzzz111222333444         # If you got a TOKEN to participate in the cloud statistics, then put it in here.

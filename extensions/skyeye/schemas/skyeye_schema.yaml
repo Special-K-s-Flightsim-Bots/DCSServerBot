@@ -2,7 +2,7 @@ schema;node_skyeye_schema:
   type: map
   nullable: false
   mapping:
-    installation: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
+    installation: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
     autoupdate: {type: bool, nullable: false}
     debug: {type: bool, nullable: false}
 
@@ -38,13 +38,14 @@ schema;skyeye_config:
     mandatory-threat-radius: {type: int, nullable: false}
     discord-webhook-id: {type: text, nullable: false}
     discord-webhook-token: {type: str, nullable: false, range: {min: 1}}
-    telemetry-address: {type: str, nullable: false, range: {min: 1}}
-    srs-server-address: {type: str, nullable: false, range: {min: 1}}
-    srs-eam-password: {type: str, nullable: false, range: {min: 1}}
+    telemetry-address: {type: str, nullable: false, range: {min: 1}, func: obsolete}
+    telemetry-password: {type: str, nullable: false, func: obsolete}
+    srs-server-address: {type: str, nullable: false, range: {min: 1}, func: obsolete}
+    srs-eam-password: {type: str, nullable: false, range: {min: 1}, func: obsolete}
     srs-frequencies: {type: str, nullable: false}
-    enable-grpc: {type: bool, nullable: false}
-    grpc-address: {type: str, nullable: false, range: {min: 1}}
-    grpc-password: {type: str, nullable: false, range: {min: 1}}
+    enable-grpc: {type: bool, nullable: false, func: obsolete}
+    grpc-address: {type: str, nullable: false, range: {min: 1}, func: obsolete}
+    grpc-password: {type: str, nullable: false, range: {min: 1}, func: obsolete}
     instances:
       type: seq
       nullable: false

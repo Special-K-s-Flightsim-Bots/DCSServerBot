@@ -29,6 +29,7 @@ MyNode:
           tacviewRemoteControlPort: 42675       # default
           tacviewRemoteControlPassword: ''      # default
           tacviewPlaybackDelay: 600             # default 0, should be 600 for performance reasons
+          tacviewDataCaptureMode: 8             # As of v1.9.5: default 1, defines at which frame Tacview should update (1 = every frame, 10 = every 10th frame). 
           target: '<id:112233445566778899>'     # optional: channel id or directory
 ```
 __Optional__ parameters (will change options.lua if necessary):</br>
@@ -44,3 +45,8 @@ __Optional__ parameters (will change options.lua if necessary):</br>
 
 To delete old tacview files, checkout the [Cleanup](../../services/cleanup/README.md) service.
 
+> [!NOTE]
+> The tacviewDataCaptureMode parameter can take any value, but these are the recommended ones by the Tacview team:
+> 1 = accurate
+> 8 = balanced
+> 16 = fast

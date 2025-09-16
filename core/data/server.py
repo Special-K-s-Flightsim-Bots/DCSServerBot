@@ -80,13 +80,14 @@ class Server(DataObject):
                 raise YAMLError(config_file, ex)
             if data.get(self.name) is None and self.name != 'n/a':
                 self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')
-            _locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
+            _locals = utils.deep_merge(data.get(DEFAULT_TAG, {}), data.get(self.name, {}))
             _locals['messages'] = {
                 "greeting_message_members": "{player.name}, welcome back to {server.name}!",
                 "greeting_message_unmatched": "{player.name}, please use /linkme in our Discord, if you want to see your user stats!",
                 "message_server_locked": "This server is currently locked and cannot be joined.",
                 "message_player_default_username": "Please change your default player name at the top right of the multiplayer selection list to an individual one!",
                 "message_player_username": "Your player name contains invalid characters. Please change your name to join our server.",
+                "message_player_inappropriate_username": "Your username is inappropriate and needs to be changed to join this server.",
                 "message_ban": "You are banned from this server. Reason: {}",
                 "message_reserved": "This server is locked for specific users.\nPlease contact a server admin.",
                 "message_no_voice": 'You need to be in voice channel "{}" to use this server!',

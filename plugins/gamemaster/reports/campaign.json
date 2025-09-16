@@ -1,6 +1,7 @@
 {
   "color": "blue",
   "title": "{title}",
+  "img": "{campaign[image_url]}",
   "elements":
   [
     {
@@ -24,7 +25,12 @@
         "inline": false
       }
     },
-    "Ruler",
+    {
+      "type": "Ruler",
+      "params": {
+        "ruler_length": 28
+      }
+    },
     {
       "type": "SQLTable",
       "params": {

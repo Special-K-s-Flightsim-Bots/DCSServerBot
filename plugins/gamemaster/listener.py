@@ -175,20 +175,25 @@ class GameMasterEventListener(EventListener["GameMaster"]):
             asyncio.create_task(self.send_player_message(player))
 
     async def campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
-                       description: Optional[str] = None, start: Optional[datetime] = None,
-                       end: Optional[datetime] = None):
+                       description: Optional[str] = None, image_url: Optional[str] = None,
+                       start: Optional[datetime] = None, end: Optional[datetime] = None):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 if command == 'add':
-                    await conn.execute('INSERT INTO campaigns (name, description, start, stop) VALUES (%s, %s, %s, %s)',
-                                       (name, description, start, end))
+                    await conn.execute("""
+                        INSERT INTO campaigns (name, description, image_url, start, stop) 
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (name, description, image_url, start, end))
                     if servers:
                         cursor = await conn.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
                         campaign_id = (await cursor.fetchone())[0]
                         for server in servers:
                             # add this server to the server list
-                            await conn.execute('INSERT INTO campaigns_servers VALUES (%s, %s) ON CONFLICT DO NOTHING',
-                                               (campaign_id, server.name))
+                            await conn.execute("""
+                                INSERT INTO campaigns_servers 
+                                VALUES (%s, %s) 
+                                ON CONFLICT DO NOTHING
+                            """, (campaign_id, server.name))
                 elif command == 'start':
                     cursor = await conn.execute("""
                         SELECT id FROM campaigns WHERE name ILIKE %s 

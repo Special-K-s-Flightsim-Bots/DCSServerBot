@@ -4,6 +4,7 @@ import discord
 import os
 import psycopg
 import shutil
+import sys
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
     PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS
@@ -176,10 +177,17 @@ async def installable_plugins(interaction: discord.Interaction, current: str) ->
 
 async def get_dcs_branches(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     current_branch, _ = await interaction.client.node.get_dcs_branch_and_version()
+    testing = (interaction.client.node.locals.get('DCS', {}).get('user') is not None)
     if 'dcs_server' not in current_branch:
         branches = [('Release', 'release')]
+        if testing:
+            branches.append(('Testing', 'testing'))
+            branches.append(('Nightly', 'nightly'))
     else:
         branches = [('Release', 'dcs_server.release')]
+        if testing:
+            branches.append(('Testing', 'dcs_server.testing'))
+            branches.append(('Nightly', 'dcs_server.nightly'))
     return [
         app_commands.Choice(name=x[0], value=x[1])
         for x in branches
@@ -190,7 +198,7 @@ async def get_dcs_branches(interaction: discord.Interaction, current: str) -> li
 async def get_dcs_versions(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    versions = await interaction.client.node.get_available_dcs_versions(interaction.client.node.dcs_branch)
+    versions = await interaction.client.node.get_available_dcs_versions(utils.get_interaction_param(interaction, 'branch'))
     return [
         app_commands.Choice(name=x, value=x)
         for x in versions[::-1][:25]
@@ -354,6 +362,7 @@ class Admin(Plugin[AdminEventListener]):
     async def update(self, interaction: discord.Interaction,
                      node: app_commands.Transform[Node, utils.NodeTransformer],
                      warn_time: app_commands.Range[int, 0] = 60,
+                     announce: bool = True,
                      branch: Optional[str] = None,
                      version: Optional[str] = None,
                      force: Optional[bool] = False):
@@ -395,7 +404,8 @@ class Admin(Plugin[AdminEventListener]):
         msg = await interaction.followup.send(_("Updating DCS World to the newest version, please wait ..."),
                                         ephemeral=ephemeral)
         try:
-            rc = await node.update(warn_times=[warn_time] or [120, 60], branch=branch, version=new_version)
+            rc = await node.dcs_update(warn_times=[warn_time] or [120, 60], branch=branch, version=new_version,
+                                       announce=announce)
             if rc == 0:
                 branch, new_version = await node.get_dcs_branch_and_version()
                 await msg.edit(content=_("DCS updated to version {version}@{branch} on node {name}."
@@ -1025,6 +1035,7 @@ Please make sure you forward the following ports:
 
     @node_group.command(description=_("Shows CPU topology"))
     @app_commands.guild_only()
+    @app_commands.check(lambda interaction: sys.platform == 'win32')
     @utils.app_has_role('Admin')
     async def cpuinfo(self, interaction: discord.Interaction,
                       node: app_commands.Transform[Node, utils.NodeTransformer]):
@@ -1129,7 +1140,7 @@ Please make sure you forward the following ports:
 
         elif server.status in [Status.RUNNING, Status.PAUSED]:
             await server.config_extension(extension, {"enabled": True})
-            # do we need to initialise the extension?
+            # do we need to initialize the extension?
             try:
                 await server.run_on_extension(extension=extension, method='enable')
             except ValueError:
@@ -1194,10 +1205,10 @@ Please make sure you forward the following ports:
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # ignore bot messages or messages that do not contain yaml attachments
+        # ignore bot messages or messages that do not contain YAML attachments
         if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.yaml'):
             return
-        # read the default config, if there is any
+        # read the default config if there is any
         config = self.get_config().get('uploads', {})
         # check if upload is enabled
         if not config.get('enabled', True):
@@ -1205,7 +1216,7 @@ Please make sure you forward the following ports:
         # check if the user has the correct role to upload, defaults to Admin
         if not utils.check_roles(config.get('discord', self.bot.roles['Admin']), message.author):
             return
-        # check if the upload happens in the servers admin channel (if provided)
+        # check if the upload happens in the server's admin-channel (if provided)
         server: Server = self.bot.get_server(message, admin_only=True)
         ctx = await self.bot.get_context(message)
         if not server:

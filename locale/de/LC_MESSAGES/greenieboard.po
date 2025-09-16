@@ -31,8 +31,8 @@ msgstr "Zeigt das aktuelle Greenieboard"
 msgid "Adds a trap to the Greenieboard"
 msgstr "Füge eine Landung zum Greenieboard zu"
 
-msgid "You need to specify ratings in your greenieboard.yaml to use {}!"
-msgstr "Du musst Ratings in Deinem greenieboard.yaml definieren, um {} nutzen zu können!"
+msgid "You need to specify grades in your greenieboard.yaml to use {}!"
+msgstr "Du musst die 'grades'-Struktur in Deiner greenieboard.yaml definieren, um {} nutzen zu können!"
 
 msgid "Trap added."
 msgstr "Landung zugefügt."

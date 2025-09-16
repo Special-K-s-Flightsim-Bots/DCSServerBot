@@ -32,7 +32,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING, Union, Any
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
-from watchdog.observers import Observer
+from watchdog.observers import Observer, ObserverType
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -86,7 +86,7 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
         if path in missions:
             idx = missions.index(path) + 1
             asyncio.run_coroutine_threadsafe(self.server.deleteMission(idx), self.loop)
-            # cache the index of the line to re-add the file at the correct position afterwards,
+            # cache the index of the line to re-add the file at the correct position afterward
             # if a cloud drive did a delete/add instead of a modification
             self.deleted[path] = idx
             self.log.info(f"=> Mission {os.path.basename(path)[:-4]} deleted from server {self.server.name}.")
@@ -99,7 +99,7 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 class ServerImpl(Server):
     bot: Optional[DCSServerBot] = field(compare=False, init=False)
     event_handler: MissionFileSystemEventHandler = field(compare=False, default=None)
-    observer: Observer = field(compare=False, default=None)
+    observer: ObserverType = field(compare=False, default=None)
 
     def __post_init__(self):
         super().__post_init__()
@@ -240,7 +240,7 @@ class ServerImpl(Server):
                     self._make_missions_unique()
                 super().set_status(status)
             elif self._status in [Status.UNREGISTERED, Status.LOADING] and new_status in [Status.RUNNING, Status.PAUSED]:
-                # only check the mission list, if we started that server
+                # only check the mission list if we started that server
                 if self._status == Status.LOADING:
                     if self.locals.get('validate_missions', True):
                         asyncio.create_task(self._load_mission_list())
@@ -535,6 +535,8 @@ class ServerImpl(Server):
                             continue
                         if ext.is_installed():
                             self.extensions[extension] = ext
+                except InstallException as ex:
+                    self.log.error(f"  => Error while loading extension {extension}: {ex} - skipped")
                 except Exception as ex:
                     self.log.exception(ex)
             return list(self.extensions.keys())

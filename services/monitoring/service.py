@@ -30,8 +30,6 @@ __all__ = [
     "MonitoringService"
 ]
 
-last_wait_time = 0
-
 
 @ServiceRegistry.register(depends_on=[ServiceBus])
 class MonitoringService(Service):
@@ -45,12 +43,13 @@ class MonitoringService(Service):
 
     async def start(self):
         await super().start()
-        install_drive = os.path.splitdrive(os.path.expandvars(self.node.locals['DCS']['installation']))[0]
-        self.space_warning_sent[install_drive] = False
-        self.space_alert_sent[install_drive] = False
-        if install_drive != 'C:':
-            self.space_warning_sent['C:'] = False
-            self.space_alert_sent['C:'] = False
+        if sys.platform == 'win32' and 'DCS' in self.node.locals:
+            install_drive = os.path.splitdrive(os.path.expandvars(self.node.locals['DCS']['installation']))[0]
+            self.space_warning_sent[install_drive] = False
+            self.space_alert_sent[install_drive] = False
+            if install_drive != 'C:':
+                self.space_warning_sent['C:'] = False
+                self.space_alert_sent['C:'] = False
         self.check_autoexec()
         self.monitoring.add_exception_type(psycopg.DatabaseError)
         self.monitoring.start()
@@ -240,8 +239,6 @@ class MonitoringService(Service):
                 self.log.exception(ex)
 
     async def nodestats(self):
-        global last_wait_time
-
         bus = ServiceRegistry.get(ServiceBus)
         pstats: dict = self.apool.get_stats()
         async with self.apool.connection() as conn:

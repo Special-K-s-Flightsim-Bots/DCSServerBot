@@ -225,6 +225,7 @@ class ServiceBus(Service):
                         await self.send_init(server)
                     if server.maintenance:
                         self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
+
                     if utils.is_open(server.instance.dcs_host, server.instance.webgui_port):
                         calls[server.name] = asyncio.create_task(
                             server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
@@ -252,6 +253,11 @@ class ServiceBus(Service):
                 self.log.warning('  => No local DCS servers configured!')
             else:
                 self.log.info(f"- {num} local DCS servers registered.")
+
+            # init profanity filter, if needed
+            if not self.node.locals['DCS'].get('cloud', False) or self.master:
+                if any(server.locals.get('profanity_filter', False) for server in local_servers):
+                    utils.init_profanity_filter(self.node)
 
     async def register_remote_servers(self, node: Node):
         await self.send_to_node({
@@ -410,7 +416,7 @@ class ServiceBus(Service):
     async def unban(self, ucid: str):
         async with self.apool.connection() as conn:
             async with conn.transaction():
-                await conn.execute("DELETE FROM bans WHERE ucid = %s", (ucid, ))
+                await conn.execute("UPDATE bans SET banned_until = NOW() AT TIME ZONE 'UTC' WHERE ucid = %s", (ucid, ))
         for server in self.servers.values():
             if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
                 continue
@@ -422,14 +428,18 @@ class ServiceBus(Service):
             if player:
                 player.banned = False
 
-    async def bans(self) -> list[dict]:
+    async def bans(self, *, expired: bool = False) -> list[dict]:
+        if expired:
+            where = ""
+        else:
+            where = "WHERE b.banned_until >= (now() AT TIME ZONE 'utc')"
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
+                await cursor.execute(f"""
                     SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, b.reason, 
-                           b.banned_until 
+                           b.banned_at, b.banned_until 
                     FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid 
-                    WHERE b.banned_until >= (now() AT TIME ZONE 'utc')
+                    {where}
                 """)
                 return [x async for x in cursor]
 

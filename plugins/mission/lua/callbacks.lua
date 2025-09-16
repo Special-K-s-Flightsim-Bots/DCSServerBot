@@ -3,6 +3,7 @@ local base      = _G
 local dcsbot    = base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
 local Censorship= base.require('censorship')
+local textutil = base.require('textutil')
 
 dcsbot.banList = dcsbot.banList or {}
 dcsbot.locked = dcsbot.locked or {}
@@ -27,12 +28,13 @@ local default_names = {
     'Jugador',
     '玩家',
     'Hráč',
-    '플레이어'
+    '플레이어',
+    'User'
 }
 
 local function locate(table, value)
     for i = 1, #table do
-        if table[i]:lower() == value:lower() then return true end
+        if textutil.Utf8ToUpperCase(table[i]) == textutil.Utf8ToUpperCase(value) then return true end
     end
     return false
 end
@@ -64,6 +66,19 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
     -- local name2 = name:gsub("[%c]", "")
     if name ~= name2 then
         return false, config['messages']['message_player_username']
+    end
+    -- check if player uses profanity
+    if config['profanity_filter'] then
+        local name2 = Censorship.censor(name)
+        log.write('DCSServerBot', log.DEBUG, 'Censored nickname: ' .. name2)
+        if name ~= name2 then
+            local msg = {
+                command = 'sendMessage',
+                message = 'User ' .. name .. ' (ucid=' .. ucid .. ') rejected due to inappropriate nickname.'
+            }
+            utils.sendBotTable(msg, dcsbot.params['mission']['channels']['admin'])
+            return false, config['messages']['message_player_inappropriate_username']
+        end
     end
     -- check bans including the SMART ban system
     ipaddr = utils.getIP(addr)

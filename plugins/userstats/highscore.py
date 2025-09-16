@@ -114,9 +114,21 @@ class HighscoreElement(report.GraphElement):
                         'deaths_helicopters + deaths_ships + deaths_sams + deaths_ground)::DECIMAL) END',
             'PvP-KD-Ratio': 'CASE WHEN SUM(s.deaths_pvp) = 0 THEN SUM(s.pvp) ELSE SUM(s.pvp::DECIMAL)/SUM('
                             's.deaths_pvp::DECIMAL) END',
-            'Most Efficient Killers': 'SUM(s.kills::DECIMAL) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))::DECIMAL / 3600.0)',
-            'Most Wasteful Pilots': 'SUM(s.crashes::DECIMAL) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))::DECIMAL / 3600.0)'
+            'Most Efficient Killers': "SUM(s.kills::DECIMAL) / (SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))::DECIMAL / 3600.0)",
+            'Most Wasteful Pilots': "SUM(s.crashes::DECIMAL) / (SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))::DECIMAL / 3600.0)"
         }
+        # create the WHERE conditions
+        where_part = ""
+        if server_name:
+            where_part += "AND m.server_name = %(server_name)s"
+            if server_name in self.bot.servers:
+                where_part += ' AND s.side in (' + ','.join([
+                    str(x) for x in get_sides(interaction, self.bot.servers[server_name])
+                ]) + ')'
+        # only flighttimes of over an hour count for most efficient / wasteful
+        if not (flt.period and (flt.period in ['day', 'today', 'yesterday'] or flt.period.startswith('mission_id:'))) and kill_type in ['Most Efficient Killers', 'Most Wasteful Pilots']:
+            where_part += f" AND EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)) >= 3600"
+
         xlabels = {
             'Air Targets': 'kills',
             'Ships': 'kills',
@@ -128,21 +140,16 @@ class HighscoreElement(report.GraphElement):
             'Most Wasteful Pilots': 'airframes wasted / h'
         }
         sql = f"""
-            SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, {sql_parts[kill_type]} AS value 
+            SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, 
+                   {sql_parts[kill_type]} AS value 
             FROM players p, statistics s, missions m 
             WHERE s.player_ucid = p.ucid AND s.mission_id = m.id
+            {where_part}
+            AND {flt.filter(self.env.bot)}
+            GROUP BY 1, 2 
+            HAVING {sql_parts[kill_type]} > 0
+            ORDER BY 3 DESC LIMIT {limit}
         """
-        if server_name:
-            sql += "AND m.server_name = %(server_name)s"
-            if server_name in self.bot.servers:
-                sql += ' AND s.side in (' + ','.join([
-                    str(x) for x in get_sides(interaction, self.bot.servers[server_name])
-                ]) + ')'
-        sql += ' AND ' + flt.filter(self.env.bot)
-        sql += f' GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0'
-        if kill_type in ['Most Efficient Killers', 'Most Wasteful Pilots']:
-            sql += f" AND SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))) > 1800"
-        sql += f' ORDER BY 3 DESC LIMIT {limit}'
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:

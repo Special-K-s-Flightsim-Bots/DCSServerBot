@@ -7,8 +7,8 @@ import numpy as np
 import os
 import re
 import sys
+import traceback
 import uuid
-import warnings
 
 from abc import ABC, abstractmethod
 from core import utils
@@ -285,9 +285,10 @@ class Graph(ReportElement):
             results = await asyncio.gather(*tasks, return_exceptions=True)
             for result in results:
                 if isinstance(result, Exception):
-                    if isinstance(result, NothingToPlot):
-                        continue
-                    self.log.exception(result)
+                    if not isinstance(result, NothingToPlot):
+                        self.log.error("Error in Graph:\n{stacktrace}".format(
+                            stacktrace=''.join(traceback.format_exception(result)))
+                        )
 
             # only render the graph if we don't have a rendered graph already attached as a file (image)
             if not self.env.filename:

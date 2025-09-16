@@ -6,7 +6,9 @@ import builtins
 import functools
 import hashlib
 import importlib
+import inspect
 import json
+import keyword
 import logging
 import luadata
 import os
@@ -27,7 +29,7 @@ import math
 from collections.abc import Mapping
 from copy import deepcopy
 from croniter import croniter
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, tzinfo
 from difflib import unified_diff
 from importlib import import_module
 from pathlib import Path
@@ -78,13 +80,14 @@ __all__ = [
     "YAMLError",
     "DictWrapper",
     "format_dict_pretty",
-    "show_dict_diff"
+    "show_dict_diff",
+    "to_valid_pyfunc_name"
 ]
 
 logger = logging.getLogger(__name__)
 
 
-def parse_time(time_str: str, tz: datetime.tzinfo = None) -> datetime:
+def parse_time(time_str: str, tz: tzinfo = None) -> datetime:
     fmt, time_str = ('%H:%M', time_str.replace('24:', '00:')) \
         if time_str.find(':') > -1 else ('%H', time_str.replace('24', '00'))
     ret = datetime.strptime(time_str, fmt)
@@ -93,7 +96,7 @@ def parse_time(time_str: str, tz: datetime.tzinfo = None) -> datetime:
     return ret
 
 
-def is_in_timeframe(time: datetime, timeframe: str, tz: datetime.tzinfo = None) -> bool:
+def is_in_timeframe(time: datetime, timeframe: str, tz: tzinfo = None) -> bool:
     """
     Check if a given time falls within a specified timeframe.
 
@@ -476,11 +479,34 @@ def dynamic_import(package_name: str):
 def async_cache(func):
     cache = {}
 
+    def get_cache_key(*args, **kwargs):
+        signature = inspect.signature(func)
+        bound_args = signature.bind(*args, **kwargs)
+        bound_args.apply_defaults()
+
+        # Convert unhashable types to hashable forms
+        hashable_args = []
+        for k, v in bound_args.arguments.items():
+            if k not in ["interaction"]:  # Removed "self" from exclusion list
+                # For the self-parameter, use its id as part of the key
+                if k == "self":
+                    hashable_args.append(id(v))
+                # Convert lists to tuples, and handle nested lists
+                elif isinstance(v, list):
+                    hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
+                else:
+                    hashable_args.append(v)
+
+        # Use tuple instead of frozenset to preserve order and handle nested structures
+        arg_tuple = tuple(hashable_args)
+        cache_key = (func.__name__, arg_tuple)
+        return cache_key
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         # Create a cache key from both args and kwargs
         # We need to freeze kwargs into an immutable form to use as dict key
-        cache_key = (args, frozenset(kwargs.items()))
+        cache_key = get_cache_key(*args, **kwargs)
 
         if cache_key in cache:
             return cache[cache_key]
@@ -505,8 +531,26 @@ def cache_with_expiration(expiration: int):
         cache_expiry: dict[Any, float] = {}
 
         def get_cache_key(*args, **kwargs):
-            hashable_kwargs = {k: tuple(v) if isinstance(v, list) else v for k, v in kwargs.items()}
-            return args, frozenset(hashable_kwargs.items())
+            signature = inspect.signature(func)
+            bound_args = signature.bind(*args, **kwargs)
+            bound_args.apply_defaults()
+
+            # Convert unhashable types to hashable forms
+            hashable_args = []
+            for k, v in bound_args.arguments.items():
+                # For the self-parameter, use its id as part of the key
+                if k == "self":
+                    hashable_args.append(id(v))
+                # Convert lists to tuples, and handle nested lists
+                elif isinstance(v, list):
+                    hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
+                else:
+                    hashable_args.append(v)
+
+            # Use tuple instead of frozenset to preserve order and handle nested structures
+            arg_tuple = tuple(hashable_args)
+            cache_key = (func.__name__, arg_tuple)
+            return cache_key
 
         def check_cache(cache_key):
             if cache_key in cache and cache_key in cache_expiry:
@@ -843,7 +887,7 @@ def hash_password(password: str) -> str:
     # Generate an 11 character alphanumeric string
     key = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(11))
 
-    # Create a 32 byte digest using the Blake2b hash algorithm
+    # Create a 32-byte-digest using the "Blake2b" hash algorithm
     # with the password as the input and the key as the key
     password_bytes = password.encode('utf-8')
     key_bytes = key.encode('utf-8')
@@ -1128,3 +1172,29 @@ def show_dict_diff(old_dict: dict[str, Any], new_dict: dict[str, Any], context_l
     result.append("```")
 
     return '\n'.join(result)
+
+
+def to_valid_pyfunc_name(raw_name: str) -> str:
+    """
+    Convert an arbitrary name (e.g. 'test-1') into a legal Python identifier.
+
+    Rules applied (in order):
+
+    1. Replace every character that is **not** `[A-Za-z0-9_]` with an underscore.
+    2. If the resulting string starts with a digit, prepend an underscore.
+    3. If the result is a Python keyword (`def`, `class`, …), prefix it with an underscore as well.
+
+    The function returns the sanitized name; the original name is kept unchanged.
+    """
+    # 1️⃣  Replace everything that is not a word character
+    cleaned = re.sub(r'\W', '_', raw_name)
+
+    # 2️⃣  If it starts with a digit, add a leading underscore
+    if re.match(r'^\d', cleaned):
+        cleaned = '_' + cleaned
+
+    # 3️⃣  Avoid Python keywords
+    if keyword.iskeyword(cleaned):
+        cleaned = '_' + cleaned
+
+    return cleaned

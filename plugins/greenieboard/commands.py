@@ -152,6 +152,7 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
                     change_instance(instance)
             with open(config, mode='w', encoding='utf-8') as outfile:
                 yaml.dump(data, outfile)
+            self.locals = self.read_locals()
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
                     server: Optional[str] = None) -> None:

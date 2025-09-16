@@ -6,7 +6,7 @@ is to download the latest ZIP file from [here](https://github.com/Pax1601/DCSOly
 DEFAULT:
   SavedGames: '%USERPROFILE%\Documents\ModManager\SavedGames'
   RootFolder: '%USERPROFILE%\Documents\ModManager\RootFolder'
-DCS_MERCS:
+DCS.release_server:
   packages:
   - name: DCSOlympus
     version: latest

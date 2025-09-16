@@ -8,6 +8,7 @@ from typing import Optional
 class UserEntry(BaseModel):
     nick: str = Field(..., description="Player nickname")
     date: datetime = Field(..., description="Last seen timestamp")
+    current_server: Optional[str] = Field(None, description="Current server")
 
     model_config = {
         "json_encoders": {
@@ -16,7 +17,8 @@ class UserEntry(BaseModel):
         "json_schema_extra": {
             "example": {
                 "nick": "Player1",
-                "date": "2025-08-07T12:00:00"
+                "date": "2025-08-07T12:00:00",
+                "current_server": "My Fancy Server",
             }
         }
     }
@@ -25,6 +27,18 @@ class UserEntry(BaseModel):
 class DailyPlayers(BaseModel):
     date: datetime
     player_count: int
+
+    model_config = {
+            "json_encoders": {
+                datetime: lambda v: v.isoformat()
+            },
+            "json_schema_extra": {
+                "example": {
+                    "date": "2025-08-07T12:00:00",
+                    "player_count": 100
+                }
+            }
+    }
 
 
 class ServerStats(BaseModel):
@@ -39,6 +53,20 @@ class ServerStats(BaseModel):
     totalPvPDeaths: int
     daily_players: list[DailyPlayers]
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "totalPlayers": 100,
+                "avgPlaytime": 120,
+                "totalPlaytime": 3600,
+                "activePlayers": 50,
+                "totalSorties": 100,
+                "totalKills": 100,
+                "totalDeaths": 50,
+            }
+        }
+    }
+
 
 class MissionInfo(BaseModel):
     name: str
@@ -51,44 +79,31 @@ class MissionInfo(BaseModel):
     red_slots_used: Optional[int] = None
     restart_time: Optional[int] = None
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "name": "Training Mission",
+                "uptime": 3600,
+                "date_time": "2025-08-07 12:00:00",
+                "theatre": "Caucasus",
+                "blue_slots": 20,
+                "blue_slots_used": 5,
+                "red_slots": 20,
+            }
+        }
+    }
+
 class ExtensionInfo(BaseModel):
     name: str
     version: Optional[str] = None
     value: str
 
-class ServerInfo(BaseModel):
-    name: str
-    status: str
-    address: str
-    password: str = ""
-    mission: Optional[MissionInfo] = None
-    extensions: list[ExtensionInfo] = Field(default_factory=list)
-
     model_config = {
         "json_schema_extra": {
             "example": {
-                "name": "DCS Server",
-                "status": "running",
-                "address": "127.0.0.1:10308",
-                "password": "secret",
-                "mission": {
-                    "name": "Training Mission",
-                    "uptime": 3600,
-                    "date_time": "2025-08-07 12:00:00",
-                    "theatre": "Caucasus",
-                    "blue_slots": 20,
-                    "blue_slots_used": 5,
-                    "red_slots": 20,
-                    "red_slots_used": 3,
-                    "restart_time": 1691424000
-                },
-                "extensions": [
-                    {
-                        "name": "SRS",
-                        "version": "1.9.0.0",
-                        "value": "127.0.0.1:5002"
-                    }
-                ]
+                "name": "SRS",
+                "version": "1.9.0.0",
+                "value": "127.0.0.1:5002"
             }
         }
     }
@@ -100,6 +115,7 @@ class SquadronInfo(BaseModel):
     image_url: str = Field(..., description="URL to the squadron's image")
     locked: bool = Field(..., description="Whether the squadron is locked")
     role: Optional[str] = Field(None, description="Discord role name associated with the squadron")
+    members: list[UserEntry] = Field(default_factory=list)
 
     model_config = {
         "json_schema_extra": {
@@ -115,11 +131,17 @@ class SquadronInfo(BaseModel):
 
 
 class TopKill(BaseModel):
+    row_num: int = Field(..., description="Row number")
     nick: str = Field(..., description="Player's nickname")
     date: datetime = Field(..., description="Last seen date of that player in ISO-format")
     kills: int = Field(..., description="Number of kills")
     deaths: int = Field(..., description="Number of deaths")
     kdr: float = Field(..., description="Kill/Death ratio")
+    kills_pvp: int = Field(..., description="Number of kills in PvP")
+    deaths_pvp: int = Field(..., description="Number of deaths in PvP")
+    kdr_pvp: float = Field(..., description="Kill/Death ratio in PvP")
+    playtime: int = Field(..., description="Total playtime in seconds")
+    credits: int = Field(..., description="Total credits earned")
 
     model_config = {
         "json_schema_extra": {
@@ -128,14 +150,19 @@ class TopKill(BaseModel):
                 "date": "2025-01-01T00:00:00",
                 "kills": 10,
                 "deaths": 2,
-                "kdr": 5.0
+                "kdr": 5.0,
+                "kills_pvp": 5,
+                "deaths_pvp": 0,
+                "kdr_pvp": 5.0
             }
         }
     }
 
 
-class TopKDR(TopKill):
-    ...
+class LeaderBoard(BaseModel):
+    items: list[TopKill]
+    total_count: int
+    offset: int
 
 
 class Trueskill(BaseModel):
@@ -249,9 +276,23 @@ class WeaponPK(BaseModel):
 
 class ModuleStats(BaseModel):
     module: str = Field(..., description="Aircraft/module name")
-    kills: Optional[int] = Field(None, description="Number of PvP-kills with this module")
-    kdr: Optional[Decimal] = Field(None, description="PvP-Kill/Death ratio with this module")
+    kills: Optional[int] = Field(None, description="Number of kills with this module")
+    deaths: Optional[int] = Field(None, description="Number of deaths with this module")
+    kdr: Optional[Decimal] = Field(None, description="Kill/Death ratio with this module")
 
+    model_config = {
+        "json_encoders": {
+            Decimal: lambda v: float(v)
+        },
+        "json_schema_extra": {
+            "example": {
+                "module": "F/A-18C",
+                "kills": 30,
+                "deaths": 10,
+                "kdr": 3.0
+            }
+        }
+    }
 
 class PlayerStats(BaseModel):
     playtime: int = Field(..., description="Total playtime in seconds")
@@ -259,6 +300,16 @@ class PlayerStats(BaseModel):
     deaths: int = Field(..., description="Total deaths")
     kills_pvp: int = Field(..., description="Total PvP kills")
     deaths_pvp: int = Field(..., description="Total PvP deaths")
+    kills_planes: int = Field(..., description="Total plane kills")
+    kills_helicopters: int = Field(..., description="Total helicopter kills")
+    kills_ships: int = Field(..., description="Total ship kills")
+    kills_sams: int = Field(..., description="Total SAM kills")
+    kills_ground: int = Field(..., description="Total ground kills")
+    deaths_planes: int = Field(..., description="Total plane deaths")
+    deaths_helicopters: int = Field(..., description="Total helicopter deaths")
+    deaths_ships: int = Field(..., description="Total ship deaths")
+    deaths_sams: int = Field(..., description="Total SAM deaths")
+    deaths_ground: int = Field(..., description="Total ground deaths")
     takeoffs: int = Field(..., description="Number of takeoffs")
     landings: int = Field(..., description="Number of landings")
     ejections: int = Field(..., description="Number of ejections")
@@ -266,10 +317,6 @@ class PlayerStats(BaseModel):
     teamkills: int = Field(..., description="Number of team kills")
     kdr: Decimal = Field(..., description="Kill/death ratio")
     kdr_pvp: Decimal = Field(..., description="PvP Kill/death ratio")
-    lastSessionKills: int = Field(..., description="Kills in last session")
-    lastSessionDeaths: int = Field(..., description="Deaths in last session")
-    killsByModule: list[ModuleStats] = Field(default_factory=list, description="PvP-Kills breakdown by module")
-    kdrByModule: list[ModuleStats] = Field(default_factory=list, description="PvP-KDR breakdown by module")
 
     model_config = {
         "json_encoders": {
@@ -301,6 +348,58 @@ class PlayerStats(BaseModel):
                     {
                         "module": "F/A-18C",
                         "kdr": 2.5
+                    }
+                ]
+            }
+        }
+    }
+
+
+class PlayerEntry(BaseModel):
+    nick: str = Field(..., description="Player name")
+    side: str = Field(..., description="Player side")
+    unit_type: str = Field(..., description="Type of aircraft")
+    callsign: str = Field(..., description="Callsign of the aircraft")
+    radios: list[int] = Field(..., description="List of radios")
+
+
+class ServerInfo(BaseModel):
+    name: str = Field(..., description="Name of the server")
+    status: str = Field(..., description="Server status")
+    address: str = Field(..., description="IP address and port")
+    password: str = Field(..., description="Server password")
+    restart_time: Optional[datetime] = Field(None, description="Restart time")
+    mission: Optional[MissionInfo] = Field(None, description="Mission info")
+    extensions: list[ExtensionInfo] = Field(default_factory=list)
+    players: list[PlayerEntry] = Field(default_factory=list)
+
+    model_config = {
+        "json_encoders": {
+            datetime: lambda v: v.isoformat()
+        },
+        "json_schema_extra": {
+            "example": {
+                "name": "DCS Server",
+                "status": "running",
+                "address": "127.0.0.1:10308",
+                "password": "secret",
+                "restart_time": "2025-08-07 12:00:00",
+                "mission": {
+                    "name": "Training Mission",
+                    "uptime": 3600,
+                    "date_time": "2025-08-07 12:00:00",
+                    "theatre": "Caucasus",
+                    "blue_slots": 20,
+                    "blue_slots_used": 5,
+                    "red_slots": 20,
+                    "red_slots_used": 3,
+                    "restart_time": 1691424000
+                },
+                "extensions": [
+                    {
+                        "name": "SRS",
+                        "version": "1.9.0.0",
+                        "value": "127.0.0.1:5002"
                     }
                 ]
             }
@@ -355,22 +454,6 @@ class TrapEntry(BaseModel):
     }
 
 
-class SquadronMember(BaseModel):
-    nick: str = Field(..., description="Player name")
-    date: datetime = Field(..., description="Last seen timestamp")
-
-    model_config = {
-        "json_encoders": {
-            datetime: lambda v: v.isoformat()
-        },
-        "json_schema_extra": {
-            "example": {
-                "nick": "Player1",
-                "date": "2025-08-07T12:00:00"
-            }
-        }
-    }
-
 class SquadronCampaignCredit(BaseModel):
     campaign: Optional[str] = Field(None, description="Campaign name")
     credits: Optional[float] = Field(None, description="Squadron's credits in the campaign")
@@ -383,6 +466,29 @@ class SquadronCampaignCredit(BaseModel):
             }
         }
     }
+
+
+class PlayerSquadron(BaseModel):
+    name: str = Field(..., description="Squadron name")
+    image_url: str = Field(..., description="URL of the squadron's image")
+
+    model_config = {
+            "json_schema_extra": {
+                "example": {
+                    "name": "Red Devils",
+                    "image_url": "https://example.com/squadron-logo.png"
+                }
+            }
+        }
+
+
+class PlayerInfo(BaseModel):
+    current_server: Optional[str] = Field(None, description="Current server")
+    overall: PlayerStats = Field(..., description="Overall statistics")
+    last_session: PlayerStats = Field(..., description="Statistics of the last session")
+    module_stats: list[ModuleStats] = Field(default_factory=list, description="Statistics by module")
+    credits: Optional[CampaignCredits] = Field(None, description="Campaign credits of this player")
+    squadrons: list[PlayerSquadron] = Field(default_factory=list, description="Squadrons the player is a member of")
 
 
 class LinkMeResponse(BaseModel):

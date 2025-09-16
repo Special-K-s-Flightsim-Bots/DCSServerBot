@@ -5,13 +5,22 @@ echo ^|   \ / __/ __/ __^| ___ _ ___ _____ _ _^| _ ) ___^| ^|_
 echo ^| ^|) ^| (__\__ \__ \/ -_) '_\ V / -_) '_^| _ \/ _ \  _^|
 echo ^|___/ \___^|___/___/\___^|_^|  \_/\___^|_^| ^|___/\___/\__^|
 echo.
-python --version > NUL 2>&1
-if %ERRORLEVEL% EQU 9009 (
-    echo python.exe is not in your PATH.
-    echo Chose "Add python to the environment" in your Python-installer.
-    echo Please press any key to continue...
-    pause > NUL
+
+python --version >NUL 2>&1
+if errorlevel 9009 (
+    echo.
+    echo ***  ERROR  ***
+    echo python.exe was not found in your PATH.
+    echo Please run the Python installer and check "Add python to the environment".
     exit /B 9009
+)
+
+python -c "import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)" >NUL 2>&1
+if errorlevel 1 (
+    echo.
+    echo ***  ERROR  ***
+    echo DCSServerBot requires Python 3.10 or newer.
+    exit /B 1
 )
 
 SET ARGS=%*
@@ -28,11 +37,11 @@ DEL dcssb_%node_name%.pid 2>NUL
 
 SET VENV=%USERPROFILE%\.dcssb
 if not exist "%VENV%" (
-    echo Creating the Python Virtual Environment. This may take some time...
-    python -m pip install --upgrade pip
+    echo Creating the Python Virtual Environment ...
     python -m venv "%VENV%"
     "%VENV%\Scripts\python.exe" -m pip install --upgrade pip
-    "%VENV%\Scripts\python.exe" -m pip install --no-cache-dir --prefer-binary -r requirements.txt
+    "%VENV%\Scripts\pip" install pip-tools
+    "%VENV%\Scripts\pip-sync" requirements.txt
 )
 
 SET PROGRAM=run.py

@@ -306,17 +306,45 @@ class GameMaster(Plugin[GameMasterEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
+    @campaign.command(description=_("Edit Campaign"))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
+    async def edit(self, interaction: discord.Interaction, campaign: str):
+        ephemeral = utils.get_ephemeral(interaction)
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT * FROM campaigns WHERE name = %s
+                """, (campaign, ))
+                row = await cursor.fetchone()
+                if not row:
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(_('Campaign not found.'), ephemeral=True)
+                    return
+                modal = CampaignModal(name=campaign, start=row['start'], end=row['stop'], description=row['description'],
+                                      image_url=row['image_url'])
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_modal(modal)
+                if await modal.wait():
+                    return
+                async with conn.transaction():
+                    await conn.execute("""
+                        UPDATE campaigns SET start=%s, stop=%s, description=%s, image_url=%s 
+                        WHERE name=%s
+                    """, (modal.start, modal.end, modal.description.value, modal.image_url.value, campaign))
+                await interaction.followup.send(_('Campaign {} updated.').format(campaign),
+                                                        ephemeral=ephemeral)
+
     @campaign.command(description=_("Add a campaign"))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def add(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
-        modal = CampaignModal(self.eventlistener)
+        modal = CampaignModal()
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         if await modal.wait():
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_('Aborted.'), ephemeral=True)
             return
         try:
             servers = await utils.server_selection(self.bus, interaction,
@@ -328,8 +356,15 @@ class GameMaster(Plugin[GameMasterEventListener]):
             if not isinstance(servers, list):
                 servers = [servers]
             try:
-                await self.eventlistener.campaign('add', servers=servers, name=modal.name.value,
-                                                  description=modal.description.value, start=modal.start, end=modal.end)
+                await self.eventlistener.campaign(
+                    'add',
+                    servers=servers,
+                    name=modal.name.value,
+                    description=modal.description.value,
+                    image_url=modal.image_url.value,
+                    start=modal.start,
+                    end=modal.end
+                )
                 await interaction.followup.send(_("Campaign {} added.").format(modal.name.value), ephemeral=ephemeral)
             except psycopg.errors.ExclusionViolation:
                 await interaction.followup.send(_("A campaign is already configured for this timeframe!"),

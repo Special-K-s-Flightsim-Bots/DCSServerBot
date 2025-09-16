@@ -199,7 +199,7 @@ You can list the configured matches with `/match list`.
 
 ### Match Modification (Excel)
 Especially on larger tournaments, you might want to edit matches more efficiently. To do so, you can let the bot 
-generate an excel export from your current match table with `/tournament export`. You can then edit this Excel sheet, 
+generate an Excel export from your current match table with `/tournament export`. You can then edit this Excel sheet, 
 change, for instance, the match times, and re-upload it by dropping it into your admin channel. The bot will then update
 your matches accordingly.
 

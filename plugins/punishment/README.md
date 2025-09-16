@@ -107,6 +107,15 @@ Weight punishment by flight hours. This will be the sum of flight hours over all
 Penalty points will decrease over time. This is configured here.
 Decay can only be configured once, so there is no need for a server specific configuration. All other elements can be configured for every server instance differently.
 
+> [!WARNING]
+> If you change the decay function, the existing penalties might not decay anymore, depending on how you adjust the 
+> values. This is unfortunately an issue with how I implemented it.
+> You can reset your penalties in your database by using this SQL:
+> ```sql
+> DELETE FROM pu_events;
+> ```
+> After that, every new punishment will decay according to your new decay function.
+
 ## Discord Commands
 | Command      | Parameter | Channel | Role            | Description                                                                                                              |
 |--------------|-----------|---------|-----------------|--------------------------------------------------------------------------------------------------------------------------|

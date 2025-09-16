@@ -33,3 +33,9 @@ aux_links:
   GitHub: https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot
   Discord: https://discord.gg/h2zGDH9szZ
   Patreon: https://www.patreon.com/DCS_SpecialK
+
+kramdown:
+  gfm_quirks: [paragraph_end]
+  gfm_emojis: true
+  syntax_highlighter: rouge
+  header_links: true

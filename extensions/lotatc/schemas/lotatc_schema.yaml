@@ -1,17 +1,38 @@
 schema;node_lotatc_schema:
   type: map
   nullable: false
-  allowempty: true  # we might want to specify additional lotatc parameters, which are then not validated
+  allowempty: true  # allow additional parameters
   mapping:
-    installation: {type: str, nullable: false, range: {min: 1}, func: file_exists}
-    autoupdate: {type: any, nullable: false, func: bool_or_map, enum: ['autoupdate']}
+    installation: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
+    autoupdate: {type: bool, nullable: false}
+    announce:
+      type: map
+      nullable: false
+      mapping:
+        channel: { type: int, nullable: false }
+        title: { type: str, nullable: false, range: { min: 1 } }
+        description: { type: str, nullable: false, range: { min: 1 } }
+        footer: { type: str, nullable: false, range: { min: 1 } }
+        mention:
+          type: seq
+          nullable: false
+          sequence:
+            - { type: text, nullable: false }
+
 schema;instance_lotatc_schema:
   type: map
   nullable: false
-  allowempty: true  # we might get other LotAtc options in here
+  allowempty: true  # allow additional parameters
   mapping:
     enabled: {type: bool, nullable: false}
     host: {type: str, nullable: false, range: {min: 1}}
     port: {type: int, nullable: false, func: unique_port}
     show_passwords: {type: bool, nullable: false}
     autoupdate: {type: bool, nullable: false}
+    dedicated_mode: {type: bool, nullable: false, func: obsolete}
+    dump_json_stats: {type: bool, nullable: false, func: obsolete}
+    srs_path: {type: str, nullable: false, range: {min: 1}, func: obsolete}
+    srs_server: {type: str, nullable: false, range: {min: 1}, func: obsolete}
+    srs_server_port: {type: int, nullable: false, func: obsolete}
+    srs_use_transponder: {type: bool, nullable: false, func: obsolete}
+    srs_transponder_port: {type: int, nullable: false, func: obsolete}

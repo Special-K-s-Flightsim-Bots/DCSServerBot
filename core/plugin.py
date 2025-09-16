@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import aiofiles
 import asyncio
 import discord.errors
 import inspect
@@ -21,7 +22,7 @@ from discord.ext import commands, tasks
 from discord.utils import MISSING, _shorten
 from packaging.version import parse
 from pathlib import Path
-from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List, Generic
+from typing import Type, Optional, TYPE_CHECKING, Union, Any, Callable, Generic
 
 from .const import DEFAULT_TAG
 from .listener import TEventListener
@@ -58,7 +59,7 @@ def command(
     description: Union[str, locale_str] = MISSING,
     nsfw: bool = False,
     auto_locale_strings: bool = True,
-    extras: Dict[Any, Any] = MISSING,
+    extras: dict[Any, Any] = MISSING,
 ) -> Callable[[CommandCallback[GroupT, P, T]], Command[GroupT, P, T]]:
     """Creates an application command from a regular function.
 
@@ -121,9 +122,9 @@ class Command(app_commands.Command[GroupT, P, T]):
         callback: CommandCallback[GroupT, P, T],
         nsfw: bool = False,
         parent: Optional[Group] = None,
-        guild_ids: Optional[List[int]] = None,
+        guild_ids: Optional[list[int]] = None,
         auto_locale_strings: bool = True,
-        extras: Dict[Any, Any] = MISSING,
+        extras: dict[Any, Any] = MISSING,
     ):
         from services.bot import BotService
 
@@ -141,7 +142,7 @@ class Command(app_commands.Command[GroupT, P, T]):
                 ((num_servers == 1 and nodes == 1) or not bot.locals.get('channels', {}).get('admin'))):
             del self._params['server']
 
-    async def _do_call(self, interaction: Interaction, params: Dict[str, Any]) -> T:
+    async def _do_call(self, interaction: Interaction, params: dict[str, Any]) -> T:
         if 'node' in inspect.signature(self._callback).parameters and 'node' not in params:
             params['node'] = interaction.client.node
         if 'server' in inspect.signature(self._callback).parameters and 'server' not in params:
@@ -174,7 +175,7 @@ class Group(app_commands.Group):
         description: Union[str, locale_str] = MISSING,
         nsfw: bool = False,
         auto_locale_strings: bool = True,
-        extras: Dict[Any, Any] = MISSING,
+        extras: dict[Any, Any] = MISSING,
     ) -> Callable[[CommandCallback[GroupT, P, T]], Command[GroupT, P, T]]:
         """A decorator that creates an application command from a regular function under this group.
 
@@ -337,10 +338,10 @@ class Plugin(commands.Cog, Generic[TEventListener]):
                     if cursor.rowcount == 0:
                         tables_file = f'./plugins/{self.plugin_name}/db/tables.sql'
                         if os.path.exists(tables_file):
-                            with open(tables_file, mode='r') as tables_sql:
+                            async with aiofiles.open(tables_file, mode='r') as tables_sql:
                                 for query in [
                                     stmt.strip()
-                                    for stmt in sqlparse.split(tables_sql.read(), encoding='utf-8')
+                                    for stmt in sqlparse.split(await tables_sql.read(), encoding='utf-8')
                                     if stmt.strip()
                                 ]:
                                     self.log.debug(query.rstrip())
@@ -359,10 +360,10 @@ class Plugin(commands.Cog, Generic[TEventListener]):
                         while parse(installed) < parse(self.plugin_version):
                             updates_file = f'./plugins/{self.plugin_name}/db/update_v{installed}.sql'
                             if os.path.exists(updates_file):
-                                with open(updates_file, mode='r') as updates_sql:
+                                async with aiofiles.open(updates_file, mode='r') as updates_sql:
                                     for query in [
                                         stmt.strip()
-                                        for stmt in sqlparse.split(updates_sql.read(), encoding='utf-8')
+                                        for stmt in sqlparse.split(await updates_sql.read(), encoding='utf-8')
                                         if stmt.strip()
                                     ]:
                                         self.log.debug(query.rstrip())
@@ -432,8 +433,11 @@ class Plugin(commands.Cog, Generic[TEventListener]):
             path = f'./plugins/{self.plugin_name}/schemas'
             if os.path.exists(path) and validation in ['strict', 'lazy']:
                 schema_files = [str(x) for x in Path(path).glob('*.yaml')]
-                schema_files.append('schemas/commands_schema.yaml')
-                utils.validate(filename, schema_files, raise_exception=(validation == 'strict'))
+                if schema_files:
+                    schema_files.append('schemas/commands_schema.yaml')
+                    utils.validate(filename, schema_files, raise_exception=(validation == 'strict'))
+                else:
+                    self.log.warning(f'  - No schema files found for plugin {self.plugin_name}.')
 
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
         except MarkedYAMLError as ex:
@@ -493,7 +497,7 @@ class Plugin(commands.Cog, Generic[TEventListener]):
             self._config[server.node.name] = {}
         if server.instance.name not in self._config[server.node.name] or not use_cache:
             default, specific = self.get_base_config(server)
-            self._config[server.node.name][server.instance.name] = default | specific
+            self._config[server.node.name][server.instance.name] = utils.deep_merge(default, specific)
         return self._config[server.node.name][server.instance.name]
 
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str) -> None:

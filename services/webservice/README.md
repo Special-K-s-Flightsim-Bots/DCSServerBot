@@ -1,6 +1,6 @@
 # Service WebService
 This service provides a simple web service. It is WIP, and it will be enhanced in the future.
-Currently you can use it with the [RestAPI plugin](https://github.com/frankkopp/DCSServerBot3/tree/master/services/restapi).
+Currently, you can use it with the [RestAPI plugin](https://github.com/frankkopp/DCSServerBot3/tree/master/services/restapi).
 
 ## Configuration
 The webservice can be configured in its config/services/webservice.yaml file:

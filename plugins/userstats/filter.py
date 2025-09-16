@@ -45,12 +45,12 @@ class StatisticsFilter(ABC):
             return TheatreFilter(period)
         elif MonthFilter.supports(bot, period):
             return MonthFilter(period)
-        elif PeriodFilter.supports(bot, period):
-            return PeriodFilter(period)
         elif CampaignFilter.supports(bot, period):
             return CampaignFilter(period)
         elif SquadronFilter.supports(bot, period):
             return SquadronFilter(period)
+        elif PeriodFilter.supports(bot, period):
+            return PeriodFilter(period)
         return None
 
 
@@ -82,7 +82,7 @@ class PeriodFilter(StatisticsFilter):
                 continue
 
         # If none of the formats match, raise an error
-        raise ValueError("Date format is not supported")
+        raise ValueError(f"Date format {date_str} is not supported")
 
     def filter(self, bot: DCSServerBot) -> str:
         if self.period and self.period.startswith('period:'):
@@ -127,6 +127,8 @@ class PeriodFilter(StatisticsFilter):
             return period.capitalize() + 's '
         elif period in ['day', 'week', 'month', 'year']:
             return period.capitalize() + 'ly '
+        elif '-' in period:
+            return period + '\n'
         else:
             return period
 

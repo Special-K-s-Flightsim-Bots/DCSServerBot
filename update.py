@@ -1,8 +1,6 @@
 import io
 import os
 import re
-from pathlib import Path
-
 import requests
 import shutil
 import subprocess
@@ -13,15 +11,31 @@ import zipfile
 from contextlib import closing
 from core import utils, COMMAND_LINE_ARGS
 from packaging import version
+from pathlib import Path
 from typing import Iterable
 from version import __version__
 
 
 def install_requirements() -> subprocess.CompletedProcess:
-    return subprocess.run([
+    """
+    Use pip-sync to synchronize the virtual environment with requirements.txt.
+    This ensures exact package versions are installed and removes packages not in requirements.txt.
+    """
+
+    # First, ensure pip-tools are installed
+    subprocess.run([
         sys.executable,
-        '-m', 'pip', 'install', '--no-cache-dir', '--prefer-binary', '-r', 'requirements.txt'
+        '-m', 'pip', 'install', 'pip-tools'
     ])
+
+    # Then run pip-sync to synchronize the environment with requirements.txt
+    cmd = [
+        sys.executable,
+        '-m', 'piptools', 'sync', 'requirements.txt'
+    ]
+    if os.path.exists('requirements.local'):
+        cmd.append('requirements.local')
+    return subprocess.run(cmd)
 
 
 def do_update_git() -> int:
@@ -78,43 +92,44 @@ def do_update_git() -> int:
 def cleanup_local_files(to_delete_set: Iterable, extracted_folder: str):
     # Exclude directories from deletion
     root_exclude_dirs = {'__pycache__', '.git', 'config', 'reports', 'logs'}
-    plugins_dir = Path('plugins')
-    services_dir = Path('services')
+    special_dirs = {
+        Path('plugins'): 'plugins directory',
+        Path('services'): 'services directory'
+    }
 
     to_delete_set = {f for f in to_delete_set if not any(excluded_dir in f for excluded_dir in root_exclude_dirs)}
 
-    # Delete each old file that is not in the updated directory.
+    # Delete each old file not in the updated directory.
     for relative_path in to_delete_set:
         full_path = os.path.join(os.getcwd(), relative_path)
-        # Skip special handling for plugins and services if outside their context
-        if plugins_dir in Path(relative_path).parents:
-            # Delete only subdirectories inside `plugins` that exist in the zip
-            sub_path = relative_path.replace(f"{plugins_dir}/", "")  # Subpath inside plugins directory
-            if not os.path.isdir(os.path.join(extracted_folder, plugins_dir, sub_path)):
-                print(f"  => Deleting {full_path} (from plugins directory)")
-                if os.path.isfile(full_path):
-                    os.remove(full_path)
-                elif os.path.isdir(full_path):
-                    shutil.rmtree(full_path)
-            continue
-        elif services_dir in Path(relative_path).parents:
-            # Delete only subdirectories inside `services` that exist in zip
-            sub_path = relative_path.replace(f"{services_dir}/", "")  # Subpath inside services directory
-            if not os.path.isdir(os.path.join(extracted_folder, services_dir, sub_path)):
-                print(f"  => Deleting {full_path} (from services directory)")
-                if os.path.isfile(full_path):
-                    os.remove(full_path)
-                elif os.path.isdir(full_path):
-                    shutil.rmtree(full_path)
+        path_obj = Path(relative_path)
+
+        # Handle special directories (plugins, services)
+        handled = False
+        for special_dir, dir_description in special_dirs.items():
+            if special_dir in path_obj.parents:
+                # Delete only subdirectories inside special dirs that exist in the zip
+                sub_path = relative_path.replace(f"{special_dir}/", "")
+                if not os.path.isdir(os.path.join(extracted_folder, special_dir, sub_path)):
+                    print(f"  => Deleting {full_path} (from {dir_description})")
+                    delete_path(full_path)
+                handled = True
+                break
+
+        if handled:
             continue
 
-        # Delete rest normally
-        if os.path.isfile(full_path):
-            print(f"  => Deleting {full_path}")
-            os.remove(full_path)
-        elif os.path.isdir(full_path):
-            print(f"  => Removing directory {full_path}")
-            shutil.rmtree(full_path)
+        # Delete the rest
+        print(f"  => {'Removing directory' if os.path.isdir(full_path) else 'Deleting'} {full_path}")
+        delete_path(full_path)
+
+
+def delete_path(path: str):
+    """Helper function to delete a file or directory"""
+    if os.path.isfile(path):
+        os.remove(path)
+    elif os.path.isdir(path):
+        shutil.rmtree(path)
 
 
 def do_update_github() -> int:
@@ -163,7 +178,7 @@ def do_update_github() -> int:
             if rc.returncode:
                 print('  => Autoupdate failed!')
                 return -1
-        print('  => DCSServerBot updated to the latest version.')
+        print(f'  => DCSServerBot updated to the latest version {latest_version}.')
     else:
         print('- No update found for DCSServerBot.')
     return 0
@@ -178,7 +193,7 @@ if __name__ == '__main__':
             if rc.returncode:
                 print("Unable to install or update 'requirements.txt'. Please try installing it manually.")
                 print("To do so, open 'cmd.exe' in the DCSServerBot installation directory, and type:")
-                print('"%USERPROFILE%\\.dcssb\\Script\\pip" install -r requirements.txt')
+                print('"%USERPROFILE%\\.dcssb\\Script\\pip" install --prefer-binary -r requirements.txt')
                 exit(-2)
         else:
             rc = do_update_git()

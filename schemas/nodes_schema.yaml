@@ -1,17 +1,3 @@
-schema;autoupdate:
-  type: map
-  nullable: false
-  mapping:
-    channel: {type: int, nullable: false}
-    title: {type: str, nullable: false, range: {min: 1}}
-    description: {type: str, nullable: false, range: {min: 1}}
-    footer: {type: str, nullable: false, range: {min: 1}}
-    mention:
-      type: seq
-      nullable: false
-      sequence:
-        - {type: text, nullable: false}
-
 type: map
 mapping:
   regex;(.+):   # Any string as a node name
@@ -40,8 +26,21 @@ mapping:
         type: map
         nullable: false
         mapping:
-          installation: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
-          autoupdate: {type: any, nullable: false, func: bool_or_map, enum: ['autoupdate']}
+          installation: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
+          autoupdate: {type: bool, nullable: false}
+          announce:
+            type: map
+            nullable: false
+            mapping:
+              channel: { type: int, nullable: false }
+              title: { type: str, nullable: false, range: { min: 1 } }
+              description: { type: str, nullable: false, range: { min: 1 } }
+              footer: { type: str, nullable: false, range: { min: 1 } }
+              mention:
+                type: seq
+                nullable: false
+                sequence:
+                  - { type: text, nullable: false }
           desanitize: {type: bool, nullable: false}
           minimized: {type: bool, nullable: false}
           user: {type: str, nullable: false, range: {min: 1}}
@@ -66,8 +65,8 @@ mapping:
             type: map
             nullable: false
             mapping:
-              home: {type: str, nullable: false, range: {min: 1}, func: file_exists}
-              missions_dir: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+              home: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
+              missions_dir: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
               mission_rewrite: {type: bool, nullable: false}
               autoscan: {type: bool, nullable: false}
               bot_port: {type: int, required: true, nullable: false, func: unique_port}

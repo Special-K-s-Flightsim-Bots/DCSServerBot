@@ -17,7 +17,7 @@ instance2:
     timezone: Europe/Berlin                       # optional: timezone (default: local time)
     00-12: YYYYYYY
     12-24: NNNNNNN
-  action:                                        # at 04:00 and 08:00 LT ..
+  action:                                        # at 04:00 and 08:00 LT ...
     local_times:
     - 04:00
     - 08:00
@@ -31,10 +31,10 @@ instance3:
   schedule:                                       # server "instance3" will run every day from noon to midnight
     00-12: NNNNNNN
     12-24: YYYYYYY
-  action:                                         # It will restart with a DCS server shutdown after 480 mins of mission time ..
+  action:                                         # It will restart with a DCS server shutdown after 480 mins of mission time ...
     method: restart
     mission_time: 480
-    populated: false                              # .. only, if nobody is on the server (or as soon as that happens afterwards)
+    populated: false                              # ... only if nobody is on the server (or as soon as that happens afterward)
     shutdown: true                                # shutdown the DCS server during the restart
 mission:
   schedule:

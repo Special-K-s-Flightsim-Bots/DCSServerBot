@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import re
+import sys
 import threading
 
 from core.const import DEFAULT_TAG
@@ -29,6 +30,7 @@ _types: dict[Type, str] = {
 
 __all__ = [
     "file_exists",
+    "dir_exists",
     "seq_or_map",
     "bool_or_map",
     "str_or_map",
@@ -41,6 +43,7 @@ __all__ = [
     "str_csv_or_list",
     "check_main_structure",
     "is_node",
+    "is_server",
     "validate"
 ]
 
@@ -48,8 +51,12 @@ __all__ = [
 from ruamel.yaml import YAML
 yaml = YAML()
 
-# Node-global unique ports
-ports: dict[str, dict[int, str]] = {}
+# Global ports that survive multiple loads
+if 'ports' not in vars(sys):
+    ports: dict[str, dict[int, str]] = {}
+    setattr(sys, 'ports', ports)
+else:
+    ports = getattr(sys, 'ports')
 
 
 class NodeData:
@@ -68,12 +75,12 @@ class NodeData:
         # Only initialize the attributes once
         try:
             config_path = Path(os.path.join(COMMAND_LINE_ARGS.config, 'nodes.yaml'))
-            self._data = yaml.load(config_path.read_text(encoding='utf-8'))
-            self._nodes: list[str] = list(self._data.keys())
+            data = yaml.load(config_path.read_text(encoding='utf-8'))
+            self._nodes: list[str] = list(data.keys())
             self._instances: dict[str, list[str]] = {
-                node: list(self._data[node]['instances'].keys())
+                node: list(data[node]['instances'].keys())
                 for node in self._nodes
-                if self._data[node] and self._data[node].get('instances')
+                if data[node] and data[node].get('instances')
             }
             self._all_instances: dict[str, int] = {}
             for node, instances in self._instances.items():
@@ -81,6 +88,13 @@ class NodeData:
                     self._all_instances[instance] = self._all_instances.get(instance, 0) + 1
         except Exception:
             raise CoreError(msg="nodes.yaml seems to be corrupt, can't initialize the node/instance-validation!")
+
+        try:
+            config_path = Path(os.path.join(COMMAND_LINE_ARGS.config, 'servers.yaml'))
+            data = yaml.load(config_path.read_text(encoding='utf-8'))
+            self._servers = list(data.keys())
+        except Exception:
+            raise CoreError(msg="servers.yaml seems to be corrupt, can't initialize the server-validation!")
 
     @property
     def nodes(self):
@@ -91,6 +105,10 @@ class NodeData:
         return self._instances
 
     @property
+    def servers(self):
+        return self._servers
+
+    @property
     def all_instances(self):
         return self._all_instances
 
@@ -98,9 +116,27 @@ def get_node_data() -> NodeData:
     return NodeData()
 
 def file_exists(value, _, path):
-    if path and path.split("/")[1] in [DEFAULT_TAG, COMMAND_LINE_ARGS.node]:
-        if not os.path.exists(os.path.expandvars(value)):
-            raise SchemaError(msg=f'File "{value}" does not exist', path=path)
+    if path and path.split("/")[1] in [DEFAULT_TAG, COMMAND_LINE_ARGS.node, 'backups', 'commands']:
+        filename = os.path.expandvars(value)
+        # do not check files with replacements
+        if '{' in filename:
+            return True
+        if not os.path.exists(filename) or not os.path.isfile(filename):
+            raise SchemaError(msg=f'File "{value}" does not exist or is no file', path=path)
+    return True
+
+def dir_exists(value, _, path):
+    if path and path.split("/")[1] in [DEFAULT_TAG, COMMAND_LINE_ARGS.node, 'backups', 'commands']:
+        filename = os.path.expandvars(value)
+        # do not check dirs with replacements
+        if '{' in filename:
+            return True
+        if not os.path.exists(filename) or not os.path.isdir(filename):
+            raise SchemaError(msg=f'Directory "{value}" does not exist or is no directory', path=path)
+    return True
+
+def obsolete(value, rule, path):
+    logger.warning(f'"{os.path.basename(path)}" is obsolete and will be set by the bot: Path "{path}"')
     return True
 
 def unique_port(value, _, path):
@@ -265,6 +301,22 @@ def is_node(value, rule_obj, path):
         if instance not in node_data.all_instances:
             return False
     return True
+
+def is_server(value, rule_obj, path):
+    if isinstance(value, list):
+        for server in value:
+            if not is_server(server, rule_obj, path):
+                raise SchemaError(f'No server with name/pattern "{server}" found.')
+        return True
+
+    node_data = get_node_data()
+    try:
+        for server in node_data.servers:
+            if re.match(value, server):
+                return True
+        return False
+    except re.error as ex:
+        raise SchemaError(f'Invalid regular expression: "{ex.pattern}"', path=path)
 
 def is_element(value, rule_obj, path):
     node_data = get_node_data()

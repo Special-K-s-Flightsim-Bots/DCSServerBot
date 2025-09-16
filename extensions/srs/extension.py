@@ -14,12 +14,10 @@ import sys
 import tempfile
 import zipfile
 
-if sys.platform == 'win32':
-    import ctypes
-
 from configparser import RawConfigParser
 from contextlib import suppress
-from core import Extension, utils, Server, ServiceRegistry, Autoexec, get_translation, InstallException
+from core import (Extension, utils, ServiceRegistry, Autoexec, get_translation, InstallException, Server,
+                  ServerMaintenanceManager)
 from discord.ext import tasks
 from io import BytesIO
 from packaging.version import parse
@@ -31,7 +29,6 @@ from watchdog.observers import Observer
 
 _ = get_translation(__name__.split('.')[1])
 
-ports: dict[int, str] = dict()
 SRS_GITHUB_URL = "https://api.github.com/repos/ciribob/DCS-SimpleRadioStandalone/releases/latest"
 SRS_BETA_URL = "https://api.github.com/repos/ciribob/DCS-SimpleRadioStandalone/releases"
 SRS_DOWNLOAD_URL = "https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/download/{version}/DCS-SimpleRadioStandalone-{version}.zip"
@@ -42,6 +39,8 @@ __all__ = [
 
 
 class SRS(Extension, FileSystemEventHandler):
+    _ports: dict[int, str] = dict()
+    _lock = asyncio.Lock()
 
     CONFIG_DICT = {
         "port": {
@@ -147,6 +146,8 @@ class SRS(Extension, FileSystemEventHandler):
     def _maybe_update_config(self, section, key, value_key):
         if value_key in self.config:
             value = self.config[value_key]
+            if section not in self.cfg:
+                self.cfg[section] = {}
             if not self.cfg[section].get(key) or Autoexec.parse(self.cfg[section][key]) != value:
                 self.cfg.set(section, key, value)
                 self.log.info(f"  => {self.server.name}: [{section}][{key}] set to {self.config[value_key]}")
@@ -154,66 +155,65 @@ class SRS(Extension, FileSystemEventHandler):
         return False
 
     async def prepare(self) -> bool:
-        global ports
-
-        if self.config.get('autoupdate', False):
-            await self.check_for_updates()
+        await self.handle_update()
         path = self.get_config_path()
+        dirty = False
         if 'client_export_file_path' not in self.config:
             self.config['client_export_file_path'] = os.path.join(os.path.dirname(path), 'clients-list.json')
-        dirty = self._maybe_update_config('Server Settings', 'SERVER_PORT', 'port')
-        dirty = self._maybe_update_config('Server Settings', 'CLIENT_EXPORT_FILE_PATH',
-                                          'client_export_file_path') or dirty
+        dirty |= self._maybe_update_config('Server Settings', 'SERVER_PORT', 'port')
+        dirty |= self._maybe_update_config('Server Settings', 'CLIENT_EXPORT_FILE_PATH',
+                                           'client_export_file_path')
         self.config['client_export_enabled'] = True
-        dirty = self._maybe_update_config('General Settings', 'CLIENT_EXPORT_ENABLED',
-                                          'client_export_enabled') or dirty
+        dirty |= self._maybe_update_config('General Settings', 'CLIENT_EXPORT_ENABLED',
+                                           'client_export_enabled')
         # enable SRS on spectators for slot blocking
         self.config['spectators_audio_disabled'] = False
-        dirty = self._maybe_update_config('General Settings', 'SPECTATORS_AUDIO_DISABLED',
-                                          'spectators_audio_disabled') or dirty
+        dirty |= self._maybe_update_config('General Settings', 'SPECTATORS_AUDIO_DISABLED',
+                                           'spectators_audio_disabled')
         # disable effects (for music plugin)
         # TODO: better alignment with the music plugin!
-        dirty = self._maybe_update_config('General Settings', 'RADIO_EFFECT_OVERRIDE',
-                                          'radio_effect_override') or dirty
-        dirty = self._maybe_update_config('General Settings', 'GLOBAL_LOBBY_FREQUENCIES',
-                                          'global_lobby_frequencies') or dirty
+        dirty |= self._maybe_update_config('General Settings', 'RADIO_EFFECT_OVERRIDE',
+                                           'radio_effect_override')
+        dirty |= self._maybe_update_config('General Settings', 'GLOBAL_LOBBY_FREQUENCIES',
+                                           'global_lobby_frequencies')
+        # new HTTP server (as of SRS 2.3)
+        dirty |= self._maybe_update_config('Server Settings', 'HTTP_SERVER_ENABLED',
+                                           'http_server_enabled')
+        dirty |= self._maybe_update_config('Server Settings', 'HTTP_SERVER_PORT',
+                                           'http_server_port')
+
         extension = self.server.extensions.get('LotAtc')
         if extension:
             self.config['lotatc'] = True
             self.config['lotatc_export_port'] = self.config.get('lotatc_export_port', 10712)
-            dirty = self._maybe_update_config('General Settings',
-                                              'LOTATC_EXPORT_ENABLED',
-                                              'lotatc') or dirty
-            dirty = self._maybe_update_config('General Settings',
-                                              'LOTATC_EXPORT_IP',
-                                              '127.0.0.1') or dirty
-            dirty = self._maybe_update_config('General Settings',
-                                              'LOTATC_EXPORT_PORT',
-                                              'lotatc_export_port') or dirty
+            dirty |= self._maybe_update_config('General Settings','LOTATC_EXPORT_ENABLED','lotatc')
+            dirty |= self._maybe_update_config('General Settings','LOTATC_EXPORT_IP','127.0.0.1')
+            dirty |= self._maybe_update_config('General Settings','LOTATC_EXPORT_PORT',
+                                               'lotatc_export_port')
             self.config['awacs'] = True
 
         if self.config.get('awacs', True):
-            dirty = self._maybe_update_config('General Settings',
-                                              'EXTERNAL_AWACS_MODE',
-                                              'awacs') or dirty
-            dirty = self._maybe_update_config('External AWACS Mode Settings',
-                                              'EXTERNAL_AWACS_MODE_BLUE_PASSWORD',
-                                              'blue_password') or dirty
-            dirty = self._maybe_update_config('External AWACS Mode Settings',
-                                              'EXTERNAL_AWACS_MODE_RED_PASSWORD',
-                                              'red_password') or dirty
+            dirty |= self._maybe_update_config('General Settings','EXTERNAL_AWACS_MODE','awacs')
+            dirty |= self._maybe_update_config('External AWACS Mode Settings',
+                                               'EXTERNAL_AWACS_MODE_BLUE_PASSWORD','blue_password')
+            dirty |= self._maybe_update_config('External AWACS Mode Settings',
+                                               'EXTERNAL_AWACS_MODE_RED_PASSWORD','red_password')
 
         if dirty:
             with open(path, mode='w', encoding='utf-8') as ini:
                 self.cfg.write(ini)
             self.locals = self.load_config()
+        # Check IP settings
+        if self.cfg['Server Settings']['SERVER_IP'] != '0.0.0.0':
+            self.log.warning(f"  => {self.server.name}: SERVER_IP is not set to 0.0.0.0 in your {self.get_config_path()}")
         # Check port conflicts
         port = self.config.get('port', int(self.cfg['Server Settings'].get('SERVER_PORT', '5002')))
-        if ports.get(port, self.server.name) != self.server.name:
-            self.log.error(f"  => {self.server.name}: {self.name} port {port} already in use by server {ports[port]}!")
+        if type(self)._ports.get(port, self.server.name) != self.server.name:
+            self.log.error(
+                f"  => {self.server.name}: {self.name} port {port} already in use by server {type(self)._ports[port]}!")
             return False
         else:
-            ports[port] = self.server.name
+            type(self)._ports[port] = self.server.name
         if self.config.get('autoconnect', True):
             await self.enable_autoconnect()
             self.log.info('  => SRS autoconnect is enabled for this server.')
@@ -249,7 +249,7 @@ class SRS(Extension, FileSystemEventHandler):
                 ], startupinfo=info, stdout=out, stderr=out, close_fds=True)
 
             try:
-                async with self.lock:
+                async with type(self)._lock:
                     if self.is_running():
                         return True
                     p = await asyncio.to_thread(run_subprocess)
@@ -390,13 +390,13 @@ class SRS(Extension, FileSystemEventHandler):
                     raise InstallException(
                         f"The {self.name} installation dir could not be found at {self.config.get('installation')}!")
             elif sys.platform == 'win32':
-                    import winreg
+                import winreg
 
-                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\DCS-SR-Standalone", 0)
-                    self._inst_path = winreg.QueryValueEx(key, 'SRPathStandalone')[0]
-                    if not os.path.exists(self._inst_path):
-                        raise InstallException(f"Can't detect the {self.name} installation dir, "
-                                               "please specify it manually in your nodes.yaml!")
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\DCS-SR-Standalone", 0)
+                self._inst_path = winreg.QueryValueEx(key, 'SRPathStandalone')[0]
+                if not os.path.exists(self._inst_path):
+                    raise InstallException(f"Can't detect the {self.name} installation dir, "
+                                           "please specify it manually in your nodes.yaml!")
             else:
                 self._inst_path = os.path.join(os.path.expandvars('%ProgramFiles%'), 'DCS-SimpleRadio-Standalone')
                 if not os.path.exists(self._inst_path):
@@ -454,7 +454,7 @@ class SRS(Extension, FileSystemEventHandler):
         # do we have a proper config file?
         try:
             cfg_path = self.get_config_path()
-            if not os.path.exists(cfg_path):
+            if not os.path.exists(cfg_path) or not os.path.isfile(cfg_path):
                 self.log.error(f"  => SRS config not found for server {self.server.name}")
                 return False
             if self.server.instance.name not in cfg_path:
@@ -480,94 +480,101 @@ class SRS(Extension, FileSystemEventHandler):
                         return version
         return None
 
-    def do_update(self) -> bool:
-        try:
-            cwd = self.get_inst_path()
-            exe_path = os.path.join(cwd, 'SRS-AutoUpdater.exe')
-            args = ['-server', '-autoupdate', f'-path=\"{cwd}\"']
-            if self.config.get('beta', False):
-                args.append('-beta')
-            if sys.platform == 'win32':
-                result = ctypes.windll.shell32.ShellExecuteW(
-                    None, "runas", exe_path, ' '.join(args), None, 1)
-                if result <= 32:
-                    return False
-            else:
-                subprocess.run([exe_path] + args, cwd=cwd, shell=False, stderr=subprocess.DEVNULL,
-                               stdout=subprocess.DEVNULL)
-            return True
-        except OSError as ex:
-            if ex.winerror == 740:
-                self.log.error("You need to disable User Access Control (UAC) to use the DCS-SRS AutoUpdater.")
-            return False
+    async def do_update(self, version: str):
+        # make sure the monitoring does not interfere
+        async with ServerMaintenanceManager(self.node, shutdown=False):
+            vc_redist = False
+            installation_dir = self.get_inst_path()
+            async with aiohttp.ClientSession() as session:
+                async with session.get(SRS_DOWNLOAD_URL.format(version=version), raise_for_status=True,
+                                       proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                    with zipfile.ZipFile(BytesIO(await response.content.read())) as z:
+                        # stop any existing SRS process
+                        for exe in ['SR-ClientRadio.exe', 'SR-Server.exe', 'SRS-Server-Commandline.exe']:
+                            for process in utils.find_process(os.path.basename(exe)):
+                                if process and process.is_running():
+                                    process.terminate()
+                        # unpack files
+                        z.extractall(path=installation_dir)
 
-    async def do_update_fallback(self, version: str):
-        installation_dir = self.get_inst_path()
-        async with aiohttp.ClientSession() as session:
-            async with session.get(SRS_DOWNLOAD_URL.format(version=version), raise_for_status=True,
-                                   proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
-                with zipfile.ZipFile(BytesIO(await response.content.read())) as z:
-                    for member in z.namelist():
-                        destination_file = os.path.join(installation_dir, member)
-                        destination_path = os.path.dirname(destination_file)
-                        if member.endswith('/'):
-                            os.makedirs(destination_path, exist_ok=True)
-                            continue
-                        with open(destination_file, 'wb') as output_file:
-                            output_file.write(z.read(member))
+                        # Handle VC_redist.x64.exe separately if needed
+                        if 'VC_redist.x64.exe' in [os.path.basename(m) for m in z.namelist()]:
+                            vc_redist = True
+            if vc_redist:
+                def run_subprocess():
+                    self.log.info("Installing Visual Studio Redistributable ...")
+                    exe_path = os.path.join(installation_dir, 'VC_redist.x64.exe')
+                    try:
+                        subprocess.run([exe_path, '/install', '/quiet', '/norestart'],
+                                       cwd=installation_dir, check=True)
+                    except subprocess.CalledProcessError as ex:
+                        # Return code 1638 means "Already installed" - this is OK
+                        if ex.returncode == 1638:
+                            self.log.info("Visual Studio Redistributable is already installed.")
+                        else:
+                            raise
 
-    @tasks.loop(minutes=30)
-    async def schedule(self):
+                await asyncio.to_thread(run_subprocess)
+                os.remove(os.path.join(installation_dir, 'VC_redist.x64.exe'))
+
+    async def handle_update(self):
+        # don't run if autoupdate is disabled
         if not self.config.get('autoupdate', False):
             return
-        try:
-            version = await self.check_for_updates()
-            if version:
-                self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
-                await asyncio.to_thread(self.do_update)
-                # await self.do_update_fallback(version)
-                self.log.info("DCS-SRS updated.")
-                bus = ServiceRegistry.get(ServiceBus)
-                await bus.send_to_node({
-                    "command": "rpc",
-                    "service": BotService.__name__,
-                    "method": "audit",
-                    "params": {
-                        "message": f"{self.name} updated to version {version} on node {self.node.name}."
-                    }
-                })
-                if isinstance(self.config.get('autoupdate'), dict):
-                    config = self.config.get('autoupdate')
-                    servers = []
-                    for instance in self.node.instances:
-                        if instance.locals.get('extensions', {}).get(self.name) and instance.locals['extensions'][self.name].get('enabled', True):
-                            servers.append(instance.server.display_name)
-                    embed = discord.Embed(
-                        colour=discord.Colour.blue(),
-                        title=config.get(
-                            'title', 'DCS-SRS has been updated to version {}!').format(version),
-                        url=f"https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/{version}")
-                    embed.set_thumbnail(url="https://github.com/ciribob/DCS-SimpleRadioStandalone/blob/master/Scripts/DCS-SRS/Theme/icon.png")
-                    embed.description = config.get('description', 'The following servers have been updated:')
-                    embed.add_field(name=_('Server'),
-                                    value='\n'.join([f'- {x}' for x in servers]), inline=False)
-                    embed.set_footer(
-                        text=config.get('footer', 'Please make sure you update your DCS-SRS client also!'))
-                    params = {
-                        "channel": config['channel'],
-                        "embed": embed.to_dict()
-                    }
-                    if 'mention' in config:
-                        params['mention'] = config['mention']
+
+        # make sure we're not called twice
+        async with type(self)._lock:
+            try:
+                version = await self.check_for_updates()
+                if version:
+                    self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
+                    await self.do_update(version)
+                    self.log.info("DCS-SRS updated.")
+                    bus = ServiceRegistry.get(ServiceBus)
                     await bus.send_to_node({
                         "command": "rpc",
                         "service": BotService.__name__,
-                        "method": "send_message",
-                        "params": params
+                        "method": "audit",
+                        "params": {
+                            "message": f"{self.name} updated to version {version} on node {self.node.name}."
+                        }
                     })
+                    config = self.config.get('announce')
+                    if config:
+                        servers = []
+                        for instance in self.node.instances:
+                            if instance.locals.get('extensions', {}).get(self.name) and instance.locals['extensions'][self.name].get('enabled', True):
+                                servers.append(instance.server.display_name)
+                        embed = discord.Embed(
+                            colour=discord.Colour.blue(),
+                            title=config.get(
+                                'title', 'DCS-SRS has been updated to version {}!').format(version),
+                            url=f"https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/{version}")
+                        embed.set_thumbnail(url="https://github.com/ciribob/DCS-SimpleRadioStandalone/blob/master/Scripts/DCS-SRS/Theme/icon.png")
+                        embed.description = config.get('description', 'The following servers have been updated:')
+                        embed.add_field(name=_('Server'),
+                                        value='\n'.join([f'- {x}' for x in servers]), inline=False)
+                        embed.set_footer(
+                            text=config.get('footer', 'Please make sure you update your DCS-SRS client also!'))
+                        params = {
+                            "channel": config['channel'],
+                            "embed": embed.to_dict()
+                        }
+                        if 'mention' in config:
+                            params['mention'] = config['mention']
+                        await bus.send_to_node({
+                            "command": "rpc",
+                            "service": BotService.__name__,
+                            "method": "send_message",
+                            "params": params
+                        })
 
-        except Exception as ex:
-            self.log.exception(ex)
+            except Exception as ex:
+                self.log.exception(ex)
+
+    @tasks.loop(minutes=30)
+    async def schedule(self):
+        await self.handle_update()
 
     async def get_ports(self) -> dict:
         if self.enabled:

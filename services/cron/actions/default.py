@@ -142,7 +142,7 @@ async def dcs_update(node: Node, warn_times: Optional[list[int]] = None):
     if new_version != version:
         if not warn_times:
             warn_times = [120, 60]
-        await node.update(warn_times=warn_times, branch=branch)
+        await node.dcs_update(warn_times=warn_times, branch=branch)
 
 
 async def node_shutdown(node: Node, restart: Optional[bool] = False):

@@ -92,6 +92,7 @@ class Main:
         logging.getLogger(name="eye3d").setLevel(logging.ERROR)
         logging.getLogger(name='git').setLevel(logging.WARNING)
         logging.getLogger(name='matplotlib').setLevel(logging.ERROR)
+        logging.getLogger(name="multipart").setLevel(logging.ERROR)
         logging.getLogger(name='PidFile').setLevel(logging.ERROR)
         logging.getLogger(name='PIL').setLevel(logging.INFO)
         logging.getLogger(name='psycopg.pool').setLevel(logging.WARNING)
@@ -279,10 +280,9 @@ if __name__ == "__main__":
 
                 Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
                 rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
-    except PermissionError:
+    except PermissionError as ex:
+        log.error(f"There is a permission error: {ex}", exc_info=True)
         # do not restart again
-        log.error("There is a permission error.")
-        log.error(f"Did you run DCSServerBot as Admin before? If yes, delete dcssb_{args.node}.pid and try again.")
         exit(-2)
     except PidFileError:
         log.error(f"Process already running for node {args.node}!")

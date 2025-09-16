@@ -16,15 +16,15 @@ Each `Instance` specifies a DCS executable that can be launched on that specific
 your Saved Games directory. The single instance that every server should have is DCS.release_server.
 
 Each instance has its own UDP communication port (default 6666). It will contact the DCSServerBot via UDP usually 
-over port 10042. The whole communication is UDP based. This has a slight risk of data loss, but is non-blocking
-and much faster. Very large servers run DCSServerBot. It has a small payload in DCS and only has a very small 
-performance impact on your servers.
+over port 10042. The whole communication is UDP-based. This has a slight risk of data loss, but is non-blocking
+and much faster. Huge servers run DCSServerBot. It has a small payload in DCS and only has a tiny performance impact 
+on your servers, if ever.
 
 ### Server
 Each `Server` specifies a __configuration__ that can be loaded into an instance. Even if there is usually a 1-to-1 
 connection between instances and servers, servers might be moved from one instance to another. Imagine your instance 
 providing power, availability and maybe components like TacView, LotAtc, SRS and your server configuration having a 
-name, the number of players and a password. You can easily move around that information from one Instance to another, 
+name, the number of players and a password. You can move around that information from one Instance to another, 
 even to another Node. That's why I decided to loosely couple that information and not hard code it into each node.
 
 > ❗ A standard configuration will only have one node and probably only one server.
@@ -65,10 +65,11 @@ You can find more information on how to do that [here](./services/README.md).
 `Plugins` are modules that only run on your bot. This is important to know and to understand, because they for 
 instance don't have easy access to some file system on any remote node. They communicate with any other object like
 other nodes, services on other nodes or other servers via so called `Proxies`. A proxy provides the same interface as
-the real object. If you for instance access any server object, you access the real implementation if that server is
+the real object. If you, for instance, access any server object, you access the real implementation if that server is
 running on the same node or 
 
-DCSServerBot comes with a lot of services and plugins already, that are all described in more detail in this documentation.<br>
+DCSServerBot comes with a lot of services and plugins already, that are all described in more detail in their 
+respective README-files.<br>
 You can enhance DCSServerBot by implementing your own services and / or plugins (or hybrids). You'll find a howto 
 [here](./plugins/README.md) and [here](./services/README.md). 
 
@@ -100,12 +101,9 @@ installed on a cloud drive already. This helps you to keep a single configuratio
 ### Cloud Database
 You can either host a database on one of your nodes, which creates another single point of failure, or have a cloud
 database at some of the prominent cloud services. As the bot databases don't get that large, it should not be a big 
-deal. I have one for $7 a month, running our 2 bots and 10 servers on it. That's an easy investment.
+deal. I have one for approx $7 a month, running our 2 bots and 10 servers on it. That's an easy investment.
 
 ### Automatic Fail-over
-At the moment, the bot can do automatic fail-overs for the Discord bot service. This will make sure that the bot is
-responsive on Discord at any time, even if one of your nodes crashes (prerequisite: cloud database).
-
-_It is planned, to have automatic server takeovers also. That means, if you have a very prominent server that it can
-for instance take down your development instance on another host, if needs be, and make sure the production server
-is up and running 24x7. As DCS does not support hot migration, the mission will start fresh like after a restart._
+At the moment, the bot can do automatic fail-overs for and service that is configured as a Master only service (like
+the Discord bot service). This will ensure that the bot is responsive on Discord at any time, even if one of your 
+nodes crashes (prerequisite: cloud database).

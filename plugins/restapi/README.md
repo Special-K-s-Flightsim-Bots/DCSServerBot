@@ -1,5 +1,6 @@
 # Plugin RestAPI
-This API provides a very simple RestAPI that you can user together with the [WebService](../../services/webservice/README.md).
+This API provides a very simple RestAPI that you can use together with the [WebService](../../services/webservice/README.md).
+You can use it to power the [DCS Statistics Dasboard](https://github.com/Penfold-88/DCS-Statistics-Dashboard).
 
 ## Configuration
 As RestAPI is an optional plugin, you need to activate it in main.yaml first like so:
@@ -8,11 +9,21 @@ opt_plugins:
   - restapi
 ```
 
-All you can set in your config/plugins/restapi.yaml for now is a prefix that should be added to the API endpoints:
+You can configure the RestAPI endpoints in your config\plugins\restapi.yaml like so:
 ```yaml
 DEFAULT:
-  prefix: /stats    # use this prefix (optional)
+  prefix: /stats            # Optional: use this prefix
+  api_key: aaabbbcccc       # Optional: API key to be used to secure the API
+  endpoints:                 # endpoint configuration
+    servers:                # /servers
+      filter:               # config parameter (in this case, the server filter list)
+        - 'MyPrivateServer' # Do not show a server named "MyPrivateServer"
+        - '(.*)Private(.*)' # Do not show any server that has "Private" in its name 
 ```
+
+> [!WARNING]
+> Do NOT use a prefix if you work with the DCS Statistics Dasboard!
+
 ## RestAPI
 The following commands are available through the API
 
@@ -35,5 +46,5 @@ The following commands are available through the API
 | /linkme           | POST       | discord_id: string, force: bool                       | Same as /linkme in discord. Returns a new token that can be used in the in-game chat. |
 
 > [!NOTE]
-> To get a more detailled API-documentation, please enable debug in your WebService config and 
+> To get more detailled API documentation, please enable debug in your WebService config and 
 > access https://localhost:9876/docs.

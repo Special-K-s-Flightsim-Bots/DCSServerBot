@@ -33,8 +33,15 @@ class WebService(Service):
         self.task = None
         if cfg:
             self.app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-            self.config = Config(app=self.app, host=cfg.get('listen', '0.0.0.0'), port=cfg.get('port', 9876),
-                                 workers=4, log_level=logging.ERROR, use_colors=False)
+            self.config = Config(
+                app=self.app,
+                host=cfg.get('listen', '0.0.0.0'),
+                port=cfg.get('port', 9876),
+                workers=4,
+                log_level=logging.WARNING,
+                log_config=None,
+                use_colors=False
+            )
             self.server: uvicorn.Server = uvicorn.Server(config=self.config)
 
             # add debug endpoints
@@ -68,11 +75,16 @@ class WebService(Service):
     def add_debug_routes(self):
         self.log.warning("WebService: Debug is enabled, you might expose your API functions!")
 
+        # enable debug logging for FastAPI
+        logging.getLogger("fastapi").setLevel(logging.DEBUG)
+        logging.getLogger("uvicorn").setLevel(logging.DEBUG)
+        logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
+
         # Enable OpenAPI schema
         self.app.add_api_route("/openapi.json",
                                lambda: get_openapi(
                                    title="DCSServerBot REST API",
-                                   version=self.node.bot_version,
+                                   version=f"{self.node.bot_version}.{self.node.sub_version}",
                                    description="REST functions to be used for DCSServerBot.",
                                    routes=self.app.routes,
                                ),

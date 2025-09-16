@@ -273,6 +273,7 @@ class YNQuestionView(View):
         super().__init__(timeout=120)
         self.result = None
 
+    # noinspection PyTypeChecker
     @discord.ui.button(label='Yes', style=ButtonStyle.green, custom_id='yn_yes')
     async def on_yes(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
@@ -280,6 +281,7 @@ class YNQuestionView(View):
         self.result = True
         self.stop()
 
+    # noinspection PyTypeChecker
     @discord.ui.button(label='No', style=ButtonStyle.red, custom_id='yn_no')
     async def on_no(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
@@ -330,6 +332,7 @@ class PopulatedQuestionView(View):
         super().__init__(timeout=120)
         self.result = None
 
+    # noinspection PyTypeChecker
     @discord.ui.button(label='Yes', style=ButtonStyle.green, custom_id='pl_yes')
     async def on_yes(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
@@ -337,6 +340,7 @@ class PopulatedQuestionView(View):
         self.result = 'yes'
         self.stop()
 
+    # noinspection PyTypeChecker
     @discord.ui.button(label='Later', style=ButtonStyle.primary, custom_id='pl_later', emoji='⏱')
     async def on_later(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
@@ -344,6 +348,7 @@ class PopulatedQuestionView(View):
         self.result = 'later'
         self.stop()
 
+    # noinspection PyTypeChecker
     @discord.ui.button(label='Cancel', style=ButtonStyle.red, custom_id='pl_cancel')
     async def on_cancel(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
@@ -906,26 +911,46 @@ def get_all_linked_members(interaction: discord.Interaction) -> list[discord.Mem
 
 class ServerTransformer(app_commands.Transformer):
     """
+    A transformer for Discord application commands that handles server selection.
 
-    :class:`ServerTransformer` is a class that is used for transforming and autocompleting servers as a selection for application commands.
+    This class converts string inputs into Server objects and provides autocomplete
+    functionality for server selection in slash commands.
 
-    .. attribute:: status
+    Attributes:
+        status (list[Status]): Optional list of status values to filter servers by.
+        maintenance (bool): Optional filter for servers in maintenance mode.
 
-        An optional attribute that specifies the list of status values to filter the servers by.
-
-        :type: list of :class:`Status`
-        :default: None
-
-    :param status: An optional parameter that specifies the list of status values to filter the servers by.
-    :type status: list of :class:`Status`
-
+    Example:
+        ```python
+        @app_commands.command(name="restart")
+        async def restart_server(
+            interaction: discord.Interaction,
+            server: app_commands.Transform[Server, ServerTransformer(status=[Status.RUNNING])]
+        ):
+            # Command will only show running servers in autocomplete
+            await server.restart()
+        ```
     """
+
     def __init__(self, *, status: list[Status] = None, maintenance: Optional[bool] = None):
         super().__init__()
         self.status: list[Status] = status
         self.maintenance = maintenance
 
     async def transform(self, interaction: discord.Interaction, value: Optional[str]) -> Server:
+        """
+        Converts a server name into a Server object.
+
+        Args:
+            interaction: The interaction context
+            value: The server name to convert
+
+        Returns:
+            The corresponding Server object
+
+        Raises:
+            app_commands.TransformerError: If server not found
+        """
         if value:
             server = interaction.client.servers.get(value)
             if not server:
@@ -935,6 +960,19 @@ class ServerTransformer(app_commands.Transformer):
         return server
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        """
+        Provides server name suggestions for autocomplete.
+
+        Filters servers based on status, maintenance mode, and user input.
+        Only shows servers the user has permission to access.
+
+        Args:
+            interaction: The interaction context
+            current: Current text input by user
+
+        Returns:
+            List of server name suggestions (max 25)
+        """
         if not await interaction.command._check_can_run(interaction):
             return []
         try:
@@ -1055,9 +1093,12 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
     """
     def get_name(base_dir: str, path: str):
         try:
-            return os.path.relpath(path, base_dir).replace('.dcssb' + os.path.sep, '')[:-4]
+            name = os.path.relpath(path, base_dir).replace('.dcssb' + os.path.sep, '')[:-4]
+            if len(name) > 100:
+                raise ValueError("Mission name exceeds maximum length")
+            return name
         except ValueError:
-            return os.path.basename(path)[:-4]
+            return (os.path.basename(path)[:-4])[:100]
 
     if not await interaction.command._check_can_run(interaction):
         return []
@@ -1420,12 +1461,14 @@ class DirectoryPicker(discord.ui.View):
         except Exception as ex:
             interaction.client.log.exception(ex)
 
+    # noinspection PyTypeChecker
     @discord.ui.button(label="Upload", style=ButtonStyle.green, row=2)
     async def on_upload(self, interaction: discord.Interaction, button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
+    # noinspection PyTypeChecker
     @discord.ui.button(label="Up", style=ButtonStyle.secondary)
     async def on_up(self, interaction: discord.Interaction, button: Button):
         # noinspection PyUnresolvedReferences
@@ -1434,6 +1477,7 @@ class DirectoryPicker(discord.ui.View):
             self.dir = os.path.dirname(self.dir)
             await self.refresh(interaction)
 
+    # noinspection PyTypeChecker
     @discord.ui.button(label="Create", style=ButtonStyle.primary)
     async def on_create(self, interaction: discord.Interaction, button: Button):
         class TextModal(Modal, title="Create Directory"):
@@ -1456,6 +1500,7 @@ class DirectoryPicker(discord.ui.View):
                 self.dir = modal.name.value
             await self.refresh(interaction)
 
+    # noinspection PyTypeChecker
     @discord.ui.button(label="Cancel", style=ButtonStyle.red, row=2)
     async def on_cancel(self, interaction: discord.Interaction, button: Button):
         # noinspection PyUnresolvedReferences

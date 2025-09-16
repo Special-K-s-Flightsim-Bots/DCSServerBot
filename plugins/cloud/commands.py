@@ -273,34 +273,45 @@ class Cloud(Plugin[CloudListener]):
     @tasks.loop(minutes=15.0)
     async def cloud_bans(self):
         try:
+            banlist = self.config.get('banlist', 'both').lower()
+            if banlist == 'both':
+                banlist = None
             if self.config.get('dcs-ban', False):
-                all_bans: dict = await self.get('bans')
-                self_bans: set = {x['ucid'] for x in await self.bus.bans() if x['banned_by'] == self.plugin_name}
-                external_bans: set = {ban['ucid'] for ban in all_bans}
-                # find UCIDs to ban (in external_bans but not in self_bans)
-                for ucid in external_bans - self_bans:
-                    reason = next(ban['reason'] for ban in all_bans if ban['ucid'] == ucid)
+                dgsa_bans = {item['ucid']: item for item in await self.get('bans')}
+                local_bans = {item['ucid']: item for item in await self.bus.bans(expired=True) if item['banned_by'] == self.plugin_name}
+                # filter bans by scope
+                to_ban: set = {
+                    ucid for ucid, ban in dgsa_bans.items()
+                    if (ban['scope'] == 'Both' or not banlist or ban['scope'].lower() == banlist)
+                }
+                # find UCIDs to ban (in DGsA bans but not in local bans)
+                for ucid in to_ban - local_bans.keys():
+                    reason = dgsa_bans[ucid]['reason']
                     await self.bus.ban(ucid=ucid, reason='DGSA: ' + reason, banned_by=self.plugin_name)
-                # find UCIDs to unban (in self_bans but not in external_bans)
-                for ucid in self_bans - external_bans:
+                # find UCIDs to unban (in local bans but not in DGSA bans)
+                for ucid in local_bans.keys() - to_ban:
                     await self.bus.unban(ucid)
             elif self.config.get('watchlist_only', False):
-                all_bans: dict = await self.get('bans')
-                external_bans: set = {ban['ucid'] for ban in all_bans}
+                dgsa_bans = {item['ucid']: item for item in await self.get('bans')}
+                # filter bans by scope
+                to_ban: set = {
+                    ucid for ucid, ban in dgsa_bans.items()
+                    if (ban['scope'] == 'Both' or not banlist or ban['scope'].lower() == banlist)
+                }
                 async with self.apool.connection() as conn:
                     cursor = await conn.execute("SELECT player_ucid FROM watchlist WHERE created_by = 'DGSA'")
                     watches = set([row[0] for row in await cursor.fetchall()])
                     async with conn.transaction():
                         # find watches to add
-                        for ucid in external_bans - watches:
-                            reason = next(ban['reason'] for ban in all_bans if ban['ucid'] == ucid)
+                        for ucid in to_ban - watches:
+                            reason = dgsa_bans[ucid]['reason']
                             await conn.execute("""
                                 INSERT INTO watchlist (player_ucid, reason, created_by) 
                                 VALUES (%s, %s, %s)
                                 ON CONFLICT (player_ucid) DO NOTHING
                             """, (ucid, reason, 'DGSA'))
                         # find watches to remove
-                        for ucid in watches - external_bans:
+                        for ucid in watches - to_ban:
                             await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (ucid,))
             if self.config.get('discord-ban', False):
                 bans: dict = await self.get('discord-bans')

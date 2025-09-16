@@ -81,16 +81,13 @@ class Monitoring(Plugin[MonitoringListener]):
         if await super().install():
             try:
                 async with self.apool.connection() as conn:
-                    await conn.execute("""
-                        UPDATE plugins 
-                        SET version = (
-                            SELECT version FROM plugins WHERE plugin = 'serverstats'
-                        ) 
-                        WHERE plugin = 'monitoring'
-                        """)
-                    cursor = await conn.execute("DELETE FROM plugins WHERE plugin = 'serverstats' RETURNING plugin")
+                    cursor = await conn.execute("SELECT version FROM plugins WHERE plugin = 'serverstats'")
                     row = await cursor.fetchone()
                     if row:
+                        async with conn.transaction():
+                            await conn.execute("UPDATE plugins SET version = %s WHERE plugin = 'monitoring'",
+                                               (row[0], ))
+                            await conn.execute("DELETE FROM plugins WHERE plugin = 'serverstats'")
                         self.log.info("  => Migrating serverstats to monitoring. Restart triggered ...")
                         await self.node.restart()
                 return True
@@ -145,8 +142,11 @@ class Monitoring(Plugin[MonitoringListener]):
                             }
                         )
                 os.remove(plugin_yaml)
+                self.locals = self.read_locals()
             if service:
                 yaml.dump(service, Path(service_yaml).open('w', encoding='utf-8'))
+                await ServiceRegistry.get(MonitoringService).stop()
+                await ServiceRegistry.get(MonitoringService).start()
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
                     server: Optional[str] = None) -> None:

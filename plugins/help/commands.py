@@ -2,20 +2,19 @@ import discord
 import os
 import pandas as pd
 
-from core import Plugin, Report, ReportEnv, command, utils, get_translation, Status
+from core import Plugin, Report, ReportEnv, command, utils, get_translation, Status, async_cache, Command
 from discord import app_commands, Interaction, ButtonStyle, TextStyle
 from discord.ui import View, Select, Button, Modal, TextInput, Item
-from functools import cache
 from io import BytesIO
 from services.bot import DCSServerBot
-from typing import cast, Optional, Literal, Any
+from typing import cast, Optional, Literal, Any, Union
 
 from .listener import HelpListener
 
 _ = get_translation(__name__.split('.')[1])
 
 
-@cache
+@async_cache
 async def get_commands(interaction: discord.Interaction) -> dict[str, app_commands.Command]:
     cmds: dict[str, app_commands.Command] = dict()
     for cmd in interaction.client.tree.get_commands(guild=interaction.guild):
@@ -25,21 +24,33 @@ async def get_commands(interaction: discord.Interaction) -> dict[str, app_comman
                     cmds[inner.qualified_name] = inner
         elif await cmd._check_can_run(interaction):
             cmds[cmd.name] = cmd
+    ctx = await interaction.client.get_context(interaction)
+    for name, cmd in interaction.client.all_commands.items():
+        # noinspection PyUnresolvedReferences
+        if cmd.enabled and await cmd.can_run(ctx):
+            cmds[name] = cmd
     return cmds
 
 
-def get_usage(cmd: discord.app_commands.Command) -> str:
-    return ' '.join([
-        f"<{param.name.lstrip('_')}>" if param.required else f"[{param.name.lstrip('_')}]"
-        for param in cmd.parameters
-    ])
-
+def get_usage(cmd: Union[discord.app_commands.Command, Command]) -> str:
+    if isinstance(cmd, Command):
+        return ' '.join([
+            f"<{param.name.lstrip('_')}>" if param.required else f"[{param.name.lstrip('_')}]"
+            for param in cmd.parameters
+        ])
+    else:
+        # noinspection PyUnresolvedReferences
+        return cmd.signature
 
 async def commands_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     try:
+        prefix = interaction.client.locals.get('command_prefix', '.')
         return [
-            app_commands.Choice(name=f"/{name}", value=name)
-            for name in sorted((await get_commands(interaction)).keys())
+            app_commands.Choice(
+                name="{prefix}{name}".format(prefix='/' if isinstance(cmd, Command) else prefix, name=name),
+                value=name
+            )
+            for name, cmd in sorted((await get_commands(interaction)).items())
             if not current or current.casefold() in name.casefold()
         ][:25]
     except Exception as ex:
@@ -72,61 +83,49 @@ class Help(Plugin[HelpListener]):
                 self.children[4].disabled = True
 
         async def print_command(self, interaction: discord.Interaction, *, name: str) -> Optional[discord.Embed]:
-            _name = name.lstrip('/')
-            parts = _name.split()
-            if len(parts) == 2:
-                group = parts[0]
-                _name = parts[1]
-            else:
-                group = None
-
-            for cmd in interaction.client.tree.get_commands(guild=interaction.guild):
-                if group and isinstance(cmd, app_commands.Group) and cmd.name == group:
-                    for inner in cmd.commands:
-                        if inner.name == _name:
-                            cmd = inner
-                            break
-                    else:
-                        return None
-                    break
-                elif not group and isinstance(cmd, app_commands.Command) and cmd.name == _name:
-                    break
-            else:
+            cmds = await get_commands(interaction)
+            cmd = cmds.get(name)
+            if not cmd:
                 return None
-            if not await cmd._check_can_run(interaction):
-                raise PermissionError()
+
+            prefix = interaction.client.locals.get('command_prefix', '.')
+            # noinspection PyUnresolvedReferences
+            fqn = cmd.mention if isinstance(cmd, Command) else f"{prefix}{cmd.name}"
             help_embed = discord.Embed(color=discord.Color.blue())
             # noinspection PyUnresolvedReferences
-            help_embed.title = _("Command: {}").format(cmd.mention)
+            help_embed.title = _("Command: {}").format(fqn)
             help_embed.description = cmd.description
             usage = get_usage(cmd)
             # noinspection PyUnresolvedReferences
-            help_embed.add_field(name=_('Usage'), value=f"{cmd.mention} {usage}", inline=False)
+            help_embed.add_field(name=_('Usage'), value=f"{fqn} {usage}", inline=False)
             if usage:
                 help_embed.set_footer(text=_('<> mandatory, [] non-mandatory'))
             return help_embed
 
         async def print_commands(self, interaction: discord.Interaction, *, plugin: str) -> discord.Embed:
+            prefix = self.bot.locals.get('command_prefix', '.')
             title = _('{} Help').format(self.bot.user.display_name)
             help_embed = discord.Embed(title=title, color=discord.Color.blue())
             help_embed.description = '**Plugin: ' + plugin.split('.')[1].title() + '**\n'
             cmds = ""
             descriptions = ""
             for name, cmd in (await get_commands(interaction)).items():
-                if cmd.module == plugin:
-                    # noinspection PyUnresolvedReferences
-                    new_cmd = f"{cmd.mention} {get_usage(cmd)}\n"
-                    new_desc = f"{cmd.description}\n"
-                    if len(cmds + new_cmd) > 1024 or len(descriptions + new_desc) > 1024:
-                        if cmds.strip():  # Only add if there's something besides whitespace
-                            help_embed.add_field(name=_('Command'), value=cmds, inline=True)
-                            help_embed.add_field(name=_('Description'), value=descriptions, inline=True)
-                            help_embed.add_field(name='_ _', value='_ _', inline=True)
-                        cmds = new_cmd
-                        descriptions = new_desc
-                    else:
-                        cmds += new_cmd
-                        descriptions += new_desc
+                if cmd.module != plugin:
+                    continue
+                # noinspection PyUnresolvedReferences
+                fqn = cmd.mention if isinstance(cmd, Command) else f"{prefix}{cmd.name}"
+                new_cmd = f"{fqn} {get_usage(cmd)}\n"
+                new_desc = f"{cmd.description}\n"
+                if len(cmds + new_cmd) > 1024 or len(descriptions + new_desc) > 1024:
+                    if cmds.strip():  # Only add if there's something besides whitespace
+                        help_embed.add_field(name=_('Command'), value=cmds, inline=True)
+                        help_embed.add_field(name=_('Description'), value=descriptions, inline=True)
+                        help_embed.add_field(name='_ _', value='_ _', inline=True)
+                    cmds = new_cmd
+                    descriptions = new_desc
+                else:
+                    cmds += new_cmd
+                    descriptions += new_desc
 
             if cmds.strip():  # Add any remaining commands/descriptions
                 help_embed.add_field(name=_('Command'), value=cmds, inline=True)

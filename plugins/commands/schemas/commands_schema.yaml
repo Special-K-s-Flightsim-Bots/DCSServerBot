@@ -4,7 +4,7 @@ schema;cmd_execute_schema:
   mapping:
     cmd: {type: str, required: true, nullable: false, range: {min: 1}}
     args: {type: str, nullable: false, range: {min: 1}}
-    cwd: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+    cwd: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
     shell: {type: bool, nullable: false}
 
 schema;cmd_event_schema:
@@ -13,23 +13,35 @@ schema;cmd_event_schema:
   nullable: false
   mapping:
     sync: {type: bool, nullable: false}
-    # include: 'event_schema'  # to check the events structure for DCS events
+    # include: 'event_schema' # to check the events structure for DCS events
+
+schema;cmd_params_schema:
+  type: map
+  nullable: false
+  mapping:
+    description: {type: str, nullable: false, range: {min: 1}}
+    type: {type: str, nullable: false, enum: ['str', 'int', 'bool', 'member', 'channel', 'role', 'mentionable', 'number', 'attachment']}
+    required: {type: bool, nullable: false}
+    default: {type: text, nullable: false}
+    nsfw: {type: bool, nullable: false}
+    min_value: {type: int, nullable: false}
+    max_value: {type: int, nullable: false}
+    choices:
+      type: seq
+      nullable: false
+      sequence:
+        - {type: text, nullable: false, unique: true}
 
 type: map
 mapping:
-  DEFAULT:
+  commands:
     type: map
     nullable: false
     mapping:
-      command_prefix: {type: str, range: {min: 1, max: 1}, nullable: false}
-  commands:
-    type: seq
-    nullable: false
-    sequence:
-      - type: map
+      regex;(.+):   # Any string as a command name
+        type: map
         nullable: false
         mapping:
-          name: {type: str, required: true, nullable: false, range: {min: 1}}
           description: {type: str, nullable: false, range: {min: 1}}
           roles:
             type: seq
@@ -53,10 +65,7 @@ mapping:
               event:
                 include: 'cmd_event_schema'
           params:
-            type: seq
-            nullable: false
-            sequence:
-              - type: str
-                nullable: false
-                unique: true
-          hidden: {type: bool, nullable: false}
+            type: map
+            mapping:
+              regex;(.+):   # Any string as a parameter name
+                include: 'cmd_params_schema'

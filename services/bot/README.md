@@ -46,7 +46,7 @@ roles:                                          # Roles mapping. The bot uses in
 
 > [!TIP]
 > The bot will remove the Discord token on the first startup from your bot.yaml.<br>
-> If you want to replace the token later, just re-add the line into your bot.yaml and DCSServerBot will replace the 
+> If you want to replace the token later, re-add the line into your bot.yaml and DCSServerBot will replace the 
 > internal token with this one.
 
 ## Non-Discord Installations
@@ -72,4 +72,4 @@ respective commands that are allowed for this role.
 
 > [!IMPORTANT]
 > You might get some warnings and errors because of missing information like channels etc. in your bot.
-> And you can not use any plugin that is only meant to display data in Discord like FunkMan or Greenieboard.
+> You also cannot use any plugin only meant to display data in Discord like FunkMan or Greenieboard.

@@ -145,7 +145,10 @@ class Service(ABC):
             validation = self.node.config.get('validation', 'lazy')
             if os.path.exists(path) and validation in ['strict', 'lazy']:
                 schema_files = [str(x) for x in Path(path).glob('*.yaml')]
-                utils.validate(filename, schema_files, raise_exception=(validation == 'strict'))
+                if schema_files:
+                    utils.validate(filename, schema_files, raise_exception=(validation == 'strict'))
+                else:
+                    self.log.warning(f'No schema file for service "{self.name}" found.')
 
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
         except (MarkedYAMLError, PyKwalifyException) as ex:
@@ -162,8 +165,8 @@ class Service(ABC):
         if server.node.name not in self._config:
             self._config[server.node.name] = {}
         if server.instance.name not in self._config[server.node.name]:
-            self._config[server.node.name][server.instance.name] = (
-                    self.locals.get(DEFAULT_TAG, {}) |
+            self._config[server.node.name][server.instance.name] = utils.deep_merge(
+                    self.locals.get(DEFAULT_TAG, {}),
                     self.locals.get(server.node.name, self.locals).get(server.instance.name, {})
             )
         return self._config.get(server.node.name, {}).get(server.instance.name, {})
