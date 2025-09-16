@@ -242,7 +242,8 @@ def init_profanity_filter(node: Node):
         if not os.path.exists(bakfile):
             shutil.copy2(targetfile, bakfile)
         with open(targetfile, mode='wb') as outfile:
-            outfile.write((f"{language.upper()} = " + luadata.serialize(
+            # we write with locale EN, because the server runs with EN
+            outfile.write(("EN = " + luadata.serialize(
                 words, indent='\t', indent_level=0)).encode('utf-8'))
     except PermissionError:
         node.log.warning(
