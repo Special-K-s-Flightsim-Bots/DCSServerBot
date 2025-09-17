@@ -882,7 +882,7 @@ class NodeImpl(Node):
                                 self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
                                                  "Rolling back the cluser version to my version.")
                             await self._upgrade(conn)
-                        elif parse(version) < parse(__version__):
+                        elif parse(version) < parse(__version__) and await is_node_alive(master, self.locals.get('heartbeat', 30)):
                             if master != self.name:
                                 raise FatalException(f"This node uses DCSServerBot version {__version__} "
                                                      f"where the master uses version {version}!")
