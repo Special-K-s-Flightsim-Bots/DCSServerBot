@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 
 from core.data.node import Node, UploadStatus, SortOrder
@@ -20,7 +22,7 @@ __all__ = ["NodeProxy"]
 
 
 class NodeProxy(Node):
-    def __init__(self, local_node: "NodeImpl", name: str, public_ip: str, dcs_version: str):
+    def __init__(self, local_node: NodeImpl, name: str, public_ip: str, dcs_version: str):
         from services.servicebus import ServiceBus
 
         super().__init__(name, local_node.config_dir)
@@ -287,7 +289,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=timeout)
 
-    async def rename_server(self, server: "Server", new_name: str, update_settings: Optional[bool] = False):
+    async def rename_server(self, server: Server, new_name: str, update_settings: Optional[bool] = False):
         timeout = 60 if not self.slow_system else 120
         await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -300,7 +302,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=timeout)
 
-    async def add_instance(self, name: str, *, template: str = "") -> "Instance":
+    async def add_instance(self, name: str, *, template: str = "") -> Instance:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -317,7 +319,7 @@ class NodeProxy(Node):
             self.instances.append(instance)
         return instance
 
-    async def delete_instance(self, instance: "Instance", remove_files: bool) -> None:
+    async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
         timeout = 60 if not self.slow_system else 120
         await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -330,7 +332,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         self.instances.remove(instance)
 
-    async def rename_instance(self, instance: "Instance", new_name: str) -> None:
+    async def rename_instance(self, instance: Instance, new_name: str) -> None:
         timeout = 60 if not self.slow_system else 120
         await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -352,7 +354,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         return data['return']
 
-    async def migrate_server(self, server: "Server", instance: "Instance"):
+    async def migrate_server(self, server: Server, instance: Instance):
         timeout = 180 if not self.slow_system else 300
         await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -364,7 +366,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=timeout)
 
-    async def unregister_server(self, server: "Server") -> None:
+    async def unregister_server(self, server: Server) -> None:
         timeout = 60 if not self.slow_system else 120
         await self.bus.send_to_node_sync({
             "command": "rpc",

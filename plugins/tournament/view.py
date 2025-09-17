@@ -425,7 +425,8 @@ class ApplicationView(View):
             user=interaction.user
         )
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(_("Squadron {} accepted.").format(self.squadron['name']))
+        await interaction.response.send_message(_("Squadron {} accepted.").format(self.squadron['name']),
+            ephemeral=utils.get_ephemeral(interaction))
         await self.plugin.inform_squadron(tournament_id=self.tournament_id, squadron_id=self.squadron_id, embed=embed)
         self.stop()
 
@@ -460,7 +461,8 @@ class ApplicationView(View):
             f"rejected squadron {self.squadron['name']} from tournament {tournament['name']}.",
             user=interaction.user
         )
-        await interaction.followup.send(_("Squadron {} rejected.").format(self.squadron['name']))
+        await interaction.followup.send(_("Squadron {} rejected.").format(self.squadron['name']),
+            ephemeral=utils.get_ephemeral(interaction))
         embed = discord.Embed(color=discord.Color.red(), title=_("Your Squadron has been rejected!"))
         embed.description = _("Your squadron {squadron} was rejected from tournament {tournament}.").format(
             squadron=self.squadron['name'], tournament=tournament['name']

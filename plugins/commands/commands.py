@@ -440,7 +440,7 @@ async def __{sanitized_name}_callback(interaction: discord.Interaction):
             embed.add_field(name="PID", value='\n'.join([str(x.pid) for x in self.processes.keys()]))
             embed.add_field(name="CMD", value='\n'.join([x for x in self.processes.values()]))
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
         else:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("No running processes."), ephemeral=True)
@@ -451,11 +451,12 @@ async def __{sanitized_name}_callback(interaction: discord.Interaction):
     @app_commands.autocomplete(pid=process_autocomplete)
     @app_commands.rename(pid='process')
     async def terminate(self, interaction: discord.Interaction, pid: int):
+        ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         process = psutil.Process(pid)
         if not process.is_running() or not self.processes.get(process):
-            await interaction.followup.send(_("No such process or process terminated."))
+            await interaction.followup.send(_("No such process or process terminated."), ephemeral=True)
             return
 
         process.terminate()
@@ -466,10 +467,10 @@ async def __{sanitized_name}_callback(interaction: discord.Interaction):
                 process.kill()
 
         if not process.is_running():
-            await interaction.followup.send(_("Process terminated."))
+            await interaction.followup.send(_("Process terminated."), ephemeral=ephemeral)
             self.processes.pop(process, None)
         else:
-            await interaction.followup.send(_("Process NOT terminated."))
+            await interaction.followup.send(_("Process NOT terminated."), ephemeral=ephemeral)
 
 
 async def setup(bot: DCSServerBot):

@@ -102,7 +102,7 @@ class Battleground(Plugin[BattlegroundEventListener]):
                 await conn.execute("DELETE FROM bg_task WHERE server_name = %s", (server.name,))
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Recon data deleted for server {}.").format(server.name),
-                                                ephemeral=True)
+                                                ephemeral=utils.get_ephemeral(interaction))
 
 
 async def setup(bot: DCSServerBot):

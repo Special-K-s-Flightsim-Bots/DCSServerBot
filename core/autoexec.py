@@ -17,7 +17,7 @@ __all__ = ["Autoexec"]
 
 @dataclass
 class Autoexec:
-    instance: "InstanceImpl"
+    instance: InstanceImpl
     values: dict = field(init=False, default_factory=dict)
 
     def __post_init__(self):

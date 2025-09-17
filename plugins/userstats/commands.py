@@ -232,7 +232,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                                       limit=limit)
             try:
                 file = discord.File(fp=env.buffer, filename=env.filename) if env.filename else MISSING
-                await interaction.followup.send(embed=env.embed, file=file)
+                await interaction.followup.send(embed=env.embed, file=file,
+                    delete_after=self.bot.locals.get('message_autodelete'))
             finally:
                 if env.buffer:
                     env.buffer.close()

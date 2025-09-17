@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import aiohttp
 import logging
 import os
@@ -53,7 +55,7 @@ class Node:
         self.name = name
         self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.config_dir = config_dir
-        self.instances: list["Instance"] = list()
+        self.instances: list[Instance] = list()
         self.locals = None
         self.config = self.read_config(os.path.join(config_dir, 'main.yaml'))
         self.guild_id: int = int(self.config['guild_id'])
@@ -199,25 +201,25 @@ class Node:
     async def rename_file(self, old_name: str, new_name: str, *, force: Optional[bool] = False):
         raise NotImplementedError()
 
-    async def rename_server(self, server: "Server", new_name: str):
+    async def rename_server(self, server: Server, new_name: str):
         raise NotImplementedError()
 
-    async def add_instance(self, name: str, *, template: str = "") -> "Instance":
+    async def add_instance(self, name: str, *, template: str = "") -> Instance:
         raise NotImplementedError()
 
-    async def delete_instance(self, instance: "Instance", remove_files: bool) -> None:
+    async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
         raise NotImplementedError()
 
-    async def rename_instance(self, instance: "Instance", new_name: str) -> None:
+    async def rename_instance(self, instance: Instance, new_name: str) -> None:
         raise NotImplementedError()
 
     async def find_all_instances(self) -> list[tuple[str, str]]:
         raise NotImplementedError()
 
-    async def migrate_server(self, server: "Server", instance: "Instance") -> None:
+    async def migrate_server(self, server: Server, instance: Instance) -> None:
         raise NotImplementedError()
 
-    async def unregister_server(self, server: "Server") -> None:
+    async def unregister_server(self, server: Server) -> None:
         raise NotImplementedError()
 
     async def install_plugin(self, plugin: str) -> bool:

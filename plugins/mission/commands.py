@@ -244,7 +244,7 @@ class Mission(Plugin[MissionEventListener]):
         })
         report = Report(self.bot, self.plugin_name, 'atis.json')
         env = await report.render(airbase=airbase, data=data, server=server)
-        await interaction.followup.send(embed=env.embed)
+        await interaction.followup.send(embed=env.embed, delete_after=self.bot.locals.get('message_autodelete'))
 
     @mission.command(description=_('Shows briefing of the active mission'))
     @utils.app_has_role('DCS')
@@ -272,7 +272,7 @@ class Mission(Plugin[MissionEventListener]):
         mission_info['passwords'] = await read_passwords()
         report = Report(self.bot, self.plugin_name, 'briefing.json')
         env = await report.render(mission_info=mission_info, server_name=server.name, interaction=interaction)
-        await interaction.followup.send(embed=env.embed)
+        await interaction.followup.send(embed=env.embed, delete_after=self.bot.locals.get('message_autodelete'))
 
     @mission.command(description=_('Restarts the current active mission\n'))
     @app_commands.guild_only()

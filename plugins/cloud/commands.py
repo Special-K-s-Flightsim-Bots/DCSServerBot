@@ -161,7 +161,7 @@ class Cloud(Plugin[CloudListener]):
         ephemeral = utils.get_ephemeral(interaction)
         if 'token' not in self.config:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_('No cloud sync configured!'), ephemeral=ephemeral)
+            await interaction.response.send_message(_('No cloud sync configured!'), ephemeral=True)
             return
         async with self.apool.connection() as conn:
             async with conn.transaction():
@@ -245,7 +245,7 @@ class Cloud(Plugin[CloudListener]):
             embed.add_field(name=_("Time"), value=f"{timedelta(seconds=server['time_in_mission'])}", inline=False)
             if server['time_to_restart'] != -1:
                 embed.add_field(name=_("Restart in"), value=f"{timedelta(seconds=server['time_to_restart'])}", inline=False)
-            await interaction.followup.send(embed=embed)
+            await interaction.followup.send(embed=embed, delete_after=self.bot.locals.get('message_autodelete'))
 
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()

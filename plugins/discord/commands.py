@@ -21,7 +21,7 @@ class Discord(Plugin):
         if not channel:
             channel = interaction.channel
         # noinspection PyUnresolvedReferences
-        await interaction.response.defer(thinking=True, ephemeral=True)
+        await interaction.response.defer(thinking=True, ephemeral=utils.get_ephemeral(interaction))
         msg = await interaction.followup.send(_("Deleting messages ..."))
         await purge_channel(node=self.node, channel=channel.id, older_than=older_than,
                             ignore=ignore.id if ignore else None, after_id=int(after_id) if after_id else None,

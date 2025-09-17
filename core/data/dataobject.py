@@ -55,11 +55,11 @@ class DataObjectFactory(Generic[T]):
         _instance: The singleton instance of this class
         _registry: Dictionary mapping object types to their implementation classes
     """
-    _instance: Optional['DataObjectFactory[T]'] = None
+    _instance: Optional[DataObjectFactory[T]] = None
     # Using class variable storage that's independent of the generic type parameter
     _registry: ClassVar[dict[Any, Any]] = {}
 
-    def __new__(cls) -> 'DataObjectFactory[T]':
+    def __new__(cls) -> DataObjectFactory[T]:
         """
         Creates a singleton instance of the factory.
 

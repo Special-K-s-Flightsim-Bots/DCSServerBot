@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 
 from core.data.node import FatalException
 from core.services.base import Service
-from typing import Type, Optional, TypeVar, Callable, Union, TYPE_CHECKING, Generic
+from typing import Type, Optional, TypeVar, Callable, Union, TYPE_CHECKING, Generic, ClassVar, Any
 
 if TYPE_CHECKING:
     from core import NodeImpl
@@ -14,15 +16,15 @@ T = TypeVar("T", bound=Service)
 
 
 class ServiceRegistry(Generic[T]):
-    _instance: Optional["ServiceRegistry"] = None
-    _node: Optional["NodeImpl"] = None
-    _registry: dict[Type[T], Type[T]] = {}
-    _master_only: set[Type[T]] = set()
-    _plugins: dict[Type[T], str] = {}
-    _singletons: dict[Type[T], T] = {}
-    _log: logging.Logger = None
+    _instance: ClassVar[Optional[ServiceRegistry]] = None
+    _node: ClassVar[Optional[NodeImpl]] = None
+    _registry: ClassVar[dict[Any, Any]] = {}
+    _master_only: ClassVar[set[Any]] = set()
+    _plugins: ClassVar[dict[Any, str]] = {}
+    _singletons: ClassVar[dict[Any, Any]] = {}
+    _log: ClassVar[Optional[logging.Logger]] = None
 
-    def __new__(cls, node: "NodeImpl") -> "ServiceRegistry":
+    def __new__(cls, node: NodeImpl) -> ServiceRegistry[T]:
         if cls._instance is None:
             cls._instance = super(ServiceRegistry, cls).__new__(cls)
             cls._node = node
@@ -41,11 +43,11 @@ class ServiceRegistry(Generic[T]):
                  plugin: Optional[str] = None,
                  depends_on: Optional[list[Type[T]]] = None) -> Callable[[Type[T]], Type[T]]:
         def inner_wrapper(wrapped_class: Type[T]) -> Type[T]:
-            cls._registry[t or wrapped_class] = wrapped_class
+            ServiceRegistry._registry[t or wrapped_class] = wrapped_class
             if master_only:
-                cls._master_only.add(t or wrapped_class)
+                ServiceRegistry._master_only.add(t or wrapped_class)
             if plugin:
-                cls._plugins[t or wrapped_class] = plugin
+                ServiceRegistry._plugins[t or wrapped_class] = plugin
             # Add dependencies to the service as an attribute
             wrapped_class.dependencies = depends_on or []
             return wrapped_class
@@ -54,61 +56,65 @@ class ServiceRegistry(Generic[T]):
 
     @classmethod
     def new(cls, t: Type[T], *args, **kwargs) -> T:
-        instance = cls.get(t)
+        instance = ServiceRegistry.get(t)
         if not instance:
             # noinspection PyArgumentList
-            instance = cls._registry[t](node=cls._node, *args, **kwargs)
-            cls._singletons[t] = instance
+            instance = ServiceRegistry._registry[t](node=ServiceRegistry._node, *args, **kwargs)
+            ServiceRegistry._singletons[t] = instance
         return instance
 
     @classmethod
     def get(cls, t: Union[str, Type[T]]) -> Optional[T]:
         if isinstance(t, str):
-            for key, value in cls._singletons.items():
+            for key, value in ServiceRegistry._singletons.items():
                 if key.__name__ == t:
                     return value
             return None
         else:
-            return cls._singletons.get(t, None)
+            return ServiceRegistry._singletons.get(t, None)
 
     @classmethod
     def can_run(cls, t: Type[T]) -> bool:
         # check master only
-        if cls.master_only(t) and not cls._node.master:
+        if ServiceRegistry.master_only(t) and not ServiceRegistry._node.master:
             return False
         # check plugin dependencies
-        plugin = cls._plugins.get(t)
-        if plugin and plugin not in cls._node.plugins:
+        plugin = ServiceRegistry._plugins.get(t)
+        if plugin and plugin not in ServiceRegistry._node.plugins:
             return False
         return True
 
     @classmethod
     def master_only(cls, t: Type[T]) -> bool:
-        return t in cls._master_only
+        return t in ServiceRegistry._master_only
 
     @classmethod
     def services(cls) -> dict[Type[T], Type[T]]:
-        return cls._registry
+        return ServiceRegistry._registry
 
     @classmethod
     async def run(cls):
-        cls._log.info("- Starting Services ...")
-        services = [cls.new(service) for service in cls.services().keys() if cls.can_run(service)]
+        ServiceRegistry._log.info("- Starting Services ...")
+        services = [
+            ServiceRegistry.new(service)
+            for service in ServiceRegistry.services().keys()
+            if ServiceRegistry.can_run(service)
+        ]
         ret = await asyncio.gather(*[service.start() for service in services], return_exceptions=True)
         for idx in range(0, len(ret)):
             name = services[idx].name
             if isinstance(ret[idx], Exception):
-                cls._log.error(f"  => Service {name} NOT started.", exc_info=ret[idx])
+                ServiceRegistry._log.error(f"  => Service {name} NOT started.", exc_info=ret[idx])
                 if isinstance(ret[idx], FatalException):
                     raise
             else:
-                cls._log.debug(f"  => Service {name} started.")
-        cls._log.info("- Services started.")
+                ServiceRegistry._log.debug(f"  => Service {name} started.")
+        ServiceRegistry._log.info("- Services started.")
 
     @classmethod
     async def shutdown(cls):
-        cls._log.info("- Stopping Services...")
-        for _, service in cls._singletons.items():
+        ServiceRegistry._log.info("- Stopping Services...")
+        for _, service in ServiceRegistry._singletons.items():
             await service.stop()
-        cls._singletons.clear()
-        cls._log.info("- Services stopped.")
+        ServiceRegistry._singletons.clear()
+        ServiceRegistry._log.info("- Services stopped.")

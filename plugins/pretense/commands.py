@@ -59,7 +59,10 @@ class Pretense(Plugin):
         env = await report.render(data=data, server=server)
         try:
             file = discord.File(fp=env.buffer, filename=env.filename) if env.filename else MISSING
-            await interaction.followup.send(embed=env.embed, file=file)
+            await interaction.followup.send(
+                embed=env.embed, file=file,
+                delete_after=self.bot.locals.get('message_autodelete')
+            )
         finally:
             if env.buffer:
                 env.buffer.close()
@@ -82,11 +85,11 @@ class Pretense(Plugin):
         if what == 'persistence' or what == 'both':
             path = os.path.join(await server.get_missions_dir(), 'Saves', "pretense_*.json")
             await server.node.remove_file(path)
-            await interaction.followup.send(_("Pretense persistence reset."))
+            await interaction.followup.send(_("Pretense persistence reset."), ephemeral=ephemeral)
         if what == 'statistics' or what == 'both':
             path = os.path.join(await server.get_missions_dir(), 'Saves', "player_stats*.json")
             await server.node.remove_file(path)
-            await interaction.followup.send(_("Pretense statistics reset."))
+            await interaction.followup.send(_("Pretense statistics reset."), ephemeral=ephemeral)
 
     @tasks.loop(seconds=120)
     async def update_leaderboard(self):
