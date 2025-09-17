@@ -59,10 +59,9 @@ class Pretense(Plugin):
         env = await report.render(data=data, server=server)
         try:
             file = discord.File(fp=env.buffer, filename=env.filename) if env.filename else MISSING
-            await interaction.followup.send(
-                embed=env.embed, file=file,
-                delete_after=self.bot.locals.get('message_autodelete')
-            )
+            msg = await interaction.original_response()
+            await msg.edit(embed=env.embed, attachments=[file],
+                           delete_after=self.bot.locals.get('message_autodelete'))
         finally:
             if env.buffer:
                 env.buffer.close()

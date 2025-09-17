@@ -245,7 +245,8 @@ class Cloud(Plugin[CloudListener]):
             embed.add_field(name=_("Time"), value=f"{timedelta(seconds=server['time_in_mission'])}", inline=False)
             if server['time_to_restart'] != -1:
                 embed.add_field(name=_("Restart in"), value=f"{timedelta(seconds=server['time_to_restart'])}", inline=False)
-            await interaction.followup.send(embed=embed, delete_after=self.bot.locals.get('message_autodelete'))
+            msg = await interaction.original_response()
+            await msg.edit(embed=embed, delete_after=self.bot.locals.get('message_autodelete'))
 
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
