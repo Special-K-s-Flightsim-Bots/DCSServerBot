@@ -9,6 +9,7 @@ import re
 import sys
 import traceback
 import uuid
+import warnings
 
 from abc import ABC, abstractmethod
 from core import utils
@@ -26,6 +27,9 @@ from .__utils import parse_params
 
 if TYPE_CHECKING:
     from services.bot import DCSServerBot
+
+# ignore glyph warnings on MatPlotLib
+warnings.filterwarnings('ignore', category=UserWarning, module='matplotlib')
 
 __all__ = [
     "ReportElement",

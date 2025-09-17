@@ -144,7 +144,7 @@ class Tacview(Extension):
         if not options['Tacview'].get('tacviewPlaybackDelay', 0):
             self.log.warning(
                 f'  => {self.server.name}: tacviewPlaybackDelay is not set, you might see performance issues!')
-        elif options['Tacview']['tacviewRealTimeTelemetryEnabled']:
+        elif options['Tacview'].get('tacviewRealTimeTelemetryEnabled', True):
             self.log.warning(
                 f'  => {self.server.name}: tacviewPlaybackDelay is set, disabling real time telemetry.')
             dirty |= self.set_option(options, 'tacviewRealTimeTelemetryEnabled', False)
