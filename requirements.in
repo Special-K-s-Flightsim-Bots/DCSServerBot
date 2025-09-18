@@ -43,6 +43,9 @@ lupa==2.5
 # Matplotlib: Python 2D plotting library
 matplotlib>=3.9.4
 
+# MGRS library
+mgrs==1.5.0
+
 # Minidump: Windows Minidump file reader
 minidump==0.0.24; sys_platform == 'win32'
 
