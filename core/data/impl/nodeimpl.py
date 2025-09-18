@@ -128,7 +128,10 @@ class NodeImpl(Node):
                     if repo.active_branch.name == 'development':
                         self.log.info(f'- Development version detected.')
             except git.InvalidGitRepositoryError:
-                self.log.warning(f'- Your installation is corrupt. Run repair.cmd.')
+                if os.path.isdir('.git'):
+                    self.log.warning(f'- Your installation is corrupt. Run repair.cmd.')
+                else:
+                    raise ImportError
 
         except ImportError:
             self.log.info('- ZIP installation detected.')
