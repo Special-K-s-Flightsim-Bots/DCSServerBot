@@ -430,6 +430,7 @@ DEFAULT:
     message_seat_locked: 'Your player is currently locked.' # Server and all seats are locked (by /player lock)
   message_timeout: 10           # default timeout for DCS popup messages in seconds 
   profanity_filter: true        # Use the profanity filter for player names and the in-game chat (default: false).
+  no_join_with_cursename: true  # Block people with potential cursewords in their nicknames (default: true, only works with profanity_fileter: true)
   display_ai_chat: false        # do not display AI chat messages in the chat channel (default: false)
   rules: |                      # Optional: Rules to be displayed for new users (needs MissionStats enabled!)
     These are the rules to play on this server:

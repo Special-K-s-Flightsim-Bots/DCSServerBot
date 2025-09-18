@@ -11,6 +11,7 @@ from contextlib import suppress
 from core.const import SAVED_GAMES
 from core.data.node import Node
 from core.utils.helper import alternate_parse_settings
+from pathlib import Path
 from typing import Optional
 
 __all__ = [
@@ -231,8 +232,18 @@ def init_profanity_filter(node: Node):
     # Profanity filter
     language = node.config.get('language', 'en')
     wordlist = os.path.join(node.config_dir, 'profanity.txt')
+    # if we do not have a profanity filter yet, create one out of the language files we have
     if not os.path.exists(wordlist):
-        shutil.copy2(os.path.join('samples', 'wordlists', f"{language}.txt"), wordlist)
+        cursewords = set()
+        for file in (Path('samples') / 'wordlists').glob('*.txt'):
+            with file.open(encoding='utf-8', errors='ignore') as wl:
+                for line in wl:
+                    stripped = line.strip()
+                    if stripped and not stripped.startswith('#'):
+                        cursewords.add(stripped)
+        profanity_file = Path(node.config_dir) / 'profanity.txt'
+        profanity_file.write_text('\n'.join(sorted(cursewords)), encoding='utf-8')
+
     with open(wordlist, mode='r', encoding='utf-8') as wl:
         words = [x.strip() for x in wl.readlines() if not x.startswith('#')]
 

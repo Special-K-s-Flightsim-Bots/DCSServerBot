@@ -78,6 +78,7 @@ mapping:
       message_timeout: {type: int, range: {min: 5, max: 60}, nullable: false}
       display_ai_chat: {type: bool, nullable: false}
       profanity_filter: {type: bool, nullable: false}
+      no_join_with_cursename: {type: bool, nullable: false}
       server_user: {type: str, nullable: false, range: {min: 1}}
       show_passwords: {type: bool, nullable: false}
       mission_rewrite: {type: bool, nullable: false}
