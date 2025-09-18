@@ -229,21 +229,10 @@ def format_frequency(frequency_hz: int, *, band: bool = True) -> str:
 
 
 def init_profanity_filter(node: Node):
-    # Profanity filter
     language = node.config.get('language', 'en')
     wordlist = os.path.join(node.config_dir, 'profanity.txt')
-    # if we do not have a profanity filter yet, create one out of the language files we have
     if not os.path.exists(wordlist):
-        cursewords = set()
-        for file in (Path('samples') / 'wordlists').glob('*.txt'):
-            with file.open(encoding='utf-8', errors='ignore') as wl:
-                for line in wl:
-                    stripped = line.strip()
-                    if stripped and not stripped.startswith('#'):
-                        cursewords.add(stripped)
-        profanity_file = Path(node.config_dir) / 'profanity.txt'
-        profanity_file.write_text('\n'.join(sorted(cursewords)), encoding='utf-8')
-
+        shutil.copy2(os.path.join('samples', 'wordlists', f"{language}.txt"), wordlist)
     with open(wordlist, mode='r', encoding='utf-8') as wl:
         words = [x.strip() for x in wl.readlines() if not x.startswith('#')]
 
