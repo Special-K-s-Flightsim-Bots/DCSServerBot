@@ -1979,6 +1979,7 @@ class Mission(Plugin[MissionEventListener]):
                 # noinspection PyUnresolvedReferences
                 await interaction.response.send_message("MGRS must be provided", ephemeral=True)
                 return
+            mgrs = mgrs.replace(' ', '')
             lat, lon = mgrs_converter.toLatLon(mgrs, inDegrees=True)
             d, m, s, f = utils.dd_to_dms(lat)
             lat_dms = ('N' if d > 0 else 'S') + '{:02d}°{:02d}\'{:02d}.{:02d}"'.format(
