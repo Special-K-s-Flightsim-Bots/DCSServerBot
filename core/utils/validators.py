@@ -149,7 +149,7 @@ def unique_port(value, _, path):
     node = path.split("/")[1]
     if node not in ports:
         ports[node] = {}
-    if value in ports[node]:
+    if value in ports[node] and ports[node][value] != path:
         raise SchemaError(msg=f"Port {value} is already in use in {ports[node][value]}", path=path)
     ports[node][value] = path
     return True
