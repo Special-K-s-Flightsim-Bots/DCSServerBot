@@ -305,7 +305,7 @@ function mission.onPlayerTryChangeSlot(id, side, slot)
     if mission.num_change_slots[id] == -1 then
         return false
     end
-    if not slot_spamming or not tonumber(slot) then
+    if not slot_spamming or not tonumber(slot) or utils.isDynamic(slot) then
         return
     end
 	if mission.last_change_slot[id] and mission.last_change_slot[id] > (os.clock() - tonumber(slot_spamming['check_time'] or 5)) then
