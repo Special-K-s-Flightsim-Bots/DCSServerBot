@@ -17,7 +17,6 @@ from discord.app_commands import Range, describe
 from discord.ext import commands, tasks
 from discord.ui import Modal, TextInput
 from io import BytesIO
-# from mgrs import MGRS
 from pathlib import Path
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
@@ -129,15 +128,12 @@ async def nosav_autocomplete(interaction: discord.Interaction, current: str) -> 
         return []
 
 
-#class DDTransformer(app_commands.Transformer):
-#    def __init__(self):
-#        self.mgrs_converter = MGRS()
-#
-#    async def transform(self, interaction: discord.Interaction, value: Union[str, float]) -> float:
-#        if isinstance(value, str):
-#            return self.mgrs_converter.dmstodd(value)
-#        else:
-#            return value
+class DDTransformer(app_commands.Transformer):
+    async def transform(self, interaction: discord.Interaction, value: Union[str, float]) -> float:
+        try:
+            return float(value)
+        except ValueError:
+            return utils.dms_to_dd(value)
 
 
 class Mission(Plugin[MissionEventListener]):
@@ -1951,47 +1947,44 @@ class Mission(Plugin[MissionEventListener]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("No menus.yaml found."), ephemeral=True)
 
-#    @command(description=_('Convert values'))
-#    @app_commands.guild_only()
-#    @utils.app_has_role('DCS')
-#    @describe(lat="Latitude in DD or DMS (N491012.12)",
-#              lon="Longitude in DD or DMS (E011012.34)",
-#              mgrs="MGRS coordinates")
-#    async def convert(self, interaction: discord.Interaction, mode: Literal['Lat/Lon => MGRS', 'MGRS => Lat/Lon'],
-#                      lat: Optional[app_commands.Transform[float, DDTransformer]] = None,
-#                      lon: Optional[app_commands.Transform[float, DDTransformer]] = None,
-#                      mgrs: Optional[str] = None):
-#        mgrs_converter = MGRS()
-#        if mode == 'Lat/Lon => MGRS':
-#            if not lat or not lon:
-#                # noinspection PyUnresolvedReferences
-#                await interaction.response.send_message("Latitude and longitude must be provided", ephemeral=True)
-#                return
-#            if isinstance(lat, str):
-#                lat = mgrs_converter.dmstodd(lat)
-#            if isinstance(lon, str):
-#                lon = mgrs_converter.dmstodd(lon)
-#            mgrs = mgrs_converter.toMGRS(lat, lon, MGRSPrecision=5)
-#            # noinspection PyUnresolvedReferences
-#            await interaction.response.send_message(f"MGRS: {mgrs}")
-#        elif mode == 'MGRS => Lat/Lon':
-#            if not mgrs:
-#                # noinspection PyUnresolvedReferences
-#                await interaction.response.send_message("MGRS must be provided", ephemeral=True)
-#                return
-#            mgrs = mgrs.replace(' ', '')
-#            lat, lon = mgrs_converter.toLatLon(mgrs, inDegrees=True)
-#            d, m, s, f = utils.dd_to_dms(lat)
-#            lat_dms = ('N' if d > 0 else 'S') + '{:02d}°{:02d}\'{:02d}.{:02d}"'.format(
-#                int(abs(d)), int(abs(m)), int(abs(s)), int(abs(f)))
-#            d, m, s, f = utils.dd_to_dms(lon)
-#            lon_dms = ('E' if d > 0 else 'W') + '{:03d}°{:02d}\'{:02d}.{:02d}"'.format(
-#                int(abs(d)), int(abs(m)), int(abs(s)), int(abs(f)))
-#            # noinspection PyUnresolvedReferences
-#            await interaction.response.send_message(f"{lat_dms} ({lat}), {lon_dms} ({lon})")
-#        else:
-#            # noinspection PyUnresolvedReferences
-#            await interaction.response.send_message("Invalid conversion mode", ephemeral=True)
+    @command(description=_('Convert values'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @describe(lat="Latitude in DD or DMS (N491012.12)",
+              lon="Longitude in DD or DMS (E011012.34)",
+              mgrs="MGRS coordinates")
+    async def convert(self, interaction: discord.Interaction, mode: Literal['Lat/Lon => MGRS', 'MGRS => Lat/Lon'],
+                      lat: Optional[app_commands.Transform[float, DDTransformer]] = None,
+                      lon: Optional[app_commands.Transform[float, DDTransformer]] = None,
+                      mgrs: Optional[str] = None):
+        if mode == 'Lat/Lon => MGRS':
+            if not lat or not lon:
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message("Latitude and longitude must be provided", ephemeral=True)
+                return
+            mgrs = utils.dd_to_mgrs(lat, lon)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(f"**MGRS**: {mgrs}")
+        elif mode == 'MGRS => Lat/Lon':
+            if not mgrs:
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message("MGRS must be provided", ephemeral=True)
+                return
+            mgrs = mgrs.replace(' ', '')
+            lat, lon = utils.mgrs_to_dd(mgrs)
+            d, m, s, f = utils.dd_to_dms(lat)
+            lat_dms = ('N' if d > 0 else 'S') + ' {:02d}°{:02d}\'{:02d}.{:02d}"'.format(
+                int(abs(d)), int(abs(m)), int(abs(s)), int(abs(f)))
+            d, m, s, f = utils.dd_to_dms(lon)
+            lon_dms = ('E' if d > 0 else 'W') + ' {:03d}°{:02d}\'{:02d}.{:02d}"'.format(
+                int(abs(d)), int(abs(m)), int(abs(s)), int(abs(f)))
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(f"**DD**: {lat:.7f}, {lon:.7f}\n"
+                                                    f"**DMS**: {lat_dms}, {lon_dms}\n"
+                                                    f"**DDM**: {utils.dd_to_dmm(lat, lon)}")
+        else:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message("Invalid conversion mode", ephemeral=True)
 
     @tasks.loop(hours=1)
     async def expire_token(self):

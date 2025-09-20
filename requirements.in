@@ -5,7 +5,7 @@ aiofiles==24.1.0
 astral==3.2
 
 # For discord.py on Python 3.13
-audioop-lts==0.2.2; python_version>='3.13'
+audioop-lts==0.2.2 ; python_version >= "3.13"
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
 aiohttp==3.12.15
@@ -25,6 +25,9 @@ eyeD3==0.9.8
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
 fastapi==0.116.1
 
+# FunkMan: FunkMan protocol handling for Moose
+funkman @ git+https://github.com/funkyfranky/FunkMan.git@main
+
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
 
@@ -43,8 +46,9 @@ lupa==2.5
 # Matplotlib: Python 2D plotting library
 matplotlib>=3.9.4
 
-# MGRS library
-# mgrs==1.5.0
+# MGRS: Python library for handling MGRS conversions
+mgrs>=1.5.0 ; python_version < "3.13"
+pymgrs @ git+https://github.com/Special-K-s-Flightsim-Bots/pymgrs.git@master ; python_version >= "3.13"
 
 # Minidump: Windows Minidump file reader
 minidump==0.0.24; sys_platform == 'win32'

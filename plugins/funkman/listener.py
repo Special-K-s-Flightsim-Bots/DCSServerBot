@@ -1,10 +1,11 @@
 import asyncio
 import discord
-import sys
 import uuid
 import matplotlib.figure
 
 from core import EventListener, Server, event, Player, PersistentReport, Channel, get_translation
+from funkman.funkplot.funkplot import FunkPlot
+from funkman.utils.utils import _GetVal
 from io import BytesIO
 from matplotlib import pyplot as plt
 from typing import Literal, TYPE_CHECKING
@@ -22,9 +23,6 @@ class FunkManEventListener(EventListener["FunkMan"]):
     def __init__(self, plugin: "FunkMan"):
         super().__init__(plugin)
         self.config = self.get_config()
-        path = self.config.get('install')
-        sys.path.append(path)
-        from funkman.utils.utils import _GetVal
         self.funkplot = None
         self._GetVal = _GetVal
         self.lock = asyncio.Lock()
@@ -32,7 +30,6 @@ class FunkManEventListener(EventListener["FunkMan"]):
     async def get_funkplot(self):
         async with self.lock:
             if not self.funkplot:
-                from funkman.funkplot.funkplot import FunkPlot
                 self.funkplot = FunkPlot(ImagePath=self.config['IMAGEPATH'])
             return self.funkplot
 
