@@ -16,6 +16,7 @@ into your mind. DCSServerBot is a solution for DCS server admins built by a DCS 
 This documentation shows you the main features, how to install and configure the bot and some more sophisticated 
 stuff at the bottom, if you for instance run multiple servers maybe even over multiple locations. 
 <p>
+
 Now let's see what DCSServerBot can do for you (installation-instructions [below](#installation))!
 
 ---
@@ -149,7 +150,7 @@ DCSServerBot supports a lot of them already which can add some quality of life.
 You need the following software to run DCSServerBot:
 
 #### a) Python
-You need to have [Python](https://www.python.org/downloads/) 3.10 or higher and installed. Please make sure that you tick "Add python.exe to PATH" 
+You need to have [Python](https://www.python.org/downloads/) 3.10 or higher installed. Please make sure that you tick "Add python.exe to PATH" 
 during your Python installation.<br>
 
 #### b) PostgreSQL
