@@ -84,6 +84,7 @@ schema;instance_olympus_schema:
     audio:
       type: map
       nullable: false
+      required: true
       mapping:
         SRSPort: {type: int, nullable: false, func: obsolete}
         WSPort: {required: true, type: int, nullable: false, func: unique_port}
