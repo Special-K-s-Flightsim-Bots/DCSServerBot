@@ -101,7 +101,8 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             squadron = self.squadrons.get(data['squadron'])
             if not squadron:
                 campaign_id, name = utils.get_running_campaign(self.node, server)
-                squadron = DataObjectFactory().new(Squadron, node=self, name=data['squadron'], campaign_id=campaign_id)
+                squadron = DataObjectFactory().new(Squadron, node=self.node, name=data['squadron'],
+                                                   campaign_id=campaign_id)
                 self.squadrons[data['squadron']] = squadron
             old_points = squadron.points
             squadron.points += int(data['points'])
