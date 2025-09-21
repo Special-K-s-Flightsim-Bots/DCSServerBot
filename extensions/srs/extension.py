@@ -5,8 +5,10 @@ import atexit
 import certifi
 import discord
 import json
+import logging
 import os
 import psutil
+import re
 import shutil
 import subprocess
 import ssl
@@ -23,6 +25,7 @@ from io import BytesIO
 from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
+from threading import Thread
 from typing import Optional
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from watchdog.observers import Observer
@@ -231,6 +234,14 @@ class SRS(Extension, FileSystemEventHandler):
         if self.config.get('autostart', True):
             self.log.debug(f"Launching SRS server with: \"{self.get_exe_path()}\" -cfg=\"{self.get_config_path()}\"")
 
+            def log_output(pipe, level=logging.INFO):
+                # Iterate until we get an empty byte string (EOF)
+                for raw_line in iter(pipe.readline, b''):
+                    # Decode the raw bytes – replace undecodable bytes if necessary
+                    line = raw_line.decode('utf-8', errors='replace').rstrip()
+                    # Log the decoded line
+                    self.log.log(level, f"{self.name}: {line}")
+
             def run_subprocess():
                 if sys.platform == 'win32' and self.config.get('minimized', True):
                     import win32process
@@ -241,12 +252,19 @@ class SRS(Extension, FileSystemEventHandler):
                     info.wShowWindow = win32con.SW_SHOWMINNOACTIVE
                 else:
                     info = None
-                out = subprocess.DEVNULL if not self.config.get('debug', False) else None
+                out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
+                err = subprocess.PIPE if self.config.get('debug', False) else subprocess.STDOUT
 
-                return subprocess.Popen([
+                proc = subprocess.Popen([
                     self.get_exe_path(),
                     f"-cfg={self.get_config_path()}"
-                ], startupinfo=info, stdout=out, stderr=out, close_fds=True)
+                ], startupinfo=info, stdout=out, stderr=err, close_fds=True)
+
+                if self.config.get('debug', False):
+                    Thread(target=log_output, args=(proc.stdout,logging.DEBUG), daemon=True).start()
+                    Thread(target=log_output, args=(proc.stderr,logging.ERROR), daemon=True).start()
+
+                return proc
 
             try:
                 async with type(self)._lock:

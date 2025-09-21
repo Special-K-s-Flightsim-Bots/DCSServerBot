@@ -344,7 +344,6 @@ class ModManagerService(Service):
                     if orig.endswith('/'):
                         continue
                     with zfile.open(name) as infile:
-                        self.log.debug(f"Extracting file {name} to {target}/{_name}")
                         with open(orig, mode='wb') as outfile:
                             outfile.write(infile.read())
             return log_entries
