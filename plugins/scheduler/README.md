@@ -2,7 +2,7 @@
 With this plugin you can decide when to run your DCS servers, when to run which mission and how long a specific mission 
 shall run, either in local time, real time or in mission time. Tasks that can be achieved with this solution are below 
 others:
-* Have a server rotate a mission every 4 hrs.
+* Have a server rotate a mission every four hours.
 * Restart the mission before it gets dark.
 * Have two servers run alternately, maybe one with password, one public
 
@@ -66,7 +66,7 @@ DCS.release_server:
 | text            | A customizable message that will be sent to the users when a restart is pending.<br/>{item} will be replaced with either "server" or "mission", depending on what's happening.<br/>{what} will be replaced with what is happening (restart, shutdown, rotate)<br/>{when} will be replaced with the time to wait. |
 
 ```yaml
-  # Alternative format for warn, e. g. to display messages in your own language
+  # Alternative format for `warn`, e.g., to display messages in your own language
   warn:
     times:
       600: Внимание сервер будет перезапущен через 10 минут! 
@@ -212,7 +212,7 @@ The following environment variables can be used in the "run" command:
 ```yaml
 DEFAULT:
   startup_delay: 30                               # delay in seconds between the startup of each DCS instance (default: 10)
-  warn:                                           # warn times before a restart / shutdown (see alternative format below)
+  warn:                                           # warn times before a restart / shutdown (see the alternative format below)
     text: '!!! {item} will {what} in {when} !!!'  # Message to be displayed as a popup in DCS. These variables can be used in your own message. 
     times:                                        # List of times when a message will be displayed
     - 600
@@ -246,11 +246,11 @@ instance3:
   schedule:                                       # server "instance3" will run every day from noon to midnight
     00-12: NNNNNNN
     12-24: YYYYYYY
-  action:                                        # It will restart with a DCS server shutdown after 480 mins of mission time ..
+  action:                                        # It will restart with a DCS server shutdown after 480 mins of mission time ...
     method: restart
     shutdown: true
     mission_time: 480
-    populated: false                              # .. only, if nobody is on the server (or as soon as that happens afterwards)
+    populated: false                              # ... only if nobody is on the server (or as soon as that happens afterward)
 
 mission:
   schedule:
