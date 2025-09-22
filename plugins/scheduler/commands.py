@@ -384,9 +384,15 @@ class Scheduler(Plugin[SchedulerListener]):
                         self.log.debug(f"Scheduler: Starting server {server.name} ...")
                         await self.launch_dcs(server, modify_mission=modify_mission, use_orig=use_orig)
                     else:
-                        if not await server.loadMission(mission=mission_id, modify_mission=modify_mission,
-                                                        use_orig=use_orig):
+                        rc =await server.loadMission(
+                                mission=mission_id, modify_mission=modify_mission, use_orig=use_orig,
+                                no_reload=rconf.get('no_restart', False)
+                        )
+                        if rc is False:
                             self.log.error(f"Mission {mission_id} not loaded on server {server.name}")
+                            return
+                        elif rc is None:
+                            self.log.debug(f"Mission {mission_id} already loaded on server {server.name}")
                             return
                     await self.bot.audit(f"{self.plugin_name.title()} loaded mission "
                                          f"{server.current_mission.display_name}", server=server)

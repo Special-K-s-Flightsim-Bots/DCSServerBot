@@ -337,7 +337,7 @@ class ServerProxy(Server):
         return data['return']
 
     async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True,
-                          use_orig: Optional[bool] = True) -> bool:
+                          use_orig: Optional[bool] = True, no_reload: Optional[bool] = False) -> Optional[bool]:
         timeout = 180 if not self.node.slow_system else 300
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -347,7 +347,8 @@ class ServerProxy(Server):
             "params": {
                 "mission": mission,
                 "modify_mission": modify_mission,
-                "use_orig": use_orig
+                "use_orig": use_orig,
+                "no_reload": no_reload
             }
         }, timeout=timeout, node=self.node.name)
         return data['return']
