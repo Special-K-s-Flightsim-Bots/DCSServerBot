@@ -16,7 +16,7 @@ _ = get_translation(__name__.split('.')[1])
 
 ERROR_UNLISTED = r"ERROR\s+ASYNCNET\s+\(Main\):\s+Server update failed with code -?\d+\.\s+The server will be unlisted."
 ERROR_SCRIPT = r'SCRIPTING.*\[string "(.*)"\]:(\d+): (.*)'
-MOOSE_COMMIT_LOG = r"\*\*\* MOOSE GITHUB Commit Hash ID: (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2})-\w+ \*\*\*"
+MOOSE_COMMIT_LOG = r"\*\*\* MOOSE GITHUB Commit Hash ID: (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+\-]\d{2}:\d{2}))-[0-9A-Fa-f]+ \*\*\*"
 MIST_PATTERN = r'\bINFO\s+SCRIPTING\s+\(Main\):\s+Mist version\s+(?P<version>\d+(?:\.\d+)+)\s+loaded\.'
 NO_UPNP = r"\s+\(Main\):\s+No UPNP devices found."
 NO_TERRAIN = r"INFO\s+Dispatcher\s+\(Main\):\s+Terrain theatre\s*$"
