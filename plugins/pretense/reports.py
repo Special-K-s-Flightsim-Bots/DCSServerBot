@@ -1,5 +1,8 @@
-from core import report, Server, Side, get_translation
 from datetime import datetime
+
+import discord
+
+from core import Server, Side, get_translation, report, utils
 
 from .const import PRETENSE_RANKS
 
@@ -89,10 +92,23 @@ class Top10Pilots(report.EmbedElement):
         xp = ''
         ranks = ''
         for rank, (player, score) in enumerate(sorted_players[:10], start=1):
-            names += f'{player}\n'
+            names += f'{await self._player_name(player)}\n'
             xp += f'{score:>5}\n'
             ranks += f'{self.get_rank(score)}\n'
         if names:
             self.embed.add_field(name=_('Name'), value=names)
             self.embed.add_field(name=_('XP'), value=xp)
             self.embed.add_field(name=_('Rank'), value=ranks)
+
+    async def _player_name(self, player: str) -> str:
+        # if `player` is a UCID, try to mention their discord username
+        # if we can't mention them but can find their name, use that
+        # else fallback to the raw player name/UCID
+        if utils.is_ucid(player):
+            name = await self.bot.get_member_or_name_by_ucid(player)
+            if isinstance(name, discord.Member):
+                return name.mention
+            elif name is not None:
+                return name
+
+        return player
