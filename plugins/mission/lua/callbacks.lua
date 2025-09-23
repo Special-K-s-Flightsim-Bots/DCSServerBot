@@ -114,26 +114,6 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
     if name ~= name2 then
         return false, config.messages.message_player_username
     end
-    -- check if player uses profanity
-    if config.profanity_filter then
-        name2 = normalize(name)
-        if name2 ~= Censorship.censor(name2) then
-            if config.no_join_with_cursename then
-                local msg = {
-                    command = 'sendMessage',
-                    message = 'User ' .. name .. ' (ucid=' .. ucid .. ') rejected due to inappropriate nickname.'
-                }
-                utils.sendBotTable(msg, config.channels.admin)
-                return false, config.messages.message_player_inappropriate_username
-            else
-                local msg = {
-                    command = 'sendMessage',
-                    message = 'User ' .. name .. ' (ucid=' .. ucid .. ') potentially inappropriate nickname.'
-                }
-                utils.sendBotTable(msg, config.channels.admin)
-            end
-        end
-    end
     -- check bans including the SMART ban system
     ipaddr = utils.getIP(addr)
     if isBanned(ucid) then
@@ -161,6 +141,26 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
     -- check if a player is temporarily locked
     elseif isLocked(ucid) then
         return false, config.messages.message_seat_locked
+    end
+    -- check if player uses profanity
+    if config.profanity_filter then
+        name2 = normalize(name)
+        if name2 ~= Censorship.censor(name2) then
+            if config.no_join_with_cursename then
+                local msg = {
+                    command = 'sendMessage',
+                    message = 'User ' .. name .. ' (ucid=' .. ucid .. ') rejected due to inappropriate nickname.'
+                }
+                utils.sendBotTable(msg, config.channels.admin)
+                return false, config.messages.message_player_inappropriate_username
+            else
+                local msg = {
+                    command = 'sendMessage',
+                    message = 'User ' .. name .. ' (ucid=' .. ucid .. ') potentially inappropriate nickname.'
+                }
+                utils.sendBotTable(msg, config.channels.admin)
+            end
+        end
     end
 end
 
