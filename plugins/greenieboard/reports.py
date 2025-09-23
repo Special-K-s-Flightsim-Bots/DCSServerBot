@@ -35,7 +35,8 @@ class LSORating(report.EmbedElement):
         self.add_field(name=_("Wire"), value=f"{landing['wire'] or '-'}")
         self.add_field(name=_("Points"), value=f"{landing['points']}")
 
-        self.add_field(name=_("LSO Grade: {}").format(landing['grade'].replace('_', '\\_')), value=grade, inline=False)
+        self.add_field(name=_("LSO Grade: {}").format(landing['grade'].replace('_', '\\_')), value=grade['grade'],
+                       inline=False)
         self.add_field(name=_("LSO Comment"), value=comment.replace('_', '\\_'), inline=False)
 
         await report.Ruler(self.env).render(ruler_length=28)
