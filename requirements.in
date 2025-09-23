@@ -120,7 +120,7 @@ tomli_w==1.2.0
 trueskill==0.4.5
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.36.0
+uvicorn==0.37.0
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==6.0.0

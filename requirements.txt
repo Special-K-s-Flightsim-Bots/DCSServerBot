@@ -101,7 +101,7 @@ typing-extensions==4.15.0
 typing-inspection==0.4.1
 tzdata==2025.2
 urllib3==2.5.0
-uvicorn==0.36.0
+uvicorn==0.37.0
 watchdog==6.0.0
 wheel==0.45.1
 yarl==1.20.1
