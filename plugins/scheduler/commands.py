@@ -108,8 +108,9 @@ class Scheduler(Plugin[SchedulerListener]):
                     continue
                 if len(daystate) != 7:
                     server.log.error(f"Error in scheduler.yaml: {daystate} has to be 7 characters long!")
+                    break
                 state = daystate[weekday]
-                # check, if the server should be running
+                # check if the server should be running
                 if (utils.is_in_timeframe(now, period, tz) and state.upper() == 'Y' and
                         server.status == Status.SHUTDOWN):
                     return Status.RUNNING

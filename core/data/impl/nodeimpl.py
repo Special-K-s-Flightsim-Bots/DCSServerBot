@@ -23,6 +23,7 @@ from core import utils, Status
 from core.const import SAVED_GAMES
 from core.data.maintenance import ServerMaintenanceManager
 from core.translations import get_translation
+from datetime import datetime
 from discord.ext import tasks
 from gzip import BadGzipFile
 from migrate import migrate
@@ -35,6 +36,7 @@ from psycopg_pool import ConnectionPool, AsyncConnectionPool
 from typing import Optional, Union, Awaitable, Callable, Any, cast
 from urllib.parse import urlparse, quote
 from version import __version__
+from zoneinfo import ZoneInfo
 
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory, DataObject
@@ -1129,11 +1131,31 @@ class NodeImpl(Node):
                 }
             })
 
+    def can_update(self):
+        update_window = self.locals.get('DCS', {}).get('update_window')
+        if update_window:
+            now: datetime = datetime.now()
+            tz = now.astimezone().tzinfo
+            now = now.replace(tzinfo=tz)
+            weekday = now.weekday()
+            for period, daystate in update_window.items():  # type: str, str
+                if period == 'timezone':
+                    tz = ZoneInfo(daystate)
+                    continue
+                if len(daystate) != 7:
+                    self.log.error(f"Error in nodes.yaml (update_window): {daystate} has to be 7 characters long!")
+                    return False
+                state = daystate[weekday]
+                if utils.is_in_timeframe(now, period, tz):
+                    return state.upper() == 'Y'
+        return True
+
     @tasks.loop(minutes=5.0)
     async def autoupdate(self):
         # don't run if an update is currently running
-        if self.update_pending:
+        if self.update_pending or not self.can_update():
             return
+        # Check if we are in the correct time window
         try:
             version = await self.is_dcs_update_available()
             if version:
@@ -1159,7 +1181,7 @@ class NodeImpl(Node):
 
         # check for updates
         new_version = await self.is_dcs_update_available()
-        if new_version:
+        if new_version and self.can_update():
             await self.dcs_update(version=new_version)
         self.update_pending = False
 

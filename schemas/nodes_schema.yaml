@@ -41,6 +41,12 @@ mapping:
                 nullable: false
                 sequence:
                   - { type: text, nullable: false }
+          update_window:
+            type: map
+            nullable: false
+            mapping:
+              timezone: { type: str, nullable: false, range: { min: 1 } }
+              regex;(^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])?-(0?[0-9]|1[0-9]|2[0-4])(:?[0-5][0-9])?$): { type: str, pattern: '^[YNP]{7}$', nullable: false }
           desanitize: {type: bool, nullable: false}
           minimized: {type: bool, nullable: false}
           user: {type: str, nullable: false, range: {min: 1}}
