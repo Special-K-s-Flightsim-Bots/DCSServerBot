@@ -518,14 +518,18 @@ class NodeImpl(Node):
     async def _upgrade(self, conn: psycopg.AsyncConnection):
         # We do not want to run an upgrade if we are on a cloud drive. Just restart in this case.
         if not self.master and self.locals.get('cloud_drive', True):
+            self.log.debug("Upgrade: restart agent after master upgrade.")
             await self.restart()
         elif await self.upgrade_pending():
             if self.master:
+                self.log.debug("Upgrade: set update pending to TRUE.")
                 await conn.execute("""
                     UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s
                 """, (self.guild_id, ))
+            self.log.debug("Upgrade: launch update.py")
             await self.shutdown(UPDATE)
         elif self.master:
+            self.log.debug("Upgrade: reset update pending to FALSE.")
             await conn.execute("""
                UPDATE cluster
                SET update_pending = FALSE, version = %s
@@ -791,6 +795,7 @@ class NodeImpl(Node):
     async def heartbeat(self) -> bool:
         async def handle_upgrade(master: str) -> bool:
             if master == self.name:
+                self.log.debug("Upgrade: Master => trigger agent upgrades")
                 # let all other nodes upgrade themselve
                 for node in await self.get_active_nodes():
                     data = {
@@ -807,6 +812,7 @@ class NodeImpl(Node):
                 """, (__version__, self.guild_id))
                 return True
             elif await is_node_alive(master, 300 if self.slow_system else 180): # give the master time to upgrade
+                self.log.debug("Upgrade: master => still upgrading")
                 return False
             else:
                 # the master is dead, so reset update pending

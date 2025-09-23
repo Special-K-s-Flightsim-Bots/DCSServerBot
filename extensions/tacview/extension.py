@@ -141,10 +141,14 @@ class Tacview(Extension):
             else:
                 dirty |= self.set_option(options, name, value)
 
-        if not options['Tacview'].get('tacviewPlaybackDelay', 0):
+        if parse(self.version) < parse('1.9.5') and not options['Tacview'].get('tacviewPlaybackDelay', 0):
             self.log.warning(
                 f'  => {self.server.name}: tacviewPlaybackDelay is not set, you might see performance issues!')
-        elif options['Tacview'].get('tacviewRealTimeTelemetryEnabled', True):
+        elif int(options['Tacview'].get('tacviewDataCaptureMode', 1)) == 1:
+            self.log.warning(
+                f'  => {self.server.name}: tacviewDataCaptureMode is set to 1, you might see performance issues!')
+
+        if options['Tacview'].get('tacviewRealTimeTelemetryEnabled', True):
             self.log.warning(
                 f'  => {self.server.name}: tacviewPlaybackDelay is set, disabling real time telemetry.')
             dirty |= self.set_option(options, 'tacviewRealTimeTelemetryEnabled', False)
