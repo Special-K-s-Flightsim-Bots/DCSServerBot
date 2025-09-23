@@ -23,10 +23,7 @@ discord.py==2.6.3
 eyeD3==0.9.8
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.116.1
-
-# FunkMan: FunkMan protocol handling for Moose
-funkman @ git+https://github.com/funkyfranky/FunkMan.git@main
+fastapi==0.117.1
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -48,7 +45,6 @@ matplotlib>=3.9.4
 
 # MGRS: Python library for handling MGRS conversions
 mgrs>=1.5.0 ; python_version < "3.13"
-pymgrs @ git+https://github.com/Special-K-s-Flightsim-Bots/pymgrs.git@master ; python_version >= "3.13"
 
 # Minidump: Windows Minidump file reader
 minidump==0.0.24; sys_platform == 'win32'
@@ -81,7 +77,7 @@ psycopg[binary]>=3.2.6
 psycopg-pool==3.2.6
 
 # PSUtil: Cross-platform library to access system details and process utilities
-psutil==7.0.0
+psutil==7.1.0
 
 # PyArrow: Python library providing high-performance tools for doing analytics on Arrow-based columnar data
 pyarrow==21.0.0
@@ -114,7 +110,7 @@ seaborn==0.13.2
 sqlparse==0.5.3
 
 # TimetoneFinder: Find the right timezones for a given coordinate
-timezonefinder==6.5.9
+timezonefinder[numba]==6.5.9
 
 # tomli: Python TOML parser
 tomli==2.2.1
@@ -124,7 +120,7 @@ tomli_w==1.2.0
 trueskill==0.4.5
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.35.0
+uvicorn==0.36.0
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==6.0.0

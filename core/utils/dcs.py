@@ -11,7 +11,7 @@ import sys
 if sys.version_info < (3, 13):
     import mgrs
 else:
-    from mgrs import LLtoUTM, encode, UTMtoLL, decode
+    from pymgrs.mgrs import LLtoUTM, encode, UTMtoLL, decode
 
 from contextlib import suppress
 from core.const import SAVED_GAMES

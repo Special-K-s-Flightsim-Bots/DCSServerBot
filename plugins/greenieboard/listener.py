@@ -4,9 +4,9 @@ import os
 import psycopg
 import re
 import string
+import sys
 
 from core import EventListener, Server, Player, Channel, Side, PersistentReport, event, get_translation, utils
-from funkman.funkplot.funkplot import FunkPlot
 from matplotlib import pyplot as plt
 from pathlib import Path
 from plugins.creditsystem.player import CreditPlayer
@@ -39,6 +39,13 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
         super().__init__(plugin)
         config = self.get_config()
         if 'FunkMan' in config:
+            path = config['FunkMan']['install']
+            if not os.path.exists(path):
+                self.log.error(f"FunkMan install path is not correct in your {self.plugin_name}.yaml! "
+                               f"FunkMan will not work.")
+                return
+            sys.path.append(path)
+            from funkman.funkplot.funkplot import FunkPlot
             self.funkplot = FunkPlot(ImagePath=config['FunkMan']['IMAGEPATH'])
         else:
             self.funkplot = None
