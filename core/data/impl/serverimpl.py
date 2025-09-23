@@ -36,7 +36,7 @@ from watchdog.observers import Observer, ObserverType
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 if TYPE_CHECKING:
     from core import Instance

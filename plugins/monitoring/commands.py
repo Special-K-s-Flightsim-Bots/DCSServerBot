@@ -21,7 +21,7 @@ from ..userstats.filter import StatisticsFilter, PeriodFilter, CampaignFilter, M
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 
 class ServerLoadFilter(PeriodFilter):

@@ -11,7 +11,7 @@ from services.backup import BackupService
 # ruamel YAML support
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 _ = get_translation(__name__.split('.')[1])
 

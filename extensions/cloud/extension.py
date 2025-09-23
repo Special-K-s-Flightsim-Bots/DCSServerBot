@@ -13,7 +13,7 @@ from typing import Optional, Any
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 
 class Cloud(Extension):

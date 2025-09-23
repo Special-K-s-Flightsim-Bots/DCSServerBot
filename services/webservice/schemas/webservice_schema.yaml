@@ -7,4 +7,4 @@ mapping:
     mapping:
       debug: {type: bool, nullable: false}
       listen: {type: str, pattern: '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', nullable: false}
-      port: {type: int, nullable: false, func: unique_port}
+      port: {type: int, nullable: false, default: 9876, func: unique_port}

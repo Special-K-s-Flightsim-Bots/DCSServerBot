@@ -40,7 +40,7 @@ from urllib.parse import urlparse
 from pykwalify.errors import SchemaError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 if TYPE_CHECKING:
     from core import ServerProxy, DataObject, Node

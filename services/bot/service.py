@@ -23,7 +23,7 @@ from ..servicebus import ServiceBus
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 if TYPE_CHECKING:
     from core import Server, Plugin, Node

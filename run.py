@@ -31,7 +31,7 @@ try:
 
     # ruamel YAML support
     from ruamel.yaml import YAML
-    yaml = YAML()
+    yaml = YAML(typ='safe')
 except ModuleNotFoundError as ex:
     import subprocess
 

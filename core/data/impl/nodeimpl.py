@@ -49,7 +49,7 @@ from core.utils.helper import SettingsDict, YAMLError, cache_with_expiration
 # ruamel YAML support
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 
 __all__ = [

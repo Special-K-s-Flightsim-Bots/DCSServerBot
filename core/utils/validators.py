@@ -49,7 +49,7 @@ __all__ = [
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 # Global ports that survive multiple loads
 if 'ports' not in vars(sys):
@@ -139,7 +139,7 @@ def obsolete(value, rule, path):
     logger.warning(f'"{os.path.basename(path)}" is obsolete and will be set by the bot: Path "{path}"')
     return True
 
-def unique_port(value, _, path):
+def unique_port(value, rule, path):
     try:
         value = int(value)
         if value < 1024 or value > 65535:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 
 async def migrate_3_6(self: Plugin):

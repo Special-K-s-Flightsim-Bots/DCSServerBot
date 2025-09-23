@@ -9,7 +9,7 @@ from typing import Optional
 from pykwalify.errors import PyKwalifyException
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError, YAMLError
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 logger = logging.getLogger(__name__)
 

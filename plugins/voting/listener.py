@@ -10,7 +10,7 @@ from plugins.voting.base import VotableItem
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 if TYPE_CHECKING:
     from .commands import Voting

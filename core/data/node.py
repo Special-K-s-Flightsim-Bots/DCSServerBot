@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 # ruamel YAML support
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 if TYPE_CHECKING:
     from core import Server, Instance

@@ -29,7 +29,7 @@ from ..userstats.filter import PeriodFilter
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 _ = get_translation(__name__.split('.')[1])
 

@@ -19,13 +19,11 @@ from .filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilte
     TheatreFilter
 from .listener import UserStatisticsEventListener
 from .views import SquadronModal
+from ..creditsystem.squadron import Squadron
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-
-from ..creditsystem.squadron import Squadron
-
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 _ = get_translation(__name__.split('.')[1])
 

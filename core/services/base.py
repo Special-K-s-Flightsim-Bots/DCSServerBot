@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 from pykwalify.errors import PyKwalifyException
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 __all__ = [
     "proxy",

@@ -11,12 +11,11 @@ from typing import Union, Optional, TYPE_CHECKING
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+yaml = YAML(typ='safe')
 
 if TYPE_CHECKING:
     from core import Instance, Server
     from core import NodeImpl
-
-yaml = YAML()
 
 __all__ = ["NodeProxy"]
 

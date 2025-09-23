@@ -20,7 +20,7 @@ from ..utils.helper import YAMLError, async_cache
 # ruamel YAML support
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
+yaml = YAML(typ='safe')
 
 if TYPE_CHECKING:
     from core import Extension, Instance, Mission, UploadStatus, Player
