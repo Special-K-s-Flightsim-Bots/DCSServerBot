@@ -120,7 +120,7 @@ async def nosav_autocomplete(interaction: discord.Interaction, current: str) -> 
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=get_name(base_dir, x), value=idx)
             for idx, x in enumerate(await server.getMissionList())
-            if not x.endswith('.sav') and (current or current.casefold() in get_name(base_dir, x).casefold())
+            if not x.endswith('.sav') and (not current or current.casefold() in get_name(base_dir, x).casefold())
         ]
         return sorted(choices, key=lambda choice: choice.name)[:25]
     except Exception as ex:
