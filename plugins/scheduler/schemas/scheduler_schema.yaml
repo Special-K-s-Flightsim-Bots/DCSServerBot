@@ -27,6 +27,8 @@ schema;action_map:
     mission_end: { type: bool, nullable: false }
     shutdown: { type: bool, nullable: false }
     run_extensions: { type: bool, nullable: false }
+    no_reload: {type: bool, nullable: false}
+    use_orig: {type: bool, nullable: false}
 
 schema;action_seq:
   type: seq
