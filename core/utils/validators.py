@@ -49,7 +49,7 @@ __all__ = [
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML(typ='safe')
+yaml = YAML()
 
 # Global ports that survive multiple loads
 if 'ports' not in vars(sys):

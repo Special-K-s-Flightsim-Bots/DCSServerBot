@@ -18,7 +18,7 @@ from typing import Union
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML(typ='safe')
+yaml = YAML()
 
 
 def post_migrate_admin(node: str):

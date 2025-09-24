@@ -13,7 +13,7 @@ from typing import Union, cast
 # ruamel YAML support
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML(typ='safe')
+yaml = YAML()
 
 logger = logging.getLogger(__name__)
 

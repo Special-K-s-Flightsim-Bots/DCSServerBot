@@ -11,7 +11,7 @@ from typing import Union, Optional, TYPE_CHECKING
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML(typ='safe')
+yaml = YAML()
 
 if TYPE_CHECKING:
     from core import Instance, Server

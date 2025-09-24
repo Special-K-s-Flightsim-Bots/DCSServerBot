@@ -8,7 +8,7 @@ from rich.prompt import Prompt
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML(typ='safe')
+yaml = YAML()
 
 logger = logging.getLogger(__name__)
 

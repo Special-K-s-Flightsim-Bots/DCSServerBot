@@ -7,7 +7,7 @@ from typing import Optional, Callable
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML(typ='safe')
+yaml = YAML()
 
 
 __all__ = [

@@ -5,7 +5,7 @@ from typing import Optional, AsyncIterator
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML(typ='safe')
+yaml = YAML()
 
 
 class DummyGuild:

@@ -11,7 +11,7 @@ from typing import Optional
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML(typ='safe')
+yaml = YAML()
 
 __all__ = [
     "Mode",

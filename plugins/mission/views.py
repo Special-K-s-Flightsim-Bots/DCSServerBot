@@ -417,7 +417,7 @@ class ModifyView(View):
         return message[:4096 - len(remark)] + remark
 
     def render(self):
-        yaml = YAML(typ='safe')
+        yaml = YAML()
         yaml.indent(mapping=2, sequence=4, offset=2)
         yaml.default_flow_style = False
         yaml.sort_keys = True

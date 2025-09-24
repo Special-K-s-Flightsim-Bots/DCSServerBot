@@ -23,7 +23,7 @@ from urllib.parse import quote, urlparse
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML(typ='safe')
+yaml = YAML()
 
 # for gettext // i18n
 _: Optional[Callable[[str], str]] = None

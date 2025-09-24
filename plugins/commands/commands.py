@@ -17,7 +17,7 @@ from typing import Optional, Any, Mapping, Union
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML(typ='safe')
+yaml = YAML()
 
 _ = get_translation(__name__.split('.')[1])
 

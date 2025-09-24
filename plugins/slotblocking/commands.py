@@ -10,7 +10,7 @@ from .listener import SlotBlockingListener
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-yaml = YAML(typ='safe')
+yaml = YAML()
 
 
 class SlotBlocking(Plugin[SlotBlockingListener]):
