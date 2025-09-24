@@ -1078,7 +1078,7 @@ class NodeImpl(Node):
                     "message": f"DCS World updated to version {version} on node {self.node.name}."
                 }
             })
-            config = self.locals.get('announce')
+            config = self.locals.get('DCS', {}).get('announce')
             if config and announce:
                 embed = discord.Embed(
                     colour=discord.Colour.blue(),
