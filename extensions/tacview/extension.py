@@ -128,6 +128,9 @@ class Tacview(Extension):
         await self.update_instance(False)
         options = self.server.options['plugins']
         dirty = False
+
+        dirty |= self.set_option(options, 'tacviewModuleEnabled', self.config.get('enabled', True))
+        # parse other settings
         for name, value in self.config.items():
             if not name.startswith('tacview'):
                 continue
