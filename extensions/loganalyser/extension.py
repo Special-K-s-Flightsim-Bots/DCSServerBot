@@ -7,6 +7,7 @@ from aiohttp import ClientSession
 from contextlib import suppress
 from core import Extension, Server, ServiceRegistry, Status, Coalition, utils, get_translation, Autoexec, InstanceImpl
 from datetime import datetime
+from dateutil.parser import isoparse
 from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
@@ -16,7 +17,7 @@ _ = get_translation(__name__.split('.')[1])
 
 ERROR_UNLISTED = r"ERROR\s+ASYNCNET\s+\(Main\):\s+Server update failed with code -?\d+\.\s+The server will be unlisted."
 ERROR_SCRIPT = r'SCRIPTING.*\[string "(.*)"\]:(\d+): (.*)'
-MOOSE_COMMIT_LOG = r"\*\*\* MOOSE GITHUB Commit Hash ID: (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+\-]\d{2}:\d{2}))-[0-9A-Fa-f]+ \*\*\*"
+MOOSE_COMMIT_LOG = r"\*\*\* MOOSE GITHUB Commit Hash ID: (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+\-]\d{2}:\d{2}))-[0-9A-Fa-f]+ \*\*\*"
 MIST_PATTERN = r'\bINFO\s+SCRIPTING\s+\(Main\):\s+Mist version\s+(?P<version>\d+(?:\.\d+)+)\s+loaded\.'
 NO_UPNP = r"\s+\(Main\):\s+No UPNP devices found."
 NO_TERRAIN = r"INFO\s+Dispatcher\s+\(Main\):\s+Terrain theatre\s*$"
@@ -231,7 +232,8 @@ class LogAnalyser(Extension):
 
     async def moose_check(self, idx: int, line: str, match: re.Match):
         timestamp_str = match.group(1)
-        timestamp = datetime.fromisoformat(timestamp_str)
+        # we need to use isoparse here
+        timestamp = isoparse(timestamp_str)
         if timestamp < self.moose_timestamp:
             mission_name = self.server.current_mission.name if self.server.current_mission else f"on server {self.server.name}"
             embed = utils.create_warning_embed(
