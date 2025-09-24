@@ -1125,6 +1125,7 @@ class NodeImpl(Node):
                     "message": message
                 }
             })
+        return rc
 
     @tasks.loop(minutes=5.0)
     async def autoupdate(self):
