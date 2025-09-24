@@ -1136,6 +1136,7 @@ class NodeImpl(Node):
                     "message": message
                 }
             })
+        return rc
 
     def can_update(self):
         update_window = self.locals.get('DCS', {}).get('update_window')
