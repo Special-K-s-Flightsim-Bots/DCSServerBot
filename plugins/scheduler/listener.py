@@ -141,8 +141,12 @@ class SchedulerListener(EventListener["Scheduler"]):
             else:
                 self.log.error(f"No mission_id or mission_file specified in {what}")
                 return
-            if not await server.loadMission(_mission, modify_mission=run_extensions, use_orig=use_orig):
+            rc = await server.loadMission(_mission, modify_mission=run_extensions, use_orig=use_orig,
+                                          no_reload=what.get('no_reload', False))
+            if rc is False:
                 self.log.warning(f"Mission {_mission} NOT loaded.")
+            elif rc is None:
+                self.log.debug(f'Mission {_mission} was already loaded')
             else:
                 message = f'loaded mission {server.current_mission.display_name}'
                 if 'user' not in what:

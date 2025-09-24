@@ -39,6 +39,53 @@ local function locate(table, value)
     return false
 end
 
+-- escape every Lua‑pattern metacharacter
+local function escapePat(str)
+    return str:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+end
+
+local function normalize(name)
+    name = name:lower()
+
+    ---------
+    -- 1.  Leet → alpha (single‑char only)
+    ---------
+    local leet = {
+        ["4"] = "a", ["@"] = "a",
+        ["8"] = "b", ["|3"] = "b",
+        ["3"] = "e",
+        ["1"] = "i", ["!"] = "i", ["|"] = "i",
+        ["0"] = "o", ["()"] = "o",
+        ["$"] = "s", ["5"] = "s",
+        ["7"] = "t", ["+"] = "t",
+        ["2"] = "z",
+        ["9"] = "g", ["6"] = "g",
+    }
+
+    -- Process longer keys first only if you *add* any multi‑char keys again
+    for k, v in pairs(leet) do
+        local pat = escapePat(k)        -- literal pattern
+        name = name:gsub(pat, v)        -- replace
+    end
+
+    ---------
+    -- 2.  Diacritics → ASCII
+    ---------
+    local diacritics = {
+        ["á"] = "a", ["é"] = "e", ["í"] = "i", ["ó"] = "o", ["ú"] = "u",
+        ["ä"] = "a", ["ë"] = "e", ["ï"] = "i", ["ö"] = "o", ["ü"] = "u",
+        ["ñ"] = "n",
+    }
+    for k, v in pairs(diacritics) do
+        name = name:gsub(k, v)
+    end
+
+    -- collapse accidental whitespace
+    name = name:gsub("%s+", " "):match("^%s*(.-)%s*$")
+
+    return name
+end
+
 local function isBanned(ucid)
 	return dcsbot.banList[ucid] ~= nil
 end
@@ -56,29 +103,16 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
     config = dcsbot.params['mission']
     -- check if the server is locked
     if dcsbot.server_locked then
-        return false, config['messages']['message_server_locked']
+        return false, config.messages.message_server_locked
     end
     -- check if players use default names
     if locate(default_names, name) then
-        return false, config['messages']['message_player_default_username']
+        return false, config.messages.message_player_default_username
     end
     local name2 = name:gsub("[\r\n%z]", "")
     -- local name2 = name:gsub("[%c]", "")
     if name ~= name2 then
-        return false, config['messages']['message_player_username']
-    end
-    -- check if player uses profanity
-    if config['profanity_filter'] then
-        local name2 = Censorship.censor(name)
-        log.write('DCSServerBot', log.DEBUG, 'Censored nickname: ' .. name2)
-        if name ~= name2 then
-            local msg = {
-                command = 'sendMessage',
-                message = 'User ' .. name .. ' (ucid=' .. ucid .. ') rejected due to inappropriate nickname.'
-            }
-            utils.sendBotTable(msg, dcsbot.params['mission']['channels']['admin'])
-            return false, config['messages']['message_player_inappropriate_username']
-        end
+        return false, config.messages.message_player_username
     end
     -- check bans including the SMART ban system
     ipaddr = utils.getIP(addr)
@@ -93,7 +127,7 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
             command = 'sendMessage',
             message = 'Banned user ' .. name .. ' (ucid=' .. ucid .. ', ipaddr=' .. ipaddr .. ') rejected. Reason: ' .. dcsbot.banList[ucid]
         }
-        utils.sendBotTable(msg, dcsbot.params['mission']['channels']['admin'])
+        utils.sendBotTable(msg, config.channels.admin)
         return false, string.gsub(config['messages']['message_ban'], "{}", dcsbot.banList[ucid])
     elseif isBanned(ipaddr) and dcsbot.banList[dcsbot.banList[ipaddr]] then
         local old_ucid = dcsbot.banList[ipaddr]
@@ -102,11 +136,31 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
             message = 'Player ' .. name .. ' (ucid=' .. ucid .. ') connected from the same IP (ipaddr=' .. ipaddr .. ') as banned player (ucid=' .. old_ucid .. '), who was banned for ' .. dcsbot.banList[old_ucid] ..'!',
             mention = 'DCS Admin'
         }
-        utils.sendBotTable(msg, config['channels']['admin'])
-        return false, string.gsub(config['messages']['message_ban'], "{}", dcsbot.banList[old_ucid])
+        utils.sendBotTable(msg, config.channels.admin)
+        return false, string.gsub(config.messages.message_ban, "{}", dcsbot.banList[old_ucid])
     -- check if a player is temporarily locked
     elseif isLocked(ucid) then
-        return false, config['messages']['message_seat_locked']
+        return false, config.messages.message_seat_locked
+    end
+    -- check if player uses profanity
+    if config.profanity_filter then
+        name2 = normalize(name)
+        if name2 ~= Censorship.censor(name2) then
+            if config.no_join_with_cursename then
+                local msg = {
+                    command = 'sendMessage',
+                    message = 'User ' .. name .. ' (ucid=' .. ucid .. ') rejected due to inappropriate nickname.'
+                }
+                utils.sendBotTable(msg, config.channels.admin)
+                return false, config.messages.message_player_inappropriate_username
+            else
+                local msg = {
+                    command = 'sendMessage',
+                    message = 'User ' .. name .. ' (ucid=' .. ucid .. ') potentially inappropriate nickname.'
+                }
+                utils.sendBotTable(msg, config.channels.admin)
+            end
+        end
     end
 end
 
@@ -251,7 +305,7 @@ function mission.onPlayerTryChangeSlot(id, side, slot)
     if mission.num_change_slots[id] == -1 then
         return false
     end
-    if not slot_spamming or not tonumber(slot) then
+    if not slot_spamming or not tonumber(slot) or utils.isDynamic(slot) then
         return
     end
 	if mission.last_change_slot[id] and mission.last_change_slot[id] > (os.clock() - tonumber(slot_spamming['check_time'] or 5)) then

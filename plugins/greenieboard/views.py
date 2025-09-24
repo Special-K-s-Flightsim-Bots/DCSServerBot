@@ -62,7 +62,7 @@ class TrapModal(Modal):
             self.success = True
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
-        await interaction.followup.send(error)
+        await interaction.followup.send(error, ephemeral=True)
         self.stop()
 
 
@@ -92,5 +92,5 @@ class TrapView(View):
         self.stop()
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: Item[Any]) -> None:
-        await interaction.followup.send(error)
+        await interaction.followup.send(error, ephemeral=True)
         self.stop()

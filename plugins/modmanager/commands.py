@@ -375,11 +375,11 @@ class ModManager(Plugin):
         if server.status != Status.SHUTDOWN:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _("Server {} needs to be shut down to install mods.").format(server.name))
+                _("Server {} needs to be shut down to install mods.").format(server.name), ephemeral=True)
             return
         if '/' not in mod:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("Mod {} not found!").format(mod))
+            await interaction.response.send_message(_("Mod {} not found!").format(mod), ephemeral=True)
             return
         _folder, package = mod.split('/')
         folder = Folder(_folder)
@@ -389,7 +389,7 @@ class ModManager(Plugin):
         current = await self.service.get_installed_package(reference, folder, package)
         if current == version:
             await interaction.followup.send(
-                _("Mod {mod}_v{version} is already installed!").format(mod=package, version=version))
+                _("Mod {mod}_v{version} is already installed!").format(mod=package, version=version), ephemeral=True)
             return
         if current:
             msg = await interaction.followup.send(
@@ -424,7 +424,7 @@ class ModManager(Plugin):
         if server.status != Status.SHUTDOWN:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _("Server {} needs to be shut down to uninstall mods.").format(server.name))
+                _("Server {} needs to be shut down to uninstall mods.").format(server.name), ephemeral=True)
             return
         folder, package, version = mod.split('/')
         # noinspection PyUnresolvedReferences
@@ -450,7 +450,7 @@ class ModManager(Plugin):
         if not len(installed[Folder.RootFolder]) and not len(installed[Folder.SavedGames]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("No mod installed on server {}.").format(server.name),
-                                                    ephemeral=ephemeral)
+                                                    ephemeral=True)
             return
         embed = discord.Embed(color=discord.Color.blue())
         embed.description = _("The following mods are installed on server {}:").format(server.name)
@@ -480,7 +480,8 @@ class ModManager(Plugin):
                 version = await self.service.get_latest_repo_version(url)
             except aiohttp.ClientResponseError as ex:
                 await interaction.followup.send(
-                    _("Can't connect to {url}: {message}").format(url=url, message=ex.message))
+                    _("Can't connect to {url}: {message}").format(url=url, message=ex.message), ephemeral=True
+                )
                 return
         if version:
             package_name = self.service.extract_repo_name(url).split('/')[-1]

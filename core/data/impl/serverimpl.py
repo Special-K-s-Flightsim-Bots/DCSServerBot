@@ -945,7 +945,7 @@ class ServerImpl(Server):
         return self.settings['missionList']
 
     async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True,
-                          use_orig: Optional[bool] = True) -> bool:
+                          use_orig: Optional[bool] = True, no_reload: Optional[bool] = False) -> Optional[bool]:
         start_index = int(self.settings.get('listStartIndex', 1))
         mission_list = self.settings['missionList']
         # check if we re-load the running mission
@@ -988,6 +988,8 @@ class ServerImpl(Server):
             try:
                 idx = mission_list.index(filename) + 1
                 if idx == start_index:
+                    if no_reload:
+                        return None
                     rc = await self.send_to_dcs_sync({"command": "startMission", "filename": filename})
                 else:
                     rc = await self.send_to_dcs_sync({"command": "startMission", "id": idx})

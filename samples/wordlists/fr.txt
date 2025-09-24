@@ -15,20 +15,20 @@ branlette
 branleur
 branleuse
 brouter le cresson
-caca
+# caca
 chatte
 chiasse
 chier
 chiottes
 clito
 clitoris
-con
+# con
 connard
 connasse
 conne
 couilles
 cramouille
-cul
+# cul
 déconne
 déconner
 emmerdant
@@ -68,7 +68,7 @@ palucher
 pédale
 pédé
 péter
-pipi
+# pipi
 pisser
 pouffiasse
 pousse-crotte

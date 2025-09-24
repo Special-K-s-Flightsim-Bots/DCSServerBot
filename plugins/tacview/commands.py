@@ -101,12 +101,12 @@ class Tacview(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Server {} needs to be shut down to configure Tacview.").format(server.display_name),
-                ephemeral=ephemeral)
+                ephemeral=True)
             return
         config = await self._configure(interaction, server=server, enabled=enabled, autoupdate=autoupdate)
         if 'Tacview' not in await server.init_extensions():
             await interaction.followup.send(_("Tacview not installed on server {}!").format(server.display_name),
-                                            ephemeral=ephemeral)
+                                            ephemeral=True)
             return
         await server.config_extension("Tacview", config)
         await interaction.followup.send(
@@ -159,7 +159,7 @@ class Tacview(Plugin):
         else:
             await interaction.followup.send(
                 _("Server {} needs to be shut down to uninstall Tacview.").format(server.display_name),
-                ephemeral=ephemeral)
+                ephemeral=True)
 
     @tacview.command(name='download', description=_('Download a Tacview'))
     @app_commands.guild_only()

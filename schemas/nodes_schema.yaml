@@ -41,6 +41,12 @@ mapping:
                 nullable: false
                 sequence:
                   - { type: text, nullable: false }
+          update_window:
+            type: map
+            nullable: false
+            mapping:
+              timezone: { type: str, nullable: false, range: { min: 1 } }
+              regex;(^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])?-(0?[0-9]|1[0-9]|2[0-4])(:?[0-5][0-9])?$): { type: str, pattern: '^[YNP]{7}$', nullable: false }
           desanitize: {type: bool, nullable: false}
           minimized: {type: bool, nullable: false}
           user: {type: str, nullable: false, range: {min: 1}}
@@ -59,6 +65,7 @@ mapping:
         include: 'node_extensions_schema'
       instances:
         type: map
+        func: is_node
         nullable: false
         mapping:
           regex;(.+):   # Any string as an instance name
@@ -69,9 +76,9 @@ mapping:
               missions_dir: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
               mission_rewrite: {type: bool, nullable: false}
               autoscan: {type: bool, nullable: false}
-              bot_port: {type: int, required: true, nullable: false, func: unique_port}
-              webgui_port: {type: int, nullable: false, func: unique_port}
-              dcs_port: {type: int, nullable: false, func: unique_port}
+              bot_port: {type: int, required: true, nullable: false, default: 6666, func: unique_port}
+              webgui_port: {type: int, nullable: false, default: 8088, func: unique_port}
+              dcs_port: {type: int, nullable: false, default: 10308, func: unique_port}
               server_user: {type: str, nullable: false, range: {min: 1}}
               max_hung_minutes: {type: int, range: {min: 0}, nullable: false}
               affinity: {type: any, nullable: false, func: int_csv_or_list}

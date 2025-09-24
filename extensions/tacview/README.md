@@ -43,7 +43,7 @@ __Optional__ parameters (will change options.lua if necessary):</br>
 * **show_passwords** specifies whether to show the Tacview passwords in the server embed in your status channel or not.
 * **target** a channel or directory where your tacview files should be uploaded to on mission end.
 
-To delete old tacview files, checkout the [Cleanup](../../services/cleanup/README.md) service.
+To delete old tacview files, check out the [Cleanup](../../services/cleanup/README.md) service.
 
 > [!NOTE]
 > The tacviewDataCaptureMode parameter can take any value, but these are the recommended ones by the Tacview team:

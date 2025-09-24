@@ -7,6 +7,7 @@ import discord
 import json
 import luadata
 import os
+import platform
 import re
 import shutil
 import ssl
@@ -17,7 +18,7 @@ import xml.etree.ElementTree as ET
 from core import Extension, utils, Server, ServiceRegistry, get_translation, InstallException
 from discord.ext import tasks
 from extensions.srs import SRS
-from packaging import version as ver
+from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
 from typing import Optional, cast
@@ -49,6 +50,12 @@ class LotAtc(Extension, FileSystemEventHandler):
     def __init__(self, server: Server, config: dict):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'LotAtc')
         super().__init__(server, config)
+        # check version incompatibility
+        if parse(self.version) >= parse('2.5.0') and sys.platform == 'win32':
+            winver = platform.win32_ver()
+            if winver[1] == '10.0.14393' and 'Server' in winver[3]:
+                raise InstallException("LotAtc 2.5+ does not run on Windows Server 2016 anymore!")
+
         self.observer: Optional[Observer] = None
         self.bus = ServiceRegistry.get(ServiceBus)
         self.gcis = {
@@ -217,7 +224,7 @@ class LotAtc(Extension, FileSystemEventHandler):
     def get_inst_version(self) -> tuple[str, str]:
         path = os.path.join(self.get_inst_path(), 'server')
         versions = os.listdir(path)
-        major_version = max(versions, key=ver.parse)
+        major_version = max(versions, key=parse)
         path = os.path.join(path, major_version, 'Mods', 'services', 'LotAtc', 'bin')
         version = utils.get_windows_version(os.path.join(path, 'LotAtc.dll'))
         return major_version, version

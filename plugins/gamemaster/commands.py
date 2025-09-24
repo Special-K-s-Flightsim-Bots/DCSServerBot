@@ -160,7 +160,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
             if server.status != Status.RUNNING:
                 await interaction.followup.send(_('Message NOT sent to server {server} because it is {status}.'
                                                   ).format(server=server.display_name, status=server.status.name),
-                                                ephemeral=ephemeral)
+                                                ephemeral=True)
                 continue
             await server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
             await interaction.followup.send(_('Message sent to server {}.').format(server.display_name),

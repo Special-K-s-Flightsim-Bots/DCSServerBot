@@ -16,7 +16,7 @@ into your mind. DCSServerBot is a solution for DCS server admins built by a DCS 
 This documentation shows you the main features, how to install and configure the bot and some more sophisticated 
 stuff at the bottom, if you for instance run multiple servers maybe even over multiple locations. 
 <p>
-	
+
 Now let's see what DCSServerBot can do for you (installation-instructions [below](#installation))!
 
 ---
@@ -357,7 +357,7 @@ NODENAME:                       # this will usually be your hostname
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.
-    announce:                   # Optional: post a message to Discord after every update
+    announce:                   # Optional: post a message to Discord after an update was conducted
       channel: 11223344556677
       title: DCS has been updated to version {}!
       description: 'The following servers have been updated:'
@@ -365,6 +365,11 @@ NODENAME:                       # this will usually be your hostname
       mention:                  # Optional mentioning
         - Admin
         - DCS Admin
+    update_window:              # Optional update window. No update will happen if N is set for the respective time and day.
+      timezone: Europe/Berlin   # Optional timezone, default is the local time of the server.
+      00-18: YYYYYYY
+      18-20: YYYYYYN            # Do not update DCS on Sundays, 18:00-20:00 LT
+      20-24: YYYYYYY
     use_upnp: true              # Do you want to use UPnP to forward your DCS ports automatically? If not set, the global setting will be used.
     cloud: true                 # If you have installed DCS on a NAS or cloud drive, autoupdate and desanitization will only take place once on all your nodes.
     desanitize: true            # Desanitize your MissionScripting.lua after each update. Default is true.
@@ -431,6 +436,7 @@ DEFAULT:
     message_seat_locked: 'Your player is currently locked.' # Server and all seats are locked (by /player lock)
   message_timeout: 10           # default timeout for DCS popup messages in seconds 
   profanity_filter: true        # Use the profanity filter for player names and the in-game chat (default: false).
+  no_join_with_cursename: true  # Block people with potential cursewords in their nicknames (default: true, only works with profanity_fileter: true)
   display_ai_chat: false        # do not display AI chat messages in the chat channel (default: false)
   rules: |                      # Optional: Rules to be displayed for new users (needs MissionStats enabled!)
     These are the rules to play on this server:

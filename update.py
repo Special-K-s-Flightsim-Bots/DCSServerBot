@@ -77,8 +77,8 @@ def do_update_git() -> int:
                         changed_files.add(item.a_path)
                     if changed_files:
                         print('     Please revert back the changes in these files:')
-                        for item in changed_files:
-                            print(f'     ./{item.a_path}')
+                        for path in changed_files:
+                            print(f'     ./{path}')
                     else:
                         print(ex)
                     return -1

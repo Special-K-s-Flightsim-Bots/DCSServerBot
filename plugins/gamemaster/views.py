@@ -141,7 +141,7 @@ class MessageView(View):
                 await conn.execute("DELETE FROM messages WHERE id = %s", (self.messages[self.index]['id'],))
         self.messages.pop(self.index)
         if not self.messages:
-            await interaction.followup.send(_("No messages left."))
+            await interaction.followup.send(_("No messages left."), ephemeral=True)
             self.stop()
             return
         if self.index > len(self.messages) - 1:

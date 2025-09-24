@@ -42,7 +42,7 @@ schema;instance_srs_schema:
     enabled: {type: bool, nullable: false}
     config: {type: str, required: true, nullable: false}
     host: {type: str, nullable: false, range: {min: 1}}
-    port: {type: int, nullable: false, func: unique_port}
+    port: {type: int, nullable: false, default: 5002, func: unique_port}
     gui_server: {type: bool, nullable: false}
     minimized: {type: bool, nullable: false}
     debug: {type: bool, nullable: false}
@@ -57,6 +57,6 @@ schema;instance_srs_schema:
     always_on: {type: bool, nullable: false}
     radio_effect_override: {type: bool, nullable: false}
     global_lobby_frequencies: {type: str, nullable: false, range: {min: 1}}
-    lotatc_export_port: {type: int, nullable: false, func: unique_port}
+    lotatc_export_port: {type: int, nullable: false, func: unique_port} # default 10712
     http_server_enabled: {type: bool, nullable: false}
-    http_server_port: {type: int, nullable: false, func: unique_port}
+    http_server_port: {type: int, nullable: false, func: unique_port} # default 8080

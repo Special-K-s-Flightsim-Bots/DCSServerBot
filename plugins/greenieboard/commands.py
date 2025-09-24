@@ -255,13 +255,13 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
 
         view = TrapView(self.bot, config, user)
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(view=view)
+        await interaction.response.send_message(view=view, ephemeral=ephemeral)
         try:
             await view.wait()
             if view.success:
                 await interaction.followup.send(_('Trap added.'), ephemeral=ephemeral)
             else:
-                await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
+                await interaction.followup.send(_('Aborted.'), ephemeral=True)
         finally:
             await interaction.delete_original_response()
 

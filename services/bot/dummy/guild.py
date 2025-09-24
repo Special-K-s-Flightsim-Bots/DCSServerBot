@@ -1,11 +1,10 @@
 import os
+
+from services.bot.dummy import DummyRole, DummyMember
 from typing import Optional, AsyncIterator
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-
-from services.bot.dummy import DummyRole, DummyMember
-
 yaml = YAML()
 
 

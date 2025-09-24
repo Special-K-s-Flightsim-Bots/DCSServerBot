@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import aiohttp
 import asyncio
 import ipaddress
@@ -67,7 +69,7 @@ def is_open(ip, port):
         return s.connect_ex((ip, int(port))) == 0
 
 
-async def get_public_ip(node: Optional["Node"] = None):
+async def get_public_ip(node: Optional[Node] = None):
     for url in API_URLS:
         with suppress(aiohttp.ClientError, ValueError):
             async with aiohttp.ClientSession() as session:

@@ -19,12 +19,10 @@ from .filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilte
     TheatreFilter
 from .listener import UserStatisticsEventListener
 from .views import SquadronModal
+from ..creditsystem.squadron import Squadron
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-
-from ..creditsystem.squadron import Squadron
-
 yaml = YAML()
 
 _ = get_translation(__name__.split('.')[1])
@@ -232,7 +230,9 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                                       limit=limit)
             try:
                 file = discord.File(fp=env.buffer, filename=env.filename) if env.filename else MISSING
-                await interaction.followup.send(embed=env.embed, file=file)
+                msg = await interaction.original_response()
+                await msg.edit(embed=env.embed, attachments=[file],
+                               delete_after=self.bot.locals.get('message_autodelete'))
             finally:
                 if env.buffer:
                     env.buffer.close()

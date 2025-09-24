@@ -178,7 +178,8 @@ class ModManagerService(Service):
         config = self.get_config(server)
         for x in Path(os.path.expandvars(config[folder.value])).glob(f"{package_name}*"):
             name, version = self.parse_filename(x.name)
-            local_versions.add(version)
+            if version:
+                local_versions.add(version)
         remote_versions: set[str] = set()
         with suppress(StopIteration):
             package = next(x for x in config.get('packages', []) if x['name'] == package_name and x['source'] == folder.value)
@@ -343,7 +344,6 @@ class ModManagerService(Service):
                     if orig.endswith('/'):
                         continue
                     with zfile.open(name) as infile:
-                        self.log.debug(f"Extracting file {name} to {target}/{_name}")
                         with open(orig, mode='wb') as outfile:
                             outfile.write(infile.read())
             return log_entries

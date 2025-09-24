@@ -3,9 +3,12 @@ import asyncio
 import os
 import re
 
+from aiohttp import ClientSession
 from contextlib import suppress
 from core import Extension, Server, ServiceRegistry, Status, Coalition, utils, get_translation, Autoexec, InstanceImpl
 from datetime import datetime
+from dateutil.parser import isoparse
+from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
 from typing import Callable, cast
@@ -14,7 +17,8 @@ _ = get_translation(__name__.split('.')[1])
 
 ERROR_UNLISTED = r"ERROR\s+ASYNCNET\s+\(Main\):\s+Server update failed with code -?\d+\.\s+The server will be unlisted."
 ERROR_SCRIPT = r'SCRIPTING.*\[string "(.*)"\]:(\d+): (.*)'
-MOOSE_COMMIT_LOG = r"\*\*\* MOOSE GITHUB Commit Hash ID: (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2})-\w+ \*\*\*"
+MOOSE_COMMIT_LOG = r"\*\*\* MOOSE GITHUB Commit Hash ID: (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+\-]\d{2}:\d{2}))-[0-9A-Fa-f]+ \*\*\*"
+MIST_PATTERN = r'\bINFO\s+SCRIPTING\s+\(Main\):\s+Mist version\s+(?P<version>\d+(?:\.\d+)+)\s+loaded\.'
 NO_UPNP = r"\s+\(Main\):\s+No UPNP devices found."
 NO_TERRAIN = r"INFO\s+Dispatcher\s+\(Main\):\s+Terrain theatre\s*$"
 REGMAP_STORAGE_FULL = "RegMapStorage has no more IDs"
@@ -30,6 +34,7 @@ class LogAnalyser(Extension):
         super().__init__(server, config)
         self.bus = ServiceRegistry.get(ServiceBus)
         self.log_pos = -1
+        self.moose_version = self.moose_timestamp = self.mist_version = None
         self.pattern: dict[re.Pattern, Callable] = {}
         self.stop_event = asyncio.Event()
         self.stopped = asyncio.Event()
@@ -49,13 +54,16 @@ class LogAnalyser(Extension):
         self.errors.clear()
         #self.register_callback(ERROR_UNLISTED, self.unlisted)
         self.register_callback(ERROR_SCRIPT, self.script_error)
-        self.register_callback(MOOSE_COMMIT_LOG, self.moose_log)
+        self.register_callback(MOOSE_COMMIT_LOG, self.moose_check)
+        self.register_callback(MIST_PATTERN, self.mist_check)
         self.register_callback(NO_UPNP, self.disable_upnp)
         self.register_callback(NO_TERRAIN, self.terrain_missing)
         #self.register_callback(REGMAP_STORAGE_FULL, self.restart_server)
         asyncio.create_task(self.check_log())
 
     async def prepare(self) -> bool:
+        self.moose_version, self.moose_timestamp = await self.get_latest_moose_version()
+        self.mist_version = await self.get_latest_mist_version()
         with suppress(Exception):
             if os.path.exists(self.logfile):
                 os.remove(self.logfile)
@@ -214,15 +222,52 @@ class LogAnalyser(Extension):
         await self._send_audit_msg(filename, int(line_number), error_message)
         self.errors.add((filename, int(line_number)))
 
-    async def moose_log(self, idx: int, line: str, match: re.Match):
+    async def get_latest_moose_version(self) -> tuple[str, datetime]:
+        url = "https://api.github.com/repos/FlightControl-Master/MOOSE/releases/latest"
+        async with ClientSession() as session:
+            async with session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                response.raise_for_status()
+                data = await response.json()
+        return data['tag_name'], datetime.fromisoformat(data['created_at'].replace("Z", "+00:00"))
+
+    async def moose_check(self, idx: int, line: str, match: re.Match):
         timestamp_str = match.group(1)
-        timestamp = datetime.fromisoformat(timestamp_str)
-        if timestamp < datetime.fromisoformat('2024-09-03T16:47:17+02:00'):
+        # we need to use isoparse here
+        timestamp = isoparse(timestamp_str)
+        if timestamp < self.moose_timestamp:
             mission_name = self.server.current_mission.name if self.server.current_mission else f"on server {self.server.name}"
             embed = utils.create_warning_embed(
                 title='Outdated Moose version found!',
-                text=f"Mission {mission_name} is using an old Moose version. "
-                     f"You will probably see performance issues!")
+                text=f"Mission {mission_name} is using an outdated Moose version. "
+                     f"Please upgrade to the latest version {self.moose_version}.")
+            try:
+                await self.bus.send_to_node_sync({
+                    "command": "rpc",
+                    "service": BotService.__name__,
+                    "method": "send_message",
+                    "params": {
+                        "embed": embed.to_dict()
+                    }
+                })
+            except Exception as ex:
+                self.log.exception(ex)
+
+    async def get_latest_mist_version(self) -> str:
+        url = "https://api.github.com/repos/mrSkortch/MissionScriptingTools/releases/latest"
+        async with ClientSession() as session:
+            async with session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                response.raise_for_status()
+                data = await response.json()
+        return data['tag_name']
+
+    async def mist_check(self, idx: int, line: str, match: re.Match):
+        version = match.group(1)
+        if parse(version) < parse(self.mist_version):
+            mission_name = self.server.current_mission.name if self.server.current_mission else f"on server {self.server.name}"
+            embed = utils.create_warning_embed(
+                title='Outdated MIST version found!',
+                text=f"Mission {mission_name} is using MIST version {version}, which is outdated. "
+                     f"Please upgrade to the latest version {self.mist_version}.")
             try:
                 await self.bus.send_to_node_sync({
                     "command": "rpc",

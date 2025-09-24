@@ -13,7 +13,7 @@ from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Play
     UnsupportedMizFileException
 from datetime import datetime, timezone
 from discord import Interaction, app_commands, SelectOption
-from discord.app_commands import Range
+from discord.app_commands import Range, describe
 from discord.ext import commands, tasks
 from discord.ui import Modal, TextInput
 from io import BytesIO
@@ -126,6 +126,14 @@ async def nosav_autocomplete(interaction: discord.Interaction, current: str) -> 
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
+
+
+class DDTransformer(app_commands.Transformer):
+    async def transform(self, interaction: discord.Interaction, value: Union[str, float]) -> float:
+        try:
+            return float(value)
+        except ValueError:
+            return utils.dms_to_dd(value)
 
 
 class Mission(Plugin[MissionEventListener]):
@@ -244,7 +252,8 @@ class Mission(Plugin[MissionEventListener]):
         })
         report = Report(self.bot, self.plugin_name, 'atis.json')
         env = await report.render(airbase=airbase, data=data, server=server)
-        await interaction.followup.send(embed=env.embed)
+        msg = await interaction.original_response()
+        await msg.edit(embed=env.embed, delete_after=self.bot.locals.get('message_autodelete'))
 
     @mission.command(description=_('Shows briefing of the active mission'))
     @utils.app_has_role('DCS')
@@ -272,7 +281,8 @@ class Mission(Plugin[MissionEventListener]):
         mission_info['passwords'] = await read_passwords()
         report = Report(self.bot, self.plugin_name, 'briefing.json')
         env = await report.render(mission_info=mission_info, server_name=server.name, interaction=interaction)
-        await interaction.followup.send(embed=env.embed)
+        msg = await interaction.original_response()
+        await msg.edit(embed=env.embed, delete_after=self.bot.locals.get('message_autodelete'))
 
     @mission.command(description=_('Restarts the current active mission\n'))
     @app_commands.guild_only()
@@ -1936,6 +1946,45 @@ class Mission(Plugin[MissionEventListener]):
         else:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("No menus.yaml found."), ephemeral=True)
+
+    @command(description=_('Convert values'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @describe(lat="Latitude in DD or DMS (N491012.12)",
+              lon="Longitude in DD or DMS (E011012.34)",
+              mgrs="MGRS coordinates")
+    async def convert(self, interaction: discord.Interaction, mode: Literal['Lat/Lon => MGRS', 'MGRS => Lat/Lon'],
+                      lat: Optional[app_commands.Transform[float, DDTransformer]] = None,
+                      lon: Optional[app_commands.Transform[float, DDTransformer]] = None,
+                      mgrs: Optional[str] = None):
+        if mode == 'Lat/Lon => MGRS':
+            if not lat or not lon:
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message("Latitude and longitude must be provided", ephemeral=True)
+                return
+            mgrs = utils.dd_to_mgrs(lat, lon)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(f"**MGRS**: {mgrs}")
+        elif mode == 'MGRS => Lat/Lon':
+            if not mgrs:
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message("MGRS must be provided", ephemeral=True)
+                return
+            mgrs = mgrs.replace(' ', '')
+            lat, lon = utils.mgrs_to_dd(mgrs)
+            d, m, s, f = utils.dd_to_dms(lat)
+            lat_dms = ('N' if d > 0 else 'S') + ' {:02d}°{:02d}\'{:02d}.{:02d}"'.format(
+                int(abs(d)), int(abs(m)), int(abs(s)), int(abs(f)))
+            d, m, s, f = utils.dd_to_dms(lon)
+            lon_dms = ('E' if d > 0 else 'W') + ' {:03d}°{:02d}\'{:02d}.{:02d}"'.format(
+                int(abs(d)), int(abs(m)), int(abs(s)), int(abs(f)))
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(f"**DD**: {lat:.7f}, {lon:.7f}\n"
+                                                    f"**DMS**: {lat_dms}, {lon_dms}\n"
+                                                    f"**DDM**: {utils.dd_to_dmm(lat, lon)}")
+        else:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message("Invalid conversion mode", ephemeral=True)
 
     @tasks.loop(hours=1)
     async def expire_token(self):

@@ -4,7 +4,7 @@ asno
 bastardo
 Bollera
 Cabrón
-Caca
+# Caca
 Chupada
 Chupapollas
 Chupetón
@@ -49,7 +49,7 @@ Pendejo
 Pervertido
 Pezón
 Pinche
-Pis
+# Pis
 Prostituta
 Puta
 Racista

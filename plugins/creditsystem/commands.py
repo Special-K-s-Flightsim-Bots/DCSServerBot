@@ -184,7 +184,8 @@ class CreditSystem(Plugin[CreditSystemListener]):
                         (old_points_receiver + donation) > int(self.get_config()['max_points']):
                     await interaction.followup.send(
                         _('Member {} would overrun the configured maximum points with this donation. Aborted.').format(
-                            utils.escape_string(to.display_name)))
+                            utils.escape_string(to.display_name)), ephemeral=True
+                    )
                     return
                 if p_receiver:
                     # make sure we do not donate to a squadron

@@ -128,6 +128,9 @@ class Tacview(Extension):
         await self.update_instance(False)
         options = self.server.options['plugins']
         dirty = False
+
+        dirty |= self.set_option(options, 'tacviewModuleEnabled', self.config.get('enabled', True))
+        # parse other settings
         for name, value in self.config.items():
             if not name.startswith('tacview'):
                 continue
@@ -141,13 +144,18 @@ class Tacview(Extension):
             else:
                 dirty |= self.set_option(options, name, value)
 
-        if not options['Tacview'].get('tacviewPlaybackDelay', 0):
+        if parse(self.version) < parse('1.9.5') and options['Tacview'].get('tacviewPlaybackDelay', 0) == 0:
             self.log.warning(
                 f'  => {self.server.name}: tacviewPlaybackDelay is not set, you might see performance issues!')
-        elif options['Tacview']['tacviewRealTimeTelemetryEnabled']:
+        elif int(options['Tacview'].get('tacviewDataCaptureMode', 1)) == 1:
+            self.log.warning(
+                f'  => {self.server.name}: tacviewDataCaptureMode is set to 1, you might see performance issues!')
+
+        if options['Tacview'].get('tacviewPlaybackDelay', 0) > 0 and options['Tacview'].get('tacviewRealTimeTelemetryEnabled', True):
             self.log.warning(
                 f'  => {self.server.name}: tacviewPlaybackDelay is set, disabling real time telemetry.')
             dirty |= self.set_option(options, 'tacviewRealTimeTelemetryEnabled', False)
+
         if dirty:
             self.server.options['plugins'] = options
             self.locals = options['Tacview']

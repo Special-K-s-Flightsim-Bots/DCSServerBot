@@ -48,7 +48,9 @@ class Battleground(Plugin):
                           side, server.name))
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _("Recon data added - {side} side - {server}").format(side=side, server=server.name))
+                _("Recon data added - {side} side - {server}").format(side=side, server=server.name),
+                delete_after=self.bot.locals.get('message_autodelete')
+            )
         if not done:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(

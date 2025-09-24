@@ -7,7 +7,7 @@ import shutil
 import sys
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
-    PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS
+    PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, ServiceRegistry
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
@@ -16,8 +16,10 @@ from io import BytesIO
 from pathlib import Path
 from plugins.admin.listener import AdminEventListener
 from plugins.admin.views import CleanupView
+from plugins.modmanager.commands import get_installed_mods
 from plugins.scheduler.views import ConfigView
 from services.bot import DCSServerBot
+from services.modmanager import ModManagerService
 from typing import Optional, Union, Literal, Type
 from zipfile import ZipFile, ZIP_DEFLATED
 
@@ -978,6 +980,13 @@ Please make sure you forward the following ports:
             return
         if instance.server and instance.server.status in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
             await instance.server.shutdown(force=True)
+
+        # uninstall mods
+        mod_manager: ModManagerService = ServiceRegistry.get(ModManagerService)
+        if mod_manager.is_running():
+            for folder, package, version in await get_installed_mods(mod_manager, server=instance.server):
+                await mod_manager.uninstall_package(instance.server, folder, package, version)
+
         remove_files = await utils.yn_question(
             interaction, _("Do you want to remove the directory {}?").format(instance.home), ephemeral=ephemeral)
         try:

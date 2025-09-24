@@ -23,6 +23,7 @@ from core import utils, Status
 from core.const import SAVED_GAMES
 from core.data.maintenance import ServerMaintenanceManager
 from core.translations import get_translation
+from datetime import datetime
 from discord.ext import tasks
 from gzip import BadGzipFile
 from migrate import migrate
@@ -35,6 +36,7 @@ from psycopg_pool import ConnectionPool, AsyncConnectionPool
 from typing import Optional, Union, Awaitable, Callable, Any, cast
 from urllib.parse import urlparse, quote
 from version import __version__
+from zoneinfo import ZoneInfo
 
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory, DataObject
@@ -128,7 +130,10 @@ class NodeImpl(Node):
                     if repo.active_branch.name == 'development':
                         self.log.info(f'- Development version detected.')
             except git.InvalidGitRepositoryError:
-                self.log.warning(f'- Your installation is corrupt. Run repair.cmd.')
+                if os.path.isdir('.git'):
+                    self.log.warning(f'- Your installation is corrupt. Run repair.cmd.')
+                else:
+                    raise ImportError
 
         except ImportError:
             self.log.info('- ZIP installation detected.')
@@ -471,8 +476,8 @@ class NodeImpl(Node):
                 changed_files.add(item.a_path)
             if changed_files:
                 self.log.error('     Please revert back the changes in these files:')
-                for item in changed_files:
-                    self.log.error(f'     ./{item.a_path}')
+                for path in changed_files:
+                    self.log.error(f'     ./{path}')
             else:
                 self.log.error(ex)
         except ValueError as ex:
@@ -513,14 +518,18 @@ class NodeImpl(Node):
     async def _upgrade(self, conn: psycopg.AsyncConnection):
         # We do not want to run an upgrade if we are on a cloud drive. Just restart in this case.
         if not self.master and self.locals.get('cloud_drive', True):
+            self.log.debug("Upgrade: restart agent after master upgrade.")
             await self.restart()
         elif await self.upgrade_pending():
             if self.master:
+                self.log.debug("Upgrade: set update pending to TRUE.")
                 await conn.execute("""
                     UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s
                 """, (self.guild_id, ))
+            self.log.debug("Upgrade: launch update.py")
             await self.shutdown(UPDATE)
         elif self.master:
+            self.log.debug("Upgrade: reset update pending to FALSE.")
             await conn.execute("""
                UPDATE cluster
                SET update_pending = FALSE, version = %s
@@ -786,6 +795,7 @@ class NodeImpl(Node):
     async def heartbeat(self) -> bool:
         async def handle_upgrade(master: str) -> bool:
             if master == self.name:
+                self.log.debug("Upgrade: Master => trigger agent upgrades")
                 # let all other nodes upgrade themselve
                 for node in await self.get_active_nodes():
                     data = {
@@ -802,6 +812,7 @@ class NodeImpl(Node):
                 """, (__version__, self.guild_id))
                 return True
             elif await is_node_alive(master, 300 if self.slow_system else 180): # give the master time to upgrade
+                self.log.debug("Upgrade: master => still upgrading")
                 return False
             else:
                 # the master is dead, so reset update pending
@@ -882,7 +893,7 @@ class NodeImpl(Node):
                                 self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
                                                  "Rolling back the cluser version to my version.")
                             await self._upgrade(conn)
-                        elif parse(version) < parse(__version__):
+                        elif parse(version) < parse(__version__) and await is_node_alive(master, self.locals.get('heartbeat', 30)):
                             if master != self.name:
                                 raise FatalException(f"This node uses DCSServerBot version {__version__} "
                                                      f"where the master uses version {version}!")
@@ -1127,11 +1138,31 @@ class NodeImpl(Node):
             })
         return rc
 
+    def can_update(self):
+        update_window = self.locals.get('DCS', {}).get('update_window')
+        if update_window:
+            now: datetime = datetime.now()
+            tz = now.astimezone().tzinfo
+            now = now.replace(tzinfo=tz)
+            weekday = now.weekday()
+            for period, daystate in update_window.items():  # type: str, str
+                if period == 'timezone':
+                    tz = ZoneInfo(daystate)
+                    continue
+                if len(daystate) != 7:
+                    self.log.error(f"Error in nodes.yaml (update_window): {daystate} has to be 7 characters long!")
+                    return False
+                state = daystate[weekday]
+                if utils.is_in_timeframe(now, period, tz):
+                    return state.upper() == 'Y'
+        return True
+
     @tasks.loop(minutes=5.0)
     async def autoupdate(self):
         # don't run if an update is currently running
-        if self.update_pending:
+        if self.update_pending or not self.can_update():
             return
+        # Check if we are in the correct time window
         try:
             version = await self.is_dcs_update_available()
             if version:
@@ -1157,7 +1188,7 @@ class NodeImpl(Node):
 
         # check for updates
         new_version = await self.is_dcs_update_available()
-        if new_version:
+        if new_version and self.can_update():
             await self.dcs_update(version=new_version)
         self.update_pending = False
 

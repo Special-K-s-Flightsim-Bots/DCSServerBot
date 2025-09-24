@@ -1,4 +1,5 @@
 import discord
+from charset_normalizer.api import explain_handler
 
 from core import (Plugin, PluginRequiredError, PluginInstallationError, Group, get_translation, utils, Server,
                   Coalition, Status)
@@ -30,7 +31,9 @@ class SRS(Plugin[SRSEventListener]):
         sides = utils.get_sides(interaction.client, interaction, server)
         if Coalition(coalition) not in sides:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("You are not allowed to see the {} players.").format(coalition))
+            await interaction.response.send_message(
+                _("You are not allowed to see the {} players.").format(coalition), ephemeral=True
+            )
             return
         embed = discord.Embed(color=discord.Color.blue())
         embed.title = _("{} Players on SRS").format(coalition.title())
@@ -47,10 +50,12 @@ class SRS(Plugin[SRSEventListener]):
             embed.add_field(name=_("Radios"), value=radios)
             embed.set_footer(text=_("Only the first 2 radios are displayed per user."))
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(
+                embed=embed, delete_after=self.bot.locals.get('message_autodelete')
+            )
         else:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("No {} players on SRS.").format(coalition))
+            await interaction.response.send_message(_("No {} players on SRS.").format(coalition), ephemeral=True)
 
     @srs.command(description=_('Update DCS-SRS'))
     @app_commands.guild_only()
@@ -115,7 +120,7 @@ class SRS(Plugin[SRSEventListener]):
         if 'SRS' not in await server.init_extensions():
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _("SRS not installed on server {}").format(server.display_name), ephemeral=ephemeral)
+                _("SRS not installed on server {}").format(server.display_name), ephemeral=True)
             return
         if server.status in [Status.STOPPED, Status.SHUTDOWN]:
             config = await self._configure(interaction, server, enabled, autoconnect)
@@ -126,7 +131,7 @@ class SRS(Plugin[SRSEventListener]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Server {} needs to be shut down to configure SRS.").format(server.display_name),
-                ephemeral=ephemeral)
+                ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):
