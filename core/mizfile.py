@@ -223,7 +223,7 @@ class MizFile:
     @property
     def date(self) -> datetime.date:
         value = self.mission['date']
-        return datetime.date(value['Year'], value['Month'], value['Day'])
+        return datetime.datetime(year=value['Year'], month=value['Month'], day=value['Day']).date()
 
     @date.setter
     def date(self, value: datetime.date) -> None:
