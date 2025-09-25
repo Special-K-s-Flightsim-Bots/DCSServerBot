@@ -437,11 +437,11 @@ class RestAPI(Plugin):
                         SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths", 
                         CASE WHEN SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) = 0 
                              THEN SUM(s.kills) 
-                             ELSE SUM(s.kills::DECIMAL) / SUM((s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground)::DECIMAL) 
+                             ELSE ROUND(SUM(s.kills::DECIMAL) / SUM((s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground)::DECIMAL), 2) 
                         END AS "kdr",
                         SUM(s.deaths_pvp) AS "deaths_pvp",
                         CASE WHEN SUM(s.deaths_pvp) = 0 
-                             THEN SUM(s.pvp) ELSE SUM(s.pvp::DECIMAL) / SUM(s.deaths_pvp::DECIMAL) 
+                             THEN SUM(s.pvp) ELSE ROUND(SUM(s.pvp::DECIMAL) / SUM(s.deaths_pvp::DECIMAL), 2) 
                         END AS "kdr_pvp",
                         ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS playtime,
                         MAX(COALESCE(c.points, 0)) AS "credits",
