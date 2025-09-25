@@ -668,6 +668,28 @@ class RestAPI(Plugin):
                     data['kdr'] = data['kills'] / data['deaths'] if data['deaths'] > 0 else data['kills']
                     data['kdr_pvp'] = data['kills_pvp'] / data['deaths_pvp'] if data['deaths_pvp'] > 0 else data['kills_pvp']
 
+                await cursor.execute("""
+                                     SELECT slot AS "module", SUM(kills) AS "kills"
+                                     FROM statistics
+                                     WHERE player_ucid = %s
+                                     GROUP BY 1
+                                     HAVING SUM(kills) > 1
+                                     ORDER BY 2 DESC
+                                     """, (ucid,))
+                data['killsByModule'] = await cursor.fetchall()
+                await cursor.execute("""
+                                     SELECT slot                                           AS "module",
+                                            CASE
+                                                WHEN SUM(deaths) = 0 THEN SUM(kills)
+                                                ELSE SUM(kills) / SUM(deaths::DECIMAL) END AS "kdr"
+                                     FROM statistics
+                                     WHERE player_ucid = %s
+                                     GROUP BY 1
+                                     HAVING SUM(kills) > 1
+                                     ORDER BY 2 DESC
+                                     """, (ucid,))
+                data['kdrByModule'] = await cursor.fetchall()
+
         return PlayerStats.model_validate(data)
 
     async def modulestats(self, nick: str = Form(...), date: Optional[str] = Form(None),
