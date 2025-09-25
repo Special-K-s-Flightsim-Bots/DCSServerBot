@@ -45,8 +45,9 @@ class HeaderWidget:
                 message += "Cluster Master | "
             else:
                 message += "Cluster Agent | "
-        message += (f"DCSServerBot Version {self.node.bot_version}.{self.node.sub_version} | "
-                    f"DCS Version {self.node.dcs_version}[/]")
+        message += f"DCSServerBot Version {self.node.bot_version}.{self.node.sub_version}"
+        if self.node.dcs_version:
+            message += f" | DCS Version {self.node.dcs_version}[/]"
         grid.add_row(message, datetime.now().ctime().replace(":", "[blink]:[/]"))
         return Panel(grid, style=config.get("background", "white on navy_blue"),
                      border_style=config.get("border", "white"))
