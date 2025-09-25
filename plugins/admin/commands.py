@@ -262,8 +262,8 @@ class Admin(Plugin[AdminEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def ban(self, interaction: discord.Interaction,
-                  user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                      sel_type=PlayerType.PLAYER)]]):
+                  user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                      sel_type=PlayerType.PLAYER)]):
 
         class BanModal(Modal):
             reason = TextInput(label=_("Reason"), max_length=80, required=True)
