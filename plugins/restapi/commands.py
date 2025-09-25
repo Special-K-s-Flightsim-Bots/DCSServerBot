@@ -665,8 +665,8 @@ class RestAPI(Plugin):
                 await cursor.execute(query, {"ucid": ucid, "server_name": server_name})
                 data = await cursor.fetchone()
                 if data:
-                    data['kdr'] = data['kills'] / data['deaths'] if data['deaths'] > 0 else data['kills']
-                    data['kdr_pvp'] = data['kills_pvp'] / data['deaths_pvp'] if data['deaths_pvp'] > 0 else data['kills_pvp']
+                    data['kdr'] = round(data['kills'] / data['deaths'] if data['deaths'] > 0 else data['kills'], 2)
+                    data['kdr_pvp'] = round(data['kills_pvp'] / data['deaths_pvp'] if data['deaths_pvp'] > 0 else data['kills_pvp'], 2)
 
                 await cursor.execute("""
                                      SELECT slot AS "module", SUM(kills) AS "kills"
@@ -681,7 +681,7 @@ class RestAPI(Plugin):
                                      SELECT slot                                           AS "module",
                                             CASE
                                                 WHEN SUM(deaths) = 0 THEN SUM(kills)
-                                                ELSE SUM(kills) / SUM(deaths::DECIMAL) END AS "kdr"
+                                                ELSE ROUND(SUM(kills) / SUM(deaths::DECIMAL), 2) END AS "kdr"
                                      FROM statistics
                                      WHERE player_ucid = %s
                                      GROUP BY 1
