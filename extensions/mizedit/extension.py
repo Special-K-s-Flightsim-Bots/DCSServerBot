@@ -8,7 +8,7 @@ from core import Extension, utils, Server, YAMLError, DEFAULT_TAG, MizFile, Serv
 from datetime import datetime
 from extensions.realweather import RealWeather
 from pathlib import Path
-from typing import Union, cast
+from typing import Union, cast, Optional
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -87,7 +87,8 @@ class MizEdit(Extension):
         return modifications
 
     @staticmethod
-    async def apply_presets(server: Server, filename: str, preset: Union[list, dict]):
+    async def apply_presets(server: Server, filename: str, preset: Union[list, dict],
+                            debug: Optional[bool] = False) -> None:
         if preset and isinstance(preset, list):
             rw_preset = next((p for p in preset if 'RealWeather'in p), None)
             if rw_preset:
@@ -116,6 +117,12 @@ class MizEdit(Extension):
                     logger.error("Your preset contained more than one RealWeather preset. Only the first one was run.")
 
         miz = await asyncio.to_thread(MizFile, filename)
+        if debug:
+            if isinstance(preset, list):
+                for p in preset:
+                    p.get('modify', {}).update(debug=True)
+            else:
+                preset.get('modify', {}).update(debug=True)
         await asyncio.to_thread(miz.apply_preset, preset)
         await asyncio.to_thread(miz.save, filename)
 
@@ -125,7 +132,8 @@ class MizEdit(Extension):
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         if 'filter' in self.config and not self._filter(filename):
             return filename, False
-        await self.apply_presets(self.server, filename, await self.get_presets(self.config))
+        await self.apply_presets(self.server, filename, await self.get_presets(self.config),
+                                 debug=self.config.get('debug', False))
         return filename, True
 
     def is_running(self) -> bool:
