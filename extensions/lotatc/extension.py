@@ -51,7 +51,7 @@ class LotAtc(Extension, FileSystemEventHandler):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'LotAtc')
         super().__init__(server, config)
         # check version incompatibility
-        if parse(self.version) >= parse('2.5.0') and sys.platform == 'win32':
+        if self.version and parse(self.version) >= parse('2.5.0') and sys.platform == 'win32':
             winver = platform.win32_ver()
             if winver[1] == '10.0.14393' and 'Server' in winver[3]:
                 raise InstallException("LotAtc 2.5+ does not run on Windows Server 2016 anymore!")

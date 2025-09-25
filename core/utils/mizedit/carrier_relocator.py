@@ -97,13 +97,13 @@ def rotate_group_around(group: DictWrapper, pivot: tuple[float, float], degrees_
 
 
 def relocate_carrier(_: dict, reference: dict, **kwargs):
-    # create a wrapper, to make it easier (and to mainly keep the old code)
+    # create a wrapper to make it easier (and to mainly keep the old code)
     group = DictWrapper(reference)
     route = group.route
 
     wind = kwargs.get('wind', {})
     carrier = group.units[0]
-    deck_angle = 0 if carrier.type == 'LHA_Tarawa' else -9.12
+    deck_angle = 0 if carrier.type in ['LHA_Tarawa', 'Essex', 'hms_invincible'] else -9.12
     cruise = get_carrier_cruise(wind, deck_angle, Speed.from_knots(25))
 
     radius = Distance.from_nautical_miles(kwargs.get('radius', 50))
