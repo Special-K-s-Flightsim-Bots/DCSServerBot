@@ -5,6 +5,9 @@ import re
 
 from aiohttp import ClientSession
 from contextlib import suppress
+
+from aiohttp.abc import HTTPException
+
 from core import Extension, Server, ServiceRegistry, Status, Coalition, utils, get_translation, Autoexec, InstanceImpl, \
     async_cache
 from datetime import datetime
@@ -241,7 +244,10 @@ class LogAnalyser(Extension):
         return data['tag_name'], datetime.fromisoformat(data['created_at'].replace("Z", "+00:00"))
 
     async def moose_check(self, idx: int, line: str, match: re.Match):
-        moose_version, moose_timestamp = await self.get_latest_moose_version()
+        try:
+            moose_version, moose_timestamp = await self.get_latest_moose_version()
+        except HTTPException:
+            return
         timestamp_str = match.group(1)
         # we need to use isoparse here
         timestamp = isoparse(timestamp_str)
@@ -273,7 +279,10 @@ class LogAnalyser(Extension):
         return data['tag_name']
 
     async def mist_check(self, idx: int, line: str, match: re.Match):
-        mist_version = await self.get_latest_mist_version()
+        try:
+            mist_version = await self.get_latest_mist_version()
+        except HTTPException:
+            return
         version = match.group(1)
         if parse(version) < parse(mist_version):
             mission_name = self.server.current_mission.name if self.server.current_mission else f"on server {self.server.name}"
