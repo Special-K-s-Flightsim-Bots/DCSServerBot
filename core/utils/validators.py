@@ -31,6 +31,9 @@ _types: dict[Type, str] = {
 __all__ = [
     "file_exists",
     "dir_exists",
+    "obsolete",
+    "unique_port",
+    "any_of",
     "seq_or_map",
     "bool_or_map",
     "str_or_map",
@@ -139,7 +142,7 @@ def obsolete(value, rule, path):
     logger.warning(f'"{os.path.basename(path)}" is obsolete and will be set by the bot: Path "{path}"')
     return True
 
-def unique_port(value, rule, path):
+def unique_port(value, _, path):
     try:
         value = int(value)
         if value < 1024 or value > 65535:

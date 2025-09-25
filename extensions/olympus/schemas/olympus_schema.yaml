@@ -30,7 +30,7 @@ schema;instance_olympus_schema:
       allowempty: true
       mapping:
         address: {type: str, nullable: false, range: {min: 1}}
-        port: {type: int, required: true, nullable: false, default: 4512, func: unique_port}
+        port: {type: int, required: true, nullable: false, func: unique_port}
     authentication:
       type: map
       nullable: false
@@ -47,7 +47,7 @@ schema;instance_olympus_schema:
       allowempty: true
       mapping:
         path: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
-        port: {type: int, required: true, nullable: false, default: 3000, func: unique_port}
+        port: {type: int, required: true, nullable: false, func: unique_port}
         customAuthHeaders:
           type: map
           nullable: false
@@ -87,5 +87,5 @@ schema;instance_olympus_schema:
       required: true
       mapping:
         SRSPort: {type: int, nullable: false, func: obsolete}
-        WSPort: {required: true, type: int, nullable: false, default: 4000, func: unique_port}
+        WSPort: {required: true, type: int, nullable: false, func: unique_port}
         WSEndpoint: {type: str, nullable: false, range: {min: 1}}

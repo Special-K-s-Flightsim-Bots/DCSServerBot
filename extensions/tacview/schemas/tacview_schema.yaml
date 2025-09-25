@@ -22,10 +22,10 @@ schema;instance_tacview_schema:
     tacviewMultiplayerFlightsAsClient: {type: int, nullable: false}
     tacviewMultiplayerFlightsAsHost: {type: int, nullable: false}
     tacviewRealTimeTelemetryEnabled: {type: bool,nullable: false}
-    tacviewRealTimeTelemetryPort: {type: int, nullable: false, default: 42674, func: unique_port}
+    tacviewRealTimeTelemetryPort: {type: int, nullable: false, func: unique_port}
     tacviewRealTimeTelemetryPassword: {type: str, nullable: false}
     tacviewRemoteControlEnabled: {type: bool, nullable: false}
-    tacviewRemoteControlPort: {type: int, nullable: false, default: 42675, func: unique_port}
+    tacviewRemoteControlPort: {type: int, nullable: false, func: unique_port}
     tacviewRemoteControlPassword: {type: str, nullable: false}
     tacviewSinglePlayerFlights: {type: int, nullable: false}
     tacviewTerrainExport: {type: int, nullable: false}
