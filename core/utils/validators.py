@@ -118,8 +118,13 @@ class NodeData:
 def get_node_data() -> NodeData:
     return NodeData()
 
-def file_exists(value, _, path):
+def _is_valid(path: str) -> bool:
     if path and path.split("/")[1] in [DEFAULT_TAG, COMMAND_LINE_ARGS.node, 'backups', 'commands']:
+        return True
+    return False
+
+def file_exists(value, _, path):
+    if _is_valid(path):
         filename = os.path.expandvars(value)
         # do not check files with replacements
         if '{' in filename:
@@ -129,7 +134,7 @@ def file_exists(value, _, path):
     return True
 
 def dir_exists(value, _, path):
-    if path and path.split("/")[1] in [DEFAULT_TAG, COMMAND_LINE_ARGS.node, 'backups', 'commands']:
+    if _is_valid(path):
         filename = os.path.expandvars(value)
         # do not check dirs with replacements
         if '{' in filename:
@@ -139,22 +144,24 @@ def dir_exists(value, _, path):
     return True
 
 def obsolete(value, rule, path):
-    logger.warning(f'"{os.path.basename(path)}" is obsolete and will be set by the bot: Path "{path}"')
+    if _is_valid(path):
+        logger.warning(f'"{os.path.basename(path)}" is obsolete and will be set by the bot: Path "{path}"')
     return True
 
 def unique_port(value, _, path):
-    try:
-        value = int(value)
-        if value < 1024 or value > 65535:
-            raise ValueError
-    except ValueError:
-        raise SchemaError(msg=f"{value} is not a valid port", path=path)
-    node = path.split("/")[1]
-    if node not in ports:
-        ports[node] = {}
-    if value in ports[node] and ports[node][value] != path:
-        raise SchemaError(msg=f"Port {value} is already in use in {ports[node][value]}", path=path)
-    ports[node][value] = path
+    if _is_valid(path):
+        try:
+            value = int(value)
+            if value < 1024 or value > 65535:
+                raise ValueError
+        except ValueError:
+            raise SchemaError(msg=f"{value} is not a valid port", path=path)
+        node = path.split("/")[1]
+        if node not in ports:
+            ports[node] = {}
+        if value in ports[node] and ports[node][value] != path:
+            raise SchemaError(msg=f"Port {value} is already in use in {ports[node][value]}", path=path)
+        ports[node][value] = path
     return True
 
 def _load_schema(include_name: str, path: str) -> str:

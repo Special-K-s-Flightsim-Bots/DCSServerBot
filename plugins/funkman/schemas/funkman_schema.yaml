@@ -11,11 +11,11 @@ schema;element_schema:
   func: is_element
   nullable: false
   mapping:
-    install: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
+    install: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
     CHANNELID_MAIN: {type: text, nullable: false}    # TODO: change this to int some day
     CHANNELID_RANGE: {type: text, nullable: false}   # s.s.
     CHANNELID_AIRBOSS: {type: text, nullable: false} # s.s.
-    IMAGEPATH: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
+    IMAGEPATH: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
     strafe_board: {type: bool, nullable: false}
     strafe_channel: {type: int, nullable: false}
     bomb_board: {type: bool, nullable: false}
