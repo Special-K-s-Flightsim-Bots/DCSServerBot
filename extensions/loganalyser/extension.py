@@ -16,13 +16,15 @@ from typing import Callable, cast
 
 _ = get_translation(__name__.split('.')[1])
 
-ERROR_UNLISTED = r"ERROR\s+ASYNCNET\s+\(Main\):\s+Server update failed with code -?\d+\.\s+The server will be unlisted."
-ERROR_SCRIPT = r'SCRIPTING.*\[string "(.*)"\]:(\d+): (.*)'
-MOOSE_COMMIT_LOG = r"\*\*\* MOOSE GITHUB Commit Hash ID: (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+\-]\d{2}:\d{2}))-[0-9A-Fa-f]+ \*\*\*"
-MIST_PATTERN = r'\bINFO\s+SCRIPTING\s+\(Main\):\s+Mist version\s+(?P<version>\d+(?:\.\d+)+)\s+loaded\.'
-NO_UPNP = r"\s+\(Main\):\s+No UPNP devices found."
-NO_TERRAIN = r"INFO\s+Dispatcher\s+\(Main\):\s+Terrain theatre\s*$"
-REGMAP_STORAGE_FULL = "RegMapStorage has no more IDs"
+ERROR_DETECTIONS = {
+    "script errors": r'SCRIPTING.*\[string "(.*)"\]:(\d+): (.*)',
+    "upnp": r"\s+\(Main\):\s+No UPNP devices found.",
+    "missing terrain": r"INFO\s+Dispatcher\s+\(Main\):\s+Terrain theatre\s*$",
+    "regmapstorage": r"RegMapStorage has no more IDs",
+    "unlisted": r"ERROR\s+ASYNCNET\s+\(Main\):\s+Server update failed with code -?\d+\.\s+The server will be unlisted.",
+    "moose version": r"\*\*\* MOOSE GITHUB Commit Hash ID: (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+\-]\d{2}:\d{2}))-[0-9A-Fa-f]+ \*\*\*",
+    "mist version": r'\bINFO\s+SCRIPTING\s+\(Main\):\s+Mist version\s+(?P<version>\d+(?:\.\d+)+)\s+loaded\.'
+}
 
 __all__ = [
     "LogAnalyser"
@@ -52,13 +54,22 @@ class LogAnalyser(Extension):
         self.stop_event.clear()
         self.stopped.clear()
         self.errors.clear()
-        #self.register_callback(ERROR_UNLISTED, self.unlisted)
-        self.register_callback(ERROR_SCRIPT, self.script_error)
-        self.register_callback(MOOSE_COMMIT_LOG, self.moose_check)
-        self.register_callback(MIST_PATTERN, self.mist_check)
-        self.register_callback(NO_UPNP, self.disable_upnp)
-        self.register_callback(NO_TERRAIN, self.terrain_missing)
-        #self.register_callback(REGMAP_STORAGE_FULL, self.restart_server)
+        disabled = self.config.get('disable_detections', ['unlisted', 'regmapstorage'])
+        detections = ERROR_DETECTIONS.keys() - set(disabled)
+        if 'unlisted' in detections:
+            self.register_callback(ERROR_DETECTIONS['unlisted'], self.unlisted)
+        if 'script errors' in detections:
+            self.register_callback(ERROR_DETECTIONS['script errors'], self.script_error)
+        if 'upnp' in detections:
+            self.register_callback(ERROR_DETECTIONS['upnp'], self.disable_upnp)
+        if 'terrain' in detections:
+            self.register_callback(ERROR_DETECTIONS['missing terrain'], self.terrain_missing)
+        if 'regmapstorage' in detections:
+            self.register_callback(ERROR_DETECTIONS['regmapstorage'], self.restart_server)
+        if 'moose version' in detections:
+            self.register_callback(ERROR_DETECTIONS['moose version'], self.moose_check)
+        if 'mist version' in detections:
+            self.register_callback(ERROR_DETECTIONS['mist version'], self.mist_check)
         asyncio.create_task(self.check_log())
 
     async def prepare(self) -> bool:
