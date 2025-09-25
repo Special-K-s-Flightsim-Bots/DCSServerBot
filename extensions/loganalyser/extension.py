@@ -3,11 +3,8 @@ import asyncio
 import os
 import re
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientResponseError
 from contextlib import suppress
-
-from aiohttp.abc import HTTPException
-
 from core import Extension, Server, ServiceRegistry, Status, Coalition, utils, get_translation, Autoexec, InstanceImpl, \
     async_cache
 from datetime import datetime
@@ -246,7 +243,7 @@ class LogAnalyser(Extension):
     async def moose_check(self, idx: int, line: str, match: re.Match):
         try:
             moose_version, moose_timestamp = await self.get_latest_moose_version()
-        except HTTPException:
+        except ClientResponseError:
             return
         timestamp_str = match.group(1)
         # we need to use isoparse here
@@ -281,7 +278,7 @@ class LogAnalyser(Extension):
     async def mist_check(self, idx: int, line: str, match: re.Match):
         try:
             mist_version = await self.get_latest_mist_version()
-        except HTTPException:
+        except ClientResponseError:
             return
         version = match.group(1)
         if parse(version) < parse(mist_version):
