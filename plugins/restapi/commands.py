@@ -437,13 +437,13 @@ class RestAPI(Plugin):
                         SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths", 
                         CASE WHEN SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) = 0 
                              THEN SUM(s.kills) 
-                             ELSE SUM(s.kills::DECIMAL) / SUM((s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground)::DECIMAL) 
+                             ELSE ROUND(SUM(s.kills::DECIMAL) / SUM((s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground)::DECIMAL), 2) 
                         END AS "kdr",
                         SUM(s.deaths_pvp) AS "deaths_pvp",
                         CASE WHEN SUM(s.deaths_pvp) = 0 
-                             THEN SUM(s.pvp) ELSE SUM(s.pvp::DECIMAL) / SUM(s.deaths_pvp::DECIMAL) 
+                             THEN SUM(s.pvp) ELSE ROUND(SUM(s.pvp::DECIMAL) / SUM(s.deaths_pvp::DECIMAL), 2) 
                         END AS "kdr_pvp",
-                        ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS playtime,
+                        ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::BIGINT AS playtime,
                         MAX(COALESCE(c.points, 0)) AS "credits",
                         COUNT(*) OVER() as total_count
                         FROM statistics s 
@@ -518,7 +518,7 @@ class RestAPI(Plugin):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 sql = """
                       SELECT p.name AS nick, DATE_TRUNC('second', p.last_seen) AS "date",
-                             ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS playtime
+                             ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::BIGINT AS playtime
                       FROM statistics s,
                            players p,
                            missions m
@@ -622,7 +622,7 @@ class RestAPI(Plugin):
         else:
             join = ""
         query = f"""
-            SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))), 0)::INTEGER AS playtime, 
+            SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))), 0)::BIGINT AS playtime, 
                    COALESCE(SUM(s.kills), 0) as "kills", 
                    COALESCE(SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground), 0) AS "deaths", 
                    COALESCE(SUM(s.pvp), 0) AS "kills_pvp", 
@@ -665,8 +665,30 @@ class RestAPI(Plugin):
                 await cursor.execute(query, {"ucid": ucid, "server_name": server_name})
                 data = await cursor.fetchone()
                 if data:
-                    data['kdr'] = data['kills'] / data['deaths'] if data['deaths'] > 0 else data['kills']
-                    data['kdr_pvp'] = data['kills_pvp'] / data['deaths_pvp'] if data['deaths_pvp'] > 0 else data['kills_pvp']
+                    data['kdr'] = round(data['kills'] / data['deaths'] if data['deaths'] > 0 else data['kills'], 2)
+                    data['kdr_pvp'] = round(data['kills_pvp'] / data['deaths_pvp'] if data['deaths_pvp'] > 0 else data['kills_pvp'], 2)
+
+                await cursor.execute("""
+                                     SELECT slot AS "module", SUM(kills) AS "kills"
+                                     FROM statistics
+                                     WHERE player_ucid = %s
+                                     GROUP BY 1
+                                     HAVING SUM(kills) > 1
+                                     ORDER BY 2 DESC
+                                     """, (ucid,))
+                data['killsByModule'] = await cursor.fetchall()
+                await cursor.execute("""
+                                     SELECT slot                                           AS "module",
+                                            CASE
+                                                WHEN SUM(deaths) = 0 THEN SUM(kills)
+                                                ELSE ROUND(SUM(kills) / SUM(deaths::DECIMAL), 2) END AS "kdr"
+                                     FROM statistics
+                                     WHERE player_ucid = %s
+                                     GROUP BY 1
+                                     HAVING SUM(kills) > 1
+                                     ORDER BY 2 DESC
+                                     """, (ucid,))
+                data['kdrByModule'] = await cursor.fetchall()
 
         return PlayerStats.model_validate(data)
 

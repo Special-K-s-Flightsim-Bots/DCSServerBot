@@ -5,6 +5,11 @@ schema;loganalyser_schema:
     enabled: {type: bool, nullable: false}
     restart_on_unlist: {type: bool, nullable: false}
     message_unlist: {type: str, nullable: false, range: {min: 1}}
+    disable_detections:
+      type: seq
+      nullable: false
+      sequence:
+        - {type: str, nullable: false, enum: ['script errors', 'upnp', 'missing terrain', 'regmapstorage', 'unlisted', 'moose version', 'mist version']}
     ignore_files:
       type: seq
       nullable: false

@@ -92,12 +92,11 @@ class Help(Plugin[HelpListener]):
             # noinspection PyUnresolvedReferences
             fqn = cmd.mention if isinstance(cmd, Command) else f"{prefix}{cmd.name}"
             help_embed = discord.Embed(color=discord.Color.blue())
-            # noinspection PyUnresolvedReferences
             help_embed.title = _("Command: {}").format(fqn)
             help_embed.description = cmd.description
             usage = get_usage(cmd)
-            # noinspection PyUnresolvedReferences
             help_embed.add_field(name=_('Usage'), value=f"{fqn} {usage}", inline=False)
+            help_embed.add_field(name=_('Plugin'), value=cmd.binding.__class__.__name__, inline=False)
             if usage:
                 help_embed.set_footer(text=_('<> mandatory, [] non-mandatory'))
             return help_embed

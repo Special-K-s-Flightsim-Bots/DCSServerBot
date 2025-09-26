@@ -303,7 +303,8 @@ class Plugin(commands.Cog, Generic[TEventListener]):
                         cmd.parent.add_command(cmd)
                     break
             else:
-                self.log.warning(f"{self.__cog_name__}: Command {name} not found!")
+                self.log.warning(
+                    f"Command/group \"/{name}\" not found in plugin \"{self.__cog_name__}\", can't overwrite it!")
 
     async def install(self) -> bool:
         if await self._init_db():

@@ -27,6 +27,7 @@ schema;mizedit_schema:
   nullable: false
   mapping:
     enabled: {type: bool, nullable: false}
+    debug: {type: bool, nullable: false}
     presets: {type: any, nullable: false, func: str_or_list}
     settings:
       type: any

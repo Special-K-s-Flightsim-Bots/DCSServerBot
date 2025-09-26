@@ -182,7 +182,7 @@ class Monitoring(Plugin[MonitoringListener]):
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(_server="server")
     async def serverload(self, interaction: discord.Interaction,
-                         _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
+                         _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None,
                          period: Optional[app_commands.Transform[
                              StatisticsFilter, PeriodTransformer(flt=[ServerLoadFilter])]] = ServerLoadFilter(),
                          ):

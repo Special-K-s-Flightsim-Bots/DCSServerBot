@@ -2063,6 +2063,8 @@ class Mission(Plugin[MissionEventListener]):
                         name = re.sub('［.*］', f'［{current}／{max_players}］', name)
                 if name != channel.name:
                     await channel.edit(name=name)
+            except discord.Forbidden:
+                pass
             except Exception as ex:
                 self.log.debug(f"Exception in update_channel_name() for server {server_name}", exc_info=True)
 

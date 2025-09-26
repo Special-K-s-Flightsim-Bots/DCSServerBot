@@ -26,7 +26,7 @@ schema;instance_lotatc_schema:
   mapping:
     enabled: {type: bool, nullable: false}
     host: {type: str, nullable: false, range: {min: 1}}
-    port: {type: int, nullable: false, default: 10310, func: unique_port}
+    port: {type: int, nullable: false, func: unique_port}
     show_passwords: {type: bool, nullable: false}
     autoupdate: {type: bool, nullable: false}
     dedicated_mode: {type: bool, nullable: false, func: obsolete}

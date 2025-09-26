@@ -317,6 +317,8 @@ class PlayerStats(BaseModel):
     teamkills: int = Field(..., description="Number of team kills")
     kdr: Decimal = Field(..., description="Kill/death ratio")
     kdr_pvp: Decimal = Field(..., description="PvP Kill/death ratio")
+    killsByModule: list[ModuleStats] = Field(default_factory=list, description="PvP-Kills breakdown by module")
+    kdrByModule: list[ModuleStats] = Field(default_factory=list, description="PvP-KDR breakdown by module")
 
     model_config = {
         "json_encoders": {

@@ -168,9 +168,10 @@ Again, you have multiple options on how you want your missions to be changed:
 a) Changes, based on the local server time
 ```yaml
         MizEdit:
+          debug: true                     # Optional: enable debug logging for "modify"
           presets: 
             - config/presets.yaml         # default
-            - config/presets_weather.yaml # own preset, will be merged with the default one
+            - config/presets_weather.yaml # own preset - will be merged with the default one
           settings:
             00:01-06:00: Spring, Morning, Rainy, Halo
             06:01-12:00: Summer, Morning, Slight Breeze, Halo

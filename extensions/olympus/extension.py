@@ -30,6 +30,7 @@ __all__ = [
 class Olympus(Extension):
     _server_ports: dict[int, str] = dict()
     _client_ports: dict[int, str] = dict()
+    _ws_ports: dict[int, str] = dict()
 
     CONFIG_DICT = {
         "backend_port": {
@@ -161,7 +162,8 @@ class Olympus(Extension):
             self.log.warning(
                 f"  => {self.server.name}: No write permission on olympus.json, skipping {self.name}.")
             return False
-        server_port = self.config.get(self.backend_tag, {}).get('port', 3001)
+        # Port checks
+        server_port = self.config.get(self.backend_tag, {}).get('port', 4512)
         if type(self)._server_ports.get(server_port, self.server.name) != self.server.name:
             self.log.error(f"  => {self.server.name}: {self.name} server.port {server_port} already in use by "
                            f"server {type(self)._server_ports[server_port]}!")
@@ -173,6 +175,12 @@ class Olympus(Extension):
                            f"server {type(self)._client_ports[client_port]}!")
             return False
         type(self)._client_ports[client_port] = self.server.name
+        ws_port = self.config.get('audio', {}).get('WSPort', 4000)
+        if type(self)._ws_ports.get(client_port, self.server.name) != self.server.name:
+            self.log.error(f"  => {self.server.name}: {self.name} audio.WSPort {ws_port} already in use by "
+                           f"server {type(self)._ws_ports[ws_port]}!")
+            return False
+        type(self)._ws_ports[ws_port] = self.server.name
 
         self.locals = self.load_config()
         default_address = '*' if self.version == '1.0.3.0' else 'localhost'

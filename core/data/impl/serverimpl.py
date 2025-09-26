@@ -951,6 +951,9 @@ class ServerImpl(Server):
         # check if we re-load the running mission
         if ((isinstance(mission, int) and mission == start_index) or
             (isinstance(mission, str) and mission == self._get_current_mission_file())):
+            # if we should not reload, then return here
+            if no_reload:
+                return None
             mission = self._get_current_mission_file()
             if not mission:
                 return False
@@ -988,8 +991,6 @@ class ServerImpl(Server):
             try:
                 idx = mission_list.index(filename) + 1
                 if idx == start_index:
-                    if no_reload:
-                        return None
                     rc = await self.send_to_dcs_sync({"command": "startMission", "filename": filename})
                 else:
                     rc = await self.send_to_dcs_sync({"command": "startMission", "id": idx})

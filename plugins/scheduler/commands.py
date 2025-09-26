@@ -255,6 +255,33 @@ class Scheduler(Plugin[SchedulerListener]):
                                  f"Check the status manually.")
             server.restart_pending = False
 
+    async def get_mission_from_list(self, server: Server, mission_file: Union[list, str]) -> int:
+        if isinstance(mission_file, list):
+            mission_file = random.choice(mission_file)
+        filename = utils.format_string(mission_file, instance=server.instance, server=server)
+        if not filename:
+            self.log.error(
+                "You need to provide either mission_id or mission_file to your load configuration!")
+            return 0
+        if not os.path.isabs(filename):
+            filename = os.path.join(await server.get_missions_dir(), filename)
+        for idx, mission in enumerate(await server.getMissionList()):
+            if '.dcssb' in mission:
+                secondary = mission
+                primary = os.path.join(os.path.dirname(mission).replace('.dcssb', ''),
+                                       os.path.basename(mission))
+            else:
+                primary = mission
+                secondary = os.path.join(os.path.dirname(mission), '.dcssb', os.path.basename(mission))
+            if os.path.normpath(filename).lower() in [
+                os.path.normpath(primary).lower(),
+                os.path.normpath(secondary).lower()
+            ]:
+                return idx + 1
+        else:
+            self.log.error(f"Mission {filename} not found in your serverSettings.lua!")
+            return 0
+
     async def restart_mission(self, server: Server, config: dict, rconf: dict, max_warn_time: int):
         # a restart is already pending, nothing more to do
         if server.restart_pending:
@@ -348,32 +375,8 @@ class Scheduler(Plugin[SchedulerListener]):
                 try:
                     mission_id = rconf.get('mission_id')
                     if not mission_id:
-                        mission_file = rconf.get('mission_file')
-                        if isinstance(mission_file, list):
-                            mission_file = random.choice(mission_file)
-                        filename = utils.format_string(mission_file, instance=server.instance, server=server)
-                        if not filename:
-                            self.log.error(
-                                "You need to provide either mission_id or mission_file to your load configuration!")
-                            return
-                        if not os.path.isabs(filename):
-                            filename = os.path.join(await server.get_missions_dir(), filename)
-                        for idx, mission in enumerate(await server.getMissionList()):
-                            if '.dcssb' in mission:
-                                secondary = mission
-                                primary = os.path.join(os.path.dirname(mission).replace('.dcssb', ''),
-                                                       os.path.basename(mission))
-                            else:
-                                primary = mission
-                                secondary = os.path.join(os.path.dirname(mission), '.dcssb', os.path.basename(mission))
-                            if os.path.normpath(filename).lower() in [
-                                os.path.normpath(primary).lower(),
-                                os.path.normpath(secondary).lower()
-                            ]:
-                                mission_id = idx + 1
-                                break
-                        else:
-                            self.log.error(f"Mission {filename} not found in your serverSettings.lua!")
+                        mission_id = await self.get_mission_from_list(server, rconf.get('mission_file'))
+                        if not mission_id:
                             return
                     elif isinstance(mission_id, list):
                         mission_id = random.choice(mission_id)
@@ -387,7 +390,7 @@ class Scheduler(Plugin[SchedulerListener]):
                     else:
                         rc =await server.loadMission(
                                 mission=mission_id, modify_mission=modify_mission, use_orig=use_orig,
-                                no_reload=rconf.get('no_restart', False)
+                                no_reload=rconf.get('no_reload', False)
                         )
                         if rc is False:
                             self.log.error(f"Mission {mission_id} not loaded on server {server.name}")
@@ -1074,7 +1077,7 @@ class Scheduler(Plugin[SchedulerListener]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message("Please try again in a minute.", ephemeral=True)
             return
-        restart_in, rconf = self.eventlistener.get_next_restart(server=_server, restart=config)
+        restart_in, rconf = await self.eventlistener.get_next_restart(server=_server, restart=config)
         what = rconf['method']
         if what == 'shutdown' or rconf.get('shutdown', False):
             item = f'Server {_server.name}'
