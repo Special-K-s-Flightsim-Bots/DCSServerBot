@@ -387,7 +387,7 @@ class Scheduler(Plugin[SchedulerListener]):
                     else:
                         rc =await server.loadMission(
                                 mission=mission_id, modify_mission=modify_mission, use_orig=use_orig,
-                                no_reload=rconf.get('no_restart', False)
+                                no_reload=rconf.get('no_reload', False)
                         )
                         if rc is False:
                             self.log.error(f"Mission {mission_id} not loaded on server {server.name}")
