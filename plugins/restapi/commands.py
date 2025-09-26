@@ -443,7 +443,7 @@ class RestAPI(Plugin):
                         CASE WHEN SUM(s.deaths_pvp) = 0 
                              THEN SUM(s.pvp) ELSE ROUND(SUM(s.pvp::DECIMAL) / SUM(s.deaths_pvp::DECIMAL), 2) 
                         END AS "kdr_pvp",
-                        ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS playtime,
+                        ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::BIGINT AS playtime,
                         MAX(COALESCE(c.points, 0)) AS "credits",
                         COUNT(*) OVER() as total_count
                         FROM statistics s 
@@ -518,7 +518,7 @@ class RestAPI(Plugin):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 sql = """
                       SELECT p.name AS nick, DATE_TRUNC('second', p.last_seen) AS "date",
-                             ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS playtime
+                             ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::BIGINT AS playtime
                       FROM statistics s,
                            players p,
                            missions m
@@ -622,7 +622,7 @@ class RestAPI(Plugin):
         else:
             join = ""
         query = f"""
-            SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))), 0)::INTEGER AS playtime, 
+            SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))), 0)::BIGINT AS playtime, 
                    COALESCE(SUM(s.kills), 0) as "kills", 
                    COALESCE(SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground), 0) AS "deaths", 
                    COALESCE(SUM(s.pvp), 0) AS "kills_pvp", 
