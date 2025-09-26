@@ -12,15 +12,23 @@ if TYPE_CHECKING:
 
 class SchedulerListener(EventListener["Scheduler"]):
 
-    def get_next_restart(self, server: Server, restart: Union[dict, list]) -> Optional[tuple[int, dict]]:
+    async def get_next_restart(self, server: Server, restart: Union[dict, list]) -> Optional[tuple[int, dict]]:
         if isinstance(restart, list):
             results: list[tuple[int, dict]] = []
             for r in restart:
-                result = self.get_next_restart(server, r)
+                result = await self.get_next_restart(server, r)
                 if result:
                     results.append(result)
             return min(results, key=lambda x: x[0]) if results else None
         else:
+            # check no_reload
+            if restart['method'] == 'load' and restart.get('no_reload', False):
+                mission_id = restart.get('mission_id')
+                if not mission_id:
+                    mission_id = await self.plugin.get_mission_from_list(server, restart.get('mission_file'))
+                if not mission_id or mission_id == server.settings.get('listStartIndex', 1):
+                    return None
+
             if server.is_populated():
                 mission_time = restart.get('max_mission_time', restart.get('mission_time'))
             else:
@@ -174,7 +182,7 @@ class SchedulerListener(EventListener["Scheduler"]):
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         if data['channel'].startswith('sync-'):
-            self.set_restart_time(server)
+            asyncio.create_task(self.set_restart_time(server))
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
@@ -182,7 +190,7 @@ class SchedulerListener(EventListener["Scheduler"]):
             return
         action = self.get_config(server).get('action')
         if action:
-            result = self.get_next_restart(server, action)
+            result = await self.get_next_restart(server, action)
             # do not print any chat message when the server is set to restart on populated = False
             if not result or not result[1].get('populated', True):
                 return
@@ -198,7 +206,7 @@ class SchedulerListener(EventListener["Scheduler"]):
 
     @event(name="onSimulationResume")
     async def onSimulationResume(self, server: Server, _: dict) -> None:
-        self.set_restart_time(server)
+        asyncio.create_task(self.set_restart_time(server))
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
@@ -230,9 +238,9 @@ class SchedulerListener(EventListener["Scheduler"]):
         # invalidate the config cache
         self.plugin.get_config(server, use_cache=False)
         server.restart_pending = False
-        self.set_restart_time(server)
         server.on_empty.clear()
         server.on_mission_end.clear()
+        asyncio.create_task(self.set_restart_time(server))
 
     @event(name="onMissionEnd")
     async def onMissionEnd(self, server: Server, data: dict) -> None:
@@ -262,20 +270,20 @@ class SchedulerListener(EventListener["Scheduler"]):
     async def restartServer(self, server: Server, _: dict) -> None:
         asyncio.create_task(self._restart_server(server))
 
-    def set_restart_time(self, server: Server) -> None:
+    async def set_restart_time(self, server: Server) -> None:
         config = self.get_config(server)
         if not config or not server.current_mission:
             return
         action = config.get('action')
         if not action:
             return
-        result = self.get_next_restart(server, action)
+        result = await self.get_next_restart(server, action)
         if result:
             server.restart_time = datetime.now(tz=timezone.utc) + timedelta(seconds=result[0])
 
     @event(name="getMissionUpdate")
     async def getMissionUpdate(self, server: Server, _: dict) -> None:
-        self.set_restart_time(server)
+        asyncio.create_task(self.set_restart_time(server))
 
     @event(name="onServerEmpty")
     async def onServerEmpty(self, server: Server, _: dict) -> None:
@@ -319,7 +327,7 @@ class SchedulerListener(EventListener["Scheduler"]):
         elif not server.restart_time:
             await player.sendChatMessage("Please try again in a minute.")
             return
-        restart_in, rconf = self.get_next_restart(server, action)
+        restart_in, rconf = await self.get_next_restart(server, action)
         message = f"The mission will restart in {utils.format_time(restart_in)}"
         if not rconf.get('populated', True) and not rconf.get('max_mission_time'):
             message += ", if all players have left"
