@@ -322,7 +322,7 @@ class ServerImpl(Server):
                 start_index = int(settings.get('listStartIndex', 1))
             except ValueError:
                 start_index = settings['listStartIndex'] = 1
-            if start_index <= len(settings['missionList']):
+            if settings['missionList'] and start_index <= len(settings['missionList']):
                 filename = settings['missionList'][start_index - 1]
             else:
                 filename = None
