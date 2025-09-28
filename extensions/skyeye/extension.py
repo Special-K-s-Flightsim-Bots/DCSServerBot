@@ -449,7 +449,7 @@ class SkyEye(Extension):
             coalition = '🔹' if cfg.get('coalition', 'blue') == 'blue' else '🔸'
             value += f"{coalition} {cfg.get('callsign', 'Focus')}: {cfg.get('srs-frequencies', '251.0AM,133.0AM,30.0FM')}\n"
         return {
-            "name": self.__class__.__name__,
+            "name": self.name,
             "version": self.version,
             "value": value
         }

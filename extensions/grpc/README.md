@@ -17,3 +17,11 @@ MyNode:
           enabled: true
           port: 50051     # you can set any configuration parameter here, that will be replaced in your dcs-grpc.lua file.
 ```
+
+> [!TIP]
+> You can rename the gRPC extension in your server status embed by setting a "name" in the configuration like so:
+> ```yaml
+> extension:
+>   gRPC:
+>     name: MyFancyName  # Optional: default is "DCS-gRPC"
+> ```

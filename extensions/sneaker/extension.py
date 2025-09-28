@@ -171,7 +171,7 @@ class Sneaker(Extension):
         else:
             value = 'enabled'
         return {
-            "name": "Sneaker",
+            "name": self.name,
             "version": self.version or 'n/a',
             "value": value
         }

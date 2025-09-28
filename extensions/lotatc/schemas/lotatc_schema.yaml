@@ -3,6 +3,7 @@ schema;node_lotatc_schema:
   nullable: false
   allowempty: true  # allow additional parameters
   mapping:
+    name: { type: str, nullable: false, range: { min: 1 } }
     installation: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
     autoupdate: {type: bool, nullable: false}
     announce:
@@ -25,6 +26,7 @@ schema;instance_lotatc_schema:
   allowempty: true  # allow additional parameters
   mapping:
     enabled: {type: bool, nullable: false}
+    name: {type: str, nullable: false, range: {min: 1}}
     host: {type: str, nullable: false, range: {min: 1}}
     port: {type: int, nullable: false, func: unique_port}
     show_passwords: {type: bool, nullable: false}

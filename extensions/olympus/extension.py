@@ -63,6 +63,9 @@ class Olympus(Extension):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'Olympus')
         self.nodejs = os.path.join(os.path.expandvars(config.get('nodejs', '%ProgramFiles%\\nodejs')), 'node.exe')
         super().__init__(server, config)
+        if not config.get('name'):
+            self._name = 'DCS Olympus'
+
         if self.enabled:
             # check if there is an olympus process running already
             self.process: Optional[psutil.Process] = next(utils.find_process(os.path.basename(self.nodejs),
@@ -76,10 +79,6 @@ class Olympus(Extension):
         else:
             self.backend_tag = 'backend'
             self.frontend_tag = 'frontend'
-
-    @property
-    def name(self) -> str:
-        return "DCS Olympus"
 
     @property
     def version(self) -> Optional[str]:
@@ -148,7 +147,7 @@ class Olympus(Extension):
                 ]
             ])
         return {
-            "name": self.__class__.__name__,
+            "name": self.name,
             "version": self.version,
             "value": value
         }

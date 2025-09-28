@@ -29,3 +29,11 @@ MyNode:
           host: "myfancyhost.com"   # Show a different hostname instead of your servers external IP
           port: 10310               # you can specify any parameter from LotAtc's config.lua in here to overwrite it
 ```
+
+> [!TIP]
+> You can rename the LotAtc extension in your server status embed by setting a "name" in the configuration like so:
+> ```yaml
+> extension:
+>   LotAtc:
+>     name: MyFancyName  # Optional: default is "LotAtc"
+> ```

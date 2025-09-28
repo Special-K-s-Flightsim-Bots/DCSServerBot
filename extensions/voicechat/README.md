@@ -12,3 +12,11 @@ MyNode:
         VoiceChat:
           enabled: true
 ```
+
+> [!TIP]
+> You can rename the VoiceChat extension in your server status embed by setting a "name" in the configuration like so:
+> ```yaml
+> extension:
+>   VoiceChat:
+>     name: MyFancyName  # Optional: default is "DCS Voice Chat"
+> ```

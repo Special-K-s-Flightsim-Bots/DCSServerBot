@@ -18,3 +18,11 @@ MyNode:
         Pretense:
           randomize: true # puts a randomize.lua in your Missions\Saves directory. See the Pretense documentation for more.
 ```
+
+> [!TIP]
+> You can rename the Pretense extension in your server status embed by setting a "name" in the configuration like so:
+> ```yaml
+> extension:
+>   Pretense:
+>     name: MyFancyName  # Optional: default is "Pretense"
+> ```

@@ -184,7 +184,7 @@ class LotAtc(Extension, FileSystemEventHandler):
         if show_passwords and (blue or red):
             value += f"\n🔹 Pass: {blue}\n🔸 Pass: {red}"
         return {
-            "name": "LotAtc",
+            "name": self.name,
             "version": self.version,
             "value": value
         }

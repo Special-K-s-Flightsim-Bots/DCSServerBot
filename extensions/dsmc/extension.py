@@ -105,7 +105,7 @@ class DSMC(Extension):
 
     async def render(self, param: Optional[dict] = None) -> dict:
         return {
-            "name": "DSMC",
+            "name": self.name,
             "version": self.version,
             "value": "enabled"
         }

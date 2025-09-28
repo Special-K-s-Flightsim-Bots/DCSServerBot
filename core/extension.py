@@ -43,6 +43,10 @@ class Extension(ABC):
         self.server: Server = server
         self.running = False
         self.locals: dict = {}
+        if self.config.get('name'):
+            self._name = self.config['name']
+        else:
+            self._name = self.__class__.__name__
         if not self.enabled or not self.is_installed():
             return
         self.locals = self.load_config()
@@ -83,7 +87,7 @@ class Extension(ABC):
 
     @property
     def name(self) -> str:
-        return type(self).__name__
+        return self._name
 
     @property
     def version(self) -> Optional[str]:

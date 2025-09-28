@@ -261,7 +261,7 @@ class RealWeather(Extension):
         else:
             value = 'enabled'
         return {
-            "name": "RealWeather",
+            "name": self.name,
             "version": self.version,
             "value": value
         }

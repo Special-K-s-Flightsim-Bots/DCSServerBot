@@ -35,3 +35,11 @@ If you plan to build Lardoon on your own, I'd recommend the fork of [Team LimaKi
 > [!IMPORTANT]
 > If you want to start multiple Lardoon processes, set use_single_process to false and make sure that you add a "bind"
 > parameter to each instance configuration.
+
+> [!TIP]
+> You can rename the Lardoon extension in your server status embed by setting a "name" in the configuration like so:
+> ```yaml
+> extension:
+>   Lardoon:
+>     name: MyFancyName  # Optional: default is "Lardoon"
+> ```

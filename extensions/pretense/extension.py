@@ -45,7 +45,7 @@ class Pretense(Extension):
 
     async def render(self, param: Optional[dict] = None) -> dict:
         return {
-            "name": self.__class__.__name__,
+            "name": self.name,
             "version": self.version,
             "value": "enabled"
         }

@@ -206,7 +206,6 @@ class Tacview(Extension):
         if not self.locals:
             raise NotImplementedError()
 
-        name = 'Tacview'
         if not self.locals.get('tacviewModuleEnabled', True):
             value = 'disabled'
         else:
@@ -226,7 +225,7 @@ class Tacview(Extension):
             if len(value) == 0:
                 value = 'enabled'
         return {
-            "name": name,
+            "name": self.name,
             "version": self.version,
             "value": value
         }

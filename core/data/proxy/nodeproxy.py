@@ -139,7 +139,7 @@ class NodeProxy(Node):
                 "what": what,
                 "module": module
             }
-        }, node=self.name, timeout=600)
+        }, node=self.name, timeout=3600)
 
     @cache_with_expiration(expiration=60)
     async def get_installed_modules(self) -> list[str]:

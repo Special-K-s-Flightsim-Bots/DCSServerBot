@@ -91,7 +91,7 @@ class ServerInfo(report.EmbedElement):
         else:
             footer = ''
         if server.node.dcs_version:
-            footer += f'DCS {server.node.dcs_version} | DCSServerBot {self.node.bot_version}.{self.node.sub_version} | '
+            footer += f'DCS {server.node.dcs_version} | DCSServerBot {self.node.bot_version}.{self.node.sub_version}'
         self.embed.set_footer(text=footer)
 
 
@@ -182,7 +182,7 @@ class ExtensionsInfo(report.EmbedElement):
         footer = self.embed.footer.text or ''
         for ext in extensions:
             self.add_field(name=ext['name'], value=ext['value'])
-        footer += " | ".join([f"{ext['name']} v{ext['version']}" for ext in extensions if ext.get('version')])
+        footer += "".join([f" | {ext['name']} v{ext['version']}" for ext in extensions if ext.get('version')])
         self.embed.set_footer(text=footer)
         # add a ruler at the bottom
         await report.Ruler(self.env).render()

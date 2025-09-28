@@ -31,3 +31,11 @@ MyNode:
 You need to let the sneaker cmd point to wherever you've installed the sneaker.exe binary (name might vary, usually 
 there is a version number attached to it). DCSServerBot will auto-create the config.json for sneaker 
 (config/sneaker.json) and start / stop / monitor the sneaker process.
+
+> [!TIP]
+> You can rename the Sneaker extension in your server status embed by setting a "name" in the configuration like so:
+> ```yaml
+> extension:
+>   Sneaker:
+>     name: MyFancyName  # Optional: default is "Sneaker"
+> ```

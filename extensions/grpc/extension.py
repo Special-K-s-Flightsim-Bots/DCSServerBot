@@ -26,10 +26,8 @@ class gRPC(Extension):
     def __init__(self, server: Server, config: dict):
         self.home = os.path.join(server.instance.home, 'Mods', 'tech', 'DCS-gRPC')
         super().__init__(server, config)
-
-    @property
-    def name(self):
-        return 'DCS-gRPC'
+        if not config.get('name'):
+            self._name = 'DCS-gRPC'
 
     @staticmethod
     def parse(value: str) -> Any:

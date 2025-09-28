@@ -167,7 +167,7 @@ class Lardoon(Extension):
         else:
             value = 'enabled'
         return {
-            "name": "Lardoon",
+            "name": self.name,
             "version": self.version,
             "value": value
         }

@@ -50,3 +50,11 @@ To delete old tacview files, check out the [Cleanup](../../services/cleanup/READ
 > 1 = accurate
 > 8 = balanced
 > 16 = fast
+
+> [!TIP]
+> You can rename the Tacview extension in your server status embed by setting a "name" in the configuration like so:
+> ```yaml
+> extension:
+>   Tacview:
+>     name: MyFancyName  # Optional: default is "Tacview"
+> ```
