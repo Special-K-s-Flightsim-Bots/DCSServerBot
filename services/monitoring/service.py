@@ -148,6 +148,9 @@ class MonitoringService(Service):
                 _, pid = win32process.GetWindowThreadProcessId(handle)
                 for server in [x for x in self.bus.servers.values() if not x.is_remote]:
                     if server.process and server.process.pid == pid:
+                        if server.maintenance:
+                            self.log.warning(f"Popup ignored on server {server.name} due to maintenance mode.")
+                            return
                         await server.shutdown(force=True)
                         await self.node.audit(f'Server killed due to a popup with title "{title}".',
                                               server=server)
@@ -190,12 +193,12 @@ class MonitoringService(Service):
             # don't test remote servers or servers that are not initialized or shutdown
             if server.is_remote or server.status in [Status.UNREGISTERED, Status.SHUTTING_DOWN, Status.SHUTDOWN]:
                 continue
-            # check if the process is dead (on load it might take some seconds for the process to appear)
+            # check if the process is dead (on loading it might take some seconds for the process to appear)
             if server.process and not await server.is_running():
-                # we do not need to warn, if the server was just launched manually
+                # we do not need to warn if the server was just launched manually
                 if server.maintenance and server.status == Status.LOADING:
                     return
-                # only escalate, if the server was not stopped (maybe the process was manually shut down)
+                # only escalate if the server was not stopped (maybe the process was manually shut down)
                 if server.status != Status.STOPPED:
                     logfile = os.path.join(server.instance.home, 'Logs', 'dcs.log')
                     if os.path.exists(logfile):
@@ -213,7 +216,7 @@ class MonitoringService(Service):
             # No, check if the process is still doing something
             try:
                 await server.keep_alive()
-                # check if server is alive
+                # check if the server is alive
                 if server.status == Status.LOADING:
                     max_hung = int(server.instance.locals.get('max_hung_minutes', 3)) * 2
                 else:
