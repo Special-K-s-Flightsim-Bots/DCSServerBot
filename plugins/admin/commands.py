@@ -983,7 +983,7 @@ Please make sure you forward the following ports:
 
         # uninstall mods
         mod_manager: ModManagerService = ServiceRegistry.get(ModManagerService)
-        if mod_manager.is_running():
+        if mod_manager.is_running() and instance.server:
             for folder, package, version in await get_installed_mods(mod_manager, server=instance.server):
                 await mod_manager.uninstall_package(instance.server, folder, package, version)
 
