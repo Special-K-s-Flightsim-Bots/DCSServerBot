@@ -32,20 +32,19 @@ autoupdate: true
 
 b) nodes.yaml
 ```yaml
-Node1:  # this is the name of your first node. will be different for you
+Node1:  # this is the name of your first node (will be different for you, usually the hostname is used)
   cloud_drive: true # this is the default, so no need to specify it in here, just for reference    
-  heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here (default = 30)
-  preferred_master: true  # if your database is installed on Node1, make it your preferred master node
+  heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here if your nodes are not on the same network (default = 30)
   database:
     url: postgres://dcsserverbot:SECRET@127.0.0.1:5432/dcsserverbot?sslmode=prefer  # if your database is installed on Node1
 # ... anything else like extensions, instances, ... for Node1
-Node2:  # this is the name of your second node. will be different for you
-  heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here (default = 30)
+Node2:  # this is the name of your second node (will be different for you, usually the hostname is used)
+  heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here if your nodes are not on the same network (default = 30)
   database:
     url: postgres://dcsserverbot:SECRET@xxx.xxx.xxx.xxx:5432/dcsserverbot?sslmode=prefer  # replace xxx.xxx.xxx.xxx with the IP of Node1
 # ... anything else like extensions, instances, ... for Node2
-Node3:  # this is the name of your third node. will be different for you
-  heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here (default = 30)
+Node3:  # this is the name of your third node (will be different for you, usually the hostname is used)
+  heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here if your nodes are not on the same network (default = 30)
   database:
     url: postgres://dcsserverbot:SECRET@xxx.xxx.xxx.xxx:5432/dcsserverbot?sslmode=prefer  # replace xxx.xxx.xxx.xxx with the IP of Node1
 # ... anything else like extensions, instances, ... for Node3
@@ -61,16 +60,44 @@ autoupdate: true
 
 b) nodes.yaml
 ```yaml
-Node1:  # this is the name of your first node. will be different for you
-  cloud_drive: false  # tell the bot that you are NOT installed on a cloud drive    
-# ... same as before
-Node2:  # this is the name of your second node. will be different for you
-  cloud_drive: false  # tell the bot that you are NOT installed on a cloud drive    
-# ... same as before
-Node3:  # this is the name of your third node. will be different for you
-  cloud_drive: false  # tell the bot that you are NOT installed on a cloud drive    
-# ... same as before
+Node1:  # this is the name of your first node (will be different for you, usually the hostname is used)
+  cloud_drive: false  # tell the bot that it is NOT installed on a cloud drive    
+# ... same as above
+Node2:  # this is the name of your second node (will be different for you, usually the hostname is used)
+  cloud_drive: false  # tell the bot that it is NOT installed on a cloud drive    
+# ... same as above
+Node3:  # this is the name of your third node (will be different for you, usually the hostname is used)
+  cloud_drive: false  # tell the bot that it is NOT installed on a cloud drive    
+# ... same as above
 ```
+
+## Master Handling
+The DCSServerBot cluster consists of one master node and multiple agent nodes. 
+The master holds some services that are only allowed to run once in your cluster, like the Discord bot.
+As this is usually linked to heavy database access, it is recommended to have the master node on the same server that
+holds the database.
+Installations which use a central database on a dedicated server or even a cloud database do not need to consider this.
+
+If you want to bind your master to a specific node, you set this node as `preferred_master: true`. 
+In this case and unless this node does not run, it will be the master node.
+
+In rare cases it might be that you do not want a node to become master at all.
+This might be true if you run a node on a remotely hosted server like with Fox3 (or any other hoster), you can't 
+sync the configuration, or any other reason that might prevent you from having this node as master.
+In this case you can configure `no_master: true` for this node.
+
+```yaml
+Node1:  # this is the name of your first node (will be different for you, usually the hostname is used)
+  preferred_master: true  # Optional: if your database is installed on Node1, make it your preferred master node
+# ... same as above
+Node2:  # this is the name of your second node (will be different for you, usually the hostname is used)
+# ... same as above
+Node3:  # this is the name of your third node (will be different for you, usually the hostname is used)
+  no_master: true   # Optional: This node will never become a master
+# ... same as above
+```
+> [!IMPORTANT]
+> If no node is available to take over the master, your cluster will not work.
 
 ## PostgreSQL Setup
 A standard PostgreSQL installation does not allow remote access to the database. To change it, follow [this guide](https://blog.devart.com/configure-postgresql-to-allow-remote-connection.html).

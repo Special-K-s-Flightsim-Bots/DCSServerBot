@@ -103,25 +103,13 @@ class NodeImpl(Node):
         self.update_pending = False
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = {}
-        self.locals = self.read_locals()
         self.db_version = None
         self.pool: Optional[ConnectionPool] = None
         self.apool: Optional[AsyncConnectionPool] = None
         self.cpool: Optional[AsyncConnectionPool] = None
         self._master = None
-        self.listen_address = self.locals.get('listen_address', '127.0.0.1')
-        if self.listen_address != '127.0.0.1':
-            self.log.warning(
-                'Please consider changing the listen_address in your nodes.yaml to 127.0.0.1 for security reasons!')
-        self.listen_port = self.locals.get('listen_port', 10042)
 
-    async def __aenter__(self):
-        if sys.platform == 'win32':
-            from os import system
-            system(f"title DCSServerBot v{self.bot_version}.{self.sub_version} - {self.node.name}")
-        self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
-
-        # check GIT and branch
+    def _check_branch_version(self):
         try:
             import git
 
@@ -138,10 +126,7 @@ class NodeImpl(Node):
         except ImportError:
             self.log.info('- ZIP installation detected.')
 
-        # check Python-version
-        self.log.info(f'- Python version {platform.python_version()} detected.')
-
-        # install plugins
+    async def _install_plugins(self):
         await asyncio.to_thread(self.install_plugins)
         self.plugins: list[str] = [x.lower() for x in self.config.get('plugins', DEFAULT_PLUGINS)]
         for plugin in [x.lower() for x in self.config.get('opt_plugins', [])]:
@@ -151,12 +136,9 @@ class NodeImpl(Node):
         if 'cloud' in self.plugins:
             self.plugins.remove('cloud')
             self.plugins.append('cloud')
-        return self
 
-    async def __aexit__(self, type, value, traceback):
-        await self.close_db()
-
-    async def post_init(self):
+    async def _post_init(self):
+        self.locals = self.read_locals()
         if 'DCS' in self.locals:
             await self.get_dcs_branch_and_version()
         await self.init_db()
@@ -172,6 +154,28 @@ class NodeImpl(Node):
             except Exception as ex:
                 self.log.exception(ex)
         await self.init_instances()
+
+    async def __aenter__(self):
+        if sys.platform == 'win32':
+            from os import system
+            system(f"title DCSServerBot v{self.bot_version}.{self.sub_version} - {self.node.name}")
+        self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
+
+        # check GIT and branch
+        self._check_branch_version()
+
+        # check Python-version
+        self.log.info(f'- Python version {platform.python_version()} detected.')
+
+        # install plugins
+        await self._install_plugins()
+
+        # Post-init processing
+        await self._post_init()
+        return self
+
+    async def __aexit__(self, type, value, traceback):
+        await self.close_db()
 
     @property
     def master(self) -> bool:
@@ -189,6 +193,14 @@ class NodeImpl(Node):
     @property
     def installation(self) -> str:
         return os.path.expandvars(self.locals['DCS']['installation'])
+
+    @property
+    def listen_address(self) -> str:
+        return self.locals.get('listen_address', '127.0.0.1')
+
+    @property
+    def listen_port(self) -> int:
+        return self.locals.get('listen_port', 10042)
 
     async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None,
                     server: Optional[Server] = None, **kwargs):
@@ -543,16 +555,20 @@ class NodeImpl(Node):
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         if not self.dcs_branch or not self.dcs_version:
-            async with aiofiles.open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
-                data = json.loads(await cfg.read())
-            self.dcs_branch = data.get('branch', 'release')
-            self.dcs_version = data['version']
-            if 'DEDICATED_SERVER' in await self.get_installed_modules():
-                self.log.error("You're using the OLD dedicated server, which is deprecated.\n"
-                               "Use /dcs update to update to the release branch.")
-            if "openbeta" in self.dcs_branch:
-                self.log.warning("You're running DCS OpenBeta, which is discontinued.\n"
-                                 "Use /dcs update if you want to switch to the release branch.")
+            try:
+                async with aiofiles.open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
+                    data = json.loads(await cfg.read())
+                self.dcs_branch = data.get('branch', 'release')
+                self.dcs_version = data['version']
+                if 'DEDICATED_SERVER' in await self.get_installed_modules():
+                    self.log.error("You're using the OLD dedicated server, which is deprecated.\n"
+                                   "Use /dcs update to update to the release branch.")
+                if "openbeta" in self.dcs_branch:
+                    self.log.warning("You're running DCS OpenBeta, which is discontinued.\n"
+                                     "Use /dcs update if you want to switch to the release branch.")
+            except FileNotFoundError:
+                self.log.critical(f"No DCS installation found at {self.installation}")
+                exit(SHUTDOWN)
         return self.dcs_branch, self.dcs_version
 
     async def update(self, warn_times: list[int], branch: Optional[str] = None, version: Optional[str] = None) -> int:
@@ -900,8 +916,13 @@ class NodeImpl(Node):
                             self.master = True
                             await self._upgrade(conn)
 
+                        # We don't want to be a master
+                        if self.locals.get('no_master', False):
+                            if not await is_node_alive(master, self.locals.get('heartbeat', 30)):
+                                raise FatalException(f"Master node {master} is not alive, exiting.")
+                            return False
                         # I am the master
-                        if master == self.name:
+                        elif master == self.name:
                             await check_nodes()
                             return True
                         # The master is not alive, take over

@@ -126,7 +126,6 @@ class Main:
         print("\n[red]DO NOT SHARE THESE SECRET KEYS![/]")
 
     async def run(self):
-        await self.node.post_init()
         # check for updates
         if self.no_autoupdate:
             autoupdate = False

@@ -3,7 +3,7 @@ local base      = _G
 local dcsbot    = base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
 local Censorship= base.require('censorship')
-local textutil = base.require('textutil')
+local textutil  = base.require('textutil')
 
 dcsbot.banList = dcsbot.banList or {}
 dcsbot.locked = dcsbot.locked or {}

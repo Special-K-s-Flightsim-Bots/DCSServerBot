@@ -346,6 +346,7 @@ NODENAME:                       # this will usually be your hostname
   slow_system: false            # Optional: if you are using a slower PC to run your servers, you should set this to true (default: false)
   use_upnp: true                # The bot will auto-detect if there is a UPnP IGD available and configure this setting initially for you! If you do NOT want to use UPnP, even IF it is available, put this to false.
   preferred_master: true        # cluster only: this node should be the preferred master node (default: false)
+  no_master: false              # cluster only: this node should never be a master node (default: false)
   heartbeat: 30                 # cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
   cloud_drive: false            # cluster only: set this to false if you do not have the bot installed on a cloud drive (default and recommended: true) 
   nodestats: true               # Enable/disable node statistics (database pool and event queue sizes), default: true
