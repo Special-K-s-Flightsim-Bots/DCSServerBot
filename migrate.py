@@ -140,6 +140,8 @@ def migrate(node: Node, old_version: str, new_version: str) -> int:
         return migrate_3_13(node)
     elif old_version == 'v3.14' and new_version == 'v3.15':
         return migrate_3_15(node)
+    elif old_version == 'v3.15' and new_version == 'v3.16':
+        return migrate_3_16(node)
     return 0
 
 def migrate_3_11(node: Node) -> int:
@@ -238,6 +240,32 @@ def migrate_3_15(node: Node) -> int:
                 extension['announce'] = extension.pop('autoupdate')
                 extension['autoupdate'] = True
                 dirty = True
+
+    if dirty:
+        with open(file, mode='w', encoding='utf-8') as outfile:
+            yaml.dump(nodes, outfile)
+        node.log.info("  => node.yaml auto-migrated, please check")
+        return -1
+    return 0
+
+
+def migrate_3_16(node: Node) -> int:
+    file = Path(os.path.join(node.config_dir, 'nodes.yaml'))
+    nodes = yaml.load(file.read_text(encoding='utf-8'))
+    dirty = False
+    for data in nodes.values():
+        cluster = {}
+        if 'cloud_drive' in data:
+            cluster['cloud_drive'] = data.pop('cloud_drive')
+        if 'preferred_master' in data:
+            cluster['preferred_master'] = data.pop('preferred_master')
+        if 'no_master' in data:
+            cluster['no_master'] = data.pop('no_master')
+        if 'heartbeat' in data:
+            cluster['heartbeat'] = data.pop('heartbeat')
+        if cluster:
+            data['cluster'] = cluster
+            dirty = True
 
     if dirty:
         with open(file, mode='w', encoding='utf-8') as outfile:

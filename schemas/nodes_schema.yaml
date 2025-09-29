@@ -10,11 +10,15 @@ mapping:
       use_upnp: {type: bool, nullable: false}
       autoupdate: {type: bool, nullable: false}
       slow_system: {type: bool, nullable: false}
-      preferred_master: {type: bool, nullable: false}
-      no_master: {type: bool, nullable: false}
-      heartbeat: {type: int, range: {min: 10}, nullable: false}
-      cloud_drive: {type: bool, nullable: false}
       nodestats: {type: bool, nullable: false}
+      cluster:
+        type: map
+        nullable: false
+        mapping:
+          preferred_master: {type: bool, nullable: false}
+          no_master: {type: bool, nullable: false}
+          heartbeat: {type: int, range: {min: 10}, nullable: false}
+          cloud_drive: {type: bool, nullable: false}
       database:
         type: map
         nullable: false

@@ -138,7 +138,7 @@ class Main:
             autoupdate = self.node.locals.get('autoupdate', self.node.config.get('autoupdate', False))
 
         if autoupdate:
-            cloud_drive = self.node.locals.get('cloud_drive', True)
+            cloud_drive = self.node.locals.get('cluster', {}).get('cloud_drive', True)
             if (cloud_drive and self.node.master) or not cloud_drive:
                 await self.node.upgrade()
                 if self.node.is_shutdown.is_set():

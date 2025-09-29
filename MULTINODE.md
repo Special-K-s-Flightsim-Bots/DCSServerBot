@@ -18,6 +18,17 @@ or outages.
 
 If you want to run your DCSServerBot over multiple locations, you need to prepare your setup:
 
+## Cluster Configuration
+DCSServerBot lets you configure your cluster with several parameters.
+```yaml
+MyNode:                     # This is the name of your first node (will be different for you, usually the hostname is used).
+  cluster:
+    cloud_drive: true       # Is your DCSServerBot installed on a cloud drive (Google Drive, OneDrive, etc.)? Default is true. 
+    heartbeat: 60           # Heartbeat between the nodes in a cluster. Default is 30, use larger values if your nodes are not in the same network.
+    preferred_master: true  # This node will always be the master. If your database is installed on a node, make it your preferred master node.
+    no_master: true         # This node will never become a master. You cannot specify preferred_master and no_master on the same node. 
+```
+
 ## Cloud-Drive Setup (default)
 You need to make sure that every node in your cluster is aware of the full configuration. The best way to achieve this
 is to have the bot or at least the bot's configuration installed on a cloud drive, like OneDrive or Google Drive. 
@@ -33,20 +44,23 @@ autoupdate: true
 b) nodes.yaml
 ```yaml
 Node1:  # this is the name of your first node (will be different for you, usually the hostname is used)
-  cloud_drive: true # this is the default, so no need to specify it in here, just for reference    
-  heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here if your nodes are not on the same network (default = 30)
   database:
     url: postgres://dcsserverbot:SECRET@127.0.0.1:5432/dcsserverbot?sslmode=prefer  # if your database is installed on Node1
+  cluster:
+    cloud_drive: true # this is the default, so no need to specify it in here, just for reference    
+    heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here if your nodes are not on the same network (default = 30)
 # ... anything else like extensions, instances, ... for Node1
 Node2:  # this is the name of your second node (will be different for you, usually the hostname is used)
-  heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here if your nodes are not on the same network (default = 30)
   database:
     url: postgres://dcsserverbot:SECRET@xxx.xxx.xxx.xxx:5432/dcsserverbot?sslmode=prefer  # replace xxx.xxx.xxx.xxx with the IP of Node1
+  cluster:
+    heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here if your nodes are not on the same network (default = 30)
 # ... anything else like extensions, instances, ... for Node2
 Node3:  # this is the name of your third node (will be different for you, usually the hostname is used)
-  heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here if your nodes are not on the same network (default = 30)
   database:
     url: postgres://dcsserverbot:SECRET@xxx.xxx.xxx.xxx:5432/dcsserverbot?sslmode=prefer  # replace xxx.xxx.xxx.xxx with the IP of Node1
+  cluster:
+    heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here if your nodes are not on the same network (default = 30)
 # ... anything else like extensions, instances, ... for Node3
 ```
 
@@ -61,13 +75,16 @@ autoupdate: true
 b) nodes.yaml
 ```yaml
 Node1:  # this is the name of your first node (will be different for you, usually the hostname is used)
-  cloud_drive: false  # tell the bot that it is NOT installed on a cloud drive    
+  cluster:
+    cloud_drive: false  # tell the bot that it is NOT installed on a cloud drive    
 # ... same as above
 Node2:  # this is the name of your second node (will be different for you, usually the hostname is used)
-  cloud_drive: false  # tell the bot that it is NOT installed on a cloud drive    
+  cluster:
+    cloud_drive: false  # tell the bot that it is NOT installed on a cloud drive    
 # ... same as above
 Node3:  # this is the name of your third node (will be different for you, usually the hostname is used)
-  cloud_drive: false  # tell the bot that it is NOT installed on a cloud drive    
+  cluster:
+    cloud_drive: false  # tell the bot that it is NOT installed on a cloud drive    
 # ... same as above
 ```
 
@@ -88,12 +105,14 @@ In this case you can configure `no_master: true` for this node.
 
 ```yaml
 Node1:  # this is the name of your first node (will be different for you, usually the hostname is used)
-  preferred_master: true  # Optional: if your database is installed on Node1, make it your preferred master node
+  cluster:
+    preferred_master: true  # Optional: if your database is installed on Node1, make it your preferred master node
 # ... same as above
 Node2:  # this is the name of your second node (will be different for you, usually the hostname is used)
 # ... same as above
 Node3:  # this is the name of your third node (will be different for you, usually the hostname is used)
-  no_master: true   # Optional: This node will never become a master
+  cluster:
+    no_master: true   # Optional: This node will never become a master
 # ... same as above
 ```
 > [!IMPORTANT]

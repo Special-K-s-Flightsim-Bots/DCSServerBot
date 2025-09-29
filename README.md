@@ -345,16 +345,17 @@ NODENAME:                       # this will usually be your hostname
   public_ip: 88.77.66.55        # Optional: Your public IP. ONLY if you have a static IP (!), put this in here to speed up the startup-process of the bot.
   slow_system: false            # Optional: if you are using a slower PC to run your servers, you should set this to true (default: false)
   use_upnp: true                # The bot will auto-detect if there is a UPnP IGD available and configure this setting initially for you! If you do NOT want to use UPnP, even IF it is available, put this to false.
-  preferred_master: true        # cluster only: this node should be the preferred master node (default: false)
-  no_master: false              # cluster only: this node should never be a master node (default: false)
-  heartbeat: 30                 # cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
-  cloud_drive: false            # cluster only: set this to false if you do not have the bot installed on a cloud drive (default and recommended: true) 
   nodestats: true               # Enable/disable node statistics (database pool and event queue sizes), default: true
   database:                     # Optional: It might be that you need to use different IPs to connect to the same database server. This is the place you could do that.
     url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME   # The bot will auto-move the database password from here to a secret place and replace it with SECRET.
     pool_min: 5                 # min size of the DB pool, default is 5
     pool_max: 10                # max size of the DB pool, default is 10
     max_reties: 10              # maximum number of retries to initially connect to the database on startups
+  cluster:                      # Cluster only: Your cluster configuration. See MULTINODE.md for reference.
+    preferred_master: true      # Cluster only: this node should be the preferred master node (default: false)
+    no_master: false            # Cluster only: this node should never be a master node (default: false)
+    heartbeat: 30               # Cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
+    cloud_drive: true           # Cluster only: set this to false if you do not have the bot installed on a cloud drive (default and recommended: true) 
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.

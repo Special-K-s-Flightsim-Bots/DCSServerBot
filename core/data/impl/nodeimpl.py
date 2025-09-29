@@ -529,7 +529,7 @@ class NodeImpl(Node):
 
     async def _upgrade(self, conn: psycopg.AsyncConnection):
         # We do not want to run an upgrade if we are on a cloud drive. Just restart in this case.
-        if not self.master and self.locals.get('cloud_drive', True):
+        if not self.master and self.locals.get('cluster', {}).get('cloud_drive', True):
             self.log.debug("Upgrade: restart agent after master upgrade.")
             await self.restart()
         elif await self.upgrade_pending():
@@ -895,6 +895,7 @@ class NodeImpl(Node):
             if self.node.is_shutdown.is_set():
                 return self.master
 
+            config = self.locals.get('cluster', {})
             async with self.cpool.connection() as conn:
                 async with conn.transaction():
                     try:
@@ -909,7 +910,7 @@ class NodeImpl(Node):
                                 self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
                                                  "Rolling back the cluser version to my version.")
                             await self._upgrade(conn)
-                        elif parse(version) < parse(__version__) and await is_node_alive(master, self.locals.get('heartbeat', 30)):
+                        elif parse(version) < parse(__version__) and await is_node_alive(master, config.get('heartbeat', 30)):
                             if master != self.name:
                                 raise FatalException(f"This node uses DCSServerBot version {__version__} "
                                                      f"where the master uses version {version}!")
@@ -917,8 +918,8 @@ class NodeImpl(Node):
                             await self._upgrade(conn)
 
                         # We don't want to be a master
-                        if self.locals.get('no_master', False):
-                            if not await is_node_alive(master, self.locals.get('heartbeat', 30)):
+                        if config.get('no_master', False):
+                            if not await is_node_alive(master, config.get('heartbeat', 30)):
                                 raise FatalException(f"Master node {master} is not alive, exiting.")
                             return False
                         # I am the master
@@ -926,11 +927,11 @@ class NodeImpl(Node):
                             await check_nodes()
                             return True
                         # The master is not alive, take over
-                        elif not master or not await is_node_alive(master, self.locals.get('heartbeat', 30)):
+                        elif not master or not await is_node_alive(master, config.get('heartbeat', 30)):
                             await take_over()
                             return True
                         # Master is alive, but we are the preferred one
-                        elif self.locals.get('preferred_master', False):
+                        elif config.get('preferred_master', False):
                             await take_over()
                             return True
                         # Someone else is the master
@@ -962,7 +963,7 @@ class NodeImpl(Node):
                 WHERE guild_id = %s
                 AND node <> %s
                 AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval {interval})
-            """).format(interval=sql.Literal(f"{self.locals.get('heartbeat', 30)} seconds"))
+            """).format(interval=sql.Literal(f"{self.locals.get('cluster', {}).get('heartbeat', 30)} seconds"))
             cursor = await conn.execute(query, (self.guild_id, self.name))
             return [row[0] async for row in cursor]
 
