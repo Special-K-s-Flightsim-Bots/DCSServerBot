@@ -201,11 +201,10 @@ class InfoView(View):
     async def render(self) -> discord.Embed:
         if not self._member or self._member.ucid:
             if isinstance(self.member, discord.Member):
-                if self._member.verified:
-                    button = Button(emoji="🔀")
-                    button.callback = self.on_unlink
-                    self.add_item(button)
-                else:
+                button = Button(emoji="🔀")
+                button.callback = self.on_unlink
+                self.add_item(button)
+                if not self._member.verified:
                     button = Button(emoji="💯")
                     button.callback = self.on_verify
                     self.add_item(button)

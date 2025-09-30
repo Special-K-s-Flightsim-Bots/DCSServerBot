@@ -291,7 +291,7 @@ end
 
 function mission.onPlayerTryChangeSlot(id, side, slot)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTryChangeSlot()')
-    local config = dcsbot.params['mission']
+    local config = (dcsbot.params and dcsbot.params.mission) or {}
     local slot_spamming = config['slot_spamming']
 
     -- check, if seat is locked
