@@ -386,6 +386,7 @@ _ _
                 'Password': server.settings.get('password'),
                 'Max Players': server.settings.get('maxPlayers', 16),
                 'DCS Port': server.instance.dcs_port,
+                'WebGUI Port': server.instance.webgui_port,
                 'Bot Port': server.instance.bot_port
             }
 
