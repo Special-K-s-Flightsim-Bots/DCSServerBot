@@ -668,6 +668,7 @@ class SettingsDict(dict):
         if not os.path.exists(self.path):
             return
         self.mtime = os.path.getmtime(self.path)
+        data = None
         if self.path.lower().endswith('.lua'):
             try:
                 data = luadata.read(self.path, encoding='utf-8')
@@ -675,7 +676,7 @@ class SettingsDict(dict):
                 self.log.debug(f"Exception while reading {self.path}:\n{ex}")
                 data = alternate_parse_settings(self.path)
                 if not data:
-                    self.log.error("- Error while parsing {}!".format(os.path.basename(self.path)))
+                    self.log.error("- Error while parsing {}:\n{}".format(os.path.basename(self.path), ex))
                     raise ex
         elif self.path.lower().endswith('.yaml'):
             with open(self.path, mode='r', encoding='utf-8') as file:

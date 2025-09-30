@@ -391,6 +391,8 @@ class NodeImpl(Node):
             except UniqueViolation:
                 self.log.error(f"Instance \"{_name}\" can't be added."
                                f"There is an instance already with the same server name or bot port.")
+            except Exception as ex:
+                self.log.error(f"Instance \"{_name}\" can't be added.")
 
     async def update_db(self):
         rc = 0
