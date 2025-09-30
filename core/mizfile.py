@@ -223,7 +223,7 @@ class MizFile:
     @property
     def date(self) -> datetime.date:
         value = self.mission['date']
-        return datetime.datetime(year=value['Year'], month=value['Month'], day=value['Day']).date()
+        return datetime(year=value['Year'], month=value['Month'], day=value['Day']).date()
 
     @date.setter
     def date(self, value: datetime.date) -> None:
@@ -520,6 +520,10 @@ class MizFile:
             hours, minutes = map(int, offset.split(":"))
             delta = timedelta(hours=hours, minutes=minutes)
             base_time += delta
+
+        for key, value in solar_events:
+            self.log.debug(f"solar_events[{key}] = '{value}'")
+        self.log.debug(f"'{value}' was parsed to '{base_time}'")
 
         return (base_time.hour * 3600) + (base_time.minute * 60)
 
