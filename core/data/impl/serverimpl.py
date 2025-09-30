@@ -153,7 +153,7 @@ class ServerImpl(Server):
             self._options.setdefault("graphics", {}).update({"visibRange": "High"})
             self._options.setdefault("plugins", {})
             self._options.setdefault("difficulty", {})
-            self._options.setdefault("miscellaneous", {})
+            self._options.setdefault("miscellaneous", {"autologin": True})
         return self._options
 
     def set_instance(self, instance: Instance):
