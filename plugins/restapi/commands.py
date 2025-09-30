@@ -1,3 +1,6 @@
+import asyncio
+import os
+
 import psycopg
 import random
 import re
@@ -34,12 +37,31 @@ class RestAPI(Plugin):
 
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
-        self.web_service = ServiceRegistry.get(WebService)
-        if not self.web_service.is_running():
-            raise PluginInstallationError(plugin=self.plugin_name, reason="WebService is not running")
+        if not os.path.exists(os.path.join(self.node.config_dir, 'services', 'webservice.yaml')):
+            raise PluginInstallationError(plugin=self.plugin_name, reason="WebService is not configured")
 
+        self.refresh_views.start()
+        self.web_service: Optional[WebService] = None
+        self.app: Optional[FastAPI] = None
+        asyncio.create_task(self.init_webservice())
+
+    async def init_webservice(self):
+        # give the webservice 10 seconds to launch on master switches
+        for i in range(0, 10):
+            self.web_service = ServiceRegistry.get(WebService)
+            if self.web_service and self.web_service.is_running():
+                break
+            await asyncio.sleep(1)
+        else:
+            self.log.error(f"  - {self.__cog_name__}: WebService is not running, aborted.")
+            return
+        self.log.debug(f"   - {self.__cog_name__}: WebService is running")
         self.app = self.web_service.app
         self.register_routes()
+
+    async def cog_unload(self) -> None:
+        self.refresh_views.cancel()
+        await super().cog_unload()
 
     def register_routes(self):
         prefix = self.locals.get(DEFAULT_TAG, {}).get('prefix', '')
@@ -218,14 +240,6 @@ class RestAPI(Plugin):
             tags = ["Info"]
         )
         self.app.include_router(router)
-
-    async def cog_load(self) -> None:
-        await super().cog_load()
-        self.refresh_views.start()
-
-    async def cog_unload(self) -> None:
-        self.refresh_views.cancel()
-        await super().cog_unload()
 
     def get_endpoint_config(self, endpoint: str):
         return self.get_config().get('endpoints', {}).get(endpoint, {})

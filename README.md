@@ -346,6 +346,7 @@ NODENAME:                       # this will usually be your hostname
   slow_system: false            # Optional: if you are using a slower PC to run your servers, you should set this to true (default: false)
   use_upnp: true                # The bot will auto-detect if there is a UPnP IGD available and configure this setting initially for you! If you do NOT want to use UPnP, even IF it is available, put this to false.
   nodestats: true               # Enable/disable node statistics (database pool and event queue sizes), default: true
+  restrict_commands: true       # Disable commands that can affect the integrity of the server. Default: false (see MULTINODE.md)
   database:                     # Optional: It might be that you need to use different IPs to connect to the same database server. This is the place you could do that.
     url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME   # The bot will auto-move the database password from here to a secret place and replace it with SECRET.
     pool_min: 5                 # min size of the DB pool, default is 5

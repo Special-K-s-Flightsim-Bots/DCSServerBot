@@ -1,8 +1,8 @@
-###############################################################
-# Configuration for the Admin plugin.                         #
-###############################################################
-# At the moment, this only holds the downloads configuration. #
-###############################################################
+##############################################################
+# Configuration for the Admin plugin.                        #
+##############################################################
+# At the moment, this only holds the download configuration. #
+##############################################################
 DEFAULT:  # The DEFAULT section is valid for all your servers
   downloads:
   # that's for your DCS logs. It should work for all your servers.
@@ -13,6 +13,7 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
   - label: DCSServerBot Logs
     directory: logs
     pattern: 'dcssb-*.log*'
+    restricted: true  # do not display if the node has restrict_commands enabled
   # This is for your missions. The bot knows where all your missions are, so nothing more to do here.
   - label: Missions
   # This is for DCS Trackfiles. Please keep in mind that these files can get really huge
@@ -35,6 +36,7 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
     discord:      # only Admin users can download these config files
       - Admin
     audit: true   # each download is audited
+    restricted: true  # do not display if the node has restrict_commands enabled
   # All configuration files of your plugins. You can upload changed configurations again to your admin channels.
   - label: Plugin Config Files
     directory: .\config\plugins
@@ -42,6 +44,7 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
     discord:      # only Admin users can download these config files
       - Admin
     audit: true   # each download is audited
+    restricted: true  # do not display if the node has restrict_commands enabled
   # The service configuration files of DCSSB. You can upload changed configurations again to your admin channels.
   # Be aware, the bot.yaml contains your Discord TOKEN in a readable format.
   - label: Service Config Files
@@ -50,7 +53,8 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
     discord:      # only Admin users can download these config files
       - Admin
     audit: true   # each download is audited
+    restricted: true  # do not display if the node has restrict_commands enabled
   uploads:        # The uploads section defines who is allowed to upload config files
-    enabled: true # If false, uploads are disabled in general
+    enabled: true # If false, uploads are disabled in general (always disabled on restricted nodes)
     discord:
       - Admin     # Only Admin users are allowed to upload

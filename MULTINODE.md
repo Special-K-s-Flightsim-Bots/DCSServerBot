@@ -175,6 +175,18 @@ that are named DCS.release_server on any of your nodes. This can be what you wan
 I would always recommend creating the node-specific version (ex: "Multi-Node-Config" above) to avoid confusion. That's 
 what the bot will create during a default installation also.
 
+## Running a node for another group
+To run a node where you want to run servers for another group, you can use the `restrict_commands` setting in your 
+nodes.yaml. This will disable commands that can affect the integrity of your PC, like `/node shell`. 
+This is recommended for nodes that are run by you, but Admin accesses are happening without your control.
+```yaml
+Node1:  # node where I have full control
+  # ...
+Node2:  # node where I do not have full control
+  restrict_commands: true 
+  # ...
+```
+
 ### Moving a Server from one Node / Instance to another
 Each server is loosely coupled to an instance on a node. You can migrate a server to another instance though, by using
 the `/server migrate` command. 

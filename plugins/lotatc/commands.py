@@ -68,6 +68,7 @@ class LotAtc(Plugin[LotAtcEventListener]):
 
     @lotatc.command(description=_('Update LotAtc'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_role('DCS Admin')
     async def update(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
@@ -125,6 +126,7 @@ class LotAtc(Plugin[LotAtcEventListener]):
 
     @lotatc.command(description=_('Configure LotAtc'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_role('DCS Admin')
     async def configure(self, interaction: discord.Interaction,
                         server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],

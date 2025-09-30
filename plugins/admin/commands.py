@@ -88,8 +88,11 @@ async def label_autocomplete(interaction: discord.Interaction, current: str) -> 
         config = interaction.client.cogs['Admin'].get_config(server)
         choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=x['label'], value=x['label']) for x in config['downloads']
-            if ((not current or current.casefold() in x['label'].casefold()) and
-                (not x.get('discord') or utils.check_roles(x['discord'], interaction.user)))
+            if (
+                    (not current or current.casefold() in x['label'].casefold()) and
+                    (not x.get('discord') or utils.check_roles(x['discord'], interaction.user)) and
+                    (not x.get('restricted', False) or not server.node.locals.get('restrict_commands', False))
+            )
         ]
         return choices[:25]
     except Exception as ex:
@@ -131,6 +134,14 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
             config = next(x for x in config['downloads'] if x['label'] == label)
         except StopIteration:
             return []
+
+        # check if we are allowed to display the list
+        if (
+                (config.get('discord') and not utils.check_roles(config['discord'], interaction.user)) or
+                (config.get('restricted', False) and server.node.locals.get('restrict_commands', False))
+        ):
+            return []
+
         base_dir = utils.format_string(config['directory'], server=server)
         exp_base, file_list = await server.node.list_directory(base_dir, pattern=config['pattern'], traverse=True)
         choices: list[app_commands.Choice[str]] = [
@@ -357,6 +368,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @dcs.command(description=_('Update your DCS installations'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(warn_time=_("Time in seconds to warn users before shutdown"))
     @app_commands.autocomplete(branch=get_dcs_branches)
@@ -435,6 +447,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @dcs.command(name='install', description=_('Install modules in your DCS server'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(module=available_modules_autocomplete)
     async def _install(self, interaction: discord.Interaction,
@@ -457,6 +470,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @dcs.command(name='uninstall', description=_('Uninstall modules from your DCS server'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(module=installed_modules_autocomplete)
     async def _uninstall(self, interaction: discord.Interaction,
@@ -504,7 +518,10 @@ class Admin(Plugin[AdminEventListener]):
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         config = next(x for x in self.get_config(server)['downloads'] if x['label'] == what)
         # double-check if that user can really download these files
-        if config.get('discord') and not utils.check_roles(config['discord'], interaction.user):
+        if (
+                (config.get('discord') and not utils.check_roles(config['discord'], interaction.user)) or
+                (config.get('restricted', False) and server.node.locals.get('restrict_commands', False))
+        ):
             raise app_commands.CheckFailure()
         if what == 'Missions':
             base_dir = await server.get_missions_dir()
@@ -757,6 +774,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @node_group.command(description=_('Shuts a specific node down'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_role('Admin')
     async def shutdown(self, interaction: discord.Interaction,
                        node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
@@ -767,6 +785,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @node_group.command(description=_('Restarts a specific node'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_role('Admin')
     async def restart(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
@@ -862,6 +881,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @node_group.command(description=_('Upgrade DCSServerBot'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_role('Admin')
     async def upgrade(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
@@ -887,6 +907,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @node_group.command(description=_('Run a shell command on a node'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_role('Admin')
     async def shell(self, interaction: discord.Interaction,
                     node: app_commands.Transform[Node, utils.NodeTransformer],
@@ -910,6 +931,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @node_group.command(description=_("Add/create an instance\n"))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(name=utils.InstanceTransformer(unused=True).autocomplete)
     @app_commands.describe(name=_("Either select an existing instance or enter the name of a new one"))
@@ -965,6 +987,7 @@ Please make sure you forward the following ports:
 
     @node_group.command(description=_("Delete an instance\n"))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_role('Admin')
     async def delete_instance(self, interaction: discord.Interaction,
                               node: app_commands.Transform[Node, utils.NodeTransformer],
@@ -1002,6 +1025,7 @@ Please make sure you forward the following ports:
 
     @node_group.command(description=_("Rename an instance\n"))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_role('Admin')
     async def rename_instance(self, interaction: discord.Interaction,
                               node: app_commands.Transform[Node, utils.NodeTransformer],
@@ -1044,6 +1068,7 @@ Please make sure you forward the following ports:
 
     @node_group.command(description=_("Shows CPU topology"))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @app_commands.check(lambda interaction: sys.platform == 'win32')
     @utils.app_has_role('Admin')
     async def cpuinfo(self, interaction: discord.Interaction,
@@ -1057,6 +1082,7 @@ Please make sure you forward the following ports:
 
     @plug.command(name='install', description=_("Install Plugin"))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @app_commands.autocomplete(plugin=installable_plugins)
     @utils.app_has_role('Admin')
     async def _install(self, interaction: discord.Interaction, plugin: str):
@@ -1074,6 +1100,7 @@ Please make sure you forward the following ports:
 
     @plug.command(name='uninstall', description=_("Uninstall Plugin"))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @app_commands.autocomplete(plugin=uninstallable_plugins)
     @utils.app_has_role('Admin')
     async def _uninstall(self, interaction: discord.Interaction, plugin: str):
@@ -1091,6 +1118,7 @@ Please make sure you forward the following ports:
 
     @plug.command(description=_('Reload Plugin'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(plugin=plugins_autocomplete)
     async def reload(self, interaction: discord.Interaction, plugin: Optional[str]):
@@ -1220,7 +1248,7 @@ Please make sure you forward the following ports:
         # read the default config if there is any
         config = self.get_config().get('uploads', {})
         # check if upload is enabled
-        if not config.get('enabled', True):
+        if not config.get('enabled', True) or self.node.locals.get('restricted'):
             return
         # check if the user has the correct role to upload, defaults to Admin
         if not utils.check_roles(config.get('discord', self.bot.roles['Admin']), message.author):

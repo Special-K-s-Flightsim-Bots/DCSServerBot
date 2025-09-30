@@ -974,6 +974,9 @@ class NodeImpl(Node):
             proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             return proc.communicate(timeout=timeout)
 
+        if self.locals.get('restrict_commands', False):
+            raise discord.app_commands.CheckFailure("Shell commands are restricted on this node!")
+
         self.log.debug('Running shell-command: ' + cmd)
         try:
             stdout, stderr = await asyncio.to_thread(run_subprocess)

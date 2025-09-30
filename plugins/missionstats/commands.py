@@ -253,7 +253,7 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
             return
 
         start = datetime.strptime(start, '%Y-%m-%d') if start else (datetime.now() - timedelta(days=30)).date()
-        end = datetime.strptime(end, '%Y-%m-%d') if end else datetime.now().date()
+        end = datetime.strptime(end, '%Y-%m-%d') if end else datetime.now()
 
         ephemeral = not utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
@@ -283,7 +283,7 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
                                             ephemeral=ephemeral)
             return
 
-        # Create in-memory binary stream
+        # Create an in-memory binary stream
         excel_binary = BytesIO()
 
         # Define the desired column order

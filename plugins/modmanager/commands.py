@@ -153,6 +153,7 @@ class ModManager(Plugin):
 
     @mods.command(description=_('manage mods'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_roles(['Admin'])
     async def manage(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
@@ -365,6 +366,7 @@ class ModManager(Plugin):
 
     @mods.command(name="install", description=_('Install mods'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_roles(['Admin'])
     @app_commands.autocomplete(mod=available_mods_autocomplete)
     @app_commands.autocomplete(version=available_versions_autocomplete)
@@ -415,6 +417,7 @@ class ModManager(Plugin):
 
     @mods.command(description=_('Uninstall mods'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_roles(['Admin'])
     @app_commands.autocomplete(mod=installed_mods_autocomplete)
     async def uninstall(self, interaction: discord.Interaction,
@@ -464,6 +467,7 @@ class ModManager(Plugin):
 
     @mods.command(description=_('Download a mod'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_roles(['Admin'])
     @app_commands.describe(url=_("GitHub repo link or download URL"))
     @app_commands.autocomplete(version=repo_version_autocomplete)

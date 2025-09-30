@@ -78,7 +78,7 @@ class DCSServerBot(commands.Bot):
         # we need to keep the order for our default plugins...
         for plugin in self.plugins:
             await self.load_plugin(plugin.lower())
-        # cleanup remote servers (if any)
+        # clean up remote servers (if any)
         for key in [key for key, value in self.bus.servers.items() if value.is_remote]:
             self.bus.servers.pop(key)
 
@@ -296,7 +296,7 @@ class DCSServerBot(commands.Bot):
             elif isinstance(error, discord.app_commands.TransformerError):
                 await send(error, ephemeral=True)
             elif isinstance(error, discord.app_commands.CommandInvokeError):
-                await send(error, ephemeral=True)
+                await send(repr(error), ephemeral=True)
                 self.log.exception(error)
             elif isinstance(error, discord.NotFound):
                 await send("Command not found. Did you try it too early?", ephemeral=True)

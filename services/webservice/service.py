@@ -1,16 +1,15 @@
 import asyncio
 import logging
 import os
-from pathlib import Path
-
 import uvicorn
+
+from core import Service, ServiceRegistry, NodeImpl, DEFAULT_TAG
 from fastapi import FastAPI
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
-from uvicorn import Config
-
-from core import Service, ServiceRegistry, NodeImpl, DEFAULT_TAG
+from pathlib import Path
 from services.servicebus import ServiceBus
+from uvicorn import Config
 
 # ruamel YAML support
 from ruamel.yaml import YAML

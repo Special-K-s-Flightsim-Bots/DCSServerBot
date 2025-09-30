@@ -932,6 +932,7 @@ class Scheduler(Plugin[SchedulerListener]):
 
     @group.command(description='Change the configuration of a DCS server')
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_role('DCS Admin')
     async def config(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer]):
@@ -992,6 +993,7 @@ class Scheduler(Plugin[SchedulerListener]):
 
     @group.command(name="migrate", description="Migrate a server from one instance to another")
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
     @utils.app_has_role('Admin')
     async def _migrate(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer],
