@@ -144,7 +144,7 @@ DCSServerBot supports a lot of them already which can add some quality of life.
 
 ---
 
-## 
+## Installation
 
 ### Prerequisites
 You need the following software to run DCSServerBot:
