@@ -48,8 +48,6 @@ class Install:
 
     @staticmethod
     def get_dcs_installation_linux() -> Optional[str]:
-        global _
-
         dcs_installation = None
         while dcs_installation is None:
             dcs_installation = Prompt.ask(prompt=_("Please enter the path to your DCS World installation"))
@@ -63,8 +61,6 @@ class Install:
 
     @staticmethod
     def get_dcs_installation_win32() -> Optional[str]:
-        global _
-
         print(_("Searching for DCS installations ..."))
         key = skey = None
         try:

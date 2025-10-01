@@ -1,14 +1,12 @@
-from datetime import datetime, timezone
-
 import discord
 import os
 
 from core import Plugin, get_translation, Group, Server, utils, Status, UninstallException, InstallException
+from datetime import datetime, timezone
 from discord import app_commands
 from extensions.tacview import Tacview as TacviewExt, TACVIEW_DEFAULT_DIR
 from io import BytesIO
 from services.bot import DCSServerBot
-from typing import Optional
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -61,7 +59,7 @@ class Tacview(Plugin):
     async def _configure(self, interaction: discord.Interaction, *,
                          server: Server,
                          enabled: bool = None,
-                         autoupdate: bool = None) -> Optional[dict]:
+                         autoupdate: bool = None) -> dict | None:
         config = server.instance.locals.get('extensions', {}).get('Tacview', {})
         modal = utils.ConfigModal(title=_("Tacview Configuration"),
                                   config=TacviewExt.CONFIG_DICT,
@@ -101,7 +99,7 @@ class Tacview(Plugin):
     @utils.app_has_role('DCS Admin')
     async def configure(self, interaction: discord.Interaction,
                         server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
-                        enabled: Optional[bool] = None, autoupdate: Optional[bool] = None):
+                        enabled: bool | None = None, autoupdate: bool | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
             # noinspection PyUnresolvedReferences
@@ -123,7 +121,7 @@ class Tacview(Plugin):
     @utils.app_has_role('DCS Admin')
     async def _install(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
-                       autoupdate: Optional[bool] = False):
+                       autoupdate: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
         config = await self._configure(interaction, server=server, enabled=True, autoupdate=autoupdate)
         msg = await interaction.followup.send(
@@ -187,28 +185,37 @@ class Tacview(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def record_start(self, interaction: discord.Interaction,
-                           server: app_commands.Transform[Server, utils.ServerTransformer],
-                           filename: str | None = "Tacview-{ts}-{mission}"):
+                           server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                           filename: str | None = "recording-Tacview-{ts}-{mission}"):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        utils.format_string(filename, ts=datetime.now().astimezone(tz=timezone.utc).strftime("%Y%m%d_%H%M%S"),
-                            mission=server.current_mission.name)
+        filename = utils.format_string(
+            filename,
+            ts=datetime.now().astimezone(tz=timezone.utc).strftime("%Y%m%d_%H%M%S"),
+            mission=utils.slugify(server.current_mission.name)
+        )
         if not filename.endswith(".acmi"):
             filename = filename + ".acmi"
-        await server.run_on_extension(extension='Tacview', method='start_recording', filename=filename)
-        await interaction.followup.send(_("Tacview recording started."))
+        try:
+            await server.run_on_extension(extension='Tacview', method='start_recording', filename=filename)
+            await interaction.followup.send(_("Tacview recording started."))
+        except Exception as ex:
+            await interaction.followup.send(str(ex))
 
     @tacview.command(name='record_stop', description=_('Stop realtime recording'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def record_stop(self, interaction: discord.Interaction,
-                          server: app_commands.Transform[Server, utils.ServerTransformer]):
+                          server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        filename = await server.run_on_extension(extension='Tacview', method='stop_recording')
-        await interaction.followup.send(_("Tacview recording stopped, file {} written.").format(filename))
+        try:
+            filename = await server.run_on_extension(extension='Tacview', method='stop_recording')
+            await interaction.followup.send(_("Tacview recording stopped, file {} written.").format(filename))
+        except Exception as ex:
+            await interaction.followup.send(str(ex))
 
 
 async def setup(bot: DCSServerBot):
