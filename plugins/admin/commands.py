@@ -7,7 +7,7 @@ import shutil
 import sys
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
-    PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, ServiceRegistry
+    PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, ServiceRegistry, NodeTransformer
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
@@ -211,7 +211,11 @@ async def get_dcs_branches(interaction: discord.Interaction, current: str) -> li
 async def get_dcs_versions(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    versions = await interaction.client.node.get_available_dcs_versions(utils.get_interaction_param(interaction, 'branch'))
+    branch = utils.get_interaction_param(interaction, 'branch')
+    if not branch:
+        node = await NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, 'node'))
+        branch, _ = await node.get_dcs_branch_and_version()
+    versions = await interaction.client.node.get_available_dcs_versions(branch)
     return [
         app_commands.Choice(name=x, value=x)
         for x in versions[::-1][:25]
