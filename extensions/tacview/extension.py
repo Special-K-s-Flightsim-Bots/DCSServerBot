@@ -359,7 +359,8 @@ class Tacview(Extension):
         filename = self.recorder.out_pattern
         await self.recorder.stop()
         self.recorder = None
-        asyncio.create_task(self.send_tacview_file(filename))
+        if self.config.get('target'):
+            asyncio.create_task(self.send_tacview_file(filename))
         return filename
 
     def get_inst_version(self) -> str | None:
