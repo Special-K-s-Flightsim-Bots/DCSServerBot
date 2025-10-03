@@ -14,12 +14,6 @@ import stat
 import subprocess
 import sys
 
-if sys.platform == 'win32':
-    import ctypes
-    import pywintypes
-    import win32api
-    import win32console
-
 from contextlib import closing, suppress
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -27,6 +21,15 @@ from typing import Optional, Union, TYPE_CHECKING, Generator
 
 if TYPE_CHECKING:
     from core import Node
+
+if sys.platform == 'win32':
+    import ctypes
+    import pywintypes
+    import win32api
+    import win32console
+    import winreg
+
+    from pywinauto.win32defines import SEE_MASK_NOCLOSEPROCESS, SW_HIDE
 
 API_URLS = [
     'https://api4.my-ip.io/ip',
@@ -57,7 +60,9 @@ __all__ = [
     "sanitize_filename",
     "is_upnp_available",
     "get_win32_error_message",
-    "CloudRotatingFileHandler"
+    "CloudRotatingFileHandler",
+    "run_elevated",
+    "is_uac_enabled"
 ]
 
 logger = logging.getLogger(__name__)
@@ -223,8 +228,11 @@ def terminate_process(process: Optional[psutil.Process]):
             process.wait(timeout=3)
 
 
-def quick_edit_mode(turn_on=None):
+def quick_edit_mode(turn_on=None) -> bool:
     """ Enable/Disable windows console Quick Edit Mode """
+    if sys.platform != 'win32':
+        return False
+
     screen_buffer = win32console.GetStdHandle(-10)
     orig_mode = screen_buffer.GetConsoleMode()
     is_on = (orig_mode & ENABLE_QUICK_EDIT_MODE)
@@ -300,8 +308,11 @@ def sanitize_filename(filename: str, base_directory: str) -> str:
     return resolved_path
 
 
-def get_win32_error_message(error_code: int):
+def get_win32_error_message(error_code: int) -> str:
     # Load the system message corresponding to the error code
+    if sys.platform != 'win32':
+        return ""
+
     buffer = ctypes.create_unicode_buffer(512)
     ctypes.windll.kernel32.FormatMessageW(
         0x00001000,  # FORMAT_MESSAGE_FROM_SYSTEM
@@ -345,3 +356,76 @@ class CloudRotatingFileHandler(RotatingFileHandler):
             if log_file_size >= self.maxBytes:
                 return 1
         return 0
+
+
+class SHELLEXECUTEINFO(ctypes.Structure):
+    _fields_ = [
+        ("cbSize",        ctypes.c_ulong),
+        ("fMask",         ctypes.c_ulong),
+        ("hwnd",          ctypes.c_void_p),
+        ("lpVerb",        ctypes.c_wchar_p),
+        ("lpFile",        ctypes.c_wchar_p),
+        ("lpParameters",  ctypes.c_wchar_p),
+        ("lpDirectory",   ctypes.c_wchar_p),
+        ("nShow",         ctypes.c_int),
+        ("hInstApp",      ctypes.c_void_p),
+        ("lpIDList",      ctypes.c_void_p),
+        ("lpClass",       ctypes.c_wchar_p),
+        ("hkeyClass",     ctypes.c_void_p),
+        ("dwHotKey",      ctypes.c_ulong),
+        ("hIcon",         ctypes.c_void_p),
+        ("hProcess",      ctypes.c_void_p),
+    ]
+
+
+def run_elevated(exe_path, cwd, *args):
+    """Start *exe_path* as Administrator and return the return code."""
+    if sys.platform != 'win32':
+        return -1
+
+    sei = SHELLEXECUTEINFO()
+    sei.cbSize = ctypes.sizeof(sei)
+    sei.fMask  = SEE_MASK_NOCLOSEPROCESS
+    sei.lpVerb = "runas"
+    sei.lpFile = os.path.abspath(exe_path)
+    sei.lpDirectory = os.path.abspath(cwd)
+    sei.lpParameters = ' '.join(map(str, args))
+    sei.nShow = SW_HIDE
+
+    # noinspection PyUnresolvedReferences
+    if not ctypes.windll.shell32.ShellExecuteExW(ctypes.byref(sei)):
+        raise ctypes.WinError()
+
+    hproc = sei.hProcess
+    # noinspection PyUnresolvedReferences
+    ctypes.windll.kernel32.WaitForSingleObject(hproc, ctypes.c_ulong(-1))
+
+    exit_code = ctypes.c_ulong()
+    # noinspection PyUnresolvedReferences
+    ctypes.windll.kernel32.GetExitCodeProcess(hproc, ctypes.byref(exit_code))
+
+    return int(exit_code.value)
+
+
+def is_uac_enabled() -> bool:
+    """Return True if UAC is enabled; False if it is disabled."""
+    if sys.platform != 'win32':
+        # non Win32 systems don't have a UAC, but need to tackle permissions differently
+        return False
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE,
+            r"Software\Microsoft\Windows\CurrentVersion\Policies\System",
+            0,
+            winreg.KEY_READ | winreg.KEY_WOW64_64KEY,
+        ) as key:
+            # check if UAC is enabled at all
+            lua_enabled, _ = winreg.QueryValueEx(key, 'EnableLUA')
+            if lua_enabled == 0:
+                return False
+            # now check if we get prompted (if not, treat UAC as disabled)
+            admin_behaviour, _ = winreg.QueryValueEx(key, "ConsentPromptBehaviorAdmin")
+            return admin_behaviour > 0          # > 0 => True, 0 = False
+    except (FileNotFoundError, PermissionError):
+        # if not found or permission is denied, fall back to a safe default.
+        return True

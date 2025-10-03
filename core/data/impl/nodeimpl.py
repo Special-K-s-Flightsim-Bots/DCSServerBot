@@ -167,6 +167,10 @@ class NodeImpl(Node):
         # check Python-version
         self.log.info(f'- Python version {platform.python_version()} detected.')
 
+        # check UAC
+        if utils.is_uac_enabled():
+            self.log.warning('- You need to disable User Access Control (UAC) to allow some commands to run.')
+
         # install plugins
         await self._install_plugins()
 
@@ -629,40 +633,115 @@ class NodeImpl(Node):
                 message = _('Server is going down for a DCS update in {}!')
         ):
             self.log.info(f"Updating {self.installation} ...")
-            # call before update hooks
+            # call before_update hooks
             for callback in self.before_update.values():
                 await callback()
-            old_branch, old_version = await self.get_dcs_branch_and_version()
-            if not branch:
-                branch = old_branch
-            if not version:
-                version = await self.get_latest_version(branch)
-            rc = await do_update(branch, version)
-            if rc in [0, 350]:
-                self.dcs_branch = self.dcs_version = None
-                dcs_branch, dcs_version = await self.get_dcs_branch_and_version()
-                # if only the updater updated itself, run the update again
-                if old_branch == dcs_branch and old_version == dcs_version:
-                    self.log.info("dcs_updater.exe updated to the latest version, now updating DCS World ...")
-                    rc = await do_update(branch, version)
+            try:
+                old_branch, old_version = await self.get_dcs_branch_and_version()
+                if not branch:
+                    branch = old_branch
+                if not version:
+                    version = await self.get_latest_version(branch)
+                rc = await do_update(branch, version)
+                if rc in [0, 350]:
                     self.dcs_branch = self.dcs_version = None
-                    await self.get_dcs_branch_and_version()
-                    if rc not in [0, 350]:
-                        return rc
-                # Patch DCS files
-                if not self.locals['DCS'].get('cloud', False) or self.master:
-                    if self.locals['DCS'].get('desanitize', True):
-                        utils.desanitize(self)
-                    # init profanity filter, if needed
-                    if any(
-                            instance.server.locals.get('profanity_filter', False)
-                            for instance in self.instances if instance.server
-                    ):
-                        utils.init_profanity_filter(self)
-                # call after update hooks
+                    dcs_branch, dcs_version = await self.get_dcs_branch_and_version()
+                    # if only the updater updated itself, run the update again
+                    if old_branch == dcs_branch and old_version == dcs_version:
+                        self.log.info("dcs_updater.exe updated to the latest version, now updating DCS World ...")
+                        rc = await do_update(branch, version)
+                        self.dcs_branch = self.dcs_version = None
+                        await self.get_dcs_branch_and_version()
+                        if rc not in [0, 350]:
+                            return rc
+                    # Patch DCS files
+                    if not self.locals['DCS'].get('cloud', False) or self.master:
+                        if self.locals['DCS'].get('desanitize', True):
+                            utils.desanitize(self)
+                        # init profanity filter, if needed
+                        if any(
+                                instance.server.locals.get('profanity_filter', False)
+                                for instance in self.instances if instance.server
+                        ):
+                            utils.init_profanity_filter(self)
+                    self.log.info(f"{self.installation} updated to version {dcs_version}.")
+                return rc
+            finally:
+                # call after_update hooks
                 for callback in self.after_update.values():
                     await callback()
-                self.log.info(f"{self.installation} updated to version {dcs_version}.")
+                self.update_pending = False
+
+    async def dcs_repair(self, warn_times: list[int] = None, slow: bool | None = False,
+                         check_extra_files: bool | None = False):
+
+        async def do_repair() -> int:
+            def run_subprocess() -> int:
+                if sys.platform != 'win32':
+                    raise NotImplementedError("DCS repair is not yet supported on Linux")
+
+                if utils.is_uac_enabled():
+                    raise PermissionError("You need to disable UAC to run a DCS repair.")
+
+                args = [
+                    "core/utils/updater_wrapper.py",
+                    "-d", os.path.normpath(self.installation),
+                ]
+                if slow:
+                    args.append("-s")
+                if check_extra_files:
+                    args.append("-c")
+                cmdline = subprocess.list2cmdline(args)
+                return utils.run_elevated(
+                    sys.executable,
+                    os.getcwd(),
+                    cmdline
+                )
+
+            # check if there is an update / repair running already
+            proc = next(utils.find_process("DCS_updater.exe"), None)
+            if proc:
+                self.log.info("- DCS Update / repair in progress, waiting ...")
+                while proc.is_running():
+                    await asyncio.sleep(1)
+
+            return await asyncio.to_thread(run_subprocess)
+
+        self.update_pending = True
+        async with ServerMaintenanceManager(
+                self.node,
+                warn_times = warn_times,
+                message = _('Server is going down for maintenance in {}!')
+        ):
+            self.log.info(f"Repairing {self.installation} ...")
+            # call before_update hooks
+            for callback in self.before_update.values():
+                await callback()
+            try:
+                rc = await do_repair()
+                if rc == 0:
+                    # Patch DCS files
+                    if not self.locals['DCS'].get('cloud', False) or self.master:
+                        if self.locals['DCS'].get('desanitize', True):
+                            utils.desanitize(self)
+                        # init profanity filter, if needed
+                        if any(
+                                instance.server.locals.get('profanity_filter', False)
+                                for instance in self.instances if instance.server
+                        ):
+                            utils.init_profanity_filter(self)
+                    self.log.info(f"{self.installation} repaired.")
+                else:
+                    self.log.error(f"Repair of {self.installation} failed with code {rc}.")
+            except PermissionError:
+                raise
+            except OSError as ex:
+                self.log.error(f"Repair of {self.installation} failed with code {ex.errno}.")
+                return ex.errno
+            finally:
+                # call after_update hooks
+                for callback in self.after_update.values():
+                    await callback()
                 self.update_pending = False
             return rc
 

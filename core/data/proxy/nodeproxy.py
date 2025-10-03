@@ -120,6 +120,20 @@ class NodeProxy(Node):
         }, node=self.name, timeout=600)
         return data['return']
 
+    async def dcs_repair(self, warn_times: list[int] = None, slow: bool | None = False,
+                         check_extra_files: bool | None = False):
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "repair",
+            "params": {
+                "warn_times": warn_times,
+                "slow": slow,
+                "check_extra_files": check_extra_files
+            }
+        }, node=self.name, timeout=600)
+        return data['return']
+
     @cache_with_expiration(expiration=30)
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         timeout = 60 if not self.slow_system else 120

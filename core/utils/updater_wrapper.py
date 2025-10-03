@@ -1,0 +1,117 @@
+import argparse
+import logging
+import os
+import psutil
+import sys
+import time
+
+from pywinauto import Application, findwindows, Desktop
+
+logger = logging.getLogger(__name__)
+
+
+def _find_window(process: psutil.Process):
+    for i in range(0, 30):
+        windows = findwindows.find_elements(title_re="DCS Updater *", top_level_only=False)
+        window = next((window for window in windows if len(window.children()) > 6), None)
+        if window:
+            return window
+        elif len(windows) >= 1 and any(window.children()[0].name == 'OK' for window in windows):
+            window = next(window for window in windows if window.children()[0].name == 'OK')
+            return window
+        elif not process.is_running():
+            sys.exit(2)
+        time.sleep(1)
+    else:
+        raise TimeoutError()
+
+
+def do_update(installation: str, slow: bool | None = False, check_extra_files: bool | None = False):
+    try:
+        cmd = os.path.join(installation, 'bin', 'dcs_updater.exe')
+        app = Application(backend="win32").start(f'"{cmd}" repair')
+        pid = app.process
+        process = psutil.Process(pid)
+
+        window = _find_window(process)
+
+        dlg = app.window(handle=window.handle)
+        dlg.wait('ready', timeout=15)
+
+        def uia_wrapper_from_handle(handle):
+            """Return a UIA WindowSpecification for the given HWND."""
+            return Desktop(backend='uia').window(handle=handle)
+
+        radio_slow = radio_default = chk_search = repair_btn = ok_btn = None
+        for child in dlg.children():
+            uia_child = uia_wrapper_from_handle(child.handle)
+            if uia_child.element_info.automation_id == '1025':
+                radio_default = uia_wrapper_from_handle(child.handle)
+            elif uia_child.element_info.automation_id == '1026':
+                radio_slow = uia_wrapper_from_handle(child.handle)
+            elif uia_child.element_info.automation_id == '1010':
+                chk_search = uia_wrapper_from_handle(child.handle)
+            elif uia_child.element_info.automation_id == '1':
+                repair_btn = uia_wrapper_from_handle(child.handle)
+            elif uia_child.element_info.name == 'OK':
+                ok_btn = uia_wrapper_from_handle(child.handle)
+
+        dlg.set_focus()
+        # if the process was canceled with an error, we see an OK button
+        if ok_btn:
+            # close the repair option
+            ok_btn.invoke()
+        # else, tick the correct switches and run the repair
+        else:
+            if slow:
+                radio_slow.select()
+            else:
+                radio_default.select()
+
+            if check_extra_files:
+                chk_search.select()
+
+            # run the repair
+            repair_btn.invoke()
+
+            # close the OK message
+            window = _find_window(process)
+            dlg = app.window(handle=window.handle)
+            dlg.wait('ready', timeout=15)
+            ok_btn = uia_wrapper_from_handle(dlg.children()[0].handle)
+            ok_btn.invoke()
+
+        p = psutil.Process(app.process)
+        return p.wait()
+    except Exception as ex:
+        logger.exception(ex)
+        return -1
+
+
+def close_autoupdate_templog():
+    try:
+        app = Application(backend="uia").connect(
+            title_re=r".*autoupdate_templog\.txt.*", timeout=10
+        )
+        dlg = app.window(title_re=r".*autoupdate_templog\.txt.*")
+        dlg.close()
+        return True
+    except Exception as e:
+        print("Could not find or close editor:", e)
+        return False
+
+
+if __name__ == '__main__':
+    ap = argparse.ArgumentParser(description="DCS Updater wrapper for unattended updates")
+    ap.add_argument("-d", "--dcs_home", default=r"C:\Program Files\DCS World", help="DCS home directory")
+    ap.add_argument("-s", "--slow", action='store_true', default=False, help="Run a slow repair")
+    ap.add_argument("-c", "--check_extra_files", action='store_true', default=False, help="Check for extra files")
+    args = ap.parse_args()
+    try:
+        rc = do_update(args.dcs_home, args.slow, args.check_extra_files)
+        if rc == 1:
+            close_autoupdate_templog()
+        sys.exit(rc)
+    except Exception as ex:
+        logger.exception(ex)
+        input()

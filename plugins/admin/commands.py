@@ -431,23 +431,70 @@ class Admin(Plugin[AdminEventListener]):
                 await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
                                      user=interaction.user)
             elif rc == 2:
-                await interaction.followup.send(
-                    content=_("DCS World update on node {name} was aborted (check disk space)!").format(
-                        name=node.name), ephemeral=True)
+                await msg.edit(
+                    content=_("DCS World update on node {name} was aborted (check disk space)!").format(name=node.name)
+                )
             elif rc in [3, 350]:
                 branch, new_version = await node.get_dcs_branch_and_version()
-                await interaction.followup.send(
+                await msg.edit(
                     content=_("DCS World updated to version {version}@{branch} on node {name}.\n"
                               "The updater has requested a **reboot** of the system!").format(
-                    version=new_version, branch=branch, name=node.name), ephemeral=ephemeral)
+                    version=new_version, branch=branch, name=node.name)
+                )
             else:
-                await interaction.followup.send(
+                await msg.edit(
                     content=_("Error while updating DCS on node {name}, code={rc}, message={message}").format(
-                        name=node.name, rc=rc, message=utils.get_win32_error_message(rc)), ephemeral=True)
+                        name=node.name, rc=rc, message=utils.get_win32_error_message(rc)))
         except (TimeoutError, asyncio.TimeoutError):
             await interaction.followup.send(
                 content=_("The update takes longer than 10 minutes, please check back regularly, if it has finished."),
                 ephemeral=True)
+
+    @dcs.command(description=_('Repair your DCS installations'))
+    @app_commands.guild_only()
+    @app_commands.check(utils.restricted)
+    @utils.app_has_role('DCS Admin')
+    @app_commands.describe(warn_time=_("Time in seconds to warn users before shutdown"))
+    async def repair(self, interaction: discord.Interaction,
+                     node: app_commands.Transform[Node, utils.NodeTransformer],
+                     warn_time: app_commands.Range[int, 0] = 60):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(thinking=True, ephemeral=ephemeral)
+        await self.bot.audit(f"started a repair of DCS World on node {node.name}.", user=interaction.user)
+        msg = await interaction.followup.send(_("Repairing DCS World, please wait ..."), ephemeral=ephemeral)
+        try:
+            rc = await node.dcs_repair(warn_times=[warn_time] or [120, 60])
+            if rc == 0:
+                await msg.edit(content=_("DCS World repaired on node {}.").format(node.name))
+                await self.bot.audit(f"repaired DCS World on node {node.name}.", user=interaction.user)
+            elif rc == 1:
+                branch, version = await node.get_dcs_branch_and_version()
+                tempfolder = f"DCS.{branch.replace('.', '')}"
+                path = f"%TEMP%\\{tempfolder}\\autoupdate_templog.txt"
+                try:
+                    file = await node.read_file(path)
+                except FileNotFoundError:
+                    await msg.edit(
+                        content=_("Error while repairing DCS World on node {name}. "
+                                  "Check your autoupdater_log.txt").format(name=node.name))
+                    return
+                await msg.edit(content=_("Repair of DCS World failed on node {}.").format(node.name))
+                await interaction.followup.send(file=discord.File(BytesIO(file), "autoupdate_templog.txt"),
+                                                ephemeral=ephemeral)
+            elif rc == 2:
+                await msg.edit(
+                    content=_("The repair of DCS World was cancelled on node {name}.").format(name=node.name))
+            else:
+                await msg.edit(
+                    content=_("Error while repairing DCS World on node {name}, code={rc}, message={message}").format(
+                        name=node.name, rc=rc, message=utils.get_win32_error_message(rc)))
+        except (TimeoutError, asyncio.TimeoutError):
+            await interaction.followup.send(
+                content=_("The repair takes longer than 10 minutes, please check back regularly, if it has finished."),
+                ephemeral=True)
+        except PermissionError as ex:
+            await msg.edit(content=str(ex))
 
     @dcs.command(name='install', description=_('Install modules in your DCS server'))
     @app_commands.guild_only()

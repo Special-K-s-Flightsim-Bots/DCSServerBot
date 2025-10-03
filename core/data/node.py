@@ -159,6 +159,9 @@ class Node:
                          warn_times: list[int] = None, announce: Optional[bool] = True):
         raise NotImplementedError()
 
+    async def dcs_repair(self, warn_times: list[int] = None):
+        raise NotImplementedError()
+
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         raise NotImplementedError()
 
