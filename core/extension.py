@@ -68,6 +68,10 @@ class Extension(ABC):
     async def startup(self) -> bool:
         self.running = True
         if self.is_running():
+            self.loop.create_task(self.server.send_to_dcs({
+                "command": "addExtension",
+                "extension": self.name
+            }))
             self.log.info(f"  => {self.name} launched for \"{self.server.name}\".")
             return True
         else:
@@ -79,6 +83,10 @@ class Extension(ABC):
         if not self.is_running():
             return True
         self.running = False
+        self.loop.create_task(self.server.send_to_dcs({
+            "command": "removeExtension",
+            "extension": self.name
+        }))
         self.log.info(f"  => {self.name} shut down for \"{self.server.name}\".")
         return True
 

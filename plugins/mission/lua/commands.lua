@@ -15,6 +15,7 @@ dcsbot.locked = dcsbot.locked or {}
 dcsbot.userInfo = dcsbot.userInfo or {}
 dcsbot.red_slots = dcsbot.red_slots or {}
 dcsbot.blue_slots = dcsbot.blue_slots or {}
+dcsbot.extensions = dcsbot.extension or {}
 
 function dcsbot.loadParams(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: loadParams(' .. json.plugin ..')')
@@ -102,6 +103,7 @@ function dcsbot.registerDCSServer(json)
     else
         utils.sendBotTable(msg)
     end
+    net.dostring_in('mission', 'a_do_script("dcsbot._clearExtensions()")')
     dcsbot.registered = true
 end
 
@@ -445,6 +447,20 @@ function dcsbot.uploadUserRoles(json)
     else
         setUserRoles(json)
     end
+end
+
+function dcsbot.addExtension(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: addExtension()')
+    local script = 'dcsbot._addExtension("' .. json.extension .. '")'
+    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
+    dcsbot.extensions[json.extension] = True
+end
+
+function dcsbot.removeExtension(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: removeExtension()')
+    local script = 'dcsbot._removeExtension("' .. json.extension .. '")'
+    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
+    dcsbot.extensions[json.extension] = nil
 end
 
 function dcsbot.kick(json)

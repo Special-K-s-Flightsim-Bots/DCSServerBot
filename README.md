@@ -173,7 +173,7 @@ The bot needs a unique Token per installation. This one can be obtained at http:
 - Press "Reset Token" and then "Copy" to get your token. 
 - Now your Token is in your clipboard. Paste it in some editor for later use. 
 - All "Privileged Gateway Intents" have to be enabled on that page.<br/>
-- To add the bot to your Discord guild, select "OAuth2" from the left menu
+- To add the bot to your Discord "guild" (aka your Discord server), select "OAuth2" from the left menu
 - Select the "bot" checkbox in "OAuth2 URL Generator"
 - Select the following "Bot Permissions":
   - Left side (optional):
@@ -199,7 +199,7 @@ installation, and you will install a variant that works without.
 
 > [!NOTE]
 > Please keep in mind that DCSServerBot was originally built for Discord and that there are some functionalities that
-> only work with Discord, like static graphs, greenieboards, and others.<br>
+> only work with Discord, like statistics graphs, greenieboards, and others.<br>
 > You can still use a lot without Discord as in-game chat-commands, automated restarts, etc.
 
 ### Download
@@ -214,10 +214,10 @@ it somewhere on your PC running the DCS server(s) and give it write permissions,
 
 ### DCSServerBot Installation (Discord)
 Run the provided `install.cmd` script or just `run.cmd`.<br>
-It will ask you for your Guild ID (right-click on your Discord server icon and select "Copy Server ID") and the bot's 
-user ID (right-click on the bot user and select "Copy User ID"). Then it will search for existing DCS installations, 
-create the database user, password, and database, and asks whether you want to add existing DCS servers to the 
-configuration.<br>
+It will ask you for your Guild ID (which is your Server ID, so right-click on your Discord server icon and select 
+"Copy Server ID") and the bot's user ID (right-click on the bot user and select "Copy User ID"). 
+Then it will search for existing DCS installations, create the database user, password, and database, and asks whether 
+you want to add existing DCS servers to the configuration.<br>
 When finished, the bot should launch successfully and maybe even start your servers already, if configured.
 
 ### DCSServerBot Installation (non-Discord)
