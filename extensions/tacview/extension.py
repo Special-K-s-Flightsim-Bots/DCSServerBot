@@ -158,6 +158,8 @@ class Tacview(Extension):
             self.log.warning(
                 f'  => {self.server.name}: tacviewPlaybackDelay is set, disabling real time telemetry.')
             dirty |= self.set_option(options, 'tacviewRealTimeTelemetryEnabled', False)
+        elif options['Tacview'].get('tacviewPlaybackDelay', 0) == 0 and not options['Tacview'].get('tacviewRealTimeTelemetryEnabled', True):
+            dirty |= self.set_option(options, 'tacviewRealTimeTelemetryEnabled', True)
 
         if dirty:
             self.server.options['plugins'] = options
