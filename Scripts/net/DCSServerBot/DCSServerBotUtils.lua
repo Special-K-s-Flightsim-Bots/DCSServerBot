@@ -10,7 +10,7 @@ local string 		= base.string
 local table         = base.table
 local tonumber		= base.tonumber
 local tostring		= base.tostring
-local DCS			= base.DCS
+local Sim			= base.Sim
 local type			= base.type
 local os            = base.os
 
