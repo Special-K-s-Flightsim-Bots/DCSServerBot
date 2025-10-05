@@ -78,6 +78,7 @@ class LogAnalyser(Extension):
                 os.remove(self.logfile)
         await self.do_startup()
         self.running = True
+        await super().prepare()
         return await super().startup()
 
     async def startup(self) -> bool:

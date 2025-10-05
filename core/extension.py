@@ -60,6 +60,11 @@ class Extension(ABC):
         return dict()
 
     async def prepare(self) -> bool:
+        if self.config.get('enabled'):
+            self.loop.create_task(self.server.send_to_dcs({
+                "command": "addExtension",
+                "extension": self.name
+            }))
         return True
 
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
@@ -68,10 +73,6 @@ class Extension(ABC):
     async def startup(self) -> bool:
         self.running = True
         if self.is_running():
-            self.loop.create_task(self.server.send_to_dcs({
-                "command": "addExtension",
-                "extension": self.name
-            }))
             self.log.info(f"  => {self.name} launched for \"{self.server.name}\".")
             return True
         else:

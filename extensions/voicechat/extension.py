@@ -16,7 +16,7 @@ class VoiceChat(Extension):
         settings = self.server.settings['advanced']
         settings['voice_chat_server'] = self.config.get('enabled', True)
         self.server.settings['advanced'] = settings
-        return True
+        return await super().prepare()
 
     async def render(self, param: Optional[dict] = None) -> dict:
         return {

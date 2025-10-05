@@ -88,10 +88,11 @@ whatnot.
 To enable that, you need to set squadron_credits to true in your creditsystem.yaml (see above).
 
 ## Discord Commands
-| Command         | Parameter            | Role | Description                                           |
-|-----------------|----------------------|------|-------------------------------------------------------|
-| /credits info   | [member]             | DCS  | Displays the players campaign credits.                |
-| /credits donate | <@member> <donation> | DCS  | Donate any of your campaign points to another member. |
+| Command         | Parameter            | Role      | Description                                           |
+|-----------------|----------------------|-----------|-------------------------------------------------------|
+| /credits info   | [member]             | DCS       | Displays the players campaign credits.                |
+| /credits donate | <@member> <donation> | DCS       | Donate any of your campaign points to another member. |
+| /credits reset  | [user]               | DCS Admin | Reset the current campaign credits [of a user].       |
 
 ## In-Game Chat Commands
 | Command  | Parameter           | Role | Description                       |

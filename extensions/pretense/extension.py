@@ -27,7 +27,7 @@ class Pretense(Extension):
             path = os.path.join(self.missions_dir, 'Saves')
             os.makedirs(path)
             open(os.path.join(path, 'randomize.lua'), 'w').close()
-        return True
+        return await super().prepare()
 
     @property
     def version(self) -> Optional[str]:

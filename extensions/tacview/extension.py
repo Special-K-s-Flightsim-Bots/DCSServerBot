@@ -174,7 +174,7 @@ class Tacview(Extension):
                            f"server {type(self)._rcp_ports[rcp_port]}!")
             return False
         type(self)._rcp_ports[rcp_port] = self.server.name
-        return True
+        return await super().prepare()
 
     @property
     def version(self) -> str:

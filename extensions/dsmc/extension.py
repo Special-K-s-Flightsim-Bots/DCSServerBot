@@ -87,7 +87,7 @@ class DSMC(Extension):
                             self.locals['DSMC_AutosaveExit_time'] = 0
                         outfile.write(line)
             self.log.info('  => DSMC configuration changed to be compatible with DCSServerBot.')
-        return True
+        return await super().prepare()
 
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         if not os.path.basename(filename).startswith('DSMC'):
