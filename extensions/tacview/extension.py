@@ -75,7 +75,7 @@ class Tacview(Extension):
         self.stopped = asyncio.Event()
         self.recorder: TacviewRecorder | None = None
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
         self.stop_event.clear()
         self.stopped.clear()
         if self.config.get('target'):
@@ -86,7 +86,7 @@ class Tacview(Extension):
         await self.stopped.wait()
         super().shutdown()
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
         if self.config.get('target'):
             self.loop.create_task(self._shutdown())
             self.stop_event.set()

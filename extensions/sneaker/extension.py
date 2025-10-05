@@ -94,7 +94,7 @@ class Sneaker(Extension):
             Thread(target=self._log_output, args=(p,), daemon=True).start()
         return p
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Sneaker needs Tacview to be enabled in your server!')
             return False
@@ -127,7 +127,7 @@ class Sneaker(Extension):
             self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
             return False
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
         try:
             type(self)._servers.remove(self.server.name)
             if not type(self)._servers:
@@ -144,6 +144,7 @@ class Sneaker(Extension):
                         return False
                 else:
                     return False
+            super().shutdown(quiet=True)
             return True
         except Exception as ex:
             self.log.exception(ex)

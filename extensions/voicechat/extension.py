@@ -27,8 +27,8 @@ class VoiceChat(Extension):
     def is_installed(self) -> bool:
         return True
 
-    def shutdown(self) -> bool:
-        return True
+    async def startup(self, *, quiet: bool = False) -> bool:
+        return await super().startup(quiet=True)
 
-    def is_running(self) -> bool:
-        return True
+    def shutdown(self, *, quiet: bool = False) -> bool:
+        return super().shutdown(quiet=True)

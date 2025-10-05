@@ -123,10 +123,10 @@ class Cloud(Extension):
             self.log.warning(f"Could not unregister server {self.server.name} from the cloud.", exc_info=ex)
             self.log.debug(payload)
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
         self.loop.create_task(self.cloud_register())
-        return await super().startup()
+        return await super().startup(quiet=True)
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
         self.loop.create_task(self.cloud_unregister())
-        return super().shutdown()
+        return super().shutdown(quiet=True)

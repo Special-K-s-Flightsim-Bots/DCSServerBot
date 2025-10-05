@@ -81,7 +81,7 @@ class LogAnalyser(Extension):
         await super().prepare()
         return await super().startup()
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
         await self.do_startup()
         return await super().startup()
 
@@ -89,7 +89,7 @@ class LogAnalyser(Extension):
         await self.stopped.wait()
         self.pattern.clear()
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
         self.loop.create_task(self._shutdown())
         self.stop_event.set()
         return super().shutdown()

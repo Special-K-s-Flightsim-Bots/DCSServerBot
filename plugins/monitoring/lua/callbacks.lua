@@ -23,4 +23,4 @@ end
 
 monitoring.onSimulationFrame = createSimulateFrame()
 
-DCS.setUserCallbacks(monitoring)
+Sim.setUserCallbacks(monitoring)

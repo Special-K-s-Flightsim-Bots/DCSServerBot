@@ -136,8 +136,8 @@ class MizEdit(Extension):
                                  debug=self.config.get('debug', False))
         return filename, True
 
-    def is_running(self) -> bool:
-        return True
+    async def startup(self, *, quiet: bool = False) -> bool:
+        return await super().startup(quiet=True)
 
-    def shutdown(self) -> bool:
-        return True
+    def shutdown(self, *, quiet: bool = False) -> bool:
+        return super().shutdown(quiet=True)

@@ -60,35 +60,40 @@ class Extension(ABC):
         return dict()
 
     async def prepare(self) -> bool:
-        if self.config.get('enabled'):
-            self.loop.create_task(self.server.send_to_dcs({
-                "command": "addExtension",
-                "extension": self.name
-            }))
         return True
 
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         return filename, False
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
+        if not self.config.get('enabled', True):
+            return False
         self.running = True
         if self.is_running():
-            self.log.info(f"  => {self.name} launched for \"{self.server.name}\".")
+            self.loop.create_task(self.server.send_to_dcs({
+                "command": "addExtension",
+                "extension": self.name
+            }))
+            if not quiet:
+                self.log.info(f"  => {self.name} launched for \"{self.server.name}\".")
             return True
         else:
-            self.log.warning(f"  => {self.name} NOT launched for \"{self.server.name}\".")
+            if not quiet:
+                self.log.warning(f"  => {self.name} NOT launched for \"{self.server.name}\".")
             return False
 
-    def shutdown(self) -> bool:
-        # avoid race conditions
-        if not self.is_running():
-            return True
-        self.running = False
+    def shutdown(self, *, quiet: bool = False) -> bool:
+        # unregister extension from DCS
         self.loop.create_task(self.server.send_to_dcs({
             "command": "removeExtension",
             "extension": self.name
         }))
-        self.log.info(f"  => {self.name} shut down for \"{self.server.name}\".")
+        # avoid race conditions
+        if not self.is_running():
+            return True
+        self.running = False
+        if not quiet:
+            self.log.info(f"  => {self.name} shut down for \"{self.server.name}\".")
         return True
 
     def is_running(self) -> bool:
@@ -108,6 +113,8 @@ class Extension(ABC):
 
     async def enable(self):
         self.config['enabled'] = True
+        if not self.is_running():
+            asyncio.create_task(self.startup())
 
     async def disable(self):
         if self.is_running():

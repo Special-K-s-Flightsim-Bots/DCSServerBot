@@ -230,7 +230,7 @@ class SRS(Extension, FileSystemEventHandler):
                 asyncio.create_task(self.startup())
         return await super().prepare()
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
         if self.config.get('autostart', True):
             self.log.debug(f"Launching SRS server with: \"{self.get_exe_path()}\" -cfg=\"{self.get_config_path()}\"")
 
@@ -286,7 +286,7 @@ class SRS(Extension, FileSystemEventHandler):
             return False
         return await super().startup()
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
         if self.config.get('autostart', True) and not self.config.get('no_shutdown', False):
             if self.is_running():
                 try:

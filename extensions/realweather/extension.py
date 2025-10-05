@@ -290,11 +290,11 @@ class RealWeather(Extension):
             return False
         return True
 
-    def shutdown(self) -> bool:
-        return True
+    async def startup(self, *, quiet: bool = False) -> bool:
+        return await super().startup(quiet=True)
 
-    def is_running(self) -> bool:
-        return True
+    def shutdown(self, *, quiet: bool = False) -> bool:
+        return super().shutdown(quiet=True)
 
     async def check_for_updates(self) -> Optional[str]:
         with suppress(aiohttp.ClientConnectionError):

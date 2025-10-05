@@ -248,7 +248,7 @@ class Olympus(Extension):
             self.log.error(f"Error during preparation of {self.name}: {str(ex)}")
             return False
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
 
         def log_output(pipe, level=logging.INFO):
             for line in iter(pipe.readline, ''):
@@ -323,7 +323,7 @@ class Olympus(Extension):
             self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
             return False
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
         super().shutdown()
         return self.terminate()
 

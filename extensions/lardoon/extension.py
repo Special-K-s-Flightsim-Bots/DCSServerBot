@@ -64,7 +64,7 @@ class Lardoon(Extension):
         return self.config.get('tacviewExportPath', self.server.options['plugins']['Tacview'].get(
             'tacviewExportPath')) or TACVIEW_DEFAULT_DIR
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Lardoon needs Tacview to be enabled in your server!')
             return False
@@ -128,7 +128,7 @@ class Lardoon(Extension):
             self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
             return False
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
         super().shutdown()
         if self.config.get('use_single_process', True):
             if self.server.name in type(self)._servers:

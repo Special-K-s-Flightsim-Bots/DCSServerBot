@@ -34,20 +34,20 @@ function dcsbot.registerDCSServer(json)
     -- airbases
     msg.airbases = {}
     -- mission
-    if DCS.getCurrentMission() then
-        msg.filename = DCS.getMissionFilename()
-        msg.current_mission = DCS.getMissionName()
-        msg.current_map = DCS.getCurrentMission().mission.theatre
-        msg.mission_time = DCS.getModelTime()
-        msg.real_time = DCS.getRealTime()
-        msg.start_time = DCS.getCurrentMission().mission.start_time
-        msg.date = DCS.getCurrentMission().mission.date
-        msg.pause = DCS.getPause()
+    if Sim.getCurrentMission() then
+        msg.filename = Sim.getMissionFilename()
+        msg.current_mission = Sim.getMissionName()
+        msg.current_map = Sim.getCurrentMission().mission.theatre
+        msg.mission_time = Sim.getModelTime()
+        msg.real_time = Sim.getRealTime()
+        msg.start_time = Sim.getCurrentMission().mission.start_time
+        msg.date = Sim.getCurrentMission().mission.date
+        msg.pause = Sim.getPause()
         -- weather
         msg.weather = {}
         -- slots
         num_slots_red = 0
-        local availableSlots = DCS.getAvailableSlots("red")
+        local availableSlots = Sim.getAvailableSlots("red")
         dcsbot.red_slots = {}
         if availableSlots ~= nil then
             for k,v in pairs(availableSlots) do
@@ -57,7 +57,7 @@ function dcsbot.registerDCSServer(json)
         end
 
         num_slots_blue = 0
-        availableSlots = DCS.getAvailableSlots("blue")
+        availableSlots = Sim.getAvailableSlots("blue")
         dcsbot.blue_slots = {}
         if availableSlots ~= nil then
             for k,v in pairs(availableSlots) do
@@ -75,11 +75,11 @@ function dcsbot.registerDCSServer(json)
             msg.players[i] = net.get_player_info(plist[i])
             msg.players[i].ipaddr = utils.getIP(msg.players[i].ipaddr)
             msg.players[i].unit_type, msg.players[i].slot, msg.players[i].sub_slot = utils.getMulticrewAllParameters(plist[i])
-            msg.players[i].unit_name = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_NAME)
-            msg.players[i].unit_display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(msg.players[i].slot), "DisplayName")
-            msg.players[i].group_name = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_GROUPNAME)
-            msg.players[i].group_id = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_GROUP_MISSION_ID)
-            msg.players[i].unit_callsign = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_CALLSIGN)
+            msg.players[i].unit_name = Sim.getUnitProperty(msg.players[i].slot, Sim.UNIT_NAME)
+            msg.players[i].unit_display_name = Sim.getUnitTypeAttribute(Sim.getUnitType(msg.players[i].slot), "DisplayName")
+            msg.players[i].group_name = Sim.getUnitProperty(msg.players[i].slot, Sim.UNIT_GROUPNAME)
+            msg.players[i].group_id = Sim.getUnitProperty(msg.players[i].slot, Sim.UNIT_GROUP_MISSION_ID)
+            msg.players[i].unit_callsign = Sim.getUnitProperty(msg.players[i].slot, Sim.UNIT_CALLSIGN)
             -- DCS MC bug workaround
             if msg.players[i].sub_slot > 0 and msg.players[i].side == 0 then
                 if dcsbot.blue_slots[msg.players[i].slot] ~= nil then
@@ -111,14 +111,14 @@ function dcsbot.getMissionDetails(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionDetails()')
 	local msg = {
         command = 'getMissionDetails',
-        current_mission = DCS.getMissionName(),
-        mission_time = DCS.getModelTime(),
-        real_time = DCS.getRealTime(),
-        briefing = mod_dictionary.getBriefingData(DCS.getMissionFilename(), 'EN'),
+        current_mission = Sim.getMissionName(),
+        mission_time = Sim.getModelTime(),
+        real_time = Sim.getRealTime(),
+        briefing = mod_dictionary.getBriefingData(Sim.getMissionFilename(), 'EN'),
         results = {
-            blue = DCS.getMissionResult("blue"),
-            red = DCS.getMissionResult("red"),
-            neutrals = DCS.getMissionResult("neutrals"),
+            blue = Sim.getMissionResult("blue"),
+            red = Sim.getMissionResult("red"),
+            neutrals = Sim.getMissionResult("neutrals"),
         }
     }
 	utils.sendBotTable(msg, json.channel)
@@ -128,9 +128,9 @@ function dcsbot.getMissionUpdate(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionUpdate()')
 	local msg = {
         command = 'getMissionUpdate',
-        pause = DCS.getPause(),
-        mission_time = DCS.getModelTime(),
-        real_time = DCS.getRealTime()
+        pause = Sim.getPause(),
+        mission_time = Sim.getModelTime(),
+        real_time = Sim.getRealTime()
     }
 	utils.sendBotTable(msg, json.channel)
 end
@@ -167,7 +167,7 @@ function dcsbot.getAirbases(json)
             else
                 if airdrome.radio then
                     for k, radioId in pairs(airdrome.radio) do
-                        local frequencies = DCS.getATCradiosData(radioId)
+                        local frequencies = Sim.getATCradiosData(radioId)
                         if frequencies then
                             for kk,vv in pairs(frequencies) do
                                 table.insert(frequencyList, vv)
@@ -233,18 +233,18 @@ end
 
 function dcsbot.restartMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: restartMission()')
-	json.result = net.load_mission(DCS.getMissionFilename())
+	json.result = net.load_mission(Sim.getMissionFilename())
 	utils.sendBotTable(json, json.channel)
 end
 
 function dcsbot.pauseMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: pauseMission()')
-	DCS.setPause(true)
+	Sim.setPause(true)
 end
 
 function dcsbot.unpauseMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: unpauseMission()')
-	DCS.setPause(false)
+	Sim.setPause(false)
 end
 
 function dcsbot.setStartIndex(json)
@@ -335,7 +335,7 @@ function dcsbot.getWeatherInfo(json)
 	local msg = {
         command = 'getWeatherInfo'
     }
-	local weather = DCS.getCurrentMission().mission.weather
+	local weather = Sim.getCurrentMission().mission.weather
     if json.x then
         local position = {
             x = json.x,

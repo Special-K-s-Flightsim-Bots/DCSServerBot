@@ -127,3 +127,9 @@ class gRPC(Extension):
         return {
             "gRPC": self.locals.get('port', 50051)
         } if self.enabled else {}
+
+    async def startup(self, *, quiet: bool = False) -> bool:
+        return await super().startup(quiet=True)
+
+    def shutdown(self, *, quiet: bool = False) -> bool:
+        return super().shutdown(quiet=True)

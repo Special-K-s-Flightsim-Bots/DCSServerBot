@@ -621,11 +621,7 @@ class ServerImpl(Server):
 
     async def _startup_extensions(self, status: Union[Status, str]) -> None:
         async with self._lock:
-            not_running_extensions = [
-                ext for ext in self.extensions.values() if not await asyncio.to_thread(ext.is_running)
-            ]
-            startup_coroutines = [ext.startup() for ext in not_running_extensions]
-
+            startup_coroutines = [ext.startup() for ext in self.extensions.values()]
             results = await asyncio.gather(*startup_coroutines, return_exceptions=True)
 
             for res in results:

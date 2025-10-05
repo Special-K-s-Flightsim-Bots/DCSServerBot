@@ -49,3 +49,9 @@ class Pretense(Extension):
             "version": self.version,
             "value": "enabled"
         }
+
+    async def startup(self, *, quiet: bool = False) -> bool:
+        return await super().startup(quiet=True)
+
+    def shutdown(self, *, quiet: bool = False) -> bool:
+        return super().shutdown(quiet=True)

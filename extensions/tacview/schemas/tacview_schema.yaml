@@ -19,6 +19,7 @@ schema;node_tacview_schema:
     tacviewSinglePlayerFlights: {type: int, nullable: false}
     tacviewTerrainExport: {type: int, nullable: false}
     tacviewPlaybackDelay: {type: int, range: {min: 0}, nullable: false}
+    tacviewDataCaptureMode: {type: int, range: {min: 1}, nullable: false}
 
 schema;instance_tacview_schema:
   type: map
@@ -46,4 +47,5 @@ schema;instance_tacview_schema:
     tacviewSinglePlayerFlights: {type: int, nullable: false}
     tacviewTerrainExport: {type: int, nullable: false}
     tacviewPlaybackDelay: {type: int, range: {min: 0}, nullable: false}
+    tacviewDataCaptureMode: {type: int, range: {min: 1}, nullable: false}
     target: {type: str, nullable: false, range: {min: 1}}

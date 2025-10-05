@@ -15,4 +15,4 @@ function sample.onChatMessage(message, from)
 	utils.sendBotTable(msg, config.CHAT_CHANNEL)
 end
 
-DCS.setUserCallbacks(sample)
+Sim.setUserCallbacks(sample)

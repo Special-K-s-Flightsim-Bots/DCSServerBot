@@ -103,7 +103,7 @@ class SkyEye(Extension):
             affinity = [int(x.strip()) for x in affinity.split(',')]
         elif isinstance(affinity, int):
             affinity = [affinity]
-        self.log.info("  => Setting process affinity to {}".format(','.join(map(str, affinity))))
+        self.log.debug("  => Setting process affinity to {}".format(','.join(map(str, affinity))))
         process.cpu_affinity(affinity)
 
     async def download_whisper_file(self, name: str):
@@ -270,7 +270,7 @@ class SkyEye(Extension):
             await self._autoupdate()
         return await super().prepare()
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
         def run_subprocess(cfg: dict):
             debug = cfg.get('debug', False)
             log_file = utils.format_string(cfg.get('log'),
@@ -400,7 +400,7 @@ class SkyEye(Extension):
             self.log.error(f"Error during shutdown of {self.get_exe_path()}: {str(ex)}")
             return False
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
         def close_log_handlers(self):
             for logger in self.loggers:
                 while logger.handlers:  # Remove and close all handlers
