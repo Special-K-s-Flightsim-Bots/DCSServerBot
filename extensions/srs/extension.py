@@ -568,7 +568,7 @@ class SRS(Extension, FileSystemEventHandler):
                             title=config.get(
                                 'title', 'DCS-SRS has been updated to version {}!').format(version),
                             url=f"https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/{version}")
-                        embed.set_thumbnail(url="https://github.com/ciribob/DCS-SimpleRadioStandalone/blob/master/Scripts/DCS-SRS/Theme/icon.png")
+                        embed.set_thumbnail(url="https://raw.githubusercontent.com/ciribob/DCS-SimpleRadioStandalone/master/Scripts/DCS-SRS/Theme/icon.png")
                         embed.description = config.get('description', 'The following servers have been updated:')
                         embed.add_field(name=_('Server'),
                                         value='\n'.join([f'- {x}' for x in servers]), inline=False)
