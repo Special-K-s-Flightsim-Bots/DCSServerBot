@@ -92,6 +92,11 @@ class ModManagerService(Service):
                     _version = await self.get_latest_version(package)
                 else:
                     _version = package['version']
+                # check for valid versions
+                if _version is None:
+                    self.log.warning(f"{package['name']} without version in {folder.name}, skipped!")
+                    continue
+
                 installed = await self.get_installed_package(server, folder, package['name'])
                 if (not installed or installed != _version) and \
                         server.status != Status.SHUTDOWN:
