@@ -21,6 +21,9 @@ class SchedulerListener(EventListener["Scheduler"]):
                     results.append(result)
             return min(results, key=lambda x: x[0]) if results else None
         else:
+            if 'method' not in restart:
+                self.log.error("Restart structure without 'method' provided: {}".format(repr(restart)))
+                return None
             # check no_reload
             if restart['method'] == 'load' and restart.get('no_reload', False):
                 mission_id = restart.get('mission_id')

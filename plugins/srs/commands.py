@@ -79,7 +79,7 @@ class SRS(Plugin[SRSEventListener]):
             if not utils.yn_question(interaction, _("Do you want to update DCS-SRS now?")):
                 await interaction.followup.send(_("Aborted."))
                 return
-            await server.run_on_extension(extension='SRS', method='do_update')
+            await server.run_on_extension(extension='SRS', method='do_update', version=version)
             await interaction.followup.send(_("DCS-SRS updated to version {}.").format(version))
         else:
             # noinspection PyUnresolvedReferences

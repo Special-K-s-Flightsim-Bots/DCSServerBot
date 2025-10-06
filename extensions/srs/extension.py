@@ -382,7 +382,7 @@ class SRS(Extension, FileSystemEventHandler):
             self.client_names.clear()
 
     def is_running(self) -> bool:
-        if not self.process:
+        if not self.process and self.exe_name:
             self.process = next(utils.find_process(self.exe_name, self.server.instance.name), None)
             running = self.process is not None and self.process.is_running()
             if not running:

@@ -38,7 +38,7 @@ mapping:
             type: map
             nullable: false
             mapping:
-              channel: { type: int, nullable: false }
+              channel: { type: int, required: true, nullable: false }
               title: { type: str, nullable: false, range: { min: 1 } }
               description: { type: str, nullable: false, range: { min: 1 } }
               footer: { type: str, nullable: false, range: { min: 1 } }
