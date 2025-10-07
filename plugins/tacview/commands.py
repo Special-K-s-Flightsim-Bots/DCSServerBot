@@ -95,7 +95,7 @@ class Tacview(Plugin):
 
     @tacview.command(description=_('Configure Tacview'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('DCS Admin')
     async def configure(self, interaction: discord.Interaction,
                         server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],

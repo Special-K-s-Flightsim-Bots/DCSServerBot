@@ -11,3 +11,9 @@ packages (aka mods) into your DCS World servers. Read there for further details.
 | /mods uninstall | mod                  | admin-channel | Admin     | Uninstalls a specific mod from the selected server.                                   |
 | /mods list      |                      | admin-channel | DCS Admin | Lists the installed mods on this server.                                              |
 | /mods download  | folder url [version] | admin-channel | Admin     | Download a package from a GitHub URL or any other URL. Version only works for GitHub. |
+
+> [!NOTE]
+> If `restricted_commands` is set to `true` in your nodes.yaml, you can only install and uninstall mods that are 
+> in the SavedGames folder of your MoodManager directory.
+> This is to allow hosters to open mod commands to DCS Admin users without them being able to break the main
+> DCS installation.

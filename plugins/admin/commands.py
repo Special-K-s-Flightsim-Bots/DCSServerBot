@@ -372,7 +372,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @dcs.command(description=_('Update your DCS installations'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(warn_time=_("Time in seconds to warn users before shutdown"))
     @app_commands.autocomplete(branch=get_dcs_branches)
@@ -452,7 +452,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @dcs.command(description=_('Repair your DCS installations'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(warn_time=_("Time in seconds to warn users before shutdown"))
     async def repair(self, interaction: discord.Interaction,
@@ -498,7 +498,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @dcs.command(name='install', description=_('Install modules in your DCS server'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(module=available_modules_autocomplete)
     async def _install(self, interaction: discord.Interaction,
@@ -521,7 +521,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @dcs.command(name='uninstall', description=_('Uninstall modules from your DCS server'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(module=installed_modules_autocomplete)
     async def _uninstall(self, interaction: discord.Interaction,
@@ -825,7 +825,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @node_group.command(description=_('Shuts a specific node down'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def shutdown(self, interaction: discord.Interaction,
                        node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
@@ -836,7 +836,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @node_group.command(description=_('Restarts a specific node'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def restart(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
@@ -932,7 +932,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @node_group.command(description=_('Upgrade DCSServerBot'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def upgrade(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
@@ -958,7 +958,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @node_group.command(description=_('Run a shell command on a node'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def shell(self, interaction: discord.Interaction,
                     node: app_commands.Transform[Node, utils.NodeTransformer],
@@ -982,7 +982,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @node_group.command(description=_("Add/create an instance\n"))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(name=utils.InstanceTransformer(unused=True).autocomplete)
     @app_commands.describe(name=_("Either select an existing instance or enter the name of a new one"))
@@ -1038,7 +1038,7 @@ Please make sure you forward the following ports:
 
     @node_group.command(description=_("Delete an instance\n"))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def delete_instance(self, interaction: discord.Interaction,
                               node: app_commands.Transform[Node, utils.NodeTransformer],
@@ -1076,7 +1076,7 @@ Please make sure you forward the following ports:
 
     @node_group.command(description=_("Rename an instance\n"))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def rename_instance(self, interaction: discord.Interaction,
                               node: app_commands.Transform[Node, utils.NodeTransformer],
@@ -1119,7 +1119,7 @@ Please make sure you forward the following ports:
 
     @node_group.command(description=_("Shows CPU topology"))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @app_commands.check(lambda interaction: sys.platform == 'win32')
     @utils.app_has_role('Admin')
     async def cpuinfo(self, interaction: discord.Interaction,
@@ -1133,7 +1133,7 @@ Please make sure you forward the following ports:
 
     @plug.command(name='install', description=_("Install Plugin"))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @app_commands.autocomplete(plugin=installable_plugins)
     @utils.app_has_role('Admin')
     async def _install(self, interaction: discord.Interaction, plugin: str):
@@ -1151,7 +1151,7 @@ Please make sure you forward the following ports:
 
     @plug.command(name='uninstall', description=_("Uninstall Plugin"))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @app_commands.autocomplete(plugin=uninstallable_plugins)
     @utils.app_has_role('Admin')
     async def _uninstall(self, interaction: discord.Interaction, plugin: str):
@@ -1169,7 +1169,7 @@ Please make sure you forward the following ports:
 
     @plug.command(description=_('Reload Plugin'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(plugin=plugins_autocomplete)
     async def reload(self, interaction: discord.Interaction, plugin: Optional[str]):

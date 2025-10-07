@@ -25,10 +25,14 @@ async def get_installed_mods(service: ModManagerService, server: Server) -> list
     return sorted(installed)
 
 
-async def get_available_mods(service: ModManagerService, server: Server) -> list[tuple[Folder, str, str]]:
+async def get_available_mods(
+        interaction: discord.Interaction, service: ModManagerService, server: Server
+) -> list[tuple[Folder, str, str]]:
     available = []
     config = service.get_config(server)
     for folder in Folder:
+        if folder == Folder.RootFolder and utils.is_restricted(interaction):
+            continue
         packages = []
         for x in os.listdir(os.path.expandvars(config[folder.value])):
             if x.startswith('.') or x.casefold() in ['desktop.ini']:
@@ -73,8 +77,9 @@ async def available_mods_autocomplete(interaction: discord.Interaction, current:
             return []
         return [
             app_commands.Choice(name=name, value=f"{folder.value}/{name}")
-            for folder, name in sorted(set((folder, name) for folder, name, _ in await get_available_mods(service,
-                                                                                                          server)))
+            for folder, name in sorted(set(
+                (folder, name) for folder, name, _ in await get_available_mods(interaction, service, server))
+            )
             if not current or current.casefold() in name.casefold()
         ][:25]
     except Exception as ex:
@@ -153,7 +158,7 @@ class ModManager(Plugin):
 
     @mods.command(description=_('manage mods'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_roles(['Admin'])
     async def manage(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
@@ -263,7 +268,7 @@ class ModManager(Plugin):
                         else:
                             derived.embed.set_footer(text=_("Mod {} updated.").format(package))
                             derived.installed = await get_installed_mods(self.service, server)
-                            derived.available = await get_available_mods(self.service, server)
+                            derived.available = await get_available_mods(interaction, self.service, server)
                             await derived.render()
                     else:
                         derived.embed.set_footer(text=_("Installing mod {}, please wait ...").format(package))
@@ -274,7 +279,7 @@ class ModManager(Plugin):
                         else:
                             derived.embed.set_footer(text=_("Mod {} installed.").format(package))
                             derived.installed = await get_installed_mods(self.service, server)
-                            derived.available = await get_available_mods(self.service, server)
+                            derived.available = await get_available_mods(interaction, self.service, server)
                             await derived.render()
                     await interaction.edit_original_response(embed=derived.embed, view=derived)
                 except Exception as ex:
@@ -293,7 +298,7 @@ class ModManager(Plugin):
                 else:
                     derived.embed.set_footer(text=_("Mod {} uninstalled.").format(mod))
                     derived.installed = await get_installed_mods(self.service, server)
-                    derived.available = await get_available_mods(self.service, server)
+                    derived.available = await get_available_mods(interaction, self.service, server)
                     await derived.render()
                 await interaction.edit_original_response(embed=derived.embed, view=derived)
 
@@ -337,7 +342,7 @@ class ModManager(Plugin):
                         try:
                             await download(modal)
                             embed.remove_footer()
-                            derived.available = get_available_mods(self.service, server)
+                            derived.available = get_available_mods(interaction, self.service, server)
                         except aiohttp.client_exceptions.ClientResponseError as ex:
                             self.log.error(f"{ex.code}: {modal.url.value} {ex.message}")
                             embed.set_footer(text=f"{ex.code}: {ex.message}", icon_url=WARNING_ICON)
@@ -355,7 +360,7 @@ class ModManager(Plugin):
         embed.description = _("Install or uninstall mods to {}").format(server.name)
         view = PackageView(embed,
                            installed=await get_installed_mods(self.service, server),
-                           available=await get_available_mods(self.service, server))
+                           available=await get_available_mods(interaction, self.service, server))
         await view.render()
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, view=view, ephemeral=utils.get_ephemeral(interaction))
@@ -366,7 +371,6 @@ class ModManager(Plugin):
 
     @mods.command(name="install", description=_('Install mods'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
     @utils.app_has_roles(['Admin'])
     @app_commands.autocomplete(mod=available_mods_autocomplete)
     @app_commands.autocomplete(version=available_versions_autocomplete)
@@ -417,7 +421,6 @@ class ModManager(Plugin):
 
     @mods.command(description=_('Uninstall mods'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
     @utils.app_has_roles(['Admin'])
     @app_commands.autocomplete(mod=installed_mods_autocomplete)
     async def uninstall(self, interaction: discord.Interaction,
@@ -467,7 +470,7 @@ class ModManager(Plugin):
 
     @mods.command(description=_('Download a mod'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_roles(['Admin'])
     @app_commands.describe(url=_("GitHub repo link or download URL"))
     @app_commands.autocomplete(version=repo_version_autocomplete)

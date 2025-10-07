@@ -72,7 +72,7 @@ class Backup(Plugin):
 
     @command(description=_('Backup your data'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(what=backup_autocomplete)
     async def backup(self, interaction: discord.Interaction, node: app_commands.Transform[Node, utils.NodeTransformer],
@@ -96,7 +96,7 @@ class Backup(Plugin):
 
     @command(description=_('Recover your data from an existing backup'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted)
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(what=backup_autocomplete)
     @app_commands.autocomplete(date=date_autocomplete)

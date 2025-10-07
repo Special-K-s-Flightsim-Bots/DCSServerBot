@@ -47,7 +47,8 @@ __all__ = [
     "app_has_not_roles",
     "app_has_dcs_version",
     "cmd_has_roles",
-    "restricted",
+    "is_restricted",
+    "restricted_check",
     "get_role_ids",
     "format_embed",
     "embed_to_text",
@@ -485,9 +486,11 @@ def cmd_has_roles(roles: list[str]):
     return cmd_has_roles
 
 
-def restricted(interaction: discord.Interaction) -> bool:
-    return not interaction.client.node.locals.get('restrict_commands', False)
+def is_restricted(interaction: discord.Interaction) -> bool:
+    return interaction.client.node.locals.get('restrict_commands', False)
 
+def restricted_check(interaction: discord.Interaction) -> bool:
+    return not is_restricted(interaction)
 
 def get_role_ids(plugin: Plugin, role_names) -> list[int]:
     role_ids = []
