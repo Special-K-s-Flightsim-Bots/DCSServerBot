@@ -29,7 +29,7 @@ if sys.platform == 'win32':
     import win32console
     import winreg
 
-    from pywinauto.win32defines import SEE_MASK_NOCLOSEPROCESS, SW_HIDE
+    from pywinauto.win32defines import SEE_MASK_NOCLOSEPROCESS, SW_HIDE, SW_SHOWMINNOACTIVE
 
 API_URLS = [
     'https://api4.my-ip.io/ip',
@@ -62,7 +62,8 @@ __all__ = [
     "get_win32_error_message",
     "CloudRotatingFileHandler",
     "run_elevated",
-    "is_uac_enabled"
+    "is_uac_enabled",
+    "start_elevated"
 ]
 
 logger = logging.getLogger(__name__)
@@ -388,7 +389,7 @@ def run_elevated(exe_path, cwd, *args):
     sei.fMask  = SEE_MASK_NOCLOSEPROCESS
     sei.lpVerb = "runas"
     sei.lpFile = os.path.abspath(exe_path)
-    sei.lpDirectory = os.path.abspath(cwd)
+    sei.lpDirectory = os.path.abspath(cwd) if cwd else os.path.dirname(exe_path)
     sei.lpParameters = ' '.join(map(str, args))
     sei.nShow = SW_HIDE
 
@@ -429,3 +430,44 @@ def is_uac_enabled() -> bool:
     except (FileNotFoundError, PermissionError):
         # if not found or permission is denied, fall back to a safe default.
         return True
+
+
+def start_elevated(exe_path: str, cwd: str, *args) -> Optional[psutil.Process]:
+    """
+    Start exe_path as Administrator and return a psutil.Process for the started process (Popen-like).
+    Returns None on non-Windows platforms.
+
+    Note: The returned handle refers to the primary process created by ShellExecuteExW.
+    """
+    if sys.platform != 'win32':
+        return None
+
+    sei = SHELLEXECUTEINFO()
+    sei.cbSize = ctypes.sizeof(sei)
+    sei.fMask = SEE_MASK_NOCLOSEPROCESS
+    sei.lpVerb = "runas"
+    sei.lpFile = os.path.abspath(exe_path)
+    sei.lpDirectory = os.path.abspath(cwd) if cwd else os.path.dirname(exe_path)
+    sei.lpParameters = ' '.join(map(str, args))
+    sei.nShow = SW_SHOWMINNOACTIVE
+
+    # noinspection PyUnresolvedReferences
+    if not ctypes.windll.shell32.ShellExecuteExW(ctypes.byref(sei)):
+        raise ctypes.WinError()
+
+    hproc = sei.hProcess
+
+    # Try to get PID from the handle to wrap in psutil.Process.
+    # Kernel32 GetProcessId returns DWORD PID.
+    GetProcessId = ctypes.windll.kernel32.GetProcessId  # type: ignore[attr-defined]
+    GetProcessId.argtypes = [ctypes.c_void_p]
+    GetProcessId.restype = ctypes.c_ulong
+    pid = GetProcessId(hproc)
+
+    if pid:
+        try:
+            return psutil.Process(pid)
+        except psutil.NoSuchProcess:
+            return None
+    else:
+        return None
