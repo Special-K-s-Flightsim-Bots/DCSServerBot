@@ -4,7 +4,7 @@ import random
 
 from core import EventListener, utils, Server, Player, Status, event, chat_command
 from datetime import datetime, timedelta, timezone
-from typing import Union, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .commands import Scheduler
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 class SchedulerListener(EventListener["Scheduler"]):
 
-    async def get_next_restart(self, server: Server, restart: Union[dict, list]) -> Optional[tuple[int, dict]]:
+    async def get_next_restart(self, server: Server, restart: dict | list) -> tuple[int, dict] | None:
         if isinstance(restart, list):
             results: list[tuple[int, dict]] = []
             for r in restart:

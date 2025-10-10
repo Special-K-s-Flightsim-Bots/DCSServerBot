@@ -4,7 +4,7 @@ import time
 from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel, \
     ThreadSafeDict
 from plugins.competitive.commands import Competitive
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .commands import Punishment
@@ -155,7 +155,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             return
 
         # check if we have the Competitive plugin enabled and a match is on
-        competitive: Optional[Competitive] = self.bot.cogs.get('Competitive')
+        competitive: Competitive | None = self.bot.cogs.get('Competitive')
         if competitive:
             if competitive.eventlistener.in_match.get(server.name, {}).get(initiator.ucid):
                 return

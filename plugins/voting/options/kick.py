@@ -1,4 +1,3 @@
-from typing import Optional
 
 from core import Server, Player, Coalition
 from plugins.voting.base import VotableItem
@@ -6,7 +5,7 @@ from plugins.voting.base import VotableItem
 
 class Kick(VotableItem):
 
-    def __init__(self, server: Server, config: dict, params: Optional[list[str]] = None):
+    def __init__(self, server: Server, config: dict, params: list[str] | None = None):
         super().__init__('mission', server, config, params)
         if not params or not len(params):
             raise TypeError("You have to provide a player name to kick!")

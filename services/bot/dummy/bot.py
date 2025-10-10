@@ -3,7 +3,7 @@ import importlib
 import importlib.util
 
 from core import NodeImpl, ServiceRegistry, EventListener, Server, Plugin, PluginError
-from typing import Union, Optional, Any
+from typing import Any
 
 from services.bot.dummy import DummyGuild, DummyMember, DummyRole
 
@@ -57,7 +57,7 @@ class DummyBot:
         return self.closed
 
     @property
-    def roles(self) -> dict[str, list[Union[str, int]]]:
+    def roles(self) -> dict[str, list[str | int]]:
         _roles = {
             "Admin": ["Admin"],
             "DCS Admin": ["DCS Admin"]
@@ -105,37 +105,37 @@ class DummyBot:
             self.bus.servers.pop(key)
         self.setup.set()
 
-    async def audit(self, message, *, user: Any = None, server: Optional[Server] = None, **kwargs):
+    async def audit(self, message, *, user: Any = None, server: Server | None = None, **kwargs):
         ...
 
     def get_admin_channel(self, server: Server) -> None:
         ...
 
-    async def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> Optional[DummyMember]:
+    async def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> DummyMember | None:
         return self.get_member_by_ucid(ucid, verified)
 
-    async def get_ucid_by_member(self, member: DummyMember, verified: Optional[bool] = False) -> str:
+    async def get_ucid_by_member(self, member: DummyMember, verified: bool | None = False) -> str:
         return member.id
 
-    def get_member_by_ucid(self, ucid: str, verified: Optional[bool] = False) -> Optional[DummyMember]:
+    def get_member_by_ucid(self, ucid: str, verified: bool | None = False) -> DummyMember | None:
         return self.guilds[0].get_member(ucid)
 
     def match_user(self, data: dict, rematch=False) -> None:
         ...
 
-    def get_server(self, ctx: Any, *, admin_only: Optional[bool] = False) -> None:
+    def get_server(self, ctx: Any, *, admin_only: bool | None = False) -> None:
         ...
 
     async def setEmbed(self, *, embed_name: str, embed: Any, channel_id: Any, file: Any, server: Any):
         ...
 
-    def get_role(self, role: Union[str, int]) -> Optional[DummyRole]:
+    def get_role(self, role: str | int) -> DummyRole | None:
         return self.guilds[0]._roles[role]
 
     def get_channel(self, channel_id: int) -> None:
         ...
 
-    async def fetch_user(self, ucid: str) -> Optional[DummyMember]:
+    async def fetch_user(self, ucid: str) -> DummyMember | None:
         return await self.guilds[0].fetch_member(ucid)
 
     def add_command(self, command: Any, /) -> None:

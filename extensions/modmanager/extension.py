@@ -1,7 +1,6 @@
 import asyncio
 
 from core import Extension, MizFile, Server, UnsupportedMizFileException
-from typing import Optional
 
 __all__ = [
     "ModManager"
@@ -26,7 +25,7 @@ class ModManager(Extension):
         self.modules.pop(self.server.name, None)
         return super().shutdown(quiet=True)
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         mods = self.modules.get(self.server.name)
         if not mods:
             raise NotImplementedError()

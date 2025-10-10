@@ -7,7 +7,6 @@ import warnings
 from core import const, report, EmbedElement, utils
 from plugins.userstats.filter import StatisticsFilter
 from psycopg.rows import dict_row
-from typing import Optional
 
 # ignore pandas warnings (log scale et al)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -15,7 +14,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 class ServerUsage(report.EmbedElement):
 
-    async def render(self, server_name: Optional[str], period: StatisticsFilter):
+    async def render(self, server_name: str | None, period: StatisticsFilter):
 
         where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
@@ -54,7 +53,7 @@ class ServerUsage(report.EmbedElement):
 
 class TopTheatresPerServer(report.EmbedElement):
 
-    async def render(self, server_name: Optional[str], period: StatisticsFilter):
+    async def render(self, server_name: str | None, period: StatisticsFilter):
 
         where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
@@ -84,7 +83,7 @@ class TopTheatresPerServer(report.EmbedElement):
 
 class TopMissionPerServer(report.EmbedElement):
 
-    async def render(self, server_name: Optional[str], period: StatisticsFilter, limit: int):
+    async def render(self, server_name: str | None, period: StatisticsFilter, limit: int):
 
         where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
@@ -116,7 +115,7 @@ class TopMissionPerServer(report.EmbedElement):
 
 class TopModulesPerServer(report.EmbedElement):
 
-    async def render(self, server_name: Optional[str], period: StatisticsFilter, limit: int):
+    async def render(self, server_name: str | None, period: StatisticsFilter, limit: int):
 
         where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
@@ -149,7 +148,7 @@ class TopModulesPerServer(report.EmbedElement):
 
 class UniqueUsers(report.GraphElement):
 
-    async def render(self, server_name: Optional[str], interval: Optional[str] = "1 month"):
+    async def render(self, server_name: str | None, interval: str | None = "1 month"):
 
         where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
@@ -243,7 +242,7 @@ class UniqueUsers(report.GraphElement):
 
 class UserRetention(report.GraphElement):
 
-    async def render(self, server_name: Optional[str], interval: Optional[str] = "1 month"):
+    async def render(self, server_name: str | None, interval: str | None = "1 month"):
 
         where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
@@ -346,7 +345,7 @@ class UserRetention(report.GraphElement):
 
 class UserEngagement(report.GraphElement):
 
-    async def render(self, server_name: Optional[str], interval: Optional[str] = "1 month"):
+    async def render(self, server_name: str | None, interval: str | None = "1 month"):
         where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
             WITH first_seen AS (
@@ -463,7 +462,7 @@ class UserEngagement(report.GraphElement):
 
 class UsersPerDayTime(report.GraphElement):
 
-    async def render(self, server_name: Optional[str], interval: Optional[str] = '1 month'):
+    async def render(self, server_name: str | None, interval: str | None = '1 month'):
 
         where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
@@ -496,13 +495,13 @@ class UsersPerDayTime(report.GraphElement):
 
 class UsersPerMissionTime(report.GraphElement):
 
-    async def render(self, server_name: Optional[str], interval: Optional[str] = '1 month'):
+    async def render(self, server_name: str | None, interval: str | None = '1 month'):
         """
         Render a bar plot to visualize the number of average users per hour within a given interval of time.
 
         Parameters:
-            server_name (Optional[str]): The name of the server to filter data by.
-            interval (Optional[str]): The time interval for filtering mission times (default is '1 month').
+            server_name (str | None): The name of the server to filter data by.
+            interval (str | None): The time interval for filtering mission times (default is '1 month').
 
         """
         where_clause = "AND server_name = %(server_name)s" if server_name else ""
@@ -571,14 +570,14 @@ class UsersPerMissionTime(report.GraphElement):
 
 
 class ServerLoadHeader(EmbedElement):
-    async def render(self, node: str, server_name: Optional[str] = None):
+    async def render(self, node: str, server_name: str | None = None):
         self.env.embed.description = \
             f"Node: {node}" if not server_name else f"Server: {utils.escape_string(server_name)}"
 
 
 class ServerLoad(report.MultiGraphElement):
 
-    async def render(self, node: str, period: StatisticsFilter, server_name: Optional[str] = None):
+    async def render(self, node: str, period: StatisticsFilter, server_name: str | None = None):
 
         self.env.embed.title = f"Server Load ({period.period.title()})"
         inner_sql = f"""

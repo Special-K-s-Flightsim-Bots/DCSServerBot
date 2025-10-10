@@ -2,7 +2,7 @@ import asyncio
 import random
 
 from core import EventListener, utils, Server, Report, Player, event
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .commands import MOTD
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 class MOTDListener(EventListener["MOTD"]):
 
-    async def on_join(self, config: dict, server: Server, player: Player) -> Optional[str]:
+    async def on_join(self, config: dict, server: Server, player: Player) -> str | None:
         if 'messages' in config:
             if config.get('random', False):
                 cfg = random.choice(config['messages'])
@@ -28,7 +28,7 @@ class MOTDListener(EventListener["MOTD"]):
                     return None
             return utils.format_string(config['message'], server=server, player=player)
 
-    async def on_birth(self, config: dict, server: Server, player: Player) -> tuple[Optional[str], Optional[dict]]:
+    async def on_birth(self, config: dict, server: Server, player: Player) -> tuple[str | None, dict | None]:
         if 'messages' in config:
             if config.get('random', False):
                 cfg = random.choice(config['messages'])

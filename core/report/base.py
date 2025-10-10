@@ -15,7 +15,7 @@ from core import utils, Channel
 from discord import Interaction, SelectOption, ButtonStyle
 from discord.ui import View, Button, Select, Item
 from discord.utils import MISSING
-from typing import Optional, TYPE_CHECKING, Any, cast, Union
+from typing import TYPE_CHECKING, Any, cast
 
 from .elements import ReportElement
 from .env import ReportEnv
@@ -201,7 +201,7 @@ class PaginationReport(Report):
         ...
 
     def __init__(self, interaction: discord.Interaction, plugin: str, filename: str,
-                 pagination: Optional[list] = None, keep_image: bool = False):
+                 pagination: list | None = None, keep_image: bool = False):
         super().__init__(interaction.client, plugin, filename)
         self.interaction = interaction
         self.pagination = pagination
@@ -392,11 +392,11 @@ class PaginationReport(Report):
 class PersistentReport(Report):
 
     def __init__(self, bot: DCSServerBot, plugin: str, filename: str, *, embed_name: str,
-                 channel_id: Optional[Union[Channel, int]] = Channel.STATUS, server: Optional[Server] = None):
+                 channel_id: Channel | int | None = Channel.STATUS, server: Server | None = None):
         super().__init__(bot, plugin, filename)
         self.server = server
         self.embed_name: str = embed_name
-        self.channel_id: Union[Channel, int] = channel_id
+        self.channel_id: Channel | int = channel_id
 
     async def render(self, *args, **kwargs) -> ReportEnv:
         env = None

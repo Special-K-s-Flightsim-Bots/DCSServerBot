@@ -22,7 +22,7 @@ from discord.ext import commands, tasks
 from discord.utils import MISSING, _shorten
 from packaging.version import parse
 from pathlib import Path
-from typing import Type, Optional, TYPE_CHECKING, Union, Any, Callable, Generic
+from typing import Type, TYPE_CHECKING, Any, Callable, Generic
 
 from .const import DEFAULT_TAG
 from .listener import TEventListener
@@ -55,8 +55,8 @@ __all__ = [
 
 def command(
     *,
-    name: Union[str, locale_str] = MISSING,
-    description: Union[str, locale_str] = MISSING,
+    name: str | locale_str = MISSING,
+    description: str | locale_str = MISSING,
     nsfw: bool = False,
     auto_locale_strings: bool = True,
     extras: dict[Any, Any] = MISSING,
@@ -117,12 +117,12 @@ class Command(app_commands.Command[GroupT, P, T]):
     def __init__(
         self,
         *,
-        name: Union[str, locale_str],
-        description: Union[str, locale_str],
+        name: str | locale_str,
+        description: str | locale_str,
         callback: CommandCallback[GroupT, P, T],
         nsfw: bool = False,
-        parent: Optional[Group] = None,
-        guild_ids: Optional[list[int]] = None,
+        parent: Group | None = None,
+        guild_ids: list[int] | None = None,
         auto_locale_strings: bool = True,
         extras: dict[Any, Any] = MISSING,
     ):
@@ -171,8 +171,8 @@ class Group(app_commands.Group):
     def command(
         self,
         *,
-        name: Union[str, locale_str] = MISSING,
-        description: Union[str, locale_str] = MISSING,
+        name: str | locale_str = MISSING,
+        description: str | locale_str = MISSING,
         nsfw: bool = False,
         auto_locale_strings: bool = True,
         extras: dict[Any, Any] = MISSING,
@@ -181,10 +181,10 @@ class Group(app_commands.Group):
 
         Parameters
         ------------
-        name: Union[:class:`str`, :class:`locale_str`]
+        name: str | :class:`locale_str`
             The name of the application command. If not given, it defaults to a lower-case
             version of the callback name.
-        description: Union[:class:`str`, :class:`locale_str`]
+        description: str | :class:`locale_str`
             The description of the application command. This shows up in the UI to describe
             the application command. If not given, it defaults to the first line of the docstring
             of the callback shortened to 100 characters.
@@ -230,7 +230,7 @@ class Group(app_commands.Group):
 
 class Plugin(commands.Cog, Generic[TEventListener]):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None, name: Optional[str] = None):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None, name: str | None = None):
         from services.servicebus import ServiceBus
 
         super().__init__()
@@ -317,7 +317,7 @@ class Plugin(commands.Cog, Generic[TEventListener]):
             return True
         return False
 
-    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
+    async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
         ...
 
     async def before_dcs_update(self) -> None:
@@ -327,7 +327,7 @@ class Plugin(commands.Cog, Generic[TEventListener]):
         ...
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: Optional[str] = None) -> None:
+                    server: str | None = None) -> None:
         ...
 
     async def _init_db(self) -> bool:
@@ -445,14 +445,14 @@ class Plugin(commands.Cog, Generic[TEventListener]):
             raise YAMLError(filename, ex)
 
     # get default and specific configs to be merged in derived implementations
-    def get_base_config(self, server: Server) -> tuple[Optional[dict], Optional[dict]]:
-        def get_theatre() -> Optional[str]:
+    def get_base_config(self, server: Server) -> tuple[dict | None, dict | None]:
+        def get_theatre() -> str | None:
             if server.current_mission:
                 return server.current_mission.map
             else:
                 return asyncio.run(server.get_current_mission_theatre())
 
-        def get_mission() -> Optional[str]:
+        def get_mission() -> str | None:
             if server.current_mission:
                 return server.current_mission.name
             else:
@@ -485,8 +485,8 @@ class Plugin(commands.Cog, Generic[TEventListener]):
         specific = deepcopy(filter_element(self.locals.get(server.node.name, self.locals).get(server.instance.name) or {}))
         return default, specific
 
-    def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
-                   use_cache: Optional[bool] = True) -> dict:
+    def get_config(self, server: Server | None = None, *, plugin_name: str | None = None,
+                   use_cache: bool | None = True) -> dict:
         # retrieve the config from another plugin
         if plugin_name:
             for plugin in self.bot.cogs.values():  # type: Plugin

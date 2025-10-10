@@ -3,7 +3,7 @@ import asyncio
 from core import EventListener, chat_command, Server, Player, utils, Coalition, event, ChatCommand, get_translation
 from functools import partial
 from itertools import islice
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from plugins.creditsystem.player import CreditPlayer
 from plugins.voting.base import VotableItem
@@ -44,7 +44,7 @@ class VotingHandler:
                 return "\n" + _('Current leading vote: "{}"').format(winner)
         return ""
 
-    async def print(self, player: Optional[Player] = None):
+    async def print(self, player: Player | None = None):
         message = (await self.item.print()) + '\n'
         for idx, element in enumerate(await self.item.get_choices()):
             message += f'{idx + 1}. {element}\n'
@@ -146,7 +146,7 @@ class VotingListener(EventListener["Voting"]):
             return False
         return await super().can_run(command, server, player)
 
-    def check_role(self, player: Player, roles: Optional[list[str]] = None) -> bool:
+    def check_role(self, player: Player, roles: list[str] | None = None) -> bool:
         if not roles:
             return True
         elif isinstance(roles, str):

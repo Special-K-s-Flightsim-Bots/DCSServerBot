@@ -3,7 +3,6 @@ import asyncio
 from core import ServiceRegistry, Service, DEFAULT_TAG, utils, Server, Status
 from datetime import datetime
 from discord.ext import tasks
-from typing import Optional
 
 from . import actions
 from ..bot import BotService
@@ -28,7 +27,7 @@ class CronService(Service):
             self.schedule.cancel()
             await super().stop()
 
-    def get_config(self, server: Optional[Server] = None) -> dict:
+    def get_config(self, server: Server | None = None, **kwargs) -> dict:
         if not server:
             return self.locals.get(DEFAULT_TAG, {})
         else:
@@ -37,7 +36,7 @@ class CronService(Service):
             else:
                 return self.locals.get(server.instance.name, {})
 
-    async def do_actions(self, config: dict, server: Optional[Server] = None):
+    async def do_actions(self, config: dict, server: Server | None = None):
         action = config['action']
         try:
             func = getattr(actions, action['type'])
@@ -58,7 +57,7 @@ class CronService(Service):
 
     @tasks.loop(minutes=1)
     async def schedule(self):
-        async def check_run(config: dict, server: Optional[Server] = None):
+        async def check_run(config: dict, server: Server | None = None):
             now = datetime.now().replace(second=0, microsecond=0)
             for cfg in config['actions']:
                 if 'cron' in cfg and not utils.matches_cron(now, cfg['cron']):

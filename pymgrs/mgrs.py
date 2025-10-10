@@ -41,7 +41,7 @@ Z = 90  # Z
 
 
 def degToRad(deg):
-    return (deg * (math.pi / 180.0))
+    return deg * (math.pi / 180.0)
 
 
 """"
@@ -54,7 +54,7 @@ def degToRad(deg):
 
 
 def radToDeg(rad):
-    return (180.0 * (rad / math.pi))
+    return 180.0 * (rad / math.pi)
 
 
 """"
@@ -91,18 +91,18 @@ def LLtoUTM(lat, lon):
         ZoneNumber = 60
 
     # Special zone for Norway
-    if Lat >= 56.0 and Lat < 64.0 and Long >= 3.0 and Long < 12.0:
+    if 56.0 <= Lat < 64.0 and 3.0 <= Long < 12.0:
         ZoneNumber = 32
 
     # Special zones for Svalbard
-    if Lat >= 72.0 and Lat < 84.0:
-        if Long >= 0.0 and Long < 9.0:
+    if 72.0 <= Lat < 84.0:
+        if 0.0 <= Long < 9.0:
             ZoneNumber = 31
-        elif Long >= 9.0 and Long < 21.0:
+        elif 9.0 <= Long < 21.0:
             ZoneNumber = 33
-        elif Long >= 21.0 and Long < 33.0:
+        elif 21.0 <= Long < 33.0:
             ZoneNumber = 35
-        elif Long >= 33.0 and Long < 42.0:
+        elif 33.0 <= Long < 42.0:
             ZoneNumber = 37
 
     LongOrigin = (ZoneNumber - 1) * 6 - 180 + 3  # +3 puts origin
@@ -110,7 +110,7 @@ def LLtoUTM(lat, lon):
     # zone
     LongOriginRad = degToRad(LongOrigin)
 
-    eccPrimeSquared = (eccSquared) / (1 - eccSquared)
+    eccPrimeSquared = eccSquared / (1 - eccSquared)
 
     N = a / math.sqrt(1 - eccSquared * math.sin(LatRad) * math.sin(LatRad))
     T = math.tan(LatRad) * math.tan(LatRad)
@@ -311,10 +311,10 @@ def getLetter100kID(column, row, parm):
         colInt = colInt - Z + A - 1
         rollover = True
 
-    if (colInt == I or (colOrigin < I and colInt > I) or ((colInt > I or colOrigin < I) and rollover)):
+    if colInt == I or (colOrigin < I < colInt) or ((colInt > I or colOrigin < I) and rollover):
         colInt += 1
 
-    if (colInt == O or (colOrigin < O and colInt > O) or ((colInt > O or colOrigin < O) and rollover)):
+    if colInt == O or (colOrigin < O < colInt) or ((colInt > O or colOrigin < O) and rollover):
         colInt += 1
 
     if colInt == I:
@@ -329,10 +329,10 @@ def getLetter100kID(column, row, parm):
     else:
         rollover = False
 
-    if (((rowInt == I) or ((rowOrigin < I) and (rowInt > I))) or (((rowInt > I) or (rowOrigin < I)) and rollover)):
+    if ((rowInt == I) or ((rowOrigin < I) and (rowInt > I))) or (((rowInt > I) or (rowOrigin < I)) and rollover):
         rowInt += 1
 
-    if (((rowInt == O) or ((rowOrigin < O) and (rowInt > O))) or (((rowInt > O) or (rowOrigin < O)) and rollover)):
+    if ((rowInt == O) or ((rowOrigin < O) and (rowInt > O))) or (((rowInt > O) or (rowOrigin < O)) and rollover):
         rowInt += 1
 
     if rowInt == I:
@@ -357,7 +357,7 @@ def getLetter100kID(column, row, parm):
 
 def decode(mgrsString):
     if len(mgrsString) == 0:
-        raise ("MGRSPoint coverting from nothing")
+        raise "MGRSPoint coverting from nothing"
 
     length = len(mgrsString)
 
@@ -428,6 +428,8 @@ def decode(mgrsString):
         sepEasting = float(sepEastingString) * accuracyBonus
         sepNorthingString = mgrsString[int(i + sep):]
         sepNorthing = float(sepNorthingString) * accuracyBonus
+    else:
+        accuracyBonus = 1.0
 
     easting = sepEasting + east100k
     northing = sepNorthing + north100k
@@ -612,7 +614,7 @@ def UTMtoLL(utm):
     # if the Zone letter isn't exactly correct it should indicate
     # the hemisphere correctly
     if zoneLetter < 'N':
-        y -= 10000000.0;  # remove 10,000,000 meter offset used
+        y -= 10000000.0  # remove 10,000,000 meter offset used
     # for southern hemisphere
 
     # There are 60 zones with zone 1 being at West -180 to -174
@@ -620,7 +622,7 @@ def UTMtoLL(utm):
     # in middle of
     # zone
 
-    eccPrimeSquared = (eccSquared) / (1 - eccSquared)
+    eccPrimeSquared = eccSquared / (1 - eccSquared)
 
     M = y / k0
     mu = M / (a * (

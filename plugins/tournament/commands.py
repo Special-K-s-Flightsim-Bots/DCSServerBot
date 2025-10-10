@@ -21,7 +21,6 @@ from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from time import time
-from typing import Optional
 
 from .const import TOURNAMENT_PHASE
 from .listener import TournamentEventListener
@@ -305,7 +304,7 @@ class Tournament(Plugin[TournamentEventListener]):
             channel = self.bot.get_admin_channel()
         return channel
 
-    async def get_tournament(self, tournament_id: int) -> Optional[dict]:
+    async def get_tournament(self, tournament_id: int) -> dict | None:
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
@@ -318,7 +317,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 """, (tournament_id, ))
                 return await cursor.fetchone()
 
-    async def get_match(self, match_id: int) -> Optional[dict]:
+    async def get_match(self, match_id: int) -> dict | None:
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
@@ -326,14 +325,14 @@ class Tournament(Plugin[TournamentEventListener]):
                 """, (match_id, ))
                 return await cursor.fetchone()
 
-    def get_info_channel(self) -> Optional[discord.TextChannel]:
+    def get_info_channel(self) -> discord.TextChannel | None:
         config = self.get_config()
         channel_id = config.get('channels', {}).get('info')
         if channel_id and self.bot.check_channel(channel_id):
             return self.bot.get_channel(channel_id)
         return None
 
-    async def get_squadron_channel(self, match_id: int, side: str) -> Optional[TextChannel]:
+    async def get_squadron_channel(self, match_id: int, side: str) -> TextChannel | None:
         async with self.apool.connection() as conn:
             cursor = await conn.execute(f"""
                 SELECT squadron_{side}_channel FROM tm_matches WHERE match_id = %s
@@ -356,8 +355,8 @@ class Tournament(Plugin[TournamentEventListener]):
             campaign_id = (await cursor.fetchone())[0]
         return DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'], campaign_id=campaign_id)
 
-    async def inform_squadron(self, *, tournament_id: int, squadron_id: int, message: Optional[str] = None,
-                              embed: Optional[discord.Embed] = None):
+    async def inform_squadron(self, *, tournament_id: int, squadron_id: int, message: str | None = None,
+                              embed: discord.Embed | None = None):
         async with self.apool.connection() as conn:
             async for row in await conn.execute("""
                 SELECT p.discord_id
@@ -401,7 +400,7 @@ class Tournament(Plugin[TournamentEventListener]):
     # New command group "/tournament"
     tournament = Group(name="tournament", description="Commands to manage tournaments")
 
-    async def render_groups_image(self, tournament_id: int) -> Optional[bytes]:
+    async def render_groups_image(self, tournament_id: int) -> bytes | None:
         groups: list[list[int]] = []
         async with self.apool.connection() as conn:
             async for row in await conn.execute("""
@@ -432,7 +431,7 @@ class Tournament(Plugin[TournamentEventListener]):
         return buffer
 
     async def render_status_embed(self, tournament_id: int, *,
-                                  phase: Optional[TOURNAMENT_PHASE] = None) -> None:
+                                  phase: TOURNAMENT_PHASE | None = None) -> None:
         tournament = await self.get_tournament(tournament_id)
         async with self.apool.connection() as conn:
             # read number of squadrons
@@ -541,7 +540,7 @@ class Tournament(Plugin[TournamentEventListener]):
 
     async def render_info_embed(self, tournament_id: int, *,
                                 phase: TOURNAMENT_PHASE = TOURNAMENT_PHASE.SIGNUP,
-                                match_id: Optional[int] = None) -> None:
+                                match_id: int | None = None) -> None:
         tournament = await self.get_tournament(tournament_id)
         embed = discord.Embed(color=discord.Color.blue(), title=f"Tournament {tournament['name']} Information")
         buffer = None
@@ -1017,7 +1016,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=tournament_autocomplete)
     @utils.app_has_role('GameMaster')
-    async def export(self, interaction: discord.Interaction, tournament_id: int, unflown: Optional[bool] = False):
+    async def export(self, interaction: discord.Interaction, tournament_id: int, unflown: bool | None = False):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
 
@@ -1140,7 +1139,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=tournament_autocomplete)
     @utils.app_has_role('GameMaster')
-    async def preferences(self, interaction: discord.Interaction, tournament_id: Optional[int] = None):
+    async def preferences(self, interaction: discord.Interaction, tournament_id: int | None = None):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         report = Report(bot=self.bot, plugin=self.plugin_name, filename="preferences.json")
@@ -1250,7 +1249,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
     @utils.app_has_role('GameMaster')
-    async def generate(self, interaction: discord.Interaction, tournament_id: int, num_groups: Optional[int] = 4):
+    async def generate(self, interaction: discord.Interaction, tournament_id: int, num_groups: int | None = 4):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         tournament = await self.get_tournament(tournament_id)
@@ -1413,7 +1412,7 @@ class Tournament(Plugin[TournamentEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Match created."), ephemeral=utils.get_ephemeral(interaction))
 
-    async def render_matches(self, tournament: dict, unflown: Optional[bool] = False) -> Optional[discord.Embed]:
+    async def render_matches(self, tournament: dict, unflown: bool | None = False) -> discord.Embed | None:
         embed = discord.Embed(color=discord.Color.blue())
         embed.title = _("Matches for Tournament {}").format(tournament['name'])#
         embed.set_thumbnail(url=self.bot.guilds[0].icon.url)
@@ -1570,7 +1569,7 @@ class Tournament(Plugin[TournamentEventListener]):
                     """, (server.name, match['match_id']))
 
     async def prepare_mission(self, server: Server, match_id: int, round_number: int,
-                              mission_id: Optional[int] = None) -> str:
+                              mission_id: int | None = None) -> str:
         config = self.get_config(server)
         # set startindex or use last mission
         if mission_id is not None and server.settings['listStartIndex'] != mission_id + 1:
@@ -1674,7 +1673,7 @@ class Tournament(Plugin[TournamentEventListener]):
         else:
             raise IndexError(f"Mission {mission} not found in mission list.")
 
-    async def get_mission(self, server: Server, tournament_id: int, match: dict) -> Optional[str]:
+    async def get_mission(self, server: Server, tournament_id: int, match: dict) -> str | None:
         config = self.get_config(server)
         if isinstance(config.get('mission'), str):
             return config['mission']
@@ -1707,8 +1706,8 @@ class Tournament(Plugin[TournamentEventListener]):
             return random.choice(valid_missions) if valid_missions else None
         return None
 
-    async def start_match(self, server: Server, tournament_id: int, match_id: int, mission_id: Optional[int] = None,
-                          round_number: Optional[int] = None):
+    async def start_match(self, server: Server, tournament_id: int, match_id: int, mission_id: int | None = None,
+                          round_number: int | None = None):
         tournament = await self.get_tournament(tournament_id)
         match = await self.get_match(match_id)
 
@@ -1869,7 +1868,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(mission_id=mission_autocomplete)
     @utils.app_has_role('GameMaster')
     async def start(self, interaction: discord.Interaction, tournament_id: int, match_id: int,
-                    mission_id: Optional[int] = None, round_number: Optional[int] = None):
+                    mission_id: int | None = None, round_number: int | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -1987,7 +1986,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(winner_squadron_id=match_squadrons_autocomplete)
     @utils.app_has_role('GameMaster')
     async def edit(self, interaction: discord.Interaction, tournament_id: int, match_id: int,
-                   winner_squadron_id: Optional[int] = None):
+                   winner_squadron_id: int | None = None):
         match = await self.get_match(match_id)
         modal = utils.ConfigModal(title="Match Results", config={
             "squadron_blue_rounds_won": {

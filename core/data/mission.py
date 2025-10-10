@@ -5,7 +5,7 @@ import os
 from core.data.dataobject import DataObject, DataObjectFactory
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from .. import Status, utils
 
@@ -24,7 +24,7 @@ class Mission(DataObject):
     mission_time: int = field(compare=False, default=0)
     real_time: int = field(compare=False, default=0)
     filename: str = None
-    date: Union[str, datetime] = None
+    date: str | datetime = None
     num_slots_blue = 0
     num_slots_red = 0
     weather: dict = field(repr=False, default_factory=dict)

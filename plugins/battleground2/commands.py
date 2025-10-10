@@ -6,7 +6,6 @@ from core import Plugin, utils, Channel, Coalition, Server, get_translation
 from discord import app_commands
 from discord.app_commands import Group
 from services.bot import DCSServerBot
-from typing import Optional
 
 from .listener import BattlegroundEventListener
 
@@ -26,11 +25,11 @@ class Battleground(Plugin[BattlegroundEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def recon(self, interaction: discord.Interaction, name: str, mgrs: str, screenshot1: discord.Attachment,
-                    screenshot2: Optional[discord.Attachment], screenshot3: Optional[discord.Attachment],
-                    screenshot4: Optional[discord.Attachment], screenshot5: Optional[discord.Attachment],
-                    screenshot6: Optional[discord.Attachment], screenshot7: Optional[discord.Attachment],
-                    screenshot8: Optional[discord.Attachment], screenshot9: Optional[discord.Attachment],
-                    screenshot10: Optional[discord.Attachment]):
+                    screenshot2: discord.Attachment | None, screenshot3: discord.Attachment | None,
+                    screenshot4: discord.Attachment | None, screenshot5: discord.Attachment | None,
+                    screenshot6: discord.Attachment | None, screenshot7: discord.Attachment | None,
+                    screenshot8: discord.Attachment | None, screenshot9: discord.Attachment | None,
+                    screenshot10:discord.Attachment | None):
         mgrs = mgrs.replace(' ', '')
         if len(mgrs) != 15 or not mgrs[:2].isnumeric() or not mgrs[5:].isnumeric():
             # noinspection PyUnresolvedReferences

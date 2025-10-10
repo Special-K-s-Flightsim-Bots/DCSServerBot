@@ -13,7 +13,7 @@ from discord.utils import MISSING
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Union, Optional, Type
+from typing import Type
 
 from .filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, SquadronFilter, \
     TheatreFilter
@@ -28,8 +28,8 @@ yaml = YAML()
 _ = get_translation(__name__.split('.')[1])
 
 
-def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *params) \
-        -> tuple[Union[discord.Member, str], str]:
+def parse_params(self, ctx, member: discord.Member | str | None, *params) \
+        -> tuple[discord.Member | str, str]:
     num = len(params)
     if not member:
         member = ctx.message.author
@@ -64,7 +64,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                     "squadron": {"leave": {"enabled": False}}
                 }, {x.name: x for x in self.get_app_commands()})
 
-    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
+    async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
         if new_version == '3.2':
             if not self.locals:
                 return
@@ -99,7 +99,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         await super().cog_unload()
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: Optional[str] = None) -> None:
+                    server: str | None = None) -> None:
         self.log.debug('Pruning Userstats ...')
         if ucids:
             for ucid in ucids:
@@ -131,7 +131,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @utils.app_has_role('Admin')
     @app_commands.rename(_server="server")
     async def reset_statistics(self, interaction: discord.Interaction,
-                               _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None):
+                               _server: app_commands.Transform[Server, utils.ServerTransformer] | None = None):
         if not _server:
             for s in self.bus.servers.values():
                 if s.status in [Status.RUNNING, Status.PAUSED]:
@@ -187,13 +187,11 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @app_commands.describe(user='Name of player, member or UCID')
     @app_commands.describe(period='Select one of the default periods or enter the name of a campaign or a mission')
     async def statistics(self, interaction: discord.Interaction,
-                         period: Optional[app_commands.Transform[
+                         period: app_commands.Transform[
                              StatisticsFilter, PeriodTransformer(
                                  flt=[PeriodFilter, CampaignFilter, MissionFilter, TheatreFilter]
-                             )]] = PeriodFilter(),
-                         user: Optional[app_commands.Transform[
-                             Union[discord.Member, str], utils.UserTransformer]
-                         ] = None):
+                             )] | None = PeriodFilter(),
+                         user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None):
         if not user:
             user = interaction.user
         if isinstance(user, discord.Member):
@@ -212,11 +210,11 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @app_commands.rename(_server="server")
     @app_commands.describe(period='Select one of the default periods or enter the name of a campaign or a mission')
     async def highscore(self, interaction: discord.Interaction,
-                        _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None,
-                        period: Optional[app_commands.Transform[
+                        _server: app_commands.Transform[Server, utils.ServerTransformer] | None = None,
+                        period: app_commands.Transform[
                             StatisticsFilter, PeriodTransformer(
                                 flt=[PeriodFilter, CampaignFilter, MissionFilter, TheatreFilter, SquadronFilter]
-                            )]] = PeriodFilter(), limit: Optional[app_commands.Range[int, 3, 20]] = None):
+                            )] | None = PeriodFilter(), limit: app_commands.Range[int, 3, 20] | None = None):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         file = 'highscore-campaign.json' if isinstance(period, CampaignFilter) else 'highscore.json'
@@ -241,7 +239,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin'])
     async def delete_statistics(self, interaction: discord.Interaction,
-                                user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
+                                user: app_commands.Transform[discord.Member | str, utils.UserTransformer]):
 
         if not user:
             user = interaction.user
@@ -274,8 +272,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @squadron.command(description='Create a squadron')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def create(self, interaction: discord.Interaction, name: str, locked: bool = False, role: Optional[discord.Role] = None,
-                     channel: Optional[discord.TextChannel] = None):
+    async def create(self, interaction: discord.Interaction, name: str, locked: bool = False, role: discord.Role | None = None,
+                     channel: discord.TextChannel | None = None):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(SquadronModal(self, name, locked=locked, role=role, channel=channel))
 
@@ -301,8 +299,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.rename(squadron_id="squadron")
     @utils.app_has_role('DCS Admin')
-    async def edit(self, interaction: discord.Interaction, squadron_id: int, role: Optional[discord.Role] = None,
-                   channel: Optional[discord.TextChannel] = None):
+    async def edit(self, interaction: discord.Interaction, squadron_id: int, role: discord.Role | None = None,
+                   channel: discord.TextChannel | None = None):
         async with interaction.client.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("SELECT name, role, description FROM squadrons WHERE id = %s", (squadron_id, ))
@@ -323,8 +321,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @app_commands.rename(squadron_id="squadron")
     @utils.squadron_role_check()
     async def add(self, interaction: discord.Interaction, squadron_id: int,
-                  user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer],
-                  admin: Optional[bool] = False):
+                  user: app_commands.Transform[discord.Member | str, utils.UserTransformer],
+                  admin: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
         # only DCS Admin can add admin users
         if admin and not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
@@ -398,7 +396,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @app_commands.autocomplete(user=utils.squadron_users_autocomplete)
     @app_commands.rename(squadron_id="squadron")
     @utils.squadron_role_check()
-    async def delete(self, interaction: discord.Interaction, squadron_id: int, user: Optional[str] = None):
+    async def delete(self, interaction: discord.Interaction, squadron_id: int, user: str | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if not user:
             if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
@@ -641,7 +639,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @app_commands.rename(squadron_id="squadron")
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def donate(self, interaction: discord.Interaction, squadron_id: int, points: int,
-                     server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None):
+                     server: app_commands.Transform[Server, utils.ServerTransformer] | None = None):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         campaign_id, name = utils.get_running_campaign(self.node, server)
@@ -653,7 +651,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         await interaction.followup.send(_("{} points donated to squadron {}.").format(points, squadron['name']),
                                         ephemeral=utils.get_ephemeral(interaction))
 
-    async def render_highscore(self, highscore: Union[dict, list], *, server: Optional[Server] = None,
+    async def render_highscore(self, highscore: dict | list, *, server: Server | None = None,
                                mission_end: bool = False):
         # Handle the case where the highscore is a list.
         if isinstance(highscore, list):

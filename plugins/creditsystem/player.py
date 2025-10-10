@@ -1,7 +1,7 @@
 from contextlib import closing
 from core import Player, DataObjectFactory, utils, Plugin
 from dataclasses import field, dataclass
-from typing import cast, Optional
+from typing import cast
 
 from .squadron import Squadron
 
@@ -13,7 +13,7 @@ class CreditPlayer(Player):
     deposit: int = field(compare=False, default=0)
     plugin: Plugin = field(compare=False, init=False)
     config: dict = field(compare=False, init=False)
-    squadron: Optional[Squadron] = field(compare=False, init=False)
+    squadron: Squadron | None = field(compare=False, init=False)
 
     def __post_init__(self):
         super().__post_init__()

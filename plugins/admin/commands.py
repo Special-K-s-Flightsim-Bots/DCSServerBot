@@ -20,7 +20,7 @@ from plugins.modmanager.commands import get_installed_mods
 from plugins.scheduler.views import ConfigView
 from services.bot import DCSServerBot
 from services.modmanager import ModManagerService
-from typing import Optional, Union, Literal, Type
+from typing import Literal, Type
 from zipfile import ZipFile, ZIP_DEFLATED
 
 # ruamel YAML support
@@ -277,14 +277,14 @@ class Admin(Plugin[AdminEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def ban(self, interaction: discord.Interaction,
-                  user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                  user: app_commands.Transform[discord.Member | str, utils.UserTransformer(
                       sel_type=PlayerType.PLAYER)]):
 
         class BanModal(Modal):
             reason = TextInput(label=_("Reason"), max_length=80, required=True)
             period = TextInput(label=_("Days (empty = forever)"), required=False)
 
-            def __init__(self, user: Union[discord.Member, str]):
+            def __init__(self, user: discord.Member | str):
                 super().__init__(title=_("Ban Details"))
                 self.user = user
 
@@ -381,9 +381,9 @@ class Admin(Plugin[AdminEventListener]):
                      node: app_commands.Transform[Node, utils.NodeTransformer],
                      warn_time: app_commands.Range[int, 0] = 60,
                      announce: bool = True,
-                     branch: Optional[str] = None,
-                     version: Optional[str] = None,
-                     force: Optional[bool] = False):
+                     branch: str | None = None,
+                     version: str | None = None,
+                     force: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
@@ -653,9 +653,9 @@ class Admin(Plugin[AdminEventListener]):
     @app_commands.autocomplete(_server=all_servers_autocomplete)
     @app_commands.rename(_server="server")
     async def _prune(self, interaction: discord.Interaction,
-                     user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                         sel_type=PlayerType.PLAYER)]] = None,
-                     _server: Optional[str] = None):
+                     user: app_commands.Transform[discord.Member | str,  utils.UserTransformer(
+                         sel_type=PlayerType.PLAYER)] | None = None,
+                     _server: str | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if not _server and not user:
             embed = discord.Embed(title=_(":warning: Database Prune :warning:"))
@@ -750,8 +750,8 @@ class Admin(Plugin[AdminEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def statistics(self, interaction: discord.Interaction,
-                         node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None,
-                         period: Optional[Literal['Hour', 'Day', 'Week', 'Month']] = 'Hour'):
+                         node: app_commands.Transform[Node, utils.NodeTransformer] | None = None,
+                         period: Literal['Hour', 'Day', 'Week', 'Month'] | None = 'Hour'):
         report = PaginationReport(interaction, self.plugin_name, 'nodestats.json')
         if not node:
             node = self.node
@@ -787,8 +787,8 @@ class Admin(Plugin[AdminEventListener]):
                 embed.add_field(name="▬" * 32, value=f"_[{name}]_", inline=False)
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
-    async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[Node] = None,
-                           ephemeral: Optional[bool] = True):
+    async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Node | None = None,
+                           ephemeral: bool | None = True):
         if not node:
             question = _("Are you sure you want to proceed?")
             message = _("This will {} **all** nodes.").format(_(method))
@@ -828,7 +828,7 @@ class Admin(Plugin[AdminEventListener]):
     @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def shutdown(self, interaction: discord.Interaction,
-                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+                       node: app_commands.Transform[Node, utils.NodeTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -839,7 +839,7 @@ class Admin(Plugin[AdminEventListener]):
     @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def restart(self, interaction: discord.Interaction,
-                      node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+                      node: app_commands.Transform[Node, utils.NodeTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -850,8 +850,8 @@ class Admin(Plugin[AdminEventListener]):
     @utils.app_has_role('Admin')
     @app_commands.describe(shutdown=_('Shuts all servers down (default: on)'))
     async def offline(self, interaction: discord.Interaction,
-                      node: Optional[app_commands.Transform[Node, utils.NodeTransformer]],
-                      shutdown: Optional[bool] = True):
+                      node: app_commands.Transform[Node, utils.NodeTransformer] | None,
+                      shutdown: bool | None = True):
         async def _node_offline(node_name: str):
             tasks = []
             if shutdown:
@@ -897,8 +897,8 @@ class Admin(Plugin[AdminEventListener]):
     @utils.app_has_role('Admin')
     @app_commands.describe(startup=_('Start all your servers (default: off)'))
     async def online(self, interaction: discord.Interaction,
-                     node: Optional[app_commands.Transform[Node, utils.NodeTransformer]],
-                     startup: Optional[bool] = False):
+                     node: app_commands.Transform[Node, utils.NodeTransformer] | None,
+                     startup: bool | None = False):
 
         async def _startup(server: Server):
             try:
@@ -935,7 +935,7 @@ class Admin(Plugin[AdminEventListener]):
     @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def upgrade(self, interaction: discord.Interaction,
-                      node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+                      node: app_commands.Transform[Node, utils.NodeTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -962,7 +962,7 @@ class Admin(Plugin[AdminEventListener]):
     @utils.app_has_role('Admin')
     async def shell(self, interaction: discord.Interaction,
                     node: app_commands.Transform[Node, utils.NodeTransformer],
-                    cmd: str, timeout: Optional[app_commands.Range[int, 10, 300]] = 60):
+                    cmd: str, timeout: app_commands.Range[int, 10, 300] | None = 60):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -989,7 +989,7 @@ class Admin(Plugin[AdminEventListener]):
     @app_commands.describe(template=_("Take this instance configuration as a reference"))
     async def add_instance(self, interaction: discord.Interaction,
                            node: app_commands.Transform[Node, utils.NodeTransformer], name: str,
-                           template: Optional[app_commands.Transform[Instance, utils.InstanceTransformer]] = None):
+                           template: app_commands.Transform[Instance, utils.InstanceTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -1172,7 +1172,7 @@ Please make sure you forward the following ports:
     @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(plugin=plugins_autocomplete)
-    async def reload(self, interaction: discord.Interaction, plugin: Optional[str]):
+    async def reload(self, interaction: discord.Interaction, plugin: str | None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)

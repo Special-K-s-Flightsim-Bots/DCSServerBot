@@ -4,7 +4,6 @@ import os
 import re
 
 from core import Extension, Server
-from typing import Optional
 
 __all__ = [
     "Pretense"
@@ -30,7 +29,7 @@ class Pretense(Extension):
         return await super().prepare()
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         if not self._version:
             if not self.missions_dir:
                 return None
@@ -43,7 +42,7 @@ class Pretense(Extension):
             self._version = _version[0] if _version else None
         return self._version
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         return {
             "name": self.name,
             "version": self.version,

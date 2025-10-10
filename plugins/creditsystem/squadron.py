@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 from services.bot import DCSServerBot, BotService
 from services.servicebus import ServiceBus
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from .player import CreditPlayer
@@ -86,7 +86,7 @@ class Squadron(DataObject):
                     'points': p
                 }))
 
-    def audit(self, event: str, points: int, remark: str, player: Optional["CreditPlayer"] = None):
+    def audit(self, event: str, points: int, remark: str, player: "CreditPlayer | None" = None):
         if points == 0:
             return
         new_points = self.points

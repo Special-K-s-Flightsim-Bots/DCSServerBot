@@ -3,7 +3,7 @@ from __future__ import annotations
 from core import DataObject
 from core.data.node import FatalException
 from dataclasses import dataclass, field
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import Server
@@ -22,7 +22,7 @@ class InstanceBusyError(Exception):
 @dataclass
 class Instance(DataObject):
     locals: dict = field(repr=False, default_factory=dict)
-    _server: Optional[Server] = field(compare=False, repr=False, default=None, init=False)
+    _server: Server | None = field(compare=False, repr=False, default=None, init=False)
     missions_dir: str = field(repr=False, init=False, default=None)
 
     @property
@@ -75,14 +75,14 @@ class Instance(DataObject):
         return self.locals.get('server_user', 'Admin')
 
     @property
-    def server(self) -> Optional[Server]:
+    def server(self) -> Server | None:
         return self._server
 
     @server.setter
-    def server(self, server: Optional[Server]):
+    def server(self, server: Server | None):
         self.set_server(server)
 
-    def set_server(self, server: Optional[Server]):
+    def set_server(self, server: Server | None):
         self._server = server
 
     def prepare(self):

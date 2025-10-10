@@ -1,10 +1,9 @@
 import re
-from typing import Optional
 from .const import *
 from .version import __version__
 
 
-def get_element(comment: str, element: str) -> Optional[str]:
+def get_element(comment: str, element: str) -> str | None:
     match = re.search(r'LSO: GRADE:(?P<grade>[^: ]+)(\s*:)?\s*(?P<details>.*)', comment)
 
     if element == 'grade':

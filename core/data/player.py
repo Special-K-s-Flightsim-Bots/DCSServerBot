@@ -8,7 +8,7 @@ from core import utils
 from core.data.dataobject import DataObject, DataObjectFactory
 from core.data.const import Side, Coalition
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional, Union, AsyncGenerator
+from typing import TYPE_CHECKING, AsyncGenerator
 
 from core.services.registry import ServiceRegistry
 
@@ -232,7 +232,7 @@ class Player(DataObject):
                     WHERE ucid = %s
                 """, (self.ucid, ))
 
-    def has_discord_roles(self, roles: list[Union[str, int]]) -> bool:
+    def has_discord_roles(self, roles: list[str | int]) -> bool:
         valid_roles = []
         for role in roles:
             valid_roles.extend(self.bot.roles[role])
@@ -251,11 +251,11 @@ class Player(DataObject):
                 "message": msg
             })
 
-    async def sendUserMessage(self, message: str, timeout: Optional[int] = -1):
+    async def sendUserMessage(self, message: str, timeout: int | None = -1):
         asyncio.create_task(self.sendPopupMessage(message, timeout))
         asyncio.create_task(self.sendChatMessage(message))
 
-    async def sendPopupMessage(self, message: str, timeout: Optional[int] = -1, sender: str = None):
+    async def sendPopupMessage(self, message: str, timeout: int | None = -1, sender: str = None):
         if timeout == -1:
             timeout = self.server.locals.get('message_timeout', 10)
         await self.server.send_to_dcs({
@@ -275,7 +275,7 @@ class Player(DataObject):
             "sound": sound
         })
 
-    async def add_role(self, role: Union[str, int]):
+    async def add_role(self, role: str | int):
         if not self.member or not role:
             return
         try:
@@ -289,7 +289,7 @@ class Player(DataObject):
         except discord.DiscordException as ex:
             self.log.error(f"Error while adding role {role}: {ex}")
 
-    async def remove_role(self, role: Union[str, int]):
+    async def remove_role(self, role: str | int):
         if not self.member or not role:
             return
         try:
@@ -303,7 +303,7 @@ class Player(DataObject):
         except discord.DiscordException as ex:
             self.log.error(f"Error while removing role {role}: {ex}")
 
-    def check_exemptions(self, exemptions: Union[dict, list]) -> bool:
+    def check_exemptions(self, exemptions: dict | list) -> bool:
         def _check_exemption(exemption: dict) -> bool:
             if 'ucid' in exemption:
                 if not isinstance(exemption['ucid'], list):

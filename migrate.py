@@ -14,7 +14,6 @@ from core.data.node import Node
 from pathlib import Path
 from rich import print
 from rich.prompt import IntPrompt, Confirm
-from typing import Union
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -385,7 +384,7 @@ def migrate_3(node: str):
 
         # main.yaml is only created on the Master node
         if master:
-            main: dict[str, Union[int, str, list, dict]] = {
+            main: dict[str, int | str | list | dict] = {
                 "guild_id": guild_id,
                 "use_dashboard": cfg['BOT'].getboolean('USE_DASHBOARD'),
                 'chat_command_prefix': cfg['BOT']['CHAT_COMMAND_PREFIX'],

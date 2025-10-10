@@ -4,7 +4,7 @@ import asyncio
 import logging
 
 from abc import ABC
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import Server
@@ -56,7 +56,7 @@ class Extension(ABC):
                 schedule.start()
             Extension.started_schedulers.add(self.__class__.__name__)
 
-    def load_config(self) -> Optional[dict]:
+    def load_config(self) -> dict | None:
         return dict()
 
     async def prepare(self) -> bool:
@@ -104,7 +104,7 @@ class Extension(ABC):
         return self._name
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         return None
 
     @property
@@ -121,7 +121,7 @@ class Extension(ABC):
             await asyncio.to_thread(self.shutdown)
         self.config['enabled'] = False
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         raise NotImplementedError()
 
     def is_installed(self) -> bool:

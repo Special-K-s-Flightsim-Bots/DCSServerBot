@@ -8,7 +8,6 @@ from core import ServiceRegistry, Service, utils
 from datetime import datetime
 from discord.ext import tasks
 from pathlib import Path
-from typing import Optional
 from urllib.parse import urlparse
 from zipfile import ZipFile
 
@@ -83,7 +82,7 @@ class BackupService(Service):
             pass
         return postgres_installations
 
-    async def get_postgres_installation(self) -> Optional[str]:
+    async def get_postgres_installation(self) -> str | None:
         if sys.platform == 'win32':
             # check the registry
             installations = self.get_postgres_installations()
@@ -265,7 +264,7 @@ class BackupService(Service):
         ...
 
     @staticmethod
-    def can_run(config: Optional[dict] = None):
+    def can_run(config: dict | None = None):
         if not config or 'schedule' not in config:
             return False
         now = datetime.now()

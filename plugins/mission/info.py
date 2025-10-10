@@ -2,13 +2,12 @@ import discord
 
 from core import report, Side, Player, DataObjectFactory, Member, utils
 from datetime import datetime, timezone
-from typing import Union, Optional
 from psycopg.rows import dict_row
 
 
 class Header(report.EmbedElement):
 
-    async def render(self, member: Union[discord.Member, str]):
+    async def render(self, member: discord.Member | str):
         sql = """
             SELECT p.first_seen, p.last_seen, 
                    CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, b.reason as ban_reason, b.banned_by, 
@@ -95,7 +94,7 @@ class Header(report.EmbedElement):
 
 
 class UCIDs(report.EmbedElement):
-    async def render(self, member: Union[discord.Member, str]):
+    async def render(self, member: discord.Member | str):
         sql = 'SELECT p.ucid, p.manual, COALESCE(p.name, \'?\') AS name FROM players p WHERE p.discord_id = '
         if isinstance(member, str):
             sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR " \
@@ -116,7 +115,7 @@ class UCIDs(report.EmbedElement):
 
 
 class History(report.EmbedElement):
-    async def render(self, member: Union[discord.Member, str]):
+    async def render(self, member: discord.Member | str):
         sql = 'SELECT name, max(time) AS time FROM players_hist p WHERE p.ucid '
         if isinstance(member, discord.Member):
             sql += f"IN (SELECT ucid FROM players WHERE discord_id = {member.id})"
@@ -139,7 +138,7 @@ class History(report.EmbedElement):
 
 
 class ServerInfo(report.EmbedElement):
-    async def render(self, member: Union[discord.Member, str], player: Optional[Player]):
+    async def render(self, member: discord.Member | str, player: Player | None):
         if player:
             self.add_field(name='▬' * 13 + ' Current Activity ' + '▬' * 13, value='_ _', inline=False)
             self.add_field(name='Active on Server', value=player.server.display_name)
@@ -148,7 +147,7 @@ class ServerInfo(report.EmbedElement):
 
 
 class Footer(report.EmbedElement):
-    async def render(self, member: Union[discord.Member, str], banned: bool, watchlist: bool, player: Optional[Player]):
+    async def render(self, member: discord.Member | str, banned: bool, watchlist: bool, player: Player | None):
         self.add_field(name='▬' * 33, value='_ _', inline=False)
         footer = ''
         if isinstance(member, discord.Member):

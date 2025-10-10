@@ -8,7 +8,6 @@ import json
 import logging
 import os
 import psutil
-import re
 import shutil
 import subprocess
 import ssl
@@ -26,7 +25,6 @@ from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
 from threading import Thread
-from typing import Optional
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from watchdog.observers import Observer
 
@@ -73,10 +71,10 @@ class SRS(Extension, FileSystemEventHandler):
         self.cfg = RawConfigParser()
         self.cfg.optionxform = str
         self.bus = ServiceRegistry.get(ServiceBus)
-        self.process: Optional[psutil.Process] = None
-        self.observer: Optional[Observer] = None
+        self.process: psutil.Process | None = None
+        self.observer: Observer | None = None
         self.first_run = True
-        self._inst_path: Optional[str] = None
+        self._inst_path: str | None = None
         self.exe_name = None
         self.clients: dict[str, set[int]] = {}
         self.client_names: dict[str, str] = {}
@@ -89,7 +87,7 @@ class SRS(Extension, FileSystemEventHandler):
             self.log.warning(f"  => {self.name}: No config parameter given, using default config path: {config_path}")
         return os.path.expandvars(config_path.format(server=self.server, instance=self.server.instance))
 
-    def load_config(self) -> Optional[dict]:
+    def load_config(self) -> dict | None:
         if 'config' in self.config:
             self.cfg.read(self.get_config_path(), encoding='utf-8')
             return {
@@ -436,13 +434,13 @@ class SRS(Extension, FileSystemEventHandler):
             return os.path.join(self.get_inst_path(), self.exe_name)
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         version = utils.get_windows_version(os.path.join(self.get_inst_path(), 'SRS-AutoUpdater.exe'))
         if not version:
             raise InstallException(f"Can't detect the {self.name} version, SRS-AutoUpdater.exe not found!")
         return version
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         if not self.locals:
             raise NotImplementedError()
 
@@ -483,7 +481,7 @@ class SRS(Extension, FileSystemEventHandler):
             self.log.error(f"  => SRS config not set for server {self.server.name}")
             return False
 
-    async def check_for_updates(self) -> Optional[str]:
+    async def check_for_updates(self) -> str | None:
         with suppress(aiohttp.ClientError):
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:

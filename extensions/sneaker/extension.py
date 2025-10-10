@@ -10,7 +10,6 @@ import subprocess
 from core import Extension, Status, ServiceRegistry, Server, utils, get_translation
 from services.servicebus import ServiceBus
 from threading import Thread
-from typing import Optional
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -20,7 +19,7 @@ __all__ = [
 
 
 class Sneaker(Extension):
-    _process: Optional[psutil.Process] = None
+    _process: psutil.Process | None = None
     _servers: set[str] = set()
     _lock = asyncio.Lock()
 
@@ -154,7 +153,7 @@ class Sneaker(Extension):
         return type(self)._process and type(self)._process.is_running() and self.server.name in type(self)._servers
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         return utils.get_windows_version(self.config['cmd'])
 
     def is_installed(self) -> bool:
@@ -166,7 +165,7 @@ class Sneaker(Extension):
             return False
         return True
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         if 'url' in self.config:
             value = self.config['url']
         else:

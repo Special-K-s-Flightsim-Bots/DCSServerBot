@@ -18,7 +18,7 @@ from pathlib import Path
 from rich import print
 from rich.console import Console
 from rich.prompt import IntPrompt, Prompt, Confirm
-from typing import Optional, Callable, Any
+from typing import Callable, Any
 from urllib.parse import quote, urlparse
 
 # ruamel YAML support
@@ -26,7 +26,7 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 # for gettext // i18n
-_: Optional[Callable[[str], str]] = None
+_: Callable[[str], str] | None = None
 
 
 class Install:
@@ -47,7 +47,7 @@ class Install:
         self.log.info("Installation started.")
 
     @staticmethod
-    def get_dcs_installation_linux() -> Optional[str]:
+    def get_dcs_installation_linux() -> str | None:
         dcs_installation = None
         while dcs_installation is None:
             dcs_installation = Prompt.ask(prompt=_("Please enter the path to your DCS World installation"))
@@ -60,7 +60,7 @@ class Install:
         return dcs_installation
 
     @staticmethod
-    def get_dcs_installation_win32() -> Optional[str]:
+    def get_dcs_installation_win32() -> str | None:
         print(_("Searching for DCS installations ..."))
         key = skey = None
         try:
@@ -98,7 +98,7 @@ class Install:
                 skey.Close()
 
     @staticmethod
-    def get_database_host(host: str = '127.0.0.1', port: int = 5432) -> Optional[tuple[str, int]]:
+    def get_database_host(host: str = '127.0.0.1', port: int = 5432) -> tuple[str, int] | None:
         if not utils.is_open(host, port):
             print(_('[red]No PostgreSQL-database found on {host}:{port}![/]').format(host=host, port=port))
             host = Prompt.ask(_("Enter the hostname of your PostgreSQL-database"), default='127.0.0.1')
@@ -107,7 +107,7 @@ class Install:
         return host, port
 
     @staticmethod
-    def get_database_url(user: str, database: str) -> Optional[str]:
+    def get_database_url(user: str, database: str) -> str | None:
         host, port = Install.get_database_host('127.0.0.1', 5432)
         while True:
             master_db = Prompt.ask(_('Please enter the name of your PostgreSQL master database'), default='postgres')

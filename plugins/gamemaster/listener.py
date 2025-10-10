@@ -10,7 +10,7 @@ from core import EventListener, Side, Coalition, Channel, utils, event, chat_com
     get_translation, ChatCommand
 from datetime import datetime
 from psycopg.rows import dict_row
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import Player, Server
@@ -66,7 +66,7 @@ class GameMasterEventListener(EventListener["GameMaster"]):
             return
         if server.locals.get('chat_log') and self.chat_log.get(server.name):
             self.chat_log[server.name].info(f"{player.ucid}\t{player.name}\t{data['to']}\t{data['message']}")
-        chat_channel: Optional[discord.TextChannel] = None
+        chat_channel: discord.TextChannel | None = None
         if server.locals.get('coalitions') and data['to'] == -2 and player.coalition in [Coalition.BLUE, Coalition.RED]:
             if player.coalition == Coalition.BLUE:
                 chat_channel = self.bot.get_channel(server.channels.get(Channel.COALITION_BLUE_CHAT, -1))
@@ -91,7 +91,7 @@ class GameMasterEventListener(EventListener["GameMaster"]):
                 f"```ansi\n\u001b[1;{color}mPlayer {player.name} said: {data['message']}```"
             ))
 
-    async def get_coalition(self, server: Server, player: Player) -> Optional[Coalition]:
+    async def get_coalition(self, server: Server, player: Player) -> Coalition | None:
         if not player.coalition:
             async with self.apool.connection() as conn:
                 cursor = await conn.execute("""
@@ -103,7 +103,7 @@ class GameMasterEventListener(EventListener["GameMaster"]):
                     player.coalition = Coalition(coalition)
         return player.coalition
 
-    async def get_coalition_password(self, server: Server, coalition: Coalition) -> Optional[str]:
+    async def get_coalition_password(self, server: Server, coalition: Coalition) -> str | None:
         async with self.apool.connection() as conn:
             cursor = await conn.execute('SELECT blue_password, red_password FROM servers WHERE server_name = %s',
                                         (server.name,))
@@ -174,9 +174,9 @@ class GameMasterEventListener(EventListener["GameMaster"]):
             # check for player messages and start to annoy them
             asyncio.create_task(self.send_player_message(player))
 
-    async def campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
-                       description: Optional[str] = None, image_url: Optional[str] = None,
-                       start: Optional[datetime] = None, end: Optional[datetime] = None):
+    async def campaign(self, command: str, *, servers: list[Server] | None = None, name: str | None = None,
+                       description: str | None = None, image_url: str | None = None,
+                       start: datetime | None = None, end: datetime | None = None):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 if command == 'add':
@@ -400,7 +400,7 @@ class GameMasterEventListener(EventListener["GameMaster"]):
     async def coalition(self, server: Server, player: Player, params: list[str]):
         asyncio.create_task(self._coalition(server, player))
 
-    async def _password(self, server: Server, player: Player, init: Optional[bool] = False):
+    async def _password(self, server: Server, player: Player, init: bool | None = False):
         coalition = await self.get_coalition(server, player)
         if not coalition:
             if not init:

@@ -7,7 +7,6 @@ import subprocess
 from core import Extension, Server, utils, get_translation
 from discord.ext import tasks
 from threading import Thread
-from typing import Optional
 
 from extensions.tacview import TACVIEW_DEFAULT_DIR
 
@@ -19,7 +18,7 @@ __all__ = [
 
 
 class Lardoon(Extension):
-    _process: Optional[psutil.Process] = None
+    _process: psutil.Process | None = None
     _servers: set[str] = set()
     _tacview_dirs: dict[str, set[str]] = {}
     _lock = asyncio.Lock()
@@ -48,7 +47,7 @@ class Lardoon(Extension):
         else:
             self.process = self.find_running_process(None)
 
-    def find_running_process(self, p: Optional[psutil.Process] = None):
+    def find_running_process(self, p: psutil.Process | None = None):
         if not p or not p.is_running():
             cmd = self.config.get('cmd')
             if not cmd:
@@ -149,7 +148,7 @@ class Lardoon(Extension):
             return self.process is not None and self.process.is_running()
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         return utils.get_windows_version(self.config['cmd'])
 
     def is_installed(self) -> bool:
@@ -161,7 +160,7 @@ class Lardoon(Extension):
             return False
         return True
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         if 'url' in self.config:
             value = self.config['url']
         else:

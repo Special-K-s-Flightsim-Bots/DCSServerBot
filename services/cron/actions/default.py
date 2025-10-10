@@ -7,11 +7,10 @@ from core import Server, ServiceRegistry, Node, PersistentReport, Report, Status
 from datetime import datetime, timezone, timedelta
 from services.bot import BotService
 from services.servicebus import ServiceBus
-from typing import Optional, Union
 
 
-async def report(file: str, channel: int, node: Node, persistent: Optional[bool] = True,
-                 server: Optional[Server] = None):
+async def report(file: str, channel: int, node: Node, persistent: bool | None = True,
+                 server: Server | None = None):
     # we can only render on the master node
     if not node.master:
         return
@@ -28,9 +27,9 @@ async def report(file: str, channel: int, node: Node, persistent: Optional[bool]
         await bot.get_channel(channel).send(embed=env.embed)
 
 
-async def restart(node: Node, server: Optional[Server] = None, shutdown: Optional[bool] = False,
-                  rotate: Optional[bool] = False, run_extensions: Optional[bool] = True,
-                  reboot: Optional[bool] = False):
+async def restart(node: Node, server: Server | None = None, shutdown: bool | None = False,
+                  rotate: bool | None = False, run_extensions: bool | None = True,
+                  reboot: bool | None = False):
     def _reboot():
         os.system("shutdown /r /t 1")
 
@@ -79,19 +78,19 @@ async def cmd(node: Node, cmd: str):
         node.log.info(out)
 
 
-async def popup(node: Node, server: Server, message: str, to: Optional[str] = 'all', timeout: Optional[int] = 10):
+async def popup(node: Node, server: Server, message: str, to: str | None = 'all', timeout: int | None = 10):
     if server.status == Status.RUNNING:
         await server.sendPopupMessage(Coalition(to), message, timeout)
 
 
-async def broadcast(node: Node, message: str, to: Optional[str] = 'all', timeout: Optional[int] = 10):
+async def broadcast(node: Node, message: str, to: str | None = 'all', timeout: int | None = 10):
     bus = ServiceRegistry.get(ServiceBus)
     for server in [x for x in bus.servers.values() if x.status == Status.RUNNING]:
         await server.sendPopupMessage(Coalition(to), message, timeout)
 
 
-async def purge_channel(node: Node, channel: Union[int, list[int]], older_than: int = None,
-                        ignore: Union[int, list[int]] = None, after_id: int = None, before_id: int = None):
+async def purge_channel(node: Node, channel: int | list[int], older_than: int = None,
+                        ignore: int | list[int] = None, after_id: int = None, before_id: int = None):
     if not node.master:
         return
     bot = ServiceRegistry.get(BotService).bot
@@ -136,7 +135,7 @@ async def purge_channel(node: Node, channel: Union[int, list[int]], older_than: 
             node.log.error(f"Failed to delete message in channel {channel.name}", exc_info=True)
 
 
-async def dcs_update(node: Node, warn_times: Optional[list[int]] = None):
+async def dcs_update(node: Node, warn_times: list[int] | None = None):
     branch, version = await node.get_dcs_branch_and_version()
     new_version = await node.get_latest_version(branch)
     if new_version != version:
@@ -145,7 +144,7 @@ async def dcs_update(node: Node, warn_times: Optional[list[int]] = None):
         await node.dcs_update(warn_times=warn_times, branch=branch)
 
 
-async def node_shutdown(node: Node, restart: Optional[bool] = False):
+async def node_shutdown(node: Node, restart: bool | None = False):
     if restart:
         await node.restart()
     else:

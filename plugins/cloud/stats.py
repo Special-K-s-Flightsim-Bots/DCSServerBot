@@ -4,7 +4,6 @@ from core import report, utils, Pagination
 from matplotlib.axes import Axes
 from matplotlib.patches import ConnectionPatch
 from pandas import DataFrame
-from typing import Optional
 
 
 class GuildPagination(Pagination):
@@ -14,7 +13,7 @@ class GuildPagination(Pagination):
 
 class PlaytimesPerGuild(report.GraphElement):
 
-    async def render(self, data: DataFrame, guild: Optional[str] = None):
+    async def render(self, data: DataFrame, guild: str | None = None):
         if not len(data):
             self.axes.set_visible(False)
             return
@@ -43,7 +42,7 @@ class PlaytimesPerGuild(report.GraphElement):
 
 class PlaytimesPerPlane(report.GraphElement):
 
-    async def render(self, data: DataFrame, guild: Optional[str] = None):
+    async def render(self, data: DataFrame, guild: str | None = None):
         labels = []
         values = []
         if guild:
@@ -70,7 +69,7 @@ class PlaytimesPerPlane(report.GraphElement):
 
 class PlaytimesPerMap(report.GraphElement):
 
-    async def render(self, data: DataFrame, guild: Optional[str] = None):
+    async def render(self, data: DataFrame, guild: str | None = None):
         if not len(data):
             self.axes.set_visible(False)
             return
@@ -99,7 +98,7 @@ class PlaytimesPerMap(report.GraphElement):
 
 class FlightPerformance(report.GraphElement):
 
-    async def render(self, data: DataFrame, guild: Optional[str] = None):
+    async def render(self, data: DataFrame, guild: str | None = None):
         if not len(data):
             self.axes.set_visible(False)
             return
@@ -137,7 +136,7 @@ class FlightPerformance(report.GraphElement):
 class KDRatio(report.MultiGraphElement):
 
     @staticmethod
-    def draw_kill_performance(ax: Axes, data: DataFrame, guild: Optional[str] = None):
+    def draw_kill_performance(ax: Axes, data: DataFrame, guild: str | None = None):
         retval = []
         if not len(data):
             ax.set_visible(False)
@@ -194,7 +193,7 @@ class KDRatio(report.MultiGraphElement):
         return retval
 
     @staticmethod
-    def draw_kill_types(ax: Axes, data: DataFrame, guild: Optional[str] = None):
+    def draw_kill_types(ax: Axes, data: DataFrame, guild: str | None = None):
         retval = False
         if not len(data):
             return retval
@@ -239,7 +238,7 @@ class KDRatio(report.MultiGraphElement):
         return retval
 
     @staticmethod
-    def draw_death_types(ax: Axes, legend: bool, data: DataFrame, guild: Optional[str] = None):
+    def draw_death_types(ax: Axes, legend: bool, data: DataFrame, guild: str | None = None):
         retval = False
         # if no data was found, return False as no chart was drawn
         if not len(data):
@@ -285,7 +284,7 @@ class KDRatio(report.MultiGraphElement):
             retval = True
         return retval
 
-    async def render(self, data: DataFrame, guild: Optional[str] = None):
+    async def render(self, data: DataFrame, guild: str | None = None):
         retval = self.draw_kill_performance(self.axes[1], data, guild)
         i = 0
         if ('AI Kills' in retval or 'Player Kills' in retval) and \

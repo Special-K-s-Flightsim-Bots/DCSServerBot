@@ -2,7 +2,7 @@ import asyncio
 import discord
 
 from core import EventListener, Server, Status, utils, event, chat_command, get_translation, DataObjectFactory
-from typing import cast, Union, TYPE_CHECKING
+from typing import cast, TYPE_CHECKING
 
 from .player import CreditPlayer
 from .squadron import Squadron
@@ -123,7 +123,7 @@ class CreditSystemListener(EventListener["CreditSystem"]):
 
     async def process_achievements(self, server: Server, player: CreditPlayer):
 
-        async def manage_role(member: discord.Member, role: Union[str, int], action: str):
+        async def manage_role(member: discord.Member, role: str | int, action: str):
             _role = self.bot.get_role(role)
             if not _role:
                 self.log.error(f"Role {role} not found in your Discord!")

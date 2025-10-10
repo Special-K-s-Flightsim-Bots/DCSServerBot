@@ -1,6 +1,5 @@
 import asyncio
 import os
-from typing import Optional
 
 from core import ServiceRegistry, Service, utils, Instance
 from datetime import timedelta, datetime
@@ -56,7 +55,7 @@ class CleanupService(Service):
         except Exception as ex:
             self.log.error(f"Could not purge channel {config['channel']}: {ex}")
 
-    async def do_cleanup(self, instance: Optional[Instance] = None) -> None:
+    async def do_cleanup(self, instance: Instance | None = None) -> None:
         try:
             if instance:
                 for name, config in self.get_config(instance.server).items():

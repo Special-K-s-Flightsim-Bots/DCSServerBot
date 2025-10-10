@@ -24,7 +24,7 @@ from enum import Enum
 from functools import reduce
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
-from typing import Optional, cast, Union, Any, TYPE_CHECKING, Callable
+from typing import cast, Any, TYPE_CHECKING, Callable
 
 __all__ = [
     "ServiceBus"
@@ -40,7 +40,7 @@ class ServiceBus(Service):
 
     def __init__(self, node):
         super().__init__(node)
-        self.bot: Optional[DCSServerBot] = None
+        self.bot: DCSServerBot | None = None
         self.version = self.node.bot_version
         self.listeners: dict[str, asyncio.Future] = {}
         self.eventListeners: set[EventListener] = set()
@@ -385,7 +385,7 @@ class ServiceBus(Service):
             self.udp_server.message_queue[new_name] = asyncio.Queue()
             asyncio.create_task(self.udp_server.process_messages(new_name))
 
-    async def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: Optional[int] = None):
+    async def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: int | None = None):
         if days:
             until = datetime.now(tz=timezone.utc) + timedelta(days=days)
             until_str = until.strftime('%Y-%m-%d %H:%M') + ' (UTC)'
@@ -444,7 +444,7 @@ class ServiceBus(Service):
                 """)
                 return [x async for x in cursor]
 
-    async def is_banned(self, ucid: str) -> Optional[dict]:
+    async def is_banned(self, ucid: str) -> dict | None:
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
@@ -496,7 +496,7 @@ class ServiceBus(Service):
         except Exception as ex:
             self.log.exception(str(ex), exc_info=True)
 
-    async def send_to_node(self, data: dict, *, node: Optional[Union[Node, str]] = None):
+    async def send_to_node(self, data: dict, *, node: Node | str | None = None):
         if isinstance(node, Node):
             node = node.name
         if self.master:
@@ -531,8 +531,8 @@ class ServiceBus(Service):
                 })
             self.log.debug(f"{self.node.name}->MASTER: {json.dumps(data)}")
 
-    async def send_to_node_sync(self, message: dict, timeout: Optional[int] = 30.0, *,
-                                node: Optional[Union[Node, str]] = None):
+    async def send_to_node_sync(self, message: dict, timeout: int | None = 30.0, *,
+                                node: Node | str | None = None):
         cmd = message['command']
         if cmd == 'rpc':
             call = "RPC: {}.{}()".format(message.get('object', message.get('service')), message.get('method'))
@@ -654,7 +654,7 @@ class ServiceBus(Service):
             server: Server = self.servers[server_name]
             await server.send_to_dcs(data)
 
-    async def rpc(self, obj: object, data: dict) -> Optional[dict]:
+    async def rpc(self, obj: object, data: dict) -> dict | None:
         if 'method' in data:
             method_name = data['method']
             func: Callable = reduce(lambda attr, part: getattr(attr, part, None), method_name.split('.'), obj)
@@ -724,7 +724,7 @@ class ServiceBus(Service):
 
         return None
 
-    async def propagate_event(self, command: str, data: dict, server: Optional[Server] = None):
+    async def propagate_event(self, command: str, data: dict, server: Server | None = None):
         tasks = [
             asyncio.create_task(listener.processEvent(command, server, deepcopy(data)))
             for listener in self.eventListeners

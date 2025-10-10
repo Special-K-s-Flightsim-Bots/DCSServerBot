@@ -5,7 +5,6 @@ from core import report
 from datetime import datetime, timezone
 from matplotlib import cm
 from psycopg.rows import dict_row
-from typing import Optional
 
 from ..userstats.filter import StatisticsFilter, CampaignFilter
 from ..userstats.highscore import compute_font_size
@@ -14,7 +13,7 @@ from ..userstats.highscore import compute_font_size
 class HighscoreTrueSkill(report.GraphElement):
 
     async def render(self, interaction: discord.Interaction, limit: int, flt: StatisticsFilter,
-                     bar_labels: Optional[bool] = True):
+                     bar_labels: bool | None = True):
         if isinstance(flt, CampaignFilter):
             if 'campaign:' in flt.period:
                 campaign = flt.period.split(':')[1]

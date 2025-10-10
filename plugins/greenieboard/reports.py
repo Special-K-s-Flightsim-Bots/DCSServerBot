@@ -10,7 +10,7 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from matplotlib.patches import FancyBboxPatch
 from plugins.userstats.filter import StatisticsFilter
 from psycopg.rows import dict_row
-from typing import Optional, cast
+from typing import cast
 
 from . import ERRORS, DISTANCE_MARKS, GRADES
 from ..userstats.highscore import get_sides, compute_font_size
@@ -131,7 +131,7 @@ class TrapSheet(report.EmbedElement):
 class HighscoreTraps(report.GraphElement):
     async def render(self, interaction: discord.Interaction, server_name: str, limit: int,
                      flt: StatisticsFilter, include_bolters: bool = False, include_waveoffs: bool = False,
-                     bar_labels: Optional[bool] = True):
+                     bar_labels: bool | None = True):
         sql = """
             SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, COUNT(g.*) AS value 
             FROM traps g, missions m, statistics s, players p 
@@ -186,8 +186,8 @@ class HighscoreTraps(report.GraphElement):
 
 class GreenieBoard(GraphElement):
 
-    def __init__(self, env: ReportEnv, rows: int, cols: int, row: Optional[int] = 0, col: Optional[int] = 0,
-                 colspan: Optional[int] = 1, rowspan: Optional[int] = 1):
+    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int | None = 0, col: int | None = 0,
+                 colspan: int | None = 1, rowspan: int | None = 1):
         super().__init__(env, rows, cols, row, col, colspan, rowspan)
         self.plugin: Plugin = cast(Plugin, env.bot.cogs.get('GreenieBoard'))
 
@@ -243,7 +243,7 @@ class GreenieBoard(GraphElement):
             self.axes.text(x_pos + card_size + padding, y_pos, text, va='center', ha='left', fontsize=font_size,
                            color=text_color)
 
-    async def render(self, server_name: str, num_rows: int, num_landings: int, squadron: Optional[dict] = None,
+    async def render(self, server_name: str, num_rows: int, num_landings: int, squadron: dict | None = None,
                      theme: str = 'dark', landings_rtl=True):
 
         title = self.env.embed.title

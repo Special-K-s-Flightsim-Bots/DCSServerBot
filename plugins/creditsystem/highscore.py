@@ -4,14 +4,13 @@ import numpy as np
 from core import report
 from matplotlib import cm
 from psycopg.rows import dict_row
-from typing import Optional
 
 from ..userstats.highscore import compute_font_size
 
 
 class HighscoreCredits(report.GraphElement):
 
-    async def render(self, interaction: discord.Interaction, limit: int, bar_labels: Optional[bool] = True):
+    async def render(self, interaction: discord.Interaction, limit: int, bar_labels: bool | None = True):
         sql = f"""
             SELECT DISTINCT p.discord_id, COALESCE(name, 'Unknown') AS name, c.points AS value
             FROM players p, credits c

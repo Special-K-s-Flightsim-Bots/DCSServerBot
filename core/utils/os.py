@@ -17,7 +17,7 @@ import sys
 from contextlib import closing, suppress
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Optional, Union, TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Generator
 
 if TYPE_CHECKING:
     from core import Node
@@ -75,7 +75,7 @@ def is_open(ip, port):
         return s.connect_ex((ip, int(port))) == 0
 
 
-async def get_public_ip(node: Optional[Node] = None):
+async def get_public_ip(node: Node | None = None):
     for url in API_URLS:
         with suppress(aiohttp.ClientError, ValueError):
             async with aiohttp.ClientSession() as session:
@@ -86,7 +86,7 @@ async def get_public_ip(node: Optional[Node] = None):
         raise TimeoutError("Public IP could not be retrieved.")
 
 
-def find_process(proc: str, instance: Optional[str] = None) -> Generator[psutil.Process, None, None]:
+def find_process(proc: str, instance: str | None = None) -> Generator[psutil.Process, None, None]:
     proc_set = {name.casefold() for name in proc.split("|")}
 
     # Get all processes at once with their info
@@ -112,14 +112,14 @@ def find_process(proc: str, instance: Optional[str] = None) -> Generator[psutil.
             continue
 
 
-async def find_process_async(proc: str, instance: Optional[str] = None):
+async def find_process_async(proc: str, instance: str | None = None):
     def _find_first_match():
         return next(find_process(proc, instance), None)
 
     return await asyncio.to_thread(_find_first_match)
 
 
-def is_process_running(process: Union[subprocess.Popen, psutil.Process]):
+def is_process_running(process: subprocess.Popen | psutil.Process):
     if isinstance(process, subprocess.Popen):
         return process.poll() is None
     else:
@@ -129,7 +129,7 @@ def is_process_running(process: Union[subprocess.Popen, psutil.Process]):
 MS_LSB_MULTIPLIER = 65536
 
 
-def get_windows_version(cmd: str) -> Optional[str]:
+def get_windows_version(cmd: str) -> str | None:
     if sys.platform != 'win32':
         return None
     try:
@@ -183,7 +183,7 @@ def make_unix_filename(*args) -> str:
     return '/'.join(arg.replace('\\', '/').strip('/') for arg in args)
 
 
-def safe_rmtree(path: Union[str, Path]):
+def safe_rmtree(path: str | Path):
     # if path is a single file, delete that
     if os.path.isfile(path):
         os.chmod(path, stat.S_IWUSR)
@@ -213,13 +213,14 @@ def is_junction(path):
         return False
     if os.path.islink(path):
         return True
+    # noinspection PyUnresolvedReferences
     attrs = ctypes.windll.kernel32.GetFileAttributesW(path)
     if attrs == -1:
         raise ctypes.WinError()
     return bool(attrs & 0x0400)
 
 
-def terminate_process(process: Optional[psutil.Process]):
+def terminate_process(process: psutil.Process | None):
     if process is not None and process.is_running():
         process.terminate()
         try:
@@ -432,7 +433,7 @@ def is_uac_enabled() -> bool:
         return True
 
 
-def start_elevated(exe_path: str, cwd: str, *args) -> Optional[psutil.Process]:
+def start_elevated(exe_path: str, cwd: str, *args) -> psutil.Process | None:
     """
     Start exe_path as Administrator and return a psutil.Process for the started process (Popen-like).
     Returns None on non-Windows platforms.

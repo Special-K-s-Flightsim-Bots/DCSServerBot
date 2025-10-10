@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING, Union, Any
+from typing import TYPE_CHECKING, Any
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 from watchdog.observers import Observer, ObserverType
 
@@ -97,7 +97,7 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 @dataclass
 @DataObjectFactory.register()
 class ServerImpl(Server):
-    bot: Optional[DCSServerBot] = field(compare=False, init=False)
+    bot: DCSServerBot | None = field(compare=False, init=False)
     event_handler: MissionFileSystemEventHandler = field(compare=False, default=None)
     observer: ObserverType = field(compare=False, default=None)
 
@@ -226,7 +226,7 @@ class ServerImpl(Server):
         except (TimeoutError, asyncio.TimeoutError):
             pass
 
-    def set_status(self, status: Union[Status, str]):
+    def set_status(self, status: Status | str):
         if isinstance(status, str):
             new_status = Status(status)
         else:
@@ -315,7 +315,7 @@ class ServerImpl(Server):
         if self.locals.get('autoscan', False):
             self.start_observer()
 
-    def _get_current_mission_file(self) -> Optional[str]:
+    def _get_current_mission_file(self) -> str | None:
         if not self.current_mission or not self.current_mission.filename:
             settings = self.settings
             try:
@@ -339,10 +339,10 @@ class ServerImpl(Server):
             filename = self.current_mission.filename
         return os.path.normpath(filename) if filename else None
 
-    async def get_current_mission_file(self) -> Optional[str]:
+    async def get_current_mission_file(self) -> str | None:
         return self._get_current_mission_file()
 
-    async def get_current_mission_theatre(self) -> Optional[str]:
+    async def get_current_mission_theatre(self) -> str | None:
         filename = await self.get_current_mission_file()
         if filename:
             miz = await asyncio.to_thread(MizFile, filename)
@@ -509,7 +509,7 @@ class ServerImpl(Server):
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
             self.process = None
 
-    def load_extension(self, name: str) -> Optional[Extension]:
+    def load_extension(self, name: str) -> Extension | None:
         if '.' not in name:
             _extension = f'extensions.{name.lower()}.extension.{name}'
         else:
@@ -584,7 +584,7 @@ class ServerImpl(Server):
             p = psutil.NORMAL_PRIORITY_CLASS
         self.process.nice(p)
 
-    def set_affinity(self, affinity: Union[list[int], str]):
+    def set_affinity(self, affinity: list[int] | str):
         if isinstance(affinity, str):
             affinity = [int(x.strip()) for x in affinity.split(',')]
         elif isinstance(affinity, int):
@@ -592,7 +592,7 @@ class ServerImpl(Server):
         self.log.info("  => Setting process affinity to {}".format(','.join(map(str, affinity))))
         self.process.cpu_affinity(affinity)
 
-    async def startup(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
+    async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
         if not utils.is_desanitized(self.node):
             if not self.node.locals['DCS'].get('desanitize', True):
                 raise Exception("Your DCS installation is not desanitized properly to be used with DCSServerBot!")
@@ -619,7 +619,7 @@ class ServerImpl(Server):
                 self.status = Status.SHUTDOWN
             raise
 
-    async def _startup_extensions(self, status: Union[Status, str]) -> None:
+    async def _startup_extensions(self, status: Status | str) -> None:
         async with self._lock:
             startup_coroutines = [ext.startup() for ext in self.extensions.values()]
             results = await asyncio.gather(*startup_coroutines, return_exceptions=True)
@@ -632,7 +632,7 @@ class ServerImpl(Server):
             # set the status after the extensions have been started
             super().set_status(status)
 
-    async def _shutdown_extensions(self, status: Union[Status, str]) -> None:
+    async def _shutdown_extensions(self, status: Status | str) -> None:
         async with self._lock:
             running_extensions = [
                 ext for ext in self.extensions.values() if await asyncio.to_thread(ext.is_running)
@@ -720,7 +720,7 @@ class ServerImpl(Server):
             await wait_for_file_release(10)
 
     @performance_log()
-    async def apply_mission_changes(self, filename: Optional[str] = None, *, use_orig: Optional[bool] = True) -> str:
+    async def apply_mission_changes(self, filename: str | None = None, *, use_orig: bool | None = True) -> str:
         try:
             # disable autoscan
             if self.locals.get('autoscan', False):
@@ -809,7 +809,7 @@ class ServerImpl(Server):
             await self.addMission(filename)
         return UploadStatus.OK
 
-    async def modifyMission(self, filename: str, preset: Union[list, dict], use_orig: bool = True) -> str:
+    async def modifyMission(self, filename: str, preset: list | dict, use_orig: bool = True) -> str:
         from extensions.mizedit import MizEdit
 
         # create a writable mission
@@ -853,7 +853,7 @@ class ServerImpl(Server):
                 ret.append(await ext.render())
         return ret
 
-    async def restart(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
+    async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
         await self.loadMission(int(self.settings['listStartIndex']), modify_mission=modify_mission, use_orig=use_orig)
 
     async def setStartIndex(self, mission_id: int) -> None:
@@ -886,7 +886,7 @@ class ServerImpl(Server):
                     'blue_password' if coalition == Coalition.BLUE else 'red_password'),
                     (password, self.name))
 
-    async def addMission(self, path: str, *, idx: Optional[int] = -1, autostart: Optional[bool] = False) -> list[str]:
+    async def addMission(self, path: str, *, idx: int | None = -1, autostart: bool | None = False) -> list[str]:
         path = os.path.normpath(path)
         secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
         orig = secondary + '.orig'
@@ -940,8 +940,8 @@ class ServerImpl(Server):
             self.settings['missionList'] = missions
         return self.settings['missionList']
 
-    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True,
-                          use_orig: Optional[bool] = True, no_reload: Optional[bool] = False) -> Optional[bool]:
+    async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
+                          use_orig: bool | None = True, no_reload: bool | None = False) -> bool | None:
         start_index = int(self.settings.get('listStartIndex', 1))
         mission_list = self.settings['missionList']
         # check if we re-load the running mission
@@ -1002,7 +1002,7 @@ class ServerImpl(Server):
             await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
         return True
 
-    async def loadNextMission(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = False) -> bool:
+    async def loadNextMission(self, modify_mission: bool | None = True, use_orig: bool | None = False) -> bool:
         init_mission_id = int(self.settings['listStartIndex'])
         max_mission_id = len(self.settings['missionList'])
         mission_id = init_mission_id + 1

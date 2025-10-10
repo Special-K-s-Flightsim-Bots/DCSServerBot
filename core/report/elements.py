@@ -18,7 +18,7 @@ from discord import ButtonStyle, Interaction
 from io import BytesIO
 from matplotlib import pyplot as plt
 from psycopg.rows import dict_row
-from typing import Optional, Any, TYPE_CHECKING, Union
+from typing import Any, TYPE_CHECKING
 
 from .env import ReportEnv
 from .errors import UnknownGraphElement, ClassNotFound, TooManyElements, UnknownValue, NothingToPlot
@@ -127,20 +127,20 @@ class Image(EmbedElement):
 
 
 class Ruler(EmbedElement):
-    async def render(self, header: Optional[str] = '', ruler_length: Optional[int] = 34, *, text: Optional[str] = None):
+    async def render(self, header: str | None = '', ruler_length: int | None = 34, *, text: str | None = None):
         self.add_field(name=utils.print_ruler(header=header, ruler_length=ruler_length),
                        value=text or '_ _', inline=False)
 
 
 class Field(EmbedElement):
-    async def render(self, name: str, value: Any, inline: Optional[bool] = True, default: Optional[str] = '_ _'):
+    async def render(self, name: str, value: Any, inline: bool | None = True, default: str | None = '_ _'):
         self.add_field(name=utils.format_string(name, '_ _', **self.env.params),
                        value=utils.format_string(value, default, **self.env.params), inline=inline)
 
 
 class Table(EmbedElement):
-    async def render(self, values: Union[dict, list[dict]], obj: Optional[str] = None, inline: Optional[bool] = True,
-                     ansi_colors: Optional[bool] = False):
+    async def render(self, values: dict | list[dict], obj: str | None = None, inline: bool | None = True,
+                     ansi_colors: bool | None = False):
         if obj:
             table = self.env.params[obj]
             _values: dict = values.copy()
@@ -169,8 +169,8 @@ class Table(EmbedElement):
 
 
 class Button(ReportElement):
-    async def render(self, style: str, label: str, custom_id: Optional[str] = None, url: Optional[str] = None,
-                     disabled: Optional[bool] = False, interaction: Optional[Interaction] = None):
+    async def render(self, style: str, label: str, custom_id: str | None = None, url: str | None = None,
+                     disabled: bool | None = False, interaction: Interaction | None = None):
         b = discord.ui.Button(style=ButtonStyle(style), label=label, url=url, disabled=disabled)
         if interaction:
             await b.callback(interaction=interaction)
@@ -180,8 +180,8 @@ class Button(ReportElement):
 
 
 class GraphElement(ReportElement):
-    def __init__(self, env: ReportEnv, rows: int, cols: int, row: Optional[int] = 0, col: Optional[int] = 0,
-                 colspan: Optional[int] = 1, rowspan: Optional[int] = 1, polar: Optional[bool] = False):
+    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int | None = 0, col: int | None = 0,
+                 colspan: int | None = 1, rowspan: int | None = 1, polar: bool | None = False):
         super().__init__(env)
         self.axes = plt.subplot2grid((rows, cols), (row, col), colspan=colspan, rowspan=rowspan,
                                      fig=self.env.figure, polar=polar)
@@ -216,7 +216,7 @@ class MultiGraphElement(ReportElement):
 
 class Graph(ReportElement):
     def __init__(self, env: ReportEnv, width: int, height: int, cols: int, rows: int, elements: list[dict],
-                     wspace: float = 0.5, hspace: float = 0.5, dpi = 100, facecolor: Optional[str] = '#2C2F33'):
+                     wspace: float = 0.5, hspace: float = 0.5, dpi = 100, facecolor: str | None = '#2C2F33'):
         super().__init__(env)
         plt.switch_backend('agg')
         self.width = width
@@ -310,7 +310,7 @@ class Graph(ReportElement):
                 self.env.figure = None
 
 
-def _display_no_data(element: EmbedElement, no_data: Union[str, dict], inline: bool):
+def _display_no_data(element: EmbedElement, no_data: str | dict, inline: bool):
     if isinstance(no_data, str):
         element.add_field(name='_ _', value=no_data, inline=inline)
     else:
@@ -319,8 +319,8 @@ def _display_no_data(element: EmbedElement, no_data: Union[str, dict], inline: b
 
 
 class SQLField(EmbedElement):
-    async def render(self, sql: str, inline: Optional[bool] = True, no_data: Optional[Union[str, dict]] = None,
-                     on_error: Optional[dict] = None):
+    async def render(self, sql: str, inline: bool | None = True, no_data: str | dict | None = None,
+                     on_error: dict | None = None):
         try:
             async with self.apool.connection() as conn:
                 async with conn.cursor(row_factory=dict_row) as cursor:
@@ -344,8 +344,8 @@ class SQLField(EmbedElement):
 
 
 class SQLTable(EmbedElement):
-    async def render(self, sql: str, inline: Optional[bool] = True, no_data: Optional[Union[str, dict]] = None,
-                     ansi_colors: Optional[bool] = False, on_error: Optional[dict] = None):
+    async def render(self, sql: str, inline: bool | None = True, no_data: str | dict | None = None,
+                     ansi_colors: bool | None = False, on_error: dict | None = None):
         try:
             async with self.apool.connection() as conn:
                 async with conn.cursor(row_factory=dict_row) as cursor:
@@ -385,11 +385,11 @@ class SQLTable(EmbedElement):
 
 
 class BarChart(GraphElement):
-    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: Optional[int] = 1,
-                 rowspan: Optional[int] = 1, title: Optional[str] = '', color: Optional[str] = None,
-                 rotate_labels: Optional[int] = 0, bar_labels: Optional[bool] = False, is_time: Optional[bool] = False,
-                 orientation: Optional[str] = 'vertical', width: Optional[float] = 0.5,
-                 show_no_data: Optional[bool] = True):
+    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: int | None = 1,
+                 rowspan: int | None = 1, title: str | None = '', color: str | None = None,
+                 rotate_labels: int | None = 0, bar_labels: bool | None = False, is_time: bool | None = False,
+                 orientation: str | None = 'vertical', width: float | None = 0.5,
+                 show_no_data: bool | None = True):
         super().__init__(env, rows, cols, row, col, colspan, rowspan)
         self.title = title
         self.color = color
@@ -445,10 +445,9 @@ class SQLBarChart(BarChart):
 
 
 class PieChart(GraphElement):
-    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: Optional[int] = 1,
-                 rowspan: Optional[int] = 1, title: Optional[str] = '', colors: Optional[list[str]] = None,
-                 is_time: Optional[bool] = False, show_no_data: Optional[bool] = True,
-                 textcolor: Optional[str] = 'black'):
+    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: int | None = 1,
+                 rowspan: int | None = 1, title: str | None = '', colors: list[str] | None = None,
+                 is_time: bool | None = False, show_no_data: bool | None = True, textcolor: str | None = 'black'):
         super().__init__(env, rows, cols, row, col, colspan, rowspan)
         self.title = title
         self.colors = colors

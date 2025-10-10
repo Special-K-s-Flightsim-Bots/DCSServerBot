@@ -5,7 +5,7 @@ from datetime import datetime
 from discord import TextStyle, SelectOption
 from discord.ui import Modal, TextInput, View, Select, Item
 from services.bot import DCSServerBot
-from typing import Any, Union
+from typing import Any
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -22,7 +22,7 @@ class TrapModal(Modal):
     # noinspection PyTypeChecker
     wire = TextInput(label=_('Wire'), style=TextStyle.short, required=False, min_length=1, max_length=1)
 
-    def __init__(self, bot: DCSServerBot, *, config: dict, user: Union[str, discord.Member], unit_type: str):
+    def __init__(self, bot: DCSServerBot, *, config: dict, user: str | discord.Member, unit_type: str):
         super().__init__(title=_("Enter the trap details"))
         self.bot = bot
         self.log = bot.log
@@ -68,7 +68,7 @@ class TrapModal(Modal):
 
 class TrapView(View):
 
-    def __init__(self, bot: DCSServerBot, config: dict, user: Union[str, discord.Member]):
+    def __init__(self, bot: DCSServerBot, config: dict, user: str | discord.Member):
         super().__init__()
         self.bot = bot
         self.log = bot.log

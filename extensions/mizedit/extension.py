@@ -8,7 +8,7 @@ from core import Extension, utils, Server, YAMLError, DEFAULT_TAG, MizFile, Serv
 from datetime import datetime
 from extensions.realweather import RealWeather
 from pathlib import Path
-from typing import Union, cast, Optional
+from typing import cast
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -87,8 +87,8 @@ class MizEdit(Extension):
         return modifications
 
     @staticmethod
-    async def apply_presets(server: Server, filename: str, preset: Union[list, dict],
-                            debug: Optional[bool] = False) -> None:
+    async def apply_presets(server: Server, filename: str, preset: list | dict,
+                            debug: bool | None = False) -> None:
         if preset and isinstance(preset, list):
             rw_preset = next((p for p in preset if 'RealWeather'in p), None)
             if rw_preset:

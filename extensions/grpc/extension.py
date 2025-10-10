@@ -2,7 +2,7 @@ import os
 import re
 
 from core import Extension, Server, get_translation
-from typing import Optional, Any, TextIO
+from typing import Any, TextIO
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -55,7 +55,7 @@ class gRPC(Extension):
         else:
             return value
 
-    def load_config(self) -> Optional[dict]:
+    def load_config(self) -> dict | None:
         def read_file(file: TextIO, cfg: dict):
             for line in file.readlines():
                 match = exp.match(line)

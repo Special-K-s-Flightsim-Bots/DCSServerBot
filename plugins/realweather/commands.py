@@ -4,7 +4,7 @@ import os
 from core import Plugin, command, utils, Status, Server, PluginInstallationError, UnsupportedMizFileException
 from discord import app_commands
 from services.bot import DCSServerBot
-from typing import Optional, Type
+from typing import Type
 
 from .listener import RealWeatherEventListener
 
@@ -85,11 +85,11 @@ class RealWeather(Plugin[RealWeatherEventListener]):
     async def realweather(self, interaction: discord.Interaction,
                           server: app_commands.Transform[Server, utils.ServerTransformer(
                               status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
-                          idx: int, use_orig: Optional[bool] = True, wind: Optional[bool] = False,
-                          clouds: Optional[bool] = False,
-                          fog: Optional[bool] = False, dust: Optional[bool] = False,
-                          temperature: Optional[bool] = False, pressure: Optional[bool] = False,
-                          time: Optional[bool] = False):
+                          idx: int, use_orig: bool | None = True, wind: bool | None = False,
+                          clouds: bool | None = False,
+                          fog: bool | None = False, dust: bool | None = False,
+                          temperature: bool | None = False, pressure: bool | None = False,
+                          time: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
         airbase = server.current_mission.airbases[idx]
         # noinspection PyUnresolvedReferences

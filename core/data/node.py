@@ -9,7 +9,7 @@ from core.translations import get_translation
 from core.utils.helper import YAMLError
 from enum import Enum, auto
 from pathlib import Path
-from typing import Union, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 # ruamel YAML support
@@ -45,13 +45,13 @@ class SortOrder(Enum):
 
 
 class FatalException(Exception):
-    def __init__(self, message: Optional[str] = None):
+    def __init__(self, message: str | None = None):
         super().__init__(message)
 
 
 class Node:
 
-    def __init__(self, name: str, config_dir: Optional[str] = 'config'):
+    def __init__(self, name: str, config_dir: str | None = 'config'):
         self.name = name
         self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.config_dir = config_dir
@@ -83,14 +83,14 @@ class Node:
         raise NotImplementedError()
 
     @property
-    def proxy(self) -> Optional[str]:
+    def proxy(self) -> str | None:
         if 'proxy' not in self.locals:
             config = yaml.load(Path(os.path.join(self.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
             self.locals['proxy'] = config.get('proxy', {}).get('url')
         return self.locals['proxy']
 
     @property
-    def proxy_auth(self) -> Optional[aiohttp.BasicAuth]:
+    def proxy_auth(self) -> aiohttp.BasicAuth | None:
         if 'proxy_auth' not in self.locals:
             config = yaml.load(Path(os.path.join(self.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
             username = config.get('proxy', {}).get('username')
@@ -155,8 +155,8 @@ class Node:
     async def upgrade(self):
         raise NotImplementedError()
 
-    async def dcs_update(self, branch: Optional[str] = None, version: Optional[str] = None,
-                         warn_times: list[int] = None, announce: Optional[bool] = True):
+    async def dcs_update(self, branch: str | None = None, version: str | None = None,
+                         warn_times: list[int] = None, announce: bool | None = True):
         raise NotImplementedError()
 
     async def dcs_repair(self, warn_times: list[int] = None):
@@ -174,22 +174,22 @@ class Node:
     async def get_available_modules(self) -> list[str]:
         raise NotImplementedError()
 
-    async def get_available_dcs_versions(self, branch: str) -> Optional[list[str]]:
+    async def get_available_dcs_versions(self, branch: str) -> list[str] | None:
         raise NotImplementedError()
 
-    async def get_latest_version(self, branch: str) -> Optional[str]:
+    async def get_latest_version(self, branch: str) -> str | None:
         raise NotImplementedError()
 
-    async def shell_command(self, cmd: str, timeout: int = 60) -> Optional[tuple[str, str]]:
+    async def shell_command(self, cmd: str, timeout: int = 60) -> tuple[str, str] | None:
         raise NotImplementedError()
 
-    async def read_file(self, path: str) -> Union[bytes, int]:
+    async def read_file(self, path: str) -> bytes | int:
         raise NotImplementedError()
 
     async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
         raise NotImplementedError()
 
-    async def list_directory(self, path: str, *, pattern: Union[str, list[str]] = '*',
+    async def list_directory(self, path: str, *, pattern: str | list[str] = '*',
                              order: SortOrder = SortOrder.DATE,
                              is_dir: bool = False, ignore: list[str] = None, traverse: bool = False
                              ) -> tuple[str, list[str]]:
@@ -201,7 +201,7 @@ class Node:
     async def remove_file(self, path: str):
         raise NotImplementedError()
 
-    async def rename_file(self, old_name: str, new_name: str, *, force: Optional[bool] = False):
+    async def rename_file(self, old_name: str, new_name: str, *, force: bool | None = False):
         raise NotImplementedError()
 
     async def rename_server(self, server: Server, new_name: str):
@@ -231,5 +231,5 @@ class Node:
     async def uninstall_plugin(self, plugin: str) -> bool:
         raise NotImplementedError()
 
-    async def get_cpu_info(self) -> Union[bytes, int]:
+    async def get_cpu_info(self) -> bytes | int:
         raise NotImplementedError()

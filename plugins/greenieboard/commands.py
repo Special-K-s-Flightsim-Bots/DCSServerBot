@@ -16,7 +16,7 @@ from discord.app_commands import Range
 from matplotlib import pyplot as plt
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Optional, Union, Literal
+from typing import Literal
 
 from . import GRADES
 from .listener import GreenieBoardEventListener
@@ -63,8 +63,8 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
             config = super().read_locals()
         return config
 
-    def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
-                   use_cache: Optional[bool] = True) -> dict:
+    def get_config(self, server: Server | None = None, *, plugin_name: str | None = None,
+                   use_cache: bool | None = True) -> dict:
         # retrieve the config from another plugin
         if plugin_name:
             return super().get_config(server, plugin_name=plugin_name, use_cache=use_cache)
@@ -96,7 +96,7 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
             buf.close()
             plt.close(fig)
 
-    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
+    async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
         if new_version == '3.2':
             self.log.info(f'  => Migrating {self.plugin_name.title()} to version {new_version}. This may take a bit.')
             # migrate all trapsheets from the old greenieboard table
@@ -155,7 +155,7 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
             self.locals = self.read_locals()
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: Optional[str] = None) -> None:
+                    server: str | None = None) -> None:
         self.log.debug('Pruning Greenieboard ...')
         if ucids:
             for ucid in ucids:
@@ -228,11 +228,11 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
     @app_commands.rename(squadron_id="squadron")
     @app_commands.describe(landings_rtl=_("Draw landings right to left (default: True)"))
     async def board(self, interaction: discord.Interaction,
-                    num_rows: Optional[Range[int, 5, 20]] = 10,
-                    num_landings: Optional[Range[int, 1, 30]] = 30,
-                    theme: Optional[Literal['light', 'dark']] = 'dark',
-                    landings_rtl: Optional[bool] = True,
-                    squadron_id: Optional[int] = None):
+                    num_rows: Range[int, 5, 20] | None = 10,
+                    num_landings: Range[int, 1, 30] | None = 30,
+                    theme: Literal['light', 'dark'] | None = 'dark',
+                    landings_rtl: bool | None = True,
+                    squadron_id: int | None = None):
         report = PaginationReport(interaction, self.plugin_name, 'greenieboard.json')
         squadron = utils.get_squadron(self.node, squadron_id=squadron_id) if squadron_id else None
         await report.render(server_name=None, num_rows=num_rows, num_landings=num_landings, theme=theme,
@@ -242,7 +242,7 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def add(self, interaction: discord.Interaction,
-                  user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
+                  user: app_commands.Transform[str | discord.Member, utils.UserTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
         config = self.get_config()
         if 'grades' not in config:
@@ -269,7 +269,7 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def reset(self, interaction: discord.Interaction,
-                    user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None):
+                    user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if not user:
             message = _('Do you want to reset all traps?')

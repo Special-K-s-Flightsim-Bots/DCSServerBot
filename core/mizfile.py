@@ -16,7 +16,6 @@ from core import utils
 from datetime import datetime, timedelta, date as _date
 from packaging.version import parse, Version
 from timezonefinder import TimezoneFinder
-from typing import Union, Optional
 from zoneinfo import ZoneInfo
 
 __all__ = [
@@ -30,7 +29,7 @@ THEATRES = {}
 
 class MizFile:
 
-    def __init__(self, filename: Optional[str] = None):
+    def __init__(self, filename: str | None = None):
         from core.services.registry import ServiceRegistry
         from services.servicebus import ServiceBus
 
@@ -104,7 +103,7 @@ class MizFile:
             self.log.warning(f"Error while processing mission {self.filename}", exc_info=True)
             raise UnsupportedMizFileException(self.filename)
 
-    def save(self, new_filename: Optional[str] = None):
+    def save(self, new_filename: str | None = None):
         tmpfd, tmpname = tempfile.mkstemp(dir=os.path.dirname(self.filename))
         os.close(tmpfd)
         try:
@@ -159,7 +158,7 @@ class MizFile:
         finally:
             os.remove(tmpname)
 
-    def apply_preset(self, preset: Union[dict, list], **kwargs):
+    def apply_preset(self, preset: dict | list, **kwargs):
         if isinstance(preset, list):
             for _preset in preset:
                 self.apply_preset(_preset, **kwargs)
@@ -445,7 +444,7 @@ class MizFile:
         return self._files
 
     @files.setter
-    def files(self, files: list[Union[str, dict]]):
+    def files(self, files: list[str | dict]):
         self._files = []
         for file in files:
             if isinstance(file, str):
@@ -522,7 +521,7 @@ class MizFile:
 
         return (base_time.hour * 3600) + (base_time.minute * 60)
 
-    def modify(self, config: Union[list, dict], **kwargs) -> None:
+    def modify(self, config: list | dict, **kwargs) -> None:
 
         def sort_dict(d):
             sorted_items = sorted(d.items())
@@ -642,7 +641,7 @@ class MizFile:
                         self.log.error(f"Module {module_name} not found.")
                         raise
 
-        def check_where(reference: dict, config: Union[list, str], debug: bool, **kwargs: dict) -> bool:
+        def check_where(reference: dict, config: list | str, debug: bool, **kwargs: dict) -> bool:
             if isinstance(config, str):
                 try:
                     next(utils.for_each(reference, config.split('/'), debug=debug, **kwargs))
@@ -729,7 +728,7 @@ class MizFile:
 
 
 class UnsupportedMizFileException(Exception):
-    def __init__(self, mizfile: str, message: Optional[str] = None):
+    def __init__(self, mizfile: str, message: str | None = None):
         if not message:
             message = f'The mission {mizfile} is not compatible with MizEdit. Please re-save it in DCS World.'
         super().__init__(message)

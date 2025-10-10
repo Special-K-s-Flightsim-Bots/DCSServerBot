@@ -1,12 +1,11 @@
 import discord
-from charset_normalizer.api import explain_handler
 
 from core import (Plugin, PluginRequiredError, PluginInstallationError, Group, get_translation, utils, Server,
                   Coalition, Status)
 from discord import app_commands
 from extensions.srs import SRS as SRSExt
 from services.bot import DCSServerBot
-from typing import Type, Literal, Optional
+from typing import Type, Literal
 
 from .listener import SRSEventListener
 
@@ -88,7 +87,7 @@ class SRS(Plugin[SRSEventListener]):
     async def _configure(self, interaction: discord.Interaction,
                          server: Server,
                          enabled: bool = None,
-                         autoconnect: bool = None) -> Optional[dict]:
+                         autoconnect: bool = None) -> dict | None:
         config = server.instance.locals.get('extensions', {}).get('SRS', {})
         modal = utils.ConfigModal(title=_("SRS Configuration"),
                                   config=SRSExt.CONFIG_DICT,
@@ -117,7 +116,7 @@ class SRS(Plugin[SRSEventListener]):
     @utils.app_has_role('DCS Admin')
     async def configure(self, interaction: discord.Interaction,
                         server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
-                        enabled: Optional[bool] = None, autoconnect: Optional[bool] = None):
+                        enabled: bool | None = None, autoconnect: bool | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if 'SRS' not in await server.init_extensions():
             # noinspection PyUnresolvedReferences

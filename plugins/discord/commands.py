@@ -4,7 +4,6 @@ from core import Plugin, command, utils, get_translation
 from discord import app_commands
 from services.bot import DCSServerBot
 from services.cron.actions import purge_channel
-from typing import Optional
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -15,9 +14,9 @@ class Discord(Plugin):
     @utils.app_has_role('Admin')
     @app_commands.describe(older_than=_('Delete messages older than x days (0 = all)'))
     @app_commands.describe(ignore=_('Messages from this member will be ignored'))
-    async def clear(self, interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None,
-                    older_than: Optional[int] = None, ignore: Optional[discord.Member] = None,
-                    after_id: Optional[str] = None, before_id: Optional[str] = None):
+    async def clear(self, interaction: discord.Interaction, channel: discord.TextChannel | None = None,
+                    older_than: int | None = None, ignore: discord.Member | None = None,
+                    after_id: str | None = None, before_id: str | None = None):
         if not channel:
             channel = interaction.channel
         # noinspection PyUnresolvedReferences

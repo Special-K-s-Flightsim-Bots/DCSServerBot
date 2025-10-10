@@ -3,7 +3,7 @@ import psycopg
 
 from core import EventListener, Status, Server, Side, Player, event
 from psycopg import Connection
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .commands import UserStatistics
@@ -59,7 +59,7 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
             self.log.exception(ex)
 
     @staticmethod
-    def get_unit_type(player: Union[Player, dict]) -> str:
+    def get_unit_type(player: Player | dict) -> str:
         unit_type: str = player.unit_type if isinstance(player, Player) else player['unit_type']
         sub_slot: int = player.sub_slot if isinstance(player, Player) else player['sub_slot']
         if int(sub_slot) not in [-1, 0]:

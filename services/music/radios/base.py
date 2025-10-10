@@ -7,7 +7,6 @@ from core import Server, ServiceRegistry
 from discord.ext import tasks
 from enum import Enum
 from random import randrange
-from typing import Optional
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -31,7 +30,7 @@ class Radio(ABC):
         from services.music import MusicService
 
         self.name = name
-        self.service = ServiceRegistry.get(MusicService)
+        self.service: MusicService = ServiceRegistry.get(MusicService)
         self.log = self.service.log
         self.pool = self.service.pool
         self.apool = self.service.apool
@@ -44,7 +43,7 @@ class Radio(ABC):
         self.playlist = self._get_active_playlist()
         self.idx = 0 if (self._mode == Mode.REPEAT or not len(self.songs)) else randrange(len(self.songs))
 
-    def _get_active_playlist(self) -> Optional[str]:
+    def _get_active_playlist(self) -> str | None:
         with self.pool.connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute('SELECT playlist_name FROM music_radios WHERE server_name = %s AND radio_name = %s',

@@ -8,7 +8,6 @@ from discord import SelectOption, app_commands, ButtonStyle, TextStyle
 from discord.ui import View, Select, Button, Modal, TextInput
 from services.bot import DCSServerBot
 from services.modmanager import ModManagerService, Folder
-from typing import Optional
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -144,7 +143,7 @@ class ModManager(Plugin):
             raise PluginInstallationError(plugin=self.plugin_name, reason='ModManager service not loaded.')
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: Optional[str] = None) -> None:
+                    server: str | None = None) -> None:
         self.log.debug('Pruning ModManager ...')
         if server:
             await conn.execute("DELETE FROM mm_packages WHERE server_name = %s", (server, ))
@@ -474,7 +473,7 @@ class ModManager(Plugin):
     @utils.app_has_roles(['Admin'])
     @app_commands.describe(url=_("GitHub repo link or download URL"))
     @app_commands.autocomplete(version=repo_version_autocomplete)
-    async def download(self, interaction: discord.Interaction, folder: Folder, url: str, version: Optional[str]):
+    async def download(self, interaction: discord.Interaction, folder: Folder, url: str, version: str | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if not utils.is_valid_url(url):
             # noinspection PyUnresolvedReferences

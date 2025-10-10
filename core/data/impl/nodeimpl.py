@@ -33,7 +33,7 @@ from psycopg import sql
 from psycopg.errors import UndefinedTable, InFailedSqlTransaction, ConnectionTimeout, UniqueViolation
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
-from typing import Optional, Union, Awaitable, Callable, Any, cast
+from typing import Awaitable, Callable, Any, cast
 from urllib.parse import urlparse, quote
 from version import __version__
 from zoneinfo import ZoneInfo
@@ -89,24 +89,24 @@ DEFAULT_PLUGINS = [
 
 class NodeImpl(Node):
 
-    def __init__(self, name: str, config_dir: Optional[str] = 'config'):
+    def __init__(self, name: str, config_dir: str | None = 'config'):
         super().__init__(name, config_dir)
         self.node = self  # to be able to address self.node
-        self._public_ip: Optional[str] = None
+        self._public_ip: str | None = None
         self.bot_version = __version__[:__version__.rfind('.')]
         self.sub_version = int(__version__[__version__.rfind('.') + 1:])
         self.is_shutdown = asyncio.Event()
         self.rc = 0
         self.dcs_branch = None
-        self.all_nodes: dict[str, Optional[Node]] = {self.name: self}
+        self.all_nodes: dict[str, Node | None] = {self.name: self}
         self.suspect: dict[str, Node] = {}
         self.update_pending = False
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.db_version = None
-        self.pool: Optional[ConnectionPool] = None
-        self.apool: Optional[AsyncConnectionPool] = None
-        self.cpool: Optional[AsyncConnectionPool] = None
+        self.pool: ConnectionPool | None = None
+        self.apool: AsyncConnectionPool | None = None
+        self.cpool: AsyncConnectionPool | None = None
         self._master = None
 
     def _check_branch_version(self):
@@ -206,8 +206,8 @@ class NodeImpl(Node):
     def listen_port(self) -> int:
         return self.locals.get('listen_port', 10042)
 
-    async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None,
-                    server: Optional[Server] = None, **kwargs):
+    async def audit(self, message, *, user: discord.Member | str | None = None,
+                    server: Server | None = None, **kwargs):
         from services.bot import BotService
         from services.servicebus import ServiceBus
 
@@ -292,7 +292,7 @@ class NodeImpl(Node):
         raise FatalException(f"No {config_file} found. Exiting.")
 
     async def init_db(self):
-        async def check_db(url: str) -> Optional[str]:
+        async def check_db(url: str) -> str | None:
             max_attempts = self.locals.get("database", self.config.get('database')).get('max_retries', 10)
             for attempt in range(max_attempts + 1):
                 try:
@@ -577,9 +577,9 @@ class NodeImpl(Node):
                 exit(SHUTDOWN)
         return self.dcs_branch, self.dcs_version
 
-    async def update(self, warn_times: list[int], branch: Optional[str] = None, version: Optional[str] = None) -> int:
+    async def update(self, warn_times: list[int], branch: str | None = None, version: str | None = None) -> int:
 
-        async def do_update(branch: str, version: Optional[str] = None) -> int:
+        async def do_update(branch: str, version: str | None = None) -> int:
             # disable any popup on the remote machine
             if sys.platform == 'win32':
                 startupinfo = subprocess.STARTUPINFO()
@@ -812,12 +812,12 @@ class NodeImpl(Node):
                                     licenses.add(lic)
                     async with session.get(LOGOUT_URL):
                         pass
-            return list(licenses)
+        return list(licenses)
 
     @cache_with_expiration(expiration=120)
-    async def get_available_dcs_versions(self, branch: str) -> Optional[list[str]]:
+    async def get_available_dcs_versions(self, branch: str) -> list[str] | None:
 
-        async def _get_latest_versions_no_auth() -> Optional[list[str]]:
+        async def _get_latest_versions_no_auth() -> list[str] | None:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
                 async with session.get(
@@ -826,7 +826,7 @@ class NodeImpl(Node):
                         return [x['version'] for x in json.loads(gzip.decompress(await response.read()))['versions2']]
             return None
 
-        async def _get_latest_versions_auth() -> Optional[list[str]]:
+        async def _get_latest_versions_auth() -> list[str] | None:
             user = self.locals['DCS'].get('user')
             password = utils.get_password('DCS', self.config_dir)
             headers = {
@@ -855,7 +855,7 @@ class NodeImpl(Node):
             return await _get_latest_versions_auth()
 
 
-    async def get_latest_version(self, branch: str) -> Optional[str]:
+    async def get_latest_version(self, branch: str) -> str | None:
         versions = await self.get_available_dcs_versions(branch)
         return versions[-1] if versions else None
 
@@ -919,7 +919,7 @@ class NodeImpl(Node):
                 await take_over()
                 return True
 
-        async def get_master() -> tuple[Optional[str], str, bool]:
+        async def get_master() -> tuple[str | None, str, bool]:
             cursor = await conn.execute("""
                 SELECT master, version, update_pending 
                 FROM cluster WHERE guild_id = %s FOR UPDATE
@@ -1048,7 +1048,7 @@ class NodeImpl(Node):
             cursor = await conn.execute(query, (self.guild_id, self.name))
             return [row[0] async for row in cursor]
 
-    async def shell_command(self, cmd: str, timeout: int = 60) -> Optional[tuple[str, str]]:
+    async def shell_command(self, cmd: str, timeout: int = 60) -> tuple[str, str] | None:
         def run_subprocess():
             proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             return proc.communicate(timeout=timeout)
@@ -1064,7 +1064,7 @@ class NodeImpl(Node):
         except subprocess.TimeoutExpired:
             raise TimeoutError()
 
-    async def read_file(self, path: str) -> Union[bytes, int]:
+    async def read_file(self, path: str) -> bytes | int:
         async def _read_file(path: str):
             if path.startswith('http'):
                 async with aiohttp.ClientSession() as session:
@@ -1109,7 +1109,7 @@ class NodeImpl(Node):
                 else:
                     return UploadStatus.READ_ERROR
 
-    async def list_directory(self, path: str, *, pattern: Union[str, list[str]] = '*',
+    async def list_directory(self, path: str, *, pattern: str | list[str] = '*',
                              order: SortOrder = SortOrder.DATE,
                              is_dir: bool = False, ignore: list[str] = None, traverse: bool = False
                              ) -> tuple[str, list[str]]:
@@ -1141,7 +1141,7 @@ class NodeImpl(Node):
         for file in files:
             os.remove(file)
 
-    async def rename_file(self, old_name: str, new_name: str, *, force: Optional[bool] = False):
+    async def rename_file(self, old_name: str, new_name: str, *, force: bool | None = False):
         shutil.move(old_name, new_name, copy_function=shutil.copy2 if force else None)
 
     async def rename_server(self, server: Server, new_name: str):
@@ -1162,7 +1162,7 @@ class NodeImpl(Node):
         if server.is_remote:
             server.name = new_name
 
-    async def is_dcs_update_available(self) -> Optional[str]:
+    async def is_dcs_update_available(self) -> str | None:
         branch, old_version = await self.get_dcs_branch_and_version()
         try:
             new_version = await self.get_latest_version(branch)
@@ -1178,8 +1178,8 @@ class NodeImpl(Node):
             self.log.warning("DCS update check failed, possible server outage at ED.")
         return None
 
-    async def dcs_update(self, *, branch: Optional[str] = None, version: Optional[str] = None,
-                         warn_times: list[int] = None, announce: Optional[bool] = True):
+    async def dcs_update(self, *, branch: str | None = None, version: str | None = None,
+                         warn_times: list[int] = None, announce: bool | None = True):
         from services.bot import BotService
         from services.servicebus import ServiceBus
 
@@ -1367,7 +1367,8 @@ class NodeImpl(Node):
             yaml.dump(config, outfile)
         settings_path = os.path.join(instance.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):
-            settings = SettingsDict(cast(DataObject, self), settings_path, root='cfg')
+            # TODO: dirty cast
+            settings = SettingsDict(cast(DataObject, cast(object, self)), settings_path, root='cfg')
             settings['port'] = instance.dcs_port
             settings['name'] = 'n/a'
             settings['missionList'] = []
@@ -1584,7 +1585,7 @@ class NodeImpl(Node):
         self.plugins.remove(plugin)
         return True
 
-    async def get_cpu_info(self) -> Union[bytes, int]:
+    async def get_cpu_info(self) -> bytes | int:
         def create_image() -> bytes:
             p_core_affinity_mask = utils.get_p_core_affinity()
             e_core_affinity_mask = utils.get_e_core_affinity()

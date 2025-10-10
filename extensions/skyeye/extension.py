@@ -22,7 +22,7 @@ from pathlib import Path
 from services.bot import BotService
 from services.servicebus import ServiceBus
 from threading import Thread
-from typing import Optional, Union, Any
+from typing import Any
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -70,7 +70,7 @@ class SkyEye(Extension):
             raise FileNotFoundError(f"Config file {path} does not exist.")
         return path
 
-    def load_config(self) -> Optional[dict]:
+    def load_config(self) -> dict | None:
         base_config = os.path.join(os.path.dirname(self.get_exe_path()), "config.yaml")
         if os.path.exists(base_config):
             data = yaml.load(Path(base_config).read_text(encoding='utf-8')) or {}
@@ -98,7 +98,7 @@ class SkyEye(Extension):
             self.configs = [data | self.config]
         return data
 
-    def set_affinity(self, process: psutil.Process, affinity: Union[list[int], str]):
+    def set_affinity(self, process: psutil.Process, affinity: list[int] | str):
         if isinstance(affinity, str):
             affinity = [int(x.strip()) for x in affinity.split(',')]
         elif isinstance(affinity, int):
@@ -422,7 +422,7 @@ class SkyEye(Extension):
     def get_exe_path(self) -> str:
         return os.path.join(os.path.expandvars(self.config['installation']), "skyeye.exe")
 
-    def _get_version(self) -> Optional[str]:
+    def _get_version(self) -> str | None:
         with suppress(Exception):
             # Run the program and capture its output
             result = subprocess.run([self.get_exe_path(), '--version'], text=True,
@@ -435,7 +435,7 @@ class SkyEye(Extension):
         return "1.1.1"  # default version
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         if not self._version:
             # try to read the version from the exe
             self._version = utils.get_windows_version(self.get_exe_path())
@@ -443,7 +443,7 @@ class SkyEye(Extension):
                 self._version = self._get_version()
         return self._version
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         value = ""
         for cfg in self.configs:
             coalition = '🔹' if cfg.get('coalition', 'blue') == 'blue' else '🔸'
@@ -463,7 +463,7 @@ class SkyEye(Extension):
             return False
         return True
 
-    async def check_for_updates(self) -> Optional[str]:
+    async def check_for_updates(self) -> str | None:
         with suppress(aiohttp.ClientConnectionError):
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:

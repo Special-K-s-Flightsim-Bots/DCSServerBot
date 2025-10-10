@@ -3,7 +3,7 @@ import discord
 from core import utils
 from discord import TextStyle
 from discord.ui import Modal, TextInput
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .commands import UserStatistics
@@ -15,9 +15,9 @@ class SquadronModal(Modal):
     # noinspection PyTypeChecker
     image_url = TextInput(label="Squadron Image (URL):", style=TextStyle.short, required=False)
 
-    def __init__(self, plugin: "UserStatistics", name: str, *, locked: bool = False, role: Optional[discord.Role] = None,
-                 description: Optional[str] = None, image_url: Optional[str] = None,
-                 channel: Optional[discord.TextChannel] = None):
+    def __init__(self, plugin: "UserStatistics", name: str, *, locked: bool = False, role: discord.Role | None = None,
+                 description: str | None = None, image_url: str | None = None,
+                 channel: discord.TextChannel | None = None):
         super().__init__(title=f"Description for Squadron {name}")
         self.plugin = plugin
         self.name = name

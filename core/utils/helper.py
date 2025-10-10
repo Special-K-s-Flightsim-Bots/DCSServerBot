@@ -33,7 +33,7 @@ from datetime import datetime, timedelta, timezone, tzinfo
 from difflib import unified_diff
 from importlib import import_module
 from pathlib import Path
-from typing import Optional, Union, TYPE_CHECKING, Generator, Iterable, Callable, Any
+from typing import TYPE_CHECKING, Generator, Iterable, Callable, Any
 from urllib.parse import urlparse
 
 # ruamel YAML support
@@ -152,7 +152,7 @@ def str_to_class(name: str):
         return None
 
 
-def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str:
+def format_string(string_: str, default_: str | None = None, **kwargs) -> str:
     """
     Format the given string using the provided keyword arguments.
 
@@ -291,7 +291,7 @@ def slugify(value, allow_unicode=False):
 
 
 def alternate_parse_settings(path: str):
-    def parse(value: str) -> Union[int, str, bool]:
+    def parse(value: str) -> int | str | bool:
         if value.startswith('"'):
             return value[1:-1]
         elif value == 'true':
@@ -328,8 +328,8 @@ def alternate_parse_settings(path: str):
     return settings
 
 
-def get_all_players(self, linked: Optional[bool] = None, watchlist: Optional[bool] = None,
-                    vip: Optional[bool] = None) -> list[tuple[str, str]]:
+def get_all_players(self, linked: bool | None = None, watchlist: bool | None = None,
+                    vip: bool | None = None) -> list[tuple[str, str]]:
     """
     This method `get_all_players` returns a list of tuples containing the UCID and name of players from the database. Filtering can be optionally applied by providing values for the parameters
     * `linked`, `watchlist`, and `vip`.
@@ -362,7 +362,7 @@ def get_all_players(self, linked: Optional[bool] = None, watchlist: Optional[boo
         return [(row[0], row[1]) for row in conn.execute(sql)]
 
 
-def is_ucid(ucid: Optional[str]) -> bool:
+def is_ucid(ucid: str | None) -> bool:
     """
     :param ucid: The UCID (User Client ID) is a unique identifier used in the system.
     :return: Returns True if the UCID is valid, False otherwise.
@@ -386,7 +386,7 @@ def get_presets(node: Node) -> Iterable[str]:
     return presets
 
 
-def get_preset(node: Node, name: str, filename: Optional[str] = None) -> Optional[dict]:
+def get_preset(node: Node, name: str, filename: str | None = None) -> dict | None:
     """
     :param node: The node where the configuration is stored.
     :param name: The name of the preset to retrieve.
@@ -397,7 +397,7 @@ def get_preset(node: Node, name: str, filename: Optional[str] = None) -> Optiona
     def load_all_presets(filename: Path) -> dict:
         return yaml.load(filename.read_text(encoding='utf-8'))
 
-    def _read_presets_from_file(filename: Path, name: str) -> Optional[Union[dict, list]]:
+    def _read_presets_from_file(filename: Path, name: str) -> dict | list | None:
         all_presets = load_all_presets(filename)
         preset = all_presets.get(name)
         if isinstance(preset, list):
@@ -794,14 +794,14 @@ class RemoteSettingsDict(dict):
     Args:
         server (ServerProxy): The server proxy object that handles communication with the remote server.
         obj (str): The name of the object on the remote server that the settings belong to.
-        data (Optional[dict]): Optional initial data for the settings dictionary.
+        data (dict | None): Optional initial data for the settings dictionary.
 
     Attributes:
         server (ServerProxy): The server proxy object that handles communication with the remote server.
         obj (str): The name of the object on the remote server that the settings belong to.
 
     """
-    def __init__(self, server: ServerProxy, obj: str, data: Optional[dict] = None):
+    def __init__(self, server: ServerProxy, obj: str, data: dict | None = None):
         from core.services.registry import ServiceRegistry
         from services.servicebus import ServiceBus
 
@@ -841,7 +841,7 @@ class RemoteSettingsDict(dict):
             self.bus.loop.create_task(self.bus.send_to_node(msg, node=self.server.node))
 
 
-def tree_delete(d: dict, key: str, debug: Optional[bool] = False):
+def tree_delete(d: dict, key: str, debug: bool | None = False):
     """
     Clears an element from nested structure (a mix of dictionaries and lists)
     given a key in the form "root/element1/element2".
@@ -908,7 +908,7 @@ async def run_parallel_nofail(*tasks):
     await asyncio.gather(*tasks, return_exceptions=True)
 
 
-def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union[str, int, float, bool, list, dict]:
+def evaluate(value: str | int | float | bool | list | dict, **kwargs) -> str | int | float | bool | list | dict:
     """
     Evaluate the given value, replacing placeholders with keyword arguments if necessary.
 
@@ -930,15 +930,16 @@ def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union
 
     if isinstance(value, list):
         for i in range(len(value)):
-            value[i] = evaluate(value[i], **kwargs)
+            value[i] = _evaluate(value[i], **kwargs)
+        return value
     elif isinstance(value, dict):
         return {_evaluate(k, **kwargs): evaluate(v, **kwargs) for k, v in value.items()}
     else:
         return _evaluate(value, **kwargs)
 
 
-def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
-             debug: Optional[bool] = False, **kwargs) -> Generator[Optional[dict]]:
+def for_each(data: dict, search: list[str], depth: int | None = 0, *,
+             debug: bool | None = False, **kwargs) -> Generator[dict | None]:
     """
     :param data: The data to iterate over.
     :param search: The search pattern to match elements in the data.
@@ -1046,7 +1047,7 @@ class YAMLError(Exception):
     **Methods:**
 
     """
-    def __init__(self, file: str, ex: Union[MarkedYAMLError, ValueError, SchemaError]):
+    def __init__(self, file: str, ex: MarkedYAMLError | ValueError | SchemaError):
         super().__init__(f"Error in {file}, " + ex.__str__().replace('"<unicode string>"', file))
 
 

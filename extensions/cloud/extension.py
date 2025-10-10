@@ -9,7 +9,7 @@ from core import Extension, Server, DEFAULT_TAG
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
-from typing import Optional, Any
+from typing import Any
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -25,7 +25,7 @@ class Cloud(Extension):
         self.client = None
         self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
 
-    def load_config(self) -> Optional[dict]:
+    def load_config(self) -> dict | None:
         return yaml.load(Path(os.path.join(self.node.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
 
     def read_config(self):

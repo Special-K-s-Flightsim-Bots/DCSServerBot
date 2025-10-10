@@ -3,7 +3,7 @@ import asyncio
 from core import const, report, Status, Server, utils, ServiceRegistry, Plugin, Side, cache_with_expiration
 from datetime import datetime, timedelta, timezone
 from services.bot import BotService
-from typing import Optional, cast
+from typing import cast
 from zoneinfo import ZoneInfo
 
 STATUS_IMG = {
@@ -39,7 +39,7 @@ class Init(report.EmbedElement):
 
 class ServerInfo(report.EmbedElement):
 
-    async def render(self, server: Server, show_password: Optional[bool] = True, host: Optional[str] = None,):
+    async def render(self, server: Server, show_password: bool | None = True, host: str | None = None,):
         if not server.locals.get('show_passwords', True):
             show_password = False
         name = value = ""

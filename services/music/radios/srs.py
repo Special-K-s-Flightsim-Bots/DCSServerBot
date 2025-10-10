@@ -5,7 +5,6 @@ import subprocess
 from core import Server, Status, Coalition, utils
 from packaging.version import parse
 from threading import Thread
-from typing import Optional
 from services.music.radios.base import RadioInitError, Radio
 from plugins.music.utils import get_tag
 
@@ -14,7 +13,7 @@ class SRSRadio(Radio):
 
     def __init__(self, name: str, server: Server):
         super().__init__(name, server)
-        self.process: Optional[subprocess.Popen] = None
+        self.process: subprocess.Popen | None = None
 
     async def play(self, file: str) -> None:
         if self.current and self.process:

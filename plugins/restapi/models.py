@@ -2,13 +2,12 @@ from datetime import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
-from typing import Optional
 
 
 class UserEntry(BaseModel):
     nick: str = Field(..., description="Player nickname")
     date: datetime = Field(..., description="Last seen timestamp")
-    current_server: Optional[str] = Field(None, description="Current server")
+    current_server: str | None = Field(None, description="Current server")
 
     model_config = {
         "json_encoders": {
@@ -73,11 +72,11 @@ class MissionInfo(BaseModel):
     uptime: int
     date_time: str
     theatre: str
-    blue_slots: Optional[int] = None
-    blue_slots_used: Optional[int] = None
-    red_slots: Optional[int] = None
-    red_slots_used: Optional[int] = None
-    restart_time: Optional[int] = None
+    blue_slots: int | None = None
+    blue_slots_used: int | None = None
+    red_slots: int | None = None
+    red_slots_used: int | None = None
+    restart_time: int | None = None
 
     model_config = {
         "json_schema_extra": {
@@ -95,7 +94,7 @@ class MissionInfo(BaseModel):
 
 class ExtensionInfo(BaseModel):
     name: str
-    version: Optional[str] = None
+    version: str | None = None
     value: str
 
     model_config = {
@@ -114,7 +113,7 @@ class SquadronInfo(BaseModel):
     description: str = Field(..., description="Description of the squadron")
     image_url: str = Field(..., description="URL to the squadron's image")
     locked: bool = Field(..., description="Whether the squadron is locked")
-    role: Optional[str] = Field(None, description="Discord role name associated with the squadron")
+    role: str | None = Field(None, description="Discord role name associated with the squadron")
     members: list[UserEntry] = Field(default_factory=list)
 
     model_config = {
@@ -276,9 +275,9 @@ class WeaponPK(BaseModel):
 
 class ModuleStats(BaseModel):
     module: str = Field(..., description="Aircraft/module name")
-    kills: Optional[int] = Field(None, description="Number of kills with this module")
-    deaths: Optional[int] = Field(None, description="Number of deaths with this module")
-    kdr: Optional[Decimal] = Field(None, description="Kill/Death ratio with this module")
+    kills: int | None = Field(None, description="Number of kills with this module")
+    deaths: int | None = Field(None, description="Number of deaths with this module")
+    kdr: Decimal | None = Field(None, description="Kill/Death ratio with this module")
 
     model_config = {
         "json_encoders": {
@@ -370,8 +369,8 @@ class ServerInfo(BaseModel):
     status: str = Field(..., description="Server status")
     address: str = Field(..., description="IP address and port")
     password: str = Field(..., description="Server password")
-    restart_time: Optional[datetime] = Field(None, description="Restart time")
-    mission: Optional[MissionInfo] = Field(None, description="Mission info")
+    restart_time: datetime | None = Field(None, description="Restart time")
+    mission: MissionInfo | None = Field(None, description="Mission info")
     extensions: list[ExtensionInfo] = Field(default_factory=list)
     players: list[PlayerEntry] = Field(default_factory=list)
 
@@ -457,8 +456,8 @@ class TrapEntry(BaseModel):
 
 
 class SquadronCampaignCredit(BaseModel):
-    campaign: Optional[str] = Field(None, description="Campaign name")
-    credits: Optional[float] = Field(None, description="Squadron's credits in the campaign")
+    campaign: str | None = Field(None, description="Campaign name")
+    credits: float | None = Field(None, description="Squadron's credits in the campaign")
 
     model_config = {
         "json_schema_extra": {
@@ -485,17 +484,17 @@ class PlayerSquadron(BaseModel):
 
 
 class PlayerInfo(BaseModel):
-    current_server: Optional[str] = Field(None, description="Current server")
+    current_server: str | None = Field(None, description="Current server")
     overall: PlayerStats = Field(..., description="Overall statistics")
     last_session: PlayerStats = Field(..., description="Statistics of the last session")
     module_stats: list[ModuleStats] = Field(default_factory=list, description="Statistics by module")
-    credits: Optional[CampaignCredits] = Field(None, description="Campaign credits of this player")
+    credits: CampaignCredits | None = Field(None, description="Campaign credits of this player")
     squadrons: list[PlayerSquadron] = Field(default_factory=list, description="Squadrons the player is a member of")
 
 
 class LinkMeResponse(BaseModel):
-    token: Optional[str] = Field(None, description="4-digit token for linking DCS and Discord accounts")
-    timestamp: Optional[str] = Field(None, description="Expiry timestamp in ISO format")
+    token: str | None = Field(None, description="4-digit token for linking DCS and Discord accounts")
+    timestamp: str | None = Field(None, description="Expiry timestamp in ISO format")
     rc: int = Field(..., description="Return code bitmask (1=User linked, 2=Link in progress, 4=Force operation)")
 
     model_config = {

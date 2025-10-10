@@ -13,7 +13,7 @@ import sys
 
 from core import Extension, utils, Server, get_translation
 from threading import Thread
-from typing import Optional, cast
+from typing import cast
 
 from extensions.srs import SRS
 
@@ -68,8 +68,8 @@ class Olympus(Extension):
 
         if self.enabled:
             # check if there is an olympus process running already
-            self.process: Optional[psutil.Process] = next(utils.find_process(os.path.basename(self.nodejs),
-                                                                        self.server.instance.name), None)
+            self.process: psutil.Process | None = next(utils.find_process(os.path.basename(self.nodejs),
+                                                                          self.server.instance.name), None)
             if self.process:
                 self.log.debug("- Running Olympus process found.")
 
@@ -81,7 +81,7 @@ class Olympus(Extension):
             self.frontend_tag = 'frontend'
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         return utils.get_windows_version(os.path.join(self.home, 'bin', 'olympus.dll'))
 
     @property
@@ -91,7 +91,7 @@ class Olympus(Extension):
         else:
             return os.path.join(self.server.instance.home, 'Config', 'olympus.json')
 
-    def load_config(self) -> Optional[dict]:
+    def load_config(self) -> dict | None:
         try:
             with open(self.config_path, mode='r', encoding='utf-8') as file:
                 return json.load(file)
@@ -132,7 +132,7 @@ class Olympus(Extension):
             return False
         return True
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         if 'url' in self.config:
             value = self.config['url']
         else:

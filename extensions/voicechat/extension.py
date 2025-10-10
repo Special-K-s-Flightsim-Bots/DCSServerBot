@@ -1,5 +1,4 @@
 from core import Extension, Server
-from typing import Optional
 
 __all__ = [
     "VoiceChat"
@@ -18,7 +17,7 @@ class VoiceChat(Extension):
         self.server.settings['advanced'] = settings
         return await super().prepare()
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         return {
             "name": self.name,
             "value": "enabled" if self.config.get('enabled', True) else "disabled"

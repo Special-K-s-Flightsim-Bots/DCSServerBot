@@ -17,7 +17,6 @@ from io import BytesIO
 from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
-from typing import Optional
 
 # TOML
 if sys.version_info >= (3, 11):
@@ -47,11 +46,11 @@ class RealWeather(Extension):
         self.metar = None
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         return utils.get_windows_version(os.path.join(os.path.expandvars(self.config['installation']),
                                                       'realweather.exe'))
 
-    def load_config(self) -> Optional[dict]:
+    def load_config(self) -> dict | None:
         try:
             if self.version.split('.')[0] == '1':
                 with open(self.config_path, mode='r', encoding='utf-8') as infile:
@@ -78,7 +77,7 @@ class RealWeather(Extension):
             return os.path.join(rw_home, 'config.toml')
 
     @staticmethod
-    def get_icao_code(filename: str) -> Optional[str]:
+    def get_icao_code(filename: str) -> str | None:
         index = filename.find('ICAO_')
         if index != -1:
             return filename[index + 5:index + 9]
@@ -110,7 +109,7 @@ class RealWeather(Extension):
             await self._autoupdate()
         return await super().prepare()
 
-    async def generate_config_1_0(self, input_mission: str, output_mission: str, override: Optional[dict] = None):
+    async def generate_config_1_0(self, input_mission: str, output_mission: str, override: dict | None = None):
         try:
             with open(self.config_path, mode='r', encoding='utf-8') as infile:
                 cfg = json.load(infile)
@@ -136,7 +135,7 @@ class RealWeather(Extension):
         self.locals = utils.deep_merge(cfg, override or {})
         await self.write_config()
 
-    async def generate_config_2_0(self, input_mission: str, output_mission: str, override: Optional[dict] = None):
+    async def generate_config_2_0(self, input_mission: str, output_mission: str, override: dict | None = None):
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
         try:
@@ -182,7 +181,7 @@ class RealWeather(Extension):
             with open(os.path.join(cwd, 'config.toml'), mode='wb') as outfile:
                 tomli_w.dump(self.locals, outfile)
 
-    async def generate_config(self, filename: str, tmpname: str, config: Optional[dict] = None):
+    async def generate_config(self, filename: str, tmpname: str, config: dict | None = None):
         if self.version.split('.')[0] == '1':
             await self.generate_config_1_0(filename, tmpname, config)
         else:
@@ -249,7 +248,7 @@ class RealWeather(Extension):
         await self.generate_config(filename, tmpname, config)
         return (await self.run_realweather(filename, tmpname))[0]
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         if self.version.split('.')[0] == '1':
             icao = self.config.get('metar', {}).get('icao')
         else:
@@ -296,7 +295,7 @@ class RealWeather(Extension):
     def shutdown(self, *, quiet: bool = False) -> bool:
         return super().shutdown(quiet=True)
 
-    async def check_for_updates(self) -> Optional[str]:
+    async def check_for_updates(self) -> str | None:
         with suppress(aiohttp.ClientConnectionError):
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
