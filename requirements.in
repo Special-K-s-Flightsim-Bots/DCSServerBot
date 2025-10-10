@@ -67,6 +67,9 @@ packaging==25.0
 # PID: Pidfile implementation by using a Unix PID file
 pid==3.0.4
 
+# PIP Tools
+pip-tools>=7.5.0
+
 # Psycopg: PostgreSQL database adapter for Python
 psycopg[binary]>=3.2.6
 
