@@ -273,11 +273,10 @@ For a successful installation, you need to fulfill the following prerequisites:
     def install(self, config_dir: str, user: str, database: str):
         global _
 
-        major_version = int(platform.python_version_tuple()[1])
-        if major_version <= 8:
-            print(f"""
-[red]!!! Your Python 3.{major_version} installation is not supported, you might face issues. Please use 3.9 or higher!!![/]
-            """)
+        if not ((3,10) <= sys.version_info < (3,14)):
+            print(f"[red]!!! Python {sys.version_info.major}.{sys.version_info.minor} is not supported."
+                  f"DCSServerBot requires Python >= 3.10 and < 3.14 !!![/]")
+            exit(-1)
         print("""
 [bright_blue]Hello! Thank you for choosing DCSServerBot.[/]
 DCSServerBot supports everything from single server installations to huge server farms with multiple servers across 
