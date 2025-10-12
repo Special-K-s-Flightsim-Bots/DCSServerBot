@@ -8,7 +8,6 @@ import faulthandler
 import logging
 import os
 import pathlib
-import platform
 import psycopg
 import sys
 import time
@@ -36,10 +35,13 @@ except ModuleNotFoundError as ex:
     import subprocess
 
     print(f"Module {ex.name} is not installed, fixing ...")
-    subprocess.run([
+    cmd = [
         sys.executable,
         '-m', 'piptools', 'sync', 'requirements.txt'
-    ])
+    ]
+    if os.path.exists("requirements.local"):
+        cmd.append('requirements.local')
+    subprocess.run(cmd)
     exit(-1)
 
 LOGLEVEL = {
@@ -58,7 +60,6 @@ class Main:
         self.node = node
         self.log = logging.getLogger(__name__)
         self.no_autoupdate = no_autoupdate
-        utils.dynamic_import('services')
 
     @staticmethod
     def setup_logging(node: str, config_dir: str):
@@ -311,8 +312,8 @@ if __name__ == "__main__":
         exit(ex.code)
     except:
         console.print_exception(show_locals=True, max_frames=1)
-        # restart on unknown errors
-        exit(-1)
+        # do not restart on unknown errors
+        exit(-2)
     finally:
         log.info("DCSServerBot stopped.")
         fault_log.close()

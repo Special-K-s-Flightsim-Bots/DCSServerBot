@@ -5,6 +5,7 @@ import logging
 
 from core.data.node import FatalException
 from core.services.base import Service
+from core.utils.helper import dynamic_import
 from typing import Type, TypeVar, Callable, TYPE_CHECKING, Generic, ClassVar, Any
 
 if TYPE_CHECKING:
@@ -95,6 +96,8 @@ class ServiceRegistry(Generic[T]):
     @classmethod
     async def run(cls):
         ServiceRegistry._log.info("- Starting Services ...")
+        # dynamic import all services below ./services
+        dynamic_import('services')
         services = [
             ServiceRegistry.new(service)
             for service in ServiceRegistry.services().keys()
