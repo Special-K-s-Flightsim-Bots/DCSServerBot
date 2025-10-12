@@ -127,7 +127,7 @@ class ServerView(View):
         await interaction.response.defer()
         self.env.embed.set_footer(text="Restarting, please wait ...")
         await interaction.edit_original_response(embed=self.env.embed)
-        await self.server.current_mission.restart()
+        await self.server.restart(modify_mission=self.modify_mission)
         # wait for a possible resume
         with suppress(TimeoutError, asyncio.TimeoutError):
             await self.server.wait_for_status_change([Status.RUNNING], 2)
