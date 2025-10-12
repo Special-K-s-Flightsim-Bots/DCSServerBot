@@ -4,7 +4,7 @@ import os
 import random
 import re
 
-from core import Extension, utils, Server, YAMLError, DEFAULT_TAG, MizFile, ServerImpl
+from core import Extension, utils, Server, YAMLError, DEFAULT_TAG, MizFile, ServerImpl, Status
 from datetime import datetime
 from extensions.realweather import RealWeather
 from pathlib import Path
@@ -24,21 +24,32 @@ __all__ = [
 
 class MizEdit(Extension):
 
-    async def prepare(self) -> bool:
+    def __init__(self, server: Server, config: dict):
+        super().__init__(server, config)
+        if server.status != Status.SHUTDOWN:
+            self.presets = self._init_presets()
+        else:
+            self.presets = {}
+
+    def _init_presets(self):
         presets_file = self.config.get('presets', os.path.join(self.node.config_dir, 'presets.yaml'))
-        self.presets = {}
+        presets = {}
         if not isinstance(presets_file, list):
             presets_file = [presets_file]
         for file in presets_file:
             try:
-                self.presets |= yaml.load(Path(file).read_text(encoding='utf-8'))
-                if not isinstance(self.presets, dict):
+                presets |= yaml.load(Path(file).read_text(encoding='utf-8'))
+                if not isinstance(presets, dict):
                     raise ValueError("File must contain a dictionary, not a list!")
             except FileNotFoundError:
                 self.log.error(f"MizEdit: File {file} not found!")
                 continue
             except (MarkedYAMLError, ValueError) as ex:
                 raise YAMLError(file, ex)
+        return presets
+
+    async def prepare(self) -> bool:
+        self.presets = self._init_presets()
         return await super().prepare()
 
     async def get_presets(self, config: dict) -> list[dict]:
