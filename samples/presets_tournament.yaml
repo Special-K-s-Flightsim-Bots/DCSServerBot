@@ -83,14 +83,9 @@ AIM-120B:
     file: warehouses
     variables:
       side: $'{side}'.upper()
-    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == '24'
+    for-each: airports/$'{coalition}' == '{side}'/weapons/$'{wsType[3]}' == [4, 4, 7, 24]'
     replace:
       initialAmount: ${initialAmount} + {num}
-      wsType:
-        - 4
-        - 4
-        - 7
-        - 24
 AIM-120C:
   modify:
     debug: true

@@ -459,7 +459,7 @@ class Tacview(Extension):
                     "method": "audit",
                     "params": {
                         "message": _("Tacview updated to version {version} on instance {instance}.").format(
-                            ersion=version, instance=self.server.instance.name)
+                            version=version, instance=self.server.instance.name)
                     }
                 })
                 return True
