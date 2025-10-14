@@ -888,9 +888,9 @@ class Admin(Plugin[AdminEventListener]):
         if node:
             await _node_offline(node.name)
         else:
-            for node in await self.node.get_active_nodes():
-                await _node_offline(node)
-            await _node_offline(self.node.name)
+            tasks = [_node_offline(node.name) for node in self.bus.nodes.values()]
+            tasks.append(_node_offline(self.node.name))
+            await asyncio.gather(*tasks)
 
     @node_group.command(description=_('Clears the maintenance mode for all servers'))
     @app_commands.guild_only()
