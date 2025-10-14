@@ -351,6 +351,7 @@ NODENAME:                       # this will usually be your hostname
   use_upnp: true                # The bot will auto-detect if there is a UPnP IGD available and configure this setting initially for you! If you do NOT want to use UPnP, even IF it is available, put this to false.
   nodestats: true               # Enable/disable node statistics (database pool and event queue sizes), default: true
   restrict_commands: true       # Disable commands that can affect the integrity of the server. Default: false (see MULTINODE.md)
+  restrict_owner: false         # If set to true, the owner of the bot can also not run restricted commands. Default: false (see MULTINODE.md)
   database:                     # Optional: It might be that you need to use different IPs to connect to the same database server. This is the place you could do that.
     url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME   # The bot will auto-move the database password from here to a secret place and replace it with SECRET.
     pool_min: 5                 # min size of the DB pool, default is 5
@@ -500,7 +501,7 @@ This is your Discord-bot configuration.
 
 ```yaml
 token: SECRET_DISCORD_TOKEN                     # Your TOKEN, as received from the discord developer portal. The bot will auto-move this to a secret place.
-owner: 1122334455667788                         # The ID of your bot user. Right-click, select "Copy User ID".
+owner: 1122334455667788                         # The Discord ID of the owner. Right-click on your Discord user, select "Copy User ID". If unsure, use the bot user.
 automatch: true                                 # Use the bot's auto-matching functionality (see below), default is false.
 autoban: false                                  # Use the bot's auto-ban functionality (see below), default is false.
 autorole:                                       # Automatically give roles to people, depending on conditions (see below). The roles need to be set up in your Discord server.

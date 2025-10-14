@@ -487,7 +487,11 @@ def cmd_has_roles(roles: list[str]):
 
 
 def is_restricted(interaction: discord.Interaction) -> bool:
-    return interaction.client.node.locals.get('restrict_commands', False)
+    if interaction.client.node.locals.get('restrict_commands', False):
+        if not interaction.client.node.locals.get('restrict_owner', False) and interaction.user.id == interaction.client.owner_id:
+            return False
+        return True
+    return False
 
 def restricted_check(interaction: discord.Interaction) -> bool:
     return not is_restricted(interaction)

@@ -187,6 +187,9 @@ Node2:  # node where I do not have full control
   # ...
 ```
 
+> [!NOTE]
+> Unless you specify `restrict_owner: true` in nodes.yaml, the owner of the bot can still run restricted commands.
+
 ### Moving a Server from one Node / Instance to another
 Each server is loosely coupled to an instance on a node. You can migrate a server to another instance though, by using
 the `/server migrate` command. 

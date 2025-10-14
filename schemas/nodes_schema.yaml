@@ -12,6 +12,7 @@ mapping:
       slow_system: {type: bool, nullable: false}
       nodestats: {type: bool, nullable: false}
       restrict_commands: {type: bool, nullable: false}
+      restrict_owner: {type: bool, nullable: false}
       cluster:
         type: map
         nullable: false
