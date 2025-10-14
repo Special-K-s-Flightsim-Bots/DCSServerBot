@@ -87,6 +87,15 @@ class Report:
         formatted_keys = {
             'title': {'max_length': 256, 'setter': lambda val: setattr(env.embed, 'title', val)},
             'description': {'max_length': 4096, 'setter': lambda val: setattr(env.embed, 'description', val)},
+            'author': {'max_length': 256, 'setter': lambda val: env.embed.set_author(
+                name=val, url=env.embed.author.url, icon_url=env.embed.author.icon_url)
+            },
+            'author_url': {'setter': lambda val: env.embed.set_author(
+                name=env.embed.author.name, url=val, icon_url=env.embed.author.icon_url)
+            },
+            'author_icon': {'setter': lambda val: env.embed.set_author(
+                name=env.embed.author.name, url=env.embed.author.url, icon_url=val)
+            },
             'url': {'setter': lambda val: setattr(env.embed, 'url', val)},
             'img': {'setter': lambda val: env.embed.set_thumbnail(url=val)},
             'footer': {
