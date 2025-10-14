@@ -262,6 +262,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
         })
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Script loaded.'), ephemeral=utils.get_ephemeral(interaction))
+        await self.bot.audit(f"loaded LUA script {filename}", user=interaction.user, server=server)
 
     @command(description=_('Mass coalition leave for users'))
     @app_commands.guild_only()

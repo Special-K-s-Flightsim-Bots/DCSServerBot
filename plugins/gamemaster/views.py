@@ -70,6 +70,8 @@ class ScriptModal(Modal):
         })
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Script sent.'), ephemeral=self.ephemeral)
+        await interaction.client.audit(f"sent LUA script:\n```lua\n{self.script.value}```",
+                                       user=interaction.user, server=self.server)
 
 
 class MessageModal(Modal):

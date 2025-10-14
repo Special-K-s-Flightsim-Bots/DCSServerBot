@@ -499,7 +499,7 @@ class ServerImpl(Server):
             if 'affinity' in self.locals:
                 self.set_affinity(self.locals.get('affinity'))
             else:
-                # make sure, we only use P-cores for DCS servers
+                # make sure that we only use P-cores for DCS servers
                 e_core_affinity = utils.get_e_core_affinity()
                 if e_core_affinity:
                     self.log.info(f"  => P/E-Core CPU detected.")

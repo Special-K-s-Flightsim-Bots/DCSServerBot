@@ -381,17 +381,6 @@ NODENAME:                       # this will usually be your hostname
     cloud: true                 # If you have installed DCS on a NAS or cloud drive, autoupdate and desanitization will only take place once on all your nodes.
     desanitize: true            # Desanitize your MissionScripting.lua after each update. Default is true.
     minimized: true             # Start DCS minimized (default: true)
-    allow_unsafe_api:           # as of DCS 2.9.18: allow dostring_in only in these environments
-      - scripting
-      - gui
-      - userhooks
-    allow_dostring_in:          # as of DCS 2.9.18: allow dostring_in only targeting these contexts
-      - scripting
-      - config
-      - server
-      - mission
-      - gui
-      - export
     user: xxxx                  # Your DCS username (only needed for specific use-cases)
     password: xxxx              # Your DCS password (will be auto-moved by the bot to a secret place)
   instances:
