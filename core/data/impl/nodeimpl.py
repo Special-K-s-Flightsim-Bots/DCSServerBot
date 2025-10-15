@@ -1319,32 +1319,32 @@ class NodeImpl(Node):
         if template:
             # copy from a template
             _template = next(x for x in self.node.instances if x.name == template)
-            if os.path.exists(os.path.join(_template.home, 'Config', 'autoexec.cfg')):
-                shutil.copy2(os.path.join(_template.home, 'Config', 'autoexec.cfg'),
-                             os.path.join(instance.home, 'Config'))
-            if os.path.exists(os.path.join(_template.home, 'Config', 'serverSettings.lua')):
-                shutil.copy2(os.path.join(_template.home, 'Config', 'serverSettings.lua'),
-                             os.path.join(instance.home, 'Config'))
-            if os.path.exists(os.path.join(_template.home, 'Config', 'options.lua')):
-                shutil.copy2(os.path.join(_template.home, 'Config', 'options.lua'),
-                             os.path.join(instance.home, 'Config'))
-            if os.path.exists(os.path.join(_template.home, 'Config', 'network.vault')):
-                shutil.copy2(os.path.join(_template.home, 'Config', 'network.vault'),
-                             os.path.join(instance.home, 'Config'))
+            files = [
+                os.path.join(_template.home, 'Config', 'autoexec.cfg'),
+                os.path.join(_template.home, 'Config', 'serverSettings.lua'),
+                os.path.join(_template.home, 'Config', 'options.lua'),
+                os.path.join(_template.home, 'Config', 'network.vault')
+            ]
+            # add SRS configuration
             if _template.extensions and _template.extensions.get('SRS'):
-                shutil.copy2(os.path.expandvars(_template.extensions['SRS']['config']),
-                             os.path.join(instance.home, 'Config', 'SRS.cfg'))
+                srs_config = os.path.expandvars(_template.extensions['SRS']['config'])
+                if os.path.basename(srs_config) == 'SRS.cfg':
+                    files.append(os.path.expandvars(_template.extensions['SRS']['config']))
+                else:
+                    self.log.warnig("add_instance: SRS configuration not named SRS.cfg, skipping.")
+            for file in files:
+                if os.path.exists(file):
+                    shutil.copy2(file, os.path.join(instance.home, 'Config'))
         else:
+            files = [
+                os.path.join(self.config_dir, 'autoexec.cfg'),
+                os.path.join(self.config_dir, 'serverSettings.lua'),
+                os.path.join(self.config_dir, 'options.lua')
+            ]
             # copy default files if they exist
-            if os.path.exists(os.path.join(self.config_dir, 'autoexec.cfg')):
-                shutil.copy2(os.path.join(self.config_dir, 'autoexec.cfg'),
-                             os.path.join(instance.home, 'Config'))
-            if os.path.exists(os.path.join(self.config_dir, 'serverSettings.lua')):
-                shutil.copy2(os.path.join(self.config_dir, 'serverSettings.lua'),
-                             os.path.join(instance.home, 'Config'))
-            if os.path.exists(os.path.join(self.config_dir, 'options.lua')):
-                shutil.copy2(os.path.join(self.config_dir, 'options.lua'),
-                             os.path.join(instance.home, 'Config'))
+            for file in files:
+                if os.path.exists(file):
+                    shutil.copy2(file, os.path.join(instance.home, 'Config'))
 
         autoexec = Autoexec(instance=instance)
         autoexec.crash_report_mode = "silent"
