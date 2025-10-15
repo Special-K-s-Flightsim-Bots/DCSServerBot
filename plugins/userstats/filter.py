@@ -282,7 +282,7 @@ class SquadronFilter(StatisticsFilter):
 class MissionStatisticsFilter(PeriodFilter):
 
     def filter(self, bot: DCSServerBot) -> str:
-        if self.period in self.list(bot):
+        if self.period in self.list(bot) and self.period.lower() != 'all':
             return f"time > ((now() AT TIME ZONE 'utc') - interval '1 {self.period}')"
         else:
             return '1 = 1'

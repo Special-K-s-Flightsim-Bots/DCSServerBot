@@ -5,7 +5,7 @@ import os
 from core.data.node import Node, UploadStatus, SortOrder
 from core.data.proxy.instanceproxy import InstanceProxy
 from core.services.registry import ServiceRegistry
-from core.utils import cache_with_expiration
+from core.utils import async_cache, cache_with_expiration
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -134,7 +134,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=600)
         return data['return']
 
-    @cache_with_expiration(expiration=30)
+    @cache_with_expiration(expiration=60)
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -414,6 +414,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         return data['return']
 
+    @async_cache
     async def get_cpu_info(self) -> bytes | int:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({

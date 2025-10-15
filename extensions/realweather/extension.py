@@ -12,7 +12,7 @@ import sys
 import zipfile
 
 from contextlib import suppress
-from core import Extension, MizFile, utils, DEFAULT_TAG, Server, ServiceRegistry
+from core import Extension, MizFile, utils, DEFAULT_TAG, Server, ServiceRegistry, InstallException
 from io import BytesIO
 from packaging.version import parse
 from services.bot import BotService
@@ -47,8 +47,7 @@ class RealWeather(Extension):
 
     @property
     def version(self) -> str | None:
-        return utils.get_windows_version(os.path.join(os.path.expandvars(self.config['installation']),
-                                                      'realweather.exe'))
+        return utils.get_windows_version(self.get_rw_exe())
 
     def load_config(self) -> dict | None:
         try:
@@ -67,6 +66,9 @@ class RealWeather(Extension):
             return self.config['terrains'].get(miz.theatre, self.config['terrains'].get(DEFAULT_TAG, {}))
         else:
             return self.config
+
+    def get_rw_exe(self):
+        return os.path.expandvars(os.path.join(self.config['installation'], 'realweather.exe'))
 
     @property
     def config_path(self) -> str:
@@ -202,8 +204,12 @@ class RealWeather(Extension):
                 # double-check that no mission_unpacked dir is there
                 cleanup(cwd)
                 # run RW
-                process = subprocess.Popen([os.path.join(rw_home, 'realweather.exe')],
-                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd)
+                process = subprocess.Popen(
+                    [self.get_rw_exe()],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    cwd=cwd
+                )
                 stdout, stderr = process.communicate()
                 if process.returncode != 0:
                     error = stdout.decode('utf-8')
@@ -270,22 +276,16 @@ class RealWeather(Extension):
             return False
         installation = self.config.get('installation')
         if not installation:
-            self.log.error("No 'installation' specified for RealWeather in your nodes.yaml!")
+            self.log.error(f"  => {self.name}: No 'installation' specified in your nodes.yaml.")
             return False
-        rw_home = os.path.expandvars(installation)
-        if not os.path.exists(os.path.join(rw_home, 'realweather.exe')):
-            self.log.error(f'No realweather.exe found in {rw_home}')
+        if not os.path.exists(self.get_rw_exe()):
+            self.log.error(f"  => {self.name}: {self.get_rw_exe()} not found.")
             return False
-        if self.version:
-            ver = [int(x) for x in self.version.split('.')]
-            if ver[0] == 1 and ver[1] < 9:
-                self.log.error("DCS Realweather < 1.9.x not supported, please upgrade!")
-                return False
-        else:
-            self.log.error("DCS Realweather < 1.9.x not supported, please upgrade!")
+        if not self.version or parse(self.version) < parse('1.9.0'):
+            self.log.error(f"  => {self.name}: Versions < 1.9.0 not supported, please upgrade.")
             return False
         if not os.path.exists(self.config_path):
-            self.log.error(f'No {os.path.basename(self.config_path)} found in {rw_home}')
+            self.log.error(f"  => {self.name}: {self.config_path} not found.")
             return False
         return True
 

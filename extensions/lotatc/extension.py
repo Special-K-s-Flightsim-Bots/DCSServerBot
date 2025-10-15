@@ -347,7 +347,7 @@ class LotAtc(Extension, FileSystemEventHandler):
                         "params": params
                     })
         except Exception as ex:
-            self.log.exception(ex)
+            self.log.error(f"LotAtc update failed: {ex}")
 
     async def get_ports(self) -> dict:
         return {

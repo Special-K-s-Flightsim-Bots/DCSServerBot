@@ -22,7 +22,7 @@ from packaging.version import parse, Version
 from psycopg.rows import dict_row
 from typing import cast, TYPE_CHECKING, Iterable, Any, Callable
 
-from .helper import get_all_players, is_ucid, format_string
+from .helper import get_all_players, is_ucid, format_string, cache_with_expiration
 
 if TYPE_CHECKING:
     from core import Server, Player, Node, Instance, Plugin
@@ -66,6 +66,7 @@ __all__ = [
     "UserTransformer",
     "PlayerTransformer",
     "airbase_autocomplete",
+    "get_cached_mission_list",
     "mission_autocomplete",
     "group_autocomplete",
     "date_autocomplete",
@@ -1098,6 +1099,11 @@ async def airbase_autocomplete(interaction: discord.Interaction, current: str) -
         return []
 
 
+@cache_with_expiration(expiration=10)
+async def get_cached_mission_list(server: Server) -> list[str]:
+    return await server.getMissionList()
+
+
 async def mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     """
     Autocompletion of mission names from the current mission list of a server that has to be provided as an earlier
@@ -1121,7 +1127,7 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
         base_dir = await server.get_missions_dir()
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=get_name(base_dir, x), value=idx)
-            for idx, x in enumerate(await server.getMissionList())
+            for idx, x in enumerate(await get_cached_mission_list(server))
             if not current or current.casefold() in get_name(base_dir, x).casefold()
         ]
         return sorted(choices, key=lambda choice: choice.name)[:25]

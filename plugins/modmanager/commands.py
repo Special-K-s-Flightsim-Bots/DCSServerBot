@@ -98,7 +98,7 @@ async def available_versions_autocomplete(interaction: discord.Interaction,
             return []
         try:
             folder, mod = utils.get_interaction_param(interaction, 'mod').split('/')
-        except AttributeError:
+        except (ValueError, AttributeError):
             return []
         return [
             app_commands.Choice(name=version, value=version)

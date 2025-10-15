@@ -478,8 +478,11 @@ def dynamic_import(package_name: str):
             except Exception as ex:
                 logger.error(f"Failed to import {module_name} due to {ex}, skipping.")
 
-def async_cache(func):
-    cache = {}
+def async_cache(func: Callable):
+    cache: dict[Any, Any] = {}
+    pending: dict[Any, asyncio.Future] = {}
+    locks: dict[Any, asyncio.Lock] = {}
+    _SENTINEL = object()
 
     def get_cache_key(*args, **kwargs):
         signature = inspect.signature(func)
@@ -493,6 +496,9 @@ def async_cache(func):
                 # For the self-parameter, use its id as part of the key
                 if k == "self":
                     hashable_args.append(id(v))
+                # if we have a .name element, use this as key instead
+                elif hasattr(v, "name") and not isinstance(v, (str, bytes)):
+                    hashable_args.append(("name", getattr(v, "name", None)))
                 # Convert lists to tuples, and handle nested lists
                 elif isinstance(v, list):
                     hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
@@ -500,9 +506,14 @@ def async_cache(func):
                     hashable_args.append(v)
 
         # Use tuple instead of frozenset to preserve order and handle nested structures
-        arg_tuple = tuple(hashable_args)
-        cache_key = (func.__name__, arg_tuple)
-        return cache_key
+        return func.__name__, tuple(hashable_args)
+
+    async def _get_lock(key) -> asyncio.Lock:
+        lock = locks.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            locks[key] = lock
+        return lock
 
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
@@ -510,12 +521,38 @@ def async_cache(func):
         # We need to freeze kwargs into an immutable form to use as dict key
         cache_key = get_cache_key(*args, **kwargs)
 
-        if cache_key in cache:
-            return cache[cache_key]
+        # Fast path: cached value
+        cached = cache.get(cache_key, _SENTINEL)
+        if cached is not _SENTINEL:
+            return cached
 
-        result = await func(*args, **kwargs)
-        cache[cache_key] = result
-        return result
+        # Synchronize per key
+        lock = await _get_lock(cache_key)
+        async with lock:
+            # Re-check after acquiring the lock
+            cached = cache.get(cache_key, _SENTINEL)
+            if cached is not _SENTINEL:
+                return cached
+
+            # If there is a pending computation, await it
+            fut = pending.get(cache_key)
+            if fut is not None:
+                return await fut
+
+            # Start the computation and share the future
+            loop = asyncio.get_running_loop()
+            fut = loop.create_future()
+            pending[cache_key] = fut
+            try:
+                result = await func(*args, **kwargs)
+                cache[cache_key] = result
+                fut.set_result(result)
+                return result
+            except Exception as e:
+                fut.set_exception(e)
+                raise
+            finally:
+                pending.pop(cache_key, None)
 
     return wrapper
 
@@ -524,13 +561,14 @@ def cache_with_expiration(expiration: int):
     """
     Decorator to cache function results for a specific duration.
     Works with both sync and async functions.
-
-    :param expiration: Cache duration in seconds.
+    Adds concurrency safety (per-key in-flight coalescing).
     """
-
     def decorator(func: Callable) -> Callable:
         cache: dict[Any, Any] = {}
         cache_expiry: dict[Any, float] = {}
+        pending: dict[Any, asyncio.Future] = {}
+        locks: dict[Any, asyncio.Lock] = {}
+        _SENTINEL = object()
 
         def get_cache_key(*args, **kwargs):
             signature = inspect.signature(func)
@@ -543,45 +581,84 @@ def cache_with_expiration(expiration: int):
                 # For the self-parameter, use its id as part of the key
                 if k == "self":
                     hashable_args.append(id(v))
-                # Convert lists to tuples, and handle nested lists
+                # if we have a .name element, use this as key instead
+                elif hasattr(v, "name") and not isinstance(v, (str, bytes)):
+                    hashable_args.append(("name", getattr(v, "name", None)))
+                # Convert lists to tuples and handle nested lists
                 elif isinstance(v, list):
                     hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
                 else:
                     hashable_args.append(v)
-
-            # Use tuple instead of frozenset to preserve order and handle nested structures
-            arg_tuple = tuple(hashable_args)
-            cache_key = (func.__name__, arg_tuple)
-            return cache_key
+            return func.__name__, tuple(hashable_args)
 
         def check_cache(cache_key):
-            if cache_key in cache and cache_key in cache_expiry:
-                if time.time() < cache_expiry[cache_key]:
-                    return cache[cache_key]
-            return None
+            ts = cache_expiry.get(cache_key)
+            if ts is not None and time.time() < ts:
+                return cache.get(cache_key, _SENTINEL)
+            return _SENTINEL
 
         def update_cache(cache_key, result):
             cache[cache_key] = result
             cache_expiry[cache_key] = time.time() + expiration
             return result
 
+        async def _get_lock(cache_key) -> asyncio.Lock:
+            # Fast path
+            lock = locks.get(cache_key)
+            if lock is None:
+                # Create lazily; small race is fine (we only need mutual exclusion, not singletons)
+                lock = asyncio.Lock()
+                locks[cache_key] = lock
+            return lock
+
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
             cache_key = get_cache_key(*args, **kwargs)
 
+            # 1) quick cached read
             cached_result = check_cache(cache_key)
-            if cached_result is not None:
+            if cached_result is not _SENTINEL:
                 return cached_result
 
-            result = await func(*args, **kwargs)
-            return update_cache(cache_key, result)
+            lock = await _get_lock(cache_key)
+            async with lock:
+                # 2) re-check after acquiring lock
+                cached_result = check_cache(cache_key)
+                if cached_result is not _SENTINEL:
+                    return cached_result
+
+                # 3) if another coroutine already started the work, await it
+                existing = pending.get(cache_key)
+                if existing is not None:
+                    try:
+                        return await existing
+                    except Exception:
+                        # If the pending task failed, fall through to retry
+                        pass
+
+                # 4) start work and share the task
+                loop = asyncio.get_running_loop()
+                fut: asyncio.Future = loop.create_future()
+                pending[cache_key] = fut
+
+                try:
+                    result = await func(*args, **kwargs)
+                    update_cache(cache_key, result)
+                    fut.set_result(result)
+                    return result
+                except Exception as e:
+                    fut.set_exception(e)
+                    raise
+                finally:
+                    # Clean pending
+                    pending.pop(cache_key, None)
 
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
             cache_key = get_cache_key(*args, **kwargs)
 
             cached_result = check_cache(cache_key)
-            if cached_result is not None:
+            if cached_result is not _SENTINEL:
                 return cached_result
 
             result = func(*args, **kwargs)

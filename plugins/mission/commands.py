@@ -46,7 +46,7 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
         ignore = ['.dcssb']
         if server.locals.get('ignore_dirs'):
             ignore.extend(server.locals['ignore_dirs'])
-        installed_missions = [os.path.expandvars(x) for x in await server.getMissionList()]
+        installed_missions = [os.path.expandvars(x) for x in await utils.get_cached_mission_list(server)]
         exp_base, file_list = await server.node.list_directory(base_dir, pattern=['*.miz', '*.sav'], traverse=True,
                                                                ignore=ignore)
         choices: list[app_commands.Choice[int]] = [
@@ -73,7 +73,7 @@ async def orig_mission_autocomplete(interaction: discord.Interaction, current: s
         orig_files = [os.path.basename(x)[:-9] for x in file_list]
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
-            for idx, x in enumerate(await server.getMissionList())
+            for idx, x in enumerate(await utils.get_cached_mission_list(server))
             if os.path.basename(x)[:-4] in orig_files and (not current or current.casefold() in x[:-4].casefold())
         ]
         return choices[:25]
@@ -119,7 +119,7 @@ async def nosav_autocomplete(interaction: discord.Interaction, current: str) -> 
         base_dir = await server.get_missions_dir()
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=get_name(base_dir, x), value=idx)
-            for idx, x in enumerate(await server.getMissionList())
+            for idx, x in enumerate(await utils.get_cached_mission_list(server))
             if not x.endswith('.sav') and (not current or current.casefold() in get_name(base_dir, x).casefold())
         ]
         return sorted(choices, key=lambda choice: choice.name)[:25]
@@ -1020,6 +1020,10 @@ class Mission(Plugin[MissionEventListener]):
         except FileNotFoundError:
             # we should never be here, but just in case
             await interaction.followup.send(_('No ".orig" file found.'), ephemeral=True)
+            return
+        except PermissionError:
+            await interaction.followup.send(_('{} is currently in use. Aborted.').format(os.path.basename(new_file)),
+                                            ephemeral=True)
             return
         await server.replaceMission(mission_id + 1, new_file)
         await interaction.followup.send(

@@ -367,7 +367,6 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
-    @cache_with_expiration(expiration=10)
     async def getMissionList(self) -> list[str]:
         timeout = 180 if not self.node.slow_system else 300
         data = await self.bus.send_to_node_sync({
@@ -440,6 +439,7 @@ class ServerProxy(Server):
             "server_name": self.name
         }, timeout=timeout, node=self.node.name)
 
+    @cache_with_expiration(expiration=10)
     async def getAllMissionFiles(self) -> list[str]:
         timeout = 180 if not self.node.slow_system else 300
         data = await self.bus.send_to_node_sync({
