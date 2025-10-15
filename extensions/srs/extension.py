@@ -586,7 +586,7 @@ class SRS(Extension, FileSystemEventHandler):
                         })
 
             except Exception as ex:
-                self.log.exception(ex)
+                self.log.error(f"DCS-SRS update failed: {ex}", exc_info=ex)
 
     @tasks.loop(minutes=30)
     async def schedule(self):

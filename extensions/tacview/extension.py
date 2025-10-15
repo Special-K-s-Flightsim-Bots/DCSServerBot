@@ -128,7 +128,7 @@ class Tacview(Extension):
         return False
 
     async def prepare(self) -> bool:
-        await self.update_instance(False)
+        await self.handle_update()
         options = self.server.options['plugins']
         dirty = False
 
@@ -445,14 +445,25 @@ class Tacview(Extension):
         self.log.info(f"  => {self.name} {version} uninstalled from instance {self.server.instance.name}.")
         return True
 
-    async def update_instance(self, force: bool) -> bool:
+    async def check_for_updates(self) -> str | None:
         version = self.get_inst_version()
-        if parse(self.version) < parse(version):
-            if force or self.config.get('autoupdate', False):
-                if not await self.uninstall():
-                    return False
-                if not await self.install():
-                    return False
+        return version if parse(self.version) < parse(version) else None
+
+    async def do_update(self) -> bool:
+        if not await self.uninstall():
+            return False
+        if not await self.install():
+            return False
+        return True
+
+    async def handle_update(self):
+        # don't run if autoupdate is disabled
+        if not self.config.get('autoupdate', False):
+            return
+
+        version = await self.check_for_updates()
+        if version:
+            if await self.do_update():
                 await ServiceRegistry.get(ServiceBus).send_to_node({
                     "command": "rpc",
                     "service": BotService.__name__,
@@ -462,11 +473,6 @@ class Tacview(Extension):
                             version=version, instance=self.server.instance.name)
                     }
                 })
-                return True
-            else:
-                self.log.info(f"  => {self.name}: Instance {self.server.instance.name} is running version "
-                              f"{self.version}, where {version} is available!")
-        return False
 
     async def get_ports(self) -> dict:
         return {
