@@ -141,7 +141,7 @@ class Pretense(Plugin):
                 if not admin_channel or admin_channel != message.channel.id:
                     return
                 try:
-                    server = await utils.server_selection(self.bus, ctx,
+                    server = await utils.server_selection(self.bot, ctx,
                                                           title=_("To which server do you want to upload to?"))
                     if not server:
                         await ctx.send(_('Upload aborted.'))

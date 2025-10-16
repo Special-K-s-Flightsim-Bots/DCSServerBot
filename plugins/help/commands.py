@@ -219,18 +219,20 @@ class Help(Plugin[HelpListener]):
                                                         ephemeral=True)
         else:
             try:
-                # shall we display a custom report as greeting page?
+                # shall we display a custom report as a greeting page?
                 if os.path.exists(f'reports/{self.plugin_name}/{self.plugin_name}.json'):
                     report = Report(self.bot, self.plugin_name, filename=f'{self.plugin_name}.json')
-                    env: ReportEnv = await report.render(guild=self.bot.guilds[0],
-                                                         servers=[
-                                                             {
-                                                                 "display_name": x.display_name,
-                                                                 "password": x.settings['password'],
-                                                                 "status": x.status.name.title(),
-                                                                 "num_players": len(x.get_active_players())
-                                                             } for x in self.bot.servers.values()
-                                                         ])
+                    env: ReportEnv = await report.render(
+                        guild=self.bot.guilds[0],
+                        servers=[
+                            {
+                                "display_name": x.display_name,
+                                "password": x.settings['password'],
+                                "status": x.status.name.title(),
+                                "num_players": len(x.get_active_players())
+                            } for x in self.bot.servers.values()
+                        ]
+                    )
                     embed = env.embed
                     if env.filename:
                         # noinspection PyUnresolvedReferences
@@ -378,7 +380,7 @@ _ _
         columns = ['Node', 'Instance', 'Name', 'Password', 'Max Players', 'DCS Port', 'Bot Port']
         df = pd.DataFrame(columns=columns)
 
-        for server in self.bus.servers.values():
+        for server in self.bot.servers.values():
             server_dict = {
                 'Node': server.node.name,
                 'Instance': server.instance.name,

@@ -2101,7 +2101,7 @@ class Tournament(Plugin[TournamentEventListener]):
                     return
 
         # check if a match is running
-        server = self.bus.servers[row['server_name']]
+        server = self.bot.servers[row['server_name']]
         if server.status == Status.RUNNING:
             await interaction.followup.send(_("You can not choose during a running match!"), ephemeral=True)
             return
@@ -2335,7 +2335,7 @@ class Tournament(Plugin[TournamentEventListener]):
                             self.log.debug("Match Schedler: match found, but there is one running already!")
                             continue
                         server_names.append(match['server_name'])
-                        server = self.bus.servers[match['server_name']]
+                        server = self.bot.servers[match['server_name']]
                         # we must not start a match if the server is (still?) running
                         if server.status == Status.RUNNING:
                             self.log.debug("Match Scheduler: match found, but the server is running already!")

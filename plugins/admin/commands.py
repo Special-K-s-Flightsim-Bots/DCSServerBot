@@ -765,17 +765,18 @@ class Admin(Plugin[AdminEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         embed = discord.Embed(title=_("DCSServerBot Cluster Overview"), color=discord.Color.blue())
-        for name in self.node.all_nodes.keys():
+        for name, node in self.node.all_nodes.items():
             names = []
             instances = []
             status = []
-            for server in [server for server in self.bus.servers.values() if server.node.name == name]:
+            for server in [x for x in self.bot.servers.values() if x.node.name == node.name]:
                 instances.append(server.instance.name)
                 names.append(server.name)
                 status.append(server.status.name)
             if names:
+                # print the master in bold
                 title = f"**[{name}]**" if name == self.node.name else f"[{name}]"
-                if await server.node.upgrade_pending():
+                if await node.upgrade_pending():
                     embed.set_footer(text=_("🆕 Update available"))
                     title += " 🆕"
 
@@ -856,7 +857,7 @@ class Admin(Plugin[AdminEventListener]):
             tasks = []
             if shutdown:
                 msg = await interaction.followup.send(_("Shutting down all servers on node {} ...").format(node_name))
-            for server in self.bus.servers.values():
+            for server in self.bot.servers.values():
                 if server.node.name == node_name:
                     server.maintenance = True
                     if shutdown:
@@ -909,7 +910,7 @@ class Admin(Plugin[AdminEventListener]):
 
         async def _node_online(node_name: str):
             next_startup = 0
-            for server in [x for x in self.bus.servers.values() if x.node.name == node_name]:
+            for server in [x for x in self.bot.servers.values() if x.node.name == node_name]:
                 if startup:
                     self.loop.call_later(delay=next_startup,
                                          callback=partial(asyncio.create_task, _startup(server)))
@@ -1189,7 +1190,7 @@ Please make sure you forward the following ports:
             else:
                 await interaction.followup.send(
                     _('One or more plugins could not be reloaded, check the log for details.'), ephemeral=ephemeral)
-        # for server in self.bus.servers.values():
+        # for server in self.bot.servers.values():
         #    if server.status == Status.STOPPED:
         #        await server.send_to_dcs({"command": "reloadScripts"})
 
@@ -1314,7 +1315,7 @@ Please make sure you forward the following ports:
                 return
             try:
                 server = await utils.server_selection(
-                    self.bus, ctx, title=_("To which server do you want to upload this configuration to?"))
+                    self.bot, ctx, title=_("To which server do you want to upload this configuration to?"))
                 if not server:
                     await ctx.send(_('Aborted.'))
                     return

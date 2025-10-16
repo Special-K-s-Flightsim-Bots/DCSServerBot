@@ -2089,6 +2089,8 @@ class Mission(Plugin[MissionEventListener]):
                     exemptions = config.get('exemptions', {})
                     if 'discord' in exemptions:
                         exemptions['discord'] = list(set(exemptions['discord']) | {"DCS Admin", "GameMaster"})
+                        if server.locals.get('managed_by'):
+                            exemptions['discord'].extend(server.locals.get('managed_by'))
                     if not player or player.check_exemptions(exemptions):
                         continue
                     if (datetime.now(timezone.utc) - dt).total_seconds() > max_time:
@@ -2163,7 +2165,7 @@ class Mission(Plugin[MissionEventListener]):
                 channel = node.get('uploads', {}).get('channel')
                 if message.channel.id == channel:
                     server = next((
-                        server for server in self.bus.servers.values()
+                        server for server in self.bot.servers.values()
                         if server.instance.name == node_name
                     ), None)
                     break
@@ -2172,7 +2174,7 @@ class Mission(Plugin[MissionEventListener]):
                     channel = instance.get('uploads', {}).get('channel')
                     if message.channel.id == channel:
                         server = next((
-                            server for server in self.bus.servers.values()
+                            server for server in self.bot.servers.values()
                             if server.instance.name == instance_name
                         ), None)
                         break

@@ -57,7 +57,7 @@ class LotAtc(Plugin[LotAtcEventListener]):
             return None
         try:
             return await utils.server_selection(
-                self.bus, ctx, title=_("To which server do you want to upload this transponder file to?"),
+                self.bot, ctx, title=_("To which server do you want to upload this transponder file to?"),
                 filter_func=self.lotatc_server_filter)
         except Exception as ex:
             self.log.exception(ex)

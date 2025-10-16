@@ -325,11 +325,19 @@ class DCSServerBot(commands.Bot):
 
     async def audit(self, message, *, user: discord.Member | str | None = None,
                     server: "Server | None" = None, node: Node | None = None, **kwargs):
+        # init node if not set
         if not node:
             node = self.node
+        # init audit channel
         if not self.audit_channel:
             self.audit_channel = self.get_channel(self.locals.get('channels', {}).get('audit', -1))
-        if self.audit_channel:
+        # if we have a server-specific audit channel, use this one
+        if server and server.channels[Channel.AUDIT] != -1:
+            audit_channel = self.get_channel(server.channels[Channel.AUDIT])
+        else:
+            audit_channel = self.audit_channel
+
+        if audit_channel:
             if not user:
                 member = self.member
             elif isinstance(user, str):
@@ -358,12 +366,13 @@ class DCSServerBot(commands.Bot):
                     embed.add_field(name=name.title(), value=value, inline=False)
             embed.set_footer(text=datetime.now(timezone.utc).strftime("%y-%m-%d %H:%M:%S"))
             try:
-                await self.audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
+                await audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
             except discord.errors.HTTPException as ex:
                 # ignore rate limits
                 if ex.code != 429:
                     raise
                 self.log.warning("Audit message discarded due to Discord rate limits: " + message)
+
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
@@ -425,14 +434,28 @@ class DCSServerBot(commands.Bot):
                 return member
         return utils.match(data['name'], [x for x in self.get_all_members() if not x.bot])
 
+    def get_servers(self, manager: discord.Member | None = None) -> dict[str, "Server"] | None:
+        def check_server_roles(server: "Server") -> bool:
+            if server.locals.get('managed_by') and not utils.check_roles(server.locals.get('managed_by'), manager):
+                return False
+            return True
+
+        return {k: v for k,v in self.servers.items() if check_server_roles(v)}
+
     def get_server(self, ctx: discord.Interaction | discord.Message | str, *,
                    admin_only: bool | None = False) -> "Server | None":
-        if len(self.servers) == 1:
-            if admin_only and int(self.locals.get('channels', {}).get('admin', 0)) == ctx.channel.id:
-                return list(self.servers.values())[0]
-            elif not admin_only:
-                return list(self.servers.values())[0]
-        for server_name, server in self.servers.items():
+
+        all_servers = self.get_servers(manager=ctx.user if isinstance(ctx, discord.Interaction) else ctx.author)
+        if len(all_servers) == 1:
+            server = next(iter(all_servers.values()), None)
+            if admin_only:
+                if int(self.locals.get('channels', {}).get('admin', 0)) == ctx.channel.id:
+                    return server
+                else:
+                    return None
+            else:
+                return server
+        for server_name, server in all_servers.items():
             if isinstance(ctx, commands.Context) or isinstance(ctx, discord.Interaction) \
                     or isinstance(ctx, discord.Message):
                 if server.status == Status.UNREGISTERED:

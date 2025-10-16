@@ -39,6 +39,7 @@ class Channel(Enum):
     CHAT = 'chat'
     EVENTS = 'events'
     VOICE = 'voice'
+    AUDIT = 'audit'
     COALITION_BLUE_CHAT = 'blue'
     COALITION_BLUE_EVENTS = 'blue_events'
     COALITION_RED_CHAT = 'red'

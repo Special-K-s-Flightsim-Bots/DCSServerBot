@@ -193,43 +193,42 @@ class ScheduleInfo(report.EmbedElement):
     async def render(self, server: Server):
         bot = ServiceRegistry.get(BotService).bot
         scheduler: Plugin = cast(Plugin, bot.cogs.get('Scheduler'))
-        if scheduler:
-            config = scheduler.get_config(server)
-            if 'schedule' in config:
-                if (len(config['schedule']) == 1 and list(config['schedule'].keys())[0] == '00-24' and
-                        config['schedule']['00-24'] == 'YYYYYYY'):
-                    return
-                self.add_field(name="This server runs on the following schedule:", value='_ _', inline=False)
-                value = ''
-                now = datetime.now()
-                tz = now.astimezone().tzinfo
-                for period, daystate in config['schedule'].items():
-                    if period == 'timezone':
-                        tz = ZoneInfo(daystate)
-                        continue
-                    for c in daystate:
-                        if c == 'Y':
-                            value += '✅|'
-                        elif c == 'N':
-                            value += '❌|'
-                        elif c == 'P':
-                            value += '☑️|'
-                    value += '\n'
-                now = now.replace(tzinfo=tz)
-                hours, rem = divmod(tz.utcoffset(now).total_seconds(), 3600)
-                minutes, _ = divmod(rem, 60)
-                if hours == 0 and minutes == 0:
-                    name = 'Time (UTC)'
-                else:
-                    sign = '+' if hours >= 0 else '-'
-                    name = f'Time (UTC{sign}{int(abs(hours)):02d}:{int(minutes):02d})'
-                self.add_field(name=name, value='\n'.join([x for x in config['schedule'].keys() if x != 'timezone']))
-                self.add_field(name='🇲|🇹|🇼|🇹|🇫|🇸|🇸', value=value)
-                self.add_field(name='_ _', value='✅ = Server running\n'
-                                                 '❌ = Server not running\n'
-                                                 '☑️ = Server shuts down without players')
-                # add a ruler at the bottom
-                await report.Ruler(self.env).render()
+        if not scheduler:
+            return
+        config = scheduler.get_config(server)
+        if config.get('schedule', {'00-24': 'YYYYYYY'}) == {'00-24': 'YYYYYYY'}:
+            return
+        self.add_field(name="This server runs on the following schedule:", value='_ _', inline=False)
+        value = ''
+        now = datetime.now()
+        tz = now.astimezone().tzinfo
+        for period, daystate in config['schedule'].items():
+            if period == 'timezone':
+                tz = ZoneInfo(daystate)
+                continue
+            for c in daystate:
+                if c == 'Y':
+                    value += '✅|'
+                elif c == 'N':
+                    value += '❌|'
+                elif c == 'P':
+                    value += '☑️|'
+            value += '\n'
+        now = now.replace(tzinfo=tz)
+        hours, rem = divmod(tz.utcoffset(now).total_seconds(), 3600)
+        minutes, _ = divmod(rem, 60)
+        if hours == 0 and minutes == 0:
+            name = 'Time (UTC)'
+        else:
+            sign = '+' if hours >= 0 else '-'
+            name = f'Time (UTC{sign}{int(abs(hours)):02d}:{int(minutes):02d})'
+        self.add_field(name=name, value='\n'.join([x for x in config['schedule'].keys() if x != 'timezone']))
+        self.add_field(name='🇲|🇹|🇼|🇹|🇫|🇸|🇸', value=value)
+        self.add_field(name='_ _', value='✅ = Server running\n'
+                                         '❌ = Server not running\n'
+                                         '☑️ = Server shuts down without players')
+        # add a ruler at the bottom
+        await report.Ruler(self.env).render()
 
 
 class Footer(report.EmbedElement):

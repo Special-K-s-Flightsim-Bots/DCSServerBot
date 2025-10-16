@@ -12,7 +12,7 @@ from enum import Enum
 from filecmp import cmp
 from functools import total_ordering
 from packaging import version
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from psycopg.rows import dict_row
 from urllib.parse import urlparse
 
@@ -325,7 +325,7 @@ class ModManagerService(Service):
             with zipfile.ZipFile(filename, 'r') as zfile:
                 ovgme = self.is_ovgme(zfile, package_name)
                 if ovgme:
-                    root = (zfile.namelist()[0]).split('/')[0] + '/'
+                    root = str(PurePosixPath(zfile.namelist()[0]).parent) + '/'
                 for name in zfile.namelist():
                     if ovgme:
                         _name = name.replace(root, '')

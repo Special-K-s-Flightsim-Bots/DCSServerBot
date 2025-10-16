@@ -148,6 +148,13 @@ mapping:
           - type: text
             nullable: false
             unique: true
+      managed_by:
+        type: seq
+        nullable: false
+        sequence:
+          - type: text
+            nullable: false
+            unique: true
       channels:
         type: map
         nullable: false
@@ -157,6 +164,7 @@ mapping:
           events: {type: int, range: {min: -1}, nullable: false}
           admin: {type: int, range: {min: -1}, nullable: false}
           voice: {type: int, range: {min: -1}, nullable: false}
+          audit: {type: int, range: {min: -1}, nullable: false}
           blue: {type: int, range: {min: -1}, nullable: false}
           blue_events: {type: int, range: {min: -1}, nullable: false}
           red: {type: int, range: {min: -1}, nullable: false}

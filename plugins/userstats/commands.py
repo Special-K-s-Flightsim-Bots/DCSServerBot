@@ -133,7 +133,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     async def reset_statistics(self, interaction: discord.Interaction,
                                _server: app_commands.Transform[Server, utils.ServerTransformer] | None = None):
         if not _server:
-            for s in self.bus.servers.values():
+            for s in self.bot.servers.values():
                 if s.status in [Status.RUNNING, Status.PAUSED]:
                     # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(
@@ -817,7 +817,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                             await self.render_highscore(config)
 
             # Render server-specific-highscores
-            for server in self.bus.servers.values():
+            for server in self.bot.servers.values():
                 server_config = self.locals.get(server.node.name, self.locals).get(server.instance.name)
                 if server_config and server_config.get('highscore'):
                     await self.render_highscore(deepcopy(server_config['highscore']), server=server)

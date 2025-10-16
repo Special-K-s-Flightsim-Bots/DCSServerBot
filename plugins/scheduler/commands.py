@@ -504,7 +504,7 @@ class Scheduler(Plugin[SchedulerListener]):
     async def before_check(self):
         await self.bot.wait_until_ready()
         while True:
-            if all(server.status != Status.UNREGISTERED for server in self.bus.servers.values()):
+            if all(server.status != Status.UNREGISTERED for server in self.bot.servers.values()):
                 break
             await asyncio.sleep(1)
 

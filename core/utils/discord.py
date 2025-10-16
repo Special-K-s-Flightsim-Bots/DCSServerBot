@@ -966,7 +966,9 @@ class ServerTransformer(app_commands.Transformer):
         """
         if value:
             server = interaction.client.servers.get(value)
-            if not server:
+            if not server or (
+                    server.locals.get('managed_by') and not utils.check_roles(server.locals.get('managed_by'), interaction.user)
+            ):
                 raise app_commands.TransformerError(value, self.type, self)
         else:
             server = interaction.client.get_server(interaction)
@@ -999,7 +1001,9 @@ class ServerTransformer(app_commands.Transformer):
                 if (value.status != Status.UNREGISTERED and
                     (not self.status or value.status in self.status) and
                     (not self.maintenance or value.maintenance == self.maintenance) and
-                    (not current or current.casefold() in name.casefold()))
+                    (not value.locals.get('managed_by') or utils.check_roles(value.locals.get('managed_by'), interaction.user)) and
+                    (not current or current.casefold() in name.casefold())
+                )
             ]
             return choices[:25]
         except Exception as ex:
@@ -1258,40 +1262,40 @@ def _server_filter(server: Server) -> bool:
     return True
 
 
-async def server_selection(bus: ServiceBus,
-                           interaction: discord.Interaction | commands.Context, *, title: str,
-                           multi_select: bool | None = False,
-                           ephemeral: bool | None = True,
-                           filter_func: Callable[[Server], bool] = _server_filter
-                           ) -> Server | list[Server] | None:
-    """
-
-    """
-    all_servers = list(bus.servers.values())
-    if len(all_servers) == 0:
+async def server_selection(
+        bot: DCSServerBot,
+        interaction: discord.Interaction | commands.Context,
+        *,
+        title: str,
+        multi_select: bool | None = False,
+        ephemeral: bool | None = True,
+        filter_func: Callable[[Server], bool] = _server_filter
+) -> Server | list[Server] | None:
+    all_servers = bot.get_servers(manager=interaction.user if isinstance(interaction, discord.Interaction) else interaction.author)
+    if not all_servers:
         return []
     elif len(all_servers) == 1:
-        return [all_servers[0]]
+        return [next(iter(all_servers.values()))]
     if multi_select:
         max_values = len(all_servers)
     else:
         max_values = 1
     server: Server | None = None
     if isinstance(interaction, discord.Interaction):
-        server = interaction.client.get_server(interaction)
+        server = bot.get_server(interaction)
     s = await selection(interaction, title=title,
                         options=[
-                            SelectOption(label=x.name, value=str(idx), default=(
+                            SelectOption(label=x.name, value=x.name, default=(
                                 True if server and server == x else
                                 True if not server and idx == 0 else
                                 False
-                            )) for idx, x in enumerate(all_servers) if filter_func(x)
+                            )) for idx, x in enumerate(all_servers.values()) if filter_func(x)
                         ],
                         max_values=max_values, ephemeral=ephemeral)
     if isinstance(s, list):
-        return [all_servers[int(x)] for x in s]
+        return [all_servers[x] for x in s]
     elif s:
-        return all_servers[int(s)]
+        return all_servers[s]
     return None
 
 
@@ -1667,9 +1671,8 @@ class ServerUploadHandler(NodeUploadHandler):
             channel_id = bot.locals.get('channels', {}).get('admin')
 
         if not server and message.channel.id == channel_id:
-            bus = ServiceRegistry.get(ServiceBus)
             ctx = await bot.get_context(message)
-            server = await utils.server_selection(bus, ctx, title=_("To which server do you want to upload?"))
+            server = await utils.server_selection(bot, ctx, title=_("To which server do you want to upload?"))
             if not server:
                 await ctx.send(_('Upload aborted.'))
                 return None

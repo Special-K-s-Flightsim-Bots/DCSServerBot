@@ -230,7 +230,7 @@ class Commands(Plugin):
                     if rc:
                         ret.append(rc)
         else:
-            for server in self.bot.servers.values():
+            for server in self.bot.get_servers(manager=interaction.user).values():
                 rc = await do_send(server)
                 if rc:
                     ret.append(rc)

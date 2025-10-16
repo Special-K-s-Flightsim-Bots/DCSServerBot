@@ -456,12 +456,15 @@ My Fancy Server:                # Your server name, as displayed in the server l
   force_voice: false            # Optional: enforce the usage of a voice channel (users need to be linked!) - default: false
   discord:                      # Optional: specify discord roles that are allowed to use this server
     - '@everyone'               # Attention: people cannot self-link on these servers and have to be liked properly already!
+  managed_by:
+    - Special Admin             # Optional: a list of Discord roles that can manage this server (default: DCS Admin)
   channels:
     status: 1122334455667788    # The Discord channel to display the server status embed and players embed into. Right-click on your channel and select "Copy Channel ID". You can disable it with -1
     chat: 8877665544332211      # The Discord channel for the in-game chat replication. You can disable it by setting it to -1.
     events: 1928374619283746    # Optional: if you want to split game events from chat messages, you can enable an optional events channel.
-    admin: 1188227733664455     # The channel where you can fire admin commands to this server. You can decide if you want to have a central admin channel or server-specific ones. See bot.yaml for more.
-    voice: 1827364518273645     # The voice channel, where people need to connect to (if force_voice is true). 
+    admin: 1188227733664455     # Optional: The channel where you can fire admin commands to this server. You can decide if you want to have a central admin channel or server-specific ones. See bot.yaml for more.
+    voice: 1827364518273645     # Optional: The voice channel, where people need to connect to (mandatory if force_voice is true). 
+    audit: 9182736459182736     # Optional: a server-specific audit channel (for those of you who like channels, all others can use the global one)
   chat_log:
     count: 10                   # A log file that holds the in-game chat to check for abuse. Tells how many files will be kept, default is 10.
     size: 1048576               # Max logfile size, default is 1 MB. 

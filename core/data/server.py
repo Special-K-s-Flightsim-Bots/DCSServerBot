@@ -396,6 +396,8 @@ class Server(DataObject):
                 self._channels[Channel.EVENTS] = self._channels[Channel.CHAT]
             if Channel.VOICE not in self._channels:
                 self._channels[Channel.VOICE] = -1
+            if Channel.AUDIT not in self._channels:
+                self._channels[Channel.AUDIT] = -1
             if Channel.COALITION_BLUE_EVENTS not in self._channels and Channel.COALITION_BLUE_CHAT in self._channels:
                 self._channels[Channel.COALITION_BLUE_EVENTS] = self._channels[Channel.COALITION_BLUE_CHAT]
             if Channel.COALITION_RED_EVENTS not in self._channels and Channel.COALITION_RED_CHAT in self._channels:

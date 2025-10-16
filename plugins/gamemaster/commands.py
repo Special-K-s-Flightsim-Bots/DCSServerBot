@@ -156,7 +156,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        for server in self.bot.servers.values():
+        for server in self.bot.get_servers(manager=interaction.user).values():
             if server.status != Status.RUNNING:
                 await interaction.followup.send(_('Message NOT sent to server {server} because it is {status}.'
                                                   ).format(server=server.display_name, status=server.status.name),
@@ -275,7 +275,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
         try:
-            for server in self.bot.servers.values():
+            for server in self.bot.get_servers(manager=interaction.user).values():
                 if not server.locals.get('coalitions'):
                     continue
                 await self.eventlistener.reset_coalitions(server, True)
@@ -348,7 +348,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
         if await modal.wait():
             return
         try:
-            servers = await utils.server_selection(self.bus, interaction,
+            servers = await utils.server_selection(self.bot, interaction,
                                                    title=_("Select all servers for this campaign"),
                                                    multi_select=True, ephemeral=ephemeral)
             if not servers:
@@ -442,7 +442,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
         try:
             # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=True)
-            servers = await utils.server_selection(self.bus, interaction,
+            servers = await utils.server_selection(self.bot, interaction,
                                                    title=_("Select all servers for this campaign"),
                                                    multi_select=True, ephemeral=ephemeral)
             if not isinstance(servers, list):
