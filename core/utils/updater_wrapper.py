@@ -42,12 +42,12 @@ def do_update(installation: str, slow: bool | None = False, check_extra_files: b
             """Return a UIA WindowSpecification for the given HWND."""
             return Desktop(backend='uia').window(handle=handle)
 
-        radio_slow = radio_default = chk_search = repair_btn = ok_btn = None
+        radio_slow = chk_search = repair_btn = ok_btn = None
         for child in dlg.children():
             uia_child = uia_wrapper_from_handle(child.handle)
-            if uia_child.element_info.automation_id == '1025':
-                radio_default = uia_wrapper_from_handle(child.handle)
-            elif uia_child.element_info.automation_id == '1026':
+#            if uia_child.element_info.automation_id == '1025':
+#                radio_default = uia_wrapper_from_handle(child.handle)
+            if uia_child.element_info.automation_id == '1026':
                 radio_slow = uia_wrapper_from_handle(child.handle)
             elif uia_child.element_info.automation_id == '1010':
                 chk_search = uia_wrapper_from_handle(child.handle)
@@ -64,9 +64,7 @@ def do_update(installation: str, slow: bool | None = False, check_extra_files: b
         # else, tick the correct switches and run the repair
         else:
             if slow:
-                radio_slow.select()
-            else:
-                radio_default.select()
+                radio_slow.click_input()
 
             if check_extra_files:
                 chk_search.click_input()
