@@ -69,7 +69,7 @@ def do_update(installation: str, slow: bool | None = False, check_extra_files: b
                 radio_default.select()
 
             if check_extra_files:
-                chk_search.select()
+                chk_search.click_input()
 
             # run the repair
             repair_btn.invoke()
@@ -103,7 +103,7 @@ def close_autoupdate_templog():
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description="DCS Updater wrapper for unattended updates")
-    ap.add_argument("-d", "--dcs_home", default=r"C:\Program Files\DCS World", help="DCS home directory")
+    ap.add_argument("-d", "--dcs_home", default=r"C:\Program Files\Eagle Dynamics\DCS World", help="DCS home directory")
     ap.add_argument("-s", "--slow", action='store_true', default=False, help="Run a slow repair")
     ap.add_argument("-c", "--check_extra_files", action='store_true', default=False, help="Check for extra files")
     args = ap.parse_args()
