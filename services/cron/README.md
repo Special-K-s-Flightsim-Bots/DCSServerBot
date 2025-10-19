@@ -166,8 +166,8 @@ DEFAULT:
       action:
         type: dcs_repair  # Repair DCS
         params:
-          slow: true                # optional: do a slow repair
-          check_extra_files: true   # optional: check extra files
+          slow: true                # optional: do a slow repair (default: false)
+          check_extra_files: true   # optional: check extra files (default: false)
           warn_times:               # Optional: warn users before the update
             - 120
             - 60
