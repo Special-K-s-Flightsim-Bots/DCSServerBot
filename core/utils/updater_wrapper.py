@@ -5,7 +5,22 @@ import psutil
 import sys
 import time
 
+from pathlib import Path
 from pywinauto import Application, findwindows, Desktop
+
+log_dir = Path("logs")
+log_dir.mkdir(parents=True, exist_ok=True)
+
+LOG_FILE = log_dir / "dcs_repair.log"
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.FileHandler(LOG_FILE, mode="a", encoding="utf-8")
+    ]
+)
 
 logger = logging.getLogger(__name__)
 
