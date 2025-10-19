@@ -25,8 +25,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def _find_window(process: psutil.Process):
-    for i in range(0, 30):
+def _find_window(process: psutil.Process, timeout: int = 30):
+    for i in range(0, timeout):
         windows = findwindows.find_elements(title_re="DCS Updater *", top_level_only=False)
         window = next((window for window in windows if len(window.children()) > 6), None)
         if window:
@@ -88,7 +88,7 @@ def do_update(installation: str, slow: bool | None = False, check_extra_files: b
             repair_btn.invoke()
 
             # close the OK message
-            window = _find_window(process)
+            window = _find_window(process, timeout=1800 if slow else 180)
             dlg = app.window(handle=window.handle)
             dlg.wait('ready', timeout=15)
             ok_btn = uia_wrapper_from_handle(dlg.children()[0].handle)
