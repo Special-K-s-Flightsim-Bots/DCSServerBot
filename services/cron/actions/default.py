@@ -144,6 +144,11 @@ async def dcs_update(node: Node, warn_times: list[int] | None = None):
         await node.dcs_update(warn_times=warn_times, branch=branch)
 
 
+async def dcs_repair(node: Node, slow: bool | None = False, check_extra_files: bool | None = False,
+                     warn_times: list[int] | None = None):
+    await node.dcs_repair(warn_times=warn_times, slow=slow, check_extra_files=check_extra_files)
+
+
 async def node_shutdown(node: Node, restart: bool | None = False):
     if restart:
         await node.restart()

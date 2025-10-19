@@ -13,6 +13,10 @@ if TYPE_CHECKING:
 class SchedulerListener(EventListener["Scheduler"]):
 
     async def get_next_restart(self, server: Server, restart: dict | list) -> tuple[int, dict] | None:
+        # do not calculate the restart time, if there is no mission running
+        if not server.current_mission:
+            return None
+
         if isinstance(restart, list):
             results: list[tuple[int, dict]] = []
             for r in restart:

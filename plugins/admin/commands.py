@@ -457,6 +457,7 @@ class Admin(Plugin[AdminEventListener]):
     @app_commands.describe(warn_time=_("Time in seconds to warn users before shutdown"))
     async def repair(self, interaction: discord.Interaction,
                      node: app_commands.Transform[Node, utils.NodeTransformer],
+                     slow: bool | None = False, check_extra_files: bool | None = False,
                      warn_time: app_commands.Range[int, 0] = 60):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
@@ -464,7 +465,11 @@ class Admin(Plugin[AdminEventListener]):
         await self.bot.audit(f"started a repair of DCS World on node {node.name}.", user=interaction.user)
         msg = await interaction.followup.send(_("Repairing DCS World, please wait ..."), ephemeral=ephemeral)
         try:
-            rc = await node.dcs_repair(warn_times=[warn_time] or [120, 60])
+            rc = await node.dcs_repair(
+                warn_times=[warn_time] or [120, 60],
+                slow=slow,
+                check_extra_files=check_extra_files
+            )
             if rc == 0:
                 await msg.edit(content=_("DCS World repaired on node {}.").format(node.name))
                 await self.bot.audit(f"repaired DCS World on node {node.name}.", user=interaction.user)

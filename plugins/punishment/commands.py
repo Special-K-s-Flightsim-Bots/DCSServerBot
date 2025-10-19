@@ -150,7 +150,7 @@ class Punishment(Plugin[PunishmentEventListener]):
                                         if row['points'] < punishment['points']:
                                             continue
                                         reason = None
-                                        for penalty in config['penalties']:
+                                        for penalty in config.get('penalties', []):
                                             if penalty['event'] == row['event']:
                                                 reason = penalty['reason'] if 'reason' in penalty else row['event']
                                                 break
