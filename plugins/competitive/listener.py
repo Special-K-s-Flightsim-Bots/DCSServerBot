@@ -302,6 +302,9 @@ class CompetitiveListener(EventListener["Competitive"]):
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         if data['eventName'] in ['S_EVENT_BIRTH', 'S_EVENT_PLAYER_ENTER_UNIT']:
+            # we don't care about AI
+            if not data['initiator'].get('name'):
+                return
             config = self.get_config(server)
             if config.get('join_on', '').lower() == 'birth':
                 new_data = {

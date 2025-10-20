@@ -82,8 +82,10 @@ class LogAnalyser(Extension):
         return await super().startup()
 
     async def startup(self, *, quiet: bool = False) -> bool:
-        await self.do_startup()
-        return await super().startup()
+        if not self.is_running():
+            await self.do_startup()
+            return await super().startup()
+        return False
 
     async def _shutdown(self):
         await self.stopped.wait()

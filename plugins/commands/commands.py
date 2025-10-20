@@ -393,7 +393,9 @@ async def __{sanitized_name}_callback(interaction: discord.Interaction):
 
                 # update parameters
                 for p_name, spec in params.items():
-                    orig = slash_cmd._params[p_name]
+                    orig = slash_cmd._params.get(p_name)
+                    if not orig:
+                        continue
                     if 'description' in spec:
                         orig.description = spec['description']
                     if 'required' in spec:
@@ -415,8 +417,8 @@ async def __{sanitized_name}_callback(interaction: discord.Interaction):
                 self.commands[name] = cmd  # keep the YAML data
                 self.log.info(f"     - Custom command /{name} added.")
 
-            except Exception as ex:
-                self.log.error(f"Failed to register command `{name}`: {ex}")
+            except Exception:
+                self.log.exception(f"Failed to register command `{name}`", exc_info=True)
 
     def _unregister_commands(self):
         for name in list(self.commands.keys()):
