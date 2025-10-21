@@ -87,6 +87,19 @@ much as you do. Only points that you gain are added to the squadron, not points 
 whatnot.
 To enable that, you need to set squadron_credits to true in your creditsystem.yaml (see above).
 
+## Highscore Plugin
+You can integrate the TrueSkill™️-rating into your highscores though.<br>
+To do that, you copy your /plugins/userstats/reports/highscore.json to /reports/userstats. Then replace one of the
+"Graph" elements with this: 
+```json
+{
+  "class": "plugins.creditsystem.highscore.HighscoreCredits",
+  "params": { "col": 1, "row": 1 }
+}
+```
+Select the col and row of the element you replaced (I took the "Ships" in the above example).
+
+
 ## Discord Commands
 | Command         | Parameter            | Role      | Description                                           |
 |-----------------|----------------------|-----------|-------------------------------------------------------|
