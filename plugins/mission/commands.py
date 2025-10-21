@@ -1333,7 +1333,8 @@ class Mission(Plugin[MissionEventListener]):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
                 # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name))
+                await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name),
+                                                        ephemeral=True)
                 return
         else:
             ucid = user
