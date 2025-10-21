@@ -125,7 +125,7 @@ class NodeProxy(Node):
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
-            "method": "repair",
+            "method": "dcs_repair",
             "params": {
                 "warn_times": warn_times,
                 "slow": slow,
