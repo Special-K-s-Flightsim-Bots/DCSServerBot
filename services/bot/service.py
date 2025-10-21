@@ -152,7 +152,7 @@ class BotService(Service):
 
     async def alert(self, title: str, message: str, server: Server | None = None) -> None:
         # if we have dedicated managers of a server, send the alerts to them
-        if server.locals.get('managed_by'):
+        if server and server.locals.get('managed_by'):
             alert_roles = server.locals['managed_by']
         # use the default Alert role otherwise
         else:
