@@ -401,7 +401,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         if not user:
             if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
                 # noinspection PyUnresolvedReferences
-                await interaction.response.send_message("You're not allowed to delete a sqaudron.", ephemeral=True)
+                await interaction.response.send_message("You're not allowed to delete a squadron.", ephemeral=True)
                 return
             message = "Do you really want to delete this squadron?"
         else:
@@ -433,9 +433,6 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                                 await member.remove_roles(role)
                             except discord.Forbidden:
                                 await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
-                            await interaction.followup.send(f'User removed from squadron, role {role.name} removed',
-                                                            ephemeral=ephemeral)
-                            return
                     else:
                         await conn.execute("DELETE FROM squadron_members WHERE squadron_id = %s AND player_ucid = %s",
                                            (squadron_id, row[0]))
@@ -444,9 +441,10 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                     await conn.execute("DELETE FROM squadrons WHERE id = %s", (squadron_id, ))
                     await interaction.followup.send('Squadron deleted.', ephemeral=ephemeral)
                 else:
-                    await interaction.followup.send('User removed from squadron. ', ephemeral=ephemeral)
-                if self.get_config().get('squadrons', {}).get('persist_list', False):
-                    await self.persist_squadron_list(squadron_id)
+                    await interaction.followup.send('User removed from squadron.', ephemeral=ephemeral)
+
+        if self.get_config().get('squadrons', {}).get('persist_list', False):
+            await self.persist_squadron_list(squadron_id)
 
     @squadron.command(description='Locks a squadrons')
     @app_commands.guild_only()
