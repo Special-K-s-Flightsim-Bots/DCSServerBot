@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import atexit
 import json
+import luadata
 import os
 import psutil
 import shutil
@@ -238,18 +239,16 @@ class ServerImpl(Server):
                     self._init_mission_list()
                 else:
                     self._make_missions_unique()
-                super().set_status(status)
             elif self._status in [Status.UNREGISTERED, Status.LOADING] and new_status in [Status.RUNNING, Status.PAUSED]:
                 # only check the mission list if we started that server
                 if self._status == Status.LOADING:
                     if self.locals.get('validate_missions', True):
                         asyncio.create_task(self._load_mission_list())
                 asyncio.create_task(self.init_extensions())
-                asyncio.create_task(self._startup_extensions(status))
+                asyncio.create_task(self._startup_extensions())
             elif self._status in [Status.RUNNING, Status.PAUSED, Status.SHUTTING_DOWN] and new_status in [Status.STOPPED, Status.SHUTDOWN]:
-                asyncio.create_task(self._shutdown_extensions(status))
-            else:
-                super().set_status(status)
+                asyncio.create_task(self._shutdown_extensions())
+            super().set_status(status)
 
     async def update_channels(self, channels: dict[str, int]) -> None:
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
@@ -296,6 +295,27 @@ class ServerImpl(Server):
             self._install_plugin(plugin_name)
         self.log.debug(f'  - Luas installed into {self.instance.name}.')
 
+    def _merge_coalition_users(self):
+        filename = Path(self.instance.home) / 'Config' / 'multiplayerCoalitionBlockerUsersList.lua'
+        if filename.exists():
+            data = luadata.unserialize(filename.read_text(encoding='utf-8'), 'utf-8')
+        else:
+            data = {}
+        lock_time = self.locals['coalitions'].get('lock_time', '1 day')
+        with self.pool.connection() as conn:
+            for row in conn.execute(f"""
+                SELECT player_ucid, coalition, coalition_join FROM coalitions 
+                WHERE server_name = %s
+                AND coalition_join > (NOW() AT TIME ZONE 'UTC' - interval '{lock_time}')
+            """, (self.name, )):
+                if row[0] not in data:
+                    data[row[0]] = {
+                        "side": 1 if row[1] == 'red' else 2,
+                        "joinTime": int(row[2].replace(tzinfo=timezone.utc).astimezone().timestamp())
+                    }
+        with filename.open('w', encoding='utf-8') as outfile:
+            outfile.write("usersTable = " + luadata.serialize(data, 'utf-8', indent='\t', indent_level=0))
+
     def prepare(self):
         if self.settings.get('name', 'DCS Server') != self.name:
             self.settings['name'] = self.name
@@ -304,6 +324,18 @@ class ServerImpl(Server):
             self.settings['advanced'] = {}
         if not self.settings['advanced'].get('sav_autosave', False):
             self.settings['advanced']['sav_autosave'] = True
+        if 'coalitions' in self.locals:
+            lock_time = utils.pg_interval_to_seconds(self.locals['coalitions'].get('lock_time', '1 day'))
+            self.settings['advanced'] |= {
+                'enable_coalition_join_cooldown': True,
+                'coalition_join_cooldown_save': True,
+                'coalition_join_cooldown_seconds': lock_time
+            }
+            self._merge_coalition_users()
+        else:
+            self.settings['advanced'] |= {
+                'enable_coalition_join_cooldown': False
+            }
         if 'serverSettings' in self.locals:
             for key, value in self.locals['serverSettings'].items():
                 if key == 'advanced':
@@ -619,7 +651,7 @@ class ServerImpl(Server):
                 self.status = Status.SHUTDOWN
             raise
 
-    async def _startup_extensions(self, status: Status | str) -> None:
+    async def _startup_extensions(self) -> None:
         async with self._lock:
             startup_coroutines = [ext.startup() for ext in self.extensions.values()]
             results = await asyncio.gather(*startup_coroutines, return_exceptions=True)
@@ -629,10 +661,8 @@ class ServerImpl(Server):
                     tb_str = "".join(
                         traceback.format_exception(type(res), res, res.__traceback__))
                     self.log.error(f"Error during startup_extension(): %s", tb_str)
-            # set the status after the extensions have been started
-            super().set_status(status)
 
-    async def _shutdown_extensions(self, status: Status | str) -> None:
+    async def _shutdown_extensions(self) -> None:
         async with self._lock:
             running_extensions = [
                 ext for ext in self.extensions.values() if await asyncio.to_thread(ext.is_running)
@@ -644,9 +674,6 @@ class ServerImpl(Server):
             for res in results:
                 if isinstance(res, Exception):
                     self.log.error(f"Error during shutdown_extension()", exc_info=res)
-
-            # set the status after the extensions have been shut down
-            super().set_status(status)
 
     async def do_shutdown(self):
         self.status = Status.SHUTTING_DOWN

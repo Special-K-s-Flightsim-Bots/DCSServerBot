@@ -58,6 +58,7 @@ class MonitoringService(Service):
             if time_server:
                 if sys.platform == 'win32':
                     try:
+                        # noinspection PyUnresolvedReferences
                         retval = ctypes.windll.shell32.ShellExecuteW(
                             None,
                             "runas", 'w32tm', f'/config /manualpeerlist:{time_server} /syncfromflags:MANUAL',
@@ -404,6 +405,7 @@ class MonitoringService(Service):
     async def time_sync(self):
         if sys.platform == 'win32':
             try:
+                # noinspection PyUnresolvedReferences
                 retval = ctypes.windll.shell32.ShellExecuteW(None, "runas", 'w32tm', '/resync', None, 1)
                 if retval > 31:
                     self.log.info("- Windows time synced.")

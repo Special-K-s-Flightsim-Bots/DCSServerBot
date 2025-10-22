@@ -149,6 +149,7 @@ def get_drive_space(directory) -> tuple[int, int]:
         free_bytes = ctypes.c_ulonglong(0)
         total_bytes = ctypes.c_ulonglong(0)
 
+        # noinspection PyUnresolvedReferences
         ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(directory),
                                                    ctypes.pointer(free_bytes),
                                                    ctypes.pointer(total_bytes),
@@ -254,6 +255,8 @@ def create_secret_dir(config_dir='config'):
         os.makedirs(path, exist_ok=True)
         if sys.platform == 'win32':
             import ctypes
+
+            # noinspection PyUnresolvedReferences
             ctypes.windll.kernel32.SetFileAttributesW(path, 2)
 
 
@@ -316,6 +319,7 @@ def get_win32_error_message(error_code: int) -> str:
         return ""
 
     buffer = ctypes.create_unicode_buffer(512)
+    # noinspection PyUnresolvedReferences
     ctypes.windll.kernel32.FormatMessageW(
         0x00001000,  # FORMAT_MESSAGE_FROM_SYSTEM
         None,
