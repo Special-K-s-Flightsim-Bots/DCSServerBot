@@ -8,6 +8,8 @@ import time
 from pathlib import Path
 from pywinauto import Application, findwindows, Desktop
 
+from core import utils
+
 log_dir = Path("logs")
 log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -42,6 +44,7 @@ def _find_window(process: psutil.Process, timeout: int = 30):
 
 
 def do_update(installation: str, slow: bool | None = False, check_extra_files: bool | None = False):
+    app = None
     try:
         cmd = os.path.join(installation, 'bin', 'dcs_updater.exe')
         app = Application(backend="win32").start(f'"{cmd}" repair')
@@ -98,6 +101,9 @@ def do_update(installation: str, slow: bool | None = False, check_extra_files: b
         return p.wait()
     except RuntimeError as ex:
         logger.error(ex)
+        if app:
+            p = psutil.Process(app.process)
+            utils.terminate_process(p)
         return -2
     except Exception as ex:
         logger.exception(ex)
