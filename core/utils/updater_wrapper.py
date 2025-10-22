@@ -8,8 +8,6 @@ import time
 from pathlib import Path
 from pywinauto import Application, findwindows, Desktop
 
-from core import utils
-
 log_dir = Path("logs")
 log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -41,6 +39,16 @@ def _find_window(process: psutil.Process, timeout: int = 30):
         time.sleep(1)
     else:
         raise TimeoutError()
+
+
+def terminate_process(process: psutil.Process | None):
+    if process is not None and process.is_running():
+        process.terminate()
+        try:
+            process.wait(timeout=3)
+        except psutil.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=3)
 
 
 def do_update(installation: str, slow: bool | None = False, check_extra_files: bool | None = False):
@@ -103,7 +111,7 @@ def do_update(installation: str, slow: bool | None = False, check_extra_files: b
         logger.error(ex)
         if app:
             p = psutil.Process(app.process)
-            utils.terminate_process(p)
+            terminate_process(p)
         return -2
     except Exception as ex:
         logger.exception(ex)
