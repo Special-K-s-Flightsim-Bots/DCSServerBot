@@ -18,7 +18,7 @@ logging.basicConfig(
     format=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
     handlers=[
-        logging.FileHandler(LOG_FILE, mode="a", encoding="utf-8")
+        logging.FileHandler(LOG_FILE, mode="w", encoding="utf-8")
     ]
 )
 

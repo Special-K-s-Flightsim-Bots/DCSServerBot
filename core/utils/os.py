@@ -406,7 +406,7 @@ def run_elevated(exe_path, cwd, *args):
     # noinspection PyUnresolvedReferences
     ctypes.windll.kernel32.GetExitCodeProcess(hproc, ctypes.byref(exit_code))
 
-    return int(exit_code.value)
+    return ctypes.c_int32(exit_code.value).value
 
 
 def is_uac_enabled() -> bool:
