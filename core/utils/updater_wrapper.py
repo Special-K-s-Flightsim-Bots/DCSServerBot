@@ -96,6 +96,9 @@ def do_update(installation: str, slow: bool | None = False, check_extra_files: b
 
         p = psutil.Process(app.process)
         return p.wait()
+    except RuntimeError as ex:
+        logger.error(ex)
+        return -2
     except Exception as ex:
         logger.exception(ex)
         return -1
@@ -127,4 +130,4 @@ if __name__ == '__main__':
         sys.exit(rc)
     except Exception as ex:
         logger.exception(ex)
-        input()
+        exit(-1)

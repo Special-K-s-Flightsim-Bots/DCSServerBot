@@ -490,13 +490,25 @@ class Admin(Plugin[AdminEventListener]):
             elif rc == 2:
                 await msg.edit(
                     content=_("The repair of DCS World was cancelled on node {name}.").format(name=node.name))
-            else:
+            elif rc == -1:
+                path = os.path.join("logs", "dcs_repair.log")
+                try:
+                    file = await node.read_file(path)
+                except FileNotFoundError:
+                    await msg.edit(
+                        content=_("Error while repairing DCS World on node {name}. "
+                                  "Check your dcs_repair.log").format(name=node.name))
+                    return
+                await msg.edit(content=_("Repair of DCS World failed on node {}.").format(node.name))
+                await interaction.followup.send(file=discord.File(BytesIO(file), "dcs_repair.log"),
+                                                ephemeral=ephemeral)
+            elif rc == -2:
                 await msg.edit(
-                    content=_("Error while repairing DCS World on node {name}, code={rc}, message={message}").format(
-                        name=node.name, rc=rc, message=utils.get_win32_error_message(rc)))
+                    content=_("You cannot run a DCS repair on a headless system without an active session!"))
+
         except (TimeoutError, asyncio.TimeoutError):
             await interaction.followup.send(
-                content=_("The repair takes longer than 10 minutes, please check back regularly, if it has finished."),
+                content=_("The repair takes longer than 10 minutes. It will generate an audit message when finished."),
                 ephemeral=True)
         except PermissionError as ex:
             await msg.edit(content=str(ex))

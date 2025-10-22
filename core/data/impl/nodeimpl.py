@@ -731,18 +731,32 @@ class NodeImpl(Node):
                         ):
                             utils.init_profanity_filter(self)
                     self.log.info(f"{self.installation} repaired.")
+                    message = f"DCS World repaired on node {self.node.name}."
                 else:
                     self.log.error(f"Repair of {self.installation} failed with code {rc}.")
-            except PermissionError:
+                    message = f"DCS World repair failed on node {self.node.name} with code {rc}."
+            except Exception as ex:
+                message = f"DCS World repair failed on node {self.node.name} with exception {ex}."
                 raise
-            except OSError as ex:
-                self.log.error(f"Repair of {self.installation} failed with code {ex.errno}.")
-                return ex.errno
             finally:
+                from services.servicebus import ServiceBus
+                from services.bot import BotService
+
                 # call after_update hooks
                 for callback in self.after_update.values():
                     await callback()
                 self.update_pending = False
+
+                bus = ServiceRegistry.get(ServiceBus)
+                await bus.send_to_node({
+                    "command": "rpc",
+                    "service": BotService.__name__,
+                    "method": "audit",
+                    "params": {
+                        "message": message
+                    }
+                })
+
             return rc
 
     async def handle_module(self, what: str, module: str):
