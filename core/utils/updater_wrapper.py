@@ -27,16 +27,33 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+OK_MESSAGE = 'OK'
+CLEANUP_MESSAGE = 'Cleanup has found some extra files not belonging to the vanilla install:'
 
-def _find_window(process: psutil.Process, timeout: int = 30):
+
+def _find_updater_window(process: psutil.Process, timeout: int = 30):
     for i in range(0, timeout):
         windows = findwindows.find_elements(title_re="DCS Updater *", top_level_only=False)
         window = next((window for window in windows if len(window.children()) > 6), None)
         if window:
             return window
-        elif len(windows) >= 1 and any(window.children()[0].name == 'OK' for window in windows):
-            window = next(window for window in windows if window.children()[0].name == 'OK')
-            return window
+        elif not process.is_running():
+            sys.exit(2)
+        time.sleep(1)
+    else:
+        raise TimeoutError()
+
+
+def _find_next_window(process: psutil.Process, timeout: int = 30):
+    for i in range(0, timeout):
+        windows = findwindows.find_elements(title_re="DCS Updater *", top_level_only=False)
+        if len(windows) >= 1:
+            window = next((w for w in windows if w.children()[0].name == OK_MESSAGE), None)
+            if window:
+                return window
+            window = next((w for w in windows if len(w.children()) > 5 and w.children()[5].name == CLEANUP_MESSAGE), None)
+            if window:
+                return window
         elif not process.is_running():
             sys.exit(2)
         time.sleep(1)
@@ -97,9 +114,7 @@ def click_no_mouse(ctrl):
         x = rect.left + (rect.right - rect.left) // 2
         y = rect.top + (rect.bottom - rect.top) // 2
 
-        # Move cursor to the center (this *does* call SetCursorPos, but
-        # only if a desktop exists; otherwise it silently ignores the
-        # error – see the next section for a patch).
+        # Move cursor to the center
         ctypes.windll.user32.SetCursorPos(x, y)
 
         # Send a left‑click
@@ -121,7 +136,7 @@ def do_update(installation: str, slow: bool | None = False, check_extra_files: b
         pid = app.process
         process = psutil.Process(pid)
 
-        window = _find_window(process)
+        window = _find_updater_window(process)
 
         dlg = app.window(handle=window.handle)
         dlg.wait('ready', timeout=15)
@@ -141,10 +156,9 @@ def do_update(installation: str, slow: bool | None = False, check_extra_files: b
                 chk_search = uia_wrapper_from_handle(child.handle)
             elif uia_child.element_info.automation_id == '1':
                 repair_btn = uia_wrapper_from_handle(child.handle)
-            elif uia_child.element_info.name == 'OK':
+            elif uia_child.element_info.name == OK_MESSAGE:
                 ok_btn = uia_wrapper_from_handle(child.handle)
 
-        #dlg.set_focus()
         ensure_foreground(dlg)
         # if the process was canceled with an error, we see an OK button
         if ok_btn:
@@ -164,12 +178,22 @@ def do_update(installation: str, slow: bool | None = False, check_extra_files: b
             # run the repair
             repair_btn.invoke()
 
-            # close the OK message
-            window = _find_window(process, timeout=1800 if slow else 180)
-            dlg = app.window(handle=window.handle)
-            dlg.wait('ready', timeout=15)
-            ok_btn = uia_wrapper_from_handle(dlg.children()[0].handle)
-            ok_btn.invoke()
+            finished = False
+            while not finished:
+                # get the next window to process
+                window = _find_next_window(process, timeout=1800 if slow else 180)
+                dlg = app.window(handle=window.handle)
+                dlg.wait('ready', timeout=15)
+
+                # Only the finish message has an OK button
+                if window.children()[0].name == OK_MESSAGE:
+                    ok_btn = uia_wrapper_from_handle(dlg.children()[0].handle)
+                    ok_btn.invoke()
+                    finished = True
+                # otherwise we need to press the delete for check extra files
+                else:
+                    delete_btn = uia_wrapper_from_handle(dlg.children()[0].handle)
+                    delete_btn.invoke()
 
         p = psutil.Process(app.process)
         return p.wait()
