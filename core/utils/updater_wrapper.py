@@ -1,4 +1,5 @@
 import argparse
+import ctypes
 import logging
 import os
 import psutil
@@ -50,6 +51,27 @@ def terminate_process(process: psutil.Process | None):
             process.kill()
             process.wait(timeout=3)
 
+def ensure_foreground(win):
+    """
+    Try to give `win` focus even if it lives in a background RDP session.
+    """
+    try:
+        win.set_focus()
+    except RuntimeError:
+        # Windows blocks SetForegroundWindow when the session is not active.
+        # We hack around it by forcing the window to become foreground via SetWindowPos + SetForegroundWindow.
+        handle = win.handle
+        # 1. Show the window (may be minimized)
+        ctypes.windll.user32.ShowWindow(handle, 1)          # SW_SHOWNORMAL
+        # 2. Bring it to the front
+        ctypes.windll.user32.SetWindowPos(handle, 0, 0, 0, 0, 0,
+                                         0x0010 | 0x0002 | 0x0004)  # SWP_NOZORDER|SWP_NOMOVE|SWP_SHOWWINDOW
+        # 3. Force it into the foreground
+        ctypes.windll.user32.SetForegroundWindow(handle)
+        # 4. As a safety net, click the dialog – this forces focus
+        win.click_input()
+        logger.debug("Forced dialog into foreground via ctypes")
+
 
 def do_update(installation: str, slow: bool | None = False, check_extra_files: bool | None = False):
     app = None
@@ -82,7 +104,8 @@ def do_update(installation: str, slow: bool | None = False, check_extra_files: b
             elif uia_child.element_info.name == 'OK':
                 ok_btn = uia_wrapper_from_handle(child.handle)
 
-        dlg.set_focus()
+        #dlg.set_focus()
+        ensure_foreground(dlg)
         # if the process was canceled with an error, we see an OK button
         if ok_btn:
             # close the repair option
