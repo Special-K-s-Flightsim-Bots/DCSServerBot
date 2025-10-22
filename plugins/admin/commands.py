@@ -511,7 +511,9 @@ class Admin(Plugin[AdminEventListener]):
                 content=_("The repair takes longer than 10 minutes. It will generate an audit message when finished."),
                 ephemeral=True)
         except PermissionError as ex:
-            await msg.edit(content=str(ex))
+            await msg.edit(
+                content=_("Could not repair DCS World on node {name} due to a permission error: {error}").format(
+                    name=node.name, error=repr(ex)))
 
     @dcs.command(name='install', description=_('Install modules in your DCS server'))
     @app_commands.guild_only()

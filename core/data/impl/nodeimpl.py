@@ -735,6 +735,9 @@ class NodeImpl(Node):
                 else:
                     self.log.error(f"Repair of {self.installation} failed with code {rc}.")
                     message = f"DCS World repair failed on node {self.node.name} with code {rc}."
+            except PermissionError:
+                message = f"Could not desanitise DCS World on node {self.node.name} due to permission error."
+                raise
             except Exception as ex:
                 message = f"DCS World repair failed on node {self.node.name} with exception {ex}."
                 raise
