@@ -157,7 +157,23 @@ DEFAULT:
             - 60
 ```
 
-i) node_shutdown
+i) dcs_repair
+Run a DCS repair at a specific time.
+```yaml
+DEFAULT:
+  actions:
+    - cron: '0 1 1 * *'   # run every month on the 1st at 01:00
+      action:
+        type: dcs_repair  # Repair DCS
+        params:
+          slow: true                # optional: do a slow repair (default: false)
+          check_extra_files: true   # optional: check extra files (default: false)
+          warn_times:               # Optional: warn users before the update
+            - 120
+            - 60
+```
+
+j) node_shutdown
 Shutdown / restart the bot.
 ```yaml
 DEFAULT:

@@ -8,4 +8,4 @@ function userstats.onMissionLoadEnd()
     utils.loadScript('userstats/mission.lua')
 end
 
-DCS.setUserCallbacks(userstats)
+Sim.setUserCallbacks(userstats)

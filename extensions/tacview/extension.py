@@ -8,9 +8,11 @@ import sys
 from core import Extension, utils, ServiceRegistry, Server, get_translation, InstallException, DISCORD_FILE_SIZE_LIMIT, \
     Status
 from packaging.version import parse
+
+from extensions.tacview.recorder import TacviewRecorder
 from services.bot import BotService
 from services.servicebus import ServiceBus
-from typing import Optional, Any
+from typing import Any
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -71,8 +73,9 @@ class Tacview(Extension):
         self._inst_path = None
         self.stop_event = asyncio.Event()
         self.stopped = asyncio.Event()
+        self.recorder: TacviewRecorder | None = None
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
         self.stop_event.clear()
         self.stopped.clear()
         if self.config.get('target'):
@@ -83,7 +86,7 @@ class Tacview(Extension):
         await self.stopped.wait()
         super().shutdown()
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
         if self.config.get('target'):
             self.loop.create_task(self._shutdown())
             self.stop_event.set()
@@ -91,7 +94,7 @@ class Tacview(Extension):
         else:
             return super().shutdown()
 
-    def load_config(self) -> Optional[dict]:
+    def load_config(self) -> dict | None:
         if self.server.options['plugins']:
             options = self.server.options['plugins']
         else:
@@ -117,7 +120,7 @@ class Tacview(Extension):
             self.server.options['plugins'] = options
         return options['Tacview']
 
-    def set_option(self, options: dict, name: str, value: Any, default: Optional[Any] = None) -> bool:
+    def set_option(self, options: dict, name: str, value: Any, default: Any | None = None) -> bool:
         if options['Tacview'].get(name, default) != value:
             options['Tacview'][name] = value
             self.log.info(f'  => {self.server.name}: Setting ["{name}"] = {value}')
@@ -125,7 +128,7 @@ class Tacview(Extension):
         return False
 
     async def prepare(self) -> bool:
-        await self.update_instance(False)
+        await self.handle_update()
         options = self.server.options['plugins']
         dirty = False
 
@@ -155,6 +158,8 @@ class Tacview(Extension):
             self.log.warning(
                 f'  => {self.server.name}: tacviewPlaybackDelay is set, disabling real time telemetry.')
             dirty |= self.set_option(options, 'tacviewRealTimeTelemetryEnabled', False)
+        elif options['Tacview'].get('tacviewPlaybackDelay', 0) == 0 and not options['Tacview'].get('tacviewRealTimeTelemetryEnabled', True):
+            dirty |= self.set_option(options, 'tacviewRealTimeTelemetryEnabled', True)
 
         if dirty:
             self.server.options['plugins'] = options
@@ -171,7 +176,7 @@ class Tacview(Extension):
                            f"server {type(self)._rcp_ports[rcp_port]}!")
             return False
         type(self)._rcp_ports[rcp_port] = self.server.name
-        return True
+        return await super().prepare()
 
     @property
     def version(self) -> str:
@@ -202,11 +207,10 @@ class Tacview(Extension):
                                            "please specify it manually in your nodes.yaml!")
         return self._inst_path
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         if not self.locals:
             raise NotImplementedError()
 
-        name = 'Tacview'
         if not self.locals.get('tacviewModuleEnabled', True):
             value = 'disabled'
         else:
@@ -226,7 +230,7 @@ class Tacview(Extension):
             if len(value) == 0:
                 value = 'enabled'
         return {
-            "name": name,
+            "name": self.name,
             "version": self.version,
             "value": value
         }
@@ -260,7 +264,7 @@ class Tacview(Extension):
             logfile = os.path.expandvars(
                 self.config.get('log', os.path.join(self.server.instance.home, 'Logs', 'dcs.log'))
             )
-            while not (self.stop_event.is_set() and self.server.status in [Status.RUNNING, Status.PAUSED, Status.SHUTTING_DOWN]):
+            while not (self.stop_event.is_set() and self.server.status not in [Status.SHUTDOWN, Status.STOPPED]):
                 try:
                     while not os.path.exists(logfile):
                         self.log_pos = 0
@@ -295,7 +299,7 @@ class Tacview(Extension):
             self.stopped.set()
 
     async def send_tacview_file(self, filename: str):
-        # wait 60s for the file to appear
+        # wait 60 seconds for the file to appear
         for i in range(0, 60):
             if os.path.exists(filename):
                 break
@@ -335,7 +339,32 @@ class Tacview(Extension):
             except Exception:
                 self.log.warning(f"Can't upload TACVIEW file {filename} to {target}: ", exc_info=True)
 
-    def get_inst_version(self) -> Optional[str]:
+    async def start_recording(self, filename: str):
+        if self.recorder:
+            raise RuntimeError("Tacview recording already running!")
+
+        self.recorder = TacviewRecorder(
+            host="127.0.0.1",
+            port=int(self.locals.get('tacviewRealTimeTelemetryPort', 42674)),
+            out_pattern=os.path.join(self.locals.get('tacviewExportPath', TACVIEW_DEFAULT_DIR), filename),
+            client_name="Recorder",
+            password=self.locals.get('tacviewRealTimeTelemetryPassword') or None
+        )
+        await self.recorder.connect()
+        await self.recorder.start()
+
+    async def stop_recording(self) -> str:
+        if not self.recorder:
+            raise RuntimeError("Tacview recording not running!")
+
+        filename = self.recorder.out_pattern
+        await self.recorder.stop()
+        self.recorder = None
+        if self.config.get('target'):
+            asyncio.create_task(self.send_tacview_file(filename))
+        return filename
+
+    def get_inst_version(self) -> str | None:
         if not self.get_inst_path():
             self.log.error("You need to specify an installation path for Tacview!")
             return None
@@ -415,28 +444,34 @@ class Tacview(Extension):
         self.log.info(f"  => {self.name} {version} uninstalled from instance {self.server.instance.name}.")
         return True
 
-    async def update_instance(self, force: bool) -> bool:
+    async def check_for_updates(self) -> str | None:
         version = self.get_inst_version()
-        if parse(self.version) < parse(version):
-            if force or self.config.get('autoupdate', False):
-                if not await self.uninstall():
-                    return False
-                if not await self.install():
-                    return False
+        return version if parse(self.version) < parse(version) else None
+
+    async def do_update(self) -> bool:
+        if not await self.uninstall():
+            return False
+        if not await self.install():
+            return False
+        return True
+
+    async def handle_update(self):
+        # don't run if autoupdate is disabled
+        if not self.config.get('autoupdate', False):
+            return
+
+        version = await self.check_for_updates()
+        if version:
+            if await self.do_update():
                 await ServiceRegistry.get(ServiceBus).send_to_node({
                     "command": "rpc",
                     "service": BotService.__name__,
                     "method": "audit",
                     "params": {
                         "message": _("Tacview updated to version {version} on instance {instance}.").format(
-                            ersion=version, instance=self.server.instance.name)
+                            version=version, instance=self.server.instance.name)
                     }
                 })
-                return True
-            else:
-                self.log.info(f"  => {self.name}: Instance {self.server.instance.name} is running version "
-                              f"{self.version}, where {version} is available!")
-        return False
 
     async def get_ports(self) -> dict:
         return {

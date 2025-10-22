@@ -8,7 +8,6 @@ import faulthandler
 import logging
 import os
 import pathlib
-import platform
 import psycopg
 import sys
 import time
@@ -36,10 +35,13 @@ except ModuleNotFoundError as ex:
     import subprocess
 
     print(f"Module {ex.name} is not installed, fixing ...")
-    subprocess.run([
+    cmd = [
         sys.executable,
         '-m', 'piptools', 'sync', 'requirements.txt'
-    ])
+    ]
+    if os.path.exists("requirements.local"):
+        cmd.append('requirements.local')
+    subprocess.run(cmd)
     exit(-1)
 
 LOGLEVEL = {
@@ -58,7 +60,6 @@ class Main:
         self.node = node
         self.log = logging.getLogger(__name__)
         self.no_autoupdate = no_autoupdate
-        utils.dynamic_import('services')
 
     @staticmethod
     def setup_logging(node: str, config_dir: str):
@@ -126,7 +127,6 @@ class Main:
         print("\n[red]DO NOT SHARE THESE SECRET KEYS![/]")
 
     async def run(self):
-        await self.node.post_init()
         # check for updates
         if self.no_autoupdate:
             autoupdate = False
@@ -139,7 +139,7 @@ class Main:
             autoupdate = self.node.locals.get('autoupdate', self.node.config.get('autoupdate', False))
 
         if autoupdate:
-            cloud_drive = self.node.locals.get('cloud_drive', True)
+            cloud_drive = self.node.locals.get('cluster', {}).get('cloud_drive', True)
             if (cloud_drive and self.node.master) or not cloud_drive:
                 await self.node.upgrade()
                 if self.node.is_shutdown.is_set():
@@ -256,10 +256,10 @@ if __name__ == "__main__":
         Main.reveal_passwords(args.config)
         exit(-2)
 
-    # Check versions
-    if int(platform.python_version_tuple()[0]) < 3 or int(platform.python_version_tuple()[1]) < 10:
-        log.error("You need Python 3.10 or higher to run DCSServerBot!")
-        exit(-2)
+    # Require Python >= 3.10 and < 3.14
+    if not ((3,10) <= sys.version_info < (3,14)):
+        print("ERROR: DCSServerBot requires Python >= 3.10 and < 3.14.")
+        sys.exit(-2)
 
     # Add certificates
     os.environ["SSL_CERT_FILE"] = certifi.where()
@@ -312,8 +312,8 @@ if __name__ == "__main__":
         exit(ex.code)
     except:
         console.print_exception(show_locals=True, max_frames=1)
-        # restart on unknown errors
-        exit(-1)
+        # do not restart on unknown errors
+        exit(-2)
     finally:
         log.info("DCSServerBot stopped.")
         fault_log.close()

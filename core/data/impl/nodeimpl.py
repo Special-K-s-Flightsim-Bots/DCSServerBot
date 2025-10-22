@@ -33,7 +33,7 @@ from psycopg import sql
 from psycopg.errors import UndefinedTable, InFailedSqlTransaction, ConnectionTimeout, UniqueViolation
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
-from typing import Optional, Union, Awaitable, Callable, Any, cast
+from typing import Awaitable, Callable, Any, cast
 from urllib.parse import urlparse, quote
 from version import __version__
 from zoneinfo import ZoneInfo
@@ -89,39 +89,27 @@ DEFAULT_PLUGINS = [
 
 class NodeImpl(Node):
 
-    def __init__(self, name: str, config_dir: Optional[str] = 'config'):
+    def __init__(self, name: str, config_dir: str | None = 'config'):
         super().__init__(name, config_dir)
         self.node = self  # to be able to address self.node
-        self._public_ip: Optional[str] = None
+        self._public_ip: str | None = None
         self.bot_version = __version__[:__version__.rfind('.')]
         self.sub_version = int(__version__[__version__.rfind('.') + 1:])
         self.is_shutdown = asyncio.Event()
         self.rc = 0
         self.dcs_branch = None
-        self.all_nodes: dict[str, Optional[Node]] = {self.name: self}
+        self.all_nodes: dict[str, Node | None] = {self.name: self}
         self.suspect: dict[str, Node] = {}
         self.update_pending = False
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = {}
-        self.locals = self.read_locals()
         self.db_version = None
-        self.pool: Optional[ConnectionPool] = None
-        self.apool: Optional[AsyncConnectionPool] = None
-        self.cpool: Optional[AsyncConnectionPool] = None
+        self.pool: ConnectionPool | None = None
+        self.apool: AsyncConnectionPool | None = None
+        self.cpool: AsyncConnectionPool | None = None
         self._master = None
-        self.listen_address = self.locals.get('listen_address', '127.0.0.1')
-        if self.listen_address != '127.0.0.1':
-            self.log.warning(
-                'Please consider changing the listen_address in your nodes.yaml to 127.0.0.1 for security reasons!')
-        self.listen_port = self.locals.get('listen_port', 10042)
 
-    async def __aenter__(self):
-        if sys.platform == 'win32':
-            from os import system
-            system(f"title DCSServerBot v{self.bot_version}.{self.sub_version} - {self.node.name}")
-        self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
-
-        # check GIT and branch
+    def _check_branch_version(self):
         try:
             import git
 
@@ -138,10 +126,7 @@ class NodeImpl(Node):
         except ImportError:
             self.log.info('- ZIP installation detected.')
 
-        # check Python-version
-        self.log.info(f'- Python version {platform.python_version()} detected.')
-
-        # install plugins
+    async def _install_plugins(self):
         await asyncio.to_thread(self.install_plugins)
         self.plugins: list[str] = [x.lower() for x in self.config.get('plugins', DEFAULT_PLUGINS)]
         for plugin in [x.lower() for x in self.config.get('opt_plugins', [])]:
@@ -151,12 +136,9 @@ class NodeImpl(Node):
         if 'cloud' in self.plugins:
             self.plugins.remove('cloud')
             self.plugins.append('cloud')
-        return self
 
-    async def __aexit__(self, type, value, traceback):
-        await self.close_db()
-
-    async def post_init(self):
+    async def _post_init(self):
+        self.locals = self.read_locals()
         if 'DCS' in self.locals:
             await self.get_dcs_branch_and_version()
         await self.init_db()
@@ -172,6 +154,32 @@ class NodeImpl(Node):
             except Exception as ex:
                 self.log.exception(ex)
         await self.init_instances()
+
+    async def __aenter__(self):
+        if sys.platform == 'win32':
+            from os import system
+            system(f"title DCSServerBot v{self.bot_version}.{self.sub_version} - {self.node.name}")
+        self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
+
+        # check GIT and branch
+        self._check_branch_version()
+
+        # check Python-version
+        self.log.info(f'- Python version {platform.python_version()} detected.')
+
+        # check UAC
+        if utils.is_uac_enabled():
+            self.log.warning('- You need to disable User Access Control (UAC) to allow some commands to run.')
+
+        # install plugins
+        await self._install_plugins()
+
+        # Post-init processing
+        await self._post_init()
+        return self
+
+    async def __aexit__(self, type, value, traceback):
+        await self.close_db()
 
     @property
     def master(self) -> bool:
@@ -190,8 +198,16 @@ class NodeImpl(Node):
     def installation(self) -> str:
         return os.path.expandvars(self.locals['DCS']['installation'])
 
-    async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None,
-                    server: Optional[Server] = None, **kwargs):
+    @property
+    def listen_address(self) -> str:
+        return self.locals.get('listen_address', '127.0.0.1')
+
+    @property
+    def listen_port(self) -> int:
+        return self.locals.get('listen_port', 10042)
+
+    async def audit(self, message, *, user: discord.Member | str | None = None,
+                    server: Server | None = None, **kwargs):
         from services.bot import BotService
         from services.servicebus import ServiceBus
 
@@ -276,7 +292,7 @@ class NodeImpl(Node):
         raise FatalException(f"No {config_file} found. Exiting.")
 
     async def init_db(self):
-        async def check_db(url: str) -> Optional[str]:
+        async def check_db(url: str) -> str | None:
             max_attempts = self.locals.get("database", self.config.get('database')).get('max_retries', 10)
             for attempt in range(max_attempts + 1):
                 try:
@@ -379,6 +395,8 @@ class NodeImpl(Node):
             except UniqueViolation:
                 self.log.error(f"Instance \"{_name}\" can't be added."
                                f"There is an instance already with the same server name or bot port.")
+            except Exception as ex:
+                self.log.error(f"Instance \"{_name}\" can't be added.")
 
     async def update_db(self):
         rc = 0
@@ -517,7 +535,7 @@ class NodeImpl(Node):
 
     async def _upgrade(self, conn: psycopg.AsyncConnection):
         # We do not want to run an upgrade if we are on a cloud drive. Just restart in this case.
-        if not self.master and self.locals.get('cloud_drive', True):
+        if not self.master and self.locals.get('cluster', {}).get('cloud_drive', True):
             self.log.debug("Upgrade: restart agent after master upgrade.")
             await self.restart()
         elif await self.upgrade_pending():
@@ -543,21 +561,25 @@ class NodeImpl(Node):
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         if not self.dcs_branch or not self.dcs_version:
-            async with aiofiles.open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
-                data = json.loads(await cfg.read())
-            self.dcs_branch = data.get('branch', 'release')
-            self.dcs_version = data['version']
-            if 'DEDICATED_SERVER' in await self.get_installed_modules():
-                self.log.error("You're using the OLD dedicated server, which is deprecated.\n"
-                               "Use /dcs update to update to the release branch.")
-            if "openbeta" in self.dcs_branch:
-                self.log.warning("You're running DCS OpenBeta, which is discontinued.\n"
-                                 "Use /dcs update if you want to switch to the release branch.")
+            try:
+                async with aiofiles.open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
+                    data = json.loads(await cfg.read())
+                self.dcs_branch = data.get('branch', 'release')
+                self.dcs_version = data['version']
+                if 'DEDICATED_SERVER' in await self.get_installed_modules():
+                    self.log.error("You're using the OLD dedicated server, which is deprecated.\n"
+                                   "Use /dcs update to update to the release branch.")
+                if "openbeta" in self.dcs_branch:
+                    self.log.warning("You're running DCS OpenBeta, which is discontinued.\n"
+                                     "Use /dcs update if you want to switch to the release branch.")
+            except FileNotFoundError:
+                self.log.critical(f"No DCS installation found at {self.installation}")
+                exit(SHUTDOWN)
         return self.dcs_branch, self.dcs_version
 
-    async def update(self, warn_times: list[int], branch: Optional[str] = None, version: Optional[str] = None) -> int:
+    async def update(self, warn_times: list[int], branch: str | None = None, version: str | None = None) -> int:
 
-        async def do_update(branch: str, version: Optional[str] = None) -> int:
+        async def do_update(branch: str, version: str | None = None) -> int:
             # disable any popup on the remote machine
             if sys.platform == 'win32':
                 startupinfo = subprocess.STARTUPINFO()
@@ -611,41 +633,133 @@ class NodeImpl(Node):
                 message = _('Server is going down for a DCS update in {}!')
         ):
             self.log.info(f"Updating {self.installation} ...")
-            # call before update hooks
+            # call before_update hooks
             for callback in self.before_update.values():
                 await callback()
-            old_branch, old_version = await self.get_dcs_branch_and_version()
-            if not branch:
-                branch = old_branch
-            if not version:
-                version = await self.get_latest_version(branch)
-            rc = await do_update(branch, version)
-            if rc in [0, 350]:
-                self.dcs_branch = self.dcs_version = None
-                dcs_branch, dcs_version = await self.get_dcs_branch_and_version()
-                # if only the updater updated itself, run the update again
-                if old_branch == dcs_branch and old_version == dcs_version:
-                    self.log.info("dcs_updater.exe updated to the latest version, now updating DCS World ...")
-                    rc = await do_update(branch, version)
+            try:
+                old_branch, old_version = await self.get_dcs_branch_and_version()
+                if not branch:
+                    branch = old_branch
+                if not version:
+                    version = await self.get_latest_version(branch)
+                rc = await do_update(branch, version)
+                if rc in [0, 350]:
                     self.dcs_branch = self.dcs_version = None
-                    await self.get_dcs_branch_and_version()
-                    if rc not in [0, 350]:
-                        return rc
-                # Patch DCS files
-                if not self.locals['DCS'].get('cloud', False) or self.master:
-                    if self.locals['DCS'].get('desanitize', True):
-                        utils.desanitize(self)
-                    # init profanity filter, if needed
-                    if any(
-                            instance.server.locals.get('profanity_filter', False)
-                            for instance in self.instances if instance.server
-                    ):
-                        utils.init_profanity_filter(self)
-                # call after update hooks
+                    dcs_branch, dcs_version = await self.get_dcs_branch_and_version()
+                    # if only the updater updated itself, run the update again
+                    if old_branch == dcs_branch and old_version == dcs_version:
+                        self.log.info("dcs_updater.exe updated to the latest version, now updating DCS World ...")
+                        rc = await do_update(branch, version)
+                        self.dcs_branch = self.dcs_version = None
+                        await self.get_dcs_branch_and_version()
+                        if rc not in [0, 350]:
+                            return rc
+                    # Patch DCS files
+                    if not self.locals['DCS'].get('cloud', False) or self.master:
+                        if self.locals['DCS'].get('desanitize', True):
+                            utils.desanitize(self)
+                        # init profanity filter, if needed
+                        if any(
+                                instance.server.locals.get('profanity_filter', False)
+                                for instance in self.instances if instance.server
+                        ):
+                            utils.init_profanity_filter(self)
+                    self.log.info(f"{self.installation} updated to version {dcs_version}.")
+                return rc
+            finally:
+                # call after_update hooks
                 for callback in self.after_update.values():
                     await callback()
-                self.log.info(f"{self.installation} updated to version {dcs_version}.")
                 self.update_pending = False
+
+    async def dcs_repair(self, warn_times: list[int] = None, slow: bool | None = False,
+                         check_extra_files: bool | None = False):
+
+        async def do_repair() -> int:
+            def run_subprocess() -> int:
+                if sys.platform != 'win32':
+                    raise NotImplementedError("DCS repair is not yet supported on Linux")
+
+                if utils.is_uac_enabled():
+                    raise PermissionError("You need to disable UAC to run a DCS repair.")
+
+                args = [
+                    "core/utils/updater_wrapper.py",
+                    "-d", os.path.normpath(self.installation),
+                ]
+                if slow:
+                    args.append("-s")
+                if check_extra_files:
+                    args.append("-c")
+                cmdline = subprocess.list2cmdline(args)
+                return utils.run_elevated(
+                    sys.executable,
+                    os.getcwd(),
+                    cmdline
+                )
+
+            # check if there is an update / repair running already
+            proc = next(utils.find_process("DCS_updater.exe"), None)
+            if proc:
+                self.log.info("- DCS Update / repair in progress, waiting ...")
+                while proc.is_running():
+                    await asyncio.sleep(1)
+
+            return await asyncio.to_thread(run_subprocess)
+
+        self.update_pending = True
+        async with ServerMaintenanceManager(
+                self.node,
+                warn_times = warn_times,
+                message = _('Server is going down for maintenance in {}!')
+        ):
+            self.log.info(f"Repairing {self.installation} ...")
+            # call before_update hooks
+            for callback in self.before_update.values():
+                await callback()
+            try:
+                rc = await do_repair()
+                if rc == 0:
+                    # Patch DCS files
+                    if not self.locals['DCS'].get('cloud', False) or self.master:
+                        if self.locals['DCS'].get('desanitize', True):
+                            utils.desanitize(self)
+                        # init profanity filter, if needed
+                        if any(
+                                instance.server.locals.get('profanity_filter', False)
+                                for instance in self.instances if instance.server
+                        ):
+                            utils.init_profanity_filter(self)
+                    self.log.info(f"{self.installation} repaired.")
+                    message = f"DCS World repaired on node {self.node.name}."
+                else:
+                    self.log.error(f"Repair of {self.installation} failed with code {rc}.")
+                    message = f"DCS World repair failed on node {self.node.name} with code {rc}."
+            except PermissionError:
+                message = f"Could not desanitise DCS World on node {self.node.name} due to permission error."
+                raise
+            except Exception as ex:
+                message = f"DCS World repair failed on node {self.node.name} with exception {ex}."
+                raise
+            finally:
+                from services.servicebus import ServiceBus
+                from services.bot import BotService
+
+                # call after_update hooks
+                for callback in self.after_update.values():
+                    await callback()
+                self.update_pending = False
+
+                bus = ServiceRegistry.get(ServiceBus)
+                await bus.send_to_node({
+                    "command": "rpc",
+                    "service": BotService.__name__,
+                    "method": "audit",
+                    "params": {
+                        "message": message
+                    }
+                })
+
             return rc
 
     async def handle_module(self, what: str, module: str):
@@ -715,12 +829,12 @@ class NodeImpl(Node):
                                     licenses.add(lic)
                     async with session.get(LOGOUT_URL):
                         pass
-            return list(licenses)
+        return list(licenses)
 
     @cache_with_expiration(expiration=120)
-    async def get_available_dcs_versions(self, branch: str) -> Optional[list[str]]:
+    async def get_available_dcs_versions(self, branch: str) -> list[str] | None:
 
-        async def _get_latest_versions_no_auth() -> Optional[list[str]]:
+        async def _get_latest_versions_no_auth() -> list[str] | None:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
                 async with session.get(
@@ -729,7 +843,7 @@ class NodeImpl(Node):
                         return [x['version'] for x in json.loads(gzip.decompress(await response.read()))['versions2']]
             return None
 
-        async def _get_latest_versions_auth() -> Optional[list[str]]:
+        async def _get_latest_versions_auth() -> list[str] | None:
             user = self.locals['DCS'].get('user')
             password = utils.get_password('DCS', self.config_dir)
             headers = {
@@ -758,7 +872,7 @@ class NodeImpl(Node):
             return await _get_latest_versions_auth()
 
 
-    async def get_latest_version(self, branch: str) -> Optional[str]:
+    async def get_latest_version(self, branch: str) -> str | None:
         versions = await self.get_available_dcs_versions(branch)
         return versions[-1] if versions else None
 
@@ -822,7 +936,7 @@ class NodeImpl(Node):
                 await take_over()
                 return True
 
-        async def get_master() -> tuple[Optional[str], str, bool]:
+        async def get_master() -> tuple[str | None, str, bool]:
             cursor = await conn.execute("""
                 SELECT master, version, update_pending 
                 FROM cluster WHERE guild_id = %s FOR UPDATE
@@ -879,6 +993,7 @@ class NodeImpl(Node):
             if self.node.is_shutdown.is_set():
                 return self.master
 
+            config = self.locals.get('cluster', {})
             async with self.cpool.connection() as conn:
                 async with conn.transaction():
                     try:
@@ -893,23 +1008,28 @@ class NodeImpl(Node):
                                 self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
                                                  "Rolling back the cluser version to my version.")
                             await self._upgrade(conn)
-                        elif parse(version) < parse(__version__) and await is_node_alive(master, self.locals.get('heartbeat', 30)):
+                        elif parse(version) < parse(__version__) and await is_node_alive(master, config.get('heartbeat', 30)):
                             if master != self.name:
                                 raise FatalException(f"This node uses DCSServerBot version {__version__} "
                                                      f"where the master uses version {version}!")
                             self.master = True
                             await self._upgrade(conn)
 
+                        # We don't want to be a master
+                        if config.get('no_master', False):
+                            if not await is_node_alive(master, config.get('heartbeat', 30)):
+                                raise FatalException(f"Master node {master} is not alive, exiting.")
+                            return False
                         # I am the master
-                        if master == self.name:
+                        elif master == self.name:
                             await check_nodes()
                             return True
                         # The master is not alive, take over
-                        elif not master or not await is_node_alive(master, self.locals.get('heartbeat', 30)):
+                        elif not master or not await is_node_alive(master, config.get('heartbeat', 30)):
                             await take_over()
                             return True
                         # Master is alive, but we are the preferred one
-                        elif self.locals.get('preferred_master', False):
+                        elif config.get('preferred_master', False):
                             await take_over()
                             return True
                         # Someone else is the master
@@ -941,14 +1061,17 @@ class NodeImpl(Node):
                 WHERE guild_id = %s
                 AND node <> %s
                 AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval {interval})
-            """).format(interval=sql.Literal(f"{self.locals.get('heartbeat', 30)} seconds"))
+            """).format(interval=sql.Literal(f"{self.locals.get('cluster', {}).get('heartbeat', 30)} seconds"))
             cursor = await conn.execute(query, (self.guild_id, self.name))
             return [row[0] async for row in cursor]
 
-    async def shell_command(self, cmd: str, timeout: int = 60) -> Optional[tuple[str, str]]:
+    async def shell_command(self, cmd: str, timeout: int = 60) -> tuple[str, str] | None:
         def run_subprocess():
             proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             return proc.communicate(timeout=timeout)
+
+        if self.locals.get('restrict_commands', False):
+            raise discord.app_commands.CheckFailure("Shell commands are restricted on this node!")
 
         self.log.debug('Running shell-command: ' + cmd)
         try:
@@ -958,7 +1081,7 @@ class NodeImpl(Node):
         except subprocess.TimeoutExpired:
             raise TimeoutError()
 
-    async def read_file(self, path: str) -> Union[bytes, int]:
+    async def read_file(self, path: str) -> bytes | int:
         async def _read_file(path: str):
             if path.startswith('http'):
                 async with aiohttp.ClientSession() as session:
@@ -1003,7 +1126,7 @@ class NodeImpl(Node):
                 else:
                     return UploadStatus.READ_ERROR
 
-    async def list_directory(self, path: str, *, pattern: Union[str, list[str]] = '*',
+    async def list_directory(self, path: str, *, pattern: str | list[str] = '*',
                              order: SortOrder = SortOrder.DATE,
                              is_dir: bool = False, ignore: list[str] = None, traverse: bool = False
                              ) -> tuple[str, list[str]]:
@@ -1035,7 +1158,7 @@ class NodeImpl(Node):
         for file in files:
             os.remove(file)
 
-    async def rename_file(self, old_name: str, new_name: str, *, force: Optional[bool] = False):
+    async def rename_file(self, old_name: str, new_name: str, *, force: bool | None = False):
         shutil.move(old_name, new_name, copy_function=shutil.copy2 if force else None)
 
     async def rename_server(self, server: Server, new_name: str):
@@ -1056,7 +1179,7 @@ class NodeImpl(Node):
         if server.is_remote:
             server.name = new_name
 
-    async def is_dcs_update_available(self) -> Optional[str]:
+    async def is_dcs_update_available(self) -> str | None:
         branch, old_version = await self.get_dcs_branch_and_version()
         try:
             new_version = await self.get_latest_version(branch)
@@ -1072,8 +1195,8 @@ class NodeImpl(Node):
             self.log.warning("DCS update check failed, possible server outage at ED.")
         return None
 
-    async def dcs_update(self, *, branch: Optional[str] = None, version: Optional[str] = None,
-                         warn_times: list[int] = None, announce: Optional[bool] = True):
+    async def dcs_update(self, *, branch: str | None = None, version: str | None = None,
+                         warn_times: list[int] = None, announce: bool | None = True):
         from services.bot import BotService
         from services.servicebus import ServiceBus
 
@@ -1213,32 +1336,32 @@ class NodeImpl(Node):
         if template:
             # copy from a template
             _template = next(x for x in self.node.instances if x.name == template)
-            if os.path.exists(os.path.join(_template.home, 'Config', 'autoexec.cfg')):
-                shutil.copy2(os.path.join(_template.home, 'Config', 'autoexec.cfg'),
-                             os.path.join(instance.home, 'Config'))
-            if os.path.exists(os.path.join(_template.home, 'Config', 'serverSettings.lua')):
-                shutil.copy2(os.path.join(_template.home, 'Config', 'serverSettings.lua'),
-                             os.path.join(instance.home, 'Config'))
-            if os.path.exists(os.path.join(_template.home, 'Config', 'options.lua')):
-                shutil.copy2(os.path.join(_template.home, 'Config', 'options.lua'),
-                             os.path.join(instance.home, 'Config'))
-            if os.path.exists(os.path.join(_template.home, 'Config', 'network.vault')):
-                shutil.copy2(os.path.join(_template.home, 'Config', 'network.vault'),
-                             os.path.join(instance.home, 'Config'))
+            files = [
+                os.path.join(_template.home, 'Config', 'autoexec.cfg'),
+                os.path.join(_template.home, 'Config', 'serverSettings.lua'),
+                os.path.join(_template.home, 'Config', 'options.lua'),
+                os.path.join(_template.home, 'Config', 'network.vault')
+            ]
+            # add SRS configuration
             if _template.extensions and _template.extensions.get('SRS'):
-                shutil.copy2(os.path.expandvars(_template.extensions['SRS']['config']),
-                             os.path.join(instance.home, 'Config', 'SRS.cfg'))
+                srs_config = os.path.expandvars(_template.extensions['SRS']['config'])
+                if os.path.basename(srs_config) == 'SRS.cfg':
+                    files.append(os.path.expandvars(_template.extensions['SRS']['config']))
+                else:
+                    self.log.warnig("add_instance: SRS configuration not named SRS.cfg, skipping.")
+            for file in files:
+                if os.path.exists(file):
+                    shutil.copy2(file, os.path.join(instance.home, 'Config'))
         else:
+            files = [
+                os.path.join(self.config_dir, 'autoexec.cfg'),
+                os.path.join(self.config_dir, 'serverSettings.lua'),
+                os.path.join(self.config_dir, 'options.lua')
+            ]
             # copy default files if they exist
-            if os.path.exists(os.path.join(self.config_dir, 'autoexec.cfg')):
-                shutil.copy2(os.path.join(self.config_dir, 'autoexec.cfg'),
-                             os.path.join(instance.home, 'Config'))
-            if os.path.exists(os.path.join(self.config_dir, 'serverSettings.lua')):
-                shutil.copy2(os.path.join(self.config_dir, 'serverSettings.lua'),
-                             os.path.join(instance.home, 'Config'))
-            if os.path.exists(os.path.join(self.config_dir, 'options.lua')):
-                shutil.copy2(os.path.join(self.config_dir, 'options.lua'),
-                             os.path.join(instance.home, 'Config'))
+            for file in files:
+                if os.path.exists(file):
+                    shutil.copy2(file, os.path.join(instance.home, 'Config'))
 
         autoexec = Autoexec(instance=instance)
         autoexec.crash_report_mode = "silent"
@@ -1261,7 +1384,8 @@ class NodeImpl(Node):
             yaml.dump(config, outfile)
         settings_path = os.path.join(instance.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):
-            settings = SettingsDict(cast(DataObject, self), settings_path, root='cfg')
+            # TODO: dirty cast
+            settings = SettingsDict(cast(DataObject, cast(object, self)), settings_path, root='cfg')
             settings['port'] = instance.dcs_port
             settings['name'] = 'n/a'
             settings['missionList'] = []
@@ -1478,7 +1602,7 @@ class NodeImpl(Node):
         self.plugins.remove(plugin)
         return True
 
-    async def get_cpu_info(self) -> Union[bytes, int]:
+    async def get_cpu_info(self) -> bytes | int:
         def create_image() -> bytes:
             p_core_affinity_mask = utils.get_p_core_affinity()
             e_core_affinity_mask = utils.get_e_core_affinity()

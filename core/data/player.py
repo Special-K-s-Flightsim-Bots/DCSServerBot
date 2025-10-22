@@ -8,7 +8,7 @@ from core import utils
 from core.data.dataobject import DataObject, DataObjectFactory
 from core.data.const import Side, Coalition
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional, Union, AsyncGenerator
+from typing import TYPE_CHECKING, AsyncGenerator
 
 from core.services.registry import ServiceRegistry
 
@@ -40,7 +40,7 @@ class Player(DataObject):
     group_name: str = field(compare=False, default='')
     _member: discord.Member = field(compare=False, repr=False, default=None, init=False)
     _verified: bool = field(compare=False, default=False)
-    _coalition: Coalition = field(compare=False, default=None)
+    coalition: Coalition = field(compare=False, default=None)
     _watchlist: bool = field(compare=False, default=False)
     _vip: bool = field(compare=False, default=False)
     bot: DCSServerBot = field(compare=False, init=False)
@@ -53,15 +53,20 @@ class Player(DataObject):
         if self.id == 1:
             self.active = False
             return
+
+        lock_time = self.server.locals.get('coalitions', {}).get('lock_time', '1 day')
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute("""
+                    cursor.execute(f"""
                         SELECT DISTINCT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
                                p.manual, c.coalition, 
                                CASE WHEN w.player_ucid IS NOT NULL THEN TRUE ELSE FALSE END AS watchlict, p.vip 
                         FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
-                        LEFT OUTER JOIN coalitions c ON p.ucid = c.player_ucid AND c.server_name = %s
+                        LEFT OUTER JOIN coalitions c 
+                             ON p.ucid = c.player_ucid 
+                             AND c.server_name = %s 
+                             AND c.coalition_join > (NOW() AT TIME ZONE 'UTC' - interval '{lock_time}')
                         LEFT OUTER JOIN watchlist w ON p.ucid = w.player_ucid
                         WHERE p.ucid = %s 
                         AND COALESCE(b.banned_until, (now() AT TIME ZONE 'utc')) >= (now() AT TIME ZONE 'utc')
@@ -168,27 +173,6 @@ class Player(DataObject):
                 conn.execute('UPDATE players SET vip = %s WHERE ucid = %s', (vip, self.ucid))
 
     @property
-    def coalition(self) -> Coalition:
-        return self._coalition
-
-    @coalition.setter
-    def coalition(self, coalition: Coalition):
-        self._coalition = coalition
-        if coalition == Coalition.BLUE:
-            side = Side.BLUE
-        elif coalition == Coalition.RED:
-            side = Side.RED
-        elif coalition == Coalition.NEUTRAL:
-            side = Side.NEUTRAL
-        else:
-            side = Side.SPECTATOR
-        self.bot.loop.create_task(self.server.send_to_dcs({
-            "command": "setUserCoalition",
-            "ucid": self.ucid,
-            "coalition": side.value
-        }))
-
-    @property
     def display_name(self) -> str:
         return utils.escape_string(self.name)
 
@@ -232,7 +216,7 @@ class Player(DataObject):
                     WHERE ucid = %s
                 """, (self.ucid, ))
 
-    def has_discord_roles(self, roles: list[Union[str, int]]) -> bool:
+    def has_discord_roles(self, roles: list[str | int]) -> bool:
         valid_roles = []
         for role in roles:
             valid_roles.extend(self.bot.roles[role])
@@ -251,11 +235,11 @@ class Player(DataObject):
                 "message": msg
             })
 
-    async def sendUserMessage(self, message: str, timeout: Optional[int] = -1):
+    async def sendUserMessage(self, message: str, timeout: int | None = -1):
         asyncio.create_task(self.sendPopupMessage(message, timeout))
         asyncio.create_task(self.sendChatMessage(message))
 
-    async def sendPopupMessage(self, message: str, timeout: Optional[int] = -1, sender: str = None):
+    async def sendPopupMessage(self, message: str, timeout: int | None = -1, sender: str = None):
         if timeout == -1:
             timeout = self.server.locals.get('message_timeout', 10)
         await self.server.send_to_dcs({
@@ -275,7 +259,7 @@ class Player(DataObject):
             "sound": sound
         })
 
-    async def add_role(self, role: Union[str, int]):
+    async def add_role(self, role: str | int):
         if not self.member or not role:
             return
         try:
@@ -289,7 +273,7 @@ class Player(DataObject):
         except discord.DiscordException as ex:
             self.log.error(f"Error while adding role {role}: {ex}")
 
-    async def remove_role(self, role: Union[str, int]):
+    async def remove_role(self, role: str | int):
         if not self.member or not role:
             return
         try:
@@ -303,7 +287,7 @@ class Player(DataObject):
         except discord.DiscordException as ex:
             self.log.error(f"Error while removing role {role}: {ex}")
 
-    def check_exemptions(self, exemptions: Union[dict, list]) -> bool:
+    def check_exemptions(self, exemptions: dict | list) -> bool:
         def _check_exemption(exemption: dict) -> bool:
             if 'ucid' in exemption:
                 if not isinstance(exemption['ucid'], list):

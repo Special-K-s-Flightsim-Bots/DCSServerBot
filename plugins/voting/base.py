@@ -1,11 +1,9 @@
 from abc import ABC
-from typing import Optional
-
 from core import Server
 
 
 class VotableItem(ABC):
-    def __init__(self, name: str, server: Server, config: dict, params: Optional[list[str]] = None):
+    def __init__(self, name: str, server: Server, config: dict, params: list[str] | None = None):
         self.name = name
         self.server = server
         self.config = config

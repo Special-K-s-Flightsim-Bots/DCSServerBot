@@ -4,12 +4,13 @@ import os
 import psycopg
 from psycopg.rows import dict_row
 
-from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, get_translation, PlayerType
+from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, get_translation, PlayerType, \
+    Player
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
 from services.bot import DCSServerBot
-from typing import Optional, Literal, Union
+from typing import Literal
 
 from .listener import GameMasterEventListener
 from .upload import GameMasterUploadHandler
@@ -96,7 +97,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
         return init
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: Optional[str] = None) -> None:
+                    server: str | None = None) -> None:
         self.log.debug('Pruning Gamemaster ...')
         if ucids:
             for ucid in ucids:
@@ -139,7 +140,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def popup(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
-                    to: Literal['all', 'red', 'blue'], message: str, time: Optional[Range[int, 1, 30]] = -1):
+                    to: Literal['all', 'red', 'blue'], message: str, time: Range[int, 1, 30] | None = -1):
         if server.status != Status.RUNNING:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
@@ -152,11 +153,11 @@ class GameMaster(Plugin[GameMasterEventListener]):
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def broadcast(self, interaction: discord.Interaction, to: Literal['all', 'red', 'blue'], message: str,
-                        time: Optional[Range[int, 1, 30]] = -1):
+                        time: Range[int, 1, 30] | None = -1):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        for server in self.bot.servers.values():
+        for server in self.bot.get_servers(manager=interaction.user).values():
             if server.status != Status.RUNNING:
                 await interaction.followup.send(_('Message NOT sent to server {server} because it is {status}.'
                                                   ).format(server=server.display_name, status=server.status.name),
@@ -171,7 +172,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def flag(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
-                   flag: str, value: Optional[int] = None):
+                   flag: str, value: int | None = None):
         if server.status != Status.RUNNING:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
@@ -197,7 +198,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def variable(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
-                       name: str, value: Optional[str] = None):
+                       name: str, value: str | None = None):
         if server.status != Status.RUNNING:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
@@ -262,11 +263,43 @@ class GameMaster(Plugin[GameMasterEventListener]):
         })
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Script loaded.'), ephemeral=utils.get_ephemeral(interaction))
+        await self.bot.audit(f"loaded LUA script {filename}", user=interaction.user, server=server)
 
-    @command(description=_('Mass coalition leave for users'))
+    @command(description=_('Reset coalition cooldown'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def reset_coalitions(self, interaction: discord.Interaction):
+    async def reset_coalition(self, interaction: discord.Interaction,
+                              server: app_commands.Transform[Server, utils.ServerTransformer(
+                                  status=[Status.PAUSED, Status.RUNNING])],
+                              player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
+        ephemeral = utils.get_ephemeral(interaction)
+        if not server.locals.get('coalitions'):
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("The coalition system is not enabled on this server."),
+                                                    ephemeral=True)
+            return
+
+        if not await utils.yn_question(
+                interaction,
+                _('Do you want to reset the coalition-bindings from player {}?').format(player.display_name),
+                ephemeral=ephemeral
+        ):
+            await interaction.followup.send('Aborted.', ephemeral=ephemeral)
+            return
+        try:
+            await self.eventlistener.reset_coalition(server, player)
+            await interaction.followup.send(_('Coalition bindings for player {} reset.').format(player.display_name),
+                                            ephemeral=ephemeral)
+        except discord.Forbidden:
+            await interaction.followup.send(_('The bot is missing the "Manage Roles" permission!'), ephemeral=ephemeral)
+            await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
+
+    @command(description=_('Reset all coalition cooldowns'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def reset_coalitions(self, interaction: discord.Interaction,
+                               server: app_commands.Transform[Server, utils.ServerTransformer(
+                                   status=[Status.PAUSED, Status.RUNNING])] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if not await utils.yn_question(interaction,
                                        _('Do you want to mass-reset all coalition-bindings from your players?'),
@@ -274,10 +307,17 @@ class GameMaster(Plugin[GameMasterEventListener]):
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
         try:
-            for server in self.bot.servers.values():
-                if not server.locals.get('coalitions'):
-                    continue
+            if server:
                 await self.eventlistener.reset_coalitions(server, True)
+                await interaction.followup.send(
+                    _('Coalition bindings reset for all players on server {}.').format(server.display_name),
+                    ephemeral=ephemeral
+                )
+            else:
+                for server in self.bot.get_servers(manager=interaction.user).values():
+                    if not server.locals.get('coalitions'):
+                        continue
+                    await self.eventlistener.reset_coalitions(server, True)
                 await interaction.followup.send(_('Coalition bindings reset for all players.'), ephemeral=ephemeral)
         except discord.Forbidden:
             await interaction.followup.send(_('The bot is missing the "Manage Roles" permission!'), ephemeral=ephemeral)
@@ -290,7 +330,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(active=_("Display only active campaigns"))
-    async def _list(self, interaction: discord.Interaction, active: Optional[bool] = True):
+    async def _list(self, interaction: discord.Interaction, active: bool | None = True):
         report = Report(self.bot, self.plugin_name, 'active-campaigns.json' if active else 'all-campaigns.json')
         env = await report.render()
         # noinspection PyUnresolvedReferences
@@ -347,7 +387,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
         if await modal.wait():
             return
         try:
-            servers = await utils.server_selection(self.bus, interaction,
+            servers = await utils.server_selection(self.bot, interaction,
                                                    title=_("Select all servers for this campaign"),
                                                    multi_select=True, ephemeral=ephemeral)
             if not servers:
@@ -441,7 +481,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
         try:
             # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=True)
-            servers = await utils.server_selection(self.bus, interaction,
+            servers = await utils.server_selection(self.bot, interaction,
                                                    title=_("Select all servers for this campaign"),
                                                    multi_select=True, ephemeral=ephemeral)
             if not isinstance(servers, list):
@@ -474,8 +514,8 @@ class GameMaster(Plugin[GameMasterEventListener]):
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def send(self, interaction: discord.Interaction,
-                   to: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                       sel_type=PlayerType.PLAYER)], acknowledge: Optional[bool] = True):
+                   to: app_commands.Transform[discord.Member | str, utils.UserTransformer(
+                       sel_type=PlayerType.PLAYER)], acknowledge: bool | None = True):
         modal = MessageModal()
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)

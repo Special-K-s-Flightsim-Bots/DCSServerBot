@@ -22,3 +22,11 @@ to fit to its needs. DSMC will write out a new miz-file with a new extension (00
 will take care, that this generated mission will be the next to launch. Other extensions like RealWeather work together
 with these generated missions, so you can use a DSMC generated mission but apply a preset or any real time weather to
 it.
+
+> [!TIP]
+> You can rename the DSMC extension in your server status embed by setting a "name" in the configuration like so:
+> ```yaml
+> extension:
+>   DSMC:
+>     name: MyFancyName  # Optional: default is "DSMC"
+> ```

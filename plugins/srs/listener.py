@@ -1,7 +1,7 @@
 import asyncio
 
 from core import EventListener, event, Server, Player, get_translation, Side
-from typing import Optional, cast, TYPE_CHECKING
+from typing import cast, TYPE_CHECKING
 
 from plugins.mission.commands import Mission
 
@@ -19,7 +19,7 @@ class SRSEventListener(EventListener["SRS"]):
         self.srs_users: dict[str, dict[str, dict]] = {}
 
     @staticmethod
-    def _get_player(server: Server, data: dict) -> Optional[Player]:
+    def _get_player(server: Server, data: dict) -> Player | None:
         if data['unit_id'] in range(100000000, 100000099):
             player = server.get_player(name=data['player_name'])
         else:

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from discord.utils import MISSING
 from psycopg.types.json import Json
 from trueskill import Rating
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from .const import TOURNAMENT_PHASE
 from .utils import calculate_point_multipliers
@@ -64,7 +64,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             except Exception:
                 pass
 
-    async def get_active_tournament(self, server: Server) -> Optional[int]:
+    async def get_active_tournament(self, server: Server) -> int | None:
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT t.tournament_id FROM tm_tournaments t
@@ -76,7 +76,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             row = await cursor.fetchone()
             return row[0] if row else None
 
-    async def get_active_match(self, server: Server) -> Optional[int]:
+    async def get_active_match(self, server: Server) -> int | None:
         tournament = self.tournaments.get(server.name)
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""

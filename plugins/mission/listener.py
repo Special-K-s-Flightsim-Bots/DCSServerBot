@@ -1014,6 +1014,9 @@ class MissionEventListener(EventListener["Mission"]):
                 return
             discord_id = row[0]
         member = self.bot.guilds[0].get_member(discord_id)
+        if not member:
+            await player.sendChatMessage("Your discord user was not found. Please use /linkme again in Discord.")
+            return
         # link the user
         player.member = member
         player.verified = True

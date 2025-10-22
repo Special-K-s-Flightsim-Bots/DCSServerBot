@@ -18,7 +18,7 @@ from discord.ext import commands, tasks
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.bot.dummy import DummyBot
-from typing import Type, Any, Optional, Union
+from typing import Type, Any
 from urllib.parse import quote
 
 from .listener import CloudListener
@@ -156,8 +156,7 @@ class Cloud(Plugin[CloudListener]):
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(member="user")
     async def resync(self, interaction: discord.Interaction,
-                     member: Optional[app_commands.Transform[
-                         Union[discord.Member, str], utils.UserTransformer]] = None):
+                     member: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if 'token' not in self.config:
             # noinspection PyUnresolvedReferences
@@ -182,7 +181,7 @@ class Cloud(Plugin[CloudListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def statistics(self, interaction: discord.Interaction,
-                         user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]]):
+                         user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None):
         if 'token' not in self.config:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_('Cloud statistics are not activated in this Discord!'),
@@ -221,7 +220,7 @@ class Cloud(Plugin[CloudListener]):
     @command(description=_('List registered DCS servers'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin') # TODO: change that to DCS
-    async def serverlist(self, interaction: discord.Interaction, search: Optional[str] = None):
+    async def serverlist(self, interaction: discord.Interaction, search: str | None = None):
 
         def format_servers(servers: list[dict], marker, marker_emoji) -> discord.Embed:
             embed = discord.Embed(title=_('DCS Servers'), color=discord.Color.blue())

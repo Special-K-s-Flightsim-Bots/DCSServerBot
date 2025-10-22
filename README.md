@@ -5,10 +5,9 @@
 [![License](https://img.shields.io/github/license/Special-K-s-Flightsim-Bots/DCSServerBot)](https://raw.githubusercontent.com/Special-K-s-Flightsim-Bots/DCSServerBot/refs/heads/master/LICENSE)
 
 You've found a comprehensive solution that helps you administrate your DCS World servers. It has a Discord integration 
-([now optional](#dcsserverbot-installation-non-discord)!) with slash-commands, built-in per-server and per-user 
+([now optional](#dcsserverbot-installation-non-discord)!) with smart slash-commands, built-in per-server and per-user 
 statistics, optional cloud-based statistics, [Coalitions](./COALITIONS.md)-support, a whole 
-[Tournament-System](./plugins/tournament/README.md), a third-party [web-frontend](https://github.com/Penfold-88/DCS-Statistics-Dashboard) for
-statistics and much more!
+[Tournament-System](./plugins/tournament/README.md), a third-party [web-frontend](https://github.com/Penfold-88/DCS-Statistics-Dashboard) for statistics and much more!
 <p> 
 With its plugin system and reporting framework, DCSServerBot can be enhanced very easily to support whatever might come 
 into your mind. DCSServerBot is a solution for DCS server admins built by a DCS server admin.
@@ -73,7 +72,7 @@ from time to time, but you as a community member can also create your own plugin
 | Scheduler     | Autostart / -stop of servers or missions, modify missions, etc.                                 | yes[^1]  | Mission                               | [README](./plugins/scheduler/README.md)     |
 | Cloud         | Cloud-based statistics and connection to the [DGSA](#dgsa) global ban system.                   | yes[^1]  | Userstats                             | [README](./plugins/cloud/README.md)         |
 | MissionStats  | Detailed users statistics / mission statistics.                                                 | yes[^1]  | Userstats                             | [README](./plugins/missionstats/README.md)  |
-| Monitoring    | Monitoring and sstatistics for your DCS servers.                                                | yes[^1]  | Userstats                             | [README](plugins/monitoring/README.md)      |
+| Monitoring    | Monitoring and statistics for your DCS servers.                                                 | yes[^1]  | Userstats                             | [README](plugins/monitoring/README.md)      |
 | Backup        | Create a backup of your database, server or bot configurations.                                 |   yes    |                                       | [README](./plugins/backup/README.md)        |
 | Battleground  | Support for [DCS Battleground](https://github.com/Frigondin/DCSBattleground)                    |   yes    |                                       | [README](./plugins/battleground/README.md)  |
 | Battleground2 | Support for the new version of [DCS Battleground](https://github.com/Frigondin/DCSBattleground) |   yes    |                                       | [README](./plugins/battleground2/README.md) |
@@ -177,7 +176,7 @@ The bot needs a unique Token per installation. This one can be obtained at http:
 - Press "Reset Token" and then "Copy" to get your token. 
 - Now your Token is in your clipboard. Paste it in some editor for later use. 
 - All "Privileged Gateway Intents" have to be enabled on that page.<br/>
-- To add the bot to your Discord guild, select "OAuth2" from the left menu
+- To add the bot to your Discord "guild" (aka your Discord server), select "OAuth2" from the left menu
 - Select the "bot" checkbox in "OAuth2 URL Generator"
 - Select the following "Bot Permissions":
   - Left side (optional):
@@ -203,7 +202,7 @@ installation, and you will install a variant that works without.
 
 > [!NOTE]
 > Please keep in mind that DCSServerBot was originally built for Discord and that there are some functionalities that
-> only work with Discord, like static graphs, greenieboards, and others.<br>
+> only work with Discord, like statistics graphs, greenieboards, and others.<br>
 > You can still use a lot without Discord as in-game chat-commands, automated restarts, etc.
 
 ### Download
@@ -218,10 +217,10 @@ it somewhere on your PC running the DCS server(s) and give it write permissions,
 
 ### DCSServerBot Installation (Discord)
 Run the provided `install.cmd` script or just `run.cmd`.<br>
-It will ask you for your Guild ID (right-click on your Discord server icon and select "Copy Server ID") and the bot's 
-user ID (right-click on the bot user and select "Copy User ID"). Then it will search for existing DCS installations, 
-create the database user, password, and database, and asks whether you want to add existing DCS servers to the 
-configuration.<br>
+It will ask you for your Guild ID (which is your Server ID, so right-click on your Discord server icon and select 
+"Copy Server ID") and the bot's user ID (right-click on the bot user and select "Copy User ID"). 
+Then it will search for existing DCS installations, create the database user, password, and database, and asks whether 
+you want to add existing DCS servers to the configuration.<br>
 When finished, the bot should launch successfully and maybe even start your servers already, if configured.
 
 ### DCSServerBot Installation (non-Discord)
@@ -349,15 +348,19 @@ NODENAME:                       # this will usually be your hostname
   public_ip: 88.77.66.55        # Optional: Your public IP. ONLY if you have a static IP (!), put this in here to speed up the startup-process of the bot.
   slow_system: false            # Optional: if you are using a slower PC to run your servers, you should set this to true (default: false)
   use_upnp: true                # The bot will auto-detect if there is a UPnP IGD available and configure this setting initially for you! If you do NOT want to use UPnP, even IF it is available, put this to false.
-  preferred_master: true        # cluster only: this node should be the preferred master node (default: false)
-  heartbeat: 30                 # cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
-  cloud_drive: false            # cluster only: set this to false if you do not have the bot installed on a cloud drive (default and recommended: true) 
   nodestats: true               # Enable/disable node statistics (database pool and event queue sizes), default: true
+  restrict_commands: true       # Disable commands that can affect the integrity of the server. Default: false (see MULTINODE.md)
+  restrict_owner: false         # If set to true, the owner of the bot can also not run restricted commands. Default: false (see MULTINODE.md)
   database:                     # Optional: It might be that you need to use different IPs to connect to the same database server. This is the place you could do that.
     url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME   # The bot will auto-move the database password from here to a secret place and replace it with SECRET.
     pool_min: 5                 # min size of the DB pool, default is 5
     pool_max: 10                # max size of the DB pool, default is 10
     max_reties: 10              # maximum number of retries to initially connect to the database on startups
+  cluster:                      # Cluster only: Your cluster configuration. See MULTINODE.md for reference.
+    preferred_master: true      # Cluster only: this node should be the preferred master node (default: false)
+    no_master: false            # Cluster only: this node should never be a master node (default: false)
+    heartbeat: 30               # Cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
+    cloud_drive: true           # Cluster only: set this to false if you do not have the bot installed on a cloud drive (default and recommended: true) 
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.
@@ -378,17 +381,6 @@ NODENAME:                       # this will usually be your hostname
     cloud: true                 # If you have installed DCS on a NAS or cloud drive, autoupdate and desanitization will only take place once on all your nodes.
     desanitize: true            # Desanitize your MissionScripting.lua after each update. Default is true.
     minimized: true             # Start DCS minimized (default: true)
-    allow_unsafe_api:           # as of DCS 2.9.18: allow dostring_in only in these environments
-      - scripting
-      - gui
-      - userhooks
-    allow_dostring_in:          # as of DCS 2.9.18: allow dostring_in only targeting these contexts
-      - scripting
-      - config
-      - server
-      - mission
-      - gui
-      - export
     user: xxxx                  # Your DCS username (only needed for specific use-cases)
     password: xxxx              # Your DCS password (will be auto-moved by the bot to a secret place)
   instances:
@@ -463,12 +455,15 @@ My Fancy Server:                # Your server name, as displayed in the server l
   force_voice: false            # Optional: enforce the usage of a voice channel (users need to be linked!) - default: false
   discord:                      # Optional: specify discord roles that are allowed to use this server
     - '@everyone'               # Attention: people cannot self-link on these servers and have to be liked properly already!
+  managed_by:
+    - Special Admin             # Optional: a list of Discord roles that can manage this server (default: DCS Admin)
   channels:
     status: 1122334455667788    # The Discord channel to display the server status embed and players embed into. Right-click on your channel and select "Copy Channel ID". You can disable it with -1
     chat: 8877665544332211      # The Discord channel for the in-game chat replication. You can disable it by setting it to -1.
     events: 1928374619283746    # Optional: if you want to split game events from chat messages, you can enable an optional events channel.
-    admin: 1188227733664455     # The channel where you can fire admin commands to this server. You can decide if you want to have a central admin channel or server-specific ones. See bot.yaml for more.
-    voice: 1827364518273645     # The voice channel, where people need to connect to (if force_voice is true). 
+    admin: 1188227733664455     # Optional: The channel where you can fire admin commands to this server. You can decide if you want to have a central admin channel or server-specific ones. See bot.yaml for more.
+    voice: 1827364518273645     # Optional: The voice channel, where people need to connect to (mandatory if force_voice is true). 
+    audit: 9182736459182736     # Optional: a server-specific audit channel (for those of you who like channels, all others can use the global one)
   chat_log:
     count: 10                   # A log file that holds the in-game chat to check for abuse. Tells how many files will be kept, default is 10.
     size: 1048576               # Max logfile size, default is 1 MB. 
@@ -508,7 +503,7 @@ This is your Discord-bot configuration.
 
 ```yaml
 token: SECRET_DISCORD_TOKEN                     # Your TOKEN, as received from the discord developer portal. The bot will auto-move this to a secret place.
-owner: 1122334455667788                         # The ID of your bot user. Right-click, select "Copy User ID".
+owner: 1122334455667788                         # The Discord ID of the owner. Right-click on your Discord user, select "Copy User ID". If unsure, use the bot user.
 automatch: true                                 # Use the bot's auto-matching functionality (see below), default is false.
 autoban: false                                  # Use the bot's auto-ban functionality (see below), default is false.
 autorole:                                       # Automatically give roles to people, depending on conditions (see below). The roles need to be set up in your Discord server.

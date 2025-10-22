@@ -3,7 +3,6 @@ import re
 import shutil
 
 from core import Extension, Server
-from typing import Optional, Union
 
 __all__ = [
     "DSMC"
@@ -19,7 +18,7 @@ class DSMC(Extension):
             server.locals['validate_missions'] = False
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         hook = os.path.join(self.server.instance.home, 'Scripts', 'Hooks', 'DSMC_hooks.lua')
         try:
             version = []
@@ -34,8 +33,8 @@ class DSMC(Extension):
         except Exception:
             return None
 
-    def load_config(self) -> Optional[dict]:
-        def parse(_value: str) -> Union[int, str, bool]:
+    def load_config(self) -> dict | None:
+        def parse(_value: str) -> int | str | bool:
             if _value.startswith('"'):
                 return _value[1:-1]
             elif _value == 'true':
@@ -87,7 +86,7 @@ class DSMC(Extension):
                             self.locals['DSMC_AutosaveExit_time'] = 0
                         outfile.write(line)
             self.log.info('  => DSMC configuration changed to be compatible with DCSServerBot.')
-        return True
+        return await super().prepare()
 
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         if not os.path.basename(filename).startswith('DSMC'):
@@ -103,9 +102,9 @@ class DSMC(Extension):
         else:
             return orig, False
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         return {
-            "name": "DSMC",
+            "name": self.name,
             "version": self.version,
             "value": "enabled"
         }
@@ -120,8 +119,8 @@ class DSMC(Extension):
             return False
         return True
 
-    def shutdown(self) -> bool:
-        return True
+    async def startup(self, *, quiet: bool = False) -> bool:
+        return await super().startup(quiet=True)
 
-    def is_running(self) -> bool:
-        return True
+    def shutdown(self, *, quiet: bool = False) -> bool:
+        return super().shutdown(quiet=True)

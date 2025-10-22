@@ -20,7 +20,7 @@ from io import BytesIO
 from pathlib import Path
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Optional, Union, Literal, Type
+from typing import Literal, Type
 
 from .listener import MissionEventListener
 from .upload import MissionUploadHandler
@@ -46,7 +46,7 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
         ignore = ['.dcssb']
         if server.locals.get('ignore_dirs'):
             ignore.extend(server.locals['ignore_dirs'])
-        installed_missions = [os.path.expandvars(x) for x in await server.getMissionList()]
+        installed_missions = [os.path.expandvars(x) for x in await utils.get_cached_mission_list(server)]
         exp_base, file_list = await server.node.list_directory(base_dir, pattern=['*.miz', '*.sav'], traverse=True,
                                                                ignore=ignore)
         choices: list[app_commands.Choice[int]] = [
@@ -73,7 +73,7 @@ async def orig_mission_autocomplete(interaction: discord.Interaction, current: s
         orig_files = [os.path.basename(x)[:-9] for x in file_list]
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
-            for idx, x in enumerate(await server.getMissionList())
+            for idx, x in enumerate(await utils.get_cached_mission_list(server))
             if os.path.basename(x)[:-4] in orig_files and (not current or current.casefold() in x[:-4].casefold())
         ]
         return choices[:25]
@@ -119,7 +119,7 @@ async def nosav_autocomplete(interaction: discord.Interaction, current: str) -> 
         base_dir = await server.get_missions_dir()
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=get_name(base_dir, x), value=idx)
-            for idx, x in enumerate(await server.getMissionList())
+            for idx, x in enumerate(await utils.get_cached_mission_list(server))
             if not x.endswith('.sav') and (not current or current.casefold() in get_name(base_dir, x).casefold())
         ]
         return sorted(choices, key=lambda choice: choice.name)[:25]
@@ -129,7 +129,7 @@ async def nosav_autocomplete(interaction: discord.Interaction, current: str) -> 
 
 
 class DDTransformer(app_commands.Transformer):
-    async def transform(self, interaction: discord.Interaction, value: Union[str, float]) -> float:
+    async def transform(self, interaction: discord.Interaction, value: str | float) -> float:
         try:
             return float(value)
         except ValueError:
@@ -161,7 +161,7 @@ class Mission(Plugin[MissionEventListener]):
         self.update_channel_name.cancel()
         await super().cog_unload()
 
-    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
+    async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
         function_name = f"migrate_{new_version.replace('.', '_')}"
         migrate_module = importlib.import_module('.migrate', package=__package__)
         migrate_function = getattr(migrate_module, function_name, None)
@@ -176,7 +176,7 @@ class Mission(Plugin[MissionEventListener]):
         await conn.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: Optional[str] = None) -> None:
+                    server: str | None = None) -> None:
         self.log.debug('Pruning Mission ...')
         if days > -1:
             # noinspection PyTypeChecker
@@ -290,8 +290,8 @@ class Mission(Plugin[MissionEventListener]):
     async def restart(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
-                      delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = True,
-                      use_orig: Optional[bool] = True):
+                      delay: int | None = 120, reason: str | None = None, run_extensions: bool | None = True,
+                      use_orig: bool | None = True):
         await self._restart(interaction, server, delay, reason, run_extensions, use_orig, rotate=False)
 
     @mission.command(description=_('Rotates to the next mission\n'))
@@ -300,15 +300,15 @@ class Mission(Plugin[MissionEventListener]):
     async def rotate(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
-                     delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = True,
-                     use_orig: Optional[bool] = True):
+                     delay: int | None = 120, reason: str | None = None, run_extensions: bool | None = True,
+                     use_orig: bool | None = True):
         await self._restart(interaction, server, delay, reason, run_extensions, use_orig, rotate=True)
 
     async def _restart(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
-                       delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = True,
-                       use_orig: Optional[bool] = True, rotate: Optional[bool] = False):
+                       delay: int | None = 120, reason: str | None = None, run_extensions: bool | None = True,
+                       use_orig: bool | None = True, rotate: bool | None = False):
         what = "restart" if not rotate else "rotate"
         actions = {
             "restart": "restarted",
@@ -387,8 +387,8 @@ class Mission(Plugin[MissionEventListener]):
                     command=(await utils.get_command(self.bot, group='mission', name='info')).mention
                 ), ephemeral=ephemeral)
 
-    async def _load(self, interaction: discord.Interaction, server: Server, mission: Optional[Union[int, str]] = None,
-                    run_extensions: Optional[bool] = False, use_orig: Optional[bool] = True):
+    async def _load(self, interaction: discord.Interaction, server: Server, mission: int | str | None = None,
+                    run_extensions: bool | None = False, use_orig: bool | None = True):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             # noinspection PyUnresolvedReferences
@@ -496,8 +496,8 @@ class Mission(Plugin[MissionEventListener]):
     async def load(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
-                   mission_id: Optional[int] = None, alt_mission: Optional[str] = None,
-                   run_extensions: Optional[bool] = True, use_orig: Optional[bool] = True):
+                   mission_id: int | None = None, alt_mission: str | None = None,
+                   run_extensions: bool | None = True, use_orig: bool | None = True):
         await self._load(
             interaction,
             server,
@@ -512,7 +512,7 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.autocomplete(path=mizfile_autocomplete)
     async def add(self, interaction: discord.Interaction,
                   server: app_commands.Transform[Server, utils.ServerTransformer], path: str,
-                  autostart: Optional[bool] = False):
+                  autostart: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -689,8 +689,8 @@ class Mission(Plugin[MissionEventListener]):
     async def modify(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])],
-                     presets_file: Optional[str] = None, use_orig: Optional[bool] = True,
-                     simulate_only: Optional[bool] = False):
+                     presets_file: str | None = None, use_orig: bool | None = True,
+                     simulate_only: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
 
         if presets_file is None:
@@ -901,8 +901,8 @@ class Mission(Plugin[MissionEventListener]):
     async def fog(self, interaction: discord.Interaction,
                   server: app_commands.Transform[Server, utils.ServerTransformer(
                       status=[Status.RUNNING, Status.PAUSED])],
-                  thickness: Optional[app_commands.Range[int, 0, 5000]] = None,
-                  visibility: Optional[app_commands.Range[int, 0, 100000]] = None):
+                  thickness: app_commands.Range[int, 0, 5000] | None = None,
+                  visibility: app_commands.Range[int, 0, 100000] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -933,7 +933,7 @@ class Mission(Plugin[MissionEventListener]):
     async def fog_animation(self, interaction: discord.Interaction,
                             server: app_commands.Transform[Server, utils.ServerTransformer(
                                 status=[Status.RUNNING, Status.PAUSED])],
-                            presets_file: Optional[str] = None):
+                            presets_file: str | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if presets_file is None:
             presets_file = os.path.join(self.node.config_dir, 'presets.yaml')
@@ -1021,6 +1021,10 @@ class Mission(Plugin[MissionEventListener]):
             # we should never be here, but just in case
             await interaction.followup.send(_('No ".orig" file found.'), ephemeral=True)
             return
+        except PermissionError:
+            await interaction.followup.send(_('{} is currently in use. Aborted.').format(os.path.basename(new_file)),
+                                            ephemeral=True)
+            return
         await server.replaceMission(mission_id + 1, new_file)
         await interaction.followup.send(
             _("Persistence for mission {} enabled.").format(os.path.basename(filename)[:-4]), ephemeral=ephemeral)
@@ -1049,7 +1053,7 @@ class Mission(Plugin[MissionEventListener]):
     async def kick(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
-                   reason: Optional[str] = 'n/a') -> None:
+                   reason: str | None = 'n/a') -> None:
         if not player:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
@@ -1106,7 +1110,7 @@ class Mission(Plugin[MissionEventListener]):
     async def unlock(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                      user: app_commands.Transform[
-                         Union[discord.Member, str], utils.UserTransformer(sel_type=PlayerType.PLAYER)
+                         discord.Member | str, utils.UserTransformer(sel_type=PlayerType.PLAYER)
                      ]):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
@@ -1132,7 +1136,7 @@ class Mission(Plugin[MissionEventListener]):
     async def spec(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
-                   reason: Optional[str] = 'n/a') -> None:
+                   reason: str | None = 'n/a') -> None:
         if not player:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
@@ -1151,7 +1155,7 @@ class Mission(Plugin[MissionEventListener]):
     @utils.app_has_role('DCS Admin')
     async def afk(self, interaction: discord.Interaction,
                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
-                  minutes: Optional[int] = 10):
+                  minutes: int | None = 10):
         if server.status != Status.RUNNING:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
@@ -1196,9 +1200,9 @@ class Mission(Plugin[MissionEventListener]):
     @utils.app_has_role('DCS Admin')
     async def exempt(self, interaction: discord.Interaction,
                      user: app_commands.Transform[
-                         Union[discord.Member, str], utils.UserTransformer(sel_type=PlayerType.PLAYER)
+                         discord.Member | str, utils.UserTransformer(sel_type=PlayerType.PLAYER)
                      ],
-                     server: Optional[app_commands.Transform[Server, utils.ServerTransformer]]):
+                     server: app_commands.Transform[Server, utils.ServerTransformer] | None):
         ephemeral = utils.get_ephemeral(interaction)
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
@@ -1242,7 +1246,7 @@ class Mission(Plugin[MissionEventListener]):
     async def popup(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                     player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
-                    message: str, time: Optional[Range[int, 1, 30]] = -1):
+                    message: str, time: Range[int, 1, 30] | None = -1):
         if not player:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
@@ -1323,13 +1327,14 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def add(self, interaction: discord.Interaction,
-                  user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                  user: app_commands.Transform[discord.Member | str, utils.UserTransformer(
                       sel_type=PlayerType.PLAYER, watchlist=False)], reason: str):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
                 # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name))
+                await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name),
+                                                        ephemeral=True)
                 return
         else:
             ucid = user
@@ -1353,7 +1358,7 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def delete(self, interaction: discord.Interaction,
-                     user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                     user: app_commands.Transform[discord.Member | str, utils.UserTransformer(
                          sel_type=PlayerType.PLAYER, watchlist=True)]):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
@@ -1410,7 +1415,7 @@ class Mission(Plugin[MissionEventListener]):
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def popup(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
-                    group: str, message: str, time: Optional[Range[int, 1, 30]] = -1):
+                    group: str, message: str, time: Range[int, 1, 30] | None = -1):
         await server.sendPopupMessage(group, message, time, interaction.user.display_name)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Message sent.'), ephemeral=utils.get_ephemeral(interaction))
@@ -1419,7 +1424,7 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def link(self, interaction: discord.Interaction, member: discord.Member,
-                   user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                   user: app_commands.Transform[discord.Member | str, utils.UserTransformer(
                        sel_type=PlayerType.PLAYER, linked=False)]
                    ):
         ephemeral = utils.get_ephemeral(interaction)
@@ -1496,7 +1501,7 @@ class Mission(Plugin[MissionEventListener]):
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(user=_('Name of player, member or UCID'))
     async def unlink(self, interaction: discord.Interaction,
-                     user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(linked=True)]):
+                     user: app_commands.Transform[discord.Member | str, utils.UserTransformer(linked=True)]):
 
         async def unlink_member(member: discord.Member, ucid: str):
             # change the link status of that member if they are an active player
@@ -1601,7 +1606,7 @@ class Mission(Plugin[MissionEventListener]):
     async def find(self, interaction: discord.Interaction, name: str):
         await self._find(interaction, name)
 
-    async def _info(self, interaction: discord.Interaction, member: Union[discord.Member, str]):
+    async def _info(self, interaction: discord.Interaction, member: discord.Member | str):
         if not member:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
@@ -1617,7 +1622,7 @@ class Mission(Plugin[MissionEventListener]):
         if isinstance(member, str):
             ucid = member
             member = self.bot.get_member_by_ucid(ucid)
-        player: Optional[Player] = None
+        player: Player | None = None
         for server in self.bot.servers.values():
             if isinstance(member, discord.Member):
                 player = server.get_player(discord_id=member.id, active=True)
@@ -1654,7 +1659,7 @@ class Mission(Plugin[MissionEventListener]):
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
     async def info(self, interaction: discord.Interaction,
-                   member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
+                   member: app_commands.Transform[discord.Member | str, utils.UserTransformer]):
         await self._info(interaction, member)
 
     @staticmethod
@@ -1838,8 +1843,8 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def compare(self, interaction: discord.Interaction,
-                      player1: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer],
-                      player2: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
+                      player1: app_commands.Transform[discord.Member | str, utils.UserTransformer],
+                      player2: app_commands.Transform[discord.Member | str, utils.UserTransformer]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         ephemeral = utils.get_ephemeral(interaction)
@@ -1954,9 +1959,9 @@ class Mission(Plugin[MissionEventListener]):
               lon="Longitude in DD or DMS (E011012.34)",
               mgrs="MGRS coordinates")
     async def convert(self, interaction: discord.Interaction, mode: Literal['Lat/Lon => MGRS', 'MGRS => Lat/Lon'],
-                      lat: Optional[app_commands.Transform[float, DDTransformer]] = None,
-                      lon: Optional[app_commands.Transform[float, DDTransformer]] = None,
-                      mgrs: Optional[str] = None):
+                      lat: app_commands.Transform[float, DDTransformer] | None = None,
+                      lon: app_commands.Transform[float, DDTransformer] | None = None,
+                      mgrs: str | None = None):
         if mode == 'Lat/Lon => MGRS':
             if not lat or not lon:
                 # noinspection PyUnresolvedReferences
@@ -2085,6 +2090,8 @@ class Mission(Plugin[MissionEventListener]):
                     exemptions = config.get('exemptions', {})
                     if 'discord' in exemptions:
                         exemptions['discord'] = list(set(exemptions['discord']) | {"DCS Admin", "GameMaster"})
+                        if server.locals.get('managed_by'):
+                            exemptions['discord'].extend(server.locals.get('managed_by'))
                     if not player or player.check_exemptions(exemptions):
                         continue
                     if (datetime.now(timezone.utc) - dt).total_seconds() > max_time:
@@ -2159,7 +2166,7 @@ class Mission(Plugin[MissionEventListener]):
                 channel = node.get('uploads', {}).get('channel')
                 if message.channel.id == channel:
                     server = next((
-                        server for server in self.bus.servers.values()
+                        server for server in self.bot.servers.values()
                         if server.instance.name == node_name
                     ), None)
                     break
@@ -2168,7 +2175,7 @@ class Mission(Plugin[MissionEventListener]):
                     channel = instance.get('uploads', {}).get('channel')
                     if message.channel.id == channel:
                         server = next((
-                            server for server in self.bus.servers.values()
+                            server for server in self.bot.servers.values()
                             if server.instance.name == instance_name
                         ), None)
                         break

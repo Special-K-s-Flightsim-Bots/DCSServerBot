@@ -6,7 +6,7 @@
     {
       "type": "SQLTable",
       "params": {
-        "sql": "SELECT p.name AS \"Name\", SUM(c.points) AS \"Credits\" FROM players p JOIN credits c ON p.ucid = c.player_ucid GROUP BY 1 ORDER BY 2 DESC LIMIT {limit}"
+        "sql": "SELECT p.name AS \"Name\", SUM(c.points) AS \"Credits\" FROM players p JOIN credits c ON p.ucid = c.player_ucid JOIN campaigns ca ON c.campaign_id = ca.id WHERE ca.stop IS NULL GROUP BY 1 ORDER BY 2 DESC LIMIT {limit}"
       }
     }
   ]

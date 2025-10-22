@@ -3,7 +3,7 @@ import inspect
 import logging
 
 from dataclasses import MISSING
-from typing import TypeVar, TYPE_CHECKING, Any, Type, Optional, Iterable, Callable, Union, Generic
+from typing import TypeVar, TYPE_CHECKING, Any, Type, Iterable, Callable, Generic
 
 if TYPE_CHECKING:
     from core import Plugin, Server, Player
@@ -58,7 +58,7 @@ class ChatCommand:
     def __init__(self, func, **kwargs):
         self.name: str = kwargs.get('name', func.__name__)
         self.help: str = inspect.cleandoc(kwargs.get('help', ''))
-        self.roles: list[Union[str, int]] = kwargs.get('roles', [])
+        self.roles: list[str | int] = kwargs.get('roles', [])
         self.usage: str = kwargs.get('usage')
         self.aliases: list[str] = kwargs.get('aliases', [])
         self.callback = func
@@ -139,8 +139,8 @@ class EventListener(Generic[TPlugin], metaclass=EventListenerMeta):
         except Exception as ex:
             self.log.exception(ex)
 
-    def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
-                   use_cache: Optional[bool] = True) -> dict:
+    def get_config(self, server: Server | None = None, *, plugin_name: str | None = None,
+                   use_cache: bool | None = True) -> dict:
         return self.plugin.get_config(server, plugin_name=plugin_name, use_cache=use_cache)
 
     def change_commands(self, config: dict) -> None:

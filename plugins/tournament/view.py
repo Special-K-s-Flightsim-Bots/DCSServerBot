@@ -6,7 +6,7 @@ from core import get_translation, utils
 from discord import SelectOption, ButtonStyle, TextStyle
 from discord.ui import Select, Button, Modal, TextInput, View
 from psycopg.types.json import Json
-from typing import TYPE_CHECKING, cast, Optional
+from typing import TYPE_CHECKING, cast
 
 from .const import TOURNAMENT_PHASE
 
@@ -139,7 +139,7 @@ class RejectModal(Modal, title=_("Reject a squadron")):
 
 
 class NumbersModal(Modal):
-    def __init__(self, choice: str, costs: int, points: int, max_value: Optional[int] = None):
+    def __init__(self, choice: str, costs: int, points: int, max_value: int | None = None):
         super().__init__(title=_("How many {} do you want?").format(choice[:20]))
         self.costs = costs
         self.points = points
@@ -363,7 +363,7 @@ class ApplicationView(View):
         self.squadron_id = squadron_id
         self.squadron = utils.get_squadron(self.plugin.node, squadron_id=self.squadron_id)
 
-    async def inform_squadron(self, *, message: Optional[str] = None, embed: Optional[discord.Embed] = None):
+    async def inform_squadron(self, *, message: str | None = None, embed: discord.Embed | None = None):
         async with self.plugin.apool.connection() as conn:
             async for row in await conn.execute("""
                 SELECT p.discord_id

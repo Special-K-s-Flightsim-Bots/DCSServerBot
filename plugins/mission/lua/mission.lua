@@ -3,6 +3,7 @@ dcsbot 		= base.dcsbot
 
 local _menuItems = {}
 local _roles = {}
+local _extensions = {}
 
 -- deprecated
 function dcsbot.sendPopupMessage(to, message, time)
@@ -245,6 +246,25 @@ function dcsbot.getUserRoles(user)
     return _roles[user]
 end
 
+function dcsbot._clearExtensions()
+    _extensions = {}
+end
+
+function dcsbot._addExtension(extension)
+    _extensions[extension] = true
+end
+
+function dcsbot._removeExtension(extension)
+    _extensions[extension] = nil
+end
+
+function dcsbot.isExtensionEnabled(extension)
+    return _extensions[extension] or false
+end
+
+function dcsbot.getExtensions()
+    return _extensions
+end
 
 -- Disable error popups in missions
 env.setErrorMessageBoxEnabled(false)

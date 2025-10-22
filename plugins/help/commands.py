@@ -7,7 +7,7 @@ from discord import app_commands, Interaction, ButtonStyle, TextStyle
 from discord.ui import View, Select, Button, Modal, TextInput, Item
 from io import BytesIO
 from services.bot import DCSServerBot
-from typing import cast, Optional, Literal, Any, Union
+from typing import cast, Literal, Any
 
 from .listener import HelpListener
 
@@ -32,7 +32,7 @@ async def get_commands(interaction: discord.Interaction) -> dict[str, app_comman
     return cmds
 
 
-def get_usage(cmd: Union[discord.app_commands.Command, Command]) -> str:
+def get_usage(cmd: discord.app_commands.Command | Command) -> str:
     if isinstance(cmd, Command):
         return ' '.join([
             f"<{param.name.lstrip('_')}>" if param.required else f"[{param.name.lstrip('_')}]"
@@ -82,7 +82,7 @@ class Help(Plugin[HelpListener]):
                 # noinspection PyUnresolvedReferences
                 self.children[4].disabled = True
 
-        async def print_command(self, interaction: discord.Interaction, *, name: str) -> Optional[discord.Embed]:
+        async def print_command(self, interaction: discord.Interaction, *, name: str) -> discord.Embed | None:
             cmds = await get_commands(interaction)
             cmd = cmds.get(name)
             if not cmd:
@@ -196,7 +196,7 @@ class Help(Plugin[HelpListener]):
     @command(description=_('The help command'))
     @app_commands.guild_only()
     @app_commands.autocomplete(cmd=commands_autocomplete)
-    async def help(self, interaction: discord.Interaction, cmd: Optional[str]):
+    async def help(self, interaction: discord.Interaction, cmd: str | None):
         ephemeral = utils.get_ephemeral(interaction)
         options = [
             discord.SelectOption(label=x.title(), value=f'plugins.{x}.commands')
@@ -219,18 +219,20 @@ class Help(Plugin[HelpListener]):
                                                         ephemeral=True)
         else:
             try:
-                # shall we display a custom report as greeting page?
+                # shall we display a custom report as a greeting page?
                 if os.path.exists(f'reports/{self.plugin_name}/{self.plugin_name}.json'):
                     report = Report(self.bot, self.plugin_name, filename=f'{self.plugin_name}.json')
-                    env: ReportEnv = await report.render(guild=self.bot.guilds[0],
-                                                         servers=[
-                                                             {
-                                                                 "display_name": x.display_name,
-                                                                 "password": x.settings['password'],
-                                                                 "status": x.status.name.title(),
-                                                                 "num_players": len(x.get_active_players())
-                                                             } for x in self.bot.servers.values()
-                                                         ])
+                    env: ReportEnv = await report.render(
+                        guild=self.bot.guilds[0],
+                        servers=[
+                            {
+                                "display_name": x.display_name,
+                                "password": x.settings['password'],
+                                "status": x.status.name.title(),
+                                "num_players": len(x.get_active_players())
+                            } for x in self.bot.servers.values()
+                        ]
+                    )
                     embed = env.embed
                     if env.filename:
                         # noinspection PyUnresolvedReferences
@@ -254,7 +256,7 @@ class Help(Plugin[HelpListener]):
                 await interaction.delete_original_response()
 
     async def discord_commands_to_df(self, interaction: discord.Interaction, *,
-                                     use_mention: Optional[bool] = False) -> pd.DataFrame:
+                                     use_mention: bool | None = False) -> pd.DataFrame:
         df = pd.DataFrame(columns=['Plugin', 'Command', 'Parameter', 'Roles', 'Description'])
         for cmd in sorted((await get_commands(interaction)).values(), key=lambda x: x.qualified_name):
             for check in cmd.checks:
@@ -296,14 +298,14 @@ class Help(Plugin[HelpListener]):
         return df
 
     async def generate_commands_doc(self, interaction: discord.Interaction, fmt: Literal['channel', 'xls'],
-                                    role: Optional[Literal['Admin', 'DCS Admin', 'DCS']] = None,
-                                    channel: Optional[discord.TextChannel] = None):
+                                    role: Literal['Admin', 'DCS Admin', 'DCS'] | None = None,
+                                    channel: discord.TextChannel | None = None):
         class DocModal(Modal):
             header = TextInput(label="Header", default=_("## DCSServerBot Commands"), style=TextStyle.short,
                                required=True)
             intro = TextInput(label="Intro", style=TextStyle.long, required=True)
 
-            def __init__(derived, role: Optional[str]):
+            def __init__(derived, role: str | None):
                 super().__init__(title=_("Generate Documentation"))
                 derived.role = role
                 if role:
@@ -378,7 +380,7 @@ _ _
         columns = ['Node', 'Instance', 'Name', 'Password', 'Max Players', 'DCS Port', 'Bot Port']
         df = pd.DataFrame(columns=columns)
 
-        for server in self.bus.servers.values():
+        for server in self.bot.servers.values():
             server_dict = {
                 'Node': server.node.name,
                 'Instance': server.instance.name,
@@ -386,6 +388,7 @@ _ _
                 'Password': server.settings.get('password'),
                 'Max Players': server.settings.get('maxPlayers', 16),
                 'DCS Port': server.instance.dcs_port,
+                'WebGUI Port': server.instance.webgui_port,
                 'Bot Port': server.instance.bot_port
             }
 
@@ -439,8 +442,8 @@ _ _
     @app_commands.rename(fmt='format')
     @utils.app_has_role('Admin')
     async def doc(self, interaction: discord.Interaction, what: Literal['Commands', 'Server'],
-                  fmt: Literal['channel', 'xls'], role: Optional[Literal['Admin', 'DCS Admin', 'DCS']] = None,
-                  channel: Optional[discord.TextChannel] = None):
+                  fmt: Literal['channel', 'xls'], role: Literal['Admin', 'DCS Admin', 'DCS'] | None = None,
+                  channel: discord.TextChannel | None = None):
         if what == 'Commands':
             await self.generate_commands_doc(interaction, fmt, role, channel)
         elif what == 'Server':

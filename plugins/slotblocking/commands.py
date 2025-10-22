@@ -4,7 +4,7 @@ import psycopg
 from core import Plugin, PluginRequiredError, Server, PluginInstallationError, DEFAULT_TAG
 from pathlib import Path
 from services.bot import DCSServerBot
-from typing import Optional, Type
+from typing import Type
 
 from .listener import SlotBlockingListener
 
@@ -29,7 +29,7 @@ class SlotBlocking(Plugin[SlotBlockingListener]):
         if instance.get('VIP'):
             instance['VIP']['message_server_full'] = message
 
-    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
+    async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
         if not self.locals:
             return
         kwargs = {}
@@ -66,8 +66,8 @@ class SlotBlocking(Plugin[SlotBlockingListener]):
                 yaml.dump(server_data, outfile)
         self.locals = self.read_locals()
 
-    def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
-                   use_cache: Optional[bool] = True) -> dict:
+    def get_config(self, server: Server | None = None, *, plugin_name: str | None = None,
+                   use_cache: bool | None = True) -> dict:
         if plugin_name:
             return super().get_config(server, plugin_name=plugin_name, use_cache=use_cache)
         if not server:

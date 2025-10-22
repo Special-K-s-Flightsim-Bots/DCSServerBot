@@ -1,15 +1,15 @@
 schema;node_srs_schema:
   type: map
   nullable: false
-  allowempty: true  # allow additional parameters
   mapping:
+    name: {type: str, nullable: false, range: {min: 1}}
     installation: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
     autoupdate: {type: bool, nullable: false}
     announce:
       type: map
       nullable: false
       mapping:
-        channel: { type: int, nullable: false }
+        channel: { type: int, required: true, nullable: false }
         title: { type: str, nullable: false, range: { min: 1 } }
         description: { type: str, nullable: false, range: { min: 1 } }
         footer: { type: str, nullable: false, range: { min: 1 } }
@@ -37,9 +37,9 @@ schema;node_srs_schema:
 schema;instance_srs_schema:
   type: map
   nullable: false
-  allowempty: true  # allow additional parameters
   mapping:
     enabled: {type: bool, nullable: false}
+    name: {type: str, nullable: false, range: {min: 1}}
     config: {type: str, required: true, nullable: false}
     host: {type: str, nullable: false, range: {min: 1}}
     port: {type: int, nullable: false, func: unique_port}

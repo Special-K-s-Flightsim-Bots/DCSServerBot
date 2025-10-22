@@ -5,7 +5,8 @@ import logging
 
 from core.data.node import FatalException
 from core.services.base import Service
-from typing import Type, Optional, TypeVar, Callable, Union, TYPE_CHECKING, Generic, ClassVar, Any
+from core.utils.helper import dynamic_import
+from typing import Type, TypeVar, Callable, TYPE_CHECKING, Generic, ClassVar, Any
 
 if TYPE_CHECKING:
     from core import NodeImpl
@@ -16,13 +17,13 @@ T = TypeVar("T", bound=Service)
 
 
 class ServiceRegistry(Generic[T]):
-    _instance: ClassVar[Optional[ServiceRegistry]] = None
-    _node: ClassVar[Optional[NodeImpl]] = None
+    _instance: ClassVar[ServiceRegistry | None] = None
+    _node: ClassVar[NodeImpl | None] = None
     _registry: ClassVar[dict[Any, Any]] = {}
     _master_only: ClassVar[set[Any]] = set()
     _plugins: ClassVar[dict[Any, str]] = {}
     _singletons: ClassVar[dict[Any, Any]] = {}
-    _log: ClassVar[Optional[logging.Logger]] = None
+    _log: ClassVar[logging.Logger | None] = None
 
     def __new__(cls, node: NodeImpl) -> ServiceRegistry[T]:
         if cls._instance is None:
@@ -39,9 +40,9 @@ class ServiceRegistry(Generic[T]):
         await self.shutdown()
 
     @classmethod
-    def register(cls, *, t: Optional[Type[T]] = None, master_only: Optional[bool] = False,
-                 plugin: Optional[str] = None,
-                 depends_on: Optional[list[Type[T]]] = None) -> Callable[[Type[T]], Type[T]]:
+    def register(cls, *, t: Type[T] | None = None, master_only: bool | None = False,
+                 plugin: str | None = None,
+                 depends_on: list[Type[T]] | None = None) -> Callable[[Type[T]], Type[T]]:
         def inner_wrapper(wrapped_class: Type[T]) -> Type[T]:
             ServiceRegistry._registry[t or wrapped_class] = wrapped_class
             if master_only:
@@ -64,7 +65,7 @@ class ServiceRegistry(Generic[T]):
         return instance
 
     @classmethod
-    def get(cls, t: Union[str, Type[T]]) -> Optional[T]:
+    def get(cls, t: str | Type[T]) -> T | None:
         if isinstance(t, str):
             for key, value in ServiceRegistry._singletons.items():
                 if key.__name__ == t:
@@ -95,6 +96,8 @@ class ServiceRegistry(Generic[T]):
     @classmethod
     async def run(cls):
         ServiceRegistry._log.info("- Starting Services ...")
+        # dynamic import all services below ./services
+        dynamic_import('services')
         services = [
             ServiceRegistry.new(service)
             for service in ServiceRegistry.services().keys()

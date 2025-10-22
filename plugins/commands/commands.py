@@ -13,7 +13,7 @@ from discord import app_commands, AppCommandOptionType
 from discord.utils import MISSING
 from pathlib import Path
 from services.bot import DCSServerBot, BotService
-from typing import Optional, Any, Mapping, Union
+from typing import Any, Mapping
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -25,7 +25,7 @@ TYPE_MAP: Mapping[str, str] = {
     "node": "app_commands.Transform[Node, utils.NodeTransformer]",
     "server": "app_commands.Transform[Server, utils.ServerTransformer]",
     "instance": "app_commands.Transform[Instance, utils.InstanceTransformer]",
-    "user":   "app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]",
+    "user":   "app_commands.Transform[discord.Member | str, utils.UserTransformer]",
     "member": "discord.Member",
     "channel": "discord.Channel",
     "role": "discord.Role"
@@ -74,7 +74,7 @@ class Commands(Plugin):
                     process.kill()
         await super().cog_unload()
 
-    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
+    async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
         if new_version == '3.1':
             config = Path(self.node.config_dir) / 'plugins' / 'commands.yaml'
             if not config.exists():
@@ -122,7 +122,7 @@ class Commands(Plugin):
         self,
         interaction: discord.Interaction,
         *msgs: str,
-        embed: Optional[discord.Embed] = None,
+        embed: discord.Embed | None = None,
     ):
         await interaction.followup.send(msgs[0], embed=embed)
         for msg in msgs[1:]:
@@ -230,7 +230,7 @@ class Commands(Plugin):
                     if rc:
                         ret.append(rc)
         else:
-            for server in self.bot.servers.values():
+            for server in self.bot.get_servers(manager=interaction.user).values():
                 rc = await do_send(server)
                 if rc:
                     ret.append(rc)
@@ -254,7 +254,7 @@ class Commands(Plugin):
             else:  # list of servers
                 server = [self.bot.servers[s] for s in cfg["server"]]
         elif 'server' not in kwargs:
-            server = self.bot.get_server(interaction.message)
+            server = self.bot.get_server(interaction)
             if server:
                 kwargs["server"] = server
         else:
@@ -313,7 +313,7 @@ class Commands(Plugin):
                 typ = f"app_commands.Range[{typ}, {min_value or 'None'}, {max_value or 'None'}]"
             required = param.get('required', False)
             if not required:
-                typ = f"Optional[{typ}]"
+                typ = f"{typ} | None"
             part = f"{name}: {typ}"
             default = param.get('default')
             if default is not None:
@@ -365,8 +365,6 @@ async def __{sanitized_name}_callback(interaction: discord.Interaction):
                         "discord": discord,
                         "app_commands": app_commands,
                         "utils": utils,
-                        "Optional": Optional,
-                        "Union": Union,
                         "Server": Server,
                         "Instance": Instance,
                         "Node": Node

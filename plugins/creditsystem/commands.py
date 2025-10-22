@@ -7,7 +7,7 @@ from discord.ext import tasks
 from core import utils, Plugin, PluginRequiredError, Group, get_translation, PersistentReport
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Optional, cast, Union
+from typing import cast
 
 from .listener import CreditSystemListener
 from .player import CreditPlayer
@@ -30,7 +30,7 @@ class CreditSystem(Plugin[CreditSystemListener]):
         await super().cog_unload()
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: Optional[str] = None) -> None:
+                    server: str | None = None) -> None:
         self.log.debug('Pruning Creditsystem ...')
         if ucids:
             for ucid in ucids:
@@ -76,7 +76,7 @@ class CreditSystem(Plugin[CreditSystemListener]):
     @utils.app_has_role('DCS')
     @app_commands.rename(member="user")
     async def info(self, interaction: discord.Interaction,
-                   member: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]] = None):
+                   member: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None):
         if member:
             if member != interaction.user and not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
                 # noinspection PyUnresolvedReferences
@@ -164,7 +164,7 @@ class CreditSystem(Plugin[CreditSystemListener]):
             n = 0
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        p_receiver: Optional[CreditPlayer] = None
+        p_receiver: CreditPlayer | None = None
         for server in self.bot.servers.values():
             p_receiver = cast(CreditPlayer, server.get_player(ucid=receiver))
             if p_receiver:
@@ -280,12 +280,12 @@ class CreditSystem(Plugin[CreditSystemListener]):
                 ephemeral=True)
             return
         # now see, if one of the parties is an active player already...
-        p_donor: Optional[CreditPlayer] = None
+        p_donor: CreditPlayer | None = None
         for server in self.bot.servers.values():
             p_donor = cast(CreditPlayer, server.get_player(ucid=donor))
             if p_donor:
                 break
-        p_receiver: Optional[CreditPlayer] = None
+        p_receiver: CreditPlayer | None = None
         for server in self.bot.servers.values():
             p_receiver = cast(CreditPlayer, server.get_player(ucid=receiver))
             if p_receiver:
@@ -356,6 +356,46 @@ class CreditSystem(Plugin[CreditSystemListener]):
                 await interaction.followup.send(
                     to.mention + _(', you just received {donation} credit points from {member}!').format(
                         donation=donation, member=utils.escape_string(interaction.user.display_name)))
+
+    @credits.command(description=_('Reset credits for a player or a whole campaign'))
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    async def reset(self, interaction: discord.Interaction,
+                    user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None):
+        if user:
+            if isinstance(user, discord.Member):
+                ucid = await self.bot.get_ucid_by_member(user)
+                name = user.display_name
+            else:
+                ucid = user
+                _user = await self.bot.get_member_or_name_by_ucid(ucid)
+                if isinstance(user, discord.Member):
+                    name = _user.display_name
+                else:
+                    name = _user
+        else:
+            ucid = None
+
+        ephemeral = utils.get_ephemeral(interaction)
+        sql = "UPDATE credits SET points = 0 WHERE campaign_id = %(campaign_id)s"
+        if user:
+            message = _("I'm going to delete the campaign credits of user\n"
+                        "{} for the running campaign.").format(name)
+            sql += " AND player_ucid = %(ucid)s"
+        else:
+            message = _("I'm going to delete all campaign credits for the running campaign.")
+        if not await utils.yn_question(interaction, message, ephemeral=ephemeral):
+            await interaction.followup.send(_("Aborted."))
+            return
+
+        campaign_id, campaign_name = utils.get_running_campaign(self.node)
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute(sql, {
+                    "campaign_id": campaign_id,
+                    "ucid": ucid
+                })
+        await interaction.followup.send(_('Campaign credits have been deleted.'), ephemeral=ephemeral)
 
     @tasks.loop(minutes=5)
     async def update_leaderboard(self):

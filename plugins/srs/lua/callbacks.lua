@@ -6,7 +6,7 @@ local dcs_srs   = dcs_srs or {}
 dcsbot.srs = dcsbot.srs or {}
 
 function dcs_srs.onPlayerTryChangeSlot(playerID, side, slotID)
-    if not dcsbot.params['srs'] or not dcsbot.params['srs']['enforce_srs'] then
+    if not dcsbot.params or not dcsbot.params['srs'] or not dcsbot.params['srs']['enforce_srs'] then
         return
     end
     log.write('DCSServerBot', log.DEBUG, 'DCS-SRS: onPlayerTryChangeSlot()')
@@ -22,4 +22,4 @@ function dcs_srs.onPlayerTryChangeSlot(playerID, side, slotID)
     end
 end
 
-DCS.setUserCallbacks(dcs_srs)
+Sim.setUserCallbacks(dcs_srs)

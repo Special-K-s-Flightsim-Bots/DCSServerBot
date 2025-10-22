@@ -12,9 +12,8 @@ from enum import Enum
 from filecmp import cmp
 from functools import total_ordering
 from packaging import version
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from psycopg.rows import dict_row
-from typing import Optional, Union
 from urllib.parse import urlparse
 
 from ..servicebus import ServiceBus
@@ -92,6 +91,11 @@ class ModManagerService(Service):
                     _version = await self.get_latest_version(package)
                 else:
                     _version = package['version']
+                # check for valid versions
+                if _version is None:
+                    self.log.warning(f"{package['name']} without version in {folder.name}, skipped!")
+                    continue
+
                 installed = await self.get_installed_package(server, folder, package['name'])
                 if (not installed or installed != _version) and \
                         server.status != Status.SHUTDOWN:
@@ -124,7 +128,7 @@ class ModManagerService(Service):
                         server.maintenance = False
 
     @staticmethod
-    def parse_filename(filename: str) -> tuple[Optional[str], Optional[str]]:
+    def parse_filename(filename: str) -> tuple[str | None, str | None]:
         if filename.endswith('.zip'):
             filename = filename[:-4]
         exp = re.compile(r'(?P<package>.*?)(?:v)?(?P<version>[0-9]+(?:\.[A-Za-z0-9._-]+)?)$')
@@ -134,7 +138,7 @@ class ModManagerService(Service):
         else:
             return None, None
 
-    async def get_installed_packages(self, reference: Union[Server, Node], folder: Folder) -> list[tuple[str, str]]:
+    async def get_installed_packages(self, reference: Server | Node, folder: Folder) -> list[tuple[str, str]]:
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(
@@ -155,7 +159,7 @@ class ModManagerService(Service):
                 data = await response.json()
         return set([x['tag_name'].strip('v') for x in data])
 
-    async def get_download_url(self, repo: str, package_name: str, version: str) -> Optional[str]:
+    async def get_download_url(self, repo: str, package_name: str, version: str) -> str | None:
         url = f"https://api.github.com/repos/{self.extract_repo_name(repo)}/releases"
         async with ClientSession() as session:
             async with session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
@@ -192,7 +196,7 @@ class ModManagerService(Service):
         path = urlparse(url).path
         return path.lstrip('/')
 
-    async def download(self, url: str, folder: Folder, force: Optional[bool] = False) -> None:
+    async def download(self, url: str, folder: Folder, force: bool | None = False) -> None:
         config = self.get_config()
         path = os.path.expandvars(config[folder.value])
         filename = url.split('/')[-1]
@@ -208,8 +212,8 @@ class ModManagerService(Service):
                     outfile.write(await response.read())
         self.log.info(f"  => ModManager: {folder.value}/{filename} downloaded.")
 
-    async def download_from_repo(self, repo: str, folder: Folder, *, package_name: Optional[str] = None,
-                                 version: Optional[str] = None, force: Optional[bool] = False):
+    async def download_from_repo(self, repo: str, folder: Folder, *, package_name: str | None = None,
+                                 version: str | None = None, force: bool | None = False):
         if not package_name:
             package_name = self.extract_repo_name(repo).split('/')[-1]
         if not version or version == 'latest':
@@ -253,14 +257,14 @@ class ModManagerService(Service):
                     f"Update-check skipped for package {package['name']}.")
         return await self._get_latest_file_version(package)
 
-    async def get_installed_package(self, reference: Union[Server, Node], folder: Folder, package_name: str) -> Optional[str]:
+    async def get_installed_package(self, reference: Server | Node, folder: Folder, package_name: str) -> str | None:
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT version FROM mm_packages WHERE server_name = %s AND package_name = %s AND folder = %s
             """, (reference.name, package_name, folder.value))
             return (await cursor.fetchone())[0] if cursor.rowcount == 1 else None
 
-    async def recreate_install_log(self, reference: Union[Server, Node], folder: Folder, package_name: str, version: str) -> bool:
+    async def recreate_install_log(self, reference: Server | Node, folder: Folder, package_name: str, version: str) -> bool:
         config = self.get_config()
         path = os.path.expandvars(config['SavedGames'])
         if folder == Folder.SavedGames:
@@ -306,7 +310,7 @@ class ModManagerService(Service):
                 return True
         return False
 
-    async def do_install(self, reference: Union[Server, Node], folder: Folder, package_name: str, version: str,
+    async def do_install(self, reference: Server | Node, folder: Folder, package_name: str, version: str,
                          path: str, filename: str) -> bool:
         if folder == Folder.SavedGames:
             target = reference.instance.home
@@ -321,7 +325,7 @@ class ModManagerService(Service):
             with zipfile.ZipFile(filename, 'r') as zfile:
                 ovgme = self.is_ovgme(zfile, package_name)
                 if ovgme:
-                    root = (zfile.namelist()[0]).split('/')[0] + '/'
+                    root = str(PurePosixPath(zfile.namelist()[0]).parent) + '/'
                 for name in zfile.namelist():
                     if ovgme:
                         _name = name.replace(root, '')
@@ -395,8 +399,8 @@ class ModManagerService(Service):
         return True
 
     @proxy
-    async def install_package(self, server: Server, folder: Union[Folder, str], package_name: str, version: str,
-                              repo: Optional[str] = None) -> bool:
+    async def install_package(self, server: Server, folder: Folder | str, package_name: str, version: str,
+                              repo: str | None = None) -> bool:
         self.log.info(f"Installing package {package_name}_v{version} ...")
         if isinstance(folder, str):
             folder = Folder(folder)
@@ -421,7 +425,7 @@ class ModManagerService(Service):
             self.log.exception(ex)
             raise
 
-    async def do_uninstall(self, reference: Union[Server, Node], folder: Folder, package_name: str, version: str,
+    async def do_uninstall(self, reference: Server | Node, folder: Folder, package_name: str, version: str,
                            packages_path: str) -> bool:
         target = reference.installation if folder == Folder.RootFolder else reference.instance.home
         async with aiofiles.open(os.path.join(packages_path, 'install.log'), mode='r', encoding=ENCODING) as log:
@@ -453,7 +457,7 @@ class ModManagerService(Service):
         return True
 
     @proxy
-    async def uninstall_package(self, server: Server, folder: Union[Folder, str], package_name: str,
+    async def uninstall_package(self, server: Server, folder: Folder | str, package_name: str,
                                 version: str) -> bool:
         if isinstance(folder, str):
             folder = Folder(folder)

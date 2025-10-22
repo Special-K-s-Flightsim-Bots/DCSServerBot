@@ -2,6 +2,7 @@ schema;node_olympus_schema:
   type: map
   nullable: false
   mapping:
+    name: {type: str, nullable: false, range: {min: 1}}
     nodejs: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
     debug: {type: bool, nullable: false}
     show_passwords: {type: bool, nullable: false}
@@ -20,6 +21,7 @@ schema;instance_olympus_schema:
   allowempty: true
   mapping:
     enabled: {type: bool, nullable: false}
+    name: {type: str, nullable: false, range: {min: 1}}
     debug: {type: bool, nullable: false}
     show_passwords: {type: bool, nullable: false}
     url: {type: url, nullable: false}

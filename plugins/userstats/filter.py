@@ -6,11 +6,11 @@ from core import utils, Pagination, ReportEnv, const
 from datetime import datetime, timezone
 from discord import app_commands
 from services.bot import DCSServerBot
-from typing import Any, Optional, Type
+from typing import Any, Type
 
 
 class StatisticsFilter(ABC):
-    def __init__(self, period: Optional[str] = None):
+    def __init__(self, period: str | None = None):
         self._period = period
 
     @property
@@ -282,7 +282,7 @@ class SquadronFilter(StatisticsFilter):
 class MissionStatisticsFilter(PeriodFilter):
 
     def filter(self, bot: DCSServerBot) -> str:
-        if self.period in self.list(bot):
+        if self.period in self.list(bot) and self.period.lower() != 'all':
             return f"time > ((now() AT TIME ZONE 'utc') - interval '1 {self.period}')"
         else:
             return '1 = 1'
@@ -309,7 +309,7 @@ class PeriodTransformer(app_commands.Transformer):
         super().__init__()
         self.filter: list[Type[StatisticsFilter]] = flt
 
-    async def transform(self, interaction: discord.Interaction, value: str) -> Optional[StatisticsFilter]:
+    async def transform(self, interaction: discord.Interaction, value: str) -> StatisticsFilter | None:
         for flt in self.filter:
             if flt.supports(interaction.client, value):
                 return flt(value)

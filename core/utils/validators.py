@@ -12,11 +12,11 @@ from pykwalify import partial_schemas
 from pykwalify.core import Core
 from pykwalify.errors import SchemaError, CoreError, PyKwalifyException
 from pykwalify.rule import Rule
-from typing import Any, Type, Union, Optional
+from typing import Any, Type
 
 logger = logging.getLogger(__name__)
 
-Text = Union[int, str]
+Text = int | str
 
 _types: dict[Type, str] = {
     str: "str",
@@ -63,7 +63,7 @@ else:
 
 
 class NodeData:
-    _instance: Optional['NodeData'] = None
+    _instance: 'NodeData | None' = None
     _lock = threading.Lock()    # make it thread-safe
 
     def __new__(cls, *args, **kwargs):

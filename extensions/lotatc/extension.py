@@ -21,7 +21,7 @@ from extensions.srs import SRS
 from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
-from typing import Optional, cast
+from typing import cast
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from watchdog.observers import Observer
 
@@ -56,7 +56,7 @@ class LotAtc(Extension, FileSystemEventHandler):
             if winver[1] == '10.0.14393' and 'Server' in winver[3]:
                 raise InstallException("LotAtc 2.5+ does not run on Windows Server 2016 anymore!")
 
-        self.observer: Optional[Observer] = None
+        self.observer: Observer | None = None
         self.bus = ServiceRegistry.get(ServiceBus)
         self.gcis = {
             "blue": {},
@@ -64,7 +64,7 @@ class LotAtc(Extension, FileSystemEventHandler):
         }
         atexit.register(self.stop_observer)
 
-    def load_config(self) -> Optional[dict]:
+    def load_config(self) -> dict | None:
         cfg = {}
         for path in [os.path.join(self.home, 'config.lua'), os.path.join(self.home, 'config.custom.lua')]:
             try:
@@ -172,7 +172,7 @@ class LotAtc(Extension, FileSystemEventHandler):
     def version(self) -> str:
         return utils.get_windows_version(os.path.join(self.home, r'bin', 'lotatc.dll'))
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         if not self.locals:
             raise NotImplementedError()
 
@@ -184,7 +184,7 @@ class LotAtc(Extension, FileSystemEventHandler):
         if show_passwords and (blue or red):
             value += f"\n🔹 Pass: {blue}\n🔸 Pass: {red}"
         return {
-            "name": "LotAtc",
+            "name": self.name,
             "version": self.version,
             "value": value
         }
@@ -198,7 +198,7 @@ class LotAtc(Extension, FileSystemEventHandler):
             return False
         return True
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
         path = os.path.join(self.home, 'stats.json')
         if os.path.exists(path):
             self.process_stats_file(path)
@@ -213,7 +213,7 @@ class LotAtc(Extension, FileSystemEventHandler):
             self.observer.join(timeout=10)
             self.observer = None
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
         super().shutdown()
         self.stop_observer()
         return True
@@ -229,7 +229,7 @@ class LotAtc(Extension, FileSystemEventHandler):
         version = utils.get_windows_version(os.path.join(path, 'LotAtc.dll'))
         return major_version, version
 
-    async def check_for_updates(self) -> Optional[str]:
+    async def check_for_updates(self) -> str | None:
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                 ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
             async with session.get(f"https://tinyurl.com/{UPDATER_CODE}", proxy=self.node.proxy,
@@ -251,6 +251,7 @@ class LotAtc(Extension, FileSystemEventHandler):
         exe_path = os.path.join(cwd, 'LotAtc_updater.exe')
         args = ['-c', 'up']
         if sys.platform == 'win32':
+            # noinspection PyUnresolvedReferences
             ctypes.windll.shell32.ShellExecuteW(
                 None, "runas", exe_path, ' '.join(args), None, 1)
         else:
@@ -347,7 +348,7 @@ class LotAtc(Extension, FileSystemEventHandler):
                         "params": params
                     })
         except Exception as ex:
-            self.log.exception(ex)
+            self.log.error(f"LotAtc update failed: {ex}")
 
     async def get_ports(self) -> dict:
         return {

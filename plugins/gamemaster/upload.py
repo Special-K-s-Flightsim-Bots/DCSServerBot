@@ -6,7 +6,7 @@ import os
 from core import utils, get_translation, Server, ServerUploadHandler
 from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .commands import GameMaster
@@ -51,7 +51,7 @@ class GameMasterUploadHandler(ServerUploadHandler):
             await self.channel.send(embed=embed)
         await self.message.delete()
 
-    async def upload(self, base_dir: str, ignore_list: Optional[list[str]] = None):
+    async def upload(self, base_dir: str, ignore_list: list[str] | None = None):
         for att in self.message.attachments:
             if att.filename.endswith('.lua'):
                 await super().upload(base_dir, ignore_list)

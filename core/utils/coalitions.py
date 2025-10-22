@@ -1,7 +1,7 @@
 from __future__ import annotations
 import discord
 from core import Coalition
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import Server
@@ -12,7 +12,7 @@ __all__ = [
 ]
 
 
-def get_sides(bot: DCSServerBot, ctx: Union[discord.Interaction, discord.Message], server: Server) -> list[Coalition]:
+def get_sides(bot: DCSServerBot, ctx: discord.Interaction | discord.Message, server: Server) -> list[Coalition]:
     if 'coalitions' not in server.locals:
         return [Coalition.BLUE, Coalition.RED]
 

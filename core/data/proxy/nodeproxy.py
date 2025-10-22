@@ -5,9 +5,9 @@ import os
 from core.data.node import Node, UploadStatus, SortOrder
 from core.data.proxy.instanceproxy import InstanceProxy
 from core.services.registry import ServiceRegistry
-from core.utils import cache_with_expiration
+from core.utils import async_cache, cache_with_expiration
 from pathlib import Path
-from typing import Union, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -105,8 +105,8 @@ class NodeProxy(Node):
             "method": "upgrade"
         }, node=self.name)
 
-    async def dcs_update(self, branch: Optional[str] = None, version: Optional[str] = None,
-                         warn_times: list[int] = None, announce: Optional[bool] = True):
+    async def dcs_update(self, branch: str | None = None, version: str | None = None,
+                         warn_times: list[int] = None, announce: bool | None = True):
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
@@ -120,7 +120,21 @@ class NodeProxy(Node):
         }, node=self.name, timeout=600)
         return data['return']
 
-    @cache_with_expiration(expiration=30)
+    async def dcs_repair(self, warn_times: list[int] = None, slow: bool | None = False,
+                         check_extra_files: bool | None = False):
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "dcs_repair",
+            "params": {
+                "warn_times": warn_times,
+                "slow": slow,
+                "check_extra_files": check_extra_files
+            }
+        }, node=self.name, timeout=600)
+        return data['return']
+
+    @cache_with_expiration(expiration=60)
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -139,7 +153,7 @@ class NodeProxy(Node):
                 "what": what,
                 "module": module
             }
-        }, node=self.name, timeout=600)
+        }, node=self.name, timeout=3600)
 
     @cache_with_expiration(expiration=60)
     async def get_installed_modules(self) -> list[str]:
@@ -162,7 +176,7 @@ class NodeProxy(Node):
         return data['return']
 
     @cache_with_expiration(expiration=60)
-    async def get_available_dcs_versions(self, branch: str) -> Optional[list[str]]:
+    async def get_available_dcs_versions(self, branch: str) -> list[str] | None:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -176,7 +190,7 @@ class NodeProxy(Node):
 
 
     @cache_with_expiration(expiration=60)
-    async def get_latest_version(self, branch: str) -> Optional[str]:
+    async def get_latest_version(self, branch: str) -> str | None:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -188,7 +202,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         return data['return']
 
-    async def shell_command(self, cmd: str, timeout: int = 60) -> Optional[tuple[str, str]]:
+    async def shell_command(self, cmd: str, timeout: int = 60) -> tuple[str, str] | None:
         _timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -201,7 +215,7 @@ class NodeProxy(Node):
         }, timeout=timeout + _timeout, node=self.name)
         return data['return']
 
-    async def read_file(self, path: str) -> Union[bytes, int]:
+    async def read_file(self, path: str) -> bytes | int:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -233,7 +247,7 @@ class NodeProxy(Node):
         return UploadStatus(data["return"])
 
     @cache_with_expiration(expiration=60)
-    async def list_directory(self, path: str, *, pattern: Union[str, list[str]] = '*',
+    async def list_directory(self, path: str, *, pattern: str | list[str] = '*',
                              order: SortOrder = SortOrder.DATE,
                              is_dir: bool = False, ignore: list[str] = None, traverse: bool = False
                              ) -> tuple[str, list[str]]:
@@ -275,7 +289,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=timeout)
 
-    async def rename_file(self, old_name: str, new_name: str, *, force: Optional[bool] = False):
+    async def rename_file(self, old_name: str, new_name: str, *, force: bool | None = False):
         timeout = 60 if not self.slow_system else 120
         await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -288,7 +302,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=timeout)
 
-    async def rename_server(self, server: Server, new_name: str, update_settings: Optional[bool] = False):
+    async def rename_server(self, server: Server, new_name: str, update_settings: bool | None = False):
         timeout = 60 if not self.slow_system else 120
         await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -400,7 +414,8 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         return data['return']
 
-    async def get_cpu_info(self) -> Union[bytes, int]:
+    @async_cache
+    async def get_cpu_info(self) -> bytes | int:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
             "command": "rpc",

@@ -3,3 +3,4 @@ schema;instance_voicechat_schema:
   nullable: false
   mapping:
     enabled: {type: bool, nullable: false}
+    name: {type: str, nullable: false, range: {min: 1}}

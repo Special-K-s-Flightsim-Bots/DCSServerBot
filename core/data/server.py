@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from psutil import Process
-from typing import Optional, Union, TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any
 
 from .dataobject import DataObject
 from .const import Status, Coalition, Channel, Side
@@ -40,12 +40,12 @@ class Server(DataObject):
     _channels: dict[Channel, int] = field(default_factory=dict, compare=False)
     _status: Status = field(default=Status.UNREGISTERED, compare=False)
     status_change: asyncio.Event = field(compare=False, init=False)
-    _options: Optional[Union[utils.SettingsDict, utils.RemoteSettingsDict]] = field(default=None, compare=False)
-    _settings: Optional[Union[utils.SettingsDict, utils.RemoteSettingsDict]] = field(default=None, compare=False)
-    current_mission: Optional[Mission] = field(default=None, compare=False)
+    _options: utils.SettingsDict | utils.RemoteSettingsDict | None = field(default=None, compare=False)
+    _settings: utils.SettingsDict | utils.RemoteSettingsDict | None = field(default=None, compare=False)
+    current_mission: Mission | None = field(default=None, compare=False)
     mission_id: int = field(default=-1, compare=False)
     players: dict[int, Player] = field(default_factory=dict, compare=False)
-    process: Optional[Process] = field(default=None, compare=False)
+    process: Process | None = field(default=None, compare=False)
     _maintenance: bool = field(compare=False, default=False)
     restart_pending: bool = field(default=False, compare=False)
     on_mission_end: dict = field(default_factory=dict, compare=False)
@@ -56,7 +56,7 @@ class Server(DataObject):
     locals: dict = field(default_factory=dict, compare=False)
     last_seen: datetime = field(compare=False, default=datetime.now(timezone.utc))
     restart_time: datetime = field(compare=False, default=None)
-    idle_since: Optional[datetime] = field(compare=False, default=None)
+    idle_since: datetime | None = field(compare=False, default=None)
 
     def __post_init__(self):
         super().__post_init__()
@@ -113,11 +113,11 @@ class Server(DataObject):
         return self._status
 
     @status.setter
-    def status(self, status: Union[Status, str]):
+    def status(self, status: Status | str):
         self.set_status(status)
 
     # allow overloading of setter
-    def set_status(self, status: Union[Status, str]):
+    def set_status(self, status: Status | str):
         if isinstance(status, str):
             new_status = Status(status)
         else:
@@ -146,7 +146,7 @@ class Server(DataObject):
     def maintenance(self, maintenance: bool):
         self.set_maintenance(maintenance)
 
-    def set_maintenance(self, maintenance: Union[str, bool]):
+    def set_maintenance(self, maintenance: str | bool):
         if isinstance(maintenance, str):
             new_maintenance = maintenance.lower() == 'true'
         else:
@@ -185,7 +185,7 @@ class Server(DataObject):
     def add_player(self, player: Player):
         self.players[player.id] = player
 
-    def get_player(self, **kwargs) -> Optional[Player]:
+    def get_player(self, **kwargs) -> Player | None:
         if 'id' in kwargs:
             return self.players.get(kwargs['id'])
         for player in self.players.values():
@@ -252,10 +252,10 @@ class Server(DataObject):
     def options(self) -> dict:
         raise NotImplementedError()
 
-    async def get_current_mission_file(self) -> Optional[str]:
+    async def get_current_mission_file(self) -> str | None:
         raise NotImplementedError()
 
-    async def get_current_mission_theatre(self) -> Optional[str]:
+    async def get_current_mission_theatre(self) -> str | None:
         raise NotImplementedError()
 
     async def send_to_dcs(self, message: dict):
@@ -264,10 +264,10 @@ class Server(DataObject):
     async def rename(self, new_name: str, update_settings: bool = False) -> None:
         raise NotImplementedError()
 
-    async def startup(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
+    async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
         raise NotImplementedError()
 
-    async def send_to_dcs_sync(self, message: dict, timeout: Optional[int] = 5.0) -> Optional[dict]:
+    async def send_to_dcs_sync(self, message: dict, timeout: int | None = 5.0) -> dict | None:
         with PerformanceLog(f"DCS: dcsbot.{message['command']}()"):
             future = self.bus.loop.create_future()
             token = 'sync-' + str(uuid.uuid4())
@@ -290,7 +290,7 @@ class Server(DataObject):
         else:
             raise NotImplementedError()
 
-    async def sendPopupMessage(self, recipient: Union[Coalition, str], message: str, timeout: Optional[int] = -1,
+    async def sendPopupMessage(self, recipient: Coalition | str, message: str, timeout: int | None = -1,
                                sender: str = None):
         if timeout == -1:
             timeout = self.locals.get('message_timeout', 10)
@@ -303,7 +303,7 @@ class Server(DataObject):
             "time": timeout
         })
 
-    async def playSound(self, recipient: Union[Coalition, str], sound: str):
+    async def playSound(self, recipient: Coalition | str, sound: str):
         await self.send_to_dcs({
             "command": "playSound",
             "to": 'coalition' if isinstance(recipient, Coalition) else 'group',
@@ -311,7 +311,7 @@ class Server(DataObject):
             "sound": sound
         })
 
-    async def lock(self, message: Optional[str] = None):
+    async def lock(self, message: str | None = None):
         await self.send_to_dcs({
             "command": "lock_server",
             "message": message
@@ -336,7 +336,7 @@ class Server(DataObject):
                 return True
         return False
 
-    async def restart(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
+    async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
         raise NotImplementedError()
 
     async def setStartIndex(self, mission_id: int) -> None:
@@ -348,7 +348,7 @@ class Server(DataObject):
     async def setCoalitionPassword(self, coalition: Coalition, password: str):
         raise NotImplementedError()
 
-    async def addMission(self, path: str, *, idx: Optional[int] = -1, autostart: Optional[bool] = False) -> list[str]:
+    async def addMission(self, path: str, *, idx: int | None = -1, autostart: bool | None = False) -> list[str]:
         raise NotImplementedError()
 
     async def deleteMission(self, mission_id: int) -> list[str]:
@@ -357,11 +357,11 @@ class Server(DataObject):
     async def replaceMission(self, mission_id: int, path: str) -> list[str]:
         raise NotImplementedError()
 
-    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True,
-                          use_orig: Optional[bool] = True, no_reload: Optional[bool] = False) -> Optional[bool]:
+    async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
+                          use_orig: bool | None = True, no_reload: bool | None = False) -> bool | None:
         raise NotImplementedError()
 
-    async def loadNextMission(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> bool:
+    async def loadNextMission(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> bool:
         raise NotImplementedError()
 
     async def getMissionList(self) -> list[str]:
@@ -370,14 +370,14 @@ class Server(DataObject):
     async def getAllMissionFiles(self) -> list[str]:
         raise NotImplementedError()
 
-    async def modifyMission(self, filename: str, preset: Union[list, dict], use_orig: bool = True) -> str:
+    async def modifyMission(self, filename: str, preset: list | dict, use_orig: bool = True) -> str:
         raise NotImplementedError()
 
     async def uploadMission(self, filename: str, url: str, *, missions_dir: str = None, force: bool = False,
                             orig = False) -> UploadStatus:
         raise NotImplementedError()
 
-    async def apply_mission_changes(self, filename: Optional[str] = None, use_orig: Optional[bool] = True) -> str:
+    async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True) -> str:
         raise NotImplementedError()
 
     @property
@@ -396,6 +396,8 @@ class Server(DataObject):
                 self._channels[Channel.EVENTS] = self._channels[Channel.CHAT]
             if Channel.VOICE not in self._channels:
                 self._channels[Channel.VOICE] = -1
+            if Channel.AUDIT not in self._channels:
+                self._channels[Channel.AUDIT] = -1
             if Channel.COALITION_BLUE_EVENTS not in self._channels and Channel.COALITION_BLUE_CHAT in self._channels:
                 self._channels[Channel.COALITION_BLUE_EVENTS] = self._channels[Channel.COALITION_BLUE_CHAT]
             if Channel.COALITION_RED_EVENTS not in self._channels and Channel.COALITION_RED_CHAT in self._channels:

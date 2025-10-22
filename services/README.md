@@ -36,7 +36,7 @@ with the ServiceRegistry, to be able to be used anywhere in the code.
 
 A sample might look like this:
 ```python
-from core import ServiceRegistry, Service
+from core import ServiceRegistry, Service, Server
 
 # Register the service with the ServiceRegistry.
 # You can define an optional plugin, that determines if this services should be loaded or not.
@@ -52,6 +52,14 @@ class MyService(Service):
         async def stop(self, *args, **kwargs):
             await super().stop()
             # do something on service stop
+
+        async def switch(self):
+            await super().switch()
+            # called when a master switch happened
+
+        def get_config(self, server: Server | None = None, **kwargs) -> dict:
+            # you can overwrite the get_config() method to implement your own config-reader.
+            ...
 ```
 That's more or less it. You have access to any other core functionality of the bot in here. You can access other services
 (be aware - you might not be on the master node!), the database, the local servers (unless you are on the master, then

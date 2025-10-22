@@ -6,7 +6,6 @@ from core import report, utils, Side, Server, Coalition
 from decimal import Decimal
 from matplotlib import cm
 from psycopg.rows import dict_row
-from typing import Optional
 
 from .filter import StatisticsFilter
 
@@ -38,7 +37,7 @@ def compute_font_size(num_bars):
 class HighscorePlaytime(report.GraphElement):
 
     async def render(self, interaction: discord.Interaction, server_name: str, limit: int,
-                     flt: StatisticsFilter, bar_labels: Optional[bool] = True):
+                     flt: StatisticsFilter, bar_labels: bool | None = True):
         sql = """
             SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, 
                    ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))) AS playtime 
@@ -103,7 +102,7 @@ class HighscorePlaytime(report.GraphElement):
 class HighscoreElement(report.GraphElement):
 
     async def render(self, interaction: discord.Interaction, server_name: str, limit: int, kill_type: str,
-                     flt: StatisticsFilter, bar_labels: Optional[bool] = True):
+                     flt: StatisticsFilter, bar_labels: bool | None = True):
         sql_parts = {
             'Air Targets': 'SUM(s.kills_planes+s.kills_helicopters)',
             'Ships': 'SUM(s.kills_ships)',

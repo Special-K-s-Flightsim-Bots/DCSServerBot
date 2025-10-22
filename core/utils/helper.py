@@ -33,7 +33,7 @@ from datetime import datetime, timedelta, timezone, tzinfo
 from difflib import unified_diff
 from importlib import import_module
 from pathlib import Path
-from typing import Optional, Union, TYPE_CHECKING, Generator, Iterable, Callable, Any
+from typing import TYPE_CHECKING, Generator, Iterable, Callable, Any
 from urllib.parse import urlparse
 
 # ruamel YAML support
@@ -81,7 +81,8 @@ __all__ = [
     "DictWrapper",
     "format_dict_pretty",
     "show_dict_diff",
-    "to_valid_pyfunc_name"
+    "to_valid_pyfunc_name",
+    "pg_interval_to_seconds"
 ]
 
 logger = logging.getLogger(__name__)
@@ -152,7 +153,7 @@ def str_to_class(name: str):
         return None
 
 
-def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str:
+def format_string(string_: str, default_: str | None = None, **kwargs) -> str:
     """
     Format the given string using the provided keyword arguments.
 
@@ -291,7 +292,7 @@ def slugify(value, allow_unicode=False):
 
 
 def alternate_parse_settings(path: str):
-    def parse(value: str) -> Union[int, str, bool]:
+    def parse(value: str) -> int | str | bool:
         if value.startswith('"'):
             return value[1:-1]
         elif value == 'true':
@@ -328,8 +329,8 @@ def alternate_parse_settings(path: str):
     return settings
 
 
-def get_all_players(self, linked: Optional[bool] = None, watchlist: Optional[bool] = None,
-                    vip: Optional[bool] = None) -> list[tuple[str, str]]:
+def get_all_players(self, linked: bool | None = None, watchlist: bool | None = None,
+                    vip: bool | None = None) -> list[tuple[str, str]]:
     """
     This method `get_all_players` returns a list of tuples containing the UCID and name of players from the database. Filtering can be optionally applied by providing values for the parameters
     * `linked`, `watchlist`, and `vip`.
@@ -362,7 +363,7 @@ def get_all_players(self, linked: Optional[bool] = None, watchlist: Optional[boo
         return [(row[0], row[1]) for row in conn.execute(sql)]
 
 
-def is_ucid(ucid: Optional[str]) -> bool:
+def is_ucid(ucid: str | None) -> bool:
     """
     :param ucid: The UCID (User Client ID) is a unique identifier used in the system.
     :return: Returns True if the UCID is valid, False otherwise.
@@ -386,7 +387,7 @@ def get_presets(node: Node) -> Iterable[str]:
     return presets
 
 
-def get_preset(node: Node, name: str, filename: Optional[str] = None) -> Optional[dict]:
+def get_preset(node: Node, name: str, filename: str | None = None) -> dict | None:
     """
     :param node: The node where the configuration is stored.
     :param name: The name of the preset to retrieve.
@@ -397,7 +398,7 @@ def get_preset(node: Node, name: str, filename: Optional[str] = None) -> Optiona
     def load_all_presets(filename: Path) -> dict:
         return yaml.load(filename.read_text(encoding='utf-8'))
 
-    def _read_presets_from_file(filename: Path, name: str) -> Optional[Union[dict, list]]:
+    def _read_presets_from_file(filename: Path, name: str) -> dict | list | None:
         all_presets = load_all_presets(filename)
         preset = all_presets.get(name)
         if isinstance(preset, list):
@@ -473,11 +474,16 @@ def dynamic_import(package_name: str):
     package = importlib.import_module(package_name)
     for loader, module_name, is_pkg in pkgutil.walk_packages(package.__path__):
         if is_pkg:
-            globals()[module_name] = importlib.import_module(f"{package_name}.{module_name}")
+            try:
+                globals()[module_name] = importlib.import_module(f"{package_name}.{module_name}")
+            except Exception as ex:
+                logger.error(f"Failed to import {module_name} due to {ex}, skipping.")
 
-
-def async_cache(func):
-    cache = {}
+def async_cache(func: Callable):
+    cache: dict[Any, Any] = {}
+    pending: dict[Any, asyncio.Future] = {}
+    locks: dict[Any, asyncio.Lock] = {}
+    _SENTINEL = object()
 
     def get_cache_key(*args, **kwargs):
         signature = inspect.signature(func)
@@ -491,6 +497,9 @@ def async_cache(func):
                 # For the self-parameter, use its id as part of the key
                 if k == "self":
                     hashable_args.append(id(v))
+                # if we have a .name element, use this as key instead
+                elif hasattr(v, "name") and not isinstance(v, (str, bytes)):
+                    hashable_args.append(("name", getattr(v, "name", None)))
                 # Convert lists to tuples, and handle nested lists
                 elif isinstance(v, list):
                     hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
@@ -498,22 +507,48 @@ def async_cache(func):
                     hashable_args.append(v)
 
         # Use tuple instead of frozenset to preserve order and handle nested structures
-        arg_tuple = tuple(hashable_args)
-        cache_key = (func.__name__, arg_tuple)
-        return cache_key
+        return func.__name__, tuple(hashable_args)
+
+    async def _get_lock(key) -> asyncio.Lock:
+        lock = locks.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            locks[key] = lock
+        return lock
 
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
-        # Create a cache key from both args and kwargs
-        # We need to freeze kwargs into an immutable form to use as dict key
-        cache_key = get_cache_key(*args, **kwargs)
+        key = get_cache_key(*args, **kwargs)
 
-        if cache_key in cache:
-            return cache[cache_key]
+        cached = cache.get(key, _SENTINEL)
+        if cached is not _SENTINEL:
+            return cached
 
-        result = await func(*args, **kwargs)
-        cache[cache_key] = result
-        return result
+        lock = await _get_lock(key)
+        async with lock:
+            cached = cache.get(key, _SENTINEL)
+            if cached is not _SENTINEL:
+                return cached
+
+            fut = pending.get(key)
+            if fut is None:
+                loop = asyncio.get_running_loop()
+                fut = loop.create_future()
+                pending[key] = fut
+
+                async def run():
+                    try:
+                        result = await func(*args, **kwargs)
+                        cache[key] = result
+                        fut.set_result(result)
+                    except Exception as e:
+                        fut.set_exception(e)
+                    finally:
+                        _ = pending.pop(key, None)
+
+                loop.create_task(run())
+
+        return await fut
 
     return wrapper
 
@@ -522,13 +557,14 @@ def cache_with_expiration(expiration: int):
     """
     Decorator to cache function results for a specific duration.
     Works with both sync and async functions.
-
-    :param expiration: Cache duration in seconds.
+    Adds concurrency safety (per-key in-flight coalescing).
     """
-
     def decorator(func: Callable) -> Callable:
         cache: dict[Any, Any] = {}
         cache_expiry: dict[Any, float] = {}
+        pending: dict[Any, asyncio.Future] = {}
+        locks: dict[Any, asyncio.Lock] = {}
+        _SENTINEL = object()
 
         def get_cache_key(*args, **kwargs):
             signature = inspect.signature(func)
@@ -541,45 +577,76 @@ def cache_with_expiration(expiration: int):
                 # For the self-parameter, use its id as part of the key
                 if k == "self":
                     hashable_args.append(id(v))
-                # Convert lists to tuples, and handle nested lists
+                # if we have a .name element, use this as key instead
+                elif hasattr(v, "name") and not isinstance(v, (str, bytes)):
+                    hashable_args.append(("name", getattr(v, "name", None)))
+                # Convert lists to tuples and handle nested lists
                 elif isinstance(v, list):
                     hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
                 else:
                     hashable_args.append(v)
-
-            # Use tuple instead of frozenset to preserve order and handle nested structures
-            arg_tuple = tuple(hashable_args)
-            cache_key = (func.__name__, arg_tuple)
-            return cache_key
+            return func.__name__, tuple(hashable_args)
 
         def check_cache(cache_key):
-            if cache_key in cache and cache_key in cache_expiry:
-                if time.time() < cache_expiry[cache_key]:
-                    return cache[cache_key]
-            return None
+            ts = cache_expiry.get(cache_key)
+            if ts is not None and time.time() < ts:
+                return cache.get(cache_key, _SENTINEL)
+            return _SENTINEL
 
         def update_cache(cache_key, result):
             cache[cache_key] = result
             cache_expiry[cache_key] = time.time() + expiration
             return result
 
+        async def _get_lock(cache_key) -> asyncio.Lock:
+            # Fast path
+            lock = locks.get(cache_key)
+            if lock is None:
+                # Create lazily; small race is fine (we only need mutual exclusion, not singletons)
+                lock = asyncio.Lock()
+                locks[cache_key] = lock
+            return lock
+
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
             cache_key = get_cache_key(*args, **kwargs)
 
             cached_result = check_cache(cache_key)
-            if cached_result is not None:
+            if cached_result is not _SENTINEL:
                 return cached_result
 
-            result = await func(*args, **kwargs)
-            return update_cache(cache_key, result)
+            lock = await _get_lock(cache_key)
+            async with lock:
+                cached_result = check_cache(cache_key)
+                if cached_result is not _SENTINEL:
+                    return cached_result
+
+                fut = pending.get(cache_key)
+                if fut is None:
+                    loop = asyncio.get_running_loop()
+                    fut = loop.create_future()
+                    pending[cache_key] = fut
+
+                    async def producer():
+                        try:
+                            result = await func(*args, **kwargs)
+                            update_cache(cache_key, result)
+                            fut.set_result(result)
+                        except Exception as e:
+                            fut.set_exception(e)
+                        finally:
+                            _ = pending.pop(cache_key, None)
+
+                    loop.create_task(producer())
+
+            return await fut
 
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
             cache_key = get_cache_key(*args, **kwargs)
 
             cached_result = check_cache(cache_key)
-            if cached_result is not None:
+            if cached_result is not _SENTINEL:
                 return cached_result
 
             result = func(*args, **kwargs)
@@ -668,6 +735,7 @@ class SettingsDict(dict):
         if not os.path.exists(self.path):
             return
         self.mtime = os.path.getmtime(self.path)
+        data = None
         if self.path.lower().endswith('.lua'):
             try:
                 data = luadata.read(self.path, encoding='utf-8')
@@ -675,7 +743,7 @@ class SettingsDict(dict):
                 self.log.debug(f"Exception while reading {self.path}:\n{ex}")
                 data = alternate_parse_settings(self.path)
                 if not data:
-                    self.log.error("- Error while parsing {}!".format(os.path.basename(self.path)))
+                    self.log.error("- Error while parsing {}:\n{}".format(os.path.basename(self.path), ex))
                     raise ex
         elif self.path.lower().endswith('.yaml'):
             with open(self.path, mode='r', encoding='utf-8') as file:
@@ -793,14 +861,14 @@ class RemoteSettingsDict(dict):
     Args:
         server (ServerProxy): The server proxy object that handles communication with the remote server.
         obj (str): The name of the object on the remote server that the settings belong to.
-        data (Optional[dict]): Optional initial data for the settings dictionary.
+        data (dict | None): Optional initial data for the settings dictionary.
 
     Attributes:
         server (ServerProxy): The server proxy object that handles communication with the remote server.
         obj (str): The name of the object on the remote server that the settings belong to.
 
     """
-    def __init__(self, server: ServerProxy, obj: str, data: Optional[dict] = None):
+    def __init__(self, server: ServerProxy, obj: str, data: dict | None = None):
         from core.services.registry import ServiceRegistry
         from services.servicebus import ServiceBus
 
@@ -840,7 +908,7 @@ class RemoteSettingsDict(dict):
             self.bus.loop.create_task(self.bus.send_to_node(msg, node=self.server.node))
 
 
-def tree_delete(d: dict, key: str, debug: Optional[bool] = False):
+def tree_delete(d: dict, key: str, debug: bool | None = False):
     """
     Clears an element from nested structure (a mix of dictionaries and lists)
     given a key in the form "root/element1/element2".
@@ -907,7 +975,7 @@ async def run_parallel_nofail(*tasks):
     await asyncio.gather(*tasks, return_exceptions=True)
 
 
-def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union[str, int, float, bool, list, dict]:
+def evaluate(value: str | int | float | bool | list | dict, **kwargs) -> str | int | float | bool | list | dict:
     """
     Evaluate the given value, replacing placeholders with keyword arguments if necessary.
 
@@ -929,15 +997,16 @@ def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union
 
     if isinstance(value, list):
         for i in range(len(value)):
-            value[i] = evaluate(value[i], **kwargs)
+            value[i] = _evaluate(value[i], **kwargs)
+        return value
     elif isinstance(value, dict):
         return {_evaluate(k, **kwargs): evaluate(v, **kwargs) for k, v in value.items()}
     else:
         return _evaluate(value, **kwargs)
 
 
-def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
-             debug: Optional[bool] = False, **kwargs) -> Generator[Optional[dict]]:
+def for_each(data: dict, search: list[str], depth: int | None = 0, *,
+             debug: bool | None = False, **kwargs) -> Generator[dict | None]:
     """
     :param data: The data to iterate over.
     :param search: The search pattern to match elements in the data.
@@ -1045,7 +1114,7 @@ class YAMLError(Exception):
     **Methods:**
 
     """
-    def __init__(self, file: str, ex: Union[MarkedYAMLError, ValueError, SchemaError]):
+    def __init__(self, file: str, ex: MarkedYAMLError | ValueError | SchemaError):
         super().__init__(f"Error in {file}, " + ex.__str__().replace('"<unicode string>"', file))
 
 
@@ -1198,3 +1267,101 @@ def to_valid_pyfunc_name(raw_name: str) -> str:
         cleaned = '_' + cleaned
 
     return cleaned
+
+
+# -------------------------------------------------------------
+# 1️⃣  Unit → seconds mapping (only integer units allowed)
+# -------------------------------------------------------------
+_UNIT_TO_SECONDS = {
+    # days
+    "day": 24 * 3600,
+    "days": 24 * 3600,
+    "d": 24 * 3600,
+    # weeks
+    "week": 7 * 24 * 3600,
+    "weeks": 7 * 24 * 3600,
+    "w": 7 * 24 * 3600,
+    # months → 30 days (approx)
+    "month": 30 * 24 * 3600,
+    "months": 30 * 24 * 3600,
+    "mon": 30 * 24 * 3600,
+    # years → 365 days (approx)
+    "year": 365 * 24 * 3600,
+    "years": 365 * 24 * 3600,
+    # hours
+    "hour": 3600,
+    "hours": 3600,
+    "h": 3600,
+    "hrs": 3600,
+    # minutes
+    "minute": 60,
+    "minutes": 60,
+    "min": 60,
+    "mins": 60,
+    # seconds (no fractions allowed)
+    "second": 1,
+    "seconds": 1,
+    "sec": 1,
+    "secs": 1,
+}
+
+# -------------------------------------------------------------
+# 2️⃣  Regex: captures "number + unit" pairs
+# -------------------------------------------------------------
+#   - number must be an integer (optional sign, no decimal point)
+#   - unit must be one of the keys in _UNIT_TO_SECONDS
+_INTERVAL_RE = re.compile(r'([+-]?\d+)\s*(\w+)', re.IGNORECASE)
+
+
+def _is_valid_unit(unit: str) -> bool:
+    return unit.lower() in _UNIT_TO_SECONDS
+
+
+def pg_interval_to_seconds(interval: str) -> int:
+    """
+    Convert a PostgreSQL‑style interval literal to whole seconds.
+
+    Rules
+    -----
+    * Only integer values are accepted for all units.
+      If a value contains a decimal point, a ValueError is raised.
+    * Units below “seconds” (milliseconds, microseconds, …) are rejected.
+    * The function returns an *integer* number of seconds (no fractional part).
+
+    Parameters
+    ----------
+    interval : str
+        Example: "1 day 2 hours", "3 weeks", "-2 days 15 minutes 30 seconds"
+
+    Returns
+    -------
+    int
+        Total number of seconds.
+
+    Raises
+    ------
+    ValueError
+        If the string contains a fractional value, an unknown unit, or
+        a sub‑second unit.
+    """
+    total_seconds = 0
+
+    # Scan the string for all "number unit" pairs
+    for num_str, unit in _INTERVAL_RE.findall(interval):
+        # 1️⃣  Unit check
+        if not _is_valid_unit(unit):
+            raise ValueError(f"Unsupported or sub‑second unit: '{unit}'")
+
+        # 2️⃣  Value check – must be an integer
+        #      (num_str comes from the regex that only accepts plain integers)
+        #      The regex already guarantees no decimal point,
+        #      so we can safely convert to int.
+        try:
+            value = int(num_str)
+        except ValueError:  # pragma: no cover – defensive
+            raise ValueError(f"Invalid number: {num_str!r}")
+
+        # 3️⃣  Convert to seconds and accumulate
+        total_seconds += value * _UNIT_TO_SECONDS[unit.lower()]
+
+    return total_seconds

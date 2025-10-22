@@ -7,7 +7,7 @@ import shutil
 import sys
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
-    PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, ServiceRegistry
+    PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, ServiceRegistry, NodeTransformer
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
@@ -20,7 +20,7 @@ from plugins.modmanager.commands import get_installed_mods
 from plugins.scheduler.views import ConfigView
 from services.bot import DCSServerBot
 from services.modmanager import ModManagerService
-from typing import Optional, Union, Literal, Type
+from typing import Literal, Type
 from zipfile import ZipFile, ZIP_DEFLATED
 
 # ruamel YAML support
@@ -88,8 +88,11 @@ async def label_autocomplete(interaction: discord.Interaction, current: str) -> 
         config = interaction.client.cogs['Admin'].get_config(server)
         choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=x['label'], value=x['label']) for x in config['downloads']
-            if ((not current or current.casefold() in x['label'].casefold()) and
-                (not x.get('discord') or utils.check_roles(x['discord'], interaction.user)))
+            if (
+                    (not current or current.casefold() in x['label'].casefold()) and
+                    (not x.get('discord') or utils.check_roles(x['discord'], interaction.user)) and
+                    (not x.get('restricted', False) or not server.node.locals.get('restrict_commands', False))
+            )
         ]
         return choices[:25]
     except Exception as ex:
@@ -131,6 +134,14 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
             config = next(x for x in config['downloads'] if x['label'] == label)
         except StopIteration:
             return []
+
+        # check if we are allowed to display the list
+        if (
+                (config.get('discord') and not utils.check_roles(config['discord'], interaction.user)) or
+                (config.get('restricted', False) and server.node.locals.get('restrict_commands', False))
+        ):
+            return []
+
         base_dir = utils.format_string(config['directory'], server=server)
         exp_base, file_list = await server.node.list_directory(base_dir, pattern=config['pattern'], traverse=True)
         choices: list[app_commands.Choice[str]] = [
@@ -200,7 +211,11 @@ async def get_dcs_branches(interaction: discord.Interaction, current: str) -> li
 async def get_dcs_versions(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    versions = await interaction.client.node.get_available_dcs_versions(utils.get_interaction_param(interaction, 'branch'))
+    branch = utils.get_interaction_param(interaction, 'branch')
+    if not branch:
+        node = await NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, 'node'))
+        branch, _ = await node.get_dcs_branch_and_version()
+    versions = await interaction.client.node.get_available_dcs_versions(branch)
     return [
         app_commands.Choice(name=x, value=x)
         for x in versions[::-1][:25]
@@ -262,14 +277,14 @@ class Admin(Plugin[AdminEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def ban(self, interaction: discord.Interaction,
-                  user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                  user: app_commands.Transform[discord.Member | str, utils.UserTransformer(
                       sel_type=PlayerType.PLAYER)]):
 
         class BanModal(Modal):
             reason = TextInput(label=_("Reason"), max_length=80, required=True)
             period = TextInput(label=_("Days (empty = forever)"), required=False)
 
-            def __init__(self, user: Union[discord.Member, str]):
+            def __init__(self, user: discord.Member | str):
                 super().__init__(title=_("Ban Details"))
                 self.user = user
 
@@ -357,6 +372,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @dcs.command(description=_('Update your DCS installations'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(warn_time=_("Time in seconds to warn users before shutdown"))
     @app_commands.autocomplete(branch=get_dcs_branches)
@@ -365,9 +381,9 @@ class Admin(Plugin[AdminEventListener]):
                      node: app_commands.Transform[Node, utils.NodeTransformer],
                      warn_time: app_commands.Range[int, 0] = 60,
                      announce: bool = True,
-                     branch: Optional[str] = None,
-                     version: Optional[str] = None,
-                     force: Optional[bool] = False):
+                     branch: str | None = None,
+                     version: str | None = None,
+                     force: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
@@ -415,26 +431,93 @@ class Admin(Plugin[AdminEventListener]):
                 await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
                                      user=interaction.user)
             elif rc == 2:
-                await interaction.followup.send(
-                    content=_("DCS World update on node {name} was aborted (check disk space)!").format(
-                        name=node.name), ephemeral=True)
+                await msg.edit(
+                    content=_("DCS World update on node {name} was aborted (check disk space)!").format(name=node.name)
+                )
             elif rc in [3, 350]:
                 branch, new_version = await node.get_dcs_branch_and_version()
-                await interaction.followup.send(
+                await msg.edit(
                     content=_("DCS World updated to version {version}@{branch} on node {name}.\n"
                               "The updater has requested a **reboot** of the system!").format(
-                    version=new_version, branch=branch, name=node.name), ephemeral=ephemeral)
+                    version=new_version, branch=branch, name=node.name)
+                )
             else:
-                await interaction.followup.send(
+                await msg.edit(
                     content=_("Error while updating DCS on node {name}, code={rc}, message={message}").format(
-                        name=node.name, rc=rc, message=utils.get_win32_error_message(rc)), ephemeral=True)
+                        name=node.name, rc=rc, message=utils.get_win32_error_message(rc)))
         except (TimeoutError, asyncio.TimeoutError):
             await interaction.followup.send(
                 content=_("The update takes longer than 10 minutes, please check back regularly, if it has finished."),
                 ephemeral=True)
 
+    @dcs.command(description=_('Repair your DCS installations'))
+    @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
+    @utils.app_has_role('DCS Admin')
+    @app_commands.describe(warn_time=_("Time in seconds to warn users before shutdown"))
+    async def repair(self, interaction: discord.Interaction,
+                     node: app_commands.Transform[Node, utils.NodeTransformer],
+                     slow: bool | None = False, check_extra_files: bool | None = False,
+                     warn_time: app_commands.Range[int, 0] = 60):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(thinking=True, ephemeral=ephemeral)
+        await self.bot.audit(f"started a repair of DCS World on node {node.name}.", user=interaction.user)
+        msg = await interaction.followup.send(_("Repairing DCS World, please wait ..."), ephemeral=ephemeral)
+        try:
+            rc = await node.dcs_repair(
+                warn_times=[warn_time] or [120, 60],
+                slow=slow,
+                check_extra_files=check_extra_files
+            )
+            if rc == 0:
+                await msg.edit(content=_("DCS World repaired on node {}.").format(node.name))
+                await self.bot.audit(f"repaired DCS World on node {node.name}.", user=interaction.user)
+            elif rc == 1:
+                branch, version = await node.get_dcs_branch_and_version()
+                tempfolder = f"DCS.{branch.replace('.', '')}"
+                path = f"%TEMP%\\{tempfolder}\\autoupdate_templog.txt"
+                try:
+                    file = await node.read_file(path)
+                except FileNotFoundError:
+                    await msg.edit(
+                        content=_("Error while repairing DCS World on node {name}. "
+                                  "Check your autoupdater_log.txt").format(name=node.name))
+                    return
+                await msg.edit(content=_("Repair of DCS World failed on node {}.").format(node.name))
+                await interaction.followup.send(file=discord.File(BytesIO(file), "autoupdate_templog.txt"),
+                                                ephemeral=ephemeral)
+            elif rc == 2:
+                await msg.edit(
+                    content=_("The repair of DCS World was cancelled on node {name}.").format(name=node.name))
+            elif rc == -1:
+                path = os.path.join("logs", "dcs_repair.log")
+                try:
+                    file = await node.read_file(path)
+                except FileNotFoundError:
+                    await msg.edit(
+                        content=_("Error while repairing DCS World on node {name}. "
+                                  "Check your dcs_repair.log").format(name=node.name))
+                    return
+                await msg.edit(content=_("Repair of DCS World failed on node {}.").format(node.name))
+                await interaction.followup.send(file=discord.File(BytesIO(file), "dcs_repair.log"),
+                                                ephemeral=ephemeral)
+            elif rc == -2:
+                await msg.edit(
+                    content=_("You cannot run a DCS repair on a headless system without an active session!"))
+
+        except (TimeoutError, asyncio.TimeoutError):
+            await interaction.followup.send(
+                content=_("The repair takes longer than 10 minutes. It will generate an audit message when finished."),
+                ephemeral=True)
+        except PermissionError as ex:
+            await msg.edit(
+                content=_("Could not repair DCS World on node {name} due to a permission error: {error}").format(
+                    name=node.name, error=repr(ex)))
+
     @dcs.command(name='install', description=_('Install modules in your DCS server'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(module=available_modules_autocomplete)
     async def _install(self, interaction: discord.Interaction,
@@ -457,6 +540,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @dcs.command(name='uninstall', description=_('Uninstall modules from your DCS server'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(module=installed_modules_autocomplete)
     async def _uninstall(self, interaction: discord.Interaction,
@@ -504,7 +588,10 @@ class Admin(Plugin[AdminEventListener]):
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         config = next(x for x in self.get_config(server)['downloads'] if x['label'] == what)
         # double-check if that user can really download these files
-        if config.get('discord') and not utils.check_roles(config['discord'], interaction.user):
+        if (
+                (config.get('discord') and not utils.check_roles(config['discord'], interaction.user)) or
+                (config.get('restricted', False) and server.node.locals.get('restrict_commands', False))
+        ):
             raise app_commands.CheckFailure()
         if what == 'Missions':
             base_dir = await server.get_missions_dir()
@@ -585,9 +672,9 @@ class Admin(Plugin[AdminEventListener]):
     @app_commands.autocomplete(_server=all_servers_autocomplete)
     @app_commands.rename(_server="server")
     async def _prune(self, interaction: discord.Interaction,
-                     user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                         sel_type=PlayerType.PLAYER)]] = None,
-                     _server: Optional[str] = None):
+                     user: app_commands.Transform[discord.Member | str,  utils.UserTransformer(
+                         sel_type=PlayerType.PLAYER)] | None = None,
+                     _server: str | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if not _server and not user:
             embed = discord.Embed(title=_(":warning: Database Prune :warning:"))
@@ -682,8 +769,8 @@ class Admin(Plugin[AdminEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def statistics(self, interaction: discord.Interaction,
-                         node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None,
-                         period: Optional[Literal['Hour', 'Day', 'Week', 'Month']] = 'Hour'):
+                         node: app_commands.Transform[Node, utils.NodeTransformer] | None = None,
+                         period: Literal['Hour', 'Day', 'Week', 'Month'] | None = 'Hour'):
         report = PaginationReport(interaction, self.plugin_name, 'nodestats.json')
         if not node:
             node = self.node
@@ -697,17 +784,18 @@ class Admin(Plugin[AdminEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         embed = discord.Embed(title=_("DCSServerBot Cluster Overview"), color=discord.Color.blue())
-        for name in self.node.all_nodes.keys():
+        for name, node in self.node.all_nodes.items():
             names = []
             instances = []
             status = []
-            for server in [server for server in self.bus.servers.values() if server.node.name == name]:
+            for server in [x for x in self.bot.servers.values() if x.node.name == node.name]:
                 instances.append(server.instance.name)
                 names.append(server.name)
                 status.append(server.status.name)
             if names:
+                # print the master in bold
                 title = f"**[{name}]**" if name == self.node.name else f"[{name}]"
-                if await server.node.upgrade_pending():
+                if await node.upgrade_pending():
                     embed.set_footer(text=_("🆕 Update available"))
                     title += " 🆕"
 
@@ -719,8 +807,8 @@ class Admin(Plugin[AdminEventListener]):
                 embed.add_field(name="▬" * 32, value=f"_[{name}]_", inline=False)
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
-    async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[Node] = None,
-                           ephemeral: Optional[bool] = True):
+    async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Node | None = None,
+                           ephemeral: bool | None = True):
         if not node:
             question = _("Are you sure you want to proceed?")
             message = _("This will {} **all** nodes.").format(_(method))
@@ -757,9 +845,10 @@ class Admin(Plugin[AdminEventListener]):
 
     @node_group.command(description=_('Shuts a specific node down'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def shutdown(self, interaction: discord.Interaction,
-                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+                       node: app_commands.Transform[Node, utils.NodeTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -767,9 +856,10 @@ class Admin(Plugin[AdminEventListener]):
 
     @node_group.command(description=_('Restarts a specific node'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def restart(self, interaction: discord.Interaction,
-                      node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+                      node: app_commands.Transform[Node, utils.NodeTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -780,13 +870,13 @@ class Admin(Plugin[AdminEventListener]):
     @utils.app_has_role('Admin')
     @app_commands.describe(shutdown=_('Shuts all servers down (default: on)'))
     async def offline(self, interaction: discord.Interaction,
-                      node: Optional[app_commands.Transform[Node, utils.NodeTransformer]],
-                      shutdown: Optional[bool] = True):
+                      node: app_commands.Transform[Node, utils.NodeTransformer] | None,
+                      shutdown: bool | None = True):
         async def _node_offline(node_name: str):
             tasks = []
             if shutdown:
                 msg = await interaction.followup.send(_("Shutting down all servers on node {} ...").format(node_name))
-            for server in self.bus.servers.values():
+            for server in self.bot.servers.values():
                 if server.node.name == node_name:
                     server.maintenance = True
                     if shutdown:
@@ -818,17 +908,17 @@ class Admin(Plugin[AdminEventListener]):
         if node:
             await _node_offline(node.name)
         else:
-            for node in await self.node.get_active_nodes():
-                await _node_offline(node)
-            await _node_offline(self.node.name)
+            tasks = [_node_offline(node.name) for node in self.bus.nodes.values()]
+            tasks.append(_node_offline(self.node.name))
+            await asyncio.gather(*tasks)
 
     @node_group.command(description=_('Clears the maintenance mode for all servers'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.describe(startup=_('Start all your servers (default: off)'))
     async def online(self, interaction: discord.Interaction,
-                     node: Optional[app_commands.Transform[Node, utils.NodeTransformer]],
-                     startup: Optional[bool] = False):
+                     node: app_commands.Transform[Node, utils.NodeTransformer] | None,
+                     startup: bool | None = False):
 
         async def _startup(server: Server):
             try:
@@ -839,7 +929,7 @@ class Admin(Plugin[AdminEventListener]):
 
         async def _node_online(node_name: str):
             next_startup = 0
-            for server in [x for x in self.bus.servers.values() if x.node.name == node_name]:
+            for server in [x for x in self.bot.servers.values() if x.node.name == node_name]:
                 if startup:
                     self.loop.call_later(delay=next_startup,
                                          callback=partial(asyncio.create_task, _startup(server)))
@@ -862,9 +952,10 @@ class Admin(Plugin[AdminEventListener]):
 
     @node_group.command(description=_('Upgrade DCSServerBot'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def upgrade(self, interaction: discord.Interaction,
-                      node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+                      node: app_commands.Transform[Node, utils.NodeTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -887,10 +978,11 @@ class Admin(Plugin[AdminEventListener]):
 
     @node_group.command(description=_('Run a shell command on a node'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def shell(self, interaction: discord.Interaction,
                     node: app_commands.Transform[Node, utils.NodeTransformer],
-                    cmd: str, timeout: Optional[app_commands.Range[int, 10, 300]] = 60):
+                    cmd: str, timeout: app_commands.Range[int, 10, 300] | None = 60):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -910,13 +1002,14 @@ class Admin(Plugin[AdminEventListener]):
 
     @node_group.command(description=_("Add/create an instance\n"))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(name=utils.InstanceTransformer(unused=True).autocomplete)
     @app_commands.describe(name=_("Either select an existing instance or enter the name of a new one"))
     @app_commands.describe(template=_("Take this instance configuration as a reference"))
     async def add_instance(self, interaction: discord.Interaction,
                            node: app_commands.Transform[Node, utils.NodeTransformer], name: str,
-                           template: Optional[app_commands.Transform[Instance, utils.InstanceTransformer]] = None):
+                           template: app_commands.Transform[Instance, utils.InstanceTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -965,6 +1058,7 @@ Please make sure you forward the following ports:
 
     @node_group.command(description=_("Delete an instance\n"))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def delete_instance(self, interaction: discord.Interaction,
                               node: app_commands.Transform[Node, utils.NodeTransformer],
@@ -983,7 +1077,7 @@ Please make sure you forward the following ports:
 
         # uninstall mods
         mod_manager: ModManagerService = ServiceRegistry.get(ModManagerService)
-        if mod_manager.is_running():
+        if mod_manager.is_running() and instance.server:
             for folder, package, version in await get_installed_mods(mod_manager, server=instance.server):
                 await mod_manager.uninstall_package(instance.server, folder, package, version)
 
@@ -1002,6 +1096,7 @@ Please make sure you forward the following ports:
 
     @node_group.command(description=_("Rename an instance\n"))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def rename_instance(self, interaction: discord.Interaction,
                               node: app_commands.Transform[Node, utils.NodeTransformer],
@@ -1044,6 +1139,7 @@ Please make sure you forward the following ports:
 
     @node_group.command(description=_("Shows CPU topology"))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @app_commands.check(lambda interaction: sys.platform == 'win32')
     @utils.app_has_role('Admin')
     async def cpuinfo(self, interaction: discord.Interaction,
@@ -1057,6 +1153,7 @@ Please make sure you forward the following ports:
 
     @plug.command(name='install', description=_("Install Plugin"))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @app_commands.autocomplete(plugin=installable_plugins)
     @utils.app_has_role('Admin')
     async def _install(self, interaction: discord.Interaction, plugin: str):
@@ -1074,6 +1171,7 @@ Please make sure you forward the following ports:
 
     @plug.command(name='uninstall', description=_("Uninstall Plugin"))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @app_commands.autocomplete(plugin=uninstallable_plugins)
     @utils.app_has_role('Admin')
     async def _uninstall(self, interaction: discord.Interaction, plugin: str):
@@ -1091,9 +1189,10 @@ Please make sure you forward the following ports:
 
     @plug.command(description=_('Reload Plugin'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(plugin=plugins_autocomplete)
-    async def reload(self, interaction: discord.Interaction, plugin: Optional[str]):
+    async def reload(self, interaction: discord.Interaction, plugin: str | None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -1110,7 +1209,7 @@ Please make sure you forward the following ports:
             else:
                 await interaction.followup.send(
                     _('One or more plugins could not be reloaded, check the log for details.'), ephemeral=ephemeral)
-        # for server in self.bus.servers.values():
+        # for server in self.bot.servers.values():
         #    if server.status == Status.STOPPED:
         #        await server.send_to_dcs({"command": "reloadScripts"})
 
@@ -1220,7 +1319,7 @@ Please make sure you forward the following ports:
         # read the default config if there is any
         config = self.get_config().get('uploads', {})
         # check if upload is enabled
-        if not config.get('enabled', True):
+        if not config.get('enabled', True) or self.node.locals.get('restricted'):
             return
         # check if the user has the correct role to upload, defaults to Admin
         if not utils.check_roles(config.get('discord', self.bot.roles['Admin']), message.author):
@@ -1235,7 +1334,7 @@ Please make sure you forward the following ports:
                 return
             try:
                 server = await utils.server_selection(
-                    self.bus, ctx, title=_("To which server do you want to upload this configuration to?"))
+                    self.bot, ctx, title=_("To which server do you want to upload this configuration to?"))
                 if not server:
                     await ctx.send(_('Aborted.'))
                     return

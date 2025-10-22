@@ -7,7 +7,7 @@ import random
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Union, TypeVar
+from typing import TypeVar
 
 METERS_TO_FEET = 3.28084
 FEET_TO_METERS = 1 / METERS_TO_FEET
@@ -61,15 +61,15 @@ class Distance:
     def __sub__(self, other: Distance) -> Distance:
         return meters(self.meters - other.meters)
 
-    def __mul__(self, other: Union[float, int]) -> Distance:
+    def __mul__(self, other: float | int) -> Distance:
         return meters(self.meters * other)
 
     __rmul__ = __mul__
 
-    def __truediv__(self, other: Union[float, int]) -> Distance:
+    def __truediv__(self, other: float | int) -> Distance:
         return meters(self.meters / other)
 
-    def __floordiv__(self, other: Union[float, int]) -> Distance:
+    def __floordiv__(self, other: float | int) -> Distance:
         return meters(self.meters // other)
 
     def __bool__(self) -> bool:
@@ -148,15 +148,15 @@ class Speed:
     def __sub__(self, other: Speed) -> Speed:
         return kph(self.kph - other.kph)
 
-    def __mul__(self, other: Union[float, int]) -> Speed:
+    def __mul__(self, other: float | int) -> Speed:
         return kph(self.kph * other)
 
     __rmul__ = __mul__
 
-    def __truediv__(self, other: Union[float, int]) -> Speed:
+    def __truediv__(self, other: float | int) -> Speed:
         return kph(self.kph / other)
 
-    def __floordiv__(self, other: Union[float, int]) -> Speed:
+    def __floordiv__(self, other: float | int) -> Speed:
         return kph(self.kph // other)
 
     def __bool__(self) -> bool:
@@ -217,11 +217,11 @@ class Heading:
         return angle % 360
 
     @classmethod
-    def from_degrees(cls, angle: Union[int, float]) -> Heading:
+    def from_degrees(cls, angle: int | float) -> Heading:
         return cls(Heading.reduce_angle(round(angle)))
 
     @classmethod
-    def from_radians(cls, angle: Union[int, float]) -> Heading:
+    def from_radians(cls, angle: int | float) -> Heading:
         deg = round(math.degrees(angle))
         return cls(Heading.reduce_angle(deg))
 

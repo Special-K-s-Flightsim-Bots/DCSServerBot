@@ -2,7 +2,7 @@ import os
 import re
 
 from core import Extension, Server, get_translation
-from typing import Optional, Any, TextIO
+from typing import Any, TextIO
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -26,10 +26,8 @@ class gRPC(Extension):
     def __init__(self, server: Server, config: dict):
         self.home = os.path.join(server.instance.home, 'Mods', 'tech', 'DCS-gRPC')
         super().__init__(server, config)
-
-    @property
-    def name(self):
-        return 'DCS-gRPC'
+        if not config.get('name'):
+            self._name = 'DCS-gRPC'
 
     @staticmethod
     def parse(value: str) -> Any:
@@ -57,7 +55,7 @@ class gRPC(Extension):
         else:
             return value
 
-    def load_config(self) -> Optional[dict]:
+    def load_config(self) -> dict | None:
         def read_file(file: TextIO, cfg: dict):
             for line in file.readlines():
                 match = exp.match(line)
@@ -129,3 +127,9 @@ class gRPC(Extension):
         return {
             "gRPC": self.locals.get('port', 50051)
         } if self.enabled else {}
+
+    async def startup(self, *, quiet: bool = False) -> bool:
+        return await super().startup(quiet=True)
+
+    def shutdown(self, *, quiet: bool = False) -> bool:
+        return super().shutdown(quiet=True)

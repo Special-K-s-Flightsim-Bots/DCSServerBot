@@ -4,7 +4,6 @@ import psycopg
 from configparser import ConfigParser
 from core import Plugin, PluginInstallationError, PluginConfigurationError, DEFAULT_TAG, Server
 from services.bot import DCSServerBot
-from typing import Optional
 
 from .listener import FunkManEventListener
 
@@ -58,8 +57,8 @@ class FunkMan(Plugin[FunkManEventListener]):
             return True
         return False
 
-    def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
-                   use_cache: Optional[bool] = True) -> dict:
+    def get_config(self, server: Server | None = None, *, plugin_name: str | None = None,
+                   use_cache: bool | None = True) -> dict:
         # retrieve the config from another plugin
         if plugin_name:
             return super().get_config(server, plugin_name=plugin_name, use_cache=use_cache)
@@ -75,7 +74,7 @@ class FunkMan(Plugin[FunkManEventListener]):
         return self._config[server.node.name][server.instance.name]
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: Optional[str] = None) -> None:
+                    server: str | None = None) -> None:
         self.log.debug('Pruning FunkMan ...')
         if ucids:
             for ucid in ucids:

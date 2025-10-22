@@ -12,7 +12,6 @@ from discord import app_commands
 from plugins.userstats.filter import StatisticsFilter, MissionStatisticsFilter, PeriodTransformer, PeriodFilter, \
     CampaignFilter, MissionFilter
 from services.bot import DCSServerBot
-from typing import Optional, Union
 
 from .listener import MissionStatisticsEventListener
 
@@ -54,7 +53,7 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
 class MissionStatistics(Plugin[MissionStatisticsEventListener]):
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: Optional[str] = None) -> None:
+                    server: str | None = None) -> None:
         self.log.debug('Pruning Missionstats ...')
         if ucids:
             for ucid in ucids:
@@ -101,10 +100,11 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def sorties(self, interaction: discord.Interaction,
-                      user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None,
-                      period: Optional[app_commands.Transform[
-                          StatisticsFilter, PeriodTransformer(flt=[MissionStatisticsFilter])]
-                      ] = MissionStatisticsFilter()):
+                      user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None,
+                      period: app_commands.Transform[
+                                  StatisticsFilter,
+                                  PeriodTransformer(flt=[MissionStatisticsFilter])
+                              ] | None = MissionStatisticsFilter()):
         if not user:
             user = interaction.user
         if isinstance(user, str):
@@ -128,12 +128,12 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
     @utils.app_has_role('DCS')
     @app_commands.autocomplete(module=player_modules_autocomplete)
     async def modulestats(self, interaction: discord.Interaction,
-                          user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None,
-                          module: Optional[str] = None,
-                          period: Optional[app_commands.Transform[
+                          user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None,
+                          module: str | None = None,
+                          period: app_commands.Transform[
                               StatisticsFilter, PeriodTransformer(
                                   flt=[PeriodFilter, CampaignFilter, MissionFilter]
-                              )]] = PeriodFilter()):
+                              )] | None = PeriodFilter()):
         if not user:
             user = interaction.user
         if not module:
@@ -160,10 +160,10 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def refuelings(self, interaction: discord.Interaction,
-                         user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None,
-                         period: Optional[app_commands.Transform[
-                             StatisticsFilter, PeriodTransformer(flt=[MissionStatisticsFilter])]
-                         ] = MissionStatisticsFilter()):
+                         user: app_commands.Transform[str |  discord.Member, utils.UserTransformer] | None = None,
+                         period: app_commands.Transform[
+                             StatisticsFilter,
+                             PeriodTransformer(flt=[MissionStatisticsFilter])] | None = MissionStatisticsFilter()):
         if not user:
             user = interaction.user
         if isinstance(user, str):
@@ -186,7 +186,7 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def nemesis(self, interaction: discord.Interaction,
-                      user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None):
+                      user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None):
         if not user:
             user = interaction.user
         if isinstance(user, str):
@@ -209,7 +209,7 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def antagonist(self, interaction: discord.Interaction,
-                         user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None):
+                         user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None):
         if not user:
             user = interaction.user
         if isinstance(user, str):
@@ -236,8 +236,8 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
     @app_commands.autocomplete(start=utils.date_autocomplete)
     @app_commands.autocomplete(end=utils.date_autocomplete)
     async def history(self, interaction: discord.Interaction,
-                      user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None,
-                      start: Optional[str] = None, end: Optional[str] = None):
+                      user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None,
+                      start: str | None = None, end: str | None = None):
         if isinstance(user, str):
             ucid = user
         elif not user:
@@ -253,7 +253,7 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
             return
 
         start = datetime.strptime(start, '%Y-%m-%d') if start else (datetime.now() - timedelta(days=30)).date()
-        end = datetime.strptime(end, '%Y-%m-%d') if end else datetime.now().date()
+        end = datetime.strptime(end, '%Y-%m-%d') if end else datetime.now()
 
         ephemeral = not utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
@@ -283,7 +283,7 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
                                             ephemeral=ephemeral)
             return
 
-        # Create in-memory binary stream
+        # Create an in-memory binary stream
         excel_binary = BytesIO()
 
         # Define the desired column order

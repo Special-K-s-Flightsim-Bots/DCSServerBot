@@ -8,7 +8,6 @@ import json
 import logging
 import os
 import psutil
-import re
 import shutil
 import subprocess
 import ssl
@@ -26,7 +25,6 @@ from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
 from threading import Thread
-from typing import Optional
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from watchdog.observers import Observer
 
@@ -73,10 +71,10 @@ class SRS(Extension, FileSystemEventHandler):
         self.cfg = RawConfigParser()
         self.cfg.optionxform = str
         self.bus = ServiceRegistry.get(ServiceBus)
-        self.process: Optional[psutil.Process] = None
-        self.observer: Optional[Observer] = None
+        self.process: psutil.Process | None = None
+        self.observer: Observer | None = None
         self.first_run = True
-        self._inst_path: Optional[str] = None
+        self._inst_path: str | None = None
         self.exe_name = None
         self.clients: dict[str, set[int]] = {}
         self.client_names: dict[str, str] = {}
@@ -89,7 +87,7 @@ class SRS(Extension, FileSystemEventHandler):
             self.log.warning(f"  => {self.name}: No config parameter given, using default config path: {config_path}")
         return os.path.expandvars(config_path.format(server=self.server, instance=self.server.instance))
 
-    def load_config(self) -> Optional[dict]:
+    def load_config(self) -> dict | None:
         if 'config' in self.config:
             self.cfg.read(self.get_config_path(), encoding='utf-8')
             return {
@@ -230,7 +228,7 @@ class SRS(Extension, FileSystemEventHandler):
                 asyncio.create_task(self.startup())
         return await super().prepare()
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
         if self.config.get('autostart', True):
             self.log.debug(f"Launching SRS server with: \"{self.get_exe_path()}\" -cfg=\"{self.get_config_path()}\"")
 
@@ -286,7 +284,7 @@ class SRS(Extension, FileSystemEventHandler):
             return False
         return await super().startup()
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
         if self.config.get('autostart', True) and not self.config.get('no_shutdown', False):
             if self.is_running():
                 try:
@@ -382,7 +380,7 @@ class SRS(Extension, FileSystemEventHandler):
             self.client_names.clear()
 
     def is_running(self) -> bool:
-        if not self.process:
+        if not self.process and self.exe_name:
             self.process = next(utils.find_process(self.exe_name, self.server.instance.name), None)
             running = self.process is not None and self.process.is_running()
             if not running:
@@ -436,13 +434,13 @@ class SRS(Extension, FileSystemEventHandler):
             return os.path.join(self.get_inst_path(), self.exe_name)
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         version = utils.get_windows_version(os.path.join(self.get_inst_path(), 'SRS-AutoUpdater.exe'))
         if not version:
             raise InstallException(f"Can't detect the {self.name} version, SRS-AutoUpdater.exe not found!")
         return version
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         if not self.locals:
             raise NotImplementedError()
 
@@ -483,7 +481,7 @@ class SRS(Extension, FileSystemEventHandler):
             self.log.error(f"  => SRS config not set for server {self.server.name}")
             return False
 
-    async def check_for_updates(self) -> Optional[str]:
+    async def check_for_updates(self) -> str | None:
         with suppress(aiohttp.ClientError):
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
@@ -568,7 +566,7 @@ class SRS(Extension, FileSystemEventHandler):
                             title=config.get(
                                 'title', 'DCS-SRS has been updated to version {}!').format(version),
                             url=f"https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/{version}")
-                        embed.set_thumbnail(url="https://github.com/ciribob/DCS-SimpleRadioStandalone/blob/master/Scripts/DCS-SRS/Theme/icon.png")
+                        embed.set_thumbnail(url="https://raw.githubusercontent.com/ciribob/DCS-SimpleRadioStandalone/master/Scripts/DCS-SRS/Theme/icon.png")
                         embed.description = config.get('description', 'The following servers have been updated:')
                         embed.add_field(name=_('Server'),
                                         value='\n'.join([f'- {x}' for x in servers]), inline=False)
@@ -588,7 +586,7 @@ class SRS(Extension, FileSystemEventHandler):
                         })
 
             except Exception as ex:
-                self.log.exception(ex)
+                self.log.error(f"DCS-SRS update failed: {ex}")
 
     @tasks.loop(minutes=30)
     async def schedule(self):

@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import os
-import platform
 import psycopg
 import random
 import secrets
@@ -18,7 +17,7 @@ from pathlib import Path
 from rich import print
 from rich.console import Console
 from rich.prompt import IntPrompt, Prompt, Confirm
-from typing import Optional, Callable, Any
+from typing import Callable, Any
 from urllib.parse import quote, urlparse
 
 # ruamel YAML support
@@ -26,7 +25,7 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 # for gettext // i18n
-_: Optional[Callable[[str], str]] = None
+_: Callable[[str], str] | None = None
 
 
 class Install:
@@ -47,9 +46,7 @@ class Install:
         self.log.info("Installation started.")
 
     @staticmethod
-    def get_dcs_installation_linux() -> Optional[str]:
-        global _
-
+    def get_dcs_installation_linux() -> str | None:
         dcs_installation = None
         while dcs_installation is None:
             dcs_installation = Prompt.ask(prompt=_("Please enter the path to your DCS World installation"))
@@ -62,9 +59,7 @@ class Install:
         return dcs_installation
 
     @staticmethod
-    def get_dcs_installation_win32() -> Optional[str]:
-        global _
-
+    def get_dcs_installation_win32() -> str | None:
         print(_("Searching for DCS installations ..."))
         key = skey = None
         try:
@@ -102,7 +97,7 @@ class Install:
                 skey.Close()
 
     @staticmethod
-    def get_database_host(host: str = '127.0.0.1', port: int = 5432) -> Optional[tuple[str, int]]:
+    def get_database_host(host: str = '127.0.0.1', port: int = 5432) -> tuple[str, int] | None:
         if not utils.is_open(host, port):
             print(_('[red]No PostgreSQL-database found on {host}:{port}![/]').format(host=host, port=port))
             host = Prompt.ask(_("Enter the hostname of your PostgreSQL-database"), default='127.0.0.1')
@@ -111,7 +106,7 @@ class Install:
         return host, port
 
     @staticmethod
-    def get_database_url(user: str, database: str) -> Optional[str]:
+    def get_database_url(user: str, database: str) -> str | None:
         host, port = Install.get_database_host('127.0.0.1', 5432)
         while True:
             master_db = Prompt.ask(_('Please enter the name of your PostgreSQL master database'), default='postgres')
@@ -277,11 +272,10 @@ For a successful installation, you need to fulfill the following prerequisites:
     def install(self, config_dir: str, user: str, database: str):
         global _
 
-        major_version = int(platform.python_version_tuple()[1])
-        if major_version <= 8:
-            print(f"""
-[red]!!! Your Python 3.{major_version} installation is not supported, you might face issues. Please use 3.9 or higher!!![/]
-            """)
+        if not ((3,10) <= sys.version_info < (3,14)):
+            print(f"[red]!!! Python {sys.version_info.major}.{sys.version_info.minor} is not supported."
+                  f"DCSServerBot requires Python >= 3.10 and < 3.14 !!![/]")
+            exit(-1)
         print("""
 [bright_blue]Hello! Thank you for choosing DCSServerBot.[/]
 DCSServerBot supports everything from single server installations to huge server farms with multiple servers across 

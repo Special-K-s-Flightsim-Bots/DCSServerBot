@@ -3,7 +3,7 @@ import asyncio
 from core import const, report, Status, Server, utils, ServiceRegistry, Plugin, Side, cache_with_expiration
 from datetime import datetime, timedelta, timezone
 from services.bot import BotService
-from typing import Optional, cast
+from typing import cast
 from zoneinfo import ZoneInfo
 
 STATUS_IMG = {
@@ -39,7 +39,7 @@ class Init(report.EmbedElement):
 
 class ServerInfo(report.EmbedElement):
 
-    async def render(self, server: Server, show_password: Optional[bool] = True, host: Optional[str] = None,):
+    async def render(self, server: Server, show_password: bool | None = True, host: str | None = None,):
         if not server.locals.get('show_passwords', True):
             show_password = False
         name = value = ""
@@ -91,7 +91,7 @@ class ServerInfo(report.EmbedElement):
         else:
             footer = ''
         if server.node.dcs_version:
-            footer += f'DCS {server.node.dcs_version} | DCSServerBot {self.node.bot_version}.{self.node.sub_version} | '
+            footer += f'DCS {server.node.dcs_version} | DCSServerBot {self.node.bot_version}.{self.node.sub_version}'
         self.embed.set_footer(text=footer)
 
 
@@ -182,7 +182,7 @@ class ExtensionsInfo(report.EmbedElement):
         footer = self.embed.footer.text or ''
         for ext in extensions:
             self.add_field(name=ext['name'], value=ext['value'])
-        footer += " | ".join([f"{ext['name']} v{ext['version']}" for ext in extensions if ext.get('version')])
+        footer += "".join([f" | {ext['name']} v{ext['version']}" for ext in extensions if ext.get('version')])
         self.embed.set_footer(text=footer)
         # add a ruler at the bottom
         await report.Ruler(self.env).render()
@@ -193,43 +193,42 @@ class ScheduleInfo(report.EmbedElement):
     async def render(self, server: Server):
         bot = ServiceRegistry.get(BotService).bot
         scheduler: Plugin = cast(Plugin, bot.cogs.get('Scheduler'))
-        if scheduler:
-            config = scheduler.get_config(server)
-            if 'schedule' in config:
-                if (len(config['schedule']) == 1 and list(config['schedule'].keys())[0] == '00-24' and
-                        config['schedule']['00-24'] == 'YYYYYYY'):
-                    return
-                self.add_field(name="This server runs on the following schedule:", value='_ _', inline=False)
-                value = ''
-                now = datetime.now()
-                tz = now.astimezone().tzinfo
-                for period, daystate in config['schedule'].items():
-                    if period == 'timezone':
-                        tz = ZoneInfo(daystate)
-                        continue
-                    for c in daystate:
-                        if c == 'Y':
-                            value += '✅|'
-                        elif c == 'N':
-                            value += '❌|'
-                        elif c == 'P':
-                            value += '☑️|'
-                    value += '\n'
-                now = now.replace(tzinfo=tz)
-                hours, rem = divmod(tz.utcoffset(now).total_seconds(), 3600)
-                minutes, _ = divmod(rem, 60)
-                if hours == 0 and minutes == 0:
-                    name = 'Time (UTC)'
-                else:
-                    sign = '+' if hours >= 0 else '-'
-                    name = f'Time (UTC{sign}{int(abs(hours)):02d}:{int(minutes):02d})'
-                self.add_field(name=name, value='\n'.join([x for x in config['schedule'].keys() if x != 'timezone']))
-                self.add_field(name='🇲|🇹|🇼|🇹|🇫|🇸|🇸', value=value)
-                self.add_field(name='_ _', value='✅ = Server running\n'
-                                                 '❌ = Server not running\n'
-                                                 '☑️ = Server shuts down without players')
-                # add a ruler at the bottom
-                await report.Ruler(self.env).render()
+        if not scheduler:
+            return
+        config = scheduler.get_config(server)
+        if config.get('schedule', {'00-24': 'YYYYYYY'}) == {'00-24': 'YYYYYYY'}:
+            return
+        self.add_field(name="This server runs on the following schedule:", value='_ _', inline=False)
+        value = ''
+        now = datetime.now()
+        tz = now.astimezone().tzinfo
+        for period, daystate in config['schedule'].items():
+            if period == 'timezone':
+                tz = ZoneInfo(daystate)
+                continue
+            for c in daystate:
+                if c == 'Y':
+                    value += '✅|'
+                elif c == 'N':
+                    value += '❌|'
+                elif c == 'P':
+                    value += '☑️|'
+            value += '\n'
+        now = now.replace(tzinfo=tz)
+        hours, rem = divmod(tz.utcoffset(now).total_seconds(), 3600)
+        minutes, _ = divmod(rem, 60)
+        if hours == 0 and minutes == 0:
+            name = 'Time (UTC)'
+        else:
+            sign = '+' if hours >= 0 else '-'
+            name = f'Time (UTC{sign}{int(abs(hours)):02d}:{int(minutes):02d})'
+        self.add_field(name=name, value='\n'.join([x for x in config['schedule'].keys() if x != 'timezone']))
+        self.add_field(name='🇲|🇹|🇼|🇹|🇫|🇸|🇸', value=value)
+        self.add_field(name='_ _', value='✅ = Server running\n'
+                                         '❌ = Server not running\n'
+                                         '☑️ = Server shuts down without players')
+        # add a ruler at the bottom
+        await report.Ruler(self.env).render()
 
 
 class Footer(report.EmbedElement):

@@ -9,7 +9,6 @@ from plugins.competitive import rating
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from trueskill import Rating, BETA, global_env
-from typing import Optional, Union
 
 from .listener import CompetitiveListener
 
@@ -69,7 +68,7 @@ class Competitive(Plugin[CompetitiveListener]):
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
         await conn.execute('UPDATE trueskill SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
-    async def _trueskill_player(self, interaction: discord.Interaction, user: Union[discord.Member, str]) -> None:
+    async def _trueskill_player(self, interaction: discord.Interaction, user: discord.Member | str) -> None:
         if not user:
             user = interaction.user
         elif not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
@@ -171,8 +170,8 @@ class Competitive(Plugin[CompetitiveListener]):
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.guild_only()
     async def rating(self, interaction: discord.Interaction,
-                     user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]] = None,
-                     squadron_id: Optional[int] = None):
+                     user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None,
+                     squadron_id: int | None = None):
         if squadron_id:
             r = await self.trueskill_squadron(self.node, squadron_id)
             # noinspection PyUnresolvedReferences
@@ -185,7 +184,7 @@ class Competitive(Plugin[CompetitiveListener]):
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
     async def delete(self, interaction: discord.Interaction,
-                     user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]] = None):
+                     user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if isinstance(user, discord.Member):

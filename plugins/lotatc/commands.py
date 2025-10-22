@@ -9,7 +9,7 @@ from discord.ext import commands
 from extensions.lotatc import LotAtc as LotAtcExt
 from jsonschema import validate, ValidationError
 from services.bot import DCSServerBot
-from typing import Optional, Literal
+from typing import Literal
 
 from .listener import LotAtcEventListener
 
@@ -46,7 +46,7 @@ class LotAtc(Plugin[LotAtcEventListener]):
         extensions = server.instance.locals.get('extensions')
         return 'LotAtc' in extensions if extensions is not None else False
 
-    async def get_server(self, message: discord.Message) -> Optional[Server]:
+    async def get_server(self, message: discord.Message) -> Server | None:
         server: Server = self.bot.get_server(message, admin_only=True)
         if server:
             return server
@@ -57,7 +57,7 @@ class LotAtc(Plugin[LotAtcEventListener]):
             return None
         try:
             return await utils.server_selection(
-                self.bus, ctx, title=_("To which server do you want to upload this transponder file to?"),
+                self.bot, ctx, title=_("To which server do you want to upload this transponder file to?"),
                 filter_func=self.lotatc_server_filter)
         except Exception as ex:
             self.log.exception(ex)
@@ -68,6 +68,7 @@ class LotAtc(Plugin[LotAtcEventListener]):
 
     @lotatc.command(description=_('Update LotAtc'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('DCS Admin')
     async def update(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
@@ -108,7 +109,7 @@ class LotAtc(Plugin[LotAtcEventListener]):
     async def _configure(self, interaction: discord.Interaction,
                          server: Server,
                          enabled: bool = None,
-                         autoupdate: bool = None) -> Optional[dict]:
+                         autoupdate: bool = None) -> dict | None:
         config = server.instance.locals.get('extensions', {}).get('LotAtc', {})
         modal = utils.ConfigModal(title=_("LotAtc Configuration"),
                                   config=LotAtcExt.CONFIG_DICT,
@@ -125,10 +126,11 @@ class LotAtc(Plugin[LotAtcEventListener]):
 
     @lotatc.command(description=_('Configure LotAtc'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('DCS Admin')
     async def configure(self, interaction: discord.Interaction,
                         server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
-                        enabled: Optional[bool] = None, autoupdate: Optional[bool] = None):
+                        enabled: bool | None = None, autoupdate: bool | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if 'LotAtc' not in await server.init_extensions():
             # noinspection PyUnresolvedReferences
@@ -151,7 +153,7 @@ class LotAtc(Plugin[LotAtcEventListener]):
     @utils.app_has_role('DCS Admin')
     async def _install(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
-                       autoupdate: Optional[bool] = False):
+                       autoupdate: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
         config = await self._configure(interaction, server, True, autoupdate)
         msg = await interaction.followup.send(_("Installing LotAtc on server {} ...").format(server.display_name),

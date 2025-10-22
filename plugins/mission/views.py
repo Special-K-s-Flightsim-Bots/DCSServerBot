@@ -8,7 +8,7 @@ from discord import SelectOption, ButtonStyle
 from discord.ui import View, Select, Button
 from io import StringIO
 from ruamel.yaml import YAML
-from typing import cast, Optional, Union
+from typing import cast
 
 from services.bot import DCSServerBot
 
@@ -19,7 +19,7 @@ class ServerView(View):
     def __init__(self, server: Server):
         super().__init__()
         self.server: Server = server
-        self.env: Optional[ReportEnv] = None
+        self.env: ReportEnv | None = None
         self.modify_mission = True
 
     async def render(self, interaction: discord.Interaction) -> discord.Embed:
@@ -127,7 +127,7 @@ class ServerView(View):
         await interaction.response.defer()
         self.env.embed.set_footer(text="Restarting, please wait ...")
         await interaction.edit_original_response(embed=self.env.embed)
-        await self.server.current_mission.restart()
+        await self.server.restart(modify_mission=self.modify_mission)
         # wait for a possible resume
         with suppress(TimeoutError, asyncio.TimeoutError):
             await self.server.wait_for_status_change([Status.RUNNING], 2)
@@ -156,7 +156,7 @@ class PresetView(View):
             select.max_values = min(10, len(options))
         else:
             select.max_values = 1
-        self.result: Optional[list[str]] = None
+        self.result: list[str] | None = None
 
     @discord.ui.select(placeholder="Select the preset(s) you want to apply")
     async def callback(self, interaction: discord.Interaction, select: Select):
@@ -182,8 +182,8 @@ class PresetView(View):
 
 class InfoView(View):
 
-    def __init__(self, member: Union[discord.Member, str], bot: DCSServerBot, ephemeral: bool,
-                 player: Optional[Player] = None, server: Optional[Server] = None):
+    def __init__(self, member: discord.Member | str, bot: DCSServerBot, ephemeral: bool,
+                 player: Player | None = None, server: Server | None = None):
         super().__init__()
         self.member = member
         self.bot = bot
@@ -201,11 +201,10 @@ class InfoView(View):
     async def render(self) -> discord.Embed:
         if not self._member or self._member.ucid:
             if isinstance(self.member, discord.Member):
-                if self._member.verified:
-                    button = Button(emoji="🔀")
-                    button.callback = self.on_unlink
-                    self.add_item(button)
-                else:
+                button = Button(emoji="🔀")
+                button.callback = self.on_unlink
+                self.add_item(button)
+                if not self._member.verified:
                     button = Button(emoji="💯")
                     button.callback = self.on_verify
                     self.add_item(button)
@@ -410,7 +409,7 @@ class ModifyView(View):
         self.add_item(button)
 
     @staticmethod
-    def cut(message: Optional[str] = None) -> str:
+    def cut(message: str | None = None) -> str:
         if not message or len(message) <= 4096:
             return message
         remark = f"``` ... {len(message) - 4096} more"

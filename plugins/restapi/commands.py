@@ -1,3 +1,6 @@
+import asyncio
+import os
+
 import psycopg
 import random
 import re
@@ -14,14 +17,14 @@ from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.servicebus import ServiceBus
 from services.webservice import WebService
-from typing import Optional, Any, Union, Literal, cast
+from typing import Any, Literal, cast
 
 from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
                      PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry)
 from ..srs.commands import SRS
 
-app: Optional[FastAPI] = None
+app: FastAPI | None = None
 
 
 # Bit field constants
@@ -34,12 +37,31 @@ class RestAPI(Plugin):
 
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
-        self.web_service = ServiceRegistry.get(WebService)
-        if not self.web_service.is_running():
-            raise PluginInstallationError(plugin=self.plugin_name, reason="WebService is not running")
+        if not os.path.exists(os.path.join(self.node.config_dir, 'services', 'webservice.yaml')):
+            raise PluginInstallationError(plugin=self.plugin_name, reason="WebService is not configured")
 
+        self.refresh_views.start()
+        self.web_service: WebService | None = None
+        self.app: FastAPI | None = None
+        asyncio.create_task(self.init_webservice())
+
+    async def init_webservice(self):
+        # give the webservice 10 seconds to launch on master switches
+        for i in range(0, 10):
+            self.web_service = ServiceRegistry.get(WebService)
+            if self.web_service and self.web_service.is_running():
+                break
+            await asyncio.sleep(1)
+        else:
+            self.log.error(f"  - {self.__cog_name__}: WebService is not running, aborted.")
+            return
+        self.log.debug(f"   - {self.__cog_name__}: WebService is running")
         self.app = self.web_service.app
         self.register_routes()
+
+    async def cog_unload(self) -> None:
+        self.refresh_views.cancel()
+        await super().cog_unload()
 
     def register_routes(self):
         prefix = self.locals.get(DEFAULT_TAG, {}).get('prefix', '')
@@ -164,7 +186,7 @@ class RestAPI(Plugin):
         router.add_api_route(
             "/current_server", self.current_server,
             methods = ["GET"],
-            response_model = Optional[str],
+            response_model = str | None,
             description = "Server name a player is flying on",
             summary = "Current Server",
             tags = ["Info"]
@@ -219,19 +241,11 @@ class RestAPI(Plugin):
         )
         self.app.include_router(router)
 
-    async def cog_load(self) -> None:
-        await super().cog_load()
-        self.refresh_views.start()
-
-    async def cog_unload(self) -> None:
-        self.refresh_views.cancel()
-        await super().cog_unload()
-
     def get_endpoint_config(self, endpoint: str):
         return self.get_config().get('endpoints', {}).get(endpoint, {})
 
     @async_cache
-    async def get_ucid(self, nick: str, date: Optional[Union[str, datetime]] = None) -> str:
+    async def get_ucid(self, nick: str, date: str | datetime | None = None) -> str:
         if date and isinstance(date, str):
             try:
                 date = datetime.fromisoformat(date)
@@ -305,7 +319,7 @@ class RestAPI(Plugin):
         return ServerStats.model_validate(serverstats)
 
     async def get_srs_channels(self, server_name: str, nick: str) -> list[int]:
-        srs: Optional[SRS] = cast(Optional[SRS], self.bot.cogs.get('SRS'))
+        srs: SRS | None = cast(SRS, self.bot.cogs.get('SRS'))
         if not srs:
             return []
         player = srs.eventlistener.srs_users.get(server_name, {}).get(nick)
@@ -314,7 +328,7 @@ class RestAPI(Plugin):
         else:
             return []
 
-    async def servers(self, server_name: Optional[str] = Query(default=None)) -> list[ServerInfo]:
+    async def servers(self, server_name: str | None = Query(default=None)) -> list[ServerInfo]:
         self.log.debug('Calling /servers')
 
         def filter_servers(servers: list[Server]):
@@ -406,8 +420,8 @@ class RestAPI(Plugin):
                     }))
         return squadrons
 
-    async def leaderboard(self, what: str, order: Literal['asc', 'desc'] = 'desc', query: Optional[str] = None,
-                          limit: Optional[int] = 10, offset: Optional[int] = 0, server_name: Optional[str] = None):
+    async def leaderboard(self, what: str, order: Literal['asc', 'desc'] = 'desc', query: str | None = None,
+                          limit: int | None = 10, offset: int | None = 0, server_name: str | None = None):
         columns = {
             "kills": 3,
             "kills_pvp": 4,
@@ -586,8 +600,8 @@ class RestAPI(Plugin):
                     "current_server": await self.current_server(result["nick"], result["date"])
                 }) for result in await cursor.fetchall()]
 
-    async def weaponpk(self, nick: str = Form(...), date: Optional[str] = Form(None),
-                       server_name: Optional[str] = Form(None)):
+    async def weaponpk(self, nick: str = Form(...), date: str | None = Form(None),
+                       server_name: str | None = Form(None)):
         self.log.debug(f'Calling /weaponpk with nick="{nick}", date="{date}", server_name="{server_name}"')
         ucid = await self.get_ucid(nick, date)
         if server_name:
@@ -611,8 +625,8 @@ class RestAPI(Plugin):
                 """, {"ucid": ucid, "server_name": server_name})
                 return [WeaponPK.model_validate(result) for result in await cursor.fetchall()]
 
-    async def stats(self, nick: str = Form(...), date: Optional[str] = Form(None),
-                    server_name: Optional[str] = Form(None), last_session: Optional[bool] = Form(False)):
+    async def stats(self, nick: str = Form(...), date: str | None = Form(None),
+                    server_name: str | None = Form(None), last_session: bool | None = Form(False)):
         self.log.debug(f'Calling /stats with nick="{nick}", date="{date}", server_name="{server_name}", '
                        f'last_session="{last_session}"')
 
@@ -692,8 +706,8 @@ class RestAPI(Plugin):
 
         return PlayerStats.model_validate(data)
 
-    async def modulestats(self, nick: str = Form(...), date: Optional[str] = Form(None),
-                               server_name: Optional[str] = Form(None)):
+    async def modulestats(self, nick: str = Form(...), date: str | None = Form(None),
+                          server_name: str | None = Form(None)):
         self.log.debug(f'Calling /modulestats with nick="{nick}", date="{date}", server_name="{server_name}"')
 
         ucid = await self.get_ucid(nick, date)
@@ -718,7 +732,7 @@ class RestAPI(Plugin):
                 await cursor.execute(query, {"ucid": ucid, "server_name": server_name})
                 return [ModuleStats.model_validate(result) for result in await cursor.fetchall()]
 
-    async def current_server(self, nick: str = Query(...), date: Optional[str] = Query(None)) -> Optional[str]:
+    async def current_server(self, nick: str = Query(...), date: str | None = Query(None)) -> str | None:
         ucid = await self.get_ucid(nick, date)
         bus = ServiceRegistry.get(ServiceBus)
         for server in bus.servers.values():
@@ -726,8 +740,8 @@ class RestAPI(Plugin):
                 return server.name
         return None
 
-    async def player_info(self, nick: str = Form(...), date: Optional[str] = Form(None),
-                          server_name: Optional[str] = Form(None)):
+    async def player_info(self, nick: str = Form(...), date: str | None = Form(None),
+                          server_name: str | None = Form(None)):
         self.log.debug(f'Calling /player_info with nick="{nick}", date="{date}", server_name="{server_name}"')
         player_info: dict[str, Any] = {
             'current_server': await self.current_server(nick, date),
@@ -744,7 +758,7 @@ class RestAPI(Plugin):
         player_info['squadrons'] = await self.player_squadrons(nick, date)
         return PlayerInfo.model_validate(player_info)
 
-    async def player_squadrons(self, nick: str = Form(...), date: Optional[str] = Form(None)):
+    async def player_squadrons(self, nick: str = Form(...), date: str | None = Form(None)):
         self.log.debug(f'Calling /player_squadrons with nick="{nick}", date="{date}"')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -756,8 +770,8 @@ class RestAPI(Plugin):
                 """, (ucid, ))
                 return [PlayerSquadron.model_validate(result) for result in await cursor.fetchall()]
 
-    async def credits(self, nick: str = Form(...), date: Optional[str] = Form(None),
-                      campaign: Optional[str] = Form(default=None)):
+    async def credits(self, nick: str = Form(...), date: str | None = Form(None),
+                      campaign: str | None = Form(default=None)):
         self.log.debug(f'Calling /credits with nick="{nick}", date="{date}", campaign="{campaign}"')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -782,9 +796,9 @@ class RestAPI(Plugin):
                     )
                 return CampaignCredits.model_validate(row)
 
-    async def traps(self, nick: str = Form(None), date: Optional[str] = Form(None),
-                    limit: Optional[int] = Form(10), offset: Optional[int] = Form(0),
-                    server_name: Optional[str] = Form(None)):
+    async def traps(self, nick: str = Form(None), date: str | None = Form(None),
+                    limit: int | None = Form(10), offset: int | None = Form(0),
+                    server_name: str | None = Form(None)):
         self.log.debug(f'Calling /traps with nick="{nick}", date="{date}", server_name="{server_name}"')
         if server_name:
             join = "JOIN missions m ON t.mission_id = m.id AND m.server_name = %(server_name)s"

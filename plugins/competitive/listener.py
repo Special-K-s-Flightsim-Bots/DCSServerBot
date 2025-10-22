@@ -9,7 +9,7 @@ from discord.ext import tasks
 from functools import partial
 from plugins.competitive import rating
 from trueskill import Rating
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from ..creditsystem.listener import CreditSystemListener
 from ..creditsystem.squadron import Squadron
@@ -30,9 +30,9 @@ class Match:
     log: list[tuple[datetime, str]] = field(default_factory=list)
     started: datetime = field(default=None)
     finished: datetime = field(default=None)
-    winner: Optional[Side] = field(default=None)
-    timer_task: Optional[asyncio.Task] = field(default=None)
-    first_join: Optional[Side] = field(default=None)
+    winner: Side | None = field(default=None)
+    timer_task: asyncio.Task | None = field(default=None)
+    first_join: Side | None = field(default=None)
 
     @property
     def teams(self) -> dict[Side, list[Player]]:
@@ -56,7 +56,7 @@ class Match:
                 self.dead[player.side] = []
             self.dead[player.side].append(player)
 
-    def survivor(self) -> Optional[Side]:
+    def survivor(self) -> Side | None:
         num_red = len(self.alive.get(Side.RED, []))
         num_blue = len(self.alive.get(Side.BLUE, []))
         if num_red == 0 and num_blue > 0:
@@ -71,7 +71,7 @@ class Match:
         return len(self.alive.get(Side.BLUE, [])) > 0 and len(self.alive.get(Side.RED, [])) > 0
 
     # match only: get the squadron of one side
-    def get_squadron(self, side: Side) -> Optional[Squadron]:
+    def get_squadron(self, side: Side) -> Squadron | None:
         # noinspection PyUnresolvedReferences
         return next((x.squadron for x in self.alive.get(side, []) if x.squadron), None)
 
@@ -115,7 +115,7 @@ class CompetitiveListener(EventListener["Competitive"]):
         return server.name in self.active_servers
 
     @staticmethod
-    async def inform_players(server: Server, match: Match, message: str, time: Optional[int] = 10):
+    async def inform_players(server: Server, match: Match, message: str, time: int | None = 10):
         all_players = match.teams
         if match.match_id == GLOBAL_MATCH_ID:
             await server.sendPopupMessage(Coalition.ALL, message, timeout=time)
@@ -302,6 +302,9 @@ class CompetitiveListener(EventListener["Competitive"]):
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         if data['eventName'] in ['S_EVENT_BIRTH', 'S_EVENT_PLAYER_ENTER_UNIT']:
+            # we don't care about AI
+            if not data['initiator'].get('name'):
+                return
             config = self.get_config(server)
             if config.get('join_on', '').lower() == 'birth':
                 new_data = {
@@ -360,7 +363,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             if survivor == Side.UNKNOWN or config.get('win_on', 'survival') == 'survival':
                 match.winner = survivor
 
-        def in_match(server: Server, player: Player) -> Optional[Match]:
+        def in_match(server: Server, player: Player) -> Match | None:
             match: Match = self.in_match[server.name].get(player.ucid)
             if match and match.started and not match.finished and player not in match.dead.get(player.side, []):
                 return match

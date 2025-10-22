@@ -4,7 +4,7 @@ import asyncio
 import logging
 
 from abc import ABC
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import Server
@@ -43,6 +43,10 @@ class Extension(ABC):
         self.server: Server = server
         self.running = False
         self.locals: dict = {}
+        if self.config.get('name'):
+            self._name = self.config['name']
+        else:
+            self._name = self.__class__.__name__
         if not self.enabled or not self.is_installed():
             return
         self.locals = self.load_config()
@@ -52,7 +56,7 @@ class Extension(ABC):
                 schedule.start()
             Extension.started_schedulers.add(self.__class__.__name__)
 
-    def load_config(self) -> Optional[dict]:
+    def load_config(self) -> dict | None:
         return dict()
 
     async def prepare(self) -> bool:
@@ -61,21 +65,35 @@ class Extension(ABC):
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         return filename, False
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
+        if not self.config.get('enabled', True):
+            return False
         self.running = True
         if self.is_running():
-            self.log.info(f"  => {self.name} launched for \"{self.server.name}\".")
+            self.loop.create_task(self.server.send_to_dcs({
+                "command": "addExtension",
+                "extension": self.name
+            }))
+            if not quiet:
+                self.log.info(f"  => {self.name} launched for \"{self.server.name}\".")
             return True
         else:
-            self.log.warning(f"  => {self.name} NOT launched for \"{self.server.name}\".")
+            if not quiet:
+                self.log.warning(f"  => {self.name} NOT launched for \"{self.server.name}\".")
             return False
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
+        # unregister extension from DCS
+        self.loop.create_task(self.server.send_to_dcs({
+            "command": "removeExtension",
+            "extension": self.name
+        }))
         # avoid race conditions
         if not self.is_running():
             return True
         self.running = False
-        self.log.info(f"  => {self.name} shut down for \"{self.server.name}\".")
+        if not quiet:
+            self.log.info(f"  => {self.name} shut down for \"{self.server.name}\".")
         return True
 
     def is_running(self) -> bool:
@@ -83,10 +101,10 @@ class Extension(ABC):
 
     @property
     def name(self) -> str:
-        return type(self).__name__
+        return self._name
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         return None
 
     @property
@@ -95,13 +113,15 @@ class Extension(ABC):
 
     async def enable(self):
         self.config['enabled'] = True
+        if not self.is_running():
+            asyncio.create_task(self.startup())
 
     async def disable(self):
         if self.is_running():
             await asyncio.to_thread(self.shutdown)
         self.config['enabled'] = False
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         raise NotImplementedError()
 
     def is_installed(self) -> bool:

@@ -13,7 +13,7 @@ from pathlib import Path
 from psycopg.errors import UniqueViolation
 from services.bot import DCSServerBot
 from services.monitoring import MonitoringService
-from typing import Type, Optional, Union
+from typing import Type
 
 from .listener import MonitoringListener
 from ..userstats.filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, \
@@ -95,7 +95,7 @@ class Monitoring(Plugin[MonitoringListener]):
                 pass
         return False
 
-    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
+    async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
         if new_version == '3.3':
             # Check if we had serverstats loaded in main.yaml and if yes, remove it.
             config = os.path.join(self.node.config_dir, 'main.yaml')
@@ -149,7 +149,7 @@ class Monitoring(Plugin[MonitoringListener]):
                 await ServiceRegistry.get(MonitoringService).start()
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: Optional[str] = None) -> None:
+                    server: str | None = None) -> None:
         self.log.debug('Pruning Monitoring ...')
         if server:
             await conn.execute("DELETE FROM serverstats WHERE server_name = %s", (server, ))
@@ -158,13 +158,13 @@ class Monitoring(Plugin[MonitoringListener]):
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
         await conn.execute('UPDATE serverstats SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
-    def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
-                   use_cache: Optional[bool] = True) -> dict:
+    def get_config(self, server: Server | None = None, *, plugin_name: str | None = None,
+                   use_cache: bool | None = True) -> dict:
         if plugin_name:
             return super().get_config(server, plugin_name=plugin_name, use_cache=use_cache)
         return self.service.get_config(server)
 
-    async def display_report(self, interaction: discord.Interaction, schema: str, period: Union[str, StatisticsFilter],
+    async def display_report(self, interaction: discord.Interaction, schema: str, period: str | StatisticsFilter,
                              server: Server, ephemeral: bool):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -182,9 +182,9 @@ class Monitoring(Plugin[MonitoringListener]):
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(_server="server")
     async def serverload(self, interaction: discord.Interaction,
-                         _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None,
-                         period: Optional[app_commands.Transform[
-                             StatisticsFilter, PeriodTransformer(flt=[ServerLoadFilter])]] = ServerLoadFilter(),
+                         _server: app_commands.Transform[Server, utils.ServerTransformer] | None = None,
+                         period: app_commands.Transform[
+                             StatisticsFilter, PeriodTransformer(flt=[ServerLoadFilter])] | None = ServerLoadFilter(),
                          ):
         try:
             ephemeral = utils.get_ephemeral(interaction)
@@ -204,11 +204,11 @@ class Monitoring(Plugin[MonitoringListener]):
     @app_commands.rename(_server="server")
     @app_commands.describe(period='Select one of the default periods or enter the name of a campaign or a mission')
     async def serverstats(self, interaction: discord.Interaction,
-                          _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
-                          period: Optional[app_commands.Transform[
+                          _server: app_commands.Transform[Server, utils.ServerTransformer] | None,
+                          period: app_commands.Transform[
                               StatisticsFilter, PeriodTransformer(
                                   flt=[PeriodFilter, CampaignFilter, MissionFilter, SquadronFilter]
-                              )]] = PeriodFilter()):
+                              )] | None = PeriodFilter()):
         try:
             ephemeral = utils.get_ephemeral(interaction)
             if _server:

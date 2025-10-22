@@ -4,18 +4,24 @@ import numpy as np
 from core import report
 from matplotlib import cm
 from psycopg.rows import dict_row
-from typing import Optional
 
 from ..userstats.highscore import compute_font_size
 
 
 class HighscoreCredits(report.GraphElement):
 
-    async def render(self, interaction: discord.Interaction, limit: int, bar_labels: Optional[bool] = True):
+    async def render(self, interaction: discord.Interaction, server_name: str, limit: int,
+                     bar_labels: bool | None = True):
+        if server_name:
+            where = "WHERE cs.server_name = %(server_name)s"
+        else:
+            where = ""
         sql = f"""
-            SELECT DISTINCT p.discord_id, COALESCE(name, 'Unknown') AS name, c.points AS value
-            FROM players p, credits c
-            WHERE p.ucid = c.player_ucid
+            SELECT DISTINCT p.discord_id, COALESCE(p.name, 'Unknown') AS name, c.points AS value
+            FROM players p JOIN credits c ON p.ucid = c.player_ucid
+            JOIN campaigns ca ON c.campaign_id = ca.id
+            JOIN campaigns_servers cs ON ca.id = cs.campaign_id
+            {where}
             ORDER BY 3 DESC 
             LIMIT {limit}
         """
@@ -24,7 +30,7 @@ class HighscoreCredits(report.GraphElement):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 labels = []
                 values = []
-                await cursor.execute(sql)
+                await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']

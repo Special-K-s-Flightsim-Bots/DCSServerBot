@@ -17,7 +17,7 @@ class MusicPlayer(View):
     def __init__(self, server: Server, radio_name: str, playlists: list[str]):
         super().__init__()
         self.radio_name = radio_name
-        self.service = ServiceRegistry.get(MusicService)
+        self.service: MusicService = ServiceRegistry.get(MusicService)
         self.log = self.service.log
         self.server = server
         self.playlists = playlists

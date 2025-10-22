@@ -13,7 +13,6 @@ from openpyxl import Workbook
 from openpyxl.styles import Border, Side, Font
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from trueskill import Rating
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +151,7 @@ async def download_image(image_url: str) -> bytes:
     except Exception as ex:
         raise ValueError(f"Error downloading image: {ex}") from ex
 
-async def create_versus_image(team_blue_image_url: str, team_red_image_url: str, winner: str = None) -> Optional[bytes]:
+async def create_versus_image(team_blue_image_url: str, team_red_image_url: str, winner: str = None) -> bytes | None:
     """
     Create a versus image or winner image depending on if a winner is specified.
     :param team_blue_image_url: Blue team image URL
@@ -358,7 +357,7 @@ async def create_versus_image(team_blue_image_url: str, team_red_image_url: str,
             img2_bio.close()
 
 
-async def create_winner_image(winner_image_url: str) -> Optional[bytes]:
+async def create_winner_image(winner_image_url: str) -> bytes | None:
     """
     Create a special victory image for the tournament winner with enhanced visual effects.
     :param winner_image_url: URL of the winning squadron's image
@@ -754,7 +753,7 @@ async def render_groups(groups: list[list[tuple[str, str]]]) -> bytes:
 
 class TimePreferences(report.GraphElement):
 
-    async def render(self, tournament_id: Optional[int] = None):
+    async def render(self, tournament_id: int | None = None):
         labels = []
         values = []
         inner_sql = "WHERE p.tournament_id = %(tournament_id)s" if tournament_id else ""
@@ -788,7 +787,7 @@ class TimePreferences(report.GraphElement):
 
 class TerrainPreferences(report.GraphElement):
 
-    async def render(self, tournament_id: Optional[int] = None):
+    async def render(self, tournament_id: int | None = None):
         labels = []
         values = []
         inner_sql = "WHERE tournament_id = %(tournament_id)s" if tournament_id else ""

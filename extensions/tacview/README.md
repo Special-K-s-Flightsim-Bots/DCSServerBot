@@ -20,7 +20,7 @@ MyNode:
       # [...]
       extensions:
         Tacview:
-          autoupdate: true                      # if true, the bot will auto-update the tacview mod, if the version of Tacview was updated on your server (default: false)
+          autoupdate: true                      # if true, the bot will auto-update the tacview mod if the version of Tacview was updated on your server (default: false)
           show_passwords: false                 # hide passwords in your server status embed (default: true)
           host: 127.0.0.1                       # Tacview host (default)
           log: "%USERPROFILE%\\Saved Games\\DCS.release_server\\Logs\tacview.log" # Only needed, if you export tacview logs to a different file.
@@ -50,3 +50,16 @@ To delete old tacview files, check out the [Cleanup](../../services/cleanup/READ
 > 1 = accurate
 > 8 = balanced
 > 16 = fast
+
+> [!TIP]
+> You can rename the Tacview extension in your server status embed by setting a "name" in the configuration like so:
+> ```yaml
+> extension:
+>   Tacview:
+>     name: MyFancyName  # Optional: default is "Tacview"
+> ```
+
+> [!IMPORTANT]
+> Autoupdate with Tacview works differently from autoupdate with many other solutions.
+> The bot cannot autoupdate Tacview itself; all it can do is to update the instances whenever you updated the Tacview
+> version on your server.

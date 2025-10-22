@@ -133,8 +133,16 @@ MyNode:
 > If you want to set a custom ICAO code (URMM in this case) per mission, you can name your mission like so:<br>
 > `MyFancyMission_ICAO_URMM_whatsoever.miz`
 
+> [!TIP]
+> You can rename the RealWeather extension in your server status embed by setting a "name" in the configuration like so:
+> ```yaml
+> extension:
+>   RealWeather:
+>     name: MyFancyName  # Optional: default is "RealWeather"
+> ```
+
 > [!NOTE]
 > You can use any parameter that Real Weather describes in their discord. I only write a json/toml from whatever
 > you put in the extension configuration to pass that through to Real Weather. That said, it is ALWAYS a good
-> idea to look at what they added or changed, as I can not keep up with every 3rd party app I support with the
+> idea to look at what they added or changed, as I cannot keep up with every third party app I support with the
 > bot.

@@ -3,7 +3,7 @@ import re
 
 from core import EventListener, Server, Status, utils, event, Side
 from plugins.creditsystem.player import CreditPlayer
-from typing import Union, cast, Optional, TYPE_CHECKING
+from typing import cast, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .commands import SlotBlocking
@@ -91,8 +91,8 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                     return unit['crew']
         return 0
 
-    def _get_costs(self, server: Server, data: Union[CreditPlayer, dict]) -> int:
-        def _get_data(data: Union[CreditPlayer, dict], attribute_name: str):
+    def _get_costs(self, server: Server, data: CreditPlayer | dict) -> int:
+        def _get_data(data: CreditPlayer | dict, attribute_name: str):
             return getattr(data, attribute_name) if isinstance(data, CreditPlayer) else data[attribute_name]
 
         def _is_unit_match(unit: dict, attribute_name: str, attribute_value: str) -> bool:
@@ -135,8 +135,8 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                 message = "VIP user {}(ucid={} joined".format(utils.escape_string(data['name']), data['ucid'])
             asyncio.create_task(self.bot.audit(message, server=server))
 
-    async def _pay_for_plane(self, server: Server, player: CreditPlayer, data: Optional[dict] = None,
-                             payback: Optional[bool] = True):
+    async def _pay_for_plane(self, server: Server, player: CreditPlayer, data: dict | None = None,
+                             payback: bool | None = True):
         async with self.lock:
             if player.deposit != 0:
                 return

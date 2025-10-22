@@ -2,6 +2,7 @@ schema;node_skyeye_schema:
   type: map
   nullable: false
   mapping:
+    name: {type: str, nullable: false, range: {min: 1}}
     installation: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
     autoupdate: {type: bool, nullable: false}
     debug: {type: bool, nullable: false}
@@ -11,6 +12,7 @@ schema;skyeye_config:
   nullable: false
   mapping:
     enabled: {type: bool, nullable: false}
+    name: {type: str, nullable: false, range: {min: 1}}
     debug: {type: bool, nullable: false}
     log: {type: str, nullable: false, range: {min: 1}}
     affinity: {type: any, nullable: false, func: int_csv_or_list}

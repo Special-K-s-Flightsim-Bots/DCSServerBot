@@ -1,16 +1,16 @@
 import asyncio
 import logging
 import os
-from pathlib import Path
-
+import socket
 import uvicorn
+
+from core import Service, ServiceRegistry, NodeImpl, DEFAULT_TAG
 from fastapi import FastAPI
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
-from uvicorn import Config
-
-from core import Service, ServiceRegistry, NodeImpl, DEFAULT_TAG
+from pathlib import Path
 from services.servicebus import ServiceBus
+from uvicorn import Config
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -110,9 +110,28 @@ class WebService(Service):
                                )
 
     async def start(self):
-        if self.app and self.server:
-            await super().start()
-            self.task = asyncio.create_task(self.server.serve())
+        if not self.app or not self.server:
+            return
+
+        await super().start()
+
+        # port availability pre-check to avoid SystemExit from uvicorn.serve()
+        host = self.config.host or "127.0.0.1"
+        port = int(self.config.port)
+        with socket.create_server((host, port), reuse_port=False) as s:
+            pass
+
+        # run server in the background but guard against SystemExit
+        async def run_server():
+            try:
+                await self.server.serve()
+            except SystemExit as ex:
+                # uvicorn may call sys.exit(1) on bind errors or fatal init issues
+                self.log.error(f"{self.name}: Uvicorn terminated with SystemExit({ex.code})")
+            except Exception as ex:
+                self.log.exception(f"{self.name}: Uvicorn crashed: {ex}")
+
+        self.task = asyncio.create_task(run_server())
 
     async def stop(self):
         if self.task:

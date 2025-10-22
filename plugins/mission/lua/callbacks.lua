@@ -3,7 +3,7 @@ local base      = _G
 local dcsbot    = base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
 local Censorship= base.require('censorship')
-local textutil = base.require('textutil')
+local textutil  = base.require('textutil')
 
 dcsbot.banList = dcsbot.banList or {}
 dcsbot.locked = dcsbot.locked or {}
@@ -169,11 +169,11 @@ function mission.onMissionLoadBegin()
 	if dcsbot.registered == false then
 		dcsbot.registerDCSServer()
 	end
-	if DCS.getCurrentMission() then
+	if Sim.getCurrentMission() then
         local msg = {
             command = 'onMissionLoadBegin',
-            current_mission = DCS.getMissionName(),
-            current_map = DCS.getCurrentMission().mission.theatre,
+            current_mission = Sim.getMissionName(),
+            current_map = Sim.getCurrentMission().mission.theatre,
             mission_time = 0
         }
         utils.sendBotTable(msg)
@@ -186,16 +186,16 @@ function mission.onMissionLoadEnd()
     utils.loadScript('mission/mission.lua')
     local msg = {
         command = 'onMissionLoadEnd',
-        filename = DCS.getMissionFilename(),
-        current_mission = DCS.getMissionName(),
-        current_map = DCS.getCurrentMission().mission.theatre,
+        filename = Sim.getMissionFilename(),
+        current_mission = Sim.getMissionName(),
+        current_map = Sim.getCurrentMission().mission.theatre,
         mission_time = 0,
-        start_time = DCS.getCurrentMission().mission.start_time,
-        date = DCS.getCurrentMission().mission.date
+        start_time = Sim.getCurrentMission().mission.start_time,
+        date = Sim.getCurrentMission().mission.date
     }
 
     num_slots_red = 0
-    local availableSlots = DCS.getAvailableSlots("red")
+    local availableSlots = Sim.getAvailableSlots("red")
     dcsbot.red_slots = {}
     if availableSlots ~= nil then
         for k,v in pairs(availableSlots) do
@@ -205,7 +205,7 @@ function mission.onMissionLoadEnd()
     end
 
     num_slots_blue = 0
-    availableSlots = DCS.getAvailableSlots("blue")
+    availableSlots = Sim.getAvailableSlots("blue")
     dcsbot.blue_slots = {}
     if availableSlots ~= nil then
         for k,v in pairs(availableSlots) do
@@ -248,7 +248,6 @@ function mission.onPlayerConnect(id)
     end
     dcsbot.userInfo[msg.ucid] = dcsbot.userInfo[msg.ucid] or {}
     dcsbot.userInfo[msg.ucid].points = nil
-    dcsbot.userInfo[msg.ucid].coalition = nil
     mission.num_change_slots[id] = 0
 	utils.sendBotTable(msg)
 end
@@ -291,7 +290,7 @@ end
 
 function mission.onPlayerTryChangeSlot(id, side, slot)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTryChangeSlot()')
-    local config = dcsbot.params['mission']
+    local config = (dcsbot.params and dcsbot.params.mission) or {}
     local slot_spamming = config['slot_spamming']
 
     -- check, if seat is locked
@@ -338,11 +337,11 @@ function mission.onPlayerChangeSlot(id)
         active = true
     }
     msg.unit_type, msg.slot, msg.sub_slot = utils.getMulticrewAllParameters(id)
-    msg.unit_name = DCS.getUnitProperty(msg.slot, DCS.UNIT_NAME)
-    msg.group_name = DCS.getUnitProperty(msg.slot, DCS.UNIT_GROUPNAME)
-    msg.group_id = DCS.getUnitProperty(msg.slot, DCS.UNIT_GROUP_MISSION_ID)
-    msg.unit_callsign = DCS.getUnitProperty(msg.slot, DCS.UNIT_CALLSIGN)
-    msg.unit_display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(msg.slot), "DisplayName")
+    msg.unit_name = Sim.getUnitProperty(msg.slot, Sim.UNIT_NAME)
+    msg.group_name = Sim.getUnitProperty(msg.slot, Sim.UNIT_GROUPNAME)
+    msg.group_id = Sim.getUnitProperty(msg.slot, Sim.UNIT_GROUP_MISSION_ID)
+    msg.unit_callsign = Sim.getUnitProperty(msg.slot, Sim.UNIT_CALLSIGN)
+    msg.unit_display_name = Sim.getUnitTypeAttribute(Sim.getUnitType(msg.slot), "DisplayName")
 
     -- DCS MC bug workaround
     if msg.sub_slot > 0 then
@@ -408,7 +407,7 @@ local eventHandlers = {
     landing = handleTakeoffLanding,
     friendly_fire = function(arg1, arg2, arg3)
         unit_type, slot, sub_slot = utils.getMulticrewAllParameters(arg1)
-        display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(slot), "DisplayName")
+        display_name = Sim.getUnitTypeAttribute(Sim.getUnitType(slot), "DisplayName")
         -- do we have collisions (weapon == unit name)
         if display_name == arg2 then
             -- ignore "spawn on top"
@@ -428,7 +427,7 @@ local eventHandlers = {
     end,
     kill = function(arg1,arg2,arg3,arg4,arg5,arg6,arg7)
         unit_type, slot, sub_slot = utils.getMulticrewAllParameters(arg1)
-        display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(slot), "DisplayName")
+        display_name = Sim.getUnitTypeAttribute(Sim.getUnitType(slot), "DisplayName")
         -- do we have collision kill (weapon == unit name)
         if display_name == arg7 then
             -- ignore "spawn on top"
@@ -512,4 +511,4 @@ function mission.onChatMessage(message, from, to)
     end
 end
 
-DCS.setUserCallbacks(mission)
+Sim.setUserCallbacks(mission)

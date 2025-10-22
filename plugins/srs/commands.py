@@ -1,12 +1,11 @@
 import discord
-from charset_normalizer.api import explain_handler
 
 from core import (Plugin, PluginRequiredError, PluginInstallationError, Group, get_translation, utils, Server,
                   Coalition, Status)
 from discord import app_commands
 from extensions.srs import SRS as SRSExt
 from services.bot import DCSServerBot
-from typing import Type, Literal, Optional
+from typing import Type, Literal
 
 from .listener import SRSEventListener
 
@@ -59,6 +58,7 @@ class SRS(Plugin[SRSEventListener]):
 
     @srs.command(description=_('Update DCS-SRS'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('DCS Admin')
     async def update(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
@@ -75,11 +75,18 @@ class SRS(Plugin[SRSEventListener]):
             # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=ephemeral)
             await interaction.followup.send(_("DCS-SRS update to version {} available!").format(version))
-            if not utils.yn_question(interaction, _("Do you want to update DCS-SRS now?")):
+            if not await utils.yn_question(
+                    interaction,
+                    question=_("Do you want to update DCS-SRS now?"),
+                    message=_("This will terminate all DCS-SRS servers on node {}!").format(server.node.name)
+            ):
                 await interaction.followup.send(_("Aborted."))
                 return
-            await server.run_on_extension(extension='SRS', method='do_update')
-            await interaction.followup.send(_("DCS-SRS updated to version {}.").format(version))
+            try:
+                await server.run_on_extension(extension='SRS', method='do_update', version=version)
+                await interaction.followup.send(_("DCS-SRS updated to version {}.").format(version))
+            except Exception:
+                await interaction.followup.send(_("Failed to update DCS-SRS. See log for defails."))
         else:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("No update for DCS-SRS available."))
@@ -87,7 +94,7 @@ class SRS(Plugin[SRSEventListener]):
     async def _configure(self, interaction: discord.Interaction,
                          server: Server,
                          enabled: bool = None,
-                         autoconnect: bool = None) -> Optional[dict]:
+                         autoconnect: bool = None) -> dict | None:
         config = server.instance.locals.get('extensions', {}).get('SRS', {})
         modal = utils.ConfigModal(title=_("SRS Configuration"),
                                   config=SRSExt.CONFIG_DICT,
@@ -112,10 +119,11 @@ class SRS(Plugin[SRSEventListener]):
 
     @srs.command(description=_('Configure SRS'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('DCS Admin')
     async def configure(self, interaction: discord.Interaction,
                         server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
-                        enabled: Optional[bool] = None, autoconnect: Optional[bool] = None):
+                        enabled: bool | None = None, autoconnect: bool | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if 'SRS' not in await server.init_extensions():
             # noinspection PyUnresolvedReferences
@@ -132,6 +140,41 @@ class SRS(Plugin[SRSEventListener]):
             await interaction.response.send_message(
                 _("Server {} needs to be shut down to configure SRS.").format(server.display_name),
                 ephemeral=True)
+
+    @srs.command(description=_('Repair DCS-SRS'))
+    @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
+    @utils.app_has_role('DCS Admin')
+    async def repair(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer(
+                         status=[Status.LOADING, Status.STOPPED, Status.RUNNING, Status.PAUSED])]):
+        ephemeral = utils.get_ephemeral(interaction)
+        try:
+            data = await server.run_on_extension(extension='SRS', method='render')
+        except ValueError:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Extension SRS is not loaded on server {}").format(
+                server.display_name), ephemeral=True)
+            return
+        except NotImplementedError:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Extension SRS is not active on server {}").format(
+                server.display_name), ephemeral=True)
+            return
+
+        version = data['version']
+        if not await utils.yn_question(
+                interaction,
+                question=_("Do you want to repair DCS-SRS now?"),
+                message=_("This will terminate all DCS-SRS servers on node {}!").format(server.node.name)
+        ):
+            await interaction.followup.send(_("Aborted."))
+            return
+        try:
+            await server.run_on_extension(extension='SRS', method='do_update', version=version)
+            await interaction.followup.send(_("DCS-SRS repaired on node {}.").format(server.node.name))
+        except Exception:
+            await interaction.followup.send(_("Failed to update DCS-SRS. See log for defails."))
 
 
 async def setup(bot: DCSServerBot):

@@ -8,7 +8,7 @@ most likely want the skyeye-windows-amd64.zip.
 Unzip the file to a directory of your choice. This will be called the "installation directory" further on.
 > [!NOTE]
 > Please keep in mind that the bot needs to write permissions to this directory to download the whisper model and for
-> auto-updating of SkyEye (yet to come).
+> auto-updating of SkyEye.
 
 ## Configuration
 Then you can configure the SkyEye extension in your nodes.yaml like so:
@@ -18,6 +18,7 @@ MyNode:
   extensions:
     SkyEye:
       installation: '%USERPROFILE%\Documents\skyeye-windows-amd64'  # or wherever you have installed it
+      autoupdate: true                                              # Auto update SkyEye, whenever a new version is available
   # [...]
   instances:
     DCS.release_server:
@@ -38,15 +39,24 @@ MyNode:
 > as that allows the auto-detection of the process and is a clean way of having all your instance configurations at one 
 > place.
 
+> [!TIP]
+> You can rename the SkyEye extension in your server status embed by setting a "name" in the configuration like so:
+> ```yaml
+> extension:
+>   SkyEye:
+>     name: MyFancyName  # Optional: default is "SkyEye"
+> ```
+
 > [!NOTE]
 > DCSServerBot uses the local Whisper model per default, if not configured otherwise. If you see performance issues,
 > try the (paid) API version instead.
 
 > [!IMPORTANT]
-> SkyEye can be very heavy on your CPU, if you use local (free) whisper models. The recommended way of running it, is
-> to use the external model with an API-key. If you still decide to run SkyEye locally, it is recommended to separate 
-> SkyEye from your running DCS servers. You can use the affinity setting in your instance configuration (see above) and 
-> in the SkyEye configuration to separate the cores from each other.
+> SkyEye can be very heavy on your CPU if you use local (free) whisper models. 
+> The recommended way of running it is to use the external model with an API key. 
+> If you still decide to run SkyEye locally, it is recommended to separate SkyEye from your running DCS servers. 
+> You can use the affinity setting in your instance configuration (see above) and in the SkyEye configuration to 
+> separate the cores from each other.
 
 ### Optional: Multiple SkyEye configurations per server (for red/blue, multiple AWACS, etc.)
 ```yaml

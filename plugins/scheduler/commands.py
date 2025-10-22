@@ -15,7 +15,7 @@ from discord.ui import Modal, TextInput
 from functools import partial
 from pathlib import Path
 from services.bot import DCSServerBot
-from typing import Type, Optional, Literal, Union
+from typing import Type, Literal
 from zoneinfo import ZoneInfo
 
 from .listener import SchedulerListener
@@ -50,7 +50,7 @@ class Scheduler(Plugin[SchedulerListener]):
                 yaml.dump(config, outfile)
         return config
 
-    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
+    async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
         def change_instance_3_1(instance: dict):
             if 'restart' in instance:
                 instance['action'] = instance.pop('restart')
@@ -125,9 +125,9 @@ class Scheduler(Plugin[SchedulerListener]):
                     return Status.SHUTDOWN
         return server.status
 
-    async def launch_dcs(self, server: Server, member: Optional[discord.Member] = None, *,
-                         modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True,
-                         ignore_exception: Optional[bool] = False):
+    async def launch_dcs(self, server: Server, member: discord.Member | None = None, *,
+                         modify_mission: bool | None = True, use_orig: bool | None = True,
+                         ignore_exception: bool | None = False):
         self.log.info(f'  => DCS server "{server.name}" starting up ...')
         try:
             await server.startup(modify_mission=modify_mission, use_orig=use_orig)
@@ -156,12 +156,12 @@ class Scheduler(Plugin[SchedulerListener]):
             return sorted(times.keys(), reverse=True)
         return []
 
-    async def warn_users(self, server: Server, config: dict, rconf: dict, max_warn_time: Optional[int] = None):
+    async def warn_users(self, server: Server, config: dict, rconf: dict, max_warn_time: int | None = None):
         warn = config.get('warn', {})
         if not warn:
             return
 
-        times: Union[list, dict] = warn.get('times', [0])
+        times: list | dict = warn.get('times', [0])
         if isinstance(times, list):
             warn_times = sorted(times, reverse=True)
             warn_text = warn.get('text', '!!! {item} will {what} in {when} !!!')
@@ -216,7 +216,7 @@ class Scheduler(Plugin[SchedulerListener]):
         # sleep until the restart should happen
         await asyncio.sleep(min(restart_in, min(warn_times)))
 
-    async def teardown_dcs(self, server: Server, member: Optional[discord.Member] = None):
+    async def teardown_dcs(self, server: Server, member: discord.Member | None = None):
         await self.bot.bus.send_to_node({"command": "onShutdown", "server_name": server.name})
         await asyncio.sleep(1)
         await server.shutdown()
@@ -255,7 +255,7 @@ class Scheduler(Plugin[SchedulerListener]):
                                  f"Check the status manually.")
             server.restart_pending = False
 
-    async def get_mission_from_list(self, server: Server, mission_file: Union[list, str]) -> int:
+    async def get_mission_from_list(self, server: Server, mission_file: list | str) -> int:
         if isinstance(mission_file, list):
             mission_file = random.choice(mission_file)
         filename = utils.format_string(mission_file, instance=server.instance, server=server)
@@ -504,7 +504,7 @@ class Scheduler(Plugin[SchedulerListener]):
     async def before_check(self):
         await self.bot.wait_until_ready()
         while True:
-            if all(server.status != Status.UNREGISTERED for server in self.bus.servers.values()):
+            if all(server.status != Status.UNREGISTERED for server in self.bot.servers.values()):
                 break
             await asyncio.sleep(1)
 
@@ -537,7 +537,7 @@ class Scheduler(Plugin[SchedulerListener]):
             await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
     async def _startup(self, interaction: discord.Interaction, embed: discord.Embed, server: Server, *,
-                       msg: discord.Message = None, mission_id: int = None, maintenance: Optional[bool] = False,
+                       msg: discord.Message = None, mission_id: int = None, maintenance: bool | None = False,
                        run_extensions: bool = True, use_orig: bool = True, ephemeral: bool = False):
 
         if maintenance and not server.maintenance:
@@ -617,8 +617,8 @@ class Scheduler(Plugin[SchedulerListener]):
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
     async def startup(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
-                      maintenance: Optional[bool] = False, run_extensions: Optional[bool] = True,
-                      use_orig: Optional[bool] = True, mission_id: Optional[int] = None):
+                      maintenance: bool | None = False, run_extensions: bool | None = True,
+                      use_orig: bool | None = True, mission_id: int | None = None):
 
         if server.status == Status.STOPPED:
             # noinspection PyUnresolvedReferences
@@ -653,7 +653,7 @@ class Scheduler(Plugin[SchedulerListener]):
                             run_extensions=run_extensions, use_orig=use_orig, ephemeral=ephemeral)
 
     async def _shutdown(self, interaction: discord.Interaction, embed: discord.Embed, server: Server, *,
-                        msg: discord.Message = None, maintenance: Optional[bool] = True, force: bool = False,
+                        msg: discord.Message = None, maintenance: bool | None = True, force: bool = False,
                         ephemeral: bool = False):
 
         if maintenance and not server.maintenance:
@@ -721,7 +721,7 @@ class Scheduler(Plugin[SchedulerListener]):
                        server: app_commands.Transform[Server, utils.ServerTransformer(
                            status=[
                                Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.LOADING, Status.SHUTTING_DOWN
-                           ])], force: Optional[bool] = False, maintenance: Optional[bool] = True):
+                           ])], force: bool | None = False, maintenance: bool | None = True):
 
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
@@ -770,8 +770,8 @@ class Scheduler(Plugin[SchedulerListener]):
                           status=[
                               Status.RUNNING, Status.PAUSED, Status.STOPPED
                           ])],
-                      delay: Optional[int] = 120, force: Optional[bool] = False, run_extensions: Optional[bool] = True,
-                      use_orig: Optional[bool] = True, mission_id: Optional[int] = None):
+                      delay: int | None = 120, force: bool | None = False, run_extensions: bool | None = True,
+                      use_orig: bool | None = True, mission_id: int | None = None):
 
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
@@ -903,7 +903,7 @@ class Scheduler(Plugin[SchedulerListener]):
     @utils.app_has_role('DCS Admin')
     async def password(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer],
-                       coalition: Optional[Literal['red', 'blue']] = None):
+                       coalition: Literal['red', 'blue'] | None = None):
         class PasswordModal(Modal, title="Enter Password"):
             # noinspection PyTypeChecker
             password = TextInput(label="New Password" + (f" for coalition {coalition}:" if coalition else ":"),
@@ -932,6 +932,7 @@ class Scheduler(Plugin[SchedulerListener]):
 
     @group.command(description='Change the configuration of a DCS server')
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('DCS Admin')
     async def config(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer]):
@@ -992,6 +993,7 @@ class Scheduler(Plugin[SchedulerListener]):
 
     @group.command(name="migrate", description="Migrate a server from one instance to another")
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     async def _migrate(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer],
@@ -1124,7 +1126,7 @@ class Scheduler(Plugin[SchedulerListener]):
     @utils.app_has_role('DCS Admin')
     async def lock(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(
-                       status=[Status.PAUSED, Status.RUNNING])], message: Optional[str] = None):
+                       status=[Status.PAUSED, Status.RUNNING])], message: str | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)

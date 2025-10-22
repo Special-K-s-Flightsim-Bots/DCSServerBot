@@ -3,7 +3,7 @@ import os
 
 from core.commandline import COMMAND_LINE_ARGS
 from pathlib import Path
-from typing import Optional, Callable
+from typing import Callable
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -17,7 +17,7 @@ __all__ = [
 ]
 
 
-_language: Optional[str] = None
+_language: str | None = None
 
 
 def get_translation(domain) -> Callable[[str], str]:

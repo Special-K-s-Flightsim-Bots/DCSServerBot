@@ -15,11 +15,11 @@ if errorlevel 9009 (
     exit /B 9009
 )
 
-python -c "import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)" >NUL 2>&1
+python -c "import sys; sys.exit(0 if (3,10) <= sys.version_info < (3,14) else 1)" >NUL 2>&1
 if errorlevel 1 (
     echo.
     echo ***  ERROR  ***
-    echo DCSServerBot requires Python 3.10 or newer.
+    echo DCSServerBot requires Python >= 3.10 and < 3.14.
     exit /B 1
 )
 
@@ -40,8 +40,7 @@ if not exist "%VENV%" (
     echo Creating the Python Virtual Environment ...
     python -m venv "%VENV%"
     "%VENV%\Scripts\python.exe" -m pip install --upgrade pip
-    "%VENV%\Scripts\pip" install pip-tools
-    "%VENV%\Scripts\pip-sync" requirements.txt
+    "%VENV%\Scripts\pip" install -r requirements.txt
 )
 
 SET PROGRAM=run.py

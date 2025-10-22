@@ -1,7 +1,7 @@
 import os
 
 from services.bot.dummy import DummyRole, DummyMember
-from typing import Optional, AsyncIterator
+from typing import AsyncIterator
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -43,13 +43,13 @@ class DummyGuild:
     def members(self) -> list[DummyMember]:
         return list(self._members.values())
 
-    def get_member(self, ucid: str) -> Optional[DummyMember]:
+    def get_member(self, ucid: str) -> DummyMember | None:
         return self._members.get(ucid)
 
-    async def fetch_member(self, ucid: str) -> Optional[DummyMember]:
+    async def fetch_member(self, ucid: str) -> DummyMember | None:
         return self.get_member(ucid)
 
-    async def bans(self) -> AsyncIterator[Optional[DummyMember]]:
+    async def bans(self) -> AsyncIterator[DummyMember | None]:
         # noinspection PyUnreachableCode
         if False:
             yield

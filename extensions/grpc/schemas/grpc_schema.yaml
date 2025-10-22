@@ -4,6 +4,7 @@ schema;grpc_schema:
   allowempty: true  # we might want to specify additional parameters
   mapping:
     enabled: {type: bool, nullable: false}
+    name: { type: str, nullable: false, range: { min: 1 } }
     port: {type: int, nullable: false, func: unique_port}
     evalEnabled: {type: bool, nullable: false}
     host: {type: str, nullable: false, range: {min: 1}}

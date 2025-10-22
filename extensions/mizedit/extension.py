@@ -4,11 +4,11 @@ import os
 import random
 import re
 
-from core import Extension, utils, Server, YAMLError, DEFAULT_TAG, MizFile, ServerImpl
+from core import Extension, utils, Server, YAMLError, DEFAULT_TAG, MizFile, ServerImpl, Status
 from datetime import datetime
 from extensions.realweather import RealWeather
 from pathlib import Path
-from typing import Union, cast, Optional
+from typing import cast
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -26,20 +26,31 @@ class MizEdit(Extension):
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
-        presets_file = self.config.get('presets', os.path.join(server.node.config_dir, 'presets.yaml'))
-        self.presets = {}
+        if server.status != Status.SHUTDOWN:
+            self.presets = self._init_presets()
+        else:
+            self.presets = {}
+
+    def _init_presets(self):
+        presets_file = self.config.get('presets', os.path.join(self.node.config_dir, 'presets.yaml'))
+        presets = {}
         if not isinstance(presets_file, list):
             presets_file = [presets_file]
         for file in presets_file:
             try:
-                self.presets |= yaml.load(Path(file).read_text(encoding='utf-8'))
-                if not isinstance(self.presets, dict):
-                    raise ValueError("File must contain a dictionary. not a list!")
+                presets |= yaml.load(Path(file).read_text(encoding='utf-8'))
+                if not isinstance(presets, dict):
+                    raise ValueError("File must contain a dictionary, not a list!")
             except FileNotFoundError:
                 self.log.error(f"MizEdit: File {file} not found!")
                 continue
             except (MarkedYAMLError, ValueError) as ex:
                 raise YAMLError(file, ex)
+        return presets
+
+    async def prepare(self) -> bool:
+        self.presets = self._init_presets()
+        return await super().prepare()
 
     async def get_presets(self, config: dict) -> list[dict]:
         # check for terrain-specific config
@@ -87,8 +98,8 @@ class MizEdit(Extension):
         return modifications
 
     @staticmethod
-    async def apply_presets(server: Server, filename: str, preset: Union[list, dict],
-                            debug: Optional[bool] = False) -> None:
+    async def apply_presets(server: Server, filename: str, preset: list | dict,
+                            debug: bool | None = False) -> None:
         if preset and isinstance(preset, list):
             rw_preset = next((p for p in preset if 'RealWeather'in p), None)
             if rw_preset:
@@ -136,8 +147,8 @@ class MizEdit(Extension):
                                  debug=self.config.get('debug', False))
         return filename, True
 
-    def is_running(self) -> bool:
-        return True
+    async def startup(self, *, quiet: bool = False) -> bool:
+        return await super().startup(quiet=True)
 
-    def shutdown(self) -> bool:
-        return True
+    def shutdown(self, *, quiet: bool = False) -> bool:
+        return super().shutdown(quiet=True)

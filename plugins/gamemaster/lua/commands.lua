@@ -43,15 +43,20 @@ function dcsbot.setVariable(json)
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
 end
 
+--[[
 -- internal, do not use inside of missions unless you know what you are doing!
 function dcsbot.setUserCoalition(json)
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: setUserCoalition()')
     dcsbot.userInfo[json.ucid].coalition = tonumber(json.coalition)
 end
+]]--
 
-function dcsbot.resetUserCoalitions(json)
+function dcsbot.resetUserCoalitions()
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: resetUserCoalitions()')
-    for _, item in pairs(dcsbot.userInfo) do
-        item.coalition = nil
-    end
+    net.resetJoinCooldownEndForAll()
+end
+
+function dcsbot.resetUserCoalition(json)
+    log.write('DCSServerBot', log.DEBUG, 'GameMaster: resetUserCoalition()')
+    net.resetJoinCooldownEndForPlayer(json.id)
 end

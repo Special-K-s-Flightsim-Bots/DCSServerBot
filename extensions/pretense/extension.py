@@ -4,7 +4,6 @@ import os
 import re
 
 from core import Extension, Server
-from typing import Optional
 
 __all__ = [
     "Pretense"
@@ -27,10 +26,10 @@ class Pretense(Extension):
             path = os.path.join(self.missions_dir, 'Saves')
             os.makedirs(path)
             open(os.path.join(path, 'randomize.lua'), 'w').close()
-        return True
+        return await super().prepare()
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         if not self._version:
             if not self.missions_dir:
                 return None
@@ -43,9 +42,15 @@ class Pretense(Extension):
             self._version = _version[0] if _version else None
         return self._version
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         return {
-            "name": self.__class__.__name__,
+            "name": self.name,
             "version": self.version,
             "value": "enabled"
         }
+
+    async def startup(self, *, quiet: bool = False) -> bool:
+        return await super().startup(quiet=True)
+
+    def shutdown(self, *, quiet: bool = False) -> bool:
+        return super().shutdown(quiet=True)

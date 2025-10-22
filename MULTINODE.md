@@ -18,6 +18,17 @@ or outages.
 
 If you want to run your DCSServerBot over multiple locations, you need to prepare your setup:
 
+## Cluster Configuration
+DCSServerBot lets you configure your cluster with several parameters.
+```yaml
+MyNode:                     # This is the name of your first node (will be different for you, usually the hostname is used).
+  cluster:
+    cloud_drive: true       # Is your DCSServerBot installed on a cloud drive (Google Drive, OneDrive, etc.)? Default is true. 
+    heartbeat: 60           # Heartbeat between the nodes in a cluster. Default is 30, use larger values if your nodes are not in the same network.
+    preferred_master: true  # This node will always be the master. If your database is installed on a node, make it your preferred master node.
+    no_master: true         # This node will never become a master. You cannot specify preferred_master and no_master on the same node. 
+```
+
 ## Cloud-Drive Setup (default)
 You need to make sure that every node in your cluster is aware of the full configuration. The best way to achieve this
 is to have the bot or at least the bot's configuration installed on a cloud drive, like OneDrive or Google Drive. 
@@ -32,22 +43,24 @@ autoupdate: true
 
 b) nodes.yaml
 ```yaml
-Node1:  # this is the name of your first node. will be different for you
-  cloud_drive: true # this is the default, so no need to specify it in here, just for reference    
-  heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here (default = 30)
-  preferred_master: true  # if your database is installed on Node1, make it your preferred master node
+Node1:  # this is the name of your first node (will be different for you, usually the hostname is used)
   database:
     url: postgres://dcsserverbot:SECRET@127.0.0.1:5432/dcsserverbot?sslmode=prefer  # if your database is installed on Node1
+  cluster:
+    cloud_drive: true # this is the default, so no need to specify it in here, just for reference    
+    heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here if your nodes are not on the same network (default = 30)
 # ... anything else like extensions, instances, ... for Node1
-Node2:  # this is the name of your second node. will be different for you
-  heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here (default = 30)
+Node2:  # this is the name of your second node (will be different for you, usually the hostname is used)
   database:
     url: postgres://dcsserverbot:SECRET@xxx.xxx.xxx.xxx:5432/dcsserverbot?sslmode=prefer  # replace xxx.xxx.xxx.xxx with the IP of Node1
+  cluster:
+    heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here if your nodes are not on the same network (default = 30)
 # ... anything else like extensions, instances, ... for Node2
-Node3:  # this is the name of your third node. will be different for you
-  heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here (default = 30)
+Node3:  # this is the name of your third node (will be different for you, usually the hostname is used)
   database:
     url: postgres://dcsserverbot:SECRET@xxx.xxx.xxx.xxx:5432/dcsserverbot?sslmode=prefer  # replace xxx.xxx.xxx.xxx with the IP of Node1
+  cluster:
+    heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here if your nodes are not on the same network (default = 30)
 # ... anything else like extensions, instances, ... for Node3
 ```
 
@@ -61,16 +74,49 @@ autoupdate: true
 
 b) nodes.yaml
 ```yaml
-Node1:  # this is the name of your first node. will be different for you
-  cloud_drive: false  # tell the bot that you are NOT installed on a cloud drive    
-# ... same as before
-Node2:  # this is the name of your second node. will be different for you
-  cloud_drive: false  # tell the bot that you are NOT installed on a cloud drive    
-# ... same as before
-Node3:  # this is the name of your third node. will be different for you
-  cloud_drive: false  # tell the bot that you are NOT installed on a cloud drive    
-# ... same as before
+Node1:  # this is the name of your first node (will be different for you, usually the hostname is used)
+  cluster:
+    cloud_drive: false  # tell the bot that it is NOT installed on a cloud drive    
+# ... same as above
+Node2:  # this is the name of your second node (will be different for you, usually the hostname is used)
+  cluster:
+    cloud_drive: false  # tell the bot that it is NOT installed on a cloud drive    
+# ... same as above
+Node3:  # this is the name of your third node (will be different for you, usually the hostname is used)
+  cluster:
+    cloud_drive: false  # tell the bot that it is NOT installed on a cloud drive    
+# ... same as above
 ```
+
+## Master Handling
+The DCSServerBot cluster consists of one master node and multiple agent nodes. 
+The master holds some services that are only allowed to run once in your cluster, like the Discord bot.
+As this is usually linked to heavy database access, it is recommended to have the master node on the same server that
+holds the database.
+Installations which use a central database on a dedicated server or even a cloud database do not need to consider this.
+
+If you want to bind your master to a specific node, you set this node as `preferred_master: true`. 
+In this case and unless this node does not run, it will be the master node.
+
+In rare cases it might be that you do not want a node to become master at all.
+This might be true if you run a node on a remotely hosted server like with Fox3 (or any other hoster), you can't 
+sync the configuration, or any other reason that might prevent you from having this node as master.
+In this case you can configure `no_master: true` for this node.
+
+```yaml
+Node1:  # this is the name of your first node (will be different for you, usually the hostname is used)
+  cluster:
+    preferred_master: true  # Optional: if your database is installed on Node1, make it your preferred master node
+# ... same as above
+Node2:  # this is the name of your second node (will be different for you, usually the hostname is used)
+# ... same as above
+Node3:  # this is the name of your third node (will be different for you, usually the hostname is used)
+  cluster:
+    no_master: true   # Optional: This node will never become a master
+# ... same as above
+```
+> [!IMPORTANT]
+> If no node is available to take over the master, your cluster will not work.
 
 ## PostgreSQL Setup
 A standard PostgreSQL installation does not allow remote access to the database. To change it, follow [this guide](https://blog.devart.com/configure-postgresql-to-allow-remote-connection.html).
@@ -128,6 +174,21 @@ are on. If you don't provide a node in a multi-node-system, the bot will read th
 that are named DCS.release_server on any of your nodes. This can be what you want, but it can lead to errors.<br>
 I would always recommend creating the node-specific version (ex: "Multi-Node-Config" above) to avoid confusion. That's 
 what the bot will create during a default installation also.
+
+## Running a node for another group
+To run a node where you want to run servers for another group, you can use the `restrict_commands` setting in your 
+nodes.yaml. This will disable commands that can affect the integrity of your PC, like `/node shell`. 
+This is recommended for nodes that are run by you, but Admin accesses are happening without your control.
+```yaml
+Node1:  # node where I have full control
+  # ...
+Node2:  # node where I do not have full control
+  restrict_commands: true 
+  # ...
+```
+
+> [!NOTE]
+> Unless you specify `restrict_owner: true` in nodes.yaml, the owner of the bot can still run restricted commands.
 
 ### Moving a Server from one Node / Instance to another
 Each server is loosely coupled to an instance on a node. You can migrate a server to another instance though, by using

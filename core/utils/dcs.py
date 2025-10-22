@@ -17,7 +17,6 @@ from contextlib import suppress
 from core.const import SAVED_GAMES
 from core.data.node import Node
 from core.utils.helper import alternate_parse_settings
-from typing import Optional
 
 __all__ = [
     "ParseError",
@@ -45,7 +44,7 @@ class ParseError(Exception):
         self.original = original
 
 
-def findDCSInstances(server_name: Optional[str] = None) -> list[tuple[str, str]]:
+def findDCSInstances(server_name: str | None = None) -> list[tuple[str, str]]:
     if sys.platform != 'win32':
         return []
     instances = []
@@ -339,7 +338,7 @@ def create_writable_mission(filename: str) -> str:
             os.makedirs(dirname, exist_ok=True)
             return os.path.join(dirname, os.path.basename(filename))
 
-def get_orig_file(filename: str, *, create_file: bool = True) -> Optional[str]:
+def get_orig_file(filename: str, *, create_file: bool = True) -> str | None:
     if filename.endswith('.orig'):
         return filename if os.path.exists(filename) else None
     if '.dcssb' in filename:

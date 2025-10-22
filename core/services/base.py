@@ -10,7 +10,7 @@ from core import utils
 from enum import Enum
 from functools import wraps
 from pathlib import Path
-from typing import Optional, Callable, Any, TYPE_CHECKING
+from typing import Callable, Any, TYPE_CHECKING
 
 from core.const import DEFAULT_TAG
 from core.data.dataobject import DataObject
@@ -97,7 +97,7 @@ def proxy(original_function: Callable[..., Any] = None, *, timeout: float = 60):
 class Service(ABC):
     dependencies: list[type[Service]] = None
 
-    def __init__(self, node: NodeImpl, name: Optional[str] = None):
+    def __init__(self, node: NodeImpl, name: str | None = None):
         self.name = name or self.__class__.__name__
         self.running: bool = False
         self.node = node
@@ -159,7 +159,7 @@ class Service(ABC):
                   mode='w', encoding='utf-8') as outfile:
             yaml.dump(self.locals, outfile)
 
-    def get_config(self, server: Optional[Server] = None) -> dict:
+    def get_config(self, server: Server | None = None, **kwargs) -> dict:
         if not server:
             return self.locals.get(DEFAULT_TAG, {})
         if server.node.name not in self._config:

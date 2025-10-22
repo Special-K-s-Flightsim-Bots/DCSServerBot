@@ -4,7 +4,7 @@ import os
 
 from core import UploadStatus, utils, get_translation, Status, Server
 from core.utils.discord import ServerUploadHandler
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .commands import Mission
@@ -68,7 +68,7 @@ class MissionUploadHandler(ServerUploadHandler):
                 mission=name, server=self.server.display_name))
         return rc
 
-    async def _wait_for_mission(self, att: discord.Attachment) -> Optional[str]:
+    async def _wait_for_mission(self, att: discord.Attachment) -> str | None:
         # wait 60s for the mission to appear
         for i in range(0, 60):
             filename = next((file for file in await self.server.getMissionList()

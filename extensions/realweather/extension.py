@@ -17,7 +17,6 @@ from io import BytesIO
 from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
-from typing import Optional
 
 # TOML
 if sys.version_info >= (3, 11):
@@ -47,11 +46,10 @@ class RealWeather(Extension):
         self.metar = None
 
     @property
-    def version(self) -> Optional[str]:
-        return utils.get_windows_version(os.path.join(os.path.expandvars(self.config['installation']),
-                                                      'realweather.exe'))
+    def version(self) -> str | None:
+        return utils.get_windows_version(self.get_rw_exe())
 
-    def load_config(self) -> Optional[dict]:
+    def load_config(self) -> dict | None:
         try:
             if self.version.split('.')[0] == '1':
                 with open(self.config_path, mode='r', encoding='utf-8') as infile:
@@ -69,6 +67,9 @@ class RealWeather(Extension):
         else:
             return self.config
 
+    def get_rw_exe(self):
+        return os.path.expandvars(os.path.join(self.config['installation'], 'realweather.exe'))
+
     @property
     def config_path(self) -> str:
         rw_home = os.path.expandvars(self.config['installation'])
@@ -78,7 +79,7 @@ class RealWeather(Extension):
             return os.path.join(rw_home, 'config.toml')
 
     @staticmethod
-    def get_icao_code(filename: str) -> Optional[str]:
+    def get_icao_code(filename: str) -> str | None:
         index = filename.find('ICAO_')
         if index != -1:
             return filename[index + 5:index + 9]
@@ -110,7 +111,7 @@ class RealWeather(Extension):
             await self._autoupdate()
         return await super().prepare()
 
-    async def generate_config_1_0(self, input_mission: str, output_mission: str, override: Optional[dict] = None):
+    async def generate_config_1_0(self, input_mission: str, output_mission: str, override: dict | None = None):
         try:
             with open(self.config_path, mode='r', encoding='utf-8') as infile:
                 cfg = json.load(infile)
@@ -136,7 +137,7 @@ class RealWeather(Extension):
         self.locals = utils.deep_merge(cfg, override or {})
         await self.write_config()
 
-    async def generate_config_2_0(self, input_mission: str, output_mission: str, override: Optional[dict] = None):
+    async def generate_config_2_0(self, input_mission: str, output_mission: str, override: dict | None = None):
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
         try:
@@ -182,7 +183,7 @@ class RealWeather(Extension):
             with open(os.path.join(cwd, 'config.toml'), mode='wb') as outfile:
                 tomli_w.dump(self.locals, outfile)
 
-    async def generate_config(self, filename: str, tmpname: str, config: Optional[dict] = None):
+    async def generate_config(self, filename: str, tmpname: str, config: dict | None = None):
         if self.version.split('.')[0] == '1':
             await self.generate_config_1_0(filename, tmpname, config)
         else:
@@ -203,8 +204,12 @@ class RealWeather(Extension):
                 # double-check that no mission_unpacked dir is there
                 cleanup(cwd)
                 # run RW
-                process = subprocess.Popen([os.path.join(rw_home, 'realweather.exe')],
-                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd)
+                process = subprocess.Popen(
+                    [self.get_rw_exe()],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    cwd=cwd
+                )
                 stdout, stderr = process.communicate()
                 if process.returncode != 0:
                     error = stdout.decode('utf-8')
@@ -249,7 +254,7 @@ class RealWeather(Extension):
         await self.generate_config(filename, tmpname, config)
         return (await self.run_realweather(filename, tmpname))[0]
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         if self.version.split('.')[0] == '1':
             icao = self.config.get('metar', {}).get('icao')
         else:
@@ -261,7 +266,7 @@ class RealWeather(Extension):
         else:
             value = 'enabled'
         return {
-            "name": "RealWeather",
+            "name": self.name,
             "version": self.version,
             "value": value
         }
@@ -271,32 +276,26 @@ class RealWeather(Extension):
             return False
         installation = self.config.get('installation')
         if not installation:
-            self.log.error("No 'installation' specified for RealWeather in your nodes.yaml!")
+            self.log.error(f"  => {self.name}: No 'installation' specified in your nodes.yaml.")
             return False
-        rw_home = os.path.expandvars(installation)
-        if not os.path.exists(os.path.join(rw_home, 'realweather.exe')):
-            self.log.error(f'No realweather.exe found in {rw_home}')
+        if not os.path.exists(self.get_rw_exe()):
+            self.log.error(f"  => {self.name}: {self.get_rw_exe()} not found.")
             return False
-        if self.version:
-            ver = [int(x) for x in self.version.split('.')]
-            if ver[0] == 1 and ver[1] < 9:
-                self.log.error("DCS Realweather < 1.9.x not supported, please upgrade!")
-                return False
-        else:
-            self.log.error("DCS Realweather < 1.9.x not supported, please upgrade!")
+        if not self.version or parse(self.version) < parse('1.9.0'):
+            self.log.error(f"  => {self.name}: Versions < 1.9.0 not supported, please upgrade.")
             return False
         if not os.path.exists(self.config_path):
-            self.log.error(f'No {os.path.basename(self.config_path)} found in {rw_home}')
+            self.log.error(f"  => {self.name}: {self.config_path} not found.")
             return False
         return True
 
-    def shutdown(self) -> bool:
-        return True
+    async def startup(self, *, quiet: bool = False) -> bool:
+        return await super().startup(quiet=True)
 
-    def is_running(self) -> bool:
-        return True
+    def shutdown(self, *, quiet: bool = False) -> bool:
+        return super().shutdown(quiet=True)
 
-    async def check_for_updates(self) -> Optional[str]:
+    async def check_for_updates(self) -> str | None:
         with suppress(aiohttp.ClientConnectionError):
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:

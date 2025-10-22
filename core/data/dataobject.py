@@ -4,7 +4,7 @@ import logging
 
 from configparser import ConfigParser
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Callable, Type, Optional, TypeVar, Generic, ClassVar, Any
+from typing import TYPE_CHECKING, Callable, Type, TypeVar, Generic, ClassVar, Any
 
 if TYPE_CHECKING:
     from core import Node
@@ -55,7 +55,7 @@ class DataObjectFactory(Generic[T]):
         _instance: The singleton instance of this class
         _registry: Dictionary mapping object types to their implementation classes
     """
-    _instance: Optional[DataObjectFactory[T]] = None
+    _instance: DataObjectFactory[T] | None = None
     # Using class variable storage that's independent of the generic type parameter
     _registry: ClassVar[dict[Any, Any]] = {}
 
@@ -71,7 +71,7 @@ class DataObjectFactory(Generic[T]):
         return cls._instance
 
     @classmethod
-    def register(cls, t: Optional[Type[T]] = None) -> Callable[[Type[T]], Type[T]]:
+    def register(cls, t: Type[T] | None = None) -> Callable[[Type[T]], Type[T]]:
         """
         Decorator for registering implementation classes with the factory.
 

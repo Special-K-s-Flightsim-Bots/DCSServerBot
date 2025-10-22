@@ -101,6 +101,14 @@ MyNode:
         Olympus:
           enabled: false                  # Don't enable DCS Olympus on your instance2
 ```
-> ⚠️ **Attention!**<br>
+> [!IMPORTANT]
 > You need to forward the server port and the client port from your router to the PC running DCS and DCS Olympus.<br>
 > To create an exclusion in your UAC run this: `netsh http add urlacl url="http://*:3001/olympus/" user=user-running-dcs`
+
+> [!TIP]
+> You can rename the Olympus extension in your server status embed by setting a "name" in the configuration like so:
+> ```yaml
+> extension:
+>   Olympus:
+>     name: MyFancyName  # Optional: default is "DCS Olympus"
+> ```

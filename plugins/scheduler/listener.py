@@ -4,7 +4,7 @@ import random
 
 from core import EventListener, utils, Server, Player, Status, event, chat_command
 from datetime import datetime, timedelta, timezone
-from typing import Union, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .commands import Scheduler
@@ -12,7 +12,11 @@ if TYPE_CHECKING:
 
 class SchedulerListener(EventListener["Scheduler"]):
 
-    async def get_next_restart(self, server: Server, restart: Union[dict, list]) -> Optional[tuple[int, dict]]:
+    async def get_next_restart(self, server: Server, restart: dict | list) -> tuple[int, dict] | None:
+        # do not calculate the restart time, if there is no mission running
+        if not server.current_mission:
+            return None
+
         if isinstance(restart, list):
             results: list[tuple[int, dict]] = []
             for r in restart:
@@ -21,6 +25,9 @@ class SchedulerListener(EventListener["Scheduler"]):
                     results.append(result)
             return min(results, key=lambda x: x[0]) if results else None
         else:
+            if 'method' not in restart:
+                self.log.error("Restart structure without 'method' provided: {}".format(repr(restart)))
+                return None
             # check no_reload
             if restart['method'] == 'load' and restart.get('no_reload', False):
                 mission_id = restart.get('mission_id')

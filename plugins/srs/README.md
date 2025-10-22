@@ -25,6 +25,8 @@ DEFAULT.
 ## Discord Commands
 The following Discord commands are available through the SRS plugin:
 
-| Command   | Parameter           | Channel               | Role                  | Description                                            |
-|-----------|---------------------|-----------------------|-----------------------|--------------------------------------------------------|
-| /srs list |                     | all                   | DCS                   | Shows active users on SRS with their connected radios. |
+| Command     | Parameter | Channel | Role      | Description                                            |
+|-------------|-----------|---------|-----------|--------------------------------------------------------|
+| /srs list   |           | all     | DCS       | Shows active users on SRS with their connected radios. |
+| /srs update | server    | all     | DCS Admin | Updates SRS on the respective node.                    |
+| /srs repair | server    | all     | DCS Admin | Repairs (re-installs) SRS on the respective node.      |

@@ -15,7 +15,7 @@ from io import BytesIO
 from matplotlib import font_manager
 from pathlib import Path
 from ssl import SSLCertVerificationError
-from typing import Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from .dcsserverbot import DCSServerBot
 from .dummy import DummyBot
@@ -67,7 +67,7 @@ class BotService(Service):
 
     def __init__(self, node):
         super().__init__(node=node, name="Bot")
-        self.bot: Optional[DCSServerBot] = None
+        self.bot: DCSServerBot | None = None
         # do we need to change the bot.yaml file?
         dirty = self._migrate_autorole()
         dirty = self._secure_token() or dirty
@@ -76,18 +76,18 @@ class BotService(Service):
             self.save_config()
 
     @property
-    def token(self) -> Optional[str]:
+    def token(self) -> str | None:
         try:
             return utils.get_password('token', self.node.config_dir)
         except ValueError:
             return None
 
     @property
-    def proxy(self) -> Optional[str]:
+    def proxy(self) -> str | None:
         return self.locals.get('proxy', {}).get('url')
 
     @property
-    def proxy_auth(self) -> Optional[BasicAuth]:
+    def proxy_auth(self) -> BasicAuth | None:
         username = self.locals.get('proxy', {}).get('username')
         try:
             password = utils.get_password('proxy', self.node.config_dir)
@@ -150,11 +150,17 @@ class BotService(Service):
             await self.bot.close()
         await super().stop()
 
-    async def alert(self, title: str, message: str, server: Optional[Server] = None) -> None:
+    async def alert(self, title: str, message: str, server: Server | None = None) -> None:
+        # if we have dedicated managers of a server, send the alerts to them
+        if server and server.locals.get('managed_by'):
+            alert_roles = server.locals['managed_by']
+        # use the default Alert role otherwise
+        else:
+            alert_roles = self.bot.roles['Alert']
         try:
-            mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['Alert'] if role is not None])
+            mentions = ''.join([self.bot.get_role(role).mention for role in alert_roles if role is not None])
         except AttributeError:
-            self.log.error(f"Alert-Role {self.bot.roles['Alert']} not found.")
+            self.log.error(f"Alert-Role {alert_roles} not found.")
             mentions = ""
         embed = utils.create_warning_embed(title=title, text=utils.escape_string(message))
         admin_channel = self.bot.get_admin_channel(server)
@@ -184,9 +190,9 @@ class BotService(Service):
         for f in font_manager.findSystemFonts('fonts'):
             font_manager.fontManager.addfont(f)
 
-    async def send_message(self, channel: Optional[int] = -1, content: Optional[str] = None,
-                           server: Optional[Server] = None, filename: Optional[str] = None,
-                           embed: Optional[dict] = None, mention: Optional[list] = None):
+    async def send_message(self, channel: int | None = -1, content: str | None = None,
+                           server: Server | None = None, filename: str | None = None,
+                           embed: dict | None = None, mention: list | None = None):
         _channel = self.bot.get_channel(channel)
         if not _channel:
             if channel and channel != -1:
@@ -206,8 +212,8 @@ class BotService(Service):
             content = _mention + (content or "")
         await _channel.send(content=content, file=file, embed=_embed)
 
-    async def audit(self, message, user: Optional[Union[discord.Member, str]] = None,
-                    server: Optional[Server] = None, node: Optional[Node] = None, **kwargs):
+    async def audit(self, message, user: discord.Member | str | None = None,
+                    server: Server | None = None, node: Node | None = None, **kwargs):
         await self.bot.audit(message, user=user, server=server, node=node, **kwargs)
 
     async def rename_server(self, server: Server, new_name: str):

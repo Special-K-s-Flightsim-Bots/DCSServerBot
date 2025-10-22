@@ -9,7 +9,7 @@ from core import Extension, Server, DEFAULT_TAG
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
-from typing import Optional, Any
+from typing import Any
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -25,7 +25,7 @@ class Cloud(Extension):
         self.client = None
         self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
 
-    def load_config(self) -> Optional[dict]:
+    def load_config(self) -> dict | None:
         return yaml.load(Path(os.path.join(self.node.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
 
     def read_config(self):
@@ -123,10 +123,10 @@ class Cloud(Extension):
             self.log.warning(f"Could not unregister server {self.server.name} from the cloud.", exc_info=ex)
             self.log.debug(payload)
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
         self.loop.create_task(self.cloud_register())
-        return await super().startup()
+        return await super().startup(quiet=True)
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
         self.loop.create_task(self.cloud_unregister())
-        return super().shutdown()
+        return super().shutdown(quiet=True)

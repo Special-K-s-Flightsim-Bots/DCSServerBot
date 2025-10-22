@@ -1,5 +1,4 @@
-from core import Extension
-from typing import Optional
+from core import Extension, Server
 
 __all__ = [
     "VoiceChat"
@@ -7,23 +6,28 @@ __all__ = [
 
 
 class VoiceChat(Extension):
+    def __init__(self, server: Server, config: dict):
+        super().__init__(server, config)
+        if not config.get('name'):
+            self._name = 'DCS Voice Chat'
+
     async def prepare(self) -> bool:
         settings = self.server.settings['advanced']
         settings['voice_chat_server'] = self.config.get('enabled', True)
         self.server.settings['advanced'] = settings
-        return True
+        return await super().prepare()
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         return {
-            "name": "DCS Voice Chat",
+            "name": self.name,
             "value": "enabled" if self.config.get('enabled', True) else "disabled"
         }
 
     def is_installed(self) -> bool:
         return True
 
-    def shutdown(self) -> bool:
-        return True
+    async def startup(self, *, quiet: bool = False) -> bool:
+        return await super().startup(quiet=True)
 
-    def is_running(self) -> bool:
-        return True
+    def shutdown(self, *, quiet: bool = False) -> bool:
+        return super().shutdown(quiet=True)

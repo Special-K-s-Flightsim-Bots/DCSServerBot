@@ -4,7 +4,6 @@ from core import Server, get_translation, utils
 from datetime import datetime, timezone
 from discord import TextStyle, ButtonStyle
 from discord.ui import Modal, TextInput, View
-from typing import Union, Optional
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -21,8 +20,8 @@ class CampaignModal(Modal):
     # noinspection PyTypeChecker
     image_url = TextInput(label=_("Image URL"), required=False, style=TextStyle.short)
 
-    def __init__(self, name: Optional[str] = None, start: Optional[datetime] = None, end: Optional[datetime] = None,
-                 description: Optional[str] = None, image_url: Optional[str] = None):
+    def __init__(self, name: str | None = None, start: datetime | None = None, end: datetime | None = None,
+                 description: str | None = None, image_url: str | None = None):
         super().__init__(title=_("Campaign Info"))
         if name:
             self.remove_item(self.name)
@@ -71,13 +70,15 @@ class ScriptModal(Modal):
         })
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Script sent.'), ephemeral=self.ephemeral)
+        await interaction.client.audit(f"sent LUA script:\n```lua\n{self.script.value}```",
+                                       user=interaction.user, server=self.server)
 
 
 class MessageModal(Modal):
     # noinspection PyTypeChecker
     message = TextInput(label="Message", style=TextStyle.long, required=True)
 
-    def __init__(self, message: Optional[str] = None):
+    def __init__(self, message: str | None = None):
         super().__init__(title="User Message")
         if message:
             self.message.default = message
@@ -90,7 +91,7 @@ class MessageModal(Modal):
 
 class MessageView(View):
 
-    def __init__(self, messages: list[dict], user: Union[str, discord.Member]):
+    def __init__(self, messages: list[dict], user: str | discord.Member):
         super().__init__()
         self.index = 0
         self.messages = messages

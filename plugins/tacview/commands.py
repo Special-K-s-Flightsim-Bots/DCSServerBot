@@ -2,11 +2,11 @@ import discord
 import os
 
 from core import Plugin, get_translation, Group, Server, utils, Status, UninstallException, InstallException
+from datetime import datetime, timezone
 from discord import app_commands
 from extensions.tacview import Tacview as TacviewExt, TACVIEW_DEFAULT_DIR
 from io import BytesIO
 from services.bot import DCSServerBot
-from typing import Optional
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -49,6 +49,9 @@ async def list_tacview_files(interaction: discord.Interaction, current: str) -> 
 
 
 class Tacview(Plugin):
+    def __init__(self, bot: DCSServerBot):
+        super().__init__(bot)
+        self.recorder = None
 
     # New command group "/tacview"
     tacview = Group(name="tacview", description=_("Commands to manage Tacview"))
@@ -56,7 +59,7 @@ class Tacview(Plugin):
     async def _configure(self, interaction: discord.Interaction, *,
                          server: Server,
                          enabled: bool = None,
-                         autoupdate: bool = None) -> Optional[dict]:
+                         autoupdate: bool = None) -> dict | None:
         config = server.instance.locals.get('extensions', {}).get('Tacview', {})
         modal = utils.ConfigModal(title=_("Tacview Configuration"),
                                   config=TacviewExt.CONFIG_DICT,
@@ -92,10 +95,11 @@ class Tacview(Plugin):
 
     @tacview.command(description=_('Configure Tacview'))
     @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
     @utils.app_has_role('DCS Admin')
     async def configure(self, interaction: discord.Interaction,
                         server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
-                        enabled: Optional[bool] = None, autoupdate: Optional[bool] = None):
+                        enabled: bool | None = None, autoupdate: bool | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
             # noinspection PyUnresolvedReferences
@@ -117,7 +121,7 @@ class Tacview(Plugin):
     @utils.app_has_role('DCS Admin')
     async def _install(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
-                       autoupdate: Optional[bool] = False):
+                       autoupdate: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
         config = await self._configure(interaction, server=server, enabled=True, autoupdate=autoupdate)
         msg = await interaction.followup.send(
@@ -176,6 +180,107 @@ class Tacview(Plugin):
         path = config.get('tacviewExportPath', TACVIEW_DEFAULT_DIR)
         file_data = await self.node.read_file(os.path.join(path, file))
         await interaction.followup.send(file=discord.File(fp=BytesIO(file_data), filename=os.path.basename(file)))
+
+    @tacview.command(name='record_start', description=_('Start realtime recording'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def record_start(self, interaction: discord.Interaction,
+                           server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                           filename: str | None = "recording-Tacview-{ts}-{mission}"):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        filename = utils.format_string(
+            filename,
+            ts=datetime.now().astimezone(tz=timezone.utc).strftime("%Y%m%d_%H%M%S"),
+            mission=utils.slugify(server.current_mission.name)
+        )
+        if not filename.endswith(".acmi"):
+            filename = filename + ".acmi"
+        try:
+            await server.run_on_extension(extension='Tacview', method='start_recording', filename=filename)
+            await interaction.followup.send(_("Tacview recording started."))
+        except Exception as ex:
+            await interaction.followup.send(str(ex))
+
+    @tacview.command(name='record_stop', description=_('Stop realtime recording'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def record_stop(self, interaction: discord.Interaction,
+                          server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        try:
+            filename = await server.run_on_extension(extension='Tacview', method='stop_recording')
+            await interaction.followup.send(_("Tacview recording stopped, file {} written.").format(filename))
+        except Exception as ex:
+            await interaction.followup.send(str(ex))
+
+    @tacview.command(description=_('Update Tacview'))
+    @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
+    @utils.app_has_role('DCS Admin')
+    async def update(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])]):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        if 'Tacview' not in await server.init_extensions():
+            await interaction.followup.send(_("Tacview not installed on server {}!").format(server.display_name),
+                                            ephemeral=True)
+            return
+        try:
+            version = await server.run_on_extension(extension='Tacview', method='check_for_updates')
+            if version:
+                await interaction.followup.send(_("Tacview update to version {} available!").format(version))
+                if not await utils.yn_question(interaction, _("Do you want to update Tacview now?")):
+                    await interaction.followup.send(_("Aborted."))
+                    return
+
+                msg = await interaction.followup.send(
+                    _("Updating Tacview on server {} ...").format(server.display_name), ephemeral=ephemeral)
+                if await server.run_on_extension(extension='Tacview', method='do_update'):
+                    await msg.edit(content=_("Tacview updated to version {}.").format(version))
+                else:
+                    await msg.edit(content=_("Tacview update failed. See log for details."))
+            else:
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(_("No update for Tacview available."))
+        except Exception:
+            await interaction.followup.send(_("Tacview update failed. See log for details."))
+
+    @tacview.command(description=_('Repair Tacview'))
+    @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
+    @utils.app_has_role('DCS Admin')
+    async def repair(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])]):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        if 'Tacview' not in await server.init_extensions():
+            await interaction.followup.send(_("Tacview not installed on server {}!").format(server.display_name),
+                                            ephemeral=True)
+            return
+
+        if not await utils.yn_question(interaction, _("Do you want to repair Tacview?")):
+            await interaction.followup.send(_("Aborted."))
+            return
+        if server.status in [Status.STOPPED, Status.SHUTDOWN]:
+            msg = await interaction.followup.send(
+                _("Repairing Tacview on server {} ...").format(server.display_name), ephemeral=ephemeral)
+            try:
+                await server.uninstall_extension(name="Tacview")
+                await server.install_extension(name="Tacview", config={})
+                await msg.edit(content=_("Tacview repaired on server {}.").format(server.display_name))
+            except (UninstallException, InstallException):
+                await msg.edit(_("Tacview could not be repaired on server {}!").format(server.display_name))
+        else:
+            await interaction.followup.send(
+                _("Server {} needs to be shut down to repair Tacview.").format(server.display_name),
+                ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):

@@ -1,7 +1,6 @@
 import asyncio
 
 from core import Extension, MizFile, Server, UnsupportedMizFileException
-from typing import Optional
 
 __all__ = [
     "ModManager"
@@ -13,20 +12,20 @@ class ModManager(Extension):
         super().__init__(server, config)
         self.modules: dict[str, list[str]] = {}
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
         filename = await self.server.get_current_mission_file()
         try:
             mission = await asyncio.to_thread(MizFile, filename)
             self.modules[self.server.name] = mission.requiredModules
         except UnsupportedMizFileException:
             self.log.warning(f"Can't read requiredModules from Mission {filename}, unsupported format.")
-        return await super().startup()
+        return await super().startup(quiet=True)
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
         self.modules.pop(self.server.name, None)
-        return super().shutdown()
+        return super().shutdown(quiet=True)
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         mods = self.modules.get(self.server.name)
         if not mods:
             raise NotImplementedError()

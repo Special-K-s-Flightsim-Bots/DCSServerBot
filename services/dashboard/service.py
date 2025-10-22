@@ -14,7 +14,7 @@ from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.table import Table
 from rich.traceback import Traceback
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from ..servicebus import ServiceBus
 
@@ -102,7 +102,7 @@ class NodeWidget:
         table = Table(expand=True, show_edge=False)
         table.add_column("Node ([green]Master[/])", justify="left")
         table.add_column("Servers", justify="left")
-        nodes: dict[str, Optional[Node]] = {name: None for name in self.node.all_nodes.keys()}
+        nodes: dict[str, Node | None] = {name: None for name in self.node.all_nodes.keys()}
         servers: dict[str, int] = dict()
         for server in self.bus.servers.values():
             nodes[server.node.name] = server.node

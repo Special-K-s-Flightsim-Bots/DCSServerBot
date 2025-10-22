@@ -1,5 +1,4 @@
 import asyncio
-from typing import Optional
 
 from core import utils, Coalition, Status, Server
 from plugins.voting.base import VotableItem
@@ -7,7 +6,7 @@ from plugins.voting.base import VotableItem
 
 class Preset(VotableItem):
 
-    def __init__(self, server: Server, config: dict, params: Optional[list[str]] = None):
+    def __init__(self, server: Server, config: dict, params: list[str] | None = None):
         super().__init__('preset', server, config, params)
 
     async def print(self) -> str:

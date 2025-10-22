@@ -8,7 +8,7 @@ from core.autoexec import Autoexec
 from core.const import SAVED_GAMES
 from core.utils.helper import SettingsDict
 from dataclasses import dataclass
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import Server
@@ -72,7 +72,7 @@ class InstanceImpl(Instance):
                 server_name = None
         self.update_instance(server_name)
 
-    def update_instance(self, server_name: Optional[str] = None):
+    def update_instance(self, server_name: str | None = None):
         try:
             with self.pool.connection() as conn:
                 with conn.transaction():
@@ -90,7 +90,7 @@ class InstanceImpl(Instance):
     def home(self) -> str:
         return os.path.expandvars(self.locals.get('home', os.path.join(SAVED_GAMES, self.name)))
 
-    def update_server(self, server: Optional[Server] = None):
+    def update_server(self, server: Server | None = None):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
@@ -98,7 +98,7 @@ class InstanceImpl(Instance):
                     WHERE node = %s AND instance = %s
                 """, (server.name if server and server.name != 'n/a' else None, self.node.name, self.name))
 
-    def set_server(self, server: Optional[Server]):
+    def set_server(self, server: Server | None):
         if self._server and self._server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
             raise InstanceBusyError()
         self._server = server

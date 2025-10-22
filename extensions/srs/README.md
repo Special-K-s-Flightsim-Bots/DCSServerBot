@@ -60,6 +60,17 @@ __Optional__ parameters (will change server.cfg if necessary):</br>
 * **red_password** AWACS mode, password red.
 * **autostart** If true, the SRS server will be auto-started (default).
 
-> ⚠️ **Attention!**<br>
-> You need to disable User-Access-Control (UAC) to use SRS-autoupdate.
+> [!IMPORTANT]
+> You need to give the bot-user write permission on the SRS installation directory to use SRS-autoupdate.
 
+> [!WARNING]
+> The new REST service for SRS is not supported yet, as it needs administrative elevation.
+> I am in contact with Ciribob already to remove this requirement.
+
+> [!TIP]
+> You can rename the SRS extension in your server status embed by setting a "name" in the configuration like so:
+> ```yaml
+> extension:
+>   SRS:
+>     name: MyFancyName  # Optional: default is "SRS
+> ```

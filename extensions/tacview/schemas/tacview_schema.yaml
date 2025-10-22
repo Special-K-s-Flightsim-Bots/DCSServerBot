@@ -1,19 +1,36 @@
 schema;node_tacview_schema:
   type: map
-  allowempty: true  # we might want to specify additional tacview parameters, which are then not validated
   nullable: false
   mapping:
+    name: {type: str, nullable: false, range: {min: 1}}
     installation: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
+    show_passwords: {type: bool, nullable: false}
     tacviewExportPath: {type: str, nullable: false, range: {min: 1}}
+    tacviewAutoDiscardFlights: {type: int, nullable: false}
+    tacviewDebugMode: {type: int, nullable: false}
+    tacviewFlightDataRecordingEnabled: {type: bool, nullable: false}
+    tacviewModuleEnabled: {type: bool, nullable: false}
+    tacviewMultiplayerFlightsAsClient: {type: int, nullable: false}
+    tacviewMultiplayerFlightsAsHost: {type: int, nullable: false}
+    tacviewRealTimeTelemetryEnabled: {type: bool,nullable: false}
+    tacviewRealTimeTelemetryPassword: {type: str, nullable: false}
+    tacviewRemoteControlEnabled: {type: bool, nullable: false}
+    tacviewRemoteControlPassword: {type: str, nullable: false}
+    tacviewSinglePlayerFlights: {type: int, nullable: false}
+    tacviewTerrainExport: {type: int, nullable: false}
+    tacviewPlaybackDelay: {type: int, range: {min: 0}, nullable: false}
+    tacviewDataCaptureMode: {type: int, range: {min: 1}, nullable: false}
+
 schema;instance_tacview_schema:
   type: map
-  allowempty: true  # we might want to specify additional tacview parameters, which are then not validated
   nullable: false
   mapping:
     enabled: {type: bool, nullable: false}
+    name: {type: str, nullable: false, range: {min: 1}}
     autoupdate: {type: bool, nullable: false}
     host: {type: str, nullable: false}
     log: {type: str, nullable: false}
+    show_passwords: {type: bool, nullable: false}
     tacviewExportPath: {type: str, nullable: false}
     tacviewAutoDiscardFlights: {type: int, nullable: false}
     tacviewDebugMode: {type: int, nullable: false}
@@ -30,4 +47,5 @@ schema;instance_tacview_schema:
     tacviewSinglePlayerFlights: {type: int, nullable: false}
     tacviewTerrainExport: {type: int, nullable: false}
     tacviewPlaybackDelay: {type: int, range: {min: 0}, nullable: false}
+    tacviewDataCaptureMode: {type: int, range: {min: 1}, nullable: false}
     target: {type: str, nullable: false, range: {min: 1}}

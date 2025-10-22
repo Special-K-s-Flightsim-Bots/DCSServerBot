@@ -1,1 +1,1 @@
-ALTER TABLE campaigns ADD image_url TEXT;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS image_url TEXT;

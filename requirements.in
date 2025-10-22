@@ -1,5 +1,5 @@
  # AIOFiles: File support for python's asyncio
-aiofiles==24.1.0
+aiofiles==25.1.0
 
 # Astral: Get times for solar events (morning, noon, etc.)
 astral==3.2
@@ -8,7 +8,7 @@ astral==3.2
 audioop-lts==0.2.2 ; python_version >= "3.13"
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
-aiohttp==3.12.15
+aiohttp==3.13.1
 
 # Certifi: Python package for providing Mozilla's CA Bundle
 certifi>=2025.8.3
@@ -17,13 +17,13 @@ certifi>=2025.8.3
 croniter==6.0.0
 
 # discord.py: The python interface for the Discord API
-discord.py==2.6.3
+discord.py==2.6.4
 
 # eyeD3: Python module and program for processing ID3 tags (metadata) in MP3 files
 eyeD3==0.9.8
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.117.1
+fastapi==0.119.1
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -67,17 +67,17 @@ packaging==25.0
 # PID: Pidfile implementation by using a Unix PID file
 pid==3.0.4
 
-# PIP-Tools: Tools to manage requirements
-pip-tools==7.5.0
+# PIP Tools
+pip-tools>=7.5.0
 
 # Psycopg: PostgreSQL database adapter for Python
 psycopg[binary]>=3.2.6
 
 # Psycopg Pool: PostgreSQL database adapter pool for Python
-psycopg-pool==3.2.6
+psycopg-pool>=3.2.6
 
 # PSUtil: Cross-platform library to access system details and process utilities
-psutil==7.1.0
+psutil==7.1.1
 
 # PyArrow: Python library providing high-performance tools for doing analytics on Arrow-based columnar data
 pyarrow==21.0.0
@@ -94,11 +94,14 @@ python-multipart==0.0.20
 # Pywin32: Set of Python extensions for MS Windows
 pywin32==311; sys_platform == 'win32'
 
+# PyWinAuto: Automation of Windows dialogs (aka DCS_updater.exe)
+pywinauto==0.6.9; sys_platform == 'win32'
+
 # Requests: Python HTTP library
 requests==2.32.5
 
 # Rich: Python library for rich text and beautiful formatting in the terminal
-rich==14.1.0
+rich==14.2.0
 
 # ruamel-yaml: YAML parser/emitter supporting roundtrip comment preservation
 ruamel.yaml==0.18.15
@@ -113,14 +116,14 @@ sqlparse==0.5.3
 timezonefinder[numba]==6.5.9
 
 # tomli: Python TOML parser
-tomli==2.2.1
+tomli==2.3.0 ; python_version < "3.11"
 tomli_w==1.2.0
 
 # TrueSkill: Python module implementing the TrueSkill rating system
 trueskill==0.4.5
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.37.0
+uvicorn==0.38.0
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==6.0.0

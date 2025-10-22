@@ -12,7 +12,7 @@ from pathlib import Path
 from plugins.creditsystem.player import CreditPlayer
 from plugins.greenieboard import get_element
 from contextlib import suppress
-from typing import Optional, cast, TYPE_CHECKING
+from typing import cast, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .commands import GreenieBoard
@@ -160,7 +160,7 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
                       data['place']['name'], case, wire, night, points, psycopg.Binary(data.get('trapsheet'))))
 
     @staticmethod
-    def normalize_airboss_lso_rating(grade: str) -> Optional[str]:
+    def normalize_airboss_lso_rating(grade: str) -> str | None:
         if '<SH>' in grade:
             grade = grade[:-4]
         if grade == 'CUT':
@@ -171,7 +171,7 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
             grade = 'WO'
         return grade
 
-    def get_trapsheet(self, config: dict, server: Server, player: Player, data: dict) -> Optional[str]:
+    def get_trapsheet(self, config: dict, server: Server, player: Player, data: dict) -> str | None:
         dirname = os.path.join(server.instance.home, config['Moose.AIRBOSS']['basedir'])
         carrier = data['place']['name'].split()[0]
         if 'trapsheet' not in data:

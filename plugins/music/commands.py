@@ -10,7 +10,7 @@ from discord.ext import commands
 from pathlib import Path
 from services.bot import DCSServerBot
 from services.music import MusicService
-from typing import Type, Optional
+from typing import Type
 
 from .listener import MusicEventListener
 from .utils import get_tag, Playlist
@@ -125,14 +125,14 @@ class Music(Plugin[MusicEventListener]):
         if not self.service.locals:
             raise PluginInstallationError(plugin=self.plugin_name, reason=r"No config\services\music.yaml found!")
 
-    def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
-                   use_cache: Optional[bool] = True) -> dict:
+    def get_config(self, server: Server | None = None, *, plugin_name: str | None = None,
+                   use_cache: bool | None = True) -> dict:
         if plugin_name:
             return super().get_config(server, plugin_name=plugin_name, use_cache=use_cache)
         return self.service.get_config(server)
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: Optional[str] = None) -> None:
+                    server: str | None = None) -> None:
         self.log.debug('Pruning Music ...')
         if server:
             await conn.execute("DELETE FROM music_radios WHERE server_name = %s", (server, ))
@@ -181,7 +181,7 @@ class Music(Plugin[MusicEventListener]):
     async def play(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.RUNNING, Status.PAUSED])],
-                   radio_name: str, playlist: Optional[str] = None, song: Optional[str] = None):
+                   radio_name: str, playlist: str | None = None, song: str | None = None):
         if server.status != Status.RUNNING:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_('Server {} is not running.').format(server.name), ephemeral=True)
@@ -243,7 +243,7 @@ class Music(Plugin[MusicEventListener]):
     @app_commands.describe(subfolder='Add all songs within a subfolder of the main music directory.')
     @app_commands.autocomplete(playlist=playlist_autocomplete)
     @app_commands.autocomplete(subfolder=subfolder_autocomplete)
-    async def add_all(self, interaction: discord.Interaction, playlist: str, subfolder: Optional[str] = None):
+    async def add_all(self, interaction: discord.Interaction, playlist: str, subfolder: str | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         music_dir = await self.service.get_music_dir()
         if subfolder:
@@ -274,7 +274,7 @@ class Music(Plugin[MusicEventListener]):
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(playlist=playlist_autocomplete)
     @app_commands.autocomplete(song=songs_autocomplete)
-    async def delete(self, interaction: discord.Interaction, playlist: str, song: Optional[str] = None):
+    async def delete(self, interaction: discord.Interaction, playlist: str, song: str | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         p = await Playlist.create(playlist)
         try:

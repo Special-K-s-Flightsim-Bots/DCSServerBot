@@ -3,7 +3,6 @@ import discord
 
 from core import DataObjectFactory, DataObject
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 __all__ = ["Member"]
@@ -13,7 +12,7 @@ __all__ = ["Member"]
 @DataObjectFactory.register()
 class Member(DataObject):
     member: discord.Member
-    _ucid: Optional[str] = field(default=None, init=False)
+    _ucid: str | None = field(default=None, init=False)
     banned: bool = field(default=False, init=False)
     _verified: bool = field(default=False, init=False)
 

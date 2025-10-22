@@ -76,7 +76,7 @@ DCS.server:
 > [!NOTE]
 > Silent mode can only be used on simple 1vs1 engagements, not on team engagements.
 
-
+## Highscore Plugin
 You can integrate the TrueSkill™️-rating into your highscores though.<br>
 To do that, you copy your /plugins/userstats/reports/highscore.json to /reports/userstats. Then replace one of the
 "Graph" elements with this: 
@@ -87,7 +87,6 @@ To do that, you copy your /plugins/userstats/reports/highscore.json to /reports/
 }
 ```
 Select the col and row of the element you replaced (I took the "Ships" in the above example).
-
 
 ## Discord Commands
 | Command            | Parameter        | Channel       | Role      | Description                                               |

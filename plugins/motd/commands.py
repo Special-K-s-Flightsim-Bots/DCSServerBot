@@ -8,7 +8,7 @@ from discord import app_commands
 from discord.ext import tasks
 from functools import partial
 from services.bot import DCSServerBot
-from typing import Optional, Type, Literal, AsyncGenerator
+from typing import Type, Literal, AsyncGenerator
 from .listener import MOTDListener
 
 
@@ -28,7 +28,7 @@ class MOTD(Plugin[MOTDListener]):
         await super().cog_unload()
 
     @staticmethod
-    async def send_message(message: str, server: Server, config: dict, player: Optional[Player] = None):
+    async def send_message(message: str, server: Server, config: dict, player: Player | None = None):
         if config['display_type'].lower() == 'chat':
             if player:
                 await player.sendChatMessage(message)

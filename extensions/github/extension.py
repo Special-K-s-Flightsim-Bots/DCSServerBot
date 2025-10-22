@@ -77,3 +77,9 @@ class GitHub(Extension):
         except (git.NoSuchPathError, git.InvalidGitRepositoryError):
             await self.clone()
         return filename, False
+
+    async def startup(self, *, quiet: bool = False) -> bool:
+        return await super().startup(quiet=True)
+
+    def shutdown(self, *, quiet: bool = False) -> bool:
+        return super().shutdown(quiet=True)

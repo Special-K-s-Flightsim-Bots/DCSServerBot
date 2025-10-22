@@ -78,17 +78,20 @@ class LogAnalyser(Extension):
                 os.remove(self.logfile)
         await self.do_startup()
         self.running = True
+        await super().prepare()
         return await super().startup()
 
-    async def startup(self) -> bool:
-        await self.do_startup()
-        return await super().startup()
+    async def startup(self, *, quiet: bool = False) -> bool:
+        if not self.is_running():
+            await self.do_startup()
+            return await super().startup()
+        return False
 
     async def _shutdown(self):
         await self.stopped.wait()
         self.pattern.clear()
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
         self.loop.create_task(self._shutdown())
         self.stop_event.set()
         return super().shutdown()

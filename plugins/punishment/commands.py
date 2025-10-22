@@ -10,7 +10,7 @@ from discord.app_commands import Range
 from discord.ext import tasks
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Type, Union, cast, Optional
+from typing import Type, cast
 
 from .listener import PunishmentEventListener
 from ..creditsystem.player import CreditPlayer
@@ -44,7 +44,7 @@ class Punishment(Plugin[PunishmentEventListener]):
         await conn.execute("UPDATE pu_events SET init_id = %s WHERE init_id = %s", (new_ucid, old_ucid))
         await conn.execute("UPDATE pu_events SET target_id = %s WHERE target_id = %s", (new_ucid, old_ucid))
 
-    async def punish(self, server: Server, ucid: str, punishment: dict, reason: str, points: Optional[float] = None):
+    async def punish(self, server: Server, ucid: str, punishment: dict, reason: str, points: float | None = None):
         player: Player = server.get_player(ucid=ucid)
         member = self.bot.get_member_by_ucid(ucid)
         admin_channel = self.bot.get_admin_channel(server)
@@ -150,7 +150,7 @@ class Punishment(Plugin[PunishmentEventListener]):
                                         if row['points'] < punishment['points']:
                                             continue
                                         reason = None
-                                        for penalty in config['penalties']:
+                                        for penalty in config.get('penalties', []):
                                             if penalty['event'] == row['event']:
                                                 reason = penalty['reason'] if 'reason' in penalty else row['event']
                                                 break
@@ -189,8 +189,8 @@ class Punishment(Plugin[PunishmentEventListener]):
     @app_commands.guild_only()
     async def _punish(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer],
-                      user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer],
-                      points: int, reason: Optional[str] = 'admin'):
+                      user: app_commands.Transform[str | discord.Member, utils.UserTransformer],
+                      points: int, reason: str | None = 'admin'):
 
         ephemeral = utils.get_ephemeral(interaction)
         if isinstance(user, discord.Member):
@@ -229,7 +229,7 @@ class Punishment(Plugin[PunishmentEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def forgive(self, interaction: discord.Interaction,
-                      user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
+                      user: app_commands.Transform[str | discord.Member, utils.UserTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
         if await utils.yn_question(
                 interaction,
@@ -259,7 +259,7 @@ class Punishment(Plugin[PunishmentEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def penalty(self, interaction: discord.Interaction,
-                      user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]]):
+                      user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None):
         ephemeral = utils.get_ephemeral(interaction)
         if user and user != interaction.user:
             if not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
@@ -332,8 +332,8 @@ class Punishment(Plugin[PunishmentEventListener]):
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin'])
     async def infractions(self, interaction: discord.Interaction,
-                          user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer],
-                          limit: Optional[Range[int, 3, 20]] = 10):
+                          user: app_commands.Transform[discord.Member | str, utils.UserTransformer],
+                          limit: Range[int, 3, 20] | None = 10):
         if not user:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(

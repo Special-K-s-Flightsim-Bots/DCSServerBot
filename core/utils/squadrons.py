@@ -3,7 +3,6 @@ import discord
 from core.data.node import Node
 from discord import app_commands
 from psycopg.rows import dict_row
-from typing import Optional
 
 from .discord import get_interaction_param, check_roles
 
@@ -48,7 +47,7 @@ async def squadron_autocomplete_admin(interaction: discord.Interaction, current:
         return choices
 
 
-def get_squadron(node: Node, *, name: Optional[str] = None, squadron_id: Optional[int] = None) -> Optional[dict]:
+def get_squadron(node: Node, *, name: str | None = None, squadron_id: int | None = None) -> dict | None:
     sql = "SELECT * FROM squadrons"
     if name:
         sql += " WHERE name = %(name)s"

@@ -13,7 +13,7 @@ import sys
 
 from core import Extension, utils, Server, get_translation
 from threading import Thread
-from typing import Optional, cast
+from typing import cast
 
 from extensions.srs import SRS
 
@@ -63,10 +63,13 @@ class Olympus(Extension):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'Olympus')
         self.nodejs = os.path.join(os.path.expandvars(config.get('nodejs', '%ProgramFiles%\\nodejs')), 'node.exe')
         super().__init__(server, config)
+        if not config.get('name'):
+            self._name = 'DCS Olympus'
+
         if self.enabled:
             # check if there is an olympus process running already
-            self.process: Optional[psutil.Process] = next(utils.find_process(os.path.basename(self.nodejs),
-                                                                        self.server.instance.name), None)
+            self.process: psutil.Process | None = next(utils.find_process(os.path.basename(self.nodejs),
+                                                                          self.server.instance.name), None)
             if self.process:
                 self.log.debug("- Running Olympus process found.")
 
@@ -78,11 +81,7 @@ class Olympus(Extension):
             self.frontend_tag = 'frontend'
 
     @property
-    def name(self) -> str:
-        return "DCS Olympus"
-
-    @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         return utils.get_windows_version(os.path.join(self.home, 'bin', 'olympus.dll'))
 
     @property
@@ -92,7 +91,7 @@ class Olympus(Extension):
         else:
             return os.path.join(self.server.instance.home, 'Config', 'olympus.json')
 
-    def load_config(self) -> Optional[dict]:
+    def load_config(self) -> dict | None:
         try:
             with open(self.config_path, mode='r', encoding='utf-8') as file:
                 return json.load(file)
@@ -133,7 +132,7 @@ class Olympus(Extension):
             return False
         return True
 
-    async def render(self, param: Optional[dict] = None) -> dict:
+    async def render(self, param: dict | None = None) -> dict:
         if 'url' in self.config:
             value = self.config['url']
         else:
@@ -148,7 +147,7 @@ class Olympus(Extension):
                 ]
             ])
         return {
-            "name": self.__class__.__name__,
+            "name": self.name,
             "version": self.version,
             "value": value
         }
@@ -249,7 +248,7 @@ class Olympus(Extension):
             self.log.error(f"Error during preparation of {self.name}: {str(ex)}")
             return False
 
-    async def startup(self) -> bool:
+    async def startup(self, *, quiet: bool = False) -> bool:
 
         def log_output(pipe, level=logging.INFO):
             for line in iter(pipe.readline, ''):
@@ -324,7 +323,7 @@ class Olympus(Extension):
             self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
             return False
 
-    def shutdown(self) -> bool:
+    def shutdown(self, *, quiet: bool = False) -> bool:
         super().shutdown()
         return self.terminate()
 
