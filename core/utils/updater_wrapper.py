@@ -6,7 +6,7 @@ import psutil
 import pywintypes
 import sys
 import time
-import win32api
+import win32gui
 
 from pathlib import Path
 from pywinauto import Application, findwindows, Desktop
@@ -73,7 +73,7 @@ def terminate_process(process: psutil.Process | None):
 
 def ensure_foreground(win):
     try:
-        win32api.SetForegroundWindow(win.handle)
+        win32gui.SetForegroundWindow(win.handle)
     except Exception as e:
         logger.warning("Could not activate window: %s", e)
 
@@ -114,13 +114,17 @@ def click_no_mouse(ctrl):
         x = rect.left + (rect.right - rect.left) // 2
         y = rect.top + (rect.bottom - rect.top) // 2
 
-        # Move cursor to the center
+        # Move the cursor to the center
+        # noinspection PyUnresolvedReferences
         ctypes.windll.user32.SetCursorPos(x, y)
 
-        # Send a left‑click
         MOUSEEVENTF_LEFTDOWN = 0x0002
-        MOUSEEVENTF_LEFTUP   = 0x0004
+        MOUSEEVENTF_LEFTUP = 0x0004
+
+        # Send a left‑click
+        # noinspection PyUnresolvedReferences
         ctypes.windll.user32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+        # noinspection PyUnresolvedReferences
         ctypes.windll.user32.mouse_event(MOUSEEVENTF_LEFTUP,   0, 0, 0, 0)
         return
     except Exception as exc:
