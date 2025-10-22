@@ -1,7 +1,9 @@
 import argparse
+import ctypes
 import logging
 import os
 import psutil
+import pywintypes
 import sys
 import time
 import win32api
@@ -59,6 +61,58 @@ def ensure_foreground(win):
         logger.warning("Could not activate window: %s", e)
 
 
+def click_no_mouse(ctrl):
+    """
+    Click a control *without* moving the mouse.
+
+    Parameters
+    ----------
+    ctrl: pywinauto wrapper
+        The control you want to click.
+    """
+    # 1️⃣  Prefer the UIA invoke / check API
+    try:
+        # UIA CheckBox has .check()/.uncheck()/.toggle()
+        if hasattr(ctrl, "check"):
+            ctrl.check()          # idempotent – checks the box if not already checked
+            return
+        # UIA Button or other: invoke()
+        ctrl.invoke()
+        return
+    except Exception as exc:
+        logger.debug("UIA invoke failed: %s", exc)
+
+    # 2️⃣  If that fails, try pure Win32 PostMessage (no mouse)
+    try:
+        import win32gui, win32con
+        win32gui.PostMessage(ctrl.handle, win32con.WM_LBUTTONDOWN, 0, 0)
+        win32gui.PostMessage(ctrl.handle, win32con.WM_LBUTTONUP, 0, 0)
+        return
+    except Exception as exc:
+        logger.debug("Win32 PostMessage failed: %s", exc)
+
+    # 3️⃣  Final fallback – use SendInput (works even without a cursor)
+    try:
+        rect = ctrl.rectangle()
+        x = rect.left + (rect.right - rect.left) // 2
+        y = rect.top + (rect.bottom - rect.top) // 2
+
+        # Move cursor to the center (this *does* call SetCursorPos, but
+        # only if a desktop exists; otherwise it silently ignores the
+        # error – see the next section for a patch).
+        ctypes.windll.user32.SetCursorPos(x, y)
+
+        # Send a left‑click
+        MOUSEEVENTF_LEFTDOWN = 0x0002
+        MOUSEEVENTF_LEFTUP   = 0x0004
+        ctypes.windll.user32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+        ctypes.windll.user32.mouse_event(MOUSEEVENTF_LEFTUP,   0, 0, 0, 0)
+        return
+    except Exception as exc:
+        logger.error("SendInput fallback failed: %s", exc)
+        raise
+
+
 def do_update(installation: str, slow: bool | None = False, check_extra_files: bool | None = False):
     app = None
     try:
@@ -99,10 +153,13 @@ def do_update(installation: str, slow: bool | None = False, check_extra_files: b
         # else, tick the correct switches and run the repair
         else:
             if slow:
-                radio_slow.click_input()
+                radio_slow.invoke()
 
             if check_extra_files:
-                chk_search.click_input()
+                try:
+                    chk_search.click_input()
+                except pywintypes.error:
+                    click_no_mouse(chk_search)
 
             # run the repair
             repair_btn.invoke()
