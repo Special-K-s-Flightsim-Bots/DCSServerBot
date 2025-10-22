@@ -10,6 +10,9 @@ It is a good way of getting some action on your server to have regular (e.g. qua
 persistent [highscore](../userstats/README.md) feature to display the top players of this specific campaign somewhere in 
 your Discord server.
 
+## Coalitions
+See [Coalitions](/COALITIONS.md).
+
 ## Discord Commands
 | Command              | Parameter                             | Channel       | Roles                 | Description                                                                                                    |
 |----------------------|---------------------------------------|---------------|-----------------------|----------------------------------------------------------------------------------------------------------------|
@@ -20,7 +23,8 @@ your Discord server.
 | /variable            | name [value]                          | admin-channel | DCS Admin, GameMaster | Sets (or gets) a mission variable.                                                                             |
 | /do_script           | lua code                              | admin-channel | DCS Admin, GameMaster | Runs specific lua code inside the running mission.                                                             |
 | /do_script_file      | file                                  | admin-channel | DCS Admin, GameMaster | Loads a script from Missions\Scripts into the running mission.                                                 |
-| /reset_coalitions    |                                       | all           | DCS Admin             | Resets all user-coalition-bindings on all servers.                                                             |
+| /reset_coalition     | server player                         | admin-channel | DCS Admin, GameMaster | Resets the coalition cooldown for a specific user on a specific server.                                        |
+| /reset_coalitions    | [server]                              | all           | DCS Admin, GameMaster | Resets all coalition cooldowns (optional: on a specific server).                                               |
 | /campaign list       | [active]                              | admin-channel | DCS Admin, GameMaster | Lists all available campaigns. If "active" is provided, only active campaigns will be displayed.               |
 | /campaign info       | campaign                              | admin-channel | DCS Admin, GameMaster | Displays information about a campaign like name, description, start, stop and involved servers.                |
 | /campaign add        |                                       | admin-channel | DCS Admin, GameMaster | Create a new campaign.                                                                                         |
@@ -34,17 +38,16 @@ your Discord server.
 ## In-Game Chat Commands
 | Command    | Parameter                      | Role                   | Description                                              |
 |------------|--------------------------------|------------------------|----------------------------------------------------------|
-| -join      | \<coalition\>                  | all                    | Join a coalition.                                        |
-| -leave     |                                | all                    | Leave a coalition.                                       |
-| -red       |                                | all                    | Join the red coalition.                                  |
-| -blue      |                                | all                    | Join the blue coalition.                                 |
-| -coalition |                                | all                    | Shows your current coalition.                            |
-| -password  |                                | all                    | Shows your coalition password.                           |
-| -flag      | flag [value]                   | DCS Admin, GameMaster  | Reads or sets a flag.                                    |
-| -ack       |                                | all                    | Acknowledge the reception of a message, if there is any. |
-| -popup     | \[all\|red\|blue\] \<message\> | DCS Admin, GameMaster  | Sends a popup message to a coalition.                    |
 
-## Usage inside of Missions (Scripting API)
+| Command    | Parameter                      | Role                  | Description                                              |
+|------------|--------------------------------|-----------------------|----------------------------------------------------------|
+| -coalition |                                | all                   | Shows your current coalition (if you have joined).       |
+| -password  |                                | red / blue            | Shows your coalition password (if set).                  |
+| -flag      | flag [value]                   | DCS Admin, GameMaster | Reads or sets a flag.                                    |
+| -ack       |                                | all                   | Acknowledge the reception of a message, if there is any. |
+| -popup     | \[all\|red\|blue\] \<message\> | DCS Admin, GameMaster | Sends a popup message to a coalition.                    |
+
+## Usage inside Missions (Scripting API)
 You can enable, disable (= delete) and reset (= delete + start) campaigns inside of missions, too. If you want to use 
 the system and for instance reset it on every mission start, you just need to put in the following lines in one of 
 your triggers that fire after a mission load:
@@ -94,9 +97,9 @@ In addition, you can upload embeds to discord channels, just by using json files
 }
 ```
 
-Just upload a file with such a content and a .json extension to the channel where you want the information to be 
-displayed (can be done by the Admin-Role only!). If you provide a valid message_id (right click, Copy Message ID), 
-this specific message will be updated.
+Upload a file with such a content and a .json extension to the channel where you want the information to be 
+displayed (can be done by the Admin-Role only!). 
+If you provide a valid message_id (right-click, Copy Message ID), this specific message will be updated.
 
 The Embed-formatter gets the following objects to allow for dynamic strings:
 - node (the master node)

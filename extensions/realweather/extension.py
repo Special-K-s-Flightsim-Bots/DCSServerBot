@@ -12,7 +12,7 @@ import sys
 import zipfile
 
 from contextlib import suppress
-from core import Extension, MizFile, utils, DEFAULT_TAG, Server, ServiceRegistry, InstallException
+from core import Extension, MizFile, utils, DEFAULT_TAG, Server, ServiceRegistry
 from io import BytesIO
 from packaging.version import parse
 from services.bot import BotService

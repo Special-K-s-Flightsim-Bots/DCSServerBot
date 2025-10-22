@@ -251,6 +251,7 @@ class LotAtc(Extension, FileSystemEventHandler):
         exe_path = os.path.join(cwd, 'LotAtc_updater.exe')
         args = ['-c', 'up']
         if sys.platform == 'win32':
+            # noinspection PyUnresolvedReferences
             ctypes.windll.shell32.ShellExecuteW(
                 None, "runas", exe_path, ' '.join(args), None, 1)
         else:

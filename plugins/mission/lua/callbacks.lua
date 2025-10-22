@@ -248,7 +248,6 @@ function mission.onPlayerConnect(id)
     end
     dcsbot.userInfo[msg.ucid] = dcsbot.userInfo[msg.ucid] or {}
     dcsbot.userInfo[msg.ucid].points = nil
-    dcsbot.userInfo[msg.ucid].coalition = nil
     mission.num_change_slots[id] = 0
 	utils.sendBotTable(msg)
 end

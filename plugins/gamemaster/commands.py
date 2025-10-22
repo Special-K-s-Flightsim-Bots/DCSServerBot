@@ -4,7 +4,8 @@ import os
 import psycopg
 from psycopg.rows import dict_row
 
-from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, get_translation, PlayerType
+from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, get_translation, PlayerType, \
+    Player
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
@@ -264,10 +265,41 @@ class GameMaster(Plugin[GameMasterEventListener]):
         await interaction.response.send_message(_('Script loaded.'), ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f"loaded LUA script {filename}", user=interaction.user, server=server)
 
-    @command(description=_('Mass coalition leave for users'))
+    @command(description=_('Reset coalition cooldown'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def reset_coalitions(self, interaction: discord.Interaction):
+    async def reset_coalition(self, interaction: discord.Interaction,
+                              server: app_commands.Transform[Server, utils.ServerTransformer(
+                                  status=[Status.PAUSED, Status.RUNNING])],
+                              player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
+        ephemeral = utils.get_ephemeral(interaction)
+        if not server.locals.get('coalitions'):
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("The coalition system is not enabled on this server."),
+                                                    ephemeral=True)
+            return
+
+        if not await utils.yn_question(
+                interaction,
+                _('Do you want to reset the coalition-bindings from player {}?').format(player.display_name),
+                ephemeral=ephemeral
+        ):
+            await interaction.followup.send('Aborted.', ephemeral=ephemeral)
+            return
+        try:
+            await self.eventlistener.reset_coalition(server, player)
+            await interaction.followup.send(_('Coalition bindings for player {} reset.').format(player.display_name),
+                                            ephemeral=ephemeral)
+        except discord.Forbidden:
+            await interaction.followup.send(_('The bot is missing the "Manage Roles" permission!'), ephemeral=ephemeral)
+            await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
+
+    @command(description=_('Reset all coalition cooldowns'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def reset_coalitions(self, interaction: discord.Interaction,
+                               server: app_commands.Transform[Server, utils.ServerTransformer(
+                                   status=[Status.PAUSED, Status.RUNNING])] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if not await utils.yn_question(interaction,
                                        _('Do you want to mass-reset all coalition-bindings from your players?'),
@@ -275,10 +307,17 @@ class GameMaster(Plugin[GameMasterEventListener]):
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
         try:
-            for server in self.bot.get_servers(manager=interaction.user).values():
-                if not server.locals.get('coalitions'):
-                    continue
+            if server:
                 await self.eventlistener.reset_coalitions(server, True)
+                await interaction.followup.send(
+                    _('Coalition bindings reset for all players on server {}.').format(server.display_name),
+                    ephemeral=ephemeral
+                )
+            else:
+                for server in self.bot.get_servers(manager=interaction.user).values():
+                    if not server.locals.get('coalitions'):
+                        continue
+                    await self.eventlistener.reset_coalitions(server, True)
                 await interaction.followup.send(_('Coalition bindings reset for all players.'), ephemeral=ephemeral)
         except discord.Forbidden:
             await interaction.followup.send(_('The bot is missing the "Manage Roles" permission!'), ephemeral=ephemeral)

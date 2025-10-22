@@ -27,7 +27,6 @@ from .helper import get_all_players, is_ucid, format_string, cache_with_expirati
 if TYPE_CHECKING:
     from core import Server, Player, Node, Instance, Plugin
     from services.bot import DCSServerBot
-    from services.servicebus import ServiceBus
 
 
 __all__ = [
@@ -1663,7 +1662,6 @@ class ServerUploadHandler(NodeUploadHandler):
     @staticmethod
     async def get_server(message: discord.Message, channel_id: int | None = None) -> Server | None:
         from services.bot import BotService
-        from services.servicebus import ServiceBus
 
         bot = ServiceRegistry.get(BotService).bot
         server = bot.get_server(message, admin_only=True)

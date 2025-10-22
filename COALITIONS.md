@@ -1,29 +1,40 @@
 # Coalitions
 If you want to support Blue and Red coalitions in your Discord and your DCS servers, you're good to go!
-As there are major changes to how the bot behaves with COALITIONS enabled, I decided to have a separate documentation 
-about it. It has redundant information in it, which is usually a bad idea, but I thought it might be easier for you
-guys to have everything in one place.<br/>
-Coalitions are implemented by slot blocking, but can use the feature of coalition passwords in DCS, too.
+As there are major changes to how the bot behaves with COALITIONS enabled, I decided to have separate documentation 
+about it.
+
+> [!IMPORTANT]
+> As of version 2.9.21, DCS World has its own coalition locking feature.
+> DCSServerBot uses this system from now on, with some personal add-ons.
+> This has a slight impact on how the locking mechanism works.
+> 
+> In the past, DCSServerBot had a cooldown lock, meaning you could not join the opposite coalition for a specific time
+> after you **left** your coalition.<br>
+> DCS now has a time-based lock.
+> You cannot switch coalitions at all in-between of a specific lock time.
+> If you are able to switch coalitions, though, you can directly switch to the opposite coalition.
+> Keep this in mind whenever you plan the lock times.
 
 > [!NOTE]
 > With COALITIONS enabled, some persistent displays will not appear in your server status channels (or will be changed)
 > like Player information or Mission Statistics, which would render all the work useless, if you could peek in there and 
-> see what is going on. You can still use the commands like `/player list` or `/missionstats` in your dedicated coalition 
+> see what's going on. You can still use commands like `/player list` or `/missionstats` in your dedicated coalition 
 > channels, but you can't see data from the opposite coalition anymore.
 
-COALITION handling can be enabled in each server individually. So if you only want to enable strict red/blue 
-handling in one server, you can do that. Every other server (and their persistent embeds) will not be affected.  
+COALITION handling can be enabled in each server individually. 
+If you only want to enable strict red/blue handling in one server, you can do that. 
+Every other server (and their persistent embeds) will not be affected.  
 
 ---
 ## Bot Configuration
-There are some specific settings for coalitions that you can set in your configuration:
+There are some specific settings for coalitions that you can set in your configuration.
+Please do **not** set the coalition-specific settings in serverSettings.lua. 
+The bot takes care of those.
 
-### bot.yml
+### bot.yaml
 a) Greeting Direct Message (DM)
 ```yaml
 # [...]
-message_ban: User has been banned on Discord.
-message_autodelete: 300
 greeting_dm: This server has a coalition system enabled. Please use .red or .blue in the in-game chat to join a coalition.  
 # [...]
 ```
@@ -59,20 +70,21 @@ My Fancy Server:
     red_events: 123459876123459876  # Optional: same as blue_events for red.
   # [...]
   coalitions:
-    lock_time: 1 day            # time in which you are not allowed to move to the opposite coalition after leaving one coalition
+    lock_time: 1 day            # time in which you are not allowed to change coalitions.
     allow_players_pool: false   # don't allow access to the players pool
     blue_role: 1234123412341234 # Discord role for the blue coalition
     red_role: 43214321432143210 # Discord role for the red coalition
 ```
 > [!IMPORTANT]
-> Make sure, that all channels for red and blue coalitions have read access **only** for this coalition and not for 
+> Make sure that all channels for red and blue coalitions have read access **only** for this coalition and not for 
 > @everyone or the other coalition! The CHAT-channels for red and blue are similar to the general chat channel, 
 > but they only replicate chat messages that are being sent to that specific coalition in game.
 > Unfortunately, it is not possible to chat back yet, as the DCS API doesn't allow it yet.
 
 ## Discord Configuration
 The bot uses the following **internal** roles to apply specific permissions to commands.
-You can change the role names to the ones being used in your discord. That has to be done in the dcsserverbot.ini 
+You can change the role names to the ones being used in your discord. 
+That has to be done in the bot.yaml for general roles like GameMaster and for specific ones in the servers.yaml 
 configuration file.
 
 | Role       | Description                                                                                                                                         |
@@ -82,23 +94,21 @@ configuration file.
 | red_role   | People with this role are members of the red coalition. See Coalitions below for details.                                                           |
 
 ## Discord Commands
-These discord commands are either exclusively for coalition handling like .join and .leave or have been amended for 
-coalition use, which means, that the data they display is filtered to data that belongs to your coalition only.
+These discord commands are either exclusively for coalition handling like /reset_coalitions or have been amended for 
+coalition use, which means that the data they display is filtered to data that belongs to your coalition only.
 
-| Command           | Parameter                | Channel       | Role                   | Description                                                                                               |
-|-------------------|--------------------------|---------------|------------------------|-----------------------------------------------------------------------------------------------------------|
-| /server password  | \<password\> [coalition] | admin-channel | DCS Admin              | Changes the password of a specific coalition on this server.                                              |
-| /player list      |                          | all           | DCS                    | Lists the players currently active on the server (for your coalition only!).                              |
-| /mission briefing |                          | all           | DCS                    | Shows the description / briefing of the running mission (for your coalition only!).                       |
-| /missionstats     |                          | all           | DCS                    | Display the current mission situation for either red or blue and the achievements in kills and captures.  |
+| Command           | Parameter            | Channel       | Role                  | Description                                                                                              |
+|-------------------|----------------------|---------------|-----------------------|----------------------------------------------------------------------------------------------------------|
+| /server password  | password [coalition] | admin-channel | DCS Admin             | Changes the password of a specific coalition on this server.                                             |
+| /player list      |                      | all           | DCS                   | Lists the players currently active on the server (for your coalition only!).                             |
+| /mission briefing |                      | all           | DCS                   | Shows the description / briefing of the running mission (for your coalition only!).                      |
+| /missionstats     |                      | all           | DCS                   | Display the current mission situation for either red or blue and the achievements in kills and captures. |
+| /reset_coalition  | server player        | admin-channel | DCS Admin, GameMaster | Resets the coalition cooldown for a specific user on a specific server.                                  |
+| /reset_coalitions | [server]             | all           | DCS Admin, GameMaster | Resets all coalition cooldowns (optional: on a specific server).                                         |
 
 ## In-Game Chat Commands
 
-| Command    | Parameter      | Role | Description                    |
-|------------|----------------|------|--------------------------------|
-| .join      | \<coalition\>  | all  | Join a coalition.              |
-| .leave     |                | all  | Leave a coalition.             |
-| .red       |                | all  | Join the red coalition.        |
-| .blue      |                | all  | Join the blue coalition.       |
-| .coalition |                | all  | Shows your current coalition.  |
-| .password  |                | all  | Shows your coalition password. |
+| Command    | Parameter      | Role      | Description                                        |
+|------------|----------------|-----------|----------------------------------------------------|
+| -coalition |                | all       | Shows your current coalition (if you have joined). |
+| -password  |                | red/ blue | Shows your coalition password (if set).            |

@@ -1,0 +1,1 @@
+ALTER TABLE coalitions ADD COLUMN IF NOT EXISTS coalition_join TIMESTAMP;

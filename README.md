@@ -5,10 +5,9 @@
 [![License](https://img.shields.io/github/license/Special-K-s-Flightsim-Bots/DCSServerBot)](https://raw.githubusercontent.com/Special-K-s-Flightsim-Bots/DCSServerBot/refs/heads/master/LICENSE)
 
 You've found a comprehensive solution that helps you administrate your DCS World servers. It has a Discord integration 
-([now optional](#dcsserverbot-installation-non-discord)!) with slash-commands, built-in per-server and per-user 
+([now optional](#dcsserverbot-installation-non-discord)!) with smart slash-commands, built-in per-server and per-user 
 statistics, optional cloud-based statistics, [Coalitions](./COALITIONS.md)-support, a whole 
-[Tournament-System](./plugins/tournament/README.md), a third-party [web-frontend](https://github.com/Penfold-88/DCS-Statistics-Dashboard) for
-statistics and much more!
+[Tournament-System](./plugins/tournament/README.md), a third-party [web-frontend](https://github.com/Penfold-88/DCS-Statistics-Dashboard) for statistics and much more!
 <p> 
 With its plugin system and reporting framework, DCSServerBot can be enhanced very easily to support whatever might come 
 into your mind. DCSServerBot is a solution for DCS server admins built by a DCS server admin.

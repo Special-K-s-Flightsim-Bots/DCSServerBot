@@ -40,7 +40,7 @@ class Player(DataObject):
     group_name: str = field(compare=False, default='')
     _member: discord.Member = field(compare=False, repr=False, default=None, init=False)
     _verified: bool = field(compare=False, default=False)
-    _coalition: Coalition = field(compare=False, default=None)
+    coalition: Coalition = field(compare=False, default=None)
     _watchlist: bool = field(compare=False, default=False)
     _vip: bool = field(compare=False, default=False)
     bot: DCSServerBot = field(compare=False, init=False)
@@ -53,15 +53,20 @@ class Player(DataObject):
         if self.id == 1:
             self.active = False
             return
+
+        lock_time = self.server.locals.get('coalitions', {}).get('lock_time', '1 day')
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute("""
+                    cursor.execute(f"""
                         SELECT DISTINCT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
                                p.manual, c.coalition, 
                                CASE WHEN w.player_ucid IS NOT NULL THEN TRUE ELSE FALSE END AS watchlict, p.vip 
                         FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
-                        LEFT OUTER JOIN coalitions c ON p.ucid = c.player_ucid AND c.server_name = %s
+                        LEFT OUTER JOIN coalitions c 
+                             ON p.ucid = c.player_ucid 
+                             AND c.server_name = %s 
+                             AND c.coalition_join > (NOW() AT TIME ZONE 'UTC' - interval '{lock_time}')
                         LEFT OUTER JOIN watchlist w ON p.ucid = w.player_ucid
                         WHERE p.ucid = %s 
                         AND COALESCE(b.banned_until, (now() AT TIME ZONE 'utc')) >= (now() AT TIME ZONE 'utc')
@@ -166,27 +171,6 @@ class Player(DataObject):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE players SET vip = %s WHERE ucid = %s', (vip, self.ucid))
-
-    @property
-    def coalition(self) -> Coalition:
-        return self._coalition
-
-    @coalition.setter
-    def coalition(self, coalition: Coalition):
-        self._coalition = coalition
-        if coalition == Coalition.BLUE:
-            side = Side.BLUE
-        elif coalition == Coalition.RED:
-            side = Side.RED
-        elif coalition == Coalition.NEUTRAL:
-            side = Side.NEUTRAL
-        else:
-            side = Side.SPECTATOR
-        self.bot.loop.create_task(self.server.send_to_dcs({
-            "command": "setUserCoalition",
-            "ucid": self.ucid,
-            "coalition": side.value
-        }))
 
     @property
     def display_name(self) -> str:

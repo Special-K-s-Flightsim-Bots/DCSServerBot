@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import os
-import platform
 import psycopg
 import random
 import secrets

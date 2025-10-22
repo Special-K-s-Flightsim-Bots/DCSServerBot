@@ -81,7 +81,8 @@ __all__ = [
     "DictWrapper",
     "format_dict_pretty",
     "show_dict_diff",
-    "to_valid_pyfunc_name"
+    "to_valid_pyfunc_name",
+    "pg_interval_to_seconds"
 ]
 
 logger = logging.getLogger(__name__)
@@ -517,42 +518,37 @@ def async_cache(func: Callable):
 
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
-        # Create a cache key from both args and kwargs
-        # We need to freeze kwargs into an immutable form to use as dict key
-        cache_key = get_cache_key(*args, **kwargs)
+        key = get_cache_key(*args, **kwargs)
 
-        # Fast path: cached value
-        cached = cache.get(cache_key, _SENTINEL)
+        cached = cache.get(key, _SENTINEL)
         if cached is not _SENTINEL:
             return cached
 
-        # Synchronize per key
-        lock = await _get_lock(cache_key)
+        lock = await _get_lock(key)
         async with lock:
-            # Re-check after acquiring the lock
-            cached = cache.get(cache_key, _SENTINEL)
+            cached = cache.get(key, _SENTINEL)
             if cached is not _SENTINEL:
                 return cached
 
-            # If there is a pending computation, await it
-            fut = pending.get(cache_key)
-            if fut is not None:
-                return await fut
+            fut = pending.get(key)
+            if fut is None:
+                loop = asyncio.get_running_loop()
+                fut = loop.create_future()
+                pending[key] = fut
 
-            # Start the computation and share the future
-            loop = asyncio.get_running_loop()
-            fut = loop.create_future()
-            pending[cache_key] = fut
-            try:
-                result = await func(*args, **kwargs)
-                cache[cache_key] = result
-                fut.set_result(result)
-                return result
-            except Exception as e:
-                fut.set_exception(e)
-                raise
-            finally:
-                pending.pop(cache_key, None)
+                async def run():
+                    try:
+                        result = await func(*args, **kwargs)
+                        cache[key] = result
+                        fut.set_result(result)
+                    except Exception as e:
+                        fut.set_exception(e)
+                    finally:
+                        _ = pending.pop(key, None)
+
+                loop.create_task(run())
+
+        return await fut
 
     return wrapper
 
@@ -615,43 +611,35 @@ def cache_with_expiration(expiration: int):
         async def async_wrapper(*args, **kwargs):
             cache_key = get_cache_key(*args, **kwargs)
 
-            # 1) quick cached read
             cached_result = check_cache(cache_key)
             if cached_result is not _SENTINEL:
                 return cached_result
 
             lock = await _get_lock(cache_key)
             async with lock:
-                # 2) re-check after acquiring lock
                 cached_result = check_cache(cache_key)
                 if cached_result is not _SENTINEL:
                     return cached_result
 
-                # 3) if another coroutine already started the work, await it
-                existing = pending.get(cache_key)
-                if existing is not None:
-                    try:
-                        return await existing
-                    except Exception:
-                        # If the pending task failed, fall through to retry
-                        pass
+                fut = pending.get(cache_key)
+                if fut is None:
+                    loop = asyncio.get_running_loop()
+                    fut = loop.create_future()
+                    pending[cache_key] = fut
 
-                # 4) start work and share the task
-                loop = asyncio.get_running_loop()
-                fut: asyncio.Future = loop.create_future()
-                pending[cache_key] = fut
+                    async def producer():
+                        try:
+                            result = await func(*args, **kwargs)
+                            update_cache(cache_key, result)
+                            fut.set_result(result)
+                        except Exception as e:
+                            fut.set_exception(e)
+                        finally:
+                            _ = pending.pop(cache_key, None)
 
-                try:
-                    result = await func(*args, **kwargs)
-                    update_cache(cache_key, result)
-                    fut.set_result(result)
-                    return result
-                except Exception as e:
-                    fut.set_exception(e)
-                    raise
-                finally:
-                    # Clean pending
-                    pending.pop(cache_key, None)
+                    loop.create_task(producer())
+
+            return await fut
 
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
@@ -1279,3 +1267,101 @@ def to_valid_pyfunc_name(raw_name: str) -> str:
         cleaned = '_' + cleaned
 
     return cleaned
+
+
+# -------------------------------------------------------------
+# 1️⃣  Unit → seconds mapping (only integer units allowed)
+# -------------------------------------------------------------
+_UNIT_TO_SECONDS = {
+    # days
+    "day": 24 * 3600,
+    "days": 24 * 3600,
+    "d": 24 * 3600,
+    # weeks
+    "week": 7 * 24 * 3600,
+    "weeks": 7 * 24 * 3600,
+    "w": 7 * 24 * 3600,
+    # months → 30 days (approx)
+    "month": 30 * 24 * 3600,
+    "months": 30 * 24 * 3600,
+    "mon": 30 * 24 * 3600,
+    # years → 365 days (approx)
+    "year": 365 * 24 * 3600,
+    "years": 365 * 24 * 3600,
+    # hours
+    "hour": 3600,
+    "hours": 3600,
+    "h": 3600,
+    "hrs": 3600,
+    # minutes
+    "minute": 60,
+    "minutes": 60,
+    "min": 60,
+    "mins": 60,
+    # seconds (no fractions allowed)
+    "second": 1,
+    "seconds": 1,
+    "sec": 1,
+    "secs": 1,
+}
+
+# -------------------------------------------------------------
+# 2️⃣  Regex: captures "number + unit" pairs
+# -------------------------------------------------------------
+#   - number must be an integer (optional sign, no decimal point)
+#   - unit must be one of the keys in _UNIT_TO_SECONDS
+_INTERVAL_RE = re.compile(r'([+-]?\d+)\s*(\w+)', re.IGNORECASE)
+
+
+def _is_valid_unit(unit: str) -> bool:
+    return unit.lower() in _UNIT_TO_SECONDS
+
+
+def pg_interval_to_seconds(interval: str) -> int:
+    """
+    Convert a PostgreSQL‑style interval literal to whole seconds.
+
+    Rules
+    -----
+    * Only integer values are accepted for all units.
+      If a value contains a decimal point, a ValueError is raised.
+    * Units below “seconds” (milliseconds, microseconds, …) are rejected.
+    * The function returns an *integer* number of seconds (no fractional part).
+
+    Parameters
+    ----------
+    interval : str
+        Example: "1 day 2 hours", "3 weeks", "-2 days 15 minutes 30 seconds"
+
+    Returns
+    -------
+    int
+        Total number of seconds.
+
+    Raises
+    ------
+    ValueError
+        If the string contains a fractional value, an unknown unit, or
+        a sub‑second unit.
+    """
+    total_seconds = 0
+
+    # Scan the string for all "number unit" pairs
+    for num_str, unit in _INTERVAL_RE.findall(interval):
+        # 1️⃣  Unit check
+        if not _is_valid_unit(unit):
+            raise ValueError(f"Unsupported or sub‑second unit: '{unit}'")
+
+        # 2️⃣  Value check – must be an integer
+        #      (num_str comes from the regex that only accepts plain integers)
+        #      The regex already guarantees no decimal point,
+        #      so we can safely convert to int.
+        try:
+            value = int(num_str)
+        except ValueError:  # pragma: no cover – defensive
+            raise ValueError(f"Invalid number: {num_str!r}")
+
+        # 3️⃣  Convert to seconds and accumulate
+        total_seconds += value * _UNIT_TO_SECONDS[unit.lower()]
+
+    return total_seconds
