@@ -254,7 +254,7 @@ class Commands(Plugin):
             else:  # list of servers
                 server = [self.bot.servers[s] for s in cfg["server"]]
         elif 'server' not in kwargs:
-            server = self.bot.get_server(interaction.message)
+            server = self.bot.get_server(interaction)
             if server:
                 kwargs["server"] = server
         else:
