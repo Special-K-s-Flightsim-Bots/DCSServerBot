@@ -447,9 +447,12 @@ class DCSServerBot(commands.Bot):
 
         all_servers = self.get_servers(manager=ctx.user if isinstance(ctx, discord.Interaction) else ctx.author)
         if len(all_servers) == 1:
-            server = next(iter(all_servers.values()), None)
+            server = next(iter(all_servers.values()))
             if admin_only:
-                if int(self.locals.get('channels', {}).get('admin', 0)) == ctx.channel.id:
+                if ctx.channel.id in [
+                    int(self.locals.get('channels', {}).get('admin', 0)),
+                    int(server.locals.get('channels', {}).get('admin', 0))
+                ]:
                     return server
                 else:
                     return None
