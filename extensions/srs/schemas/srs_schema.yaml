@@ -23,6 +23,7 @@ schema;node_srs_schema:
     host: {type: str, nullable: false, range: {min: 1}}
     minimized: {type: bool, nullable: false}
     debug: {type: bool, nullable: false}
+    gui_server: {type: bool, nullable: false}
     awacs: {type: bool, nullable: false}
     blue_password: {type: str, nullable: false, range: {min: 1}}
     red_password: {type: str, nullable: false, range: {min: 1}}

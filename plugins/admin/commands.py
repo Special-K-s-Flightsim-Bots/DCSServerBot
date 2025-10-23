@@ -53,7 +53,7 @@ async def available_modules_autocomplete(interaction: discord.Interaction,
             app_commands.Choice(name=x, value=x)
             for x in available_modules
             if not current or current.casefold() in x.casefold()
-        ]
+        ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
