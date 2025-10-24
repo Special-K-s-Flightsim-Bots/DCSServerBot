@@ -241,6 +241,9 @@ if __name__ == "__main__":
     if sys.platform == 'win32':
         # disable quick edit mode (thanks to Moots)
         utils.quick_edit_mode(False)
+        if sys.version_info < (3, 14):
+            # set the asyncio event loop policy
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     # get the command line args from core
     args = COMMAND_LINE_ARGS
@@ -275,7 +278,7 @@ if __name__ == "__main__":
 
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
-                if sys.platform == "win32":
+                if sys.platform == "win32" and sys.version_info >= (3, 12):
                     import selectors
 
                     rc = asyncio.run(
@@ -288,7 +291,7 @@ if __name__ == "__main__":
                 from install import Install
 
                 Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
-                if sys.platform == "win32":
+                if sys.platform == "win32" and sys.version_info >= (3, 12):
                     import selectors
 
                     rc = asyncio.run(
