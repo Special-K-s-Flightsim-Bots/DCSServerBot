@@ -50,18 +50,18 @@ MyNode:
           frontend:
             path: '%USERPROFILE%\Saved Games\Olympus\frontend' # Optional: path to the Olympus frontend. This is only needed if you are using the official installer. ModManager users don't need this.
             port: 3000                    # Port where DCS Olympus listens for client access (needs to be unique)
-            customAuthHeaders:            # SSO configuration (Olympus 2.0), see Olympus documentation
-              ...
-            elevationProvider:            # Elevation data provider (Olympus 2.0), see Olympus documentation
-              ...
-            mapLayers:                    # Providers for map displays (Olympus 2.0), see Olympus documemtation
-              ...
-            mapMirrors:                   # Map tiles sources (Olympus 2.0), see Olympus documentation
-              ...
+            # customAuthHeaders:          # SSO configuration (Olympus 2.0), see Olympus documentation
+            #   ...
+            # elevationProvider:          # Elevation data provider (Olympus 2.0), see Olympus documentation
+            #   ...
+            # mapLayers:                  # Providers for map displays (Olympus 2.0), see Olympus documemtation
+            #   ...
+            # mapMirrors:                 # Map tiles sources (Olympus 2.0), see Olympus documentation
+            #   ...
           audio:                          # SRS audio settings (Olympus 2.0)
             WSPort: 4000                  # The WSPort is the port used by the web interface to connect to the audio backend WebSocket. It should be available and not used by other processes.
             WSEndpoint: audio             # The WSEndpoint is the endpoint used by the web interface to connect to the audio backend WebSocket when using a reverse proxy. A websocket proxy should be set up to forward requests from this endpoint to WSPort.
-    instance2:
+    instance2:                            # Optional: the configuration of other instances would be added here
       # [...]
       extensions:
         Olympus:

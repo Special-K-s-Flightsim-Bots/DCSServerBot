@@ -4,6 +4,7 @@ schema;node_tacview_schema:
   mapping:
     name: {type: str, nullable: false, range: {min: 1}}
     installation: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
+    host: {type: str, nullable: false}
     show_passwords: {type: bool, nullable: false}
     tacviewExportPath: {type: str, nullable: false, range: {min: 1}}
     tacviewAutoDiscardFlights: {type: int, nullable: false}

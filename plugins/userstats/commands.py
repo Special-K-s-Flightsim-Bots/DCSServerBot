@@ -56,6 +56,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         super().__init__(bot, listener)
         if self.locals:
             self.persistent_highscore.start()
+            self.refresh_views.start()
+            self.refresh_views.add_exception_type(psycopg.DatabaseError)
             if not self.locals.get(DEFAULT_TAG, {}).get('squadrons', {}).get('self_join', True):
                 super().change_commands({
                     "squadron": {"join": {"enabled": False}}
@@ -827,6 +829,14 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @persistent_highscore.before_loop
     async def before_persistent_highscore(self):
         await self.bot.wait_until_ready()
+
+    @tasks.loop(hours=1)
+    async def refresh_views(self):
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    REFRESH MATERIALIZED VIEW mv_statistics;
+                """)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):

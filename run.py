@@ -241,8 +241,6 @@ if __name__ == "__main__":
     if sys.platform == 'win32':
         # disable quick edit mode (thanks to Moots)
         utils.quick_edit_mode(False)
-        # set the asyncio event loop policy
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     # get the command line args from core
     args = COMMAND_LINE_ARGS
@@ -256,9 +254,9 @@ if __name__ == "__main__":
         Main.reveal_passwords(args.config)
         exit(-2)
 
-    # Require Python >= 3.10 and < 3.14
-    if not ((3,10) <= sys.version_info < (3,14)):
-        print("ERROR: DCSServerBot requires Python >= 3.10 and < 3.14.")
+    # Require Python >= 3.10 and <= 3.14
+    if sys.version_info <= (3,10):
+        print("ERROR: DCSServerBot requires Python >= 3.10.")
         sys.exit(-2)
 
     # Add certificates
@@ -277,12 +275,28 @@ if __name__ == "__main__":
 
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
-                rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
+                if sys.platform == "win32":
+                    import selectors
+
+                    rc = asyncio.run(
+                        run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate),
+                        loop_factory=lambda: asyncio.SelectorEventLoop(selectors.SelectSelector()),
+                    )
+                else:
+                    rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
             except FatalException:
                 from install import Install
 
                 Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
-                rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
+                if sys.platform == "win32":
+                    import selectors
+
+                    rc = asyncio.run(
+                        run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate),
+                        loop_factory=lambda: asyncio.SelectorEventLoop(selectors.SelectSelector()),
+                    )
+                else:
+                    rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
     except PermissionError as ex:
         log.error(f"There is a permission error: {ex}", exc_info=True)
         # do not restart again

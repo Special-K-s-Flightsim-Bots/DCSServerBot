@@ -1,27 +1,73 @@
-NODENAME:                       # this will be your hostname
-  listen_address: 0.0.0.0       # On which interface should the bot listen to? Default is 0.0.0.0
-  listen_port: 10042            # On which port should the bot listen to? Default is 10042
-  autoupdate: true              # use the bots autoupdate functionality, default is false
-  slow_system: false            # if you are using a slower PC to run your servers, you should set this to true (default: false)
-  preferred_master: true        # this node should be the preferred master node (only needed in a cluster configuration)
+NODENAME:                       # this will usually be your hostname
+  listen_port: 10042            # On which port should the bot listen? Default is 10042
+  listen_address: 127.0.0.1     # Optional: On which interface should the bot listen? Default is 127.0.0.1 (localhost only).
+  # public_ip: 88.77.66.55        # Optional: Your public IP. ONLY if you have a static IP! Put this in here to speed up the startup-process of the bot.
+  # slow_system: false            # Optional: if you are using a slower PC to run your servers, you should set this to true (default: false)
+  # use_upnp: true                # The bot will auto-detect if there is a UPnP IGD available and configure this setting initially for you! If you do NOT want to use UPnP, even IF it is available, put this to false.
+  nodestats: true               # Enable/disable node statistics (database pool and event queue sizes), default: true
+  # restrict_commands: true       # Disable commands that can affect the integrity of the server. Default: false (see MULTINODE.md)
+  # restrict_owner: false         # If set to true, the owner of the bot can also not run restricted commands. Default: false (see MULTINODE.md)
+  database:                     # Optional: It might be that you need to use different IPs to connect to the same database server. This is the place you could do that.
+    url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME   # The bot will auto-move the database password from here to a secret place and replace it with SECRET.
+    pool_min: 5                 # min size of the DB pool, default is 5
+    pool_max: 10                # max size of the DB pool, default is 10
+    max_reties: 10              # maximum number of retries to initially connect to the database on startups
+  # cluster:                      # Cluster only: Your cluster configuration. See MULTINODE.md for reference.
+  #   preferred_master: true      # Cluster only: this node should be the preferred master node (default: false)
+  #   no_master: false            # Cluster only: this node should never be a master node (default: false)
+  #   heartbeat: 30               # Cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
+  #   cloud_drive: true           # Cluster only: set this to false if you do not have the bot installed on a cloud drive (default and recommended: true)
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World Server'  # This is your DCS installation. Usually autodetected by the bot.
-    autoupdate: false           # enable auto-update for your DCS servers. Default is false.
+    autoupdate: true            # enable auto-update for your DCS servers. Default is false.
+    announce:                   # Optional: post a message to Discord after an update was conducted
+      channel: 11223344556677
+      title: DCS has been updated to version {}!
+      description: 'The following servers have been updated:'
+      footer: Please make sure you update your DCS client to join!
+      mention:                  # Optional mentioning
+        - Admin
+        - DCS Admin
+    update_window:              # Optional update window. No update will happen if N is set for the respective time and day.
+      timezone: Europe/Berlin   # Optional timezone, default is the local time of the server.
+      00-18: YYYYYYY
+      18-20: YYYYYYN            # Do not update DCS on Sundays, 18:00-20:00 LT
+      20-24: YYYYYYY
+    # use_upnp: true            # Do you want to use UPnP to forward your DCS ports automatically? If not set, the global setting will be used.
+    # cloud: true               # If you have installed DCS on a NAS or cloud drive, autoupdate and desanitization will only take place once on all your nodes.
     desanitize: true            # Desanitize your MissionScripting.lua after each update. Default is true.
+    minimized: true             # Start DCS minimized (default: true)
+    # user: xxxx                  # Your DCS username (only needed for specific use-cases)
+    # password: xxxx              # Your DCS password (will be auto-moved by the bot to a secret place)
+  extensions:                   # Your extensions have 2 sections, one in the node and one in each instance.
+    SRS:                        # Your node-global settings for SRS
+      installation: '%ProgramFiles%\DCS-SimpleRadio-Standalone'
+      autoupdate: true          # Auto-update SRS, whenever a new version is available.
+      use_upnp: true            # Do you want to use UPnP to auto-forward your SRS ports? If not set, the global setting will be used.
+    Tacview:                    # Your node-global settings for Tacview
+      installation: 'C:\Program Files (x86)\Steam\steamapps\common\Tacview'
+      tacviewExportPath: '%USERPROFILE%\Documents\Tacview'
+#   Any other Extension:
+#     ...
   instances:
     DCS.release_server:        # The name of your instance. You can have multiple instances that have to have unique names.
       home: '%USERPROFILE%\\Saved Games\\DCS.release_server' # The path to your saved games directory.
+      missions_dir: '%USERPROFILE%\Documents\Missions'       # You can overwrite the default missions dir like so. Default is the Missions dir below the instance home folder.
+      mission_rewrite: false    # Disable rewrite of missions by MizEdit or RealWeather. The server will be stopped for any mission change then. (default: true)
       bot_port: 6666            # The port DCSServerBot uses to communicate with your DCS server. Each instance has to have a unique port. This is NOT your DCS port (10308)!!!
+      webgui_port: 8088         # The port of the WebGUI (default: 8088)
+      dcs_port: 10308           # The DCS port of this instance (default: 10308)
       max_hung_minutes: 3       # Let DCSServerBot kill your server if it is unresponsive for more than x minutes. Default is 3. Disable it with 0.
-      affinity: 2,3             # Optional: set the CPU-affinity for this instance.
+      # affinity: 2,3             # Optional: set the CPU-affinity for the DCS_Server.exe.
+      priority: normal          # Optional: set the process priority (low, normal, high, realtime) for the DCS_Server.exe
       extensions:               # See the extension documentation for more detailed information on what to set here.
         SRS:
           config: '%USERPROFILE%\Saved Games\DCS.release_server\Config\SRS.cfg'  # it is recommended to copy your SRS "server.cfg" below your instances home directory.
           host: 127.0.0.1       # SRS servers local IP (default is 127.0.0.1)
-          port: 5002            # SRS servers local port (default is 5002). The bot will change this in your SRS configuration, if set here!
+          port: 5002            # SRS servers local port (default is 5002). The bot will change this in your SRS configuration if set here!
           autostart: true       # this will autostart your DCS server with the DCS server start (default: true)
           autoupdate: true      # This will auto-update your SRS servers. Default is false, you need to run the bot as Administrator to make it work!
         Tacview:
           show_passwords: false # If you don't want to show the Tacview passwords (default: true)
-#    instance2:                 # you can have an unlimited amount of instance configurations, but each instance has to have a physical representation on your disk.
+#    instance2:                 # you can have an unlimited number of instance configurations, but each instance has to have a physical representation on your disk.
 #      ...

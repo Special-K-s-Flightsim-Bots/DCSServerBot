@@ -4,7 +4,6 @@ import aiohttp
 import asyncio
 import ipaddress
 import logging
-import miniupnpc
 import os
 import pickle
 import platform
@@ -18,6 +17,7 @@ from contextlib import closing, suppress
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import TYPE_CHECKING, Generator
+from upnpy import UPnP
 
 if TYPE_CHECKING:
     from core import Node
@@ -334,20 +334,27 @@ def get_win32_error_message(error_code: int) -> str:
 
 def is_upnp_available() -> bool:
     try:
-        upnp = miniupnpc.UPnP()
-        devices = upnp.discover()  # Discover UPnP-enabled devices
-        if devices > 0:
-            if upnp.selectigd():
-                # UPnP is enabled and an IGD was found.
-                return True
-            else:
-                # UPnP is enabled, but no Internet Gateway Device (IGD) is selected
-                return False
-        else:
-            # No UPnP devices detected on the network.
+        upnp = UPnP()
+        devices = upnp.discover()
+        if not devices:
             return False
+
+        # Look for an InternetGatewayDevice and its WANIPConnection (or WANPPPConnection) service
+        for device in devices:
+            if "InternetGatewayDevice" in (device.device_type or ""):
+                try:
+                    # Try WANIPConnection first
+                    wan_services = device.get_services()
+                    has_wan = any(
+                        ("WANIPConnection" in s.service_type) or ("WANPPPConnection" in s.service_type)
+                        for s in wan_services
+                    )
+                    if has_wan:
+                        return True
+                except Exception:
+                    continue
+        return False
     except Exception:
-        # A UPnP device was found, but no IGD was found.
         return False
 
 

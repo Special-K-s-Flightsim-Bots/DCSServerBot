@@ -162,6 +162,9 @@ class SRS(Extension, FileSystemEventHandler):
         if 'client_export_file_path' not in self.config:
             self.config['client_export_file_path'] = os.path.join(os.path.dirname(path), 'clients-list.json')
         dirty |= self._maybe_update_config('Server Settings', 'SERVER_PORT', 'port')
+        if 'use_upnp' not in self.config:
+            self.config['use_upnp'] = self.node.locals.get('use_upnp', False)
+        dirty |= self._maybe_update_config('Server Settings', 'UPNP_ENABLED', 'use_upnp')
         dirty |= self._maybe_update_config('Server Settings', 'CLIENT_EXPORT_FILE_PATH',
                                            'client_export_file_path')
         self.config['client_export_enabled'] = True

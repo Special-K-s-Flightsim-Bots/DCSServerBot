@@ -23,7 +23,7 @@ discord.py==2.6.4
 eyeD3==0.9.8
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.119.1
+fastapi==0.120.0
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -38,7 +38,7 @@ jinja2==3.1.6
 jsonschema==4.25.1
 
 # Fast LUA parser
-lupa==2.5
+lupa==2.6
 
 # Matplotlib: Python 2D plotting library
 matplotlib>=3.9.4
@@ -48,9 +48,6 @@ mgrs>=1.5.0 ; python_version < "3.13"
 
 # Minidump: Windows Minidump file reader
 minidump==0.0.24; sys_platform == 'win32'
-
-# MiniUPnPC: UPnP check
-miniupnpc>=2.3.2
 
 # NumPy: Package for scientific computing with Python
 numpy>=2.2.6
@@ -80,7 +77,7 @@ psycopg-pool>=3.2.6
 psutil==7.1.1
 
 # PyArrow: Python library providing high-performance tools for doing analytics on Arrow-based columnar data
-pyarrow==21.0.0
+pyarrow==22.0.0
 
 # pyKwalify: A Python library for YAML/JSON schema validation
 pykwalify==1.8.0
@@ -104,7 +101,7 @@ requests==2.32.5
 rich==14.2.0
 
 # ruamel-yaml: YAML parser/emitter supporting roundtrip comment preservation
-ruamel.yaml==0.18.15
+ruamel.yaml==0.18.16
 
 # seaborn: Extension for Matplotlib with more and nicer graphics
 seaborn==0.13.2
@@ -113,7 +110,7 @@ seaborn==0.13.2
 sqlparse==0.5.3
 
 # TimetoneFinder: Find the right timezones for a given coordinate
-timezonefinder[numba]==6.5.9
+timezonefinder==6.5.9
 
 # tomli: Python TOML parser
 tomli==2.3.0 ; python_version < "3.11"
@@ -121,6 +118,9 @@ tomli_w==1.2.0
 
 # TrueSkill: Python module implementing the TrueSkill rating system
 trueskill==0.4.5
+
+# UPnPY: UPnP discoveries
+upnpy==1.1.8
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
 uvicorn==0.38.0

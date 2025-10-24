@@ -40,7 +40,7 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
         'close_statistics': "UPDATE statistics SET hop_off = GREATEST((hop_on + INTERVAL '1 second'), (now() AT TIME ZONE 'utc')) WHERE mission_id = %s AND hop_off IS NULL",
         'close_mission': "UPDATE missions SET mission_end = (now() AT TIME ZONE 'utc') WHERE id = %s",
         'check_player': 'SELECT slot FROM statistics WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
-        'start_player': 'INSERT INTO statistics (mission_id, player_ucid, slot, side) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING',
+        'start_player': 'INSERT INTO statistics (mission_id, player_ucid, slot, tail_no, side) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING',
         'stop_player': "UPDATE statistics SET hop_off = GREATEST((hop_on + INTERVAL '1 second'), (now() AT TIME ZONE 'utc')) WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL",
         'all_players': 'SELECT player_ucid FROM statistics WHERE mission_id = %s AND hop_off IS NULL'
     }
@@ -65,6 +65,10 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
         if int(sub_slot) not in [-1, 0]:
             unit_type += ' (Crew)'
         return unit_type
+
+    @staticmethod
+    def get_unit_callsign(player: Player | dict) -> str:
+        return player.unit_callsign if isinstance(player, Player) else player['unit_callsign']
 
     @staticmethod
     def close_all_statistics(conn: psycopg.Connection, server: Server):
@@ -155,7 +159,13 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
                                     player_started = True
                             if not player_started and player.side != Side.SPECTATOR:
                                 cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
-                                               (mission_id, player.ucid, self.get_unit_type(player), player.side.value))
+                                               (
+                                                   mission_id,
+                                                   player.ucid,
+                                                   self.get_unit_type(player),
+                                                   self.get_unit_callsign(player),
+                                                   player.side.value)
+                                               )
                         # close dead entries in the database (if existent)
                         cursor.execute(self.SQL_MISSION_HANDLING['all_players'], (mission_id, ))
                         for row in cursor.fetchall():
@@ -196,7 +206,13 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
                 conn.execute(self.SQL_MISSION_HANDLING['stop_player'], (server.mission_id, data['ucid']))
                 if Side(data['side']) != Side.SPECTATOR:
                     conn.execute(self.SQL_MISSION_HANDLING['start_player'],
-                                 (server.mission_id, data['ucid'], self.get_unit_type(data), data['side']))
+                                 (
+                                     server.mission_id,
+                                     data['ucid'],
+                                     self.get_unit_type(data),
+                                     self.get_unit_callsign(data),
+                                     data['side'])
+                                 )
 
     @event(name="disableUserStats")
     async def disableUserStats(self, server: Server, _: dict) -> None:
