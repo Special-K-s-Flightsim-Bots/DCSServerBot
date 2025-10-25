@@ -154,7 +154,7 @@ class Radio(ABC):
                 self.idx = randrange(len(self.songs)) if self.songs else 0
             elif self._mode == Mode.REPEAT:
                 self.idx += 1
-                if self.idx == len(self.songs):
+                if self.idx >= len(self.songs):
                     self.idx = 0
             await asyncio.sleep(1)
 
