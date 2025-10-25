@@ -326,6 +326,8 @@ if __name__ == "__main__":
         # try again on Database errors
         exit(-1)
     except SystemExit as ex:
+        if ex.code not in [0, -1, -2]:
+            log.exception(ex)
         exit(ex.code)
     except:
         console.print_exception(show_locals=True, max_frames=1)
