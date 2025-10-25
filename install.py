@@ -272,10 +272,10 @@ For a successful installation, you need to fulfill the following prerequisites:
     def install(self, config_dir: str, user: str, database: str):
         global _
 
-        if not ((3,10) <= sys.version_info < (3,14)):
+        if sys.version_info < (3,10):
             print(f"[red]!!! Python {sys.version_info.major}.{sys.version_info.minor} is not supported."
-                  f"DCSServerBot requires Python >= 3.10 and < 3.14 !!![/]")
-            exit(-1)
+                  f"DCSServerBot requires Python >= 3.10 !!![/]")
+            exit(-2)
         print("""
 [bright_blue]Hello! Thank you for choosing DCSServerBot.[/]
 DCSServerBot supports everything from single server installations to huge server farms with multiple servers across 
@@ -311,9 +311,30 @@ If you need any further assistance, please visit the support discord, listed in 
                 if not Confirm.ask(_("[red]A configuration for this node exists already![/]\n"
                                      "Do you want to overwrite it?"), default=False):
                     self.log.warning(_("Aborted: configuration exists"))
-                    exit(-1)
+                    exit(-2)
             else:
-                print(_("[yellow]Configuration found, adding another node...[/]"))
+                is_new = Prompt.ask(
+                    _("[yellow]I cannot find a configuration for node {}.[/]\n"
+                      "Is this a [bold italic]new[/] node or did the hostname of an [bold italic]existing[/] node change?").format(self.node),
+                    choices=[_('new'), _('existing')], default="new"
+                )
+                if is_new == _('existing'):
+                    old_node = Prompt.ask(_("Please select the node name you want to replace:"),
+                                          choices=[_('Abort')] + list(nodes.keys()), default='Abort')
+                    if old_node == _('Abort'):
+                        self.log.warning(_("Aborted."))
+                        exit(-2)
+                    if not Confirm.ask(prompt=_("Are you sure you want to rename node {} to {}?").format(
+                            old_node, self.node), default=False):
+                        self.log.warning(_("Aborted."))
+                        exit(-2)
+                    print(_("\n\nUpdating your config files now..."))
+                    self.rename_node(config_dir, old_node, self.node)
+                    print(_("\n[green]Your configuration was updated. Node {} was renamed to node {}.[/]").format(
+                        old_node, self.node))
+                    return
+                else:
+                    print(_("[yellow]Adding another node...[/]"))
             master = False
             i = 0
 
@@ -322,7 +343,7 @@ If you need any further assistance, please visit the support discord, listed in 
             database_url = Install.get_database_url(user, database)
             if not database_url:
                 self.log.error(_("Aborted: No valid Database URL provided."))
-                exit(-1)
+                exit(-2)
         else:
             if 'database' in main:
                 database_url = main['database']['url']
@@ -339,7 +360,7 @@ If you need any further assistance, please visit the support discord, listed in 
                 database_url = Install.get_database_url(user, database)
                 if not database_url:
                     self.log.error(_("Aborted: No valid Database URL provided."))
-                    exit(-1)
+                    exit(-2)
 
         print(_("\n{}. [u]Node Setup[/]").format(i+2))
         if sys.platform == 'win32':
@@ -528,6 +549,16 @@ If you need any further assistance, please visit the support discord, listed in 
                 f"You can start DCSServerBot with:\n\n"
                 f"    [bright_black]{run_script}[/]\n\n"))
         self.log.info(_("Installation finished."))
+
+
+    @staticmethod
+    def rename_node(config_dir: str, old_name: str, new_name: str):
+        for file in Path(config_dir).rglob('*.yaml'):
+            data = yaml.load(Path(file).read_text(encoding='utf-8'))
+            if old_name in data.keys():
+                data[new_name] = data.pop(old_name)
+                with Path(file).open('w', encoding='utf-8') as f:
+                    yaml.dump(data, f)
 
 
 if __name__ == "__main__":
