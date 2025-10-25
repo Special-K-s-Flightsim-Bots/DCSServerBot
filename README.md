@@ -250,6 +250,12 @@ options:
 You might want to provide different node names if you install multiple nodes on one PC, and different database user
 and database names if you want to install multiple bots for multiple Discord groups.
 
+> [!TIP]
+> If you need to rename a node, just launch `install.cmd` again with the --node parameter and give it the new name.
+> You will then get a list of existing nodes and will be asked to either add a new node or rename an existing one.
+> Select rename an `existing` one and select the node to be renamed.<br>
+> This might be necessary, if your hostname changes or you move a bot from one PC to another.
+
 ### Desanitization
 DCSServerBot desanitizes your MissionScripting environment. That means it changes entries in Scripts\MissionScripting.lua
 of your DCS installation. If you use any other method of desanitization, DCSServerBot checks if additional 
