@@ -41,6 +41,7 @@ class Radio(ABC):
         self._playlist = None
         # TODO: async
         self.playlist = self._get_active_playlist()
+        self.idx = 0 if (self._mode == Mode.REPEAT or not len(self.songs)) else randrange(len(self.songs))
 
     def _get_active_playlist(self) -> str | None:
         with self.pool.connection() as conn:
