@@ -67,7 +67,6 @@ psutil==7.1.2
 psycopg==3.2.12
 psycopg-binary==3.2.12
 psycopg-pool==3.2.7
-pyarrow==21.0.0
 pycparser==2.23
 pydantic==2.12.3
 pydantic-core==2.41.4
