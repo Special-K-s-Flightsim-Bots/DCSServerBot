@@ -68,13 +68,13 @@ pid==3.0.4
 pip-tools>=7.5.0
 
 # Psycopg: PostgreSQL database adapter for Python
-psycopg[binary]>=3.2.6
+psycopg[binary]==3.2.12
 
 # Psycopg Pool: PostgreSQL database adapter pool for Python
-psycopg-pool>=3.2.6
+psycopg-pool==3.2.7
 
 # PSUtil: Cross-platform library to access system details and process utilities
-psutil==7.1.1
+psutil==7.1.2
 
 # PyArrow: Python library providing high-performance tools for doing analytics on Arrow-based columnar data
 pyarrow==22.0.0
@@ -121,7 +121,7 @@ trueskill==0.4.5
 
 # UPnPY: UPnP discoveries
 upnpy==1.1.8 ; python_version >= "3.14"
-miniupnpc==2.3.3 ; python version < '3.14'
+miniupnpc==2.3.3 ; python_version < "3.14"
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
 uvicorn==0.38.0
