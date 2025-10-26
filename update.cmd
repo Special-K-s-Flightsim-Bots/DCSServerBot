@@ -23,7 +23,7 @@ if not exist "%VENV%" (
     "%VENV%\Scripts\python.exe" -m pip install --upgrade pip
     "%VENV%\Scripts\pip" install -r requirements.txt
 ) else (
-    "%VENV%\Scripts\python.exe" -m pip install --upgrade pip
+    "%VENV%\Scripts\python.exe" -m pip install --upgrade pip==25.2
 )
 "%VENV%\Scripts\python" update.py --no-restart %*
 echo Please press any key to continue...

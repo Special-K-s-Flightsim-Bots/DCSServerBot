@@ -64,9 +64,6 @@ packaging==25.0
 # PID: Pidfile implementation by using a Unix PID file
 pid==3.0.4
 
-# PIP
-pip==25.2
-
 # PIP Tools
 pip-tools>=7.5.0
 
