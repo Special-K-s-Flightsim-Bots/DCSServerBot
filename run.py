@@ -241,7 +241,7 @@ if __name__ == "__main__":
     if sys.platform == 'win32':
         # disable quick edit mode (thanks to Moots)
         utils.quick_edit_mode(False)
-        if sys.version_info < (3, 12):
+        if sys.version_info < (3, 14):
             # set the asyncio event loop policy
             asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
@@ -278,7 +278,7 @@ if __name__ == "__main__":
 
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
-                if sys.platform == "win32" and sys.version_info >= (3, 12):
+                if sys.platform == "win32" and sys.version_info >= (3, 14):
                     import selectors
 
                     rc = asyncio.run(
