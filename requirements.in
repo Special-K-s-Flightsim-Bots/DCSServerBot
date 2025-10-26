@@ -120,7 +120,8 @@ tomli_w==1.2.0
 trueskill==0.4.5
 
 # UPnPY: UPnP discoveries
-upnpy==1.1.8
+upnpy==1.1.8 ; python_version >= "3.14"
+miniupnpc==2.3.3 ; python version < '3.14'
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
 uvicorn==0.38.0

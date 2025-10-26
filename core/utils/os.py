@@ -17,7 +17,6 @@ from contextlib import closing, suppress
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import TYPE_CHECKING, Generator
-from upnpy import UPnP
 
 if TYPE_CHECKING:
     from core import Node
@@ -331,31 +330,56 @@ def get_win32_error_message(error_code: int) -> str:
     )
     return buffer.value.strip()
 
+if sys.version_info >= (3, 14):
 
-def is_upnp_available() -> bool:
-    try:
-        upnp = UPnP()
-        devices = upnp.discover()
-        if not devices:
+    def is_upnp_available() -> bool:
+        from upnpy import UPnP
+
+        try:
+            upnp = UPnP()
+            devices = upnp.discover()
+            if not devices:
+                return False
+
+            # Look for an InternetGatewayDevice and its WANIPConnection (or WANPPPConnection) service
+            for device in devices:
+                if "InternetGatewayDevice" in (device.device_type or ""):
+                    try:
+                        # Try WANIPConnection first
+                        wan_services = device.get_services()
+                        has_wan = any(
+                            ("WANIPConnection" in s.service_type) or ("WANPPPConnection" in s.service_type)
+                            for s in wan_services
+                        )
+                        if has_wan:
+                            return True
+                    except Exception:
+                        continue
+            return False
+        except Exception:
             return False
 
-        # Look for an InternetGatewayDevice and its WANIPConnection (or WANPPPConnection) service
-        for device in devices:
-            if "InternetGatewayDevice" in (device.device_type or ""):
-                try:
-                    # Try WANIPConnection first
-                    wan_services = device.get_services()
-                    has_wan = any(
-                        ("WANIPConnection" in s.service_type) or ("WANPPPConnection" in s.service_type)
-                        for s in wan_services
-                    )
-                    if has_wan:
-                        return True
-                except Exception:
-                    continue
-        return False
-    except Exception:
-        return False
+else:
+
+    def is_upnp_available() -> bool:
+        import miniupnpc
+
+        try:
+            upnp = miniupnpc.UPnP()
+            devices = upnp.discover()  # Discover UPnP-enabled devices
+            if devices > 0:
+                if upnp.selectigd():
+                    # UPnP is enabled and an IGD was found.
+                    return True
+                else:
+                    # UPnP is enabled, but no Internet Gateway Device (IGD) is selected
+                    return False
+            else:
+                # No UPnP devices detected on the network.
+                return False
+        except Exception:
+            # A UPnP device was found, but no IGD was found.
+            return False
 
 
 class CloudRotatingFileHandler(RotatingFileHandler):
