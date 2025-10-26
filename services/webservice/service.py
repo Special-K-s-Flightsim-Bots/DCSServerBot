@@ -37,7 +37,7 @@ class WebService(Service):
                 app=self.app,
                 host=cfg.get('listen', '0.0.0.0'),
                 port=cfg.get('port', 9876),
-                workers=4,
+                workers=1,
                 log_level=logging.WARNING,
                 log_config=None,
                 use_colors=False
@@ -137,4 +137,4 @@ class WebService(Service):
         if self.task:
             self.server.should_exit = True
             await self.task
-            await super().stop()
+        await super().stop()

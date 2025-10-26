@@ -71,7 +71,7 @@ class Radio(ABC):
 
     @playlist.setter
     def playlist(self, playlist: str) -> None:
-        if playlist:
+        if playlist and self._playlist != playlist:
             with self.pool.connection() as conn:
                 with conn.transaction():
                     conn.execute("""

@@ -90,7 +90,8 @@ class Cloud(Plugin[CloudListener]):
             self.cloud_sync.cancel()
         if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
             self.cloud_bans.cancel()
-        asyncio.create_task(self.session.close())
+        if self._session:
+            asyncio.create_task(self._session.close())
         await super().cog_unload()
 
     def read_locals(self) -> dict:

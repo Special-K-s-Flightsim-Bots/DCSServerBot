@@ -163,7 +163,7 @@ class Main:
                     self.node.master = not self.node.master
                     if self.node.master:
                         self.log.info("Taking over as the MASTER node ...")
-                        # start all master only services
+                        # start all the master-only services
                         for cls in [x for x in registry.services().keys() if registry.master_only(x)]:
                             try:
                                 await registry.new(cls).start()
@@ -303,36 +303,36 @@ if __name__ == "__main__":
     except PermissionError as ex:
         log.error(f"There is a permission error: {ex}", exc_info=True)
         # do not restart again
-        exit(-2)
+        rc = -2
     except PidFileError:
         log.error(f"Process already running for node {args.node}!")
         log.error(f"If you are sure there is no 2nd process running, delete dcssb_{args.node}.pid and try again.")
         # do not restart again
-        exit(-2)
+        rc = -2
     except KeyboardInterrupt:
         # restart again (old handling)
-        exit(-1)
+        rc = -1
     except asyncio.CancelledError:
         log.warning("Main loop cancelled.")
         # do not restart again
-        exit(-2)
+        rc = -2
     except (YAMLError, FatalException) as ex:
         log.exception(ex)
         input("Press any key to continue ...")
         # do not restart again
-        exit(-2)
+        rc = -2
     except psycopg.OperationalError as ex:
         log.exception(ex)
         # try again on Database errors
-        exit(-1)
+        rc = -1
     except SystemExit as ex:
-        if ex.code not in [0, -1, -2]:
+        rc = ex.code
+        if rc not in [0, -1, -2]:
             log.exception(ex)
-        exit(ex.code)
     except:
         console.print_exception(show_locals=True, max_frames=1)
         # do not restart on unknown errors
-        exit(-2)
+        rc = -2
     finally:
         log.info("DCSServerBot stopped.")
         fault_log.close()
