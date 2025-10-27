@@ -37,6 +37,11 @@ class MusicEventListener(EventListener["Music"]):
         if self.plugin.get_config().get('pause_without_players', True) and not server.get_active_players():
             asyncio.create_task(self.service.stop_radios(server))
 
+    @event(name="onSimulationPause")
+    async def onSimulationPause(self, server: Server, _: dict) -> None:
+        if self.plugin.get_config().get('pause_without_players', True):
+            asyncio.create_task(self.service.stop_radios(server))
+
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
         if data['eventName'] == 'disconnect':

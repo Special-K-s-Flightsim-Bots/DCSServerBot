@@ -8,7 +8,7 @@ if errorlevel 9009 (
     exit /B 9009
 )
 
-python -c "import sys; sys.exit(0 if (3,10) <= sys.version_info < (3,14) else 1)" >NUL 2>&1
+python -c "import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)" >NUL 2>&1
 if errorlevel 1 (
     echo.
     echo ***  ERROR  ***
@@ -23,7 +23,7 @@ if not exist "%VENV%" (
     "%VENV%\Scripts\python.exe" -m pip install --upgrade pip
     "%VENV%\Scripts\pip" install -r requirements.txt
 ) else (
-    "%VENV%\Scripts\python.exe" -m pip install --upgrade pip
+    "%VENV%\Scripts\python.exe" -m pip install --upgrade pip==25.2
 )
 "%VENV%\Scripts\python" update.py --no-restart %*
 echo Please press any key to continue...

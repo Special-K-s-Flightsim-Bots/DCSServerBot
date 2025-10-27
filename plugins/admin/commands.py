@@ -1319,7 +1319,7 @@ Please make sure you forward the following ports:
         # read the default config if there is any
         config = self.get_config().get('uploads', {})
         # check if upload is enabled
-        if not config.get('enabled', True) or self.node.locals.get('restricted'):
+        if not config.get('enabled', True) or self.node.locals.get('restrict_commands'):
             return
         # check if the user has the correct role to upload, defaults to Admin
         if not utils.check_roles(config.get('discord', self.bot.roles['Admin']), message.author):

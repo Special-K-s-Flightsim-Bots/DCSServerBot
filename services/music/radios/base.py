@@ -71,7 +71,7 @@ class Radio(ABC):
 
     @playlist.setter
     def playlist(self, playlist: str) -> None:
-        if playlist:
+        if playlist and self._playlist != playlist:
             with self.pool.connection() as conn:
                 with conn.transaction():
                     conn.execute("""
@@ -82,6 +82,7 @@ class Radio(ABC):
                     """, (self.server.name, self.name, playlist))
                 self._playlist = playlist
                 self.songs = self._read_playlist()
+                self.idx = 0 if (self._mode == Mode.REPEAT or not len(self.songs)) else randrange(len(self.songs))
 
     @property
     def config(self) -> dict:

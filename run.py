@@ -163,7 +163,7 @@ class Main:
                     self.node.master = not self.node.master
                     if self.node.master:
                         self.log.info("Taking over as the MASTER node ...")
-                        # start all master only services
+                        # start all the master-only services
                         for cls in [x for x in registry.services().keys() if registry.master_only(x)]:
                             try:
                                 await registry.new(cls).start()
@@ -241,8 +241,9 @@ if __name__ == "__main__":
     if sys.platform == 'win32':
         # disable quick edit mode (thanks to Moots)
         utils.quick_edit_mode(False)
-        # set the asyncio event loop policy
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        if sys.version_info < (3, 14):
+            # set the asyncio event loop policy
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     # get the command line args from core
     args = COMMAND_LINE_ARGS
@@ -256,9 +257,9 @@ if __name__ == "__main__":
         Main.reveal_passwords(args.config)
         exit(-2)
 
-    # Require Python >= 3.10 and < 3.14
-    if not ((3,10) <= sys.version_info < (3,14)):
-        print("ERROR: DCSServerBot requires Python >= 3.10 and < 3.14.")
+    # Require Python >= 3.10 and <= 3.14
+    if sys.version_info <= (3,10):
+        print("ERROR: DCSServerBot requires Python >= 3.10.")
         sys.exit(-2)
 
     # Add certificates
@@ -277,43 +278,61 @@ if __name__ == "__main__":
 
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
-                rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
+                if sys.platform == "win32" and sys.version_info >= (3, 14):
+                    import selectors
+
+                    rc = asyncio.run(
+                        run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate),
+                        loop_factory=lambda: asyncio.SelectorEventLoop(selectors.SelectSelector()),
+                    )
+                else:
+                    rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
             except FatalException:
                 from install import Install
 
                 Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
-                rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
+                if sys.platform == "win32" and sys.version_info >= (3, 12):
+                    import selectors
+
+                    rc = asyncio.run(
+                        run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate),
+                        loop_factory=lambda: asyncio.SelectorEventLoop(selectors.SelectSelector()),
+                    )
+                else:
+                    rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
     except PermissionError as ex:
         log.error(f"There is a permission error: {ex}", exc_info=True)
         # do not restart again
-        exit(-2)
+        rc = -2
     except PidFileError:
         log.error(f"Process already running for node {args.node}!")
         log.error(f"If you are sure there is no 2nd process running, delete dcssb_{args.node}.pid and try again.")
         # do not restart again
-        exit(-2)
+        rc = -2
     except KeyboardInterrupt:
         # restart again (old handling)
-        exit(-1)
+        rc = -1
     except asyncio.CancelledError:
         log.warning("Main loop cancelled.")
         # do not restart again
-        exit(-2)
+        rc = -2
     except (YAMLError, FatalException) as ex:
         log.exception(ex)
         input("Press any key to continue ...")
         # do not restart again
-        exit(-2)
+        rc = -2
     except psycopg.OperationalError as ex:
         log.exception(ex)
         # try again on Database errors
-        exit(-1)
+        rc = -1
     except SystemExit as ex:
-        exit(ex.code)
+        rc = ex.code
+        if rc not in [0, -1, -2]:
+            log.exception(ex)
     except:
         console.print_exception(show_locals=True, max_frames=1)
         # do not restart on unknown errors
-        exit(-2)
+        rc = -2
     finally:
         log.info("DCSServerBot stopped.")
         fault_log.close()

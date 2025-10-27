@@ -149,12 +149,8 @@ DCSServerBot supports a lot of them already which can add some quality of life.
 You need the following software to run DCSServerBot:
 
 #### a) Python
-You need to have [Python](https://www.python.org/downloads/) 3.10 - 3.13 installed. 
+You need to have [Python](https://www.python.org/downloads/) 3.10 or higher installed. 
 Please make sure that you tick "Add python.exe to PATH" during your Python installation.
-
-> [!IMPORTANT]
-> As of today, Python 3.14 is not supported yet. 
-> Please do not try to run DCSServerBot on 3.14, it will most likely fail.
 
 #### b) PostgreSQL
 DCSServerBot needs a database to store information in. I decided to use [PostgreSQL](https://www.postgresql.org/download/), as it has great performance
@@ -254,6 +250,12 @@ options:
 You might want to provide different node names if you install multiple nodes on one PC, and different database user
 and database names if you want to install multiple bots for multiple Discord groups.
 
+> [!TIP]
+> If you need to rename a node, just launch `install.cmd` again with the --node parameter and give it the new name.
+> You will then get a list of existing nodes and will be asked to either add a new node or rename an existing one.
+> Select rename an `existing` one and select the node to be renamed.<br>
+> This might be necessary, if your hostname changes or you move a bot from one PC to another.
+
 ### Desanitization
 DCSServerBot desanitizes your MissionScripting environment. That means it changes entries in Scripts\MissionScripting.lua
 of your DCS installation. If you use any other method of desanitization, DCSServerBot checks if additional 
@@ -344,8 +346,8 @@ For a cluster installation you want to describe all your nodes and instances on 
 ```yaml
 NODENAME:                       # this will usually be your hostname
   listen_port: 10042            # On which port should the bot listen? Default is 10042
-  listen_address: 0.0.0.0       # Optional: On which interface should the bot listen? Default is 127.0.0.1.
-  public_ip: 88.77.66.55        # Optional: Your public IP. ONLY if you have a static IP (!), put this in here to speed up the startup-process of the bot.
+  listen_address: 127.0.0.1     # Optional: On which interface should the bot listen? Default is 127.0.0.1 (localhost only).
+  public_ip: 88.77.66.55        # Optional: Your public IP. ONLY if you have a static IP! Put this in here to speed up the startup-process of the bot.
   slow_system: false            # Optional: if you are using a slower PC to run your servers, you should set this to true (default: false)
   use_upnp: true                # The bot will auto-detect if there is a UPnP IGD available and configure this setting initially for you! If you do NOT want to use UPnP, even IF it is available, put this to false.
   nodestats: true               # Enable/disable node statistics (database pool and event queue sizes), default: true
@@ -383,6 +385,16 @@ NODENAME:                       # this will usually be your hostname
     minimized: true             # Start DCS minimized (default: true)
     user: xxxx                  # Your DCS username (only needed for specific use-cases)
     password: xxxx              # Your DCS password (will be auto-moved by the bot to a secret place)
+  extensions:                   # Your extensions have 2 sections, one in the node and one in each instance.
+    SRS:                        # Your node-global settings for SRS
+      installation: '%ProgramFiles%\DCS-SimpleRadio-Standalone' 
+      autoupdate: true          # Auto-update SRS, whenever a new version is available.
+      use_upnp: true            # Do you want to use UPnP to auto-forward your SRS ports? If not set, the global setting will be used.
+    Tacview:                    # Your node-global settings for Tacview
+      installation: 'C:\Program Files (x86)\Steam\steamapps\common\Tacview'
+      tacviewExportPath: '%USERPROFILE%\Documents\Tacview'
+#   Any other Extension:
+#     ...
   instances:
     DCS.release_server:        # The name of your instance. You can have multiple instances that have to have unique names.
       home: '%USERPROFILE%\\Saved Games\\DCS.release_server' # The path to your saved games directory.
@@ -401,11 +413,10 @@ NODENAME:                       # this will usually be your hostname
           port: 5002            # SRS servers local port (default is 5002). The bot will change this in your SRS configuration if set here!
           autostart: true       # this will autostart your DCS server with the DCS server start (default: true)
           autoupdate: true      # This will auto-update your SRS servers. Default is false, you need to run the bot as Administrator to make it work!
-          use_upnp: true        # Do you want to use UPnP to auto-forward your SRS ports? If not set, the global setting will be used.
         Tacview:
           show_passwords: false # If you don't want to show the Tacview passwords (default: true)
-    instance2:                  # you can have an unlimited number of instance configurations, but each instance has to have a physical representation on your disk.
-      ...
+#    instance2:                 # you can have an unlimited number of instance configurations, but each instance has to have a physical representation on your disk.
+#      ...
 ```
 > [!TIP]
 > Remember to put apostrophes around any path, as the colon might mangle your YAML!

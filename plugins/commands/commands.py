@@ -421,8 +421,10 @@ async def __{sanitized_name}_callback(interaction: discord.Interaction):
                 self.log.exception(f"Failed to register command `{name}`", exc_info=True)
 
     def _unregister_commands(self):
-        for name in list(self.commands.keys()):
-            self.bot.tree.remove_command(name, guild=self.bot.guilds[0])
+        if self.bot.guilds:
+            # only unregister if we are properly initialized already
+            for name in list(self.commands.keys()):
+                self.bot.tree.remove_command(name, guild=self.bot.guilds[0])
         self.commands.clear()
 
     # New command group "/commands"

@@ -41,6 +41,7 @@ class RestAPI(Plugin):
             raise PluginInstallationError(plugin=self.plugin_name, reason="WebService is not configured")
 
         self.refresh_views.start()
+        self.refresh_views.add_exception_type(psycopg.DatabaseError)
         self.web_service: WebService | None = None
         self.app: FastAPI | None = None
         asyncio.create_task(self.init_webservice())

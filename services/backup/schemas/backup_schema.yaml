@@ -12,6 +12,7 @@ mapping:
         nullable: false
         mapping:
           path: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
+          username: {type: str, nullable: false, range: {min: 1}}
           password: {type: str, nullable: false}
           schedule:
             type: map
