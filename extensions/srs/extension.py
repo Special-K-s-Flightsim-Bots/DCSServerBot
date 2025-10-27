@@ -509,7 +509,11 @@ class SRS(Extension, FileSystemEventHandler):
                                        proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
                     with zipfile.ZipFile(BytesIO(await response.content.read())) as z:
                         # stop any existing SRS process
-                        for exe in ['SR-ClientRadio.exe', 'SR-Server.exe', 'SRS-Server-Commandline.exe']:
+                        if parse(self.version) >= parse('2.2.0.0'):
+                            srs_exes = ['SR-ClientRadio.exe', 'SRS-Server.exe', 'SRS-Server-Commandline.exe']
+                        else:
+                            srs_exes = ['SR-Server.exe']
+                        for exe in srs_exes:
                             for process in utils.find_process(os.path.basename(exe)):
                                 if process and process.is_running():
                                     process.terminate()
