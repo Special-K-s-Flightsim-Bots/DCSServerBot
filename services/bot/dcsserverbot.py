@@ -1,4 +1,3 @@
-import aiohttp
 import asyncio
 import discord
 
@@ -257,8 +256,8 @@ class DCSServerBot(commands.Bot):
                 self.log.warning('- Discord connection re-established.')
         except FatalException:
             raise
-        except aiohttp.ServerDisconnectedError:
-            self.log.warning("Discord connection lost.")
+        except discord.HTTPException as ex:
+            self.log.warning(f"Discord connection error: {repr(ex)}")
             pass
         except Exception as ex:
             self.log.exception(ex)

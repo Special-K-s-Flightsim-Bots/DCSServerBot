@@ -106,7 +106,7 @@ class Install:
         return host, port
 
     @staticmethod
-    def get_database_url(user: str, database: str) -> str | None:
+    def get_database_url(user: str, database: str, config_dir: str | None = 'config') -> str | None:
         host, port = Install.get_database_host('127.0.0.1', 5432)
         while True:
             master_db = Prompt.ask(_('Please enter the name of your PostgreSQL master database'), default='postgres')
@@ -117,7 +117,7 @@ class Install:
                 with psycopg.connect(url, autocommit=True) as conn:
                     with closing(conn.cursor()) as cursor:
                         try:
-                            passwd = utils.get_password('database') or ''
+                            passwd = utils.get_password('database', config_dir) or ''
                         except ValueError:
                             passwd = secrets.token_urlsafe(8)
                         try:
@@ -137,8 +137,8 @@ class Install:
                                 print(_('[yellow]You have entered 3x a wrong password. I have reset it.[/]'))
                                 passwd = secrets.token_urlsafe(8)
                                 cursor.execute(f"ALTER USER {user} WITH ENCRYPTED PASSWORD '{passwd}'")
-                        # store the password
-                        utils.set_password('database', passwd)
+                        # store the (new) password
+                        utils.set_password('database', passwd, config_dir)
                         with suppress(psycopg.Error):
                             cursor.execute(f"CREATE DATABASE {database}")
                             cursor.execute(f"GRANT ALL PRIVILEGES ON DATABASE {database} TO {user}")
@@ -340,7 +340,7 @@ If you need any further assistance, please visit the support discord, listed in 
 
         print(_("\n{}. [u]Database Setup[/]").format(i + 1))
         if master:
-            database_url = Install.get_database_url(user, database)
+            database_url = Install.get_database_url(user, database, config_dir)
             if not database_url:
                 self.log.error(_("Aborted: No valid Database URL provided."))
                 exit(-2)
@@ -357,7 +357,7 @@ If you need any further assistance, please visit the support discord, listed in 
                 hostname, port = self.get_database_host(url.hostname, url.port)
                 database_url = f"{url.scheme}://{url.username}:{url.password}@{hostname}:{port}{url.path}?sslmode=prefer"
             else:
-                database_url = Install.get_database_url(user, database)
+                database_url = Install.get_database_url(user, database, config_dir)
                 if not database_url:
                     self.log.error(_("Aborted: No valid Database URL provided."))
                     exit(-2)
