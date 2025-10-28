@@ -25,8 +25,9 @@ MyNode:
       # [...]
       extensions:
         RealWeather:
-          enabled: true   # optional to disable the extension, default: true
-          debug: true     # see outputs of RealWeather, default: false
+          enabled: true         # optional to disable the extension, default: true
+          debug: true           # see outputs of RealWeather, default: false
+          ignore_errors: true   # continue with other extensions like MizEdit, even if RW errors out
           metar:
             icao: URMM
             runway-elevation: 50

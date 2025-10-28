@@ -58,7 +58,11 @@ class RealWeather(Extension):
                 with open(self.config_path, mode='rb') as infile:
                     return tomli.load(infile)
         except Exception as ex:
-            raise RealWeatherException(f"Error while reading {self.config_path}: {ex}")
+            message = f"Error while reading {self.config_path}: {ex}"
+            if self.config.get('ignore_errors', False):
+                self.log.error(message)
+            else:
+                raise RealWeatherException(message)
 
     def get_config(self, filename: str) -> dict:
         if 'terrains' in self.config:
@@ -116,7 +120,11 @@ class RealWeather(Extension):
             with open(self.config_path, mode='r', encoding='utf-8') as infile:
                 cfg = json.load(infile)
         except json.JSONDecodeError as ex:
-            raise RealWeatherException(f"Error while reading {self.config_path}: {ex}")
+            message = f"Error while reading {self.config_path}: {ex}"
+            if self.config.get('ignore_errors', False):
+                self.log.error(message)
+            else:
+                raise RealWeatherException(message)
         config = await asyncio.to_thread(self.get_config, input_mission)
         # create proper configuration
         for name, element in cfg.items():
@@ -144,7 +152,12 @@ class RealWeather(Extension):
             with open(self.config_path, mode='rb') as infile:
                 cfg = tomli.load(infile)
         except tomli.TOMLDecodeError as ex:
-            raise RealWeatherException(f"Error while reading {self.config_path}: {ex}")
+            message = f"Error while reading {self.config_path}: {ex}"
+            if self.config.get('ignore_errors', False):
+                self.log.error(message)
+            else:
+                raise RealWeatherException(message)
+
         config = await asyncio.to_thread(self.get_config, input_mission)
         # create proper configuration
         for name, element in cfg.items():
@@ -213,8 +226,11 @@ class RealWeather(Extension):
                 stdout, stderr = process.communicate()
                 if process.returncode != 0:
                     error = stdout.decode('utf-8')
-                    self.log.error(error)
-                    raise RealWeatherException(f"Error during {self.name}: {process.returncode} - {error}")
+                    message = f"Error during {self.name}: {process.returncode} - {error}"
+                    if self.config.get('ignore_errors', False):
+                        self.log.error(message)
+                    else:
+                        raise RealWeatherException(message)
                 output = stdout.decode('utf-8')
                 metar = next((x for x in output.split('\n') if 'METAR:' in x), "")
                 remarks = self.locals.get('realweather', {}).get('mission', {}).get('brief', {}).get('remarks', '')
