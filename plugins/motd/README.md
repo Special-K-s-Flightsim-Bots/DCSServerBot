@@ -28,7 +28,7 @@ DEFAULT:
       message: "To see your stats, you can link your user by using /linkme in your discord!"
       recipients: '!@everyone' # and will be sent to anybody that is not linked yet (has not the discord role @everyone)
       display_type: popup     # Message will be a popup
-DCS.release_server:
+DCS.dcs_serverrelease:
   on_join:                    # The message will be displayed in the in-game chat on join of the server.
     message: Welcome to our public server! Teamkills will be punished.
 ```

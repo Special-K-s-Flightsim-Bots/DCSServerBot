@@ -109,7 +109,7 @@ DEFAULT:
   FunkMan:                        # if you want to use the FunkMan integration
     IMAGEPATH: ../FunkMan/funkpics/
     install: ../FunkMan
-DCS.release_server:               # our server uses Moose.AIRBOSS
+DCS.dcs_serverrelease:               # our server uses Moose.AIRBOSS
   num_rows: 5                     # Overwrite the number of rows to display (default: 10)
   Moose.AIRBOSS:
     basedir: airboss              # overwrite the default in here, if you like

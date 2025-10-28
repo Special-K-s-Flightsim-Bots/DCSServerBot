@@ -13,7 +13,7 @@ Discord and provides all the commands that you can use. It will always only run 
 
 ### Instance
 Each `Instance` specifies a DCS executable that can be launched on that specific node. The name of the instance matches
-your Saved Games directory. The single instance that every server should have is DCS.release_server.
+your Saved Games directory. The single instance that every server should have is DCS.dcs_serverrelease.
 
 Each instance has its own UDP communication port (default 6666). It will contact the DCSServerBot via UDP usually 
 over port 10042. The whole communication is UDP-based. This has a slight risk of data loss, but is non-blocking

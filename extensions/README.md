@@ -61,7 +61,7 @@ MyNode:
       param2: bb
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         mymodule.MyExtension:

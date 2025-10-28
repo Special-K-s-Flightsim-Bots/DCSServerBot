@@ -44,8 +44,8 @@ The instance-specific section consists out of three blocks:
 | action   | WHAT should happen durning the RUNTIME? |
 
 ```yaml
-DCS.release_server:                              
-  schedule:         # Server "DCS.release_server" will run 24x7
+DCS.dcs_serverrelease:                              
+  schedule:         # Server "DCS.dcs_serverrelease" will run 24x7
     00-24: YYYYYYY
   startup:          # Optional
     mission_id: 3   # Load mission #3 from the mission list on startup (could be a list also / random pick)
@@ -220,8 +220,8 @@ DEFAULT:
     - 60
     - 10
   
-DCS.release_server:                              
-  schedule:                                       # Server "DCS.release_server" will run 24x7
+DCS.dcs_serverrelease:                              
+  schedule:                                       # Server "DCS.dcs_serverrelease" will run 24x7
     00-24: YYYYYYY
   startup:
     mission_id: 3                                 # Load mission #3 from the mission list on startup (could be a list also / random pick)

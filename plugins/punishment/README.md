@@ -64,7 +64,7 @@ DEFAULT:
     weight: 0.25
   - days: 60                # after 60 days, the penalty points get wiped completely                
     weight: 0
-DCS.release_server:
+DCS.dcs_serverrelease:
   exemptions:
     ucid:
       - 'aabbccddee'          # Do not punish the users with these UCIDs

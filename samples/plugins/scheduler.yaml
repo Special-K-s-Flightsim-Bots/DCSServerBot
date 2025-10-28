@@ -7,8 +7,8 @@ DEFAULT:
     - 300
     - 60
     - 10
-DCS.release_server:
-  schedule:                                       # Server "DCS.release_server" will run 24x7
+DCS.dcs_serverrelease:
+  schedule:                                       # Server "DCS.dcs_serverrelease" will run 24x7
     00-24: YYYYYYY
   startup:
     mission_id: 3                                 # Load mission #3 from the mission list on startup

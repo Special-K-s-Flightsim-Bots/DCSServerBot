@@ -1,7 +1,7 @@
 DEFAULT:
   SavedGames: '%USERPROFILE%\Documents\ModManager\SavedGames'
   RootFolder: '%USERPROFILE%\Documents\ModManager\RootFolder'
-DCS.release_server:
+DCS.dcs_serverrelease:
   packages:
   - name: Community_A-4E-C
     version: latest

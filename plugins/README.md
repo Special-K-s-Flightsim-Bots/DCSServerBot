@@ -29,7 +29,7 @@ the layout of the config files is as follows:
 ```YAML
 DEFAULT:
   name: I am the default section
-DCS.release_server:
+DCS.dcs_serverrelease:
   name: I am the instance-specific section (aka server specific)
 ```
 To access the configuration, you can use the following pattern in your plugin implementation:

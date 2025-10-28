@@ -10,7 +10,7 @@ extension:
 MyNode:
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         gRPC:

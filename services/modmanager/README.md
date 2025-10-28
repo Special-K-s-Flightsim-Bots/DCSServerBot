@@ -16,7 +16,7 @@ provide Discord commands to operate the service.
 DEFAULT:
   SavedGames: '%USERPROFILE%\Documents\ModManager\SavedGames'  # folder to store plugins that should be installed into Saved Games
   RootFolder: '%USERPROFILE%\Documents\ModManager\RootFolder'  # folder to store plugins that should go into the base game directories
-DCS.release_server:
+DCS.dcs_serverrelease:
   packages:
     - name: Community_A-4E-C    # The community A-4E-C model can be used out of the box with this service
       version: latest           # we will always use the latest available version on disk

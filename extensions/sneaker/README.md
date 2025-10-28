@@ -21,7 +21,7 @@ MyNode:
       url: https://myfancyhost.com  # optional: show a different host instead of the servers external IP
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         Sneaker:

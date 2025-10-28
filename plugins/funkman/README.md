@@ -46,11 +46,11 @@ If you want to use different channels for your different servers, you can add a 
 DEFAULT:
   install: ../FunkMan
   IMAGEPATH: ../FunkMan/funkpics/
-DCS.release_server:
+DCS.dcs_serverrelease:
   CHANNELID_MAIN: 1122334455667788
   CHANNELID_RANGE: 8877665544332211
   CHANNELID_AIRBOSS: 1188227733664455
-DCS.release_server02:
+DCS.dcs_serverrelease02:
   CHANNELID_MAIN: 1234567812345678
   CHANNELID_RANGE: 8765432187654321
 ```

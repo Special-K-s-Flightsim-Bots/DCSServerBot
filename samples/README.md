@@ -47,7 +47,7 @@ persistent embed. In addition, you can see how to configure the Moose.AIRBOSS in
 
 ## plugins/motd.yaml
 This sample contains a default section, that is being used for every server, if nothing else is provided and a specific
-section for server "DCS.release_server", that is overwriting the default.
+section for server "DCS.dcs_serverrelease", that is overwriting the default.
 
 ## services/music.yaml
 Sample configuration which defines a Music upload directory "Music" in your Saved Games\<instance>\ folders. Besides 
@@ -59,7 +59,7 @@ possible ways, by either providing a strict version (2.0.1) or by using the term
 version that is provided in one of the installation directories.
 
 ## plugins/punishment.yaml
-Again, this sample shows a default setting and two servers. "DCS.release_server" and "instance2", that don't punish
+Again, this sample shows a default setting and two servers. "DCS.dcs_serverrelease" and "instance2", that don't punish
 people that are Discord members (@everyone). This might be useful, if you are running public servers but don't want
 your Discord members to be banned, kicked or whatnot.
 
@@ -68,7 +68,7 @@ Default configuration for the RestAPI webservice.
 
 ## plugins/scheduler.yaml
 This sample shows the configuration of 4 servers. 
-* __DCS.release_server__ is just running 24/7. This will be your default.<br>
+* __DCS.dcs_serverrelease__ is just running 24/7. This will be your default.<br>
 * __instance2__ only runs in the morning from 0-12hrs. it rotates the mission at 04 AM and 08 AM., even if people are flying
 (`populated: true`). onMissionStart and onMissionEnd contain two scripts that should be run, when the mission starts
 or ends. And onShutdown contains a command (in this case a restart of the whole PC), when the server is being shut down.<br>
@@ -84,7 +84,7 @@ get warned. This is optional and needs only to be in your configuration, if you 
 Another powerful plugin is the Slotblocking. The sample shows a default configuration, which is valid for every server.
 In our case, we restrict the Combined Arms slots to people that are members of your Discord and that carry the Donators
 role.
-The example for "DCS.release_server" shows the point-based slotblocking system. People can earn points when killing 
+The example for "DCS.dcs_serverrelease" shows the point-based slotblocking system. People can earn points when killing 
 specific targets (see list). On the other hand, slots can be blocked until a specific amount of points has been reached
 by that user ("points"). The "costs" determine, what happens to the users points when he uses this plane.
 There is deposit-like system included, that reserves points when you use a plane and returns them to the user, whenever 

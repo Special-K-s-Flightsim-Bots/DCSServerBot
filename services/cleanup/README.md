@@ -23,7 +23,7 @@ DEFAULT:
     ignore: 
       - 11992288337744      # ignore this user id AND message id (either the bot's or persistent messages in the channel); can be either an ID or a list of IDs
     delete_after: 7         # ... which are older than 7 days (default: 0)
-DCS.release_server:
+DCS.dcs_serverrelease:
   greenieboard:
     directory: "{instance.home}/airboss"
     pattern:

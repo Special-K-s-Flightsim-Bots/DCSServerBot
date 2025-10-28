@@ -14,7 +14,7 @@ only be updated, if there is a pretense mission running and if there is new data
 ```yaml
 DEFAULT:
   update_interval: 120        # interval in seconds when the embed should update (default = 120)
-DCS.release_server:
+DCS.dcs_serverrelease:
   json_file_path: '{instance.home}\Missions\Saves\player_stats.json'        # this is the default
   #json_file_path: '{instance.home}\Missions\Saves\player_stats_v2.0.json'  # use this for Pretense v2.0
   channel: 1122334455667788   # channel, where to upload the stats into (default: Status channel)

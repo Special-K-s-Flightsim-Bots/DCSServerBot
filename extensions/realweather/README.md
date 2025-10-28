@@ -21,7 +21,7 @@ MyNode:
       autoupdate: true  # enable autoupdate via GitHub
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         RealWeather:
@@ -69,7 +69,7 @@ MyNode:
       installation: '%USERPROFILE%\Documents\realweather_v2.0.0'
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         RealWeather:

@@ -20,7 +20,7 @@ MyNode:
         mention:            # Optional mentioning
           - DCS
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         LotAtc:
