@@ -10,7 +10,7 @@ from core.commandline import COMMAND_LINE_ARGS
 from pathlib import Path
 from pykwalify import partial_schemas
 from pykwalify.core import Core
-from pykwalify.errors import SchemaError, CoreError, PyKwalifyException
+from pykwalify.errors import SchemaError, CoreError, PyKwalifyException, UnknownError
 from pykwalify.rule import Rule
 from typing import Any, Type
 
@@ -89,15 +89,15 @@ class NodeData:
             for node, instances in self._instances.items():
                 for instance in instances:
                     self._all_instances[instance] = self._all_instances.get(instance, 0) + 1
-        except Exception:
-            raise CoreError(msg="nodes.yaml seems to be corrupt, can't initialize the node/instance-validation!")
+        except Exception as ex:
+            raise UnknownError(error_key=ex, path='nodes.yaml')
 
         try:
             config_path = Path(os.path.join(COMMAND_LINE_ARGS.config, 'servers.yaml'))
             data = yaml.load(config_path.read_text(encoding='utf-8'))
             self._servers = list(data.keys())
-        except Exception:
-            raise CoreError(msg="servers.yaml seems to be corrupt, can't initialize the server-validation!")
+        except Exception as ex:
+            raise UnknownError(error_key=ex, path='servers.yaml')
 
     @property
     def nodes(self):
@@ -366,9 +366,13 @@ def validate(source_file: str, schema_files: list[str], *, raise_exception: bool
     try:
         c.validate(raise_exception=True)
     except PyKwalifyException as ex:
+        if ex.error_key:
+            source_file = ex.error_key
         if raise_exception:
             raise
         if isinstance(ex, SchemaError):
             logger.warning(f'Error while parsing {source_file}:\n{ex}')
+        elif isinstance(ex, UnknownError):
+            logger.error(f'Error while parsing {ex.path}:\n{ex.error_key}')
         else:
             logger.error(f'Error while parsing {source_file}:\n{ex}', exc_info=ex)
