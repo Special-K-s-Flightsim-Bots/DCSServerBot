@@ -785,6 +785,10 @@ class Admin(Plugin[AdminEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
         embed = discord.Embed(title=_("DCSServerBot Cluster Overview"), color=discord.Color.blue())
         for name, node in self.node.all_nodes.items():
+            # ignore inactive nodes
+            if not node:
+                continue
+
             names = []
             instances = []
             status = []
