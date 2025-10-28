@@ -2000,6 +2000,10 @@ class Mission(Plugin[MissionEventListener]):
                     WHERE LENGTH(ucid) = 4 AND last_seen < (DATE(now() AT TIME ZONE 'utc') - interval '2 days')
                 """)
 
+    @expire_token.before_loop
+    async def before_check_unban(self):
+        await self.bot.wait_until_ready()
+
     @tasks.loop(minutes=1.0)
     async def check_for_unban(self):
         async with self.apool.connection() as conn:

@@ -1414,6 +1414,10 @@ Please make sure you forward the following ports:
             async with conn.transaction():
                 await conn.execute("DELETE FROM nodestats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
 
+    @cleanup.before_loop
+    async def before_check_unban(self):
+        await self.bot.wait_until_ready()
+
 
 async def setup(bot: DCSServerBot):
     await bot.add_cog(Admin(bot, AdminEventListener))
