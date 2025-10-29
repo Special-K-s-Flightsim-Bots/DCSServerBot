@@ -215,7 +215,9 @@ class RealWeather(Extension):
                 )
                 stdout, stderr = process.communicate()
                 if process.returncode != 0:
-                    error = ANSI_ESCAPE_RE.sub('', stdout.decode('utf-8'))
+                    text = stdout.decode('utf-8', errors='replace') if isinstance(stdout,
+                                                                                  (bytes, bytearray)) else stdout
+                    error = ANSI_ESCAPE_RE.sub('', text or '')
                     message = f"Error during {self.name}: {process.returncode} - {error}"
                     if self.config.get('ignore_errors', False):
                         self.log.error(message)
@@ -223,7 +225,9 @@ class RealWeather(Extension):
                         raise RealWeatherException(message)
                     return
 
-                output = ANSI_ESCAPE_RE.sub(stdout.decode('utf-8'))
+                text = stdout.decode('utf-8', errors='replace') if isinstance(stdout,
+                                                                              (bytes, bytearray)) else stdout
+                output = ANSI_ESCAPE_RE.sub('', text or '')
                 metar = next((x for x in output.split('\n') if 'METAR:' in x), "")
                 remarks = self.locals.get('realweather', {}).get('mission', {}).get('brief', {}).get('remarks', '')
                 matches = re.search(rf"(?<=METAR: )(.*)(?= {remarks})", metar)
