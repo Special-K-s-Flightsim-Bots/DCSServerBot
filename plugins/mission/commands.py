@@ -2001,7 +2001,7 @@ class Mission(Plugin[MissionEventListener]):
                 """)
 
     @expire_token.before_loop
-    async def before_check_unban(self):
+    async def before_expire(self):
         await self.bot.wait_until_ready()
 
     @tasks.loop(minutes=1.0)

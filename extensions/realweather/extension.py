@@ -195,9 +195,8 @@ class RealWeather(Extension):
     async def run_realweather(self, filename: str, tmpname: str) -> tuple[str, bool]:
         try:
             cwd = await self.server.get_missions_dir()
-            rw_home = os.path.expandvars(self.config['installation'])
 
-            def cleanup(cwd: str):
+            def cleanup():
                 # delete the mission_unpacked directory which might still be there from former RW runs
                 mission_unpacked_dir = os.path.join(cwd, 'mission_unpacked')
                 if os.path.exists(mission_unpacked_dir):
@@ -205,7 +204,7 @@ class RealWeather(Extension):
 
             def run_subprocess():
                 # double-check that no mission_unpacked dir is there
-                cleanup(cwd)
+                cleanup()
                 # run RW
                 process = subprocess.Popen(
                     [self.get_rw_exe()],
@@ -240,7 +239,7 @@ class RealWeather(Extension):
                 try:
                     await asyncio.to_thread(run_subprocess)
                 finally:
-                    cleanup(cwd)
+                    cleanup()
 
             # check if DCS Real Weather corrupted the miz file
             await asyncio.to_thread(MizFile, tmpname)

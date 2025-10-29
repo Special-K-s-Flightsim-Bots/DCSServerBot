@@ -1415,7 +1415,7 @@ Please make sure you forward the following ports:
                 await conn.execute("DELETE FROM nodestats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
 
     @cleanup.before_loop
-    async def before_check_unban(self):
+    async def before_cleanup(self):
         await self.bot.wait_until_ready()
 
 

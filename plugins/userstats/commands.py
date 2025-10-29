@@ -838,6 +838,10 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                     REFRESH MATERIALIZED VIEW mv_statistics;
                 """)
 
+    @refresh_views.before_loop
+    async def before_refresh_views(self):
+        await self.bot.wait_until_ready()
+
     @commands.Cog.listener()
     async def on_member_remove(self, member):
         if self.get_config().get('wipe_stats_on_leave', True):
