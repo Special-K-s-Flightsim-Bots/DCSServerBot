@@ -302,23 +302,7 @@ class NodeImpl(Node):
             return node
         raise FatalException(f"No {config_file} found. Exiting.")
 
-    async def init_db(self):
-        async def check_db(url: str) -> str | None:
-            max_attempts = self.locals.get("database", self.config.get('database')).get('max_retries', 10)
-            for attempt in range(max_attempts + 1):
-                try:
-                    aconn = await psycopg.AsyncConnection.connect(url, connect_timeout=5)
-                    async with aconn:
-                        cursor = await aconn.execute("SHOW server_version")
-                        return (await cursor.fetchone())[0]
-                except ConnectionTimeout:
-                    if attempt < max_attempts:
-                        self.log.warning("- Database not available (yet), trying again ...")
-                        continue
-                    raise
-            # we will never be here
-            return None
-
+    def get_database_urls(self):
         cpool_url = self.config.get("database", self.locals.get('database'))['url']
         lpool_url = self.locals.get("database", self.config.get('database'))['url']
 
@@ -343,7 +327,26 @@ class NodeImpl(Node):
 
         cpool_url = cpool_url.replace('SECRET', quote(cpool_pwd) or '')
         lpool_url = lpool_url.replace('SECRET', quote(lpool_pwd) or '')
+        return cpool_url, lpool_url
 
+    async def init_db(self):
+        async def check_db(url: str) -> str | None:
+            max_attempts = self.locals.get("database", self.config.get('database')).get('max_retries', 10)
+            for attempt in range(max_attempts + 1):
+                try:
+                    aconn = await psycopg.AsyncConnection.connect(url, connect_timeout=5)
+                    async with aconn:
+                        cursor = await aconn.execute("SHOW server_version")
+                        return (await cursor.fetchone())[0]
+                except ConnectionTimeout:
+                    if attempt < max_attempts:
+                        self.log.warning("- Database not available (yet), trying again ...")
+                        continue
+                    raise
+            # we will never be here
+            return None
+
+        cpool_url, lpool_url = self.get_database_urls()
         version = await check_db(lpool_url)
         if lpool_url != cpool_url:
             await check_db(cpool_url)

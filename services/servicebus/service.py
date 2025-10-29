@@ -48,22 +48,15 @@ class ServiceBus(Service):
         self.init_servers()
         self.udp_server = None
         self.executor = None
+
         if 'DCS' in self.locals and self.node.locals['DCS'].get('desanitize', True):
             if not self.node.locals['DCS'].get('cloud', False) or self.master:
                 utils.desanitize(self)
         self.loop = asyncio.get_event_loop()
-        # main.yaml database connection has priority for intercom
-        try:
-            password = utils.get_password('clusterdb', self.node.config_dir)
-        except ValueError:
-            password = utils.get_password('database', self.node.config_dir)
-        url = self.node.config.get("database", self.node.locals.get('database'))['url'].replace(
-            'SECRET', password)
-        self.intercom_channel = PubSub(self.node, 'intercom', url, self.handle_rpc)
-        # nodes.yaml database connection has priority for broadcasts
-        url = self.node.locals.get("database", self.node.config.get('database'))['url'].replace(
-            'SECRET', utils.get_password('database', self.node.config_dir))
-        self.broadcasts_channel = PubSub(self.node, 'broadcasts', url, self.handle_broadcast_event)
+
+        cpool_url, lpool_url = self.node.get_database_urls()
+        self.intercom_channel = PubSub(self.node, 'intercom', cpool_url, self.handle_rpc)
+        self.broadcasts_channel = PubSub(self.node, 'broadcasts', lpool_url, self.handle_broadcast_event)
         self._lock = asyncio.Lock()
 
     async def start(self):
