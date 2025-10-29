@@ -90,7 +90,7 @@ class SkyEye(Extension):
         else:
             cfg_file = self.get_config_path(self.config)
             if os.path.exists(cfg_file):
-                self.config = yaml.load(Path(cfg_file).read_text(encoding='utf-8')) or {} | self.config
+                self.config = utils.deep_merge(yaml.load(Path(cfg_file).read_text(encoding='utf-8')) or {}, self.config)
             else:
                 self._prepare_config(self.config)
             self.configs = [data | self.config]
