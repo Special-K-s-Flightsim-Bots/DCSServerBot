@@ -7,5 +7,5 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS mv_statistics AS
 	   ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))) AS playtime
     FROM statistics s JOIN missions m ON s.mission_id = m.id
     GROUP BY 1, 2, 3, 4, 5;
-CREATE INDEX idx_mv_statistics_ucid ON mv_statistics (player_ucid);
-CREATE INDEX idx_mv_statistics_tail_no ON mv_statistics (tail_no);
+CREATE INDEX IF NOT EXISTS idx_mv_statistics_ucid ON mv_statistics (player_ucid);
+CREATE INDEX IF NOT EXISTS idx_mv_statistics_tail_no ON mv_statistics (tail_no);

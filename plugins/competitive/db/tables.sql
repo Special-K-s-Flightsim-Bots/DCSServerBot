@@ -1,1 +1,1 @@
-CREATE TABLE trueskill (player_ucid TEXT PRIMARY KEY, skill_mu NUMERIC NOT NULL, skill_sigma NUMERIC NOT NULL);
+CREATE TABLE IF NOT EXISTS trueskill (player_ucid TEXT PRIMARY KEY, skill_mu NUMERIC NOT NULL, skill_sigma NUMERIC NOT NULL);
