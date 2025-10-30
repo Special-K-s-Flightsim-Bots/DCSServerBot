@@ -516,6 +516,10 @@ class CompetitiveListener(EventListener["Competitive"]):
         asyncio.create_task(self._onGameEvent(server, data))
 
     async def finish_match(self, server: Server, match: Match) -> None:
+        if not match:
+            self.log.error("Match end condition reached without a running match. Check your match setup!")
+            return
+
         match.finished = datetime.now(timezone.utc)
 
         # unlock players
