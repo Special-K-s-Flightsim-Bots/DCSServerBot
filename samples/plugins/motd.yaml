@@ -10,6 +10,6 @@ DEFAULT:
       Come and join us!"
     recipients: '!@everyone'  # the message only goes to specific recipients (unlinked people in this case)
     display_type: chat        # the message will be displayed in the in-game chat
-DCS.release_server:
+DCS.dcs_serverrelease:
   on_join:                    # The message will be displayed in the in-game chat on join of the server.
     message: Welcome to our server!

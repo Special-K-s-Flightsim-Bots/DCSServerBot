@@ -35,13 +35,13 @@ To configure the DCS server monitoring, you can change these values in your node
 ### nodes.yaml
 ```yaml
 MyNode:
-  DCS.release_server:
+  DCS.dcs_serverrelease:
     max_hung_minutes: 5   # maximum heartbeats a server can miss (default: 3)
 ```
 
 ### plugins/scheduler.yaml
 ```yaml
-DCS.release_server:
+DCS.dcs_serverrelease:
   schedule:
     00-24: YYYYYYY  # the server (and its DCS_server.exe process) should run 24x7
 ```

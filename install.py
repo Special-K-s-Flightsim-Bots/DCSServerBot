@@ -14,6 +14,7 @@ if sys.platform == 'win32':
 from contextlib import closing, suppress
 from core import utils, SAVED_GAMES, translations, COMMAND_LINE_ARGS
 from pathlib import Path
+from psycopg import sql
 from rich import print
 from rich.console import Console
 from rich.prompt import IntPrompt, Prompt, Confirm
@@ -106,23 +107,30 @@ class Install:
         return host, port
 
     @staticmethod
-    def get_database_url(user: str, database: str) -> str | None:
+    def get_database_url(user: str, database: str, config_dir: str = 'config') -> str | None:
         host, port = Install.get_database_host('127.0.0.1', 5432)
-        while True:
+        for tries in range(1, 4):
             master_db = Prompt.ask(_('Please enter the name of your PostgreSQL master database'), default='postgres')
             master_user = Prompt.ask(_('Please enter your PostgreSQL master user name'), default='postgres')
-            master_passwd = Prompt.ask(_('Please enter your PostgreSQL master password (user={})').format(master_user))
+            try:
+                master_passwd = utils.get_password(master_user, config_dir)
+            except ValueError:
+                master_passwd = Prompt.ask(_('Please enter your PostgreSQL master password (user={})').format(master_user))
             url = f'postgres://{master_user}:{quote(master_passwd)}@{host}:{port}/{master_db}?sslmode=prefer'
             try:
                 with psycopg.connect(url, autocommit=True) as conn:
+                    utils.set_password(master_user, master_passwd, config_dir)
                     with closing(conn.cursor()) as cursor:
                         try:
-                            passwd = utils.get_password('database') or ''
+                            passwd = utils.get_password('database', config_dir) or ''
                         except ValueError:
                             passwd = secrets.token_urlsafe(8)
                         try:
-                            cursor.execute(f"CREATE USER {user} WITH ENCRYPTED PASSWORD '{passwd}'")
-                        except psycopg.Error:
+                            cursor.execute(
+                                sql.SQL("CREATE USER {} WITH ENCRYPTED PASSWORD {}")
+                                .format(sql.Identifier(user), sql.Literal(passwd))
+                            )
+                        except psycopg.Error as ex:
                             print(_('[yellow]Existing {} user found![/]').format(user))
                             for i in range(1, 4):
                                 passwd = Prompt.ask(
@@ -136,17 +144,32 @@ class Install:
                             else:
                                 print(_('[yellow]You have entered 3x a wrong password. I have reset it.[/]'))
                                 passwd = secrets.token_urlsafe(8)
-                                cursor.execute(f"ALTER USER {user} WITH ENCRYPTED PASSWORD '{passwd}'")
-                        # store the password
-                        utils.set_password('database', passwd)
+                                cursor.execute(
+                                    sql.SQL("ALTER USER {} WITH ENCRYPTED PASSWORD {}")
+                                    .format(sql.Identifier(user), sql.Literal(passwd))
+                                )
+                        # store the (new) password
+                        utils.set_password('database', passwd, config_dir)
                         with suppress(psycopg.Error):
-                            cursor.execute(f"CREATE DATABASE {database}")
-                            cursor.execute(f"GRANT ALL PRIVILEGES ON DATABASE {database} TO {user}")
-                            cursor.execute(f"ALTER DATABASE {database} OWNER TO {user}")
+                            cursor.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database)))
+                            cursor.execute(
+                                sql.SQL("GRANT ALL PRIVILEGES ON DATABASE {} TO {}")
+                                .format(sql.Identifier(database), sql.Identifier(user))
+                            )
+                            cursor.execute(
+                                sql.SQL("ALTER DATABASE {} OWNER TO {}")
+                                .format(sql.Identifier(database), sql.Identifier(user))
+                            )
                         print(_("[green]Database user and database created.[/]"))
                     return f"postgres://{user}:SECRET@{host}:{port}/{database}?sslmode=prefer"
-            except psycopg.OperationalError:
+            except psycopg.errors.InvalidPassword:
                 print(_("[red]Master password wrong. Please try again.[/]"))
+                pkl_file = os.path.join(config_dir, '.secret', master_user + '.pkl')
+                if os.path.exists(pkl_file):
+                    os.remove(pkl_file)
+            except psycopg.OperationalError as ex:
+                print(_("[yellow]Connection issue to the database: {} \nPlease try again.[/]").format(ex))
+        print(_("[red]Could not connect to the database after 3 tries.[/]"))
 
     def install_master(self) -> tuple[dict, dict, dict]:
         global _
@@ -340,7 +363,7 @@ If you need any further assistance, please visit the support discord, listed in 
 
         print(_("\n{}. [u]Database Setup[/]").format(i + 1))
         if master:
-            database_url = Install.get_database_url(user, database)
+            database_url = Install.get_database_url(user, database, config_dir)
             if not database_url:
                 self.log.error(_("Aborted: No valid Database URL provided."))
                 exit(-2)
@@ -357,7 +380,7 @@ If you need any further assistance, please visit the support discord, listed in 
                 hostname, port = self.get_database_host(url.hostname, url.port)
                 database_url = f"{url.scheme}://{url.username}:{url.password}@{hostname}:{port}{url.path}?sslmode=prefer"
             else:
-                database_url = Install.get_database_url(user, database)
+                database_url = Install.get_database_url(user, database, config_dir)
                 if not database_url:
                     self.log.error(_("Aborted: No valid Database URL provided."))
                     exit(-2)

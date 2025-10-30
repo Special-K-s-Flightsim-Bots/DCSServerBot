@@ -26,7 +26,7 @@ MyNode:
           - DCS
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         SRS:

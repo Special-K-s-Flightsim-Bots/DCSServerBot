@@ -271,7 +271,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
         if data['eventName'] == 'mission_end':
             asyncio.create_task(self._process_event(server))
 
-    @tasks.loop(minutes=5)
+    @tasks.loop(minutes=1)
     async def do_update(self):
         for server_name, update in self.update.items():
             server: Server = self.bot.servers.get(server_name)

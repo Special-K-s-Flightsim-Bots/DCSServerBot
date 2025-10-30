@@ -16,14 +16,14 @@ MyNode:
       tacviewExportPath: '%USERPROFILE%\Documents\Tacview'
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         Tacview:
           autoupdate: true                      # if true, the bot will auto-update the tacview mod if the version of Tacview was updated on your server (default: false)
           show_passwords: false                 # hide passwords in your server status embed (default: true)
           host: 127.0.0.1                       # Tacview host (default)
-          log: "%USERPROFILE%\\Saved Games\\DCS.release_server\\Logs\tacview.log" # Only needed, if you export tacview logs to a different file.
+          log: "%USERPROFILE%\\Saved Games\\DCS.dcs_serverrelease\\Logs\tacview.log" # Only needed, if you export tacview logs to a different file.
           tacviewRealTimeTelemetryPort: 42674   # default
           tacviewRealTimeTelemetryPassword: ''  # default
           tacviewRemoteControlPort: 42675       # default

@@ -8,7 +8,7 @@ Per default, the extension does not need any configuration. But you can disable 
 MyNode:
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         LogAnalyser:

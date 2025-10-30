@@ -396,8 +396,8 @@ NODENAME:                       # this will usually be your hostname
 #   Any other Extension:
 #     ...
   instances:
-    DCS.release_server:        # The name of your instance. You can have multiple instances that have to have unique names.
-      home: '%USERPROFILE%\\Saved Games\\DCS.release_server' # The path to your saved games directory.
+    DCS.dcs_serverrelease:      # The name of your instance. You can have multiple instances that have to have unique names.
+      home: '%USERPROFILE%\\Saved Games\\DCS.dcs_serverrelease' # The path to your saved games directory.
       missions_dir: '%USERPROFILE%\Documents\Missions'       # You can overwrite the default missions dir like so. Default is the Missions dir below the instance home folder.
       mission_rewrite: false    # Disable rewrite of missions by MizEdit or RealWeather. The server will be stopped for any mission change then. (default: true)
       bot_port: 6666            # The port DCSServerBot uses to communicate with your DCS server. Each instance has to have a unique port. This is NOT your DCS port (10308)!!!
@@ -408,7 +408,7 @@ NODENAME:                       # this will usually be your hostname
       priority: normal          # Optional: set the process priority (low, normal, high, realtime) for the DCS_Server.exe
       extensions:               # See the extension documentation for more detailed information on what to set here.
         SRS:
-          config: '%USERPROFILE%\Saved Games\DCS.release_server\Config\SRS.cfg'  # it is recommended to copy your SRS "server.cfg" below your instances home directory.
+          config: '%USERPROFILE%\Saved Games\DCS.dcs_serverrelease\Config\SRS.cfg'  # it is recommended to copy your SRS "server.cfg" below your instances home directory.
           host: 127.0.0.1       # SRS servers local IP (default is 127.0.0.1)
           port: 5002            # SRS servers local port (default is 5002). The bot will change this in your SRS configuration if set here!
           autostart: true       # this will autostart your DCS server with the DCS server start (default: true)

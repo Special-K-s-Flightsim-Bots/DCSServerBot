@@ -8,7 +8,7 @@ astral==3.2
 audioop-lts==0.2.2 ; python_version >= "3.13"
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
-aiohttp==3.13.1
+aiohttp==3.13.2
 
 # Certifi: Python package for providing Mozilla's CA Bundle
 certifi>=2025.8.3
@@ -23,7 +23,7 @@ discord.py==2.6.4
 eyeD3==0.9.8
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.120.0
+fastapi==0.120.1
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0

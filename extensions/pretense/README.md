@@ -12,7 +12,7 @@ Just add some lines to your nodes.yaml like so:
 MyNode:
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         Pretense:

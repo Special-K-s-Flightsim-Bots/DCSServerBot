@@ -28,8 +28,8 @@ class MusicEventListener(EventListener["Music"]):
         asyncio.create_task(self._init_radios(server, data))
 
     @event(name="onPlayerStart")
-    async def onPlayerStart(self, server: Server, _: dict) -> None:
-        if len(server.get_active_players()) == 1:
+    async def onPlayerStart(self, server: Server, data: dict) -> None:
+        if self.plugin.get_config().get('pause_without_players', True) and len(server.get_active_players()) == 1:
             asyncio.create_task(self.service.start_radios(server))
 
     @event(name="onPlayerStop")
@@ -41,6 +41,11 @@ class MusicEventListener(EventListener["Music"]):
     async def onSimulationPause(self, server: Server, _: dict) -> None:
         if self.plugin.get_config().get('pause_without_players', True):
             asyncio.create_task(self.service.stop_radios(server))
+
+    @event(name="onSimulationResume")
+    async def onSimulationResume(self, server: Server, _: dict) -> None:
+        if not self.plugin.get_config().get('pause_without_players', True):
+            asyncio.create_task(self.service.start_radios(server))
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:

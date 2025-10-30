@@ -8,7 +8,7 @@ The configuration is as simple as it sounds:
 MyNode:
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         ModManager:

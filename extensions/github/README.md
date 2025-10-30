@@ -7,7 +7,7 @@ To enable track file upload, a change in nodes.yaml is needed:
 MyNode:
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         GitHub:

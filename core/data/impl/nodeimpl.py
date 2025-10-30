@@ -265,6 +265,7 @@ class NodeImpl(Node):
             if not node:
                 raise FatalException(f'No configuration found for node {self.name} in {config_file}!')
             dirty = False
+
             # check if we need to secure the database URL
             database_url = node.get('database', {}).get('url')
             if database_url:
@@ -276,6 +277,16 @@ class NodeImpl(Node):
                         f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{port}{url.path}?sslmode=prefer"
                     dirty = True
                     self.log.info("Database password found, removing it from config.")
+            else:
+                # if we have a cluster.pkl, rename that
+                cluserdb_pkl = os.path.join(self.config_dir, '.secret', 'clusterdb.pkl')
+                if os.path.exists(cluserdb_pkl):
+                    database_pkl = os.path.join(self.config_dir, '.secret', 'database.pkl')
+                    # remove existing target to ensure a clean move
+                    if os.path.exists(database_pkl):
+                        os.remove(database_pkl)
+                    os.replace(cluserdb_pkl, database_pkl)
+
             if 'DCS' in node:
                 password = node['DCS'].pop('dcs_password', node['DCS'].pop('password', None))
                 if password:
@@ -290,6 +301,33 @@ class NodeImpl(Node):
                     yaml.dump(data, f)
             return node
         raise FatalException(f"No {config_file} found. Exiting.")
+
+    def get_database_urls(self):
+        cpool_url = self.config.get("database", self.locals.get('database'))['url']
+        lpool_url = self.locals.get("database", self.config.get('database'))['url']
+
+        try:
+            lpool_pwd = utils.get_password('database', self.config_dir)
+        except ValueError:
+            self.log.critical(
+                "Please replace the SECRET keyword in your database URL with a password!"
+            )
+            exit(SHUTDOWN)
+
+        if cpool_url != lpool_url:
+            try:
+                cpool_pwd = utils.get_password('clusterdb', self.config_dir)
+            except ValueError:
+                self.log.critical(
+                    "Please replace the SECRET keyword in your database URL in main.yaml with a password!"
+                )
+                exit(SHUTDOWN)
+        else:
+            cpool_pwd = lpool_pwd
+
+        cpool_url = cpool_url.replace('SECRET', quote(cpool_pwd) or '')
+        lpool_url = lpool_url.replace('SECRET', quote(lpool_pwd) or '')
+        return cpool_url, lpool_url
 
     async def init_db(self):
         async def check_db(url: str) -> str | None:
@@ -308,21 +346,7 @@ class NodeImpl(Node):
             # we will never be here
             return None
 
-        cpool_url = self.config.get("database", self.locals.get('database'))['url']
-        lpool_url = self.locals.get("database", self.config.get('database'))['url']
-        try:
-            password = utils.get_password('clusterdb', self.config_dir)
-        except ValueError:
-            try:
-                password = utils.get_password('database', self.config_dir)
-                utils.set_password('clusterdb', password, self.config_dir)
-            except ValueError:
-                self.log.critical("You need to replace the SECRET keyword in your database URL with a proper password!")
-                exit(SHUTDOWN)
-
-        cpool_url = cpool_url.replace('SECRET', quote(password) or '')
-        lpool_url = lpool_url.replace('SECRET', quote(utils.get_password('database', self.config_dir)) or '')
-
+        cpool_url, lpool_url = self.get_database_urls()
         version = await check_db(lpool_url)
         if lpool_url != cpool_url:
             await check_db(cpool_url)
@@ -1026,6 +1050,7 @@ class NodeImpl(Node):
                             return True
                         # The master is not alive, take over
                         elif not master or not await is_node_alive(master, config.get('heartbeat', 30)):
+                            self.log.warning("The master node is not responding, taking over ...")
                             await take_over()
                             return True
                         # Master is alive, but we are the preferred one

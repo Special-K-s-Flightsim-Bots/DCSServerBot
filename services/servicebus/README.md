@@ -16,7 +16,7 @@ MyNode:
   slow_system: false        # If true, some communication timeouts will be increased (default: false)
   preferred_master: true    # Whenever this node is online, it will be the master (default: false)
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       bot_port: 6666        # The port the DCS server listens on (default: 6666, increasing by one for each server)
 ```
 

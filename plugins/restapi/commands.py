@@ -937,6 +937,10 @@ class RestAPI(Plugin):
                     REFRESH MATERIALIZED VIEW mv_serverstats;
                 """)
 
+    @refresh_views.before_loop
+    async def before_refresh_views(self):
+        await self.bot.wait_until_ready()
+
 
 async def setup(bot: DCSServerBot):
     await bot.add_cog(RestAPI(bot))

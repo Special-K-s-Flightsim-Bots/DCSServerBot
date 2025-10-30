@@ -17,7 +17,7 @@ MyNode:
       use_single_process: true      # Start one Lardoon process instead of one per node (default: true) 
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         Lardoon:

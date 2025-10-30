@@ -11,7 +11,7 @@ extension like with all others:
 MyNode:
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         DSMC:

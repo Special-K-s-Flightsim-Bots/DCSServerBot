@@ -21,7 +21,7 @@ MyNode:
       autoupdate: true                                              # Auto update SkyEye, whenever a new version is available
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       affinity: 1, 2                  # Recommended, set core affinity for your DCS server process when using SkyEye
       # [...]
       extensions:
@@ -67,7 +67,7 @@ MyNode:
       installation: '%USERPROFILE%\Documents\skyeye-windows-amd64'  # or wherever you have installed it
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       affinity: 1, 2                  # Recommended, set core affinity for your DCS server process when using SkyEye
       # [...]
       extensions:

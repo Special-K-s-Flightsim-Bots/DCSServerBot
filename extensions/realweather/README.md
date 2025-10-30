@@ -21,12 +21,13 @@ MyNode:
       autoupdate: true  # enable autoupdate via GitHub
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         RealWeather:
-          enabled: true   # optional to disable the extension, default: true
-          debug: true     # see outputs of RealWeather, default: false
+          enabled: true         # optional to disable the extension, default: true
+          debug: true           # see outputs of RealWeather, default: false
+          ignore_errors: true   # continue with other extensions like MizEdit, even if RW errors out
           metar:
             icao: URMM
             runway-elevation: 50
@@ -69,7 +70,7 @@ MyNode:
       installation: '%USERPROFILE%\Documents\realweather_v2.0.0'
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         RealWeather:

@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import itertools
 import math
@@ -20,7 +21,12 @@ class Competitive(Plugin[CompetitiveListener]):
     async def install(self) -> bool:
         if not await super().install():
             return False
+        asyncio.create_task(self.init_trueskill())
+        return True
+
+    async def init_trueskill(self):
         # we need to calculate the TrueSkill values for players
+        self.log.warning("Calculating TrueSkill values for players... Please do NOT stop your bot!")
         ratings: dict[str, Rating] = dict()
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -54,6 +60,8 @@ class Competitive(Plugin[CompetitiveListener]):
                         await conn.execute("""
                             INSERT INTO trueskill (player_ucid, skill_mu, skill_sigma) 
                             VALUES (%s, %s, %s)
+                            ON CONFLICT (player_ucid) DO UPDATE
+                            SET skill_mu = EXCLUDED.skill_mu, skill_sigma = EXCLUDED.skill_sigma
                         """, (player_id, skill.mu, skill.sigma))
                     else:
                         cursor = await conn.execute("SELECT ucid FROM players WHERE discord_id = %s", (player_id, ))
@@ -62,8 +70,10 @@ class Competitive(Plugin[CompetitiveListener]):
                             await conn.execute("""
                                 INSERT INTO trueskill (player_ucid, skill_mu, skill_sigma) 
                                 VALUES (%s, %s, %s)
+                                ON CONFLICT (player_ucid) DO UPDATE
+                                SET skill_mu = EXCLUDED.skill_mu, skill_sigma = EXCLUDED.skill_sigma
                             """, (row[0], skill.mu, skill.sigma))
-        return True
+        self.log.info("TrueSkill values calculated.")
 
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
         await conn.execute('UPDATE trueskill SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))

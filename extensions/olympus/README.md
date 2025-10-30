@@ -6,7 +6,7 @@ is to download the latest ZIP file from [here](https://github.com/Pax1601/DCSOly
 DEFAULT:
   SavedGames: '%USERPROFILE%\Documents\ModManager\SavedGames'
   RootFolder: '%USERPROFILE%\Documents\ModManager\RootFolder'
-DCS.release_server:
+DCS.dcs_serverrelease:
   packages:
   - name: DCSOlympus
     version: latest
@@ -33,7 +33,7 @@ MyNode:
       nodejs: '%ProgramFiles%\nodejs'
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         Olympus:
@@ -79,7 +79,7 @@ MyNode:
       nodejs: '%ProgramFiles%\nodejs'
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         Olympus:

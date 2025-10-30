@@ -6,7 +6,7 @@ If you want to use the built-in Voice Chat system of DCS, you can use the VoiceC
 MyNode:
   # [...]
   instances:
-    DCS.release_server:
+    DCS.dcs_serverrelease:
       # [...]
       extensions:
         VoiceChat:

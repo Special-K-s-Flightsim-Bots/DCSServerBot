@@ -32,6 +32,7 @@ __all__ = [
 
 RW_GITHUB_URL = "https://github.com/evogelsa/dcs-real-weather/releases/latest"
 RW_DOWNLOAD_URL = "https://github.com/evogelsa/dcs-real-weather/releases/download/{version}/realweather_{version}.zip"
+ANSI_ESCAPE_RE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
 
 class RealWeatherException(Exception):
@@ -58,7 +59,7 @@ class RealWeather(Extension):
                 with open(self.config_path, mode='rb') as infile:
                     return tomli.load(infile)
         except Exception as ex:
-            raise RealWeatherException(f"Error while reading {self.config_path}: {ex}")
+            raise RealWeatherException( f"Error while reading {self.config_path}: {ex}")
 
     def get_config(self, filename: str) -> dict:
         if 'terrains' in self.config:
@@ -117,6 +118,7 @@ class RealWeather(Extension):
                 cfg = json.load(infile)
         except json.JSONDecodeError as ex:
             raise RealWeatherException(f"Error while reading {self.config_path}: {ex}")
+
         config = await asyncio.to_thread(self.get_config, input_mission)
         # create proper configuration
         for name, element in cfg.items():
@@ -145,6 +147,7 @@ class RealWeather(Extension):
                 cfg = tomli.load(infile)
         except tomli.TOMLDecodeError as ex:
             raise RealWeatherException(f"Error while reading {self.config_path}: {ex}")
+
         config = await asyncio.to_thread(self.get_config, input_mission)
         # create proper configuration
         for name, element in cfg.items():
@@ -192,9 +195,8 @@ class RealWeather(Extension):
     async def run_realweather(self, filename: str, tmpname: str) -> tuple[str, bool]:
         try:
             cwd = await self.server.get_missions_dir()
-            rw_home = os.path.expandvars(self.config['installation'])
 
-            def cleanup(cwd: str):
+            def cleanup():
                 # delete the mission_unpacked directory which might still be there from former RW runs
                 mission_unpacked_dir = os.path.join(cwd, 'mission_unpacked')
                 if os.path.exists(mission_unpacked_dir):
@@ -202,7 +204,7 @@ class RealWeather(Extension):
 
             def run_subprocess():
                 # double-check that no mission_unpacked dir is there
-                cleanup(cwd)
+                cleanup()
                 # run RW
                 process = subprocess.Popen(
                     [self.get_rw_exe()],
@@ -212,10 +214,19 @@ class RealWeather(Extension):
                 )
                 stdout, stderr = process.communicate()
                 if process.returncode != 0:
-                    error = stdout.decode('utf-8')
-                    self.log.error(error)
-                    raise RealWeatherException(f"Error during {self.name}: {process.returncode} - {error}")
-                output = stdout.decode('utf-8')
+                    text = stdout.decode('utf-8', errors='replace') if isinstance(stdout,
+                                                                                  (bytes, bytearray)) else stdout
+                    error = ANSI_ESCAPE_RE.sub('', text or '')
+                    message = f"Error during {self.name}: {process.returncode} - {error}"
+                    if self.config.get('ignore_errors', False):
+                        self.log.error(message)
+                    else:
+                        raise RealWeatherException(message)
+                    return
+
+                text = stdout.decode('utf-8', errors='replace') if isinstance(stdout,
+                                                                              (bytes, bytearray)) else stdout
+                output = ANSI_ESCAPE_RE.sub('', text or '')
                 metar = next((x for x in output.split('\n') if 'METAR:' in x), "")
                 remarks = self.locals.get('realweather', {}).get('mission', {}).get('brief', {}).get('remarks', '')
                 matches = re.search(rf"(?<=METAR: )(.*)(?= {remarks})", metar)
@@ -228,7 +239,7 @@ class RealWeather(Extension):
                 try:
                     await asyncio.to_thread(run_subprocess)
                 finally:
-                    cleanup(cwd)
+                    cleanup()
 
             # check if DCS Real Weather corrupted the miz file
             await asyncio.to_thread(MizFile, tmpname)

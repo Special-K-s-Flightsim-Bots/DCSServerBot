@@ -6,6 +6,7 @@ schema;node_realweather_schema:
     name: {type: str, nullable: false, range: {min: 1}}
     installation: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
     autoupdate: {type: bool, nullable: false}
+    ignore_errors: {type: bool, nullable: false}
     realweather:
       type: map
       nullable: false
@@ -84,6 +85,7 @@ schema;instance_realweather_schema:
     enabled: {type: bool, nullable: false}
     name: {type: str, nullable: false, range: {min: 1}}
     debug: {type: bool, nullable: false}
+    ignore_errors: {type: bool, nullable: false}
     terrains:
       type: map
       nullable: false

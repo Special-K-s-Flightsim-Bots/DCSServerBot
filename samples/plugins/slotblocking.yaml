@@ -28,7 +28,7 @@ DEFAULT:            # Default section - true for all your servers.
     threshold: 0.1            # 10% threshold until slots are blocked
     activation_threshold: 10  # do not balance, if the number of players is below this threshold
     message: You need to take a slot of the opposite coalition to keep the balance!
-DCS.release_server:
+DCS.dcs_serverrelease:
   restricted:             # in this example we restrict by credit points
   - group_name: Rookie    # this tag has to be in the group name of the respective units (best is to prepend it)
     points: 10            # you need at least 10 credit points to join this unit

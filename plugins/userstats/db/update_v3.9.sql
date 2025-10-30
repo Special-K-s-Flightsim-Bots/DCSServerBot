@@ -1,4 +1,3 @@
-ALTER TABLE statistics ADD COLUMN IF NOT EXISTS tail_no TEXT NULL;
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_statistics AS
     SELECT s.player_ucid, m.server_name, s.slot, s.tail_no, s.side,
        SUM(s.kills) AS kills, SUM(s.pvp) AS pvp, SUM(s.deaths) AS deaths, SUM(s.ejections) AS ejections, SUM(s.crashes) AS crashes, SUM(s.teamkills) AS teamkills, SUM(s.takeoffs) AS takeoffs, SUM(s.landings) AS landings,
