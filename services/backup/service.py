@@ -29,7 +29,7 @@ class BackupService(Service):
     def _secure_password(self):
         config = self.locals['backups'].get('database')
         if config and config.get("password"):
-            utils.set_password("postgres", config.pop("password"), self.node.config_dir)
+            utils.set_password(config.get("username", "postgres"), config.pop("password"), self.node.config_dir)
             return True
         return False
 
@@ -194,13 +194,10 @@ class BackupService(Service):
         if not os.path.exists(cmd):
             raise FileNotFoundError(cmd)
 
-        cpool_url = self.node.config.get("database", self.node.locals.get('database'))['url']
-        lpool_url = self.node.locals.get("database", self.node.config.get('database'))['url']
-
+        cpool_url, lpool_url = self.node.get_database_urls()
         databases = [
             (
                 urlparse(lpool_url),
-                utils.get_password('database', self.node.config_dir),
                 f"db_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
             )
         ]
@@ -208,19 +205,18 @@ class BackupService(Service):
             databases.append(
                 (
                     urlparse(cpool_url),
-                    utils.get_password('clusterdb', self.node.config_dir),
                     f"clusterdb_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
                 )
             )
 
         ret = True
-        for url, password, filename in databases:
+        for url, filename in databases:
             try:
-                password = utils.get_password('postgres', self.node.config_dir)
                 username = config.get('username', 'postgres')
+                password = utils.get_password(username, self.node.config_dir)
             except ValueError:
                 username = url.username
-                password = password
+                password = url.password
             database = url.path.strip('/')
             args = [
                 '--no-owner',
