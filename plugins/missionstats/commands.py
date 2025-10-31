@@ -23,10 +23,10 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
     async def get_modules(ucid: str) -> list[str]:
         async with interaction.client.apool.connection() as conn:
             return [row[0] async for row in await conn.execute("""
-                SELECT DISTINCT slot, COUNT(*) FROM statistics 
+                SELECT DISTINCT slot, usage FROM mv_statistics 
                 WHERE player_ucid =  %s 
                 AND slot NOT IN ('', '?', '''forward_observer', 'instructor', 'observer', 'artillery_commander') 
-                GROUP BY 1 ORDER BY 2 DESC
+                ORDER BY 2 DESC
             """, (ucid, ))]
 
     try:

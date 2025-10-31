@@ -1,3 +1,4 @@
+DROP MATERIALIZED VIEW IF EXISTS mv_serverstats;
 CREATE MATERIALIZED VIEW mv_serverstats AS
 SELECT s.server_name, COUNT(DISTINCT p.ucid) AS "totalPlayers",
        (SUM(s.playtime) / 3600)::INTEGER AS "totalPlaytime",

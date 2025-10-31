@@ -114,8 +114,10 @@ class CreditSystemListener(EventListener["CreditSystem"]):
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), 0) AS playtime 
-                FROM statistics s, missions m, campaigns c, campaigns_servers cs 
-                WHERE s.player_ucid = %s AND c.id = %s AND s.mission_id = m.id AND cs.campaign_id = c.id 
+                FROM statistics s JOIN missions m ON m.id = s.mission_id 
+                JOIN campaigns c ON c.id = %s
+                JOIN campaigns_servers cs ON cs.campaign_id = c.id
+                WHERE s.player_ucid = %s 
                 AND m.server_name = cs.server_name 
                 AND tsrange(s.hop_on, s.hop_off) && tsrange(c.start, c.stop)
             """, (ucid, campaign_id))
