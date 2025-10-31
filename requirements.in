@@ -23,7 +23,7 @@ discord.py==2.6.4
 eyeD3==0.9.8
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.120.1
+fastapi==0.120.3
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -110,7 +110,7 @@ seaborn==0.13.2
 sqlparse==0.5.3
 
 # TimetoneFinder: Find the right timezones for a given coordinate
-timezonefinder==6.5.9
+tzfpy==1.1.0
 
 # tomli: Python TOML parser
 tomli==2.3.0 ; python_version < "3.11"

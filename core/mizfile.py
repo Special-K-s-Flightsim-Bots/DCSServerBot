@@ -15,7 +15,7 @@ from astral.sun import sun
 from core import utils
 from datetime import datetime, timedelta, date as _date
 from packaging.version import parse, Version
-from timezonefinder import TimezoneFinder
+from tzfpy import get_tz
 from zoneinfo import ZoneInfo
 
 __all__ = [
@@ -484,7 +484,7 @@ class MizFile:
         latitude, longitude = THEATRES[self.theatre]
 
         # Determine the local timezone
-        timezone = TimezoneFinder().timezone_at(lat=latitude, lng=longitude)
+        timezone = get_tz(latitude, longitude)
         if not timezone:
             raise ValueError("start_time: Could not determine timezone for the given coordinates!")
 
