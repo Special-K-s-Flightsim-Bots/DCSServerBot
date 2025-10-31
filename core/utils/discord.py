@@ -1459,7 +1459,7 @@ class DirectoryPicker(discord.ui.View):
             select.options = [
                 SelectOption(label=os.path.basename(x), value=x)
                 for x in sub_dirs if os.path.basename(x)
-            ]
+            ][:25]
             return True
         else:
             select.options = [SelectOption(label="None", value="None")]
@@ -1582,7 +1582,8 @@ class NodeUploadHandler:
         embed = await view.render(init=True) or discord.utils.MISSING
         try:
             msg = await self.channel.send(embed=embed, view=view)
-        except Exception:
+        except Exception as ex:
+            self.log.exception(ex)
             return None
         try:
             if await view.wait():

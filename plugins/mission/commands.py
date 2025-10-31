@@ -2160,7 +2160,7 @@ class Mission(Plugin[MissionEventListener]):
         for node_name, node in self.locals.items():
             if node_name == 'commands':
                 continue
-            if node_name == DEFAULT_TAG:
+            elif node_name == DEFAULT_TAG:
                 channel = node.get('uploads', {}).get('channel')
                 if channel:
                     if message.channel.id == channel:
@@ -2190,9 +2190,11 @@ class Mission(Plugin[MissionEventListener]):
             server = await MissionUploadHandler.get_server(message)
 
         if not server:
+            self.log.debug("Mission upload: No server found, you are in the wrong channel!")
             return
 
         try:
+            self.log.debug(f"Uploading mission {message.attachments[0].filename} to server {server.name} ...")
             handler = MissionUploadHandler(plugin=self, server=server, message=message, pattern=pattern)
             base_dir = await handler.server.get_missions_dir()
             ignore = ['.dcssb', 'Saves', 'Scripts']
