@@ -9,6 +9,7 @@ from datetime import datetime
 from extensions.realweather import RealWeather
 from pathlib import Path
 from typing import cast
+from typing_extensions import override
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -48,6 +49,7 @@ class MizEdit(Extension):
                 raise YAMLError(file, ex)
         return presets
 
+    @override
     async def prepare(self) -> bool:
         self.presets = self._init_presets()
         return await super().prepare()
@@ -140,6 +142,7 @@ class MizEdit(Extension):
     def _filter(self, filename: str) -> bool:
         return re.search(self.config['filter'], os.path.basename(filename)) is not None
 
+    @override
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         if 'filter' in self.config and not self._filter(filename):
             return filename, False
@@ -147,8 +150,10 @@ class MizEdit(Extension):
                                  debug=self.config.get('debug', False))
         return filename, True
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         return await super().startup(quiet=True)
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         return super().shutdown(quiet=True)

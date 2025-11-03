@@ -23,6 +23,7 @@ from services.bot import BotService
 from services.servicebus import ServiceBus
 from threading import Thread
 from typing import Any
+from typing_extensions import override
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -68,6 +69,7 @@ class SkyEye(Extension):
         )
         return path
 
+    @override
     def load_config(self) -> dict | None:
         base_config = os.path.join(os.path.dirname(self.get_exe_path()), "config.yaml")
         if os.path.exists(base_config):
@@ -261,6 +263,7 @@ class SkyEye(Extension):
         except Exception as ex:
             self.log.exception(ex)
 
+    @override
     async def prepare(self) -> bool:
         model = None
         for cfg in self.configs:
@@ -274,6 +277,7 @@ class SkyEye(Extension):
             await self._autoupdate()
         return await super().prepare()
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         def run_subprocess(cfg: dict):
             debug = cfg.get('debug', False)
@@ -404,6 +408,7 @@ class SkyEye(Extension):
             self.log.error(f"Error during shutdown of {self.get_exe_path()}: {str(ex)}")
             return False
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         def close_log_handlers(self):
             for logger in self.loggers:
@@ -417,6 +422,7 @@ class SkyEye(Extension):
         finally:
             close_log_handlers(self)
 
+    @override
     def is_running(self) -> bool:
         for process in self.processes:
             if not process.is_running():
@@ -438,6 +444,7 @@ class SkyEye(Extension):
                     return match.group(1)
         return "1.1.1"  # default version
 
+    @override
     @property
     def version(self) -> str | None:
         if not self._version:
@@ -447,6 +454,7 @@ class SkyEye(Extension):
                 self._version = self._get_version()
         return self._version
 
+    @override
     async def render(self, param: dict | None = None) -> dict:
         value = ""
         for cfg in self.configs:
@@ -458,6 +466,7 @@ class SkyEye(Extension):
             "value": value
         }
 
+    @override
     def is_installed(self) -> bool:
         if not super().is_installed():
             return False

@@ -5,6 +5,7 @@ from core.utils.helper import async_cache, cache_with_expiration
 from core.data.node import UploadStatus
 from dataclasses import dataclass, field
 from typing import Any
+from typing_extensions import override
 
 __all__ = ["ServerProxy"]
 
@@ -13,18 +14,12 @@ __all__ = ["ServerProxy"]
 class ServerProxy(Server):
     _extensions: list[dict] | None = field(compare=False, default=None)
 
+    @override
     def __post_init__(self):
         super().__post_init__()
         self.is_remote = True
 
-    def __eq__(self, other):
-        if isinstance(other, ServerProxy):
-            return self.name == other.name
-        return False
-
-    def __hash__(self):
-        return hash(self.name)
-
+    @override
     async def reload(self):
         timeout = 60 if not self.node.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -34,6 +29,7 @@ class ServerProxy(Server):
             "server_name": self.name
         }, node=self.node.name, timeout=timeout)
 
+    @override
     @async_cache
     async def get_missions_dir(self) -> str:
         timeout = 60 if not self.node.slow_system else 120
@@ -45,6 +41,7 @@ class ServerProxy(Server):
         }, node=self.node.name, timeout=timeout)
         return data["return"]
 
+    @override
     @property
     def settings(self) -> dict:
         return self._settings
@@ -53,6 +50,7 @@ class ServerProxy(Server):
     def settings(self, s: dict):
         self._settings = utils.RemoteSettingsDict(self, "_settings", s)
 
+    @override
     @property
     def options(self) -> dict:
         return self._options
@@ -61,6 +59,7 @@ class ServerProxy(Server):
     def options(self, o: dict):
         self._options = utils.RemoteSettingsDict(self, "_options", o)
 
+    @override
     async def update_channels(self, channels: dict[str, int]) -> None:
         timeout = 60 if not self.node.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -73,6 +72,7 @@ class ServerProxy(Server):
             }
         }, node=self.node.name, timeout=timeout)
 
+    @override
     async def get_current_mission_file(self) -> str | None:
         timeout = 60 if not self.node.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -83,6 +83,7 @@ class ServerProxy(Server):
         }, node=self.node.name, timeout=timeout)
         return data["return"]
 
+    @override
     async def get_current_mission_theatre(self) -> str | None:
         timeout = 120 if not self.node.slow_system else 240
         data = await self.bus.send_to_node_sync({
@@ -93,10 +94,12 @@ class ServerProxy(Server):
         }, node=self.node.name, timeout=timeout)
         return data["return"]
 
+    @override
     async def send_to_dcs(self, message: dict):
         message['server_name'] = self.name
         await self.bus.send_to_node(message, node=self.node.name)
 
+    @override
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
         timeout = 180 if not self.node.slow_system else 300
         await self.bus.send_to_node_sync({
@@ -110,6 +113,7 @@ class ServerProxy(Server):
             }
         }, timeout=timeout, node=self.node.name)
 
+    @override
     async def shutdown(self, force: bool = False) -> None:
         timeout = 180 if not self.node.slow_system else 300
         if self.status != Status.SHUTDOWN:
@@ -124,6 +128,7 @@ class ServerProxy(Server):
             }, node=self.node.name, timeout=timeout)
             self.status = Status.SHUTDOWN
 
+    @override
     async def stop(self) -> None:
         timeout = 180 if not self.node.slow_system else 300
         await self.bus.send_to_node_sync({
@@ -133,6 +138,7 @@ class ServerProxy(Server):
             "server_name": self.name
         }, node=self.node.name, timeout=timeout)
 
+    @override
     async def init_extensions(self) -> list[str]:
         timeout = 180 if not self.node.slow_system else 300
         data = await self.bus.send_to_node_sync({
@@ -143,6 +149,7 @@ class ServerProxy(Server):
         }, node=self.node.name, timeout=timeout)
         return data['return']
 
+    @override
     async def prepare_extensions(self):
         timeout = 180 if not self.node.slow_system else 300
         await self.bus.send_to_node_sync({
@@ -152,6 +159,7 @@ class ServerProxy(Server):
             "server_name": self.name
         }, node=self.node.name, timeout=timeout)
 
+    @override
     async def uploadMission(self, filename: str, url: str, *, missions_dir: str = None, force: bool = False,
                             orig = False) -> UploadStatus:
         timeout = 120 if not self.node.slow_system else 240
@@ -170,6 +178,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return UploadStatus(data["return"])
 
+    @override
     async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True) -> str:
         timeout = 120 if not self.node.slow_system else 240
         data = await self.bus.send_to_node_sync({
@@ -184,6 +193,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
+    @override
     async def modifyMission(self, filename: str, preset: list | dict, use_orig: bool = True) -> str:
         timeout = 120 if not self.node.slow_system else 240
         data = await self.bus.send_to_node_sync({
@@ -199,6 +209,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
+    @override
     async def persist_settings(self):
         timeout = 60 if not self.node.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -208,6 +219,7 @@ class ServerProxy(Server):
             "server_name": self.name
         }, node=self.node.name, timeout=timeout)
 
+    @override
     async def rename(self, new_name: str, update_settings: bool = False) -> None:
         timeout = 60 if not self.node.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -222,6 +234,7 @@ class ServerProxy(Server):
         }, node=self.node.name, timeout=timeout)
         self.name = new_name
 
+    @override
     async def render_extensions(self) -> list[dict]:
         if not self._extensions:
             timeout = 60 if not self.node.slow_system else 120
@@ -234,6 +247,7 @@ class ServerProxy(Server):
             self._extensions = data['return']
         return self._extensions
 
+    @override
     async def is_running(self) -> bool:
         timeout = 60 if not self.node.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -244,6 +258,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
+    @override
     async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
         timeout = 180 if not self.node.slow_system else 300
         await self.bus.send_to_node_sync({
@@ -257,6 +272,7 @@ class ServerProxy(Server):
             }
         }, timeout=timeout, node=self.node.name)
 
+    @override
     async def setStartIndex(self, mission_id: int) -> None:
         timeout = 60 if not self.node.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -269,6 +285,7 @@ class ServerProxy(Server):
             }
         }, timeout=timeout, node=self.node.name)
 
+    @override
     async def setPassword(self, password: str):
         timeout = 60 if not self.node.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -281,6 +298,7 @@ class ServerProxy(Server):
             }
         }, timeout=timeout, node=self.node.name)
 
+    @override
     async def setCoalitionPassword(self, coalition: Coalition, password: str):
         timeout = 60 if not self.node.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -294,6 +312,7 @@ class ServerProxy(Server):
             }
         }, timeout=timeout, node=self.node.name)
 
+    @override
     async def addMission(self, path: str, *, idx: int | None = -1, autostart: bool | None = False) -> list[str]:
         timeout = 60 if not self.node.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -309,6 +328,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
+    @override
     async def deleteMission(self, mission_id: int) -> list[str]:
         timeout = 60 if not self.node.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -322,6 +342,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
+    @override
     async def replaceMission(self, mission_id: int, path: str) -> list[str]:
         timeout = 60 if not self.node.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -336,6 +357,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
+    @override
     async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
                           use_orig: bool | None = True, no_reload: bool | None = False) -> bool | None:
         timeout = 180 if not self.node.slow_system else 300
@@ -353,6 +375,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
+    @override
     async def loadNextMission(self, modify_mission: bool | None = True, use_orig: bool | None = False) -> bool:
         timeout = 180 if not self.node.slow_system else 300
         data = await self.bus.send_to_node_sync({
@@ -367,6 +390,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
+    @override
     async def getMissionList(self) -> list[str]:
         timeout = 180 if not self.node.slow_system else 300
         data = await self.bus.send_to_node_sync({
@@ -377,6 +401,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
+    @override
     async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
         timeout = 180 if not self.node.slow_system else 300
         params = {
@@ -392,6 +417,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
+    @override
     async def config_extension(self, name: str, config: dict) -> None:
         timeout = 60 if not self.node.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -405,6 +431,7 @@ class ServerProxy(Server):
             }
         }, timeout=timeout, node=self.node.name)
 
+    @override
     async def install_extension(self, name: str, config: dict) -> None:
         timeout = 180 if not self.node.slow_system else 300
         await self.bus.send_to_node_sync({
@@ -418,6 +445,7 @@ class ServerProxy(Server):
             }
         }, timeout=timeout, node=self.node.name)
 
+    @override
     async def uninstall_extension(self, name: str) -> None:
         timeout = 180 if not self.node.slow_system else 300
         await self.bus.send_to_node_sync({
@@ -430,6 +458,7 @@ class ServerProxy(Server):
             }
         }, timeout=timeout, node=self.node.name)
 
+    @override
     async def cleanup(self) -> None:
         timeout = 180 if not self.node.slow_system else 300
         await self.bus.send_to_node_sync({
@@ -439,6 +468,7 @@ class ServerProxy(Server):
             "server_name": self.name
         }, timeout=timeout, node=self.node.name)
 
+    @override
     @cache_with_expiration(expiration=10)
     async def getAllMissionFiles(self) -> list[str]:
         timeout = 180 if not self.node.slow_system else 300
@@ -450,6 +480,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
+    @override
     async def install_plugin(self, plugin: str) -> None:
         timeout = 180 if not self.node.slow_system else 300
         await self.bus.send_to_node_sync({
@@ -462,6 +493,7 @@ class ServerProxy(Server):
             }
         }, timeout=timeout, node=self.node.name)
 
+    @override
     async def uninstall_plugin(self, plugin: str) -> None:
         timeout = 180 if not self.node.slow_system else 300
         await self.bus.send_to_node_sync({

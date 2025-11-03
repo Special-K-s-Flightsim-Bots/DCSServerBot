@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+from abc import ABC
 from configparser import ConfigParser
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable, Type, TypeVar, Generic, ClassVar, Any
@@ -18,7 +19,7 @@ __all__ = [
 
 
 @dataclass
-class DataObject:
+class DataObject(ABC):
     name: str
     node: Node = field(compare=False, repr=False)
     pool: ConnectionPool = field(compare=False, repr=False, init=False)
@@ -35,6 +36,11 @@ class DataObject:
 
     def __hash__(self):
         return hash(self.name)
+
+    def __eq__(self, other):
+        if isinstance(other, DataObject):
+            return self.name == other.name
+        return False
 
 
 T = TypeVar("T", bound=DataObject)

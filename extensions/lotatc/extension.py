@@ -15,13 +15,14 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
-from core import Extension, utils, Server, ServiceRegistry, get_translation, InstallException
+from core import Extension, utils, Server, ServiceRegistry, get_translation, InstallException, PortType, Port
 from discord.ext import tasks
 from extensions.srs import SRS
 from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
 from typing import cast
+from typing_extensions import override
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from watchdog.observers import Observer
 
@@ -35,7 +36,8 @@ __all__ = [
 
 
 class LotAtc(Extension, FileSystemEventHandler):
-    _ports: dict[int, str] = dict()
+    _ports: dict[int, str] = {}
+    _json_ports: dict[int, str] = {}
 
     CONFIG_DICT = {
         "port": {
@@ -64,6 +66,7 @@ class LotAtc(Extension, FileSystemEventHandler):
         }
         atexit.register(self.stop_observer)
 
+    @override
     def load_config(self) -> dict | None:
         cfg = {}
         for path in [os.path.join(self.home, 'config.lua'), os.path.join(self.home, 'config.custom.lua')]:
@@ -87,6 +90,7 @@ class LotAtc(Extension, FileSystemEventHandler):
             raise InstallException(f"Can't find the {self.name} installation dir, "
                                    "please specify it manually in your nodes.yaml!")
 
+    @override
     async def prepare(self) -> bool:
         await self.update_instance(False)
         config = self.config.copy()
@@ -120,6 +124,7 @@ class LotAtc(Extension, FileSystemEventHandler):
                 outfile.write((f"lotatc_inst.options = " + luadata.serialize(self.locals, indent='\t',
                                                                              indent_level=0)).encode('utf-8'))
             self.log.debug(f"  => New {path} written.")
+
         port = self.locals.get('port', 10310)
         if type(self)._ports.get(port, self.server.name) != self.server.name:
             self.log.error(
@@ -127,6 +132,14 @@ class LotAtc(Extension, FileSystemEventHandler):
             return False
         else:
             type(self)._ports[port] = self.server.name
+        json_port = self.locals.get('lotatc_inst.options', {}).get('jsonserver_port', 8081)
+        if type(self)._json_ports.get(json_port, self.server.name) != self.server.name:
+            self.log.error(
+                f"  => {self.server.name}: {self.name} jsonserver_port {port} already in use by server {type(self)._ports[port]}!")
+            return False
+        else:
+            type(self)._json_ports[json_port] = self.server.name
+
         return await super().prepare()
 
     # File Event Handlers
@@ -165,13 +178,16 @@ class LotAtc(Extension, FileSystemEventHandler):
             self.log.exception(ex)
             pass
 
+    @override
     def on_moved(self, event: FileSystemEvent):
         self.process_stats_file(event.dest_path)
 
+    @override
     @property
     def version(self) -> str:
         return utils.get_windows_version(os.path.join(self.home, r'bin', 'lotatc.dll'))
 
+    @override
     async def render(self, param: dict | None = None) -> dict:
         if not self.locals:
             raise NotImplementedError()
@@ -189,6 +205,7 @@ class LotAtc(Extension, FileSystemEventHandler):
             "value": value
         }
 
+    @override
     def is_installed(self) -> bool:
         if not super().is_installed():
             return False
@@ -198,6 +215,7 @@ class LotAtc(Extension, FileSystemEventHandler):
             return False
         return True
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         path = os.path.join(self.home, 'stats.json')
         if os.path.exists(path):
@@ -213,11 +231,13 @@ class LotAtc(Extension, FileSystemEventHandler):
             self.observer.join(timeout=10)
             self.observer = None
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         super().shutdown()
         self.stop_observer()
         return True
 
+    @override
     def is_running(self) -> bool:
         return self.observer is not None
 
@@ -270,6 +290,7 @@ class LotAtc(Extension, FileSystemEventHandler):
                               f"{self.version}, where {version} is available!")
         return False
 
+    @override
     async def install(self):
         major_version, _ = self.get_inst_version()
         from_path = os.path.join(self.get_inst_path(), 'server', major_version)
@@ -277,6 +298,7 @@ class LotAtc(Extension, FileSystemEventHandler):
         self.locals = self.load_config()
         self.log.info(f"  => {self.name} {self.version} installed into instance {self.server.instance.name}.")
 
+    @override
     async def uninstall(self):
         major_version, _ = self.get_inst_version()
         version = self.version
@@ -350,7 +372,9 @@ class LotAtc(Extension, FileSystemEventHandler):
         except Exception as ex:
             self.log.error(f"LotAtc update failed: {ex}")
 
-    async def get_ports(self) -> dict:
+    @override
+    def get_ports(self) -> dict[str, Port]:
         return {
-            "LotAtc": self.locals.get('port', 10310)
+            "LotAtc": Port(self.locals.get('port', 10310), PortType.TCP),
+            "LotAtc JSON Server Port": Port(self.locals.get('lotatc_inst.options', {}).get('jsonserver_port', 8081), PortType.TCP)
         } if self.enabled else {}

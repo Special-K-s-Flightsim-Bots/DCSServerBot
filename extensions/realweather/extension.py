@@ -17,6 +17,7 @@ from io import BytesIO
 from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
+from typing_extensions import override
 
 # TOML
 if sys.version_info >= (3, 11):
@@ -46,10 +47,12 @@ class RealWeather(Extension):
         super().__init__(server, config)
         self.metar = None
 
+    @override
     @property
     def version(self) -> str | None:
         return utils.get_windows_version(self.get_rw_exe())
 
+    @override
     def load_config(self) -> dict | None:
         try:
             if self.version.split('.')[0] == '1':
@@ -61,6 +64,7 @@ class RealWeather(Extension):
         except Exception as ex:
             raise RealWeatherException( f"Error while reading {self.config_path}: {ex}")
 
+    @override
     def get_config(self, filename: str) -> dict:
         if 'terrains' in self.config:
             miz = MizFile(filename)
@@ -107,6 +111,7 @@ class RealWeather(Extension):
         except Exception as ex:
             self.log.exception(ex)
 
+    @override
     async def prepare(self) -> bool:
         if self.config.get('autoupdate', False):
             await self._autoupdate()
@@ -251,6 +256,7 @@ class RealWeather(Extension):
         finally:
             os.remove(tmpname)
 
+    @override
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
@@ -265,6 +271,7 @@ class RealWeather(Extension):
         await self.generate_config(filename, tmpname, config)
         return (await self.run_realweather(filename, tmpname))[0]
 
+    @override
     async def render(self, param: dict | None = None) -> dict:
         if self.version.split('.')[0] == '1':
             icao = self.config.get('metar', {}).get('icao')
@@ -282,6 +289,7 @@ class RealWeather(Extension):
             "value": value
         }
 
+    @override
     def is_installed(self) -> bool:
         if not super().is_installed():
             return False
@@ -300,9 +308,11 @@ class RealWeather(Extension):
             return False
         return True
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         return await super().startup(quiet=True)
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         return super().shutdown(quiet=True)
 

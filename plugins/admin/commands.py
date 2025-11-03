@@ -1046,11 +1046,11 @@ class Admin(Plugin[AdminEventListener]):
 Instance {instance} added to node {node}.
 Please make sure you forward the following ports:
 ```
-- DCS Port:    {dcs_port} (TCP/UDP)
-- WebGUI Port: {webgui_port} (TCP)
+- DCS Port:    {dcs_port}
+- WebGUI Port: {webgui_port}
 ```
-                """).format(instance=name, node=node.name, dcs_port=instance.dcs_port,
-                            webgui_port=instance.webgui_port), ephemeral=ephemeral)
+                """).format(instance=name, node=node.name, dcs_port=repr(instance.dcs_port),
+                            webgui_port=repr(instance.webgui_port)), ephemeral=ephemeral)
             else:
                 await interaction.followup.send(
                     _("Instance {} created blank with no server assigned.").format(instance.name), ephemeral=ephemeral)

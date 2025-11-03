@@ -9,6 +9,7 @@ from core.const import SAVED_GAMES
 from core.utils.helper import SettingsDict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from typing_extensions import override
 
 if TYPE_CHECKING:
     from core import Server
@@ -20,6 +21,7 @@ __all__ = ["InstanceImpl"]
 @DataObjectFactory.register()
 class InstanceImpl(Instance):
 
+    @override
     def __post_init__(self):
         super().__post_init__()
         self.is_remote = False
@@ -86,6 +88,7 @@ class InstanceImpl(Instance):
             self.log.error(f"bot_port {self.locals.get('bot_port', 6666)} is already in use on node {self.node.name}!")
             raise
 
+    @override
     @property
     def home(self) -> str:
         return os.path.expandvars(self.locals.get('home', os.path.join(SAVED_GAMES, self.name)))
@@ -98,6 +101,7 @@ class InstanceImpl(Instance):
                     WHERE node = %s AND instance = %s
                 """, (server.name if server and server.name != 'n/a' else None, self.node.name, self.name))
 
+    @override
     def set_server(self, server: Server | None):
         if self._server and self._server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
             raise InstanceBusyError()
@@ -107,12 +111,12 @@ class InstanceImpl(Instance):
             settings_path = os.path.join(self.home, 'Config', 'serverSettings.lua')
             if os.path.exists(settings_path):
                 os.remove(settings_path)
-        self.prepare()
+        self._prepare()
         if server and server.name:
             server.instance = self
         self.update_server(server)
 
-    def prepare(self):
+    def _prepare(self):
         if 'DCS' not in self.node.locals:
             return
         # desanitisation of Slmod (if there)

@@ -8,6 +8,7 @@ from core.services.registry import ServiceRegistry
 from core.utils import async_cache, cache_with_expiration
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing_extensions import override
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -36,14 +37,17 @@ class NodeProxy(Node):
         self.dcs_version = dcs_version
         self.is_remote = True
 
+    @override
     @property
     def master(self) -> bool:
         return False
 
+    @override
     @master.setter
     def master(self, value: bool):
         raise NotImplementedError()
 
+    @override
     @property
     def public_ip(self) -> str:
         return self._public_ip
@@ -52,10 +56,12 @@ class NodeProxy(Node):
     def public_ip(self, public_ip: str):
         self._public_ip = public_ip
 
+    @override
     @property
     def installation(self) -> str:
         raise NotImplementedError()
 
+    @override
     def read_locals(self) -> dict:
         _locals = dict()
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
@@ -72,6 +78,7 @@ class NodeProxy(Node):
                     _locals[name] = element
         return _locals
 
+    @override
     async def shutdown(self, rc: int = -2):
         await self.bus.send_to_node({
             "command": "rpc",
@@ -82,6 +89,7 @@ class NodeProxy(Node):
             }
         }, node=self.name)
 
+    @override
     async def restart(self):
         await self.bus.send_to_node({
             "command": "rpc",
@@ -89,6 +97,7 @@ class NodeProxy(Node):
             "method": "restart"
         }, node=self.name)
 
+    @override
     async def upgrade_pending(self) -> bool:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -98,6 +107,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         return data['return']
 
+    @override
     async def upgrade(self):
         await self.bus.send_to_node({
             "command": "rpc",
@@ -105,6 +115,7 @@ class NodeProxy(Node):
             "method": "upgrade"
         }, node=self.name)
 
+    @override
     async def dcs_update(self, branch: str | None = None, version: str | None = None,
                          warn_times: list[int] = None, announce: bool | None = True):
         data = await self.bus.send_to_node_sync({
@@ -120,6 +131,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=600)
         return data['return']
 
+    @override
     async def dcs_repair(self, warn_times: list[int] = None, slow: bool | None = False,
                          check_extra_files: bool | None = False):
         data = await self.bus.send_to_node_sync({
@@ -134,6 +146,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=600)
         return data['return']
 
+    @override
     @cache_with_expiration(expiration=60)
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         timeout = 60 if not self.slow_system else 120
@@ -144,6 +157,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         return data['return'][0], data['return'][1]
 
+    @override
     async def handle_module(self, what: str, module: str) -> None:
         await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -155,6 +169,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=3600)
 
+    @override
     @cache_with_expiration(expiration=60)
     async def get_installed_modules(self) -> list[str]:
         timeout = 60 if not self.slow_system else 120
@@ -165,6 +180,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         return data['return']
 
+    @override
     @cache_with_expiration(expiration=60)
     async def get_available_modules(self) -> list[str]:
         timeout = 60 if not self.slow_system else 120
@@ -175,6 +191,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         return data['return']
 
+    @override
     @cache_with_expiration(expiration=60)
     async def get_available_dcs_versions(self, branch: str) -> list[str] | None:
         timeout = 60 if not self.slow_system else 120
@@ -189,6 +206,7 @@ class NodeProxy(Node):
         return data['return']
 
 
+    @override
     @cache_with_expiration(expiration=60)
     async def get_latest_version(self, branch: str) -> str | None:
         timeout = 60 if not self.slow_system else 120
@@ -202,6 +220,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         return data['return']
 
+    @override
     async def shell_command(self, cmd: str, timeout: int = 60) -> tuple[str, str] | None:
         _timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -215,6 +234,7 @@ class NodeProxy(Node):
         }, timeout=timeout + _timeout, node=self.name)
         return data['return']
 
+    @override
     async def read_file(self, path: str) -> bytes | int:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -232,6 +252,7 @@ class NodeProxy(Node):
                 await conn.execute("DELETE FROM files WHERE id = %s", (data['return'], ))
         return file
 
+    @override
     async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -246,6 +267,7 @@ class NodeProxy(Node):
         }, timeout=timeout, node=self.name)
         return UploadStatus(data["return"])
 
+    @override
     @cache_with_expiration(expiration=60)
     async def list_directory(self, path: str, *, pattern: str | list[str] = '*',
                              order: SortOrder = SortOrder.DATE,
@@ -267,6 +289,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         return data['return']
 
+    @override
     async def create_directory(self, path: str):
         timeout = 60 if not self.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -278,6 +301,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=timeout)
 
+    @override
     async def remove_file(self, path: str):
         timeout = 60 if not self.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -289,6 +313,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=timeout)
 
+    @override
     async def rename_file(self, old_name: str, new_name: str, *, force: bool | None = False):
         timeout = 60 if not self.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -302,6 +327,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=timeout)
 
+    @override
     async def rename_server(self, server: Server, new_name: str, update_settings: bool | None = False):
         timeout = 60 if not self.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -315,6 +341,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=timeout)
 
+    @override
     async def add_instance(self, name: str, *, template: str = "") -> Instance:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -332,6 +359,7 @@ class NodeProxy(Node):
             self.instances.append(instance)
         return instance
 
+    @override
     async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
         timeout = 60 if not self.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -345,6 +373,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         self.instances.remove(instance)
 
+    @override
     async def rename_instance(self, instance: Instance, new_name: str) -> None:
         timeout = 60 if not self.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -357,6 +386,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=timeout)
 
+    @override
     @cache_with_expiration(expiration=60)
     async def find_all_instances(self) -> list[tuple[str, str]]:
         timeout = 60 if not self.slow_system else 120
@@ -367,6 +397,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         return data['return']
 
+    @override
     async def migrate_server(self, server: Server, instance: Instance):
         timeout = 180 if not self.slow_system else 300
         await self.bus.send_to_node_sync({
@@ -379,6 +410,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=timeout)
 
+    @override
     async def unregister_server(self, server: Server) -> None:
         timeout = 60 if not self.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -390,6 +422,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=timeout)
 
+    @override
     async def install_plugin(self, plugin: str) -> bool:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -402,6 +435,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         return data['return']
 
+    @override
     async def uninstall_plugin(self, plugin: str) -> bool:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -414,6 +448,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         return data['return']
 
+    @override
     @async_cache
     async def get_cpu_info(self) -> bytes | int:
         timeout = 60 if not self.slow_system else 120
@@ -428,3 +463,13 @@ class NodeProxy(Node):
                 image = (await cursor.fetchone())[0]
                 await conn.execute("DELETE FROM files WHERE id = %s", (data['return'], ))
         return image
+
+    @override
+    async def info(self) -> dict:
+        timeout = 60 if not self.slow_system else 120
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "info"
+        }, timeout=timeout, node=self.name)
+        return data['return']

@@ -4,9 +4,10 @@ import os
 import psutil
 import subprocess
 
-from core import Extension, Server, utils, get_translation
+from core import Extension, Server, utils, get_translation, PortType, Port
 from discord.ext import tasks
 from threading import Thread
+from typing_extensions import override
 
 from extensions.tacview import TACVIEW_DEFAULT_DIR
 
@@ -63,6 +64,7 @@ class Lardoon(Extension):
         return self.config.get('tacviewExportPath', self.server.options['plugins']['Tacview'].get(
             'tacviewExportPath')) or TACVIEW_DEFAULT_DIR
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Lardoon needs Tacview to be enabled in your server!')
@@ -127,6 +129,7 @@ class Lardoon(Extension):
             self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
             return False
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         super().shutdown()
         if self.config.get('use_single_process', True):
@@ -141,16 +144,19 @@ class Lardoon(Extension):
             self._schedule.cancel()
             return self.terminate()
 
+    @override
     def is_running(self) -> bool:
         if self.config.get('use_single_process', True):
             return type(self)._process and type(self)._process.is_running() and self.server.name in type(self)._servers
         else:
             return self.process is not None and self.process.is_running()
 
+    @override
     @property
     def version(self) -> str | None:
         return utils.get_windows_version(self.config['cmd'])
 
+    @override
     def is_installed(self) -> bool:
         if not super().is_installed():
             return False
@@ -160,6 +166,7 @@ class Lardoon(Extension):
             return False
         return True
 
+    @override
     async def render(self, param: dict | None = None) -> dict:
         if 'url' in self.config:
             value = self.config['url']
@@ -216,7 +223,8 @@ class Lardoon(Extension):
             self._schedule.start()
         return
 
-    async def get_ports(self) -> dict:
+    @override
+    def get_ports(self) -> dict[str, Port]:
         return {
-            "Lardoon": self.config['bind'].split(':')[1]
+            "Lardoon": Port(self.config['bind'].split(':')[1], PortType.TCP)
         } if self.enabled else {}

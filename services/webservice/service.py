@@ -4,12 +4,13 @@ import os
 import socket
 import uvicorn
 
-from core import Service, ServiceRegistry, NodeImpl, DEFAULT_TAG
+from core import Service, ServiceRegistry, NodeImpl, DEFAULT_TAG, Port, PortType
 from fastapi import FastAPI
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
 from pathlib import Path
 from services.servicebus import ServiceBus
+from typing_extensions import override
 from uvicorn import Config
 
 # ruamel YAML support
@@ -109,6 +110,7 @@ class WebService(Service):
                                include_in_schema=False
                                )
 
+    @override
     async def start(self):
         if not self.app or not self.server:
             return
@@ -133,8 +135,13 @@ class WebService(Service):
 
         self.task = asyncio.create_task(run_server())
 
+    @override
     async def stop(self):
         if self.task:
             self.server.should_exit = True
             await self.task
         await super().stop()
+
+    @override
+    def get_ports(self) -> dict[str, Port]:
+        return {"WebService": Port(self.get_config().get('port', 9876), PortType.TCP)}

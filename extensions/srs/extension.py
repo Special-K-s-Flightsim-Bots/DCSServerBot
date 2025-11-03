@@ -18,13 +18,14 @@ import zipfile
 from configparser import RawConfigParser
 from contextlib import suppress
 from core import (Extension, utils, ServiceRegistry, Autoexec, get_translation, InstallException, Server,
-                  ServerMaintenanceManager)
+                  ServerMaintenanceManager, PortType, Port)
 from discord.ext import tasks
 from io import BytesIO
 from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
 from threading import Thread
+from typing_extensions import override
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from watchdog.observers import Observer
 
@@ -40,7 +41,8 @@ __all__ = [
 
 
 class SRS(Extension, FileSystemEventHandler):
-    _ports: dict[int, str] = dict()
+    _ports: dict[int, str] = {}
+    _export_ports: dict[int, str] = {}
     _lock = asyncio.Lock()
 
     CONFIG_DICT = {
@@ -87,6 +89,7 @@ class SRS(Extension, FileSystemEventHandler):
             self.log.warning(f"  => {self.name}: No config parameter given, using default config path: {config_path}")
         return os.path.expandvars(config_path.format(server=self.server, instance=self.server.instance))
 
+    @override
     def load_config(self) -> dict | None:
         if 'config' in self.config:
             self.cfg.read(self.get_config_path(), encoding='utf-8')
@@ -155,6 +158,7 @@ class SRS(Extension, FileSystemEventHandler):
                 return True
         return False
 
+    @override
     async def prepare(self) -> bool:
         await self.handle_update()
         path = self.get_config_path()
@@ -207,17 +211,27 @@ class SRS(Extension, FileSystemEventHandler):
             with open(path, mode='w', encoding='utf-8') as ini:
                 self.cfg.write(ini)
             self.locals = self.load_config()
+
         # Check IP settings
         if self.cfg['Server Settings']['SERVER_IP'] != '0.0.0.0':
             self.log.warning(f"  => {self.server.name}: SERVER_IP is not set to 0.0.0.0 in your {self.get_config_path()}")
+
         # Check port conflicts
         port = self.config.get('port', int(self.cfg['Server Settings'].get('SERVER_PORT', '5002')))
         if type(self)._ports.get(port, self.server.name) != self.server.name:
             self.log.error(
-                f"  => {self.server.name}: {self.name} port {port} already in use by server {type(self)._ports[port]}!")
+                f"  => {self.server.name}: {self.name} SERVER_PORT {port} already in use by server {type(self)._ports[port]}!")
             return False
         else:
             type(self)._ports[port] = self.server.name
+        export_port = self.config.get('lotatc_export_port', int(self.cfg['General Settings'].get('LOTATC_EXPORT_PORT', '10712')))
+        if type(self)._export_ports.get(export_port, self.server.name) != self.server.name:
+            self.log.error(
+                f"  => {self.server.name}: {self.name} LOTATC_EXPORT_PORT {export_port} already in use by server {type(self)._ports[port]}!")
+            return False
+        else:
+            type(self)._export_ports[export_port] = self.server.name
+
         if self.config.get('autoconnect', True):
             await self.enable_autoconnect()
             self.log.info('  => SRS autoconnect is enabled for this server.')
@@ -231,6 +245,7 @@ class SRS(Extension, FileSystemEventHandler):
                 asyncio.create_task(self.startup())
         return await super().prepare()
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         if self.config.get('autostart', True):
             self.log.debug(f"Launching SRS server with: \"{self.get_exe_path()}\" -cfg=\"{self.get_config_path()}\"")
@@ -287,6 +302,7 @@ class SRS(Extension, FileSystemEventHandler):
             return False
         return await super().startup()
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         if self.config.get('autostart', True) and not self.config.get('no_shutdown', False):
             if self.is_running():
@@ -312,6 +328,7 @@ class SRS(Extension, FileSystemEventHandler):
                         self.stop_observer()
         return True
 
+    @override
     def on_modified(self, event: FileSystemEvent) -> None:
         if self.loop.is_running():
             asyncio.run_coroutine_threadsafe(self.process_export_file(event.src_path), self.loop)
@@ -382,6 +399,7 @@ class SRS(Extension, FileSystemEventHandler):
             self.clients.clear()
             self.client_names.clear()
 
+    @override
     def is_running(self) -> bool:
         if not self.process and self.exe_name:
             self.process = next(utils.find_process(self.exe_name, self.server.instance.name), None)
@@ -436,6 +454,7 @@ class SRS(Extension, FileSystemEventHandler):
             self.exe_name = 'SR-Server.exe'
             return os.path.join(self.get_inst_path(), self.exe_name)
 
+    @override
     @property
     def version(self) -> str | None:
         version = utils.get_windows_version(os.path.join(self.get_inst_path(), 'SRS-AutoUpdater.exe'))
@@ -443,6 +462,7 @@ class SRS(Extension, FileSystemEventHandler):
             raise InstallException(f"Can't detect the {self.name} version, SRS-AutoUpdater.exe not found!")
         return version
 
+    @override
     async def render(self, param: dict | None = None) -> dict:
         if not self.locals:
             raise NotImplementedError()
@@ -462,6 +482,7 @@ class SRS(Extension, FileSystemEventHandler):
             "value": value
         }
 
+    @override
     def is_installed(self) -> bool:
         if not super().is_installed():
             return False
@@ -599,13 +620,14 @@ class SRS(Extension, FileSystemEventHandler):
     async def schedule(self):
         await self.handle_update()
 
-    async def get_ports(self) -> dict:
+    @override
+    def get_ports(self) -> dict[str, Port]:
         if self.enabled:
-            rc = {
-                "SRS Port": self.locals['Server Settings']['SERVER_PORT']
+            rc: dict[str, Port] = {
+                "SRS Port": Port(self.locals['Server Settings']['SERVER_PORT'], PortType.BOTH)
             }
             if self.locals['General Settings'].get('LOTATC_EXPORT_ENABLED', False):
-                rc["LotAtc Export Port"] = self.locals['General Settings'].get('LOTATC_EXPORT_PORT', 10712)
+                rc["LotAtc Export Port"] = Port(self.locals['General Settings'].get('LOTATC_EXPORT_PORT', 10712), PortType.UDP)
         else:
             rc = {}
         return rc

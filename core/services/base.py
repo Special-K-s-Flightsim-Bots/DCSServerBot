@@ -6,7 +6,7 @@ import logging
 import os
 
 from abc import ABC
-from core import utils
+from core import utils, Port
 from enum import Enum
 from functools import wraps
 from pathlib import Path
@@ -173,6 +173,9 @@ class Service(ABC):
 
     def reload(self):
         self.locals = self.read_locals()
+
+    def get_ports(self) -> dict[str, Port]:
+        return {}
 
 
 class ServiceInstallationError(Exception):

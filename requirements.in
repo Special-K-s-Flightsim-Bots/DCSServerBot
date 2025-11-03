@@ -110,7 +110,7 @@ seaborn==0.13.2
 sqlparse==0.5.3
 
 # TimetoneFinder: Find the right timezones for a given coordinate
-tzfpy==1.1.0
+tzfpy[tzdata]==1.1.0
 
 # tomli: Python TOML parser
 tomli==2.3.0 ; python_version < "3.11"

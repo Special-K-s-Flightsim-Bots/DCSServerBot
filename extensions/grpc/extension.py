@@ -1,8 +1,9 @@
 import os
 import re
 
-from core import Extension, Server, get_translation
+from core import Extension, Server, get_translation, PortType, Port
 from typing import Any, TextIO
+from typing_extensions import override
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -55,6 +56,7 @@ class gRPC(Extension):
         else:
             return value
 
+    @override
     def load_config(self) -> dict | None:
         def read_file(file: TextIO, cfg: dict):
             for line in file.readlines():
@@ -74,6 +76,7 @@ class gRPC(Extension):
                 read_file(file, cfg)
         return cfg
 
+    @override
     async def prepare(self) -> bool:
         config = self.config.copy()
         filename = os.path.join(self.node.installation, 'Scripts', 'MissionScripting.lua')
@@ -115,6 +118,7 @@ class gRPC(Extension):
                 'Please consider changing the host in your dcs-grpc.lua to 127.0.0.1 for security reasons!')
         return await super().prepare()
 
+    @override
     def is_installed(self) -> bool:
         if not super().is_installed():
             return False
@@ -123,13 +127,16 @@ class gRPC(Extension):
             return False
         return True
 
-    async def get_ports(self) -> dict:
+    @override
+    def get_ports(self) -> dict[str, Port]:
         return {
-            "gRPC": self.locals.get('port', 50051)
+            "gRPC": Port(self.locals.get('port', 50051), PortType.TCP)
         } if self.enabled else {}
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         return await super().startup(quiet=True)
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         return super().shutdown(quiet=True)

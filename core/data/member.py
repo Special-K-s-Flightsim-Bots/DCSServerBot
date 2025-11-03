@@ -1,9 +1,10 @@
 from __future__ import annotations
+
 import discord
 
 from core import DataObjectFactory, DataObject
 from dataclasses import dataclass, field
-
+from typing_extensions import override
 
 __all__ = ["Member"]
 
@@ -16,6 +17,7 @@ class Member(DataObject):
     banned: bool = field(default=False, init=False)
     _verified: bool = field(default=False, init=False)
 
+    @override
     def __post_init__(self):
         super().__post_init__()
         self.is_remote = False

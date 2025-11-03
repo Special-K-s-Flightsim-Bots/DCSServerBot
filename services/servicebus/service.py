@@ -8,7 +8,7 @@ import uuid
 
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
-from core import Server, Mission, Node, Status, utils, Instance, FatalException
+from core import Server, Mission, Node, Status, utils, Instance, FatalException, Port, PortType
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
 from core.data.impl.instanceimpl import InstanceImpl
@@ -194,8 +194,8 @@ class ServiceBus(Service):
                 "options": server.options,
                 "channels": server.locals.get('channels', {}),
                 "node": self.node.name,
-                "dcs_port": server.instance.dcs_port,
-                "webgui_port": server.instance.webgui_port,
+                "dcs_port": server.instance.dcs_port.port,
+                "webgui_port": server.instance.webgui_port.port,
                 "maintenance": server.maintenance
             }
         }, timeout=timeout)
@@ -220,7 +220,7 @@ class ServiceBus(Service):
                     if server.maintenance:
                         self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
 
-                    if utils.is_open(server.instance.dcs_host, server.instance.webgui_port):
+                    if utils.is_open(server.instance.dcs_host, server.instance.webgui_port.port):
                         calls[server.name] = asyncio.create_task(
                             server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
                         )
@@ -458,7 +458,7 @@ class ServiceBus(Service):
             if not server or not server.is_remote:
                 server = ServerProxy(
                     node=node,
-                    port=-1,
+                    port=Port(-1, PortType.BOTH),
                     name=server_name,
                     bus=self
                 )
@@ -737,13 +737,13 @@ class ServiceBus(Service):
 
             def datagram_received(derived, data, addr):
                 if not data:
-                    self.log.warning(f"Empty request received on port {self.node.listen_port} - ignoring.")
+                    self.log.warning(f"Empty request received on port {self.node.listen_port.port} - ignoring.")
                     return
 
                 try:
                     msg_data: dict = json.loads(data.strip())
                 except json.JSONDecodeError:
-                    self.log.warning(f"Invalid request received on port {self.node.listen_port} - ignoring.")
+                    self.log.warning(f"Invalid request received on port {self.node.listen_port.port} - ignoring.")
                     return
 
                 server_name = msg_data.get('server_name')
@@ -834,7 +834,7 @@ class ServiceBus(Service):
 
         # Start the UDP server
         host = self.node.listen_address
-        port = self.node.listen_port
+        port = self.node.listen_port.port
         max_packet_size = 65504  # Maximum UDP packet size
 
         class UDPSocket(socket.socket):

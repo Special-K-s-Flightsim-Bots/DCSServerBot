@@ -19,6 +19,7 @@ MyNode:
       autoupdate: true      # auto update your DCS-SRS installation, if a new version is available online (default: false)
       use_upnp: true        # Do you want to use UPnP to auto-forward your SRS ports? If not set, the global setting will be used.
       announce:             # Optional: post a message to Discord after every update
+        channel: 1122334455667788
         title: DCS-SRS has been updated to version {}!
         description: 'The following servers have been updated:'
         footer: Please make sure you update your DCS-SRS client also!

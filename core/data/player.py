@@ -9,6 +9,7 @@ from core.data.dataobject import DataObject, DataObjectFactory
 from core.data.const import Side, Coalition
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, AsyncGenerator
+from typing_extensions import override
 
 from core.services.registry import ServiceRegistry
 
@@ -45,6 +46,7 @@ class Player(DataObject):
     _vip: bool = field(compare=False, default=False)
     bot: DCSServerBot = field(compare=False, init=False)
 
+    @override
     def __post_init__(self):
         from services.bot import BotService
 
