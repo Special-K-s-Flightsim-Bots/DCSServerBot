@@ -1372,12 +1372,12 @@ class NodeImpl(Node):
 
         max_bot_port = max_dcs_port = max_webgui_port = -1
         for instance in self.instances:
-            if instance.bot_port.port > max_bot_port:
-                max_bot_port = instance.bot_port.port
-            if instance.dcs_port.port > max_dcs_port:
-                max_dcs_port = instance.dcs_port.port
-            if instance.webgui_port.port > max_webgui_port:
-                max_webgui_port = instance.webgui_port.port
+            if int(instance.bot_port) > max_bot_port:
+                max_bot_port = int(instance.bot_port)
+            if int(instance.dcs_port) > max_dcs_port:
+                max_dcs_port = int(instance.dcs_port)
+            if int(instance.webgui_port) > max_webgui_port:
+                max_webgui_port = int(instance.webgui_port)
         os.makedirs(os.path.join(SAVED_GAMES, name), exist_ok=True)
         instance = DataObjectFactory().new(InstanceImpl, node=self, name=name, locals={
             "bot_port": max_bot_port + 1 if max_bot_port != -1 else 6666,
@@ -1430,7 +1430,7 @@ class NodeImpl(Node):
             config[self.name]['instances'] = {}
         config[self.name]['instances'][instance.name] = {
             "home": instance.home,
-            "bot_port": instance.bot_port
+            "bot_port": int(instance.bot_port)
         }
         with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
@@ -1438,7 +1438,7 @@ class NodeImpl(Node):
         if os.path.exists(settings_path):
             # TODO: dirty cast
             settings = SettingsDict(cast(DataObject, cast(object, self)), settings_path, root='cfg')
-            settings['port'] = instance.dcs_port
+            settings['port'] = int(instance.dcs_port)
             settings['name'] = 'n/a'
             settings['missionList'] = []
             settings['listStartIndex'] = 0
