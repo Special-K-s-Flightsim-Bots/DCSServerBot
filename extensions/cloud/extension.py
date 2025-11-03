@@ -92,7 +92,7 @@ class Cloud(Extension):
             payload = {
                 "guild_id": self.node.guild_id,
                 "server_name": self.server.name,
-                "port": self.server.instance.dcs_port.port,
+                "port": int(self.server.instance.dcs_port),
                 "password": (self.server.settings.get('password', '') != ''),
                 "theatre": self.server.current_mission.map,
                 "dcs_version": self.node.dcs_version,

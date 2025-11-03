@@ -194,8 +194,8 @@ class ServiceBus(Service):
                 "options": server.options,
                 "channels": server.locals.get('channels', {}),
                 "node": self.node.name,
-                "dcs_port": server.instance.dcs_port.port,
-                "webgui_port": server.instance.webgui_port.port,
+                "dcs_port": int(server.instance.dcs_port),
+                "webgui_port": int(server.instance.webgui_port),
                 "maintenance": server.maintenance
             }
         }, timeout=timeout)
@@ -220,7 +220,7 @@ class ServiceBus(Service):
                     if server.maintenance:
                         self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
 
-                    if utils.is_open(server.instance.dcs_host, server.instance.webgui_port.port):
+                    if utils.is_open(server.instance.dcs_host, int(server.instance.webgui_port)):
                         calls[server.name] = asyncio.create_task(
                             server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
                         )
