@@ -485,7 +485,7 @@ _ _
     @app_commands.rename(fmt='format')
     @utils.app_has_role('Admin')
     async def doc(self, interaction: discord.Interaction,
-                  what: Literal['Command Overview', 'Server Config Sheet', 'Firewall Config'],
+                  what: Literal['Command Overview', 'Server Config Sheet', 'Firewall Ruleset'],
                   fmt: Literal['channel', 'xls'] | None = None,
                   role: Literal['Admin', 'DCS Admin', 'DCS'] | None = None,
                   channel: discord.TextChannel | None = None):
@@ -503,7 +503,7 @@ _ _
                 await interaction.response.send_message(_("Aborted."), ephemeral=True)
                 return
             await self.generate_server_docs(interaction)
-        elif what == 'Firewall Config':
+        elif what == 'Firewall Ruleset':
             all_nodes = list(self.node.all_nodes.values())
             idx = await utils.selection(interaction,
                                    title="Select a node",
