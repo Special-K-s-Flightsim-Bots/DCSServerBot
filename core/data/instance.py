@@ -49,7 +49,7 @@ class Instance(DataObject, ABC):
                              f"You need to run this server as Administrator!")
         elif port > 65535:
             raise FatalException(f"The DCS port of instance {self.name} is > 65535!")
-        return Port(port, PortType.BOTH)
+        return Port(port, PortType.BOTH, public=True)
 
     @property
     def webgui_port(self) -> Port:
@@ -59,7 +59,7 @@ class Instance(DataObject, ABC):
                              f"You need to run this server as Administrator!")
         elif webgui_port > 65535:
             raise FatalException(f"The WebGUI-port of instance {self.name} is > 65535!")
-        return Port(webgui_port, PortType.TCP)
+        return Port(webgui_port, PortType.TCP, public=True)
 
     @property
     def bot_port(self) -> Port:

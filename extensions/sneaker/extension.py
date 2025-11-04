@@ -186,5 +186,5 @@ class Sneaker(Extension):
     @override
     def get_ports(self) -> dict[str, Port]:
         return {
-            "Sneaker": Port(self.config['bind'].split(':')[1], PortType.TCP)
+            "Sneaker": Port(self.config['bind'].split(':')[1], PortType.TCP, public=True)
         } if self.enabled else {}

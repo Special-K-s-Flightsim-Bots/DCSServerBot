@@ -375,6 +375,6 @@ class LotAtc(Extension, FileSystemEventHandler):
     @override
     def get_ports(self) -> dict[str, Port]:
         return {
-            "LotAtc": Port(self.locals.get('port', 10310), PortType.TCP),
+            "LotAtc": Port(self.locals.get('port', 10310), PortType.TCP, public=True),
             "LotAtc JSON Server Port": Port(self.locals.get('lotatc_inst.options', {}).get('jsonserver_port', 8081), PortType.TCP)
         } if self.enabled else {}

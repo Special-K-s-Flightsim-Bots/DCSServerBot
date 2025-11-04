@@ -56,9 +56,10 @@ class PortType(Enum):
 
 class Port:
 
-    def __init__(self, port: int, typ: PortType):
+    def __init__(self, port: int, typ: PortType, *, public: bool = False):
         self.port = port
         self.typ = typ
+        self.public = public
 
     def __repr__(self):
         return f'{self.port}/{self.typ.value}'

@@ -624,7 +624,7 @@ class SRS(Extension, FileSystemEventHandler):
     def get_ports(self) -> dict[str, Port]:
         if self.enabled:
             rc: dict[str, Port] = {
-                "SRS Port": Port(self.locals['Server Settings']['SERVER_PORT'], PortType.BOTH)
+                "SRS Port": Port(self.locals['Server Settings']['SERVER_PORT'], PortType.BOTH, public=True)
             }
             if self.locals['General Settings'].get('LOTATC_EXPORT_ENABLED', False):
                 rc["LotAtc Export Port"] = Port(self.locals['General Settings'].get('LOTATC_EXPORT_PORT', 10712), PortType.UDP)

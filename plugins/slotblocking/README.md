@@ -1,8 +1,10 @@
 # Plugin "SlotBlocking"
-This is a slot blocking plugin that can be used in several ways (more to come).
-Slots can be either blocked by Discord roles (specific planes blocked for Discord Members, other ones blocked for 
-Donators for instance), by credit points (see [CreditSystem](../creditsystem/README.md)) that people earn by kills or a specific VIP role
-assigned in this plugin's configuration.
+This plugin is designed for slot blocking and offers multiple usage options. 
+Slots can be restricted based on Discord roles (for instance, restricting certain planes for regular Discord members 
+while blocking others for donators), credit points (as detailed in the [CreditSystem](../creditsystem/README.md) document), or a specific 
+VIP role set within this plugin's configuration.
+It also includes a balance system for both teams (red and blue), ensuring fair gameplay by maintaining an equal 
+distribution of players on each side.
 
 ## Configuration
 As SlotBlocking is an optional plugin, you need to activate it in main.yaml first like so:
@@ -63,10 +65,11 @@ DCS.dcs_serverrelease:
     costs: 30
   payback: true         # payback the plane costs on proper landings, otherwise charge by usage
 ```
-Each unit can be either defined by its "group_name" or "unit_name", which are substrings/[pattern](https://riptutorial.com/lua/example/20315/lua-pattern-matching) of the names 
-used in your mission or by its "unit_type". The restriction can either be credit "points" that you gain by kills or 
-"discord", which is then a specific Discord role (in the example "Donators"). "costs" are the points you lose when you 
-get killed in this specific aircraft and if provided.
+Each unit can be identified using either its "group_name" or "unit_name", which are substrings or [patterns](https://riptutorial.com/lua/example/20315/lua-pattern-matching) of the 
+names used in your mission, or by its "unit_type". 
+Restrictions can be enforced through credit "points" earned from kills or "discord" (specific Discord roles, 
+such as "Donators" in the example provided). 
+The "costs" refer to the points you lose when you are killed while flying this specific aircraft, if applicable.
 
 ## Sample Use Case
 Here are some sample use cases that show how the plugin can be used.
@@ -134,7 +137,7 @@ DEFAULT:
   balancing:                  # Optional: Allows balancing for your server (blue vs red)
     blue_vs_red: 0.5          # 50% balance blue vs red
     threshold: 0.1            # 10% threshold until slots are blocked
-    activation_threshold: 10  # do not balance, if the number of players is below this threshold
+    activation_threshold: 10  # do not balance if the number of players is below this threshold
     message: You need to take a slot of the opposite coalition to keep the balance!
 ``` 
 > [!NOTE]

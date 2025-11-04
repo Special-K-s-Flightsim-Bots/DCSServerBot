@@ -144,4 +144,4 @@ class WebService(Service):
 
     @override
     def get_ports(self) -> dict[str, Port]:
-        return {"WebService": Port(self.get_config().get('port', 9876), PortType.TCP)}
+        return {"WebService": Port(self.get_config().get('port', 9876), PortType.TCP, public=True)}

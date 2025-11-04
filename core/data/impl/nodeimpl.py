@@ -1692,7 +1692,7 @@ class NodeImpl(Node):
 
         node_dict = {
             "Node": self.node.name,
-            "Listen Port": repr(self.node.listen_port),
+            "Listen Port": self.node.listen_port,
             "Public IP": self.node.public_ip,
             "Bot Version": f"{self.node.bot_version}.{self.node.sub_version}",
             "DCS Branch": self.dcs_branch,
@@ -1711,6 +1711,6 @@ class NodeImpl(Node):
             if not service:
                 continue
             for key, value in service.get_ports().items():
-                node_dict[key] = repr(value)
+                node_dict[key] = value
 
         return node_dict

@@ -226,5 +226,5 @@ class Lardoon(Extension):
     @override
     def get_ports(self) -> dict[str, Port]:
         return {
-            "Lardoon": Port(self.config['bind'].split(':')[1], PortType.TCP)
+            "Lardoon": Port(self.config['bind'].split(':')[1], PortType.TCP, public=True)
         } if self.enabled else {}

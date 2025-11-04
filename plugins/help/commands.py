@@ -2,8 +2,8 @@ import discord
 import os
 import pandas as pd
 
-from core import Plugin, Report, ReportEnv, command, utils, get_translation, Status, async_cache, Command
-from discord import app_commands, Interaction, ButtonStyle, TextStyle
+from core import Plugin, Report, ReportEnv, command, utils, get_translation, Status, async_cache, Command, Port, Node
+from discord import app_commands, Interaction, ButtonStyle, TextStyle, SelectOption
 from discord.ui import View, Select, Button, Modal, TextInput, Item
 from io import BytesIO
 from services.bot import DCSServerBot
@@ -418,6 +418,9 @@ _ _
             if not node:
                 continue
             node_dict = await node.info()
+            for k, v in node_dict.copy().items():
+                if isinstance(v, Port):
+                    node_dict[k] = repr(v)
             data_df = pd.DataFrame([node_dict])
             df = pd.concat([df, data_df], ignore_index=True)
 
@@ -455,11 +458,34 @@ _ _
         await interaction.followup.send(file=discord.File(fp=output, filename='ServerInfo.xlsx'), ephemeral=True)
         output.close()
 
+    async def generate_firewall_rules(self, interaction: discord.Interaction, node: Node) -> str:
+        ports: list[Port] = []
+        for server in self.bot.servers.values():
+            ports.append(server.instance.dcs_port)
+            ports.append(server.instance.webgui_port)
+
+            for ext in server.instance.locals.get('extensions', {}).keys():
+                try:
+                    rc = await server.run_on_extension(ext, 'get_ports')
+                    for key, value in rc.items():
+                        if value.public:
+                            ports.append(value)
+                except ValueError:
+                    pass
+        info = await node.info()
+        for k, v in info.items():
+            if isinstance(v, Port):
+                if v.public:
+                    ports.append(v)
+
+        return utils.generate_firewall_rules(ports)
+
     @command(description=_('Generate Documentation'))
     @app_commands.guild_only()
     @app_commands.rename(fmt='format')
     @utils.app_has_role('Admin')
-    async def doc(self, interaction: discord.Interaction, what: Literal['Command Overview', 'Server Config Sheet'],
+    async def doc(self, interaction: discord.Interaction,
+                  what: Literal['Command Overview', 'Server Config Sheet', 'Firewall Config'],
                   fmt: Literal['channel', 'xls'] | None = None,
                   role: Literal['Admin', 'DCS Admin', 'DCS'] | None = None,
                   channel: discord.TextChannel | None = None):
@@ -477,6 +503,25 @@ _ _
                 await interaction.response.send_message(_("Aborted."), ephemeral=True)
                 return
             await self.generate_server_docs(interaction)
+        elif what == 'Firewall Config':
+            all_nodes = list(self.node.all_nodes.values())
+            idx = await utils.selection(interaction,
+                                   title="Select a node",
+                                   options=[
+                                       SelectOption(label=x.name, value=str(idx))
+                                       for idx, x in enumerate(all_nodes)
+                                       if x is not None
+                                   ])
+            if idx:
+                rules = await self.generate_firewall_rules(interaction, all_nodes[int(idx)])
+                file = discord.File(fp=BytesIO(rules.encode('utf-8')), filename='firewall_rules.ps1')
+                # noinspection PyUnresolvedReferences
+                if not interaction.response.is_done():
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.defer(ephemeral=True)
+                await interaction.followup.send(content=_("Your firewall ruleset:"), file=file, ephemeral=True)
+            else:
+                await interaction.followup.send(_("Aborted."), ephemeral=True)
         else:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Unknown option {}!").format(what), ephemeral=True)

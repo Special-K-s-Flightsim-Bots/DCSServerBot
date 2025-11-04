@@ -486,8 +486,8 @@ class Tacview(Extension):
     @override
     def get_ports(self) -> dict[str, Port]:
         return {
-            "tacviewRealTimeTelemetryPort": Port(self.locals.get('tacviewRealTimeTelemetryPort', 42674), PortType.TCP),
-            "tacviewRemoteControlPort": Port(self.locals.get('tacviewRemoteControlPort', 42675), PortType.TCP)
+            "tacviewRealTimeTelemetryPort": Port(self.locals.get('tacviewRealTimeTelemetryPort', 42674), PortType.TCP, public=True),
+            "tacviewRemoteControlPort": Port(self.locals.get('tacviewRemoteControlPort', 42675), PortType.TCP, public=True)
         } if self.enabled else {}
 
     @override
