@@ -23,8 +23,10 @@ if errorlevel 1 (
     exit /B 1
 )
 
-SET ARGS=%*
-SET node_name=%computername%
+SETLOCAL ENABLEEXTENSIONS
+SET "ARGS=%*"
+SET "node_name=%computername%"
+SET "restarted=false"
 
 :loop1
 if "%~1"=="-n" (
@@ -47,6 +49,10 @@ SET PROGRAM=run.py
 :loop
 "%VENV%\Scripts\python" %PROGRAM% %ARGS%
 if %ERRORLEVEL% EQU -1 (
+    IF NOT %restarted% == true (
+        SET restarted=true
+        SET ARGS=%* --restarted
+    )
     SET PROGRAM=run.py
     goto loop
 ) else if %ERRORLEVEL% EQU -3 (

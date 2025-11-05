@@ -45,7 +45,7 @@ Discord commands, like the Music service. Some services only run on the master n
 
 | Service     | Scope                                                                                                     | Plugin      | Documentation                             |
 |:------------|:----------------------------------------------------------------------------------------------------------|:------------|:------------------------------------------|
-| Backup      | Backup your bot- and DCS-configuration, your missions, database, etc.                                     | Backup      | [README](./services/backup/README.md)     |
+| Backup      | Backup and restore your bot- and DCS-configuration, your missions, database, etc.                         | Backup      | [README](./services/backup/README.md)     |
 | Bot         | The Discord bot handling all discord commands. There is a Discord-free variant available also (see blow)! |             | [README](./services/bot/README.md)        |
 | Cleanup     | Cleanup log-files, track-files, etc. from your disk.                                                      |             | [README](./services/cleanup/README.md)    |
 | Cron        | Schedule tasks based on a cron-like configuration.                                                        |             | [README](./services/cron/README.md)       |
@@ -73,7 +73,7 @@ from time to time, but you as a community member can also create your own plugin
 | Cloud         | Cloud-based statistics and connection to the [DGSA](#dgsa) global ban system.                   | yes[^1]  | Userstats                             | [README](./plugins/cloud/README.md)         |
 | MissionStats  | Detailed users statistics / mission statistics.                                                 | yes[^1]  | Userstats                             | [README](./plugins/missionstats/README.md)  |
 | Monitoring    | Monitoring and statistics for your DCS servers.                                                 | yes[^1]  | Userstats                             | [README](plugins/monitoring/README.md)      |
-| Backup        | Create a backup of your database, server or bot configurations.                                 |   yes    |                                       | [README](./plugins/backup/README.md)        |
+| Backup        | Backup or restore your database, server or bot configurations.                                  |   yes    |                                       | [README](./plugins/backup/README.md)        |
 | Battleground  | Support for [DCS Battleground](https://github.com/Frigondin/DCSBattleground)                    |   yes    |                                       | [README](./plugins/battleground/README.md)  |
 | Battleground2 | Support for the new version of [DCS Battleground](https://github.com/Frigondin/DCSBattleground) |   yes    |                                       | [README](./plugins/battleground2/README.md) |
 | Commands      | Create custom discord commands.                                                                 |   yes    |                                       | [README](./plugins/commands/README.md)      |
@@ -708,6 +708,30 @@ corrupted. In rare cases, it can also happen, that an auto-update is not possibl
 that was not supposed to be changed, or some other corruption has occurred.<br>
 In these cases, you can run the `repair.cmd` script in the DCSServerBot installation folder.
 
+---
+
+## Backup and Restore
+You can backup and restore your database, server or bot configurations. 
+The backup and restore functionality is available in the `Backup` [service](./services/backup/README.md) 
+and [plugin](./plugins/backup/README.md).
+
+> [!NOTE]
+> The bot has an auto-restore feature.
+> You copy the relevant backup file to a folder named `restore` below the DCSServerBot installation dir 
+> (needs to be created).
+> DCSServerBot then reads this file on the next startup and restores whichever information is in there.
+> This can be a
+> * Database backup
+> * DCSServerBot configuration backup
+> * Instance backup (missions, configuration, see backup service)
+
+> [!TIP]
+> You can use the auto-restore feature to move your database from one PC to another.
+> Install DCSServerBot on this new PC, copy the respective db_*.tar to a `restore` folder below the bot's installation
+> directory and let the database in nodes.yaml of that node point to the new database.
+> Then run the bot and let the restore happen. 
+> 
+> _You might be asked for the new postgres master pasword._
 ---
 
 ## How to use DCSServerBot in Missions?

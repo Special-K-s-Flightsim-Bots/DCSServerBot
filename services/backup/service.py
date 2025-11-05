@@ -1,5 +1,8 @@
 import asyncio
+import glob
 import os
+import re
+import shutil
 import subprocess
 import sys
 import time
@@ -94,19 +97,24 @@ class BackupService(Service):
             cursor = await conn.execute("""
                 SELECT 
                     version(),
-                    setting as installation_directory
+                    setting as data_directory
                 FROM pg_settings 
                 WHERE name = 'data_directory';
             """)
             version, location = await cursor.fetchone()
         if os.path.exists(location):
-            return location
+            # we need to remove the "data" directory
+            return os.path.dirname(location)
 
         # check the file system itself
         else:
+            # TODO: read that from the registry if available
             pg_path = Path(r"C:\Program Files\PostgreSQL")
             if not pg_path.exists():
                 return None
+
+            if os.path.exists(pg_path / str(version)):
+                return str(pg_path / str(version))
 
             # Filter for integer-only directory names and convert to int for comparison
             versions = []
@@ -194,70 +202,81 @@ class BackupService(Service):
         if not os.path.exists(cmd):
             raise FileNotFoundError(cmd)
 
-        cpool_url, lpool_url = self.node.get_database_urls()
-        databases = [
-            (
-                urlparse(lpool_url),
-                f"db_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
-            )
+        _, lpool_url = self.node.get_database_urls()
+        url = urlparse(lpool_url)
+        filename = f"db_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
+
+        try:
+            username = config.get('username', 'postgres')
+            password = utils.get_password(username, self.node.config_dir)
+        except ValueError:
+            username = url.username
+            password = url.password
+
+        database = url.path.strip('/')
+        args = [
+            '--no-owner',
+            '--no-privileges',
+            '-U', username,
+            '-F', 't',
+            '-f', os.path.join(target, filename),
+            '-d', database,
+            '-h', url.hostname
         ]
-        if cpool_url != lpool_url:
-            databases.append(
-                (
-                    urlparse(cpool_url),
-                    f"clusterdb_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
-                )
-            )
+        os.environ['PGPASSWORD'] = password
+        self.log.info(f'Backing up database "{database}" ...')
+        process = subprocess.run([os.path.basename(cmd), *args], executable=cmd,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+        rc = process.returncode
+        if rc != 0:
+            error_message = process.stderr.strip()
+            self.log.info(f"Backup of database {database} failed. Code: {rc}. Error: {error_message}")
+            return False
+        else:
+            self.log.info(f"Backup of database {database} complete.")
+        return True
 
-        ret = True
-        for url, filename in databases:
-            try:
-                username = config.get('username', 'postgres')
-                password = utils.get_password(username, self.node.config_dir)
-            except ValueError:
-                username = url.username
-                password = url.password
-            database = url.path.strip('/')
-            args = [
-                '--no-owner',
-                '--no-privileges',
-                '-U', username,
-                '-F', 't',
-                '-f', os.path.join(target, filename),
-                '-d', database,
-                '-h', url.hostname
-            ]
-            try:
-                os.environ['PGPASSWORD'] = password
-            except ValueError:
-                self.log.error(f"Backup of database {database} failed. No password set.")
-                return False
-            self.log.info(f'Backing up database "{database}" ...')
-            process = subprocess.run([os.path.basename(cmd), *args], executable=cmd,
-                                     stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
-            rc = process.returncode
-            if rc != 0:
-                ret = False
-                error_message = process.stderr.strip()
-                self.log.info(f"Backup of database {database} failed. Code: {rc}. Error: {error_message}")
+    async def restart(self):
+        for node in self.node.all_nodes.values():
+            if not node or node == self.node:
                 continue
-            else:
-                self.log.info(f"Backup of database {database} complete.")
+            await node.restart()
+        await self.node.restart()
 
-        return ret
+    async def restore_database(self, date: str):
+        if not self.node.master:
+            raise RuntimeError(f"Cannot restore database on non-master node {self.node.name}")
 
-    def recover_database(self, date: str):
-        ...
-#        target = os.path.expandvars(self.locals.get('target'))
-#        path = os.path.join(target, f"{self.node.name.lower()}_{date}", f"db_{date}_*.tar")
-#        filename = glob.glob(path)[0]
-#        os.execv(sys.executable, [os.path.basename(sys.executable), 'recover.py', '-f', filename] + sys.argv[1:])
+        target = os.path.expandvars(self.locals.get('target'))
+        path = os.path.join(target, f"{self.node.name.lower()}_{date}", f"db_{date}_*.tar")
+        filename = glob.glob(path)[0]
+        os.makedirs('restore', exist_ok=True)
+        shutil.copy2(filename, 'restore')
+        await self.restart()
 
-    def recover_bot(self, filename: str):
-        ...
+    async def restore_bot(self, date: str):
+        if not self.node.master:
+            raise RuntimeError(f"Cannot restore DCSServerBot configuration on non-master node {self.node.name}")
+        target = os.path.expandvars(self.locals.get('target'))
+        path = os.path.join(target, f"{self.node.name.lower()}_{date}", f"bot_{date}_*.zip")
+        filename = glob.glob(path)[0]
+        os.makedirs('restore', exist_ok=True)
+        shutil.copy2(filename, 'restore')
+        await self.restart()
 
-    def recover_server(self, filename: str):
-        ...
+    async def restore_instances(self, date: str):
+        target = os.path.expandvars(self.locals.get('target'))
+        path = os.path.join(target, f"{self.node.name.lower()}_{date}")
+        for file in Path(path).glob('*'):
+            if file.name.startswith('db_') or file.name.startswith('bot_'):
+                continue
+            instance = re.match(r'^(.+?)_(?=\d{8}_\d{6}\.zip$)', file.name).group(1)
+            copied = False
+            if self.node.locals.get('instances', {}).get(instance):
+                shutil.copy2(file, 'restore')
+                copied = True
+            if copied:
+                await self.restart()
 
     @staticmethod
     def can_run(config: dict | None = None):

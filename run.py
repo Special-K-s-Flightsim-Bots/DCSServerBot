@@ -7,13 +7,13 @@ import discord
 import faulthandler
 import logging
 import os
-import pathlib
 import psycopg
 import sys
 import time
 import traceback
 
 from datetime import datetime
+from pathlib import Path
 from psycopg import OperationalError
 
 # DCSServerBot imports
@@ -72,7 +72,7 @@ class Main:
 
         # Setup file logging
         try:
-            config = yaml.load(pathlib.Path(os.path.join(config_dir, 'main.yaml')).read_text(encoding='utf-8'))['logging']
+            config = yaml.load(Path(os.path.join(config_dir, 'main.yaml')).read_text(encoding='utf-8'))['logging']
         except (FileNotFoundError, KeyError, YAMLError):
             config = {}
         os.makedirs('logs', exist_ok=True)
@@ -167,7 +167,7 @@ class Main:
                         for cls in [x for x in registry.services().keys() if registry.master_only(x)]:
                             try:
                                 await registry.new(cls).start()
-                            except ServiceInstallationError as ex:
+                            except Exception as ex:
                                 self.log.error(f"  - {ex.__str__()}")
                                 self.log.error(f"  => {cls.__name__} NOT loaded.")
                         # now switch all others
@@ -234,6 +234,20 @@ async def run_node(name, config_dir=None, no_autoupdate=False) -> int:
         await Main(node, no_autoupdate=no_autoupdate).run()
         return node.rc
 
+async def restore_node(name: str, config_dir: str, restarted: bool) -> int:
+    from restore import Restore
+
+    print("[blink][red]***********************\n"
+          "*** RESTORE PROCESS ***\n"
+          "***********************\n[/red][/blink]")
+    print("")
+    print("Processing ...")
+    restore = Restore(name, config_dir, quiet=restarted)
+    try:
+        return await restore.run(Path('restore'), delete=True)
+    finally:
+        utils.safe_rmtree('restore')
+
 
 if __name__ == "__main__":
     console = Console()
@@ -271,6 +285,22 @@ if __name__ == "__main__":
 
         migrate_3(node=args.node)
 
+    # Call the restore process
+    if os.path.exists('restore'):
+        if sys.platform == "win32" and sys.version_info >= (3, 14):
+            import selectors
+
+            rc = asyncio.run(
+                restore_node(name=args.node, config_dir=args.config, restarted=args.restarted),
+                loop_factory=lambda: asyncio.SelectorEventLoop(selectors.SelectSelector()),
+            )
+        else:
+            rc = asyncio.run(restore_node(name=args.node, config_dir=args.config, restarted=args.restarted))
+        if rc:
+            exit(rc)
+        else:
+            print("")
+
     fault_log = open(os.path.join('logs', 'fault.log'), 'w')
     try:
         # enable faulthandler
@@ -291,7 +321,7 @@ if __name__ == "__main__":
                 from install import Install
 
                 Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
-                if sys.platform == "win32" and sys.version_info >= (3, 12):
+                if sys.platform == "win32" and sys.version_info >= (3, 14):
                     import selectors
 
                     rc = asyncio.run(
