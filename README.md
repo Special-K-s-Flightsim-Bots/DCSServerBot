@@ -711,27 +711,26 @@ In these cases, you can run the `repair.cmd` script in the DCSServerBot installa
 ---
 
 ## Backup and Restore
-You can backup and restore your database, server or bot configurations. 
-The backup and restore functionality is available in the `Backup` [service](./services/backup/README.md) 
+The platform allows you to backup and restore your database, server configurations, or bot settings. 
+The backup and restore functionality are accessible in the Backup [service](./services/backup/README.md) 
 and [plugin](./plugins/backup/README.md).
 
 > [!NOTE]
-> The bot has an auto-restore feature.
-> You copy the relevant backup file to a folder named `restore` below the DCSServerBot installation dir 
-> (needs to be created).
-> DCSServerBot then reads this file on the next startup and restores whichever information is in there.
-> This can be a
+> The bot includes an auto-restore feature that allows you to easily transfer your data. 
+> To use this feature, copy the appropriate backup file into a folder named restore within the DCSServerBot 
+> installation directory (make sure to create it first). Upon startup, DCSServerBot will read this file and restore any 
+> saved information such as:
 > * Database backup
 > * DCSServerBot configuration backup
-> * Instance backup (missions, configuration, see backup service)
+> * Instance backup (including missions and configurations; for details, see the backup service)
 
 > [!TIP]
-> You can use the auto-restore feature to move your database from one PC to another.
-> Install DCSServerBot on this new PC, copy the respective db_*.tar to a `restore` folder below the bot's installation
-> directory and let the database in nodes.yaml of that node point to the new database.
-> Then run the bot and let the restore happen. 
+> Utilizing the auto-restore feature can be helpful when moving your database from one computer to another. 
+> After installing DCSServerBot on the new system, place the appropriate db_*.tar file in a `restore` folder within the 
+> bot's installation directory and ensure the node's nodes.yaml file points to the newly created database. 
+> Then launch the bot and allow the restoration process to complete.
 > 
-> _You might be asked for the new postgres master pasword._
+> _Please be prepared to provide the new PostgreSQL master password when prompted._
 ---
 
 ## How to use DCSServerBot in Missions?

@@ -6,10 +6,12 @@ import secrets
 import shutil
 import subprocess
 import sys
+import tempfile
 import zipfile
 
 from core import COMMAND_LINE_ARGS, translations, is_junction, get_password, set_password, SAVED_GAMES, utils
 from datetime import datetime
+from install import Install
 from pathlib import Path
 from psycopg import AsyncConnection, sql
 from rich.console import Console
@@ -24,6 +26,7 @@ _ = translations.get_translation("restore")
 
 
 class Restore:
+
     def __init__(self, node: str, config_dir: str, quiet: bool = False):
         self.node = node
         self.config_dir = config_dir
@@ -31,30 +34,39 @@ class Restore:
 
     def unzip(self, file: Path, target: Path) -> None:
         with zipfile.ZipFile(file, 'r') as zip_ref:
-            for member in zip_ref.infolist():
-                dest_name = member.filename
-                if not member.is_dir():
-                    dest_path = os.path.join(target, dest_name)
-                    dest_dir = os.path.dirname(dest_path)
-                    os.makedirs(dest_dir, exist_ok=True)
-                    with open(dest_path, 'wb') as out_file:
-                        shutil.copyfileobj(zip_ref.open(member), out_file)
-                else:
-                    dest_path = os.path.join(target, dest_name)
-                    os.makedirs(dest_path, exist_ok=True)
+            zip_ref.extractall(target)
 
     async def restore_bot(self, console: Console, backup_file: Path) -> bool:
+        # back up the old config
         if os.path.exists(self.config_dir) and len(os.listdir(self.config_dir)) > 0:
             backup_name = f"config.{datetime.now().strftime('%Y-%m-%d')}"
             console.print(_("[yellow]A configuration directory exists. Renaming to {} ...").format(backup_name))
             if not is_junction(self.config_dir):
                 os.rename(self.config_dir, backup_name)
             else:
-                # TODO
-                console.print(_("[red]Junction for ./config found, aborting."))
-                return False
+                console.print(_("[yellow]Could not back up the old config directory as it is a junction.[/]"))
         # unzip
-        await asyncio.to_thread(self.unzip, backup_file, Path(os.getcwd()))
+        with tempfile.TemporaryDirectory(prefix="dcssb_") as tmp_dir:
+            tmp_dir = Path(tmp_dir)
+            await asyncio.to_thread(self.unzip, backup_file, Path(tmp_dir))
+            config_src = tmp_dir / 'config'
+            if config_src.is_dir():
+                shutil.copytree(config_src, self.config_dir, dirs_exist_ok=True)
+            reports_src = tmp_dir / 'reports'
+            reports_target = Path.cwd() / 'reports'
+            if os.path.exists(reports_src):
+                shutil.copytree(reports_src, reports_target, dirs_exist_ok=True)
+
+        # Check if the node name is in there
+        nodes_yaml = Path(self.config_dir) / "nodes.yaml"
+        nodes = yaml.load(nodes_yaml.read_text(encoding='utf-8'))
+        if self.node not in nodes:
+            console.print(_("[yellow]Node name not found in nodes.yaml[/]"))
+            old_node = Prompt.ask(_("Enter the node name you want to replace:"), choices=[_("- Abort -") + nodes.keys()])
+            if old_node == _("- Abort -"):
+                return False
+            Install.rename_node(self.config_dir, old_node, self.node)
+            console.print(_("[green]Node {} renamed to {}.[/]").format(old_node, self.node))
         return True
 
     async def prepare_restore_database(self, console: Console) -> tuple[ParseResult, str, str] | None:
@@ -176,6 +188,12 @@ class Restore:
             utils.safe_rmtree(instance_path)
         # unzip
         await asyncio.to_thread(self.unzip, backup_file, instance_path)
+        # Check if the node name is in there
+        nodes_yaml = Path(self.config_dir) / "nodes.yaml"
+        nodes = yaml.load(nodes_yaml.read_text(encoding='utf-8'))
+        if instance_name not in nodes[self.node].get('instances', {}):
+            console.print(_("[yellow]Instance {} does not exist in your nodes.yaml. "
+                            "Please use `/node add_instance` to add it.[/]").format(instance_name))
         return True
 
     async def run(self, restore_dir: Path | None = None, *, delete: bool = False) -> int:
