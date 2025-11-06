@@ -6,6 +6,7 @@ More to come.
 As per usual, the service is configured with a yaml file, in this case config/services/cron.yaml:
 ```yaml
 DEFAULT:
+  timezone: UTC                         # Set the timezone the schedule should run on
   actions:
     - cron: '0 * * * *'                 # run every full hour
       action:

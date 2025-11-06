@@ -11,6 +11,7 @@ schema;element_schema:
   func: is_element
   nullable: false
   mapping:
+    timezone: {type: str, nullable: false, range: {min: 1}}
     actions:
       type: seq
       nullable: false
