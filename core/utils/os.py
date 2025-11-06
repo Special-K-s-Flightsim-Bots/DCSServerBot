@@ -31,8 +31,10 @@ if sys.platform == 'win32':
     from pywinauto.win32defines import SEE_MASK_NOCLOSEPROCESS, SW_HIDE, SW_SHOWMINNOACTIVE
 
 API_URLS = [
-    'https://api4.my-ip.io/ip',
-    'https://api4.ipify.org/'
+    'https://api4.ipify.org/',
+    'https://ipinfo.io/ip',
+    'https://www.trackip.net/ip',
+    'https://api4.my-ip.io/ip'  # they have an issue with their cert atm, hope they get it fixed
 ]
 
 ENABLE_QUICK_EDIT_MODE = 0x40
