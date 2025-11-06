@@ -1,6 +1,9 @@
 import asyncio
 import os
 import random
+from zoneinfo import ZoneInfo
+
+from croniter import croniter
 
 from core import EventListener, utils, Server, Player, Status, event, chat_command
 from datetime import datetime, timedelta, timezone
@@ -88,6 +91,17 @@ class SchedulerListener(EventListener["Scheduler"]):
                     return min_time_difference, restart
                 else:
                     return None
+            elif 'cron' in restart:
+                now = datetime.now().replace(second=0, microsecond=0)
+                tz = next((v for x, v in self.get_config(server).get('schedule', {}).items() if x == 'timezone'), None)
+                if tz:
+                    tzinfo = ZoneInfo(tz)
+                    now = now.replace(tzinfo=tzinfo)
+
+                cron_job = croniter(restart['cron'], now)
+                next_date = cron_job.get_next(datetime)
+                return int((next_date - now).total_seconds()), restart
+
             return None
 
     async def run(self, server: Server, method: str, **kwargs) -> None:

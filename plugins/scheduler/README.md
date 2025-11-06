@@ -128,6 +128,7 @@ Here you can provide a mission_id to be started on server startup.
 | idle_time        | Time in minutes, the server was not in use (no people in the server)                                                                                                                |
 | local_times      | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                   |
 | utc_times        | Like local_times but UTC.                                                                                                                                                           |
+| cron             | A [cron](https://en.wikipedia.org/wiki/Cron)-like string that defines when this action should run.                                                                                  |
 | mission_id       | For load only: the mission_id to load (1 = first from the mission list). Can be an integer or a list of integers for random pick.                                                   |
 | mission_file     | For load only: the mission file name to load (has to be in the mission list). Can be a single mission or list of missions for random pick.                                          |
 | populated        | If **false**, the mission will be restarted / rotated only, if no player is in (default: true).                                                                                     |
@@ -251,6 +252,19 @@ instance3:
     shutdown: true
     mission_time: 480
     populated: false                              # ... only if nobody is on the server (or as soon as that happens afterward)
+
+instance4:
+  schedule:                                       # server "instance3" will run every day from noon to midnight
+    00-24: YYYYYYY
+  action:                                        # It will restart with a DCS server shutdown after 480 mins of mission time ...
+    - method: load
+      cron: '0 */6 * * 1-5'                      # every Mo-Fr at every 6 hrs starting from 00:00, load mission number 1
+      mission_id: 1
+      shutdown: true
+    - method: load
+      cron: '0 */4 * * 6-7'                      # every Sa-Su at every 4 hrs starting from 00:00, load mission number 2
+      mission_id: 2
+      shutdown: true
 
 mission:
   schedule:

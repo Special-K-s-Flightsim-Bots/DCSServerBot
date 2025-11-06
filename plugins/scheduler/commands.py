@@ -454,6 +454,15 @@ class Scheduler(Plugin[SchedulerListener]):
                 elif 'idle_time' in rconf and server.idle_since:
                     if (datetime.now(tz=timezone.utc) - server.idle_since).total_seconds() / 60 >= rconf['idle_time']:
                         asyncio.create_task(self.restart_mission(server, config, rconf, 0))
+                elif 'cron' in rconf:
+                    restart_time = datetime.now() + timedelta(seconds=warn_time)
+                    restart_time = restart_time.replace(second=0, microsecond=0)
+                    tz = next((v for x,v in self.get_config(server).get('schedule', {}).items() if x == 'timezone'), None)
+                    if tz:
+                        tzinfo = ZoneInfo(tz)
+                        restart_time = restart_time.replace(tzinfo=tzinfo)
+                    if utils.matches_cron(restart_time, rconf['cron']):
+                        asyncio.create_task(self.restart_mission(server, config, rconf, warn_time))
 
         if 'action' in config and not server.restart_pending:
             if isinstance(config['action'], list):
@@ -1086,7 +1095,7 @@ class Scheduler(Plugin[SchedulerListener]):
         else:
             item = f'The mission on server {_server.name}'
         message = f"{item} will {what}"
-        if (any(key in rconf for key in ['local_times', 'utc_times', 'real_time', 'idle_time']) or
+        if (any(key in rconf for key in ['local_times', 'utc_times', 'real_time', 'idle_time', 'cron']) or
                 _server.status == Status.RUNNING):
             if _server.restart_time >= datetime.now(tz=timezone.utc):
                 message += f" <t:{int(_server.restart_time.timestamp())}:R>"
