@@ -16,6 +16,7 @@ from pathlib import Path
 from psycopg import AsyncConnection, sql
 from rich.console import Console
 from rich.prompt import Prompt, Confirm
+from services.backup import BackupService
 from urllib.parse import urlparse, ParseResult
 
 # ruamel YAML support
@@ -128,19 +129,37 @@ class Restore:
                 set_password("database", db_pwd, config_dir=self.config_dir)
                 await conn.execute(sql.SQL("CREATE DATABASE {} OWNER {}").format(
                     sql.Identifier(db_url.path[1:]), sql.Identifier(db_url.username)))
+
                 # read the postgres installation directory
-                cursor = await conn.execute("""
-                    SELECT 
-                        version(),
-                        setting as data_directory
-                    FROM pg_settings 
-                    WHERE name = 'data_directory';
-                """)
-                version, data_directory = await cursor.fetchone()
-                install_path = os.path.dirname(data_directory)
+                backup_yaml = Path(self.config_dir) / "services" / "backup.yaml"
+                try:
+                    data = yaml.load(backup_yaml.read_text(encoding='utf-8'))
+                    install_path = data.get('backups', {}).get('database', {}).get('path')
+                    if not os.path.exists(install_path):
+                        install_path = None
+                except FileNotFoundError:
+                    install_path = None
+
+                if not install_path and sys.platform == 'win32':
+                    installations = BackupService.get_postgres_installations()
+                    if len(installations) == 1 and os.path.exists(installations[0]['location']):
+                        install_path = installations[0]['location']
+
+                if not install_path:
+                    cursor = await conn.execute("""
+                        SELECT 
+                            version(),
+                            setting as data_directory
+                        FROM pg_settings 
+                        WHERE name = 'data_directory';
+                    """)
+                    version, data_directory = await cursor.fetchone()
+                    install_path = os.path.dirname(data_directory)
+
                 if not os.path.exists(install_path):
-                    # TODO: continue here
-                    ...
+                    console.print(
+                        _("[red]Cannot access the PostgreSQL installation directory. Is PostgreSQL installed?.[/]"))
+                    return False
 
         except psycopg.OperationalError:
             console.print_exception(show_locals=False)

@@ -3,6 +3,7 @@ import asyncio
 from core import ServiceRegistry, Service, DEFAULT_TAG, utils, Server, Status
 from datetime import datetime
 from discord.ext import tasks
+from zoneinfo import ZoneInfo
 
 from . import actions
 from ..bot import BotService
@@ -59,6 +60,10 @@ class CronService(Service):
     async def schedule(self):
         async def check_run(config: dict, server: Server | None = None):
             now = datetime.now().replace(second=0, microsecond=0)
+            timezone = self.get_config(server).get("timezone")
+            if timezone:
+                tz = ZoneInfo(timezone)
+                now = now.replace(tzinfo=tz)
             for cfg in config['actions']:
                 if 'cron' in cfg and not utils.matches_cron(now, cfg['cron']):
                     continue
