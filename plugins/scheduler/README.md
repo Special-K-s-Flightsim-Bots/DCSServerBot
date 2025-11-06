@@ -254,9 +254,9 @@ instance3:
     populated: false                              # ... only if nobody is on the server (or as soon as that happens afterward)
 
 instance4:
-  schedule:                                       # server "instance3" will run every day from noon to midnight
+  schedule:                                      # server "instance4" will run 24x7
     00-24: YYYYYYY
-  action:                                        # It will restart with a DCS server shutdown after 480 mins of mission time ...
+  action:                                        
     - method: load
       cron: '0 */6 * * 1-5'                      # every Mo-Fr at every 6 hrs starting from 00:00, load mission number 1
       mission_id: 1
