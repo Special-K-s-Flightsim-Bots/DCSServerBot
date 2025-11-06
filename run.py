@@ -271,8 +271,8 @@ if __name__ == "__main__":
         Main.reveal_passwords(args.config)
         exit(-2)
 
-    # Require Python >= 3.10 and <= 3.14
-    if sys.version_info <= (3,10):
+    # Require Python >= 3.10
+    if sys.version_info < (3,10):
         print("ERROR: DCSServerBot requires Python >= 3.10.")
         sys.exit(-2)
 
