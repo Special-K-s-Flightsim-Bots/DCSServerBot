@@ -397,30 +397,29 @@ class CloudRotatingFileHandler(RotatingFileHandler):
         return 0
 
 
-class SHELLEXECUTEINFO(ctypes.Structure):
-    _fields_ = [
-        ("cbSize",        ctypes.c_ulong),
-        ("fMask",         ctypes.c_ulong),
-        ("hwnd",          ctypes.c_void_p),
-        ("lpVerb",        ctypes.c_wchar_p),
-        ("lpFile",        ctypes.c_wchar_p),
-        ("lpParameters",  ctypes.c_wchar_p),
-        ("lpDirectory",   ctypes.c_wchar_p),
-        ("nShow",         ctypes.c_int),
-        ("hInstApp",      ctypes.c_void_p),
-        ("lpIDList",      ctypes.c_void_p),
-        ("lpClass",       ctypes.c_wchar_p),
-        ("hkeyClass",     ctypes.c_void_p),
-        ("dwHotKey",      ctypes.c_ulong),
-        ("hIcon",         ctypes.c_void_p),
-        ("hProcess",      ctypes.c_void_p),
-    ]
-
-
 def run_elevated(exe_path, cwd, *args):
     """Start *exe_path* as Administrator and return the return code."""
     if sys.platform != 'win32':
         return -1
+
+    class SHELLEXECUTEINFO(ctypes.Structure):
+        _fields_ = [
+            ("cbSize", ctypes.c_ulong),
+            ("fMask", ctypes.c_ulong),
+            ("hwnd", ctypes.c_void_p),
+            ("lpVerb", ctypes.c_wchar_p),
+            ("lpFile", ctypes.c_wchar_p),
+            ("lpParameters", ctypes.c_wchar_p),
+            ("lpDirectory", ctypes.c_wchar_p),
+            ("nShow", ctypes.c_int),
+            ("hInstApp", ctypes.c_void_p),
+            ("lpIDList", ctypes.c_void_p),
+            ("lpClass", ctypes.c_wchar_p),
+            ("hkeyClass", ctypes.c_void_p),
+            ("dwHotKey", ctypes.c_ulong),
+            ("hIcon", ctypes.c_void_p),
+            ("hProcess", ctypes.c_void_p),
+        ]
 
     sei = SHELLEXECUTEINFO()
     sei.cbSize = ctypes.sizeof(sei)
