@@ -37,9 +37,6 @@ API_URLS = [
     'https://api4.my-ip.io/ip'  # they have an issue with their cert atm, hope they get it fixed
 ]
 
-ENABLE_QUICK_EDIT_MODE = 0x40
-ENABLE_EXTENDED_FLAGS = 0x80
-
 __all__ = [
     "is_open",
     "get_public_ip",
@@ -236,6 +233,9 @@ def quick_edit_mode(turn_on=None) -> bool:
     """ Enable/Disable windows console Quick Edit Mode """
     if sys.platform != 'win32':
         return False
+
+    ENABLE_QUICK_EDIT_MODE = 0x40
+    ENABLE_EXTENDED_FLAGS = 0x80
 
     screen_buffer = win32console.GetStdHandle(-10)
     orig_mode = screen_buffer.GetConsoleMode()

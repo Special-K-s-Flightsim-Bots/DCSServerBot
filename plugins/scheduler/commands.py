@@ -455,12 +455,10 @@ class Scheduler(Plugin[SchedulerListener]):
                     if (datetime.now(tz=timezone.utc) - server.idle_since).total_seconds() / 60 >= rconf['idle_time']:
                         asyncio.create_task(self.restart_mission(server, config, rconf, 0))
                 elif 'cron' in rconf:
-                    restart_time = datetime.now() + timedelta(seconds=warn_time)
-                    restart_time = restart_time.replace(second=0, microsecond=0)
                     tz = next((v for x,v in self.get_config(server).get('schedule', {}).items() if x == 'timezone'), None)
-                    if tz:
-                        tzinfo = ZoneInfo(tz)
-                        restart_time = restart_time.replace(tzinfo=tzinfo)
+                    tzinfo = ZoneInfo(tz) if tz else None
+                    restart_time = datetime.now(tz=tzinfo) + timedelta(seconds=warn_time)
+                    restart_time = restart_time.replace(second=0, microsecond=0)
                     if utils.matches_cron(restart_time, rconf['cron']):
                         asyncio.create_task(self.restart_mission(server, config, rconf, warn_time))
 

@@ -59,11 +59,9 @@ class CronService(Service):
     @tasks.loop(minutes=1)
     async def schedule(self):
         async def check_run(config: dict, server: Server | None = None):
-            now = datetime.now().replace(second=0, microsecond=0)
-            timezone = self.get_config(server).get("timezone")
-            if timezone:
-                tz = ZoneInfo(timezone)
-                now = now.replace(tzinfo=tz)
+            timezone = config.get("timezone")
+            tz = ZoneInfo(timezone) if timezone else None
+            now = datetime.now(tz=tz).replace(second=0, microsecond=0)
             for cfg in config['actions']:
                 if 'cron' in cfg and not utils.matches_cron(now, cfg['cron']):
                     continue
