@@ -38,7 +38,7 @@ if [ ! -d "$VENV" ]; then
     python -m venv "$VENV"
     "$VENV/bin/python" -m pip install --upgrade pip
     "$VENV/bin/pip" install pip-tools
-    "$VENV/bin/pip-sync" requirements.txt
+    "$VENV/bin/pip" install -r requirements.txt
 fi
 
 # Run the install.py script with arguments

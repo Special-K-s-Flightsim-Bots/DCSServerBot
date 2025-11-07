@@ -31,7 +31,8 @@ def install_requirements() -> subprocess.CompletedProcess:
     # Then run pip-sync to synchronize the environment with requirements.txt
     cmd = [
         sys.executable,
-        '-m', 'piptools', 'sync', 'requirements.txt'
+#        '-m', 'piptools', 'sync', 'requirements.txt' # temporary disabled due to pip / pip-sync mismatch
+        '-m', 'pip', 'install', '-r', 'requirements.txt'
     ]
     if os.path.exists('requirements.local'):
         cmd.append('requirements.local')
