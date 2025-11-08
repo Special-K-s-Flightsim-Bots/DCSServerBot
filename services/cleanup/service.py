@@ -76,7 +76,7 @@ class CleanupService(Service):
             return
         if self.node.master:
             asyncio.create_task(self.do_cleanup())
-        for instance in self.node.instances:
+        for instance in self.node.instances.values():
             asyncio.create_task(self.do_cleanup(instance))
 
     @schedule.before_loop

@@ -586,7 +586,7 @@ class SRS(Extension, FileSystemEventHandler):
                     config = self.config.get('announce')
                     if config:
                         servers = []
-                        for instance in self.node.instances:
+                        for instance in self.node.instances.values():
                             if instance.locals.get('extensions', {}).get(self.name) and instance.locals['extensions'][self.name].get('enabled', True):
                                 servers.append(instance.server.display_name)
                         embed = discord.Embed(

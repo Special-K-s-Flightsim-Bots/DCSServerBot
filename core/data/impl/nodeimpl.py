@@ -422,8 +422,7 @@ class NodeImpl(Node):
         # initialize the nodes
         for _name, _element in self.locals.pop('instances', {}).items():
             try:
-                instance = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
-                self.instances.append(instance)
+                self.instances[_name] = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
             except UniqueViolation:
                 self.log.error(f"Instance \"{_name}\" can't be added."
                                f"There is an instance already with the same server name or bot port.")
@@ -696,7 +695,7 @@ class NodeImpl(Node):
                         # init profanity filter, if needed
                         if any(
                                 instance.server.locals.get('profanity_filter', False)
-                                for instance in self.instances if instance.server
+                                for instance in self.instances.values() if instance.server
                         ):
                             utils.init_profanity_filter(self)
                     self.log.info(f"{self.installation} updated to version {dcs_version}.")
@@ -763,7 +762,7 @@ class NodeImpl(Node):
                         # init profanity filter, if needed
                         if any(
                                 instance.server.locals.get('profanity_filter', False)
-                                for instance in self.instances if instance.server
+                                for instance in self.instances.values() if instance.server
                         ):
                             utils.init_profanity_filter(self)
                     self.log.info(f"{self.installation} repaired.")
@@ -1371,7 +1370,7 @@ class NodeImpl(Node):
         from services.servicebus import ServiceBus
 
         max_bot_port = max_dcs_port = max_webgui_port = -1
-        for instance in self.instances:
+        for instance in self.instances.values():
             if int(instance.bot_port) > max_bot_port:
                 max_bot_port = int(instance.bot_port)
             if int(instance.dcs_port) > max_dcs_port:
@@ -1387,7 +1386,7 @@ class NodeImpl(Node):
         os.makedirs(os.path.join(instance.home, 'Config'), exist_ok=True)
         if template:
             # copy from a template
-            _template = next(x for x in self.node.instances if x.name == template)
+            _template = self.node.instances[template]
             files = [
                 os.path.join(_template.home, 'Config', 'autoexec.cfg'),
                 os.path.join(_template.home, 'Config', 'serverSettings.lua'),
@@ -1445,7 +1444,7 @@ class NodeImpl(Node):
         bus = ServiceRegistry.get(ServiceBus)
         server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name='n/a', bus=bus)
         instance.server = server
-        self.instances.append(instance)
+        self.instances[instance.name] = instance
         bus.servers[server.name] = server
         if not self.master:
             await bus.send_init(server)
@@ -1461,7 +1460,7 @@ class NodeImpl(Node):
             yaml.dump(config, outfile)
         if instance.server:
             await self.unregister_server(instance.server)
-        self.instances.remove(instance)
+        self.instances.pop(instance.name, None)
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("DELETE FROM instances WHERE instance = %s", (instance.name, ))

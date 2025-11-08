@@ -56,7 +56,7 @@ class Node(ABC):
         self.name = name
         self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.config_dir = config_dir
-        self.instances: list[Instance] = list()
+        self.instances: dict[str, Instance] = {}
         self.locals = None
         self.config = self.read_config(os.path.join(config_dir, 'main.yaml'))
         self.guild_id: int = int(self.config['guild_id'])

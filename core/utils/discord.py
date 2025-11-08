@@ -1051,9 +1051,9 @@ class InstanceTransformer(app_commands.Transformer):
             node: Node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, 'node'))
             if not node:
                 return None
-            return next((x for x in node.instances if x.name == value), None)
+            return node.instances.get(value)
         elif len(interaction.client.node.instances) == 1:
-            return interaction.client.node.instances[0]
+            return next(iter(interaction.client.node.instances.values()))
         else:
             return None
 
@@ -1067,10 +1067,10 @@ class InstanceTransformer(app_commands.Transformer):
             if self.unused:
                 instances = [
                     instance for server_name, instance in await node.find_all_instances()
-                    if not any(instance == x.name for x in node.instances)
+                    if instance not in node.instances
                 ]
             else:
-                instances = [x.name for x in node.instances]
+                instances = [node.instances.keys()]
             return [
                 app_commands.Choice(name=x, value=x)
                 for x in instances

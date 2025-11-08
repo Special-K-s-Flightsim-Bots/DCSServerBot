@@ -41,9 +41,9 @@ class Scheduler(Plugin[SchedulerListener]):
     def read_locals(self) -> dict:
         config = super().read_locals()
         if not config:
-            config = {self.node.name: {}}
-            for instance in self.bus.node.instances:
-                config[self.node.name][instance.name] = {}
+            config = {
+                self.node.name: {name: {} for name in self.bus.node.instances}
+            }
             os.makedirs(os.path.join(self.node.config_dir, 'plugins'), exist_ok=True)
             with open(os.path.join(self.node.config_dir, 'plugins', 'scheduler.yaml'), mode='w',
                       encoding='utf-8') as outfile:

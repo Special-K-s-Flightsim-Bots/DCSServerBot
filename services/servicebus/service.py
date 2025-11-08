@@ -159,7 +159,7 @@ class ServiceBus(Service):
         self.log.debug(f'  - EventListener {type(listener).__name__} unregistered.')
 
     def init_servers(self):
-        for instance in self.node.instances:
+        for instance in self.node.instances.values():
             try:
                 with self.pool.connection() as conn:
                     cursor = conn.execute("""
@@ -462,11 +462,11 @@ class ServiceBus(Service):
                     name=server_name,
                     bus=self
                 )
-                _instance = next((x for x in node.instances if x.name == instance), None)
+                _instance = node.instances.get(instance)
                 if not _instance:
                     # first time we see this instance, so register it
                     _instance = InstanceProxy(name=instance, node=node)
-                    node.instances.append(_instance)
+                    node.instances[instance] = _instance
                 cast(InstanceProxy, _instance).home = home
                 server.instance = _instance
                 server.instance.locals['dcs_port'] = dcs_port
@@ -686,7 +686,7 @@ class ServiceBus(Service):
 
             instance_key = kwargs.get('instance')
             if instance_key and func_signature and func_signature['instance'].annotation != 'str':
-                kwargs['instance'] = next((inst for inst in self.node.instances if inst.name == instance_key), None)
+                kwargs['instance'] = self.node.instances.get(instance_key)
 
             # Handle master-specific mappings
             if self.master:

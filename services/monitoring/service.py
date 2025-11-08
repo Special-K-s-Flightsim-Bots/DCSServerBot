@@ -86,7 +86,7 @@ class MonitoringService(Service):
         await super().stop()
 
     def check_autoexec(self):
-        for instance in self.node.instances:
+        for instance in self.node.instances.values():
             try:
                 cfg = Autoexec(cast(InstanceImpl, instance))
                 if cfg.crash_report_mode is None:

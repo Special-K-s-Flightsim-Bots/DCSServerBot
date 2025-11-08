@@ -73,7 +73,7 @@ class NodeProxy(Node):
             for name, element in node.items():
                 if name == 'instances':
                     for _name, _element in element.items():
-                        self.instances.append(InstanceProxy(name=_name, node=self, locals=_element))
+                        self.instances[_name] = InstanceProxy(name=_name, node=self, locals=_element)
                 else:
                     _locals[name] = element
         return _locals
@@ -353,10 +353,10 @@ class NodeProxy(Node):
                 "template": template
             }
         }, node=self.name, timeout=timeout)
-        instance = next((x for x in self.instances if x.name == name), None)
+        instance = self.instances.get(name)
         if not instance:
             instance = InstanceProxy(name=data['return'], node=self)
-            self.instances.append(instance)
+            self.instances[instance.name] = instance
         return instance
 
     @override
@@ -371,7 +371,7 @@ class NodeProxy(Node):
                 "remove_files": remove_files
             }
         }, node=self.name, timeout=timeout)
-        self.instances.remove(instance)
+        self.instances.pop(instance.name, None)
 
     @override
     async def rename_instance(self, instance: Instance, new_name: str) -> None:
