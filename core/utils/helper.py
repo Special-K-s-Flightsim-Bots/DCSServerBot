@@ -122,6 +122,8 @@ def is_in_timeframe(time: datetime, timeframe: str, tz: tzinfo = None) -> bool:
         start_time = end_time = parse_time(timeframe, tz).replace(year=time.year, month=time.month, day=time.day,
                                                                   second=0, microsecond=0)
     check_time = time.replace(second=0, microsecond=0)
+    if tz:
+        check_time = check_time.astimezone(tz=tz)
     return start_time <= check_time <= end_time
 
 

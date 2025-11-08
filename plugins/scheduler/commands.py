@@ -145,11 +145,12 @@ class Scheduler(Plugin[SchedulerListener]):
             else None
         )
 
-        # Day of week for the *future* moment when the restart would be required
-        weekday = (now + timedelta(seconds=restart_in)).weekday()
-
         # Datetime used for the “restart‑in‑the‑future” checks
         now_plus_restart = now + timedelta(seconds=restart_in)
+
+        # Day of week for the *future* moment when the restart would be required
+        weekday = now_plus_restart.weekday()
+
 
         # ------------------------------------------------------------------
         # 3.  Walk through the schedule periods
