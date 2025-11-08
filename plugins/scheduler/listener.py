@@ -124,82 +124,6 @@ class SchedulerListener(EventListener["Scheduler"]):
             cmd = utils.format_string(cmd, server=server, **kwargs)
             asyncio.create_task(self.node.shell_command(cmd))
 
-    async def process(self, server: Server, what: dict) -> None:
-        if 'shutdown' in what['command'] or what.get('shutdown', False):
-            await server.shutdown()
-            message = 'shut down DCS server'
-            if 'user' not in what:
-                message = self.plugin_name.title() + ' ' + message
-            asyncio.create_task(self.bot.audit(message, server=server, user=what.get('user')))
-        if 'restart' in what['command']:
-            run_extensions = what.get('run_extensions', True)
-            use_orig = what.get('use_orig', True)
-            if server.status == Status.SHUTDOWN:
-                await self.plugin.launch_dcs(server, modify_mission=run_extensions, use_orig=use_orig)
-            else:
-                await server.restart(modify_mission=run_extensions, use_orig=use_orig)
-                message = f'restarted mission {server.current_mission.display_name}'
-                if 'user' not in what:
-                    message = self.plugin_name.title() + ' ' + message
-                asyncio.create_task(self.bot.audit(message, server=server, user=what.get('user')))
-        elif what['command'] == 'rotate':
-            run_extensions = what.get('run_extensions', True)
-            use_orig = what.get('use_orig', True)
-            await server.loadNextMission(modify_mission=run_extensions, use_orig=use_orig)
-            asyncio.create_task(self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
-                                               f"{server.current_mission.display_name}", server=server))
-        elif what['command'] == 'stop':
-            await server.stop()
-            asyncio.create_task(self.bot.audit(f"{self.plugin_name.title()} stopped server", server=server))
-        elif what['command'] == 'load':
-            run_extensions = what.get('run_extensions', True)
-            use_orig = what.get('use_orig', True)
-            if 'mission_id' in what:
-                _mission = what['mission_id']
-                if isinstance(_mission, list):
-                    _mission = random.choice(_mission)
-            elif 'mission_file' in what:
-                _mission = what['mission_file']
-                if isinstance(_mission, list):
-                    _mission = random.choice(_mission)
-                if not os.path.isabs(_mission):
-                    _mission = os.path.join(await server.get_missions_dir(), _mission)
-                if not os.path.exists(_mission):
-                    self.log.error(f"Mission file {_mission} not found.")
-                    return
-            else:
-                self.log.error(f"No mission_id or mission_file specified in {what}")
-                return
-            rc = await server.loadMission(_mission, modify_mission=run_extensions, use_orig=use_orig,
-                                          no_reload=what.get('no_reload', False))
-            if rc is False:
-                self.log.warning(f"Mission {_mission} NOT loaded.")
-            elif rc is None:
-                self.log.debug(f'Mission {_mission} was already loaded')
-            else:
-                message = f'loaded mission {server.current_mission.display_name}'
-                if 'user' not in what:
-                    message = self.plugin_name.title() + ' ' + message
-                asyncio.create_task(self.bot.audit(message, server=server, user=what.get('user')))
-        elif what['command'] == 'preset':
-            if not server.locals.get('mission_rewrite', True):
-                await server.stop()
-            filename = await server.get_current_mission_file()
-            use_orig = what.get('use_orig', True)
-            new_filename = await server.modifyMission(
-                filename,
-                [utils.get_preset(self.node, x) for x in what['preset']],
-                use_orig=use_orig
-            )
-            if new_filename != filename:
-                self.log.info(f"  => New mission written: {new_filename}")
-                await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
-            else:
-                self.log.info(f"  => Mission {filename} overwritten.")
-            if server.status == Status.STOPPED:
-                await server.start()
-        server.restart_pending = False
-
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         if data['channel'].startswith('sync-'):
@@ -245,7 +169,7 @@ class SchedulerListener(EventListener["Scheduler"]):
                     "server_name": server.name
                 }))
             if server.on_mission_end:
-                self.bot.loop.call_soon(asyncio.create_task, self.process(server, server.on_mission_end.copy()))
+                self.bot.loop.call_soon(asyncio.create_task, self.plugin.run_action(server, server.on_mission_end.copy()))
                 server.on_mission_end.clear()
 
     @event(name="onSimulationStart")
@@ -309,8 +233,8 @@ class SchedulerListener(EventListener["Scheduler"]):
     @event(name="onServerEmpty")
     async def onServerEmpty(self, server: Server, _: dict) -> None:
         if server.on_empty:
-            self.log.debug(f"Scheduler: onServerEmpty: processing on_empty event: {server.on_empty['command']}")
-            asyncio.create_task(self.process(server, server.on_empty.copy()))
+            self.log.debug(f"Scheduler: onServerEmpty: processing on_empty event: {server.on_empty['method']}")
+            asyncio.create_task(self.plugin.run_action(server, server.on_empty.copy()))
             server.on_empty.clear()
         else:
             self.log.debug("Scheduler: onServerEmpty: no on_empty event provided - skipping")

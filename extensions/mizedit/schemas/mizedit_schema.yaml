@@ -29,6 +29,7 @@ schema;mizedit_schema:
     enabled: {type: bool, nullable: false}
     debug: {type: bool, nullable: false}
     presets: {type: any, nullable: false, func: str_or_list}
+    timezone: {type: str, nullable: false, range: {min: 1}}
     settings:
       type: any
       include: 'settings'

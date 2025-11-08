@@ -139,7 +139,11 @@ class RealWeather(Plugin[RealWeatherEventListener]):
                 await server.restart(modify_mission=False)
                 message += '\nMission reloaded.'
             elif result == 'later':
-                server.on_empty = {"command": "load", "mission_file": new_filename, "user": interaction.user}
+                server.on_empty = {
+                    "method": "load",
+                    "mission_file": new_filename,
+                    "user": interaction.user
+                }
                 msg += 'Mission will restart, when server is empty.'
 
             await self.bot.audit("changed weather", server=server, user=interaction.user)

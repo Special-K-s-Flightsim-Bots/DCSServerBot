@@ -335,10 +335,10 @@ class Mission(Plugin[MissionEventListener]):
                 return
             elif result == 'later':
                 server.on_empty = {
-                    "command": what,
-                    "user": interaction.user,
+                    "method": what,
                     "run_extensions": run_extensions,
-                    "use_orig": use_orig
+                    "use_orig": use_orig,
+                    "user": interaction.user
                 }
                 server.restart_pending = True
                 await interaction.followup.send(_('Mission will {}, when server is empty.').format(_(what)),
@@ -435,10 +435,10 @@ class Mission(Plugin[MissionEventListener]):
         if server.current_mission and mission == server.current_mission.filename:
             if result == 'later':
                 server.on_empty = {
-                    "command": "restart",
-                    "user": interaction.user,
+                    "method": "restart",
                     "run_extensions": run_extensions,
-                    "use_orig": use_orig
+                    "use_orig": use_orig,
+                    "user": interaction.user
                 }
                 server.restart_pending = True
                 await interaction.followup.send(_('Mission will {}, when server is empty.').format(_('restart')),
@@ -449,10 +449,10 @@ class Mission(Plugin[MissionEventListener]):
         else:
             name = os.path.basename(mission[:-4])
             if mission_id is not None and result == 'later':
-                # make sure, we load that mission, independently on what happens to the server
+                # make sure we load that mission, independently of what happens to the server
                 await server.setStartIndex(mission_id + 1)
                 server.on_empty = {
-                    "command": "load",
+                    "method": "load",
                     "mission_id": mission_id + 1,
                     "run_extensions": run_extensions,
                     "use_orig": use_orig,
@@ -623,7 +623,13 @@ class Mission(Plugin[MissionEventListener]):
                 ephemeral=ephemeral)
 
     async def simulate(self, interaction: discord.Interaction, server: Server, use_orig: bool, presets_file: str,
-                       presets: list[str], ephemeral: bool):
+                       presets: list[str] | None, ephemeral: bool):
+
+        presets = {x: utils.get_preset(self.node, x, filename=presets_file) for x in presets} if presets else None
+        if not presets:
+            await interaction.followup.send("No presets provided for simulation.")
+            return
+
         mission_file = await server.get_current_mission_file()
         if use_orig:
             if server.is_remote:
@@ -633,11 +639,6 @@ class Mission(Plugin[MissionEventListener]):
             mission_file = utils.get_orig_file(mission_file)
         old_mission: MizFile = await asyncio.to_thread(MizFile, mission_file)
         new_mission: MizFile = await asyncio.to_thread(MizFile, mission_file)
-        presets = {x: utils.get_preset(self.node, x, filename=presets_file) for x in presets}
-
-        if not presets:
-            await interaction.followup.send("You need to select presets.", ephemeral=True)
-            return
 
         for k, v in presets.items():
             try:
@@ -763,8 +764,9 @@ class Mission(Plugin[MissionEventListener]):
 
         if result == 'later':
             server.on_empty = {
-                "command": "preset",
-                "preset": view.result,
+                "method": "restart",
+                "presets": presets_file,
+                "settings": view.result,
                 "use_orig": use_orig,
                 "user": interaction.user
             }

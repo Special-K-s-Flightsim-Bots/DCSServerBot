@@ -1,36 +1,38 @@
 # Extension "MizEdit"
 
-One of the main concepts of DCSServerBot is to have you use any standard mission that you built or got from the
-community and do whatever you like with it, without the need of you changing anything in the mission itself.
-This works well for SlotBlocking already or the CreditSystem, but you can even go further and really amend the mission
-without touching it.
+One of the primary features of DCSServerBot is its ability to allow users to use any standard missions, 
+either self-created or obtained from the community, while having complete control over them without modifying the 
+mission itself. 
+This flexibility applies to SlotBlocking and CreditSystem configurations, but users can also make more extensive 
+modifications to the missions itself as desired without having to open the MissionEditor at all.
 
 Sounds like magic? Well, it kinda is.
 
 ## Concept
-The whole concept behind MizEdit is, that your mission consists out of several files that are bundled together in a 
-zipped file that ED decided to give the ".miz" extension. One of these files, the `mission`-file is a large lua table
-that holds the main information about your mission, like the theatre, the date and time, the weather, all units, 
-triggers, the majority of settings and whatnot. Another one is `options`, which holds parts of the configuration of
-your mission and last but not least there is `warehouses`, that holds information about the dedicated airports and their
-warehouses.<br>
-The Mission Editor writes and changes these files to represent any change that you made to your mission.
-So - why not do that on our own, without the need of the editor?
+DCS World organizes a mission as multiple files within a zipped archive with the ".miz" extension, one of which is the 
+**mission** file - a large Lua table containing essential information about the mission such as the theater, date and time, 
+weather, units, triggers, settings, and more. 
+The **options** file stores parts of the mission configuration, while the **warehouses** file contains details about 
+the dedicated airports and their warehouses. 
+By using the Mission Editor to write and modify these files, any changes made to the mission are accurately represented. 
+However, the question is: why not accomplish this directly, without relying on the editor?
 
 ## Presets
-Each mission change is represented in a small data-structure in yaml. I've called these "presets", as they usually will
-work as a fixed setting for any mission you have, like any weather preset you know already from the recent DCS versions.
+Each modification made to a mission is stored in a compact YAML data structure that I've named "presets". 
+These presets typically function as consistent settings that can be applied to any mission, similar to weather presets 
+familiar from recent DCS World versions.
 
 > [!NOTE]
-> If you want to look up the presets used in DCS, you can take a look at 
+> If you want to look up the weather-presets used in DCS World, you can take a look at 
 > `C:\Program Files\Eagle Dynamics\DCS World\Config\Effects\clouds.lua`.
 
 ### config/presets.yaml
-As you usually want to re-use your presets, they are bundled together in a larger configuration file. Each preset has
-a name. Presets can be chained to create a combination of presets as a separate preset.
+Since presets are meant for frequent use, they are organized within a larger configuration file. 
+Each preset can be given a unique name, and multiple presets can be combined to create new presets by linking them 
+together.
 
 > [!TIP]
-> You can create any other file named presets*.yaml to better structure your presets.
+> You can create any other file named "presets*.yaml" to better structure your presets.
 > If you want to use presets from another yaml file, you can specify that in your MizEdit-Extension.
 > You can mix several presets files by specifying them as a list (see example below).
 
@@ -84,7 +86,8 @@ With this method, you can change the following values in your mission (to be ext
 * miscellaneous (set any miscellaneous option)
 * difficulty (set any difficulty option)
 
-I highly recommend looking at a mission or options file inside your miz-file to see the structure of these settings.
+> [!NOTE]
+> I highly recommend looking at a mission or options file inside your miz-file to see the structure of these settings.
 
 date has different options:
 * date: '2022-05-31' # normal date
@@ -97,13 +100,13 @@ start_time has different options:
 * start_time: 'morning +02:00' # relative time to one of the above-mentioned moments
 
 > [!NOTE]
-> The moments are calculated based on the current theatre and date. If you change the date through MizEdit, you need to
-> set that prior to the start_time!
+> The moments are calculated based on the current theater and date. 
+> If you change the date through MizEdit, you need to set that prior to the start_time!
 > 
 > Thanks, @davidp57 for contributing the moments-part!
 
 #### b) Attaching Files
-If you want to attach files to your mission (e.g. sounds but others like scripts, etc.), you can do it like this:
+If you want to attach files to your mission (e.g. sounds or others like scripts, etc.), you can do it like this:
 ```yaml
 Sounds:
   files:
@@ -124,8 +127,8 @@ AddFiles:
 ```
 
 #### c) Fog
-With DCS 2.9.10, Eagle Dynamics added a new fog system, which allows fog animations, based on time. You can use this 
-new feature set with the bot like so:
+Starting with DCS 2.9.10, Eagle Dynamics added a new fog system, which allows fog animations, based on time. 
+You can use this new feature with the bot like so:
 ```yaml
 auto_fog:   # let DCS to the fog on its own
     fog:
@@ -143,7 +146,7 @@ The key is the time in seconds after which the specific thickness and visibility
 the fog changes in-between for you.
 
 #### d) DCS RealWeather
-You can run DCS RealWeather from MizEdit now:
+You can run DCS RealWeather from MizEdit like so:
 ```yaml
 realweather:
     RealWeather:
@@ -153,10 +156,12 @@ realweather:
 ```
 
 #### e) Complex Modifications
-Sometimes, only changing the weather is not enough, and you want to change some parts in the mission that are deeply 
-nested or even dependent on another parts of your mission file. This is for instance true, if you want to change
-frequencies, TACAN codes or similar items.
-Therefore, I developed some SQL-like query language, where you can search and change values in your mission.
+In certain instances, modifying only the weather may not suffice, as there may be parts of the mission that are deeply 
+nested or dependent on other elements within the mission file. 
+For example, adjusting frequencies, TACAN codes, or similar items can require direct access to specific areas of the 
+mission data. 
+To address this issue, I developed a SQL-like query language capable of searching and modifying values in the mission 
+file.
 
 > [!NOTE]
 > As this is complex and very (!) powerful, I decided to move the documentation in a separate file [here](MODIFY.md).
@@ -192,6 +197,7 @@ b) Random choice of fixed settings
 c) Permutations
 ```yaml
         MizEdit:
+          timezone: UTC # optional - provide a timezone for the time values
           settings:
             00:00-12:00:  # Any permutation out of [Spring, Summer] + [Morning, Noon] + [Slight Breeze, Rainy, Heavy Storm]
             - - Spring

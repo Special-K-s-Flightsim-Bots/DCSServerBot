@@ -143,7 +143,14 @@ def dir_exists(value, _, path):
             raise SchemaError(msg=f'Directory "{value}" does not exist or is no directory', path=path)
     return True
 
-def obsolete(value, rule, path):
+def deprecated(value, rule_obj, path):
+    message = f'Parameter "{os.path.basename(path)}" is deprecated.'
+    enum = rule_obj.schema_str.get('enum', [])
+    if enum:
+        message += ' ' + enum[0]
+    raise SchemaError(msg=message, path=path)
+
+def obsolete(value, rule_obj, path):
     if _is_valid(path):
         logger.warning(f'"{os.path.basename(path)}" is obsolete and will be set by the bot: Path "{path}"')
     return True

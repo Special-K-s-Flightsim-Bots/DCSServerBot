@@ -10,6 +10,7 @@ from extensions.realweather import RealWeather
 from pathlib import Path
 from typing import cast
 from typing_extensions import override
+from zoneinfo import ZoneInfo
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -32,7 +33,7 @@ class MizEdit(Extension):
         else:
             self.presets = {}
 
-    def _init_presets(self):
+    def _init_presets(self) -> dict:
         presets_file = self.config.get('presets', os.path.join(self.node.config_dir, 'presets.yaml'))
         presets = {}
         if not isinstance(presets_file, list):
@@ -66,8 +67,10 @@ class MizEdit(Extension):
         now = datetime.now()
         presets = config['settings']
         if isinstance(presets, dict):
+            tz = config.get('timezone')
+            tzinfo = ZoneInfo(tz) if tz else None
             for key, value in presets.items():
-                if utils.is_in_timeframe(now, key):
+                if utils.is_in_timeframe(now, key, tz=tzinfo):
                     presets = value
                     break
             else:

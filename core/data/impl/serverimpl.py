@@ -7,7 +7,6 @@ import luadata
 import os
 import psutil
 import shutil
-import socket
 import subprocess
 import sys
 import tempfile
@@ -412,7 +411,7 @@ class ServerImpl(Server):
         loop = asyncio.get_running_loop()
         self.transport, _ = await loop.create_datagram_endpoint(
             lambda: asyncio.DatagramProtocol(),
-            remote_addr=("127.0.0.1", self.port),
+            remote_addr=("127.0.0.1", int(self.port)),
             local_addr=("0.0.0.0", 0),
         )
 
@@ -655,8 +654,6 @@ class ServerImpl(Server):
                 raise Exception("Your DCS installation is not desanitized properly to be used with DCSServerBot!")
             else:
                 utils.desanitize(self)
-        else:
-            self.log.debug("MissionScripting.lua is already desanitized.")
         self.status = Status.LOADING
         await self.init_extensions()
         await self.prepare_extensions()
@@ -879,7 +876,8 @@ class ServerImpl(Server):
             shutil.copy2(orig_filename, new_filename)
         elif new_filename != filename:
             shutil.copy2(filename, new_filename)
-        await MizEdit.apply_presets(self, new_filename, preset)
+        if preset:
+            await MizEdit.apply_presets(self, new_filename, preset)
         return new_filename
 
     @override
