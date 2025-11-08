@@ -140,8 +140,8 @@ class Scheduler(Plugin[SchedulerListener]):
         # ------------------------------------------------------------------
         now = datetime.now()
         tz = (
-            ZoneInfo(config['schedule'].get('timezone'))
-            if 'timezone' in config['schedule']
+            ZoneInfo(config.get('timezone'))
+            if 'timezone' in config
             else None
         )
 
@@ -155,9 +155,6 @@ class Scheduler(Plugin[SchedulerListener]):
         # 3.  Walk through the schedule periods
         # ------------------------------------------------------------------
         for period, daystate in config['schedule'].items():
-            if period == 'timezone':  # skip the optional tz key
-                continue
-
             # Validate that the daystate string is 7 characters long
             if len(daystate) != 7:
                 server.log.error(
@@ -602,14 +599,7 @@ class Scheduler(Plugin[SchedulerListener]):
         """
         if 'times' in rconf:
             option = 'times'
-            tz = next(
-                (
-                    v
-                    for k, v in config.get("schedule", {}).items()
-                    if k == "timezone"
-                ),
-                None,
-            )
+            tz = config.get('timezone')
         elif 'local_times' in rconf:
             option = 'local_times'
             tz = None
@@ -685,15 +675,11 @@ class Scheduler(Plugin[SchedulerListener]):
         """
         *cron* – evaluate the cron expression at the *restart_time* that would occur after *warn_time* seconds.
         """
-        tz = next(
-            (
-                v
-                for k, v in config.get("schedule", {}).items()
-                if k == "timezone"
-            ),
-            None,
+        tzinfo = (
+            ZoneInfo(config.get('timezone'))
+            if 'timezone' in config
+            else None
         )
-        tzinfo = ZoneInfo(tz) if tz else None
         restart_time = datetime.now(tz=tzinfo) + timedelta(seconds=warn_time)
         restart_time = restart_time.replace(second=0, microsecond=0)
 

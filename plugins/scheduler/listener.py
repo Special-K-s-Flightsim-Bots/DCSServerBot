@@ -1,11 +1,9 @@
 import asyncio
-import os
-import random
 from zoneinfo import ZoneInfo
 
 from croniter import croniter
 
-from core import EventListener, utils, Server, Player, Status, event, chat_command
+from core import EventListener, utils, Server, Player, event, chat_command
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
@@ -93,7 +91,7 @@ class SchedulerListener(EventListener["Scheduler"]):
                     return None
             elif 'cron' in restart:
                 now = datetime.now().replace(second=0, microsecond=0)
-                tz = next((v for x, v in self.get_config(server).get('schedule', {}).items() if x == 'timezone'), None)
+                tz = self.get_config(server).get('timezone')
                 if tz:
                     tzinfo = ZoneInfo(tz)
                     now = now.replace(tzinfo=tzinfo)

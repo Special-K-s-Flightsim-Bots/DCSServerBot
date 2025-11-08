@@ -207,11 +207,8 @@ class ScheduleInfo(report.EmbedElement):
         self.add_field(name="This server runs on the following schedule:", value='_ _', inline=False)
         value = ''
         now = datetime.now()
-        tz = now.astimezone().tzinfo
+        tz = ZoneInfo(config['timezone']) if 'timezone' in config else now.astimezone().tzinfo
         for period, daystate in config['schedule'].items():
-            if period == 'timezone':
-                tz = ZoneInfo(daystate)
-                continue
             for c in daystate:
                 if c == 'Y':
                     value += '✅|'
