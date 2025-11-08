@@ -157,15 +157,24 @@ class GameMaster(Plugin[GameMasterEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
+        received: dict[str, bool] = {}
         for server in self.bot.get_servers(manager=interaction.user).values():
             if server.status != Status.RUNNING:
-                await interaction.followup.send(_('Message NOT sent to server {server} because it is {status}.'
-                                                  ).format(server=server.display_name, status=server.status.name),
-                                                ephemeral=True)
+                received[server.display_name] = False
                 continue
             await server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
-            await interaction.followup.send(_('Message sent to server {}.').format(server.display_name),
-                                            ephemeral=ephemeral)
+            received[server.display_name] = True
+        embed = discord.Embed(colour=discord.Colour.blue())
+        embed.title = _("The message was sent to the following servers")
+        embed.description = f"```{message}```"
+        names = []
+        status = []
+        for name, stat in received.items():
+            names.append(name)
+            status.append(':white_check_mark:' if stat else ':x:')
+        embed.add_field(name=_("Server"), value='\n'.join(names))
+        embed.add_field(name=_("Message sent"), value='\n'.join(status))
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
     @command(description=_('Set or get a flag inside the mission'))
     @app_commands.guild_only()
