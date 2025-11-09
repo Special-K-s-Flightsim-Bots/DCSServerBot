@@ -326,7 +326,7 @@ instance4:
       settings:                                  # MizEdit settings to be applied (overrides what's set in your nodes.yaml)
         - NoMods
     - method: load
-      cron: '0 */4 * * 6-7'                      # every Sa-Su at every 4 hrs starting from 00:00, load mission number 2
+      cron: '0 */4 * * 0,6'                      # every Sa-Su at every 4 hrs starting from 00:00, load mission number 2
       mission_id: 2
       shutdown: true
 

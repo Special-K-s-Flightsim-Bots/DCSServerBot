@@ -593,8 +593,9 @@ class ServerLoad(report.MultiGraphElement):
             FROM serverstats 
             WHERE {period.filter(self.env.bot)}
             and time < (now() at time zone 'UTC')
-            AND node = %(node)s 
         """
+        if node:
+            inner_sql += "AND node = %(node)s"
         if server_name:
             sql = f"""
                 {inner_sql}
