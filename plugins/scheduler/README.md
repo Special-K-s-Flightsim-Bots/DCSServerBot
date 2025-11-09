@@ -156,7 +156,7 @@ startup:
 
 > [!NOTE]
 > "local_times" and "utc_times" are deprecated now and no longer mentioned in here.
-> Please migrate to the new "times" structure, or even to "cron", if possible.
+> Please migrate to the new "times" structure, or even to "cron" if possible.
 > 
 > Example:
 > ```yaml
@@ -173,6 +173,31 @@ startup:
 > action:
 >   - times: [08:13, 19:27]  # was utc_times: [08:13, 19:27] 
 >```
+
+> [!NOTE]
+> Please note that our cron implementation has two more 
+> optional fields.
+> 
+> Standard cron has five fields:
+> ```
+> * * * * *
+> | | | | |
+> | | | | └─ day of week
+> | | | └─── month
+> | | └───── day of month
+> | └─────── hour
+> └───────── minute
+> ─────────────────────────────────────────────
+> • minute  : 0–59
+> • hour    : 0–23
+> • dom     : 1–31 (day of month)
+> • month   : 1–12 (or names Jan–Dec)
+> • dow     : 0–6 (Sunday=0) (or names Sun–Sat)
+> ```
+> Our implementation has 2 additional fields:
+> - You can add a 6th field at the front for seconds
+> - You can add a 7th field at the end for the year
+
 ### method
 
 | Parameter | Description                                                                                                              |

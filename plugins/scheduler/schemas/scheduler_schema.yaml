@@ -11,7 +11,7 @@ schema;action_map:
         - type: str
           pattern: '^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])'
           unique: true
-    cron: {type: str, nullable: false, range: {min: 1}}
+    cron: {type: str, nullable: false, pattern: '^\s*(?:\S+\s+){4,6}\S+\s*$'}
     mission_time: { type: int, range: { min: 1 }, nullable: false }
     max_mission_time: { type: int, range: { min: 1 }, nullable: false }
     real_time: { type: int, range: { min: 1 }, nullable: false }
