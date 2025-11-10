@@ -28,7 +28,8 @@ mapping:
           url: {type: str, required: true, nullable: false, range: {min: 1}}
           pool_min: {type: int, range: {min: 2}, nullable: false}
           pool_max: {type: int, range: {min: 5}, nullable: false}
-          max_idle: {type: int, nullable: false}
+          max_reties: {type: int, range: {min: 1}, nullable: false}
+          max_idle: {type: int, range: {min: 0}, nullable: false}
       DCS:
         type: map
         nullable: false

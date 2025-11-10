@@ -3,6 +3,3 @@ DEFAULT:
     enabled: true   # Here you can disable the feature at all (default: true = enabled)
     discord:
       - DCS Admin   # Define which roles are allowed to upload missions (default: DCS Admin)
-  afk_exemptions:   # List of UCIDs that are exempted from AFK kicks (besides the users that have the DCS Admin or GameMaster role)
-    ucid:
-      - aabbccddeeff1122334455

@@ -417,7 +417,6 @@ NODENAME:                       # this will usually be your hostname
           host: 127.0.0.1       # SRS servers local IP (default is 127.0.0.1)
           port: 5002            # SRS servers local port (default is 5002). The bot will change this in your SRS configuration if set here!
           autostart: true       # this will autostart your DCS server with the DCS server start (default: true)
-          autoupdate: true      # This will auto-update your SRS servers. Default is false, you need to run the bot as Administrator to make it work!
         Tacview:
           show_passwords: false # If you don't want to show the Tacview passwords (default: true)
 #    instance2:                 # you can have an unlimited number of instance configurations, but each instance has to have a physical representation on your disk.
@@ -437,10 +436,10 @@ DEFAULT:
   messages:                     # General messages for servers. You can overwrite any in any server.
     greeting_message_members: "{player.name}, welcome back to {server.name}!"
     greeting_message_unmatched: '{player.name}, please use /linkme in our Discord, if you want to see your user stats!'
-    message_player_username: Your player name contains invalid characters. # Default message for players with invalid usernames
-      Please change your name to join our server.
-    message_player_default_username: Please change your default player name at the top right  # Default message for players with default usernames
-      of the multiplayer selection list to an individual one!
+    message_player_username: Your player name contains invalid characters. 
+      Please change your name to join our server. # Default message for players with invalid usernames
+    message_player_default_username: Please change your default player name at the top right  
+      of the multiplayer selection list to an individual one! # Default message for players with default usernames
     message_player_inappropriate_username: Your username is inappropriate and needs to be changed to join this server.
     message_ban: 'You are banned from this server. Reason: {}' # default message, if a player is banned on the DCS server
     message_reserved: 'This server is locked for specific users.\nPlease contact a server admin.' # Message if server requires discord role (optional)

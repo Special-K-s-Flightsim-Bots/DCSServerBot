@@ -8,45 +8,45 @@
 # instance the SlotBlocking-plugin, that can block slots by  #
 # credits.                                                   #
 ##############################################################
-DEFAULT:              # valid for all servers
+DEFAULT: # valid for all servers
   initial_points: 10  # The initial points a player gets (default = 0).
   max_points: 100     # The maximum points a player can get (default = unlimited).
   multiplier: 1       # multiplier for credit points on proper landings (if payback is enabled in slotblocking.yaml)
   squadron_credits: true # enable squadron credits (see below).
-  points_per_kill:    # How many points do players get when they kill another unit?
-  - default: 1        # You get at least one point (default = 0).
-  - category: Ships   # If you kill a ship. you get 2 points
-    points: 2
-  - category: Air Defence
-    points: 3
-  - category: Planes
-    type: AI          # for planes and helicopters you can decide whether you killed an AI or a human player
-    points: 3
-  - category: Planes
-    type: Player
-    points: 4
-  - category: Planes
-    type: Player
-    unit_type: F-14B  # you can specify the unit_type, unit_name, group_name as another differentiation
-    points: 5
-  - category: Helicopters
-    points: 3
-  achievements:       # OPTIONAL: you can give players Discord roles according to their achievements
-  - credits: 0
-    playtime: 0       # Playtime is in hours
-    role: Rookie      # Initially, with 0 credits and 0 playtime, you get the role "Rookie" (has to be in Discord)
-  - credits: 50
-    playtime: 25
-    role: Veteran     # to get the Veteran role, you have to have EITHER 50 credit points OR a playtime of 25 hrs
-  - credits: 100
-    playtime: 50
-    combined: true    # you need to have 100 credit points AND a playtime of more than 50 hrs to get the "Ace" role
-    role: Ace
-  leaderboard:        # Simple leaderboard, persistent, displayed in a channel of your choice
+  points_per_kill: # How many points do players get when they kill another unit?
+    - default: 1        # You get at least one point (default = 0).
+    - category: Ships   # If you kill a ship. you get 2 points
+      points: 2
+    - category: Air Defence
+      points: 3
+    - category: Planes
+      type: AI          # for planes and helicopters you can decide whether you killed an AI or a human player
+      points: 3
+    - category: Planes
+      type: Player
+      points: 4
+    - category: Planes
+      type: Player
+      unit_type: F-14B  # you can specify the unit_type, unit_name, group_name as another differentiation
+      points: 5
+    - category: Helicopters
+      points: 3
+  achievements: # OPTIONAL: you can give players Discord roles according to their achievements
+    - credits: 0
+      playtime: 0       # Playtime is in hours
+      role: Rookie      # Initially, with 0 credits and 0 playtime, you get the role "Rookie" (has to be in Discord)
+    - credits: 50
+      playtime: 25
+      role: Veteran     # to get the Veteran role, you have to have EITHER 50 credit points OR a playtime of 25 hrs
+    - credits: 100
+      playtime: 50
+      combined: true    # you need to have 100 credit points AND a playtime of more than 50 hrs to get the "Ace" role
+      role: Ace
+  leaderboard: # Simple leaderboard, persistent, displayed in a channel of your choice
     channel: 112233445566778899
     limit: 10         # max number of entries to be shown
-DCS.server:           # valid for a specific server
-  initial_points:     # different initial points can be specified for different Discord roles
-  - discord: Donator
-    points: 15
-  - default: 10
+DCS.dcs_serverrelease: # valid for a specific server
+  initial_points: # different initial points can be specified for different Discord roles
+    - discord: Donator
+      points: 15
+    - default: 10
