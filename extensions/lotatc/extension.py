@@ -135,7 +135,8 @@ class LotAtc(Extension, FileSystemEventHandler):
         json_port = self.locals.get('lotatc_inst.options', {}).get('jsonserver_port', 8081)
         if type(self)._json_ports.get(json_port, self.server.name) != self.server.name:
             self.log.error(
-                f"  => {self.server.name}: {self.name} jsonserver_port {port} already in use by server {type(self)._ports[port]}!")
+                f"  => {self.server.name}: {self.name} jsonserver_port {json_port} already in use by "
+                f"server {type(self)._json_ports[json_port]}!")
             return False
         else:
             type(self)._json_ports[json_port] = self.server.name

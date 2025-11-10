@@ -9,6 +9,17 @@ from matplotlib import pyplot as plt, patches
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    "get_cpu_name",
+    "get_processor_info",
+    "get_cpu_set_information",
+    "get_scheduling_classes",
+    "get_cache_info",
+    "get_e_core_affinity",
+    "get_p_core_affinity",
+    "get_cpus_from_affinity",
+    "create_cpu_topology_visualization"
+]
 
 # Define ULONG_PTR
 if ctypes.sizeof(ctypes.c_void_p) == 8:  # 64-bit system

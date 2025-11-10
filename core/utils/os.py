@@ -1,25 +1,19 @@
 from __future__ import annotations
 
-import aiohttp
 import asyncio
-import ipaddress
 import logging
 import os
 import pickle
 import platform
 import psutil
-import socket
 import stat
 import subprocess
 import sys
 
-from contextlib import closing, suppress
+from contextlib import suppress
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import TYPE_CHECKING, Generator
-
-if TYPE_CHECKING:
-    from core import Node
+from typing import Generator
 
 if sys.platform == 'win32':
     import ctypes
@@ -30,16 +24,7 @@ if sys.platform == 'win32':
 
     from pywinauto.win32defines import SEE_MASK_NOCLOSEPROCESS, SW_HIDE, SW_SHOWMINNOACTIVE
 
-API_URLS = [
-    'https://api4.ipify.org/',
-    'https://ipinfo.io/ip',
-    'https://www.trackip.net/ip',
-    'https://api4.my-ip.io/ip'  # they have an issue with their cert atm, hope they get it fixed
-]
-
 __all__ = [
-    "is_open",
-    "get_public_ip",
     "find_process",
     "find_process_async",
     "is_process_running",
@@ -56,7 +41,6 @@ __all__ = [
     "get_password",
     "delete_password",
     "sanitize_filename",
-    "is_upnp_available",
     "get_win32_error_message",
     "CloudRotatingFileHandler",
     "run_elevated",
@@ -65,23 +49,6 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
-
-
-def is_open(ip, port):
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.settimeout(1.0)
-        return s.connect_ex((ip, int(port))) == 0
-
-
-async def get_public_ip(node: Node | None = None):
-    for url in API_URLS:
-        with suppress(aiohttp.ClientError, ValueError):
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, proxy=node.proxy if node else None,
-                                       proxy_auth=node.proxy_auth if node else None) as resp:
-                    return ipaddress.ip_address(await resp.text()).compressed
-    else:
-        raise TimeoutError("Public IP could not be retrieved.")
 
 
 def find_process(proc: str, instance: str | None = None) -> Generator[psutil.Process, None, None]:
@@ -331,57 +298,6 @@ def get_win32_error_message(error_code: int) -> str:
         None
     )
     return buffer.value.strip()
-
-if sys.version_info >= (3, 14):
-
-    def is_upnp_available() -> bool:
-        from upnpy import UPnP
-
-        try:
-            upnp = UPnP()
-            devices = upnp.discover()
-            if not devices:
-                return False
-
-            # Look for an InternetGatewayDevice and its WANIPConnection (or WANPPPConnection) service
-            for device in devices:
-                if "InternetGatewayDevice" in (device.device_type or ""):
-                    try:
-                        # Try WANIPConnection first
-                        wan_services = device.get_services()
-                        has_wan = any(
-                            ("WANIPConnection" in s.service_type) or ("WANPPPConnection" in s.service_type)
-                            for s in wan_services
-                        )
-                        if has_wan:
-                            return True
-                    except Exception:
-                        continue
-            return False
-        except Exception:
-            return False
-
-else:
-
-    def is_upnp_available() -> bool:
-        import miniupnpc
-
-        try:
-            upnp = miniupnpc.UPnP()
-            devices = upnp.discover()  # Discover UPnP-enabled devices
-            if devices > 0:
-                if upnp.selectigd():
-                    # UPnP is enabled and an IGD was found.
-                    return True
-                else:
-                    # UPnP is enabled, but no Internet Gateway Device (IGD) is selected
-                    return False
-            else:
-                # No UPnP devices detected on the network.
-                return False
-        except Exception:
-            # A UPnP device was found, but no IGD was found.
-            return False
 
 
 class CloudRotatingFileHandler(RotatingFileHandler):

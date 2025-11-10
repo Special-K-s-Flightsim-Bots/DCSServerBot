@@ -341,5 +341,5 @@ class Olympus(Extension):
         return {
             "Olympus " + self.backend_tag.capitalize(): Port(self.config.get(self.backend_tag, {}).get('port', 4512), PortType.TCP),
             "Olympus " + self.frontend_tag.capitalize(): Port(self.config.get(self.frontend_tag, {}).get('port', 3000), PortType.TCP, public=True),
-            "Olympus WSPort": Port(self.config.get('audio', {}).get('WSPort', 4000), PortType.TCP)
+            "Olympus WSPort": Port(self.config.get('audio', {}).get('WSPort', 4000), PortType.TCP, public=(self.config.get('audio', {}).get('WSEndpoint') is None))
         } if self.enabled else {}
