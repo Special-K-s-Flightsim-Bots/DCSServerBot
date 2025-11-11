@@ -226,8 +226,8 @@ class PunishmentEventListener(EventListener["Punishment"]):
             if player:
                 self.pending_kill[player.ucid] = -1
 
-        # else, we reset it on takeoffs and landings (to avoid punishing ground collisions)
-        elif data['eventName'] in ['S_EVENT_LAND', 'S_EVENT_TAKEOFF']:
+        # else, we reset it on takeoffs (to avoid punishing ground collisions)
+        elif data['eventName'] in ['S_EVENT_TAKEOFF']:
             player = server.get_player(name=data.get('initiator', {}).get('name'))
             if player:
                 self.pending_kill[player.ucid] = -1
@@ -241,7 +241,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             if victim and victim.ucid in self.pending_kill:
                 self.pending_kill[victim.ucid] = int(time.time())
 
-        elif data['eventName'] in ['S_EVENT_CRASH', 'S_EVENT_EJECTION', 'S_EVENT_UNIT_LOST']:
+        elif data['eventName'] in ['S_EVENT_LAND', 'S_EVENT_CRASH', 'S_EVENT_EJECTION', 'S_EVENT_UNIT_LOST']:
             player = server.get_player(name=data.get('initiator', {}).get('name'))
             if player and player.sub_slot == 0:
                 self.pending_kill.pop(player.ucid, None)
