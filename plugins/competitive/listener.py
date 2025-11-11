@@ -528,6 +528,10 @@ class CompetitiveListener(EventListener["Competitive"]):
                 player = server.get_player(ucid=ucid)
                 await player.unlock()
             self.in_match[server.name].clear()
+        else:
+            for player in match.alive.get(match.survivor(), []):
+                await player.unlock()
+                self.in_match[server.name].pop(player.ucid, None)
 
     @event(name="onMatchFinished")
     async def onMatchFinished(self, server: Server, data: dict) -> None:
