@@ -60,9 +60,9 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
     async def _get_flight_hours(self, player: Player) -> int:
         async with self.apool.connection() as conn:
-            cursor = await conn.execute("SELECT SUM(playtime) FROM mv_statistics WHERE player_ucid = %s",
+            cursor = await conn.execute("SELECT COALESCE(SUM(playtime), 0) FROM mv_statistics WHERE player_ucid = %s",
                                         (player.ucid, ))
-            return (await cursor.fetchone())[0] if cursor.rowcount > 0 else 0
+            return (await cursor.fetchone())[0]
 
     async def _get_punishment_points(self, player: Player) -> int:
         async with self.apool.connection() as conn:
