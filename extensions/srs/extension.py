@@ -224,13 +224,15 @@ class SRS(Extension, FileSystemEventHandler):
             return False
         else:
             type(self)._ports[port] = self.server.name
-        export_port = self.config.get('lotatc_export_port', int(self.cfg['General Settings'].get('LOTATC_EXPORT_PORT', '10712')))
-        if type(self)._export_ports.get(export_port, self.server.name) != self.server.name:
-            self.log.error(
-                f"  => {self.server.name}: {self.name} LOTATC_EXPORT_PORT {export_port} already in use by server {type(self)._ports[port]}!")
-            return False
-        else:
-            type(self)._export_ports[export_port] = self.server.name
+        # only check LotAtc Export Port if LotAtc is there
+        if self.config.get('lotatc', False):
+            export_port = self.config.get('lotatc_export_port', int(self.cfg['General Settings'].get('LOTATC_EXPORT_PORT', '10712')))
+            if type(self)._export_ports.get(export_port, self.server.name) != self.server.name:
+                self.log.error(
+                    f"  => {self.server.name}: {self.name} LOTATC_EXPORT_PORT {export_port} already in use by server {type(self)._ports[port]}!")
+                return False
+            else:
+                type(self)._export_ports[export_port] = self.server.name
 
         if self.config.get('autoconnect', True):
             await self.enable_autoconnect()
