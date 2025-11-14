@@ -88,6 +88,7 @@ from time to time, but you as a community member can also create your own plugin
 | Music         | Upload and play music over SRS.                                                                 |   yes    |                                       | [README](./plugins/music/README.md)         |
 | ModManager    | Install or update mods into your DCS server.                                                    |   yes    |                                       | [README](./plugins/modmanager/README.md)    |
 | Pretense      | Commands for Pretense missions.                                                                 |   yes    |                                       | [README](./plugins/pretense/README.md)      |
+| Profiler      | Attaches LUA profilers to DCS (WIP).                                                            |   yes    |                                       | [README](./plugins/profiler/README.md)      |
 | Punishment    | Punish users for team-hits or team-kills.                                                       |   yes    | Mission                               | [README](./plugins/punishment/README.md)    |
 | RealWeather   | Apply real weather to your missions (also available as an extension).                           |   yes    |                                       | [README](./plugins/realweather/README.md)   |
 | RestAPI       | Simple REST-API to query users and statistics (WIP).                                            |   yes    | Userstats, MissionStats               | [README](./plugins/restapi/README.md)       |
@@ -202,9 +203,10 @@ you can now install DCSServerBot without the need to use Discord. Select the res
 installation, and you will install a variant that works without.
 
 > [!NOTE]
-> Please keep in mind that DCSServerBot was originally built for Discord and that there are some functionalities that
-> only work with Discord, like statistics graphs, greenieboards, and others.<br>
-> You can still use a lot without Discord as in-game chat-commands, automated restarts, etc.
+> It's important to note that DCSServerBot was initially designed for integration with Discord, and certain features 
+> only function properly within that platform, such as statistics graphs, greenieboards, and others. 
+> However, many aspects of the bot can still be used without Discord, including in-game chat commands, automated 
+> restarts, etc.
 
 ### Download
 Best is to use ```git clone https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git``` as you then always have 
