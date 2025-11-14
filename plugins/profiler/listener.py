@@ -38,11 +38,9 @@ class ProfilerListener(EventListener["Profiler"]):
 
     @event(name="onSimulationStop")
     async def onSimulationStop(self, server: Server, _: dict) -> None:
-        config = self.get_config(server)
-        if config.get('attach_on_launch'):
-            await server.send_to_dcs({
-                'command': 'stopProfiling'
-            })
+        await server.send_to_dcs({
+            'command': 'stopProfiling'
+        })
 
     @event(name="onProfilingStart")
     async def onProfilingStart(self, server: Server, _: dict) -> None:
