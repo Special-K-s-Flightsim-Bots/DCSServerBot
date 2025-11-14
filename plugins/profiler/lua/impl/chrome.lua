@@ -9,16 +9,22 @@ profiler = true
 
 require("debug")
 
-package.path          = package.path .. ";.\\LuaSocket\\?.lua;"
-package.cpath         = package.cpath .. ";.\\LuaSocket\\?.dll;"
-require ("socket")
+package.path  = package.path .. ";.\\LuaSocket\\?.lua;"
+package.cpath = package.cpath .. ";.\\LuaSocket\\?.dll;"
+require("socket")
 
 local function high_res_clock()
     return math.floor(socket.gettime() * 1e6)
 end
 
 -- Identify internal functions to skip in hooks
-local internal_functions = {}
+local internal_functions    = {}
+local PID                   = 1
+local stackFrames           = {}          -- ID → { name, file, line, parent }
+local nextStackFrameId      = 1
+local frameKeyById          = {}          -- ID → key
+local idByKey               = {}          -- key → ID
+
 
 -- Minimal JSON escaping for strings used in our output
 local function json_escape(s)
@@ -28,6 +34,33 @@ local function json_escape(s)
     return s
 end
 
+-- stack_frames_to_json: serialise the global `stackFrames` table with net.lua2json
+local function stack_frames_to_json()
+    -- Build a plain Lua table that matches the desired JSON structure
+    local frames = {}
+
+    for id, frame in pairs(stackFrames) do
+        -- `id` must be a string key – Chrome expects `"5"`, `"7"`, …
+        local key = tostring(id)
+
+        -- Build the frame object
+        local entry = {
+            name     = frame.name,
+            category = "lua", -- you can change this if you need a different category
+        }
+
+        -- Optional parent field
+        if frame.parent then
+            entry.parent = frame.parent
+        end
+
+        -- Store the frame under its string id
+        frames[key] = entry
+    end
+
+    return net.lua2json(frames)
+end
+
 -- Chrome Trace writer with buffered append and periodic flush
 local Profile = {
     file = (lfs and lfs.writedir and lfs.writedir() or "./") .. "Logs/profile.json",
@@ -35,7 +68,7 @@ local Profile = {
     opened = false,
     event_count = 0,
     last_flush_us = 0,
-    flush_interval_us = 2e6, -- flush every 2 seconds
+    flush_interval_us = 2e6,   -- flush every 2 seconds
     max_buffered_events = 2000 -- flush if many events buffered
 }
 
@@ -86,33 +119,77 @@ end
 function Profile:close()
     if not self.opened then return end
     -- add displayTimeUnit to match microsecond values
-    self.fh:write("],\"displayTimeUnit\":\"ms\"}")
+    self.fh:write("]") -- close the traceEvents array
+    self.fh:write(',"stackFrames":' .. stack_frames_to_json())
+    self.fh:write(',"displayTimeUnit":"ms"}')
     self.fh:flush()
     self.fh:close()
     self.fh = nil
     self.opened = false
 end
 
-local PID        = 1
-local MIN_DUR_US = 1     -- never emit 0
+local function add_frame(name, file, line, parent_id)
+    local key = name .. "|" .. file .. "|" .. line
+    local existing_id = idByKey[key]
+
+    if existing_id then
+        -- Frame already exists – we reuse it.  The caller may still
+        -- want to set a different parent; you can decide whether to
+        -- ignore that or maintain a “most recent parent” policy.
+        return existing_id
+    end
+
+    local id = tostring(nextStackFrameId)
+    nextStackFrameId = nextStackFrameId + 1
+
+    stackFrames[id] = { name = name, file = file, line = line, parent = parent_id, category = "lua" }
+    frameKeyById[id] = key
+    idByKey[key] = id
+
+    return id
+end
+
+local function build_stack_frame_id()
+    local trace = {}
+    for level = 3, 20 do
+        local si = debug.getinfo(level, "nSlfu")
+        if not si then break end
+        table.insert(trace, {
+            name = si.name or "?",
+            file = tostring(si.source or ""),
+            line = si.linedefined or 0,
+            type = "lua"
+        })
+    end
+    local parent_id = nil
+    local leaf_id = nil
+    for i = 1, #trace do
+        local f = trace[i]
+        local id = add_frame(f.name, f.file, f.line, parent_id)
+        parent_id = id
+        leaf_id = id
+    end
+    return leaf_id
+end
 
 -- Build a complete event JSON line for Chrome Trace
-local function make_complete_event(name, ts_us, dur_us, tid, args_tbl, cat)
+local function make_complete_event(name, ts_us, dur_us, tid, args_tbl, sf_id, cat)
     -- clamp / normalise numeric inputs
-    ts_us = math.max(0, math.floor(ts_us or 0))
-    dur_us = math.max(0, math.floor(dur_us or 0))
-    tid    = math.max(1, math.floor(tid  or 1))
+    ts_us       = math.max(0, math.floor(ts_us or 0))
+    dur_us      = math.max(0, math.floor(dur_us or 0))
+    tid         = math.max(1, math.floor(tid or 1))
 
     -- build the event as a plain Lua table
     local event = {
-        name = name or "unknown",        -- string
-        cat  = cat  or "function",       -- string
-        ph   = "X",                      -- phase: completed duration
-        ts   = ts_us,                    -- timestamp (µs)
-        dur  = dur_us,                   -- duration (µs)
-        pid  = PID,                      -- process id (global)
-        tid  = tid,                      -- thread id (aka coroutine id)
-        args = args_tbl or {},           -- optional arguments
+        name = name or "unknown",  -- string
+        cat  = cat or "function",  -- string
+        ph   = "X",                -- phase: completed duration
+        ts   = ts_us,              -- timestamp (µs)
+        dur  = dur_us,             -- duration (µs)
+        pid  = PID,                -- process id (global)
+        tid  = tid,                -- thread id (aka coroutine id)
+        sf   = sf_id,              -- stack frame ID
+        args = args_tbl or {},     -- optional arguments
     }
 
     -- delegate JSON serialization to the helper
@@ -165,7 +242,7 @@ function Instrumentator:create_hook()
         local func = info.func
         if internal_functions[func] then return end
 
---        env.info("### Event Type: " .. event .. ", func: " .. tostring(func) .. ", data: " .. net.lua2json(info))
+        --        env.info("### Event Type: " .. event .. ", func: " .. tostring(func) .. ", data: " .. net.lua2json(info))
 
         local co = (coroutine and coroutine.running and (coroutine.running() or false)) or false
         ensure_tables(self, co, func)
@@ -175,7 +252,6 @@ function Instrumentator:create_hook()
         if event == "call" then
             self.function_stack[co][func][stack_depth] = high_res_clock()
             return
-
         elseif event == "return" then
             if not self.function_stack[co][func] then return end
 
@@ -186,16 +262,18 @@ function Instrumentator:create_hook()
                 local duration = high_res_clock() - start_ts
                 local tid      = get_tid()
 
-                local name = info.name or string.format(id, info.short_src, info.linedefined)
-                local src = tostring(info.source or "")
-                local args = {
+                local name     = info.name or string.format(id, info.short_src, info.linedefined)
+                local src      = tostring(info.source or "")
+                local args     = {
                     source = src,
                     linedefined = tonumber(info.linedefined) or -1,
                     lastlinedefined = tonumber(info.lastlinedefined) or -1,
                     what = tostring(info.what or ""),
                     namewhat = tostring(info.namewhat or "")
                 }
-                local ev = make_complete_event(name, start_ts - self.t0, duration, tid, args, "function")
+                -- get the sf id for the current stack
+                local sf_id    = build_stack_frame_id()
+                local ev       = make_complete_event(name, start_ts - self.t0, duration, tid, args, sf_id, "function")
                 self.profile:write_event(ev)
                 self.function_stack[co][func][depth] = nil
             end
@@ -212,8 +290,8 @@ end
 function Instrumentator:begin_session(file)
     if self.profile then
         error(
-        string.format("Instrumentator:begin_session('%s') while session '%s' is open.", tostring(file or ""),
-            tostring(self.profile.file)), 2)
+            string.format("Instrumentator:begin_session('%s') while session '%s' is open.", tostring(file or ""),
+                tostring(self.profile.file)), 2)
     end
     self.profile = Profile:new(file)
     self.profile:open()
