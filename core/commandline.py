@@ -19,14 +19,14 @@ if not COMMAND_LINE_ARGS:
         parser.add_argument('-n', '--node', help='Node name', default=platform.node())
         parser.add_argument('-x', '--noupdate', action='store_true', help='Do not autoupdate')
         parser.add_argument('-s', '--secret', action='store_true', help='Reveal all stored passwords')
-        parser.add_argument('-r', '--restarted', action='store_true', help='Indicates if the bot was restarted')
+        parser.add_argument('-a', '--restarted', action='store_true', help='Indicates if the bot was restarted')
     elif program == 'update.py':
         parser.add_argument('-n', '--node', help='Node name', default=platform.node())
         parser.add_argument('-r', '--no-restart', action='store_true', default=False,
                             help="don't start DCSServerBot after the update")
         parser.add_argument('-i', '--install', action='store_true', default=False,
                             help='Install requirements.txt only')
-        parser.add_argument('-r', '--restarted', action='store_true', help='Indicates if the bot was restarted')
+        parser.add_argument('-a', '--restarted', action='store_true', help='Indicates if the bot was restarted')
     elif program == 'install.py':
         parser.add_argument('-n', '--node', help='Node name', default=platform.node())
         parser.add_argument('-u', '--user', help='Database username', default='dcsserverbot')
