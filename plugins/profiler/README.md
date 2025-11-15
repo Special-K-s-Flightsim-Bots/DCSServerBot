@@ -24,8 +24,17 @@ DCS.dcsserver_release:
   profiler: chrome        # one of chrome, callgrind
   attach_on_launch: true  # attach the profiler on mission launch (default: true)
 ```
-If the debugger is not attached on mission launch, you need to attach the debugger manually with the below-mentioned
+If the profiler is not attached on mission launch, you can attach the profiler manually with the below-mentioned
 Discord commands.
+
+> [!NOTE]
+> If the profiler is attached on mission start, it only profiles lua calls and does not call a GC before capturing
+> the heap size. 
+> If the profiler is attached manually, lua and C calls will be captured and a GC will be called before the heap size 
+> is captured.
+> Attaching the profiler manually is much more expensive than doing it for the whole mission, but you get much better
+> information out of it.
+> Also, the file sizes will vary dramatically.
 
 ## Discord Commands
 | Command         | Parameter | Channel | Role       | Description                                                   |

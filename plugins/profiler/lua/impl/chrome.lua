@@ -69,10 +69,12 @@ local Profile = {
     event_count = 0,
     last_flush_us = 0,
     flush_interval_us = 2e6,   -- flush every 2 seconds
-    max_buffered_events = 2000 -- flush if many events buffered
+    max_buffered_events = 2000, -- flush if many events buffered
+    force_gc = false,
+    lua_only = true
 }
 
-function Profile:new(file)
+function Profile:new(file, full)
     local obj = {
         file = file or self.file,
         fh = nil,
@@ -80,11 +82,21 @@ function Profile:new(file)
         event_count = 0,
         last_flush_us = 0,
         flush_interval_us = self.flush_interval_us,
-        max_buffered_events = self.max_buffered_events
+        max_buffered_events = self.max_buffered_events,
+        force_gc = full,
+        lua_only = not full
     }
     self.__index = self
     setmetatable(obj, self)
     return obj
+end
+
+function Profile:is_force_gc()
+    return self.get_force_gc
+end
+
+function Profile:is_lua_only()
+    return self.lua_only
 end
 
 function Profile:open()
@@ -232,6 +244,10 @@ function Instrumentator:create_hook()
         local func = info.func
         if internal_functions[func] then return end
 
+        if self.profile:is_lua_only() and info.what ~= 'Lua' then
+            return
+        end
+
         local co = (coroutine and coroutine.running and (coroutine.running() or false)) or false
         ensure_tables(self, co, func)
 
@@ -266,7 +282,7 @@ function Instrumentator:create_hook()
 
             -- we only measure memory consumption of lua
             if info.what == 'Lua' then
-                local mem    = current_mem_bytes(false)
+                local mem    = current_mem_bytes(self.profile:is_force_gc())
                 local mem_ev = {
                     name = "lua_heap",
                     cat  = "memory",
@@ -291,7 +307,7 @@ function Instrumentator:create_hook()
             local args  = {}
 
             if info.what == 'Lua' then
-                local mem_end = current_mem_bytes(false)
+                local mem_end = current_mem_bytes(self.profile:is_force_gc())
 
                 local mem_ev = {
                     name = "lua_heap",
@@ -334,13 +350,13 @@ function Instrumentator:create_hook()
     end
 end
 
-function Instrumentator:begin_session(file)
+function Instrumentator:begin_session(file, full)
     if self.profile then
         error(
             string.format("Instrumentator:begin_session('%s') while session '%s' is open.", tostring(file or ""),
                 tostring(self.profile.file)), 2)
     end
-    self.profile = Profile:new(file)
+    self.profile = Profile:new(file, full)
     self.profile:open()
 
     -- Use "call" and "return" explicitly. Avoid line hooks to keep overhead low.
@@ -373,11 +389,13 @@ internal_functions[get_tid] = true
 internal_functions[ensure_tables] = true
 internal_functions[func_name_from_info] = true
 internal_functions[current_mem_bytes] = true
+internal_functions[start_profiling] = true
+internal_functions[stop_profiling] = true
 internal_functions[net.lua2json] = true
 
-function start_profiling(channel)
+function start_profiling(channel, full)
     local default_output = (lfs and lfs.writedir and lfs.writedir() or "./") .. "Logs/profile.json"
-    pcall(function() Instrumentator:begin_session(default_output) end)
+    pcall(function() Instrumentator:begin_session(default_output, full) end)
     local msg = {
         command = 'onProfilingStart',
         profiler = 'chrome'
