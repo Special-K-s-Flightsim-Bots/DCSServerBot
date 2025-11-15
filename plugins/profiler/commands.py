@@ -18,7 +18,7 @@ class Profiler(Plugin):
         self.profilers: dict[str, str] = {}
 
     # New command group "/profile"
-    profile = Group(name="profile", description=_("Commands to control the profiling mechanism"))
+    profile = Group(name="profiler", description=_("Commands to control the profiling mechanism"))
 
     @profile.command(description=_('Start profiler'))
     @app_commands.guild_only()
@@ -42,12 +42,11 @@ class Profiler(Plugin):
             return
 
         asyncio.create_task(server.send_to_dcs({
-            'command': 'startProfiling'
+            'command': 'startProfiling',
+            'channel': interaction.channel.id
         }))
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(_("Profiling initiated. Check audit channel for details."),
-                                                ephemeral=utils.get_ephemeral(interaction))
-
+        await interaction.response.send_message(_("Starting profiler ..."), ephemeral=utils.get_ephemeral(interaction))
 
     @profile.command(description=_('Stop profiler'))
     @app_commands.guild_only()
@@ -57,11 +56,11 @@ class Profiler(Plugin):
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED])]):
         asyncio.create_task(server.send_to_dcs({
-            'command': 'stopProfiling'
+            'command': 'stopProfiling',
+            'channel': interaction.channel.id
         }))
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(_("Profiling suspended. Check audit channel for details."),
-                                                ephemeral=utils.get_ephemeral(interaction))
+        await interaction.response.send_message(_("Stopping profiler ..."), ephemeral=utils.get_ephemeral(interaction))
 
 
 async def setup(bot):

@@ -28,17 +28,18 @@ If the debugger is not attached on mission launch, you need to attach the debugg
 Discord commands.
 
 ## Discord Commands
-| Command        | Parameter | Channel | Role       | Description                                                   |
-|:---------------|:----------|:-------:|:-----------|:--------------------------------------------------------------|
-| /profile start | profiler  |   all   | DCS Admin  | Loads the respective profiler into the mission and starts it. |
-| /profile stop  |           |   all   | DCS Admin  | Stops the profiler.                                           |
+| Command         | Parameter | Channel | Role       | Description                                                   |
+|:----------------|:----------|:-------:|:-----------|:--------------------------------------------------------------|
+| /profiler start | profiler  |   all   | DCS Admin  | Loads the respective profiler into the mission and starts it. |
+| /profiler stop  |           |   all   | DCS Admin  | Stops the profiler.                                           |
 
 ## Evaluating Results
 
 ### Chrome Profiler
 The chrome profiler generates a file "profile.json" in your Saved Games\<instance>\Logs directory.
-You can load this file either into the Chrome DevTools (CTRL+SHIFT+I in your Chrome browser) Performance Tab or you can
-use other third-party tools to analyze the trace. One option is [speedscope](https://www.speedscope.app/).
+You can load this file either into the Chrome DevTools (CTRL+SHIFT+I in your Chrome browser) Performance tab, 
+or you can use other third-party tools to analyze the trace. 
+Two options are [Perfetto UI](https://ui.perfetto.dev/) or [speedscope](https://www.speedscope.app/).
 
 ### Callgrind
 Callgrind generates a file named callgrind.out. You can load this file into Valgrind or (K)Cachegrind. Both tools are

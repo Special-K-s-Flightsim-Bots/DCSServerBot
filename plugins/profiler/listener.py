@@ -1,8 +1,10 @@
-from core import EventListener, event, Server
+from core import EventListener, event, Server, get_translation
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .commands import Profiler
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class ProfilerListener(EventListener["Profiler"]):
@@ -43,9 +45,13 @@ class ProfilerListener(EventListener["Profiler"]):
         })
 
     @event(name="onProfilingStart")
-    async def onProfilingStart(self, server: Server, _: dict) -> None:
-        await self.bot.audit("Profiling started", server=server)
+    async def onProfilingStart(self, server: Server, data: dict) -> None:
+        channel = self.bot.get_channel(int(data.get('channel', -1)))
+        if channel:
+            await channel.send(_("Profiling started."))
 
     @event(name="onProfilingStop")
-    async def onProfilingStop(self, server: Server, _: dict) -> None:
-        await self.bot.audit("Profiling stopped", server=server)
+    async def onProfilingStop(self, server: Server, data: dict) -> None:
+        channel = self.bot.get_channel(int(data.get('channel', -1)))
+        if channel:
+            await channel.send(_("Profiling stopped."))

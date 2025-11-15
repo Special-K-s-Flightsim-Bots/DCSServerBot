@@ -13,10 +13,6 @@ package.path  = package.path .. ";.\\LuaSocket\\?.lua;"
 package.cpath = package.cpath .. ";.\\LuaSocket\\?.dll;"
 require("socket")
 
-local function high_res_clock()
-    return math.floor(socket.gettime() * 1e6)
-end
-
 -- Identify internal functions to skip in hooks
 local internal_functions    = {}
 local PID                   = 1
@@ -25,6 +21,10 @@ local nextStackFrameId      = 1
 local frameKeyById          = {}          -- ID → key
 local idByKey               = {}          -- key → ID
 
+
+local function high_res_clock()
+    return math.floor(socket.gettime() * 1e6)
+end
 
 -- Minimal JSON escaping for strings used in our output
 local function json_escape(s)
@@ -58,7 +58,7 @@ local function stack_frames_to_json()
         frames[key] = entry
     end
 
-    return net.lua2json(frames)
+    return net.lua2json(frames, 2)
 end
 
 -- Chrome Trace writer with buffered append and periodic flush
@@ -172,34 +172,10 @@ local function build_stack_frame_id()
     return leaf_id
 end
 
--- Build a complete event JSON line for Chrome Trace
-local function make_complete_event(name, ts_us, dur_us, tid, args_tbl, sf_id, cat)
-    -- clamp / normalise numeric inputs
-    ts_us       = math.max(0, math.floor(ts_us or 0))
-    dur_us      = math.max(0, math.floor(dur_us or 0))
-    tid         = math.max(1, math.floor(tid or 1))
-
-    -- build the event as a plain Lua table
-    local event = {
-        name = name or "unknown",  -- string
-        cat  = cat or "function",  -- string
-        ph   = "X",                -- phase: completed duration
-        ts   = ts_us,              -- timestamp (µs)
-        dur  = dur_us,             -- duration (µs)
-        pid  = PID,                -- process id (global)
-        tid  = tid,                -- thread id (aka coroutine id)
-        sf   = sf_id,              -- stack frame ID
-        args = args_tbl or {},     -- optional arguments
-    }
-
-    -- delegate JSON serialization to the helper
-    return net.lua2json(event)
-end
-
 -- Instrumentor with per-coroutine stacks
 local Instrumentator = {
     profile = nil,
-    -- function_stack[co][func] = { [depth] = start_ts_us, ... }
+    -- function_stack[co][func] = { [depth] = memory ... }
     function_stack = setmetatable({}, { __mode = "k" }),
     -- base timestamp to stabilize ts values
     t0 = high_res_clock(),
@@ -235,6 +211,20 @@ local function ensure_tables(self, co, func)
     end
 end
 
+local function current_mem_bytes(force_gc)
+    if force_gc then collectgarbage("collect") end
+    local kb = collectgarbage("count")
+    return math.floor(kb * 1024)
+end
+
+local function func_name_from_info(info)
+    local name = info.name
+    if name and #name > 0 then return name end
+    local src = info.short_src or info.source or "?"
+    local line = info.linedefined or 0
+    return string.format("%s:%d", src, line)
+end
+
 function Instrumentator:create_hook()
     return function(event, _line)
         local info = debug.getinfo(2, "nSlfu")
@@ -242,47 +232,104 @@ function Instrumentator:create_hook()
         local func = info.func
         if internal_functions[func] then return end
 
-        --        env.info("### Event Type: " .. event .. ", func: " .. tostring(func) .. ", data: " .. net.lua2json(info))
-
         local co = (coroutine and coroutine.running and (coroutine.running() or false)) or false
         ensure_tables(self, co, func)
 
         local _, stack_depth = debug.traceback():gsub("\n", "\n")
 
         if event == "call" then
-            self.function_stack[co][func][stack_depth] = high_res_clock()
-            return
-        elseif event == "return" then
-            if not self.function_stack[co][func] then return end
+            local name     = func_name_from_info(info)
+            local src      = tostring(info.source or "")
+            local tid      = get_tid()
+            local ts       = high_res_clock()
+            local sf_id    = build_stack_frame_id()
 
-            local function _write(id, depth)
-                local start_ts = self.function_stack[co][func][depth]
-                if not start_ts then return end
+            local args     = {
+                source = src,
+                linedefined = tonumber(info.linedefined) or -1,
+                lastlinedefined = tonumber(info.lastlinedefined) or -1,
+                what = tostring(info.what or ""),
+                namewhat = tostring(info.namewhat or "")
+            }
 
-                local duration = high_res_clock() - start_ts
-                local tid      = get_tid()
+            local ev = {
+                name = name,
+                cat  = "function",
+                ph   = "B",                 -- phase: begin of function
+                ts   = ts,                  -- timestamp (µs)
+                pid  = PID,                 -- process id (global)
+                tid  = tid,                 -- thread id (aka coroutine id)
+                sf   = sf_id,               -- stack frame ID
+                args = args                 -- arguments
+            }
+            self.profile:write_event(net.lua2json(ev, 2))
 
-                local name     = info.name or string.format(id, info.short_src, info.linedefined)
-                local src      = tostring(info.source or "")
-                local args     = {
-                    source = src,
-                    linedefined = tonumber(info.linedefined) or -1,
-                    lastlinedefined = tonumber(info.lastlinedefined) or -1,
-                    what = tostring(info.what or ""),
-                    namewhat = tostring(info.namewhat or "")
+            -- we only measure memory consumption of lua
+            if info.what == 'Lua' then
+                local mem    = current_mem_bytes(false)
+                local mem_ev = {
+                    name = "lua_heap",
+                    cat  = "memory",
+                    ph   = "C",                 -- counter
+                    ts   = ts,                  -- timestamp (µs)
+                    pid  = PID,                 -- process id (global)
+                    tid  = tid,                 -- thread id (aka coroutine id)
+                    args = {
+                        memory = mem            -- heapsize at that point
+                    }
                 }
-                -- get the sf id for the current stack
-                local sf_id    = build_stack_frame_id()
-                local ev       = make_complete_event(name, start_ts - self.t0, duration, tid, args, sf_id, "function")
-                self.profile:write_event(ev)
-                self.function_stack[co][func][depth] = nil
+                self.profile:write_event(net.lua2json(mem_ev, 2))
+                self.function_stack[co][func][stack_depth] = mem
             end
 
-            _write("unknown", stack_depth)
+            return
 
-            if next(self.function_stack[co][func]) == nil then
-                self.function_stack[co][func] = nil
+        elseif event == "return" then
+            local name  = func_name_from_info(info)
+            local tid   = get_tid()
+            local ts    = high_res_clock()
+            local args  = {}
+
+            if info.what == 'Lua' then
+                local mem_end = current_mem_bytes(false)
+
+                local mem_ev = {
+                    name = "lua_heap",
+                    cat  = "memory",
+                    ph   = "C",                -- counter
+                    ts   = ts,                 -- timestamp (µs)
+                    pid  = PID,                -- process id (global)
+                    tid  = tid,                -- thread id (aka coroutine id)
+                    args = {
+                        memory = mem_end
+                    }
+                }
+                self.profile:write_event(net.lua2json(mem_ev, 2))
+                mem_start = self.function_stack[co][func][depth]
+
+                if mem_start then
+                    args = {
+                        mem_start = mem_start,
+                        mem_end = mem_end,
+                        mem_delta = mem_start - mem_end
+                    }
+                    self.function_stack[co][func][depth] = nil
+                    if next(self.function_stack[co][func]) == nil then
+                        self.function_stack[co][func] = nil
+                    end
+                end
             end
+
+            local ev = {
+                name = name,
+                cat  = "function",
+                ph   = "E",                -- phase: end of function
+                ts   = ts,                 -- timestamp (µs)
+                pid  = PID,                -- process id (global)
+                tid  = tid,                -- thread id (aka coroutine id)
+                args = args
+            }
+            self.profile:write_event(net.lua2json(ev, 2))
         end
     end
 end
@@ -321,27 +368,29 @@ internal_functions[collect_function] = true
 collect_function(Instrumentator, internal_functions)
 collect_function(Profile, internal_functions)
 internal_functions[json_escape] = true
-internal_functions[make_complete_event] = true
 internal_functions[high_res_clock] = true
 internal_functions[get_tid] = true
 internal_functions[ensure_tables] = true
+internal_functions[func_name_from_info] = true
+internal_functions[current_mem_bytes] = true
+internal_functions[net.lua2json] = true
 
-function start_profiling()
+function start_profiling(channel)
     local default_output = (lfs and lfs.writedir and lfs.writedir() or "./") .. "Logs/profile.json"
     pcall(function() Instrumentator:begin_session(default_output) end)
     local msg = {
         command = 'onProfilingStart',
         profiler = 'chrome'
     }
-    dcsbot.sendBotTable(msg)
+    dcsbot.sendBotTable(msg, channel)
 end
 
-function stop_profiling()
+function stop_profiling(channel)
     -- safe if called multiple times
     pcall(function() Instrumentator:end_session() end)
     local msg = {
         command = 'onProfilingStop',
         profiler = 'chrome'
     }
-    dcsbot.sendBotTable(msg)
+    dcsbot.sendBotTable(msg, channel)
 end

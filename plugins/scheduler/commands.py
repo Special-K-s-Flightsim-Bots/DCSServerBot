@@ -800,40 +800,49 @@ class Scheduler(Plugin[SchedulerListener]):
             else:
                 embed.description += f"\n- Starting without a mission ..."
             await msg.edit(embed=embed)
-            task = asyncio.create_task(self.launch_dcs(server, interaction.user, modify_mission=run_extensions,
-                                                       use_orig=use_orig))
-            # wait until the server is loading
-            await server.wait_for_status_change(status=[Status.LOADING], timeout=180)
-            embed.description += f"\n- Loading ..."
-            embed.set_thumbnail(url=TRAFFIC_LIGHTS['amber'])
-            await msg.edit(embed=embed)
-            # wait for the startup
-            await task
-            if maintenance:
-                embed = utils.create_warning_embed(
-                    title=f"DCS server \"{server.display_name}\" started.",
-                    text="Server is in maintenance mode!\n"
-                         "Use {} to reset maintenance mode.".format(
-                        (await utils.get_command(self.bot, group='scheduler', name='clear')).mention
-                    )
-                )
-                await msg.edit(embed=embed)
-            else:
-                if maintenance is False and server.maintenance:
-                    server.maintenance = False
-                    embed.description += f"\n- Maintenance flag cleared."
-                embed.description += f"\n- Server started successfully."
-                embed.set_thumbnail(url=TRAFFIC_LIGHTS['green'])
-                await msg.edit(embed=embed)
-        except (TimeoutError, asyncio.TimeoutError):
-            if server.status == Status.SHUTDOWN:
-                embed.description += f"\n- The server crashed during startup. Check the dcs.log."
-                embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
-                await msg.edit(embed=embed)
-            else:
-                embed.description += f"\n- Timeout while launching. Please check if the server has started properly."
-                embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
-                await msg.edit(embed=embed)
+            for i in range(1, 4):
+                try:
+                    task = asyncio.create_task(self.launch_dcs(server, interaction.user, modify_mission=run_extensions,
+                                                               use_orig=use_orig))
+                    # wait until the server is loading
+                    await server.wait_for_status_change(status=[Status.LOADING], timeout=180)
+                    embed.description += f"\n- Launching ..."
+                    embed.set_thumbnail(url=TRAFFIC_LIGHTS['amber'])
+                    await msg.edit(embed=embed)
+                    # wait for the startup
+                    await task
+                    if maintenance:
+                        embed = utils.create_warning_embed(
+                            title=f"DCS server \"{server.display_name}\" started.",
+                            text="Server is in maintenance mode!\n"
+                                 "Use {} to reset maintenance mode.".format(
+                                (await utils.get_command(self.bot, group='scheduler', name='clear')).mention
+                            )
+                        )
+                        await msg.edit(embed=embed)
+                    else:
+                        if maintenance is False and server.maintenance:
+                            server.maintenance = False
+                            embed.description += f"\n- Maintenance flag cleared."
+                        embed.description += f"\n- Server started successfully."
+                        embed.set_thumbnail(url=TRAFFIC_LIGHTS['green'])
+                        await msg.edit(embed=embed)
+                    break
+                except (TimeoutError, asyncio.TimeoutError):
+                    if server.status == Status.SHUTDOWN:
+                        if i < 4:
+                            embed.description += f"\n- The server crashed during startup. Trying again ({i}/3) ..."
+                            embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
+                            await msg.edit(embed=embed)
+                        else:
+                            embed.description += f"\n- The server is crashing during startup. Check the dcs.log for errors."
+                            embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
+                            await msg.edit(embed=embed)
+                    else:
+                        embed.description += f"\n- Timeout while launching. Please check if the server has started properly."
+                        embed.set_thumbnail(url=TRAFFIC_LIGHTS['yellow'])
+                        await msg.edit(embed=embed)
+                        break
         except Exception as ex:
             self.log.exception(ex)
             embed.description += f"\n- Something went wrong. Please check the dcssb*.log."

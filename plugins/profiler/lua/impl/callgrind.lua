@@ -231,21 +231,21 @@ internal_functions[trace] = true
 internal_functions[start] = true
 internal_functions[done] = true
 
-function start_profiling()
+function start_profiling(channel)
     start()
     local msg = {
         command = 'onProfilingStart',
         profiler = 'callgrind'
     }
-    dcsbot.sendBotTable(msg)
+    dcsbot.sendBotTable(msg, channel)
 end
 
-function stop_profiling()
+function stop_profiling(channel)
     -- safe if called multiple times
     done()
     local msg = {
         command = 'onProfilingStop',
         profiler = 'callgrind'
     }
-    dcsbot.sendBotTable(msg)
+    dcsbot.sendBotTable(msg, channel)
 end
