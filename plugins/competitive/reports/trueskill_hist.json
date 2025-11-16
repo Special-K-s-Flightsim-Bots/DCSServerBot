@@ -1,0 +1,30 @@
+{
+  "color": "blue",
+  "title": "Trueskill History for {name}",
+  "elements":
+  [
+    {
+      "type": "SQLTable",
+      "params": {
+        "sql": "SELECT ROUND(skill_mu, 2) AS \"TrueSkill μ\", ROUND(skill_sigma, 2) AS \"TrueSkill σ\" FROM trueskill WHERE player_ucid = '{ucid}'"
+      }
+    },
+    {
+      "type": "Graph",
+      "params":
+      {
+        "width": 25,
+        "height": 10,
+        "rows": 1,
+        "cols": 1,
+        "elements":
+         [
+            {
+              "class": "plugins.competitive.reports.History",
+              "params": { "row": 0, "col": 0 }
+            }
+         ]
+      }
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS trueskill (player_ucid TEXT PRIMARY KEY, skill_mu NUMERIC NOT NULL, skill_sigma NUMERIC NOT NULL, time TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC'));
+ALTER TABLE trueskill ADD COLUMN IF NOT EXISTS time TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC');
 CREATE TABLE IF NOT EXISTS trueskill_hist (player_ucid TEXT, skill_mu NUMERIC NOT NULL, skill_sigma NUMERIC NOT NULL, time TIMESTAMP, PRIMARY KEY (player_ucid, time));
 CREATE OR REPLACE FUNCTION trueskill_hist_change()
 RETURNS trigger

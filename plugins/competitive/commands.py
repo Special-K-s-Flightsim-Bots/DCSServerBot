@@ -4,7 +4,7 @@ import itertools
 import math
 import psycopg
 
-from core import Plugin, utils, get_translation, Node, Group
+from core import Plugin, utils, get_translation, Node, Group, Report
 from discord import app_commands
 from plugins.competitive import rating
 from psycopg.rows import dict_row
@@ -189,6 +189,42 @@ class Competitive(Plugin[CompetitiveListener]):
                 rating=self.calculate_rating(r)), ephemeral=True)
         else:
             await self._trueskill_player(interaction, user)
+
+    @trueskill.command(description=_('Display TrueSkill:tm: history'))
+    @utils.app_has_role('DCS')
+    @app_commands.guild_only()
+    async def history(self, interaction: discord.Interaction,
+                      user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None):
+        if not user:
+            user = interaction.user
+
+        if isinstance(user, discord.Member):
+            ucid = await self.bot.get_ucid_by_member(user)
+            if not ucid:
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(_("User {} is not linked.").format(user.display_name),
+                                                        ephemeral=True)
+                return
+            name = user.display_name
+        else:
+            ucid = user
+            member = await self.bot.get_member_or_name_by_ucid(ucid)
+            if isinstance(member, discord.Member):
+                name = member.display_name
+            else:
+                name = member
+
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        report = Report(self.bot, self.plugin_name, 'trueskill_hist.json')
+        env = await report.render(ucid=ucid, name=name)
+        try:
+            file = discord.File(fp=env.buffer, filename=env.filename)
+            await interaction.followup.send(embed=env.embed, file=file, ephemeral=ephemeral)
+        finally:
+            if env.buffer:
+                env.buffer.close()
 
     @trueskill.command(description=_('Delete TrueSkill:tm: ratings'))
     @utils.app_has_role('DCS Admin')
