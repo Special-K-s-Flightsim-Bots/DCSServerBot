@@ -6,7 +6,7 @@
     {
       "type": "SQLTable",
       "params": {
-        "sql": "SELECT ROUND(skill_mu, 2) AS \"TrueSkill μ\", ROUND(skill_sigma, 2) AS \"TrueSkill σ\" FROM trueskill WHERE player_ucid = '{ucid}'"
+        "sql": "SELECT ROUND(skill_mu - 3 * skill_sigma, 2) AS \"Trueskill\", ROUND(skill_mu, 2) AS \"TrueSkill μ\", ROUND(skill_sigma, 2) AS \"TrueSkill σ\" FROM trueskill WHERE player_ucid = '{ucid}'"
       }
     },
     {
