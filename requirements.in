@@ -11,7 +11,7 @@ audioop-lts==0.2.2 ; python_version >= "3.13"
 aiohttp==3.13.2
 
 # Certifi: Python package for providing Mozilla's CA Bundle
-certifi>=2025.8.3
+certifi==2025.11.12
 
 # Python 3.14 compatibility
 contourpy==1.3.3 ; python_version >= "3.11"
@@ -27,7 +27,7 @@ discord.py==2.6.4
 eyeD3==0.9.8
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.121.0
+fastapi==0.121.2
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -55,7 +55,7 @@ minidump==0.0.24; sys_platform == 'win32'
 
 # NumPy: Package for scientific computing with Python
 numpy==2.3.4 ; python_version >= "3.11"
-numpy>=2.2.6 ; python_version < "3.11"
+numpy==2.2.6 ; python_version < "3.11"
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
 openpyxl>=3.1.5
@@ -70,7 +70,7 @@ packaging==25.0
 pid==3.0.4
 
 # PIP Tools
-pip-tools>=7.5.0
+pip-tools==7.5.2
 
 # Psycopg: PostgreSQL database adapter for Python
 psycopg[binary]==3.2.12
