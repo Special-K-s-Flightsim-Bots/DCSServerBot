@@ -9,7 +9,7 @@ end
 
 function dcsbot.startProfiling(json)
     log.write('DCSServerBot', log.DEBUG, 'Profiler: startProfiling()')
-    if json.channel then
+    if json.verbose then
         net.dostring_in('mission', 'a_do_script("start_profiling(\\"' .. json.channel .. '\\", true)")')
     else
         net.dostring_in('mission', 'a_do_script("start_profiling(\\"-1\\", false)")')

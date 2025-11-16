@@ -26,7 +26,9 @@ class Profiler(Plugin):
     @utils.app_has_roles(['DCS Admin'])
     async def start(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
-                         status=[Status.RUNNING, Status.PAUSED])], profiler: Literal['Chrome', 'Callgrind']):
+                         status=[Status.RUNNING, Status.PAUSED])],
+                    profiler: Literal['Chrome', 'Callgrind'] | None = 'Chrome',
+                    verbose: bool | None = False):
         p = self.profilers.get(server.name)
         if not p:
             await server.send_to_dcs({
@@ -43,7 +45,8 @@ class Profiler(Plugin):
 
         asyncio.create_task(server.send_to_dcs({
             'command': 'startProfiling',
-            'channel': interaction.channel.id
+            'channel': interaction.channel.id,
+            'verbose': verbose
         }))
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Starting profiler ..."), ephemeral=utils.get_ephemeral(interaction))

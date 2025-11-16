@@ -23,6 +23,7 @@ The plugin itself is configured with a file named config/plugins/profiler.yaml. 
 DCS.dcsserver_release:
   profiler: chrome        # one of chrome, callgrind
   attach_on_launch: true  # attach the profiler on mission launch (default: true)
+  verbose: true           # Enable verbose profiling (default: false). This will slow down even more! 
 ```
 If the profiler is not attached on mission launch, you can attach the profiler manually with the below-mentioned
 Discord commands.
@@ -37,10 +38,10 @@ Discord commands.
 > Also, the file sizes will vary dramatically.
 
 ## Discord Commands
-| Command         | Parameter | Channel | Role       | Description                                                   |
-|:----------------|:----------|:-------:|:-----------|:--------------------------------------------------------------|
-| /profiler start | profiler  |   all   | DCS Admin  | Loads the respective profiler into the mission and starts it. |
-| /profiler stop  |           |   all   | DCS Admin  | Stops the profiler.                                           |
+| Command         | Parameter                | Channel | Role       | Description                                                                     |
+|:----------------|:-------------------------|:-------:|:-----------|:--------------------------------------------------------------------------------|
+| /profiler start | \[profiler\] \[verbose\] |   all   | DCS Admin  | Loads the respective profiler into the mission (default: Chrome) and starts it. |
+| /profiler stop  |                          |   all   | DCS Admin  | Stops the profiler.                                                             |
 
 ## Evaluating Results
 

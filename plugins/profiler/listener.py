@@ -35,7 +35,8 @@ class ProfilerListener(EventListener["Profiler"]):
         config = self.get_config(server)
         if config.get('attach_on_launch'):
             await server.send_to_dcs({
-                'command': 'startProfiling'
+                'command': 'startProfiling',
+                'verbose': config.get('verbose', False)
             })
 
     @event(name="onSimulationStop")

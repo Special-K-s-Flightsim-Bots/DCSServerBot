@@ -25,6 +25,8 @@ local methods = {}
 local method_id = 1
 local call_indent = 0
 
+local full = false      -- profile Lua only
+
 -- Identify internal functions to skip in hooks
 local internal_functions = {}
 
@@ -55,6 +57,10 @@ local function trace(class)
         -- add the function info to the stack
         --
         local f = debug.getinfo(2, "lSfn")
+
+        if internal_functions[f.func] then return end
+        if not full and f.what ~= 'Lua' then return end
+
         callstack[#callstack + 1] = {
             short_src   = f.short_src,
             func        = f.func,
@@ -83,6 +89,10 @@ local function trace(class)
             local ret = table.remove(callstack)
 
             local f = debug.getinfo(2, "lSfn")
+
+            if internal_functions[f.func] then return end
+            if not full and f.what ~= 'Lua' then return end
+
             -- if lua wants to return from a pcall() after a assert(),
             -- error() or runtime-error we have to cleanup our stack
             if ret.func ~= f.func then
@@ -98,7 +108,6 @@ local function trace(class)
                 ret = table.remove(callstack)
                 call_indent = call_indent - 1
             end
-
 
             local prev
 
@@ -128,9 +137,13 @@ local function trace(class)
     end
 end
 
-local function start()
-    -- set up the debug hook
-    debug.sethook(trace, "crl", 1)
+local function start(f)
+    full = f
+    if not full then
+        debug.sethook(trace, "cr")
+    else
+        debug.sethook(trace, "crl", 1)
+    end
 end
 
 local function done()
@@ -227,12 +240,8 @@ local function done()
     tracefile:close()
 end
 
-internal_functions[trace] = true
-internal_functions[start] = true
-internal_functions[done] = true
-
-function start_profiling(channel)
-    start()
+function start_profiling(channel, f)
+    start(f)
     local msg = {
         command = 'onProfilingStart',
         profiler = 'callgrind'
@@ -249,3 +258,9 @@ function stop_profiling(channel)
     }
     dcsbot.sendBotTable(msg, channel)
 end
+
+internal_functions[trace] = true
+internal_functions[start] = true
+internal_functions[done] = true
+internal_functions[start_profiling] = true
+internal_functions[stop_profiling] = true

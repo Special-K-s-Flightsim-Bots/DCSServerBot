@@ -239,7 +239,7 @@ end
 
 function Instrumentator:create_hook()
     return function(event, _line)
-        local info = debug.getinfo(2, "nSlfu")
+        local info = debug.getinfo(2, "nSlf")
         if not info then return end
         local func = info.func
         if internal_functions[func] then return end
@@ -380,19 +380,6 @@ local function collect_function(from, into)
     end
 end
 
-internal_functions[collect_function] = true
-collect_function(Instrumentator, internal_functions)
-collect_function(Profile, internal_functions)
-internal_functions[json_escape] = true
-internal_functions[high_res_clock] = true
-internal_functions[get_tid] = true
-internal_functions[ensure_tables] = true
-internal_functions[func_name_from_info] = true
-internal_functions[current_mem_bytes] = true
-internal_functions[start_profiling] = true
-internal_functions[stop_profiling] = true
-internal_functions[net.lua2json] = true
-
 function start_profiling(channel, full)
     local default_output = (lfs and lfs.writedir and lfs.writedir() or "./") .. "Logs/profile.json"
     pcall(function() Instrumentator:begin_session(default_output, full) end)
@@ -412,3 +399,16 @@ function stop_profiling(channel)
     }
     dcsbot.sendBotTable(msg, channel)
 end
+
+internal_functions[collect_function] = true
+collect_function(Instrumentator, internal_functions)
+collect_function(Profile, internal_functions)
+internal_functions[json_escape] = true
+internal_functions[high_res_clock] = true
+internal_functions[get_tid] = true
+internal_functions[ensure_tables] = true
+internal_functions[func_name_from_info] = true
+internal_functions[current_mem_bytes] = true
+internal_functions[start_profiling] = true
+internal_functions[stop_profiling] = true
+internal_functions[net.lua2json] = true
