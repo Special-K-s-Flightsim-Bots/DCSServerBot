@@ -186,7 +186,10 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def nemesis(self, interaction: discord.Interaction,
-                      user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None):
+                      user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None,
+                      period: app_commands.Transform[
+                                  StatisticsFilter,
+                                  PeriodTransformer(flt=[MissionStatisticsFilter])] | None = MissionStatisticsFilter()):
         if not user:
             user = interaction.user
         if isinstance(user, str):
@@ -202,14 +205,18 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'nemesis.json')
-        env = await report.render(ucid=ucid, member_name=name)
+        env = await report.render(ucid=ucid, member_name=name, flt=period)
         await interaction.followup.send(embed=env.embed, ephemeral=True)
 
     @command(description=_("Find who you've killed the most"))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def antagonist(self, interaction: discord.Interaction,
-                         user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None):
+                         user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None,
+                         period: app_commands.Transform[
+                                     StatisticsFilter,
+                                     PeriodTransformer(
+                                         flt=[MissionStatisticsFilter])] | None = MissionStatisticsFilter()):
         if not user:
             user = interaction.user
         if isinstance(user, str):
@@ -225,7 +232,7 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'antagonist.json')
-        env = await report.render(ucid=ucid, member_name=name)
+        env = await report.render(ucid=ucid, member_name=name, flt=period)
         await interaction.followup.send(embed=env.embed, ephemeral=True)
 
     @command(description=_('Event History'))

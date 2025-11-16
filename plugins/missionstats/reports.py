@@ -231,3 +231,96 @@ class Refuelings(report.EmbedElement):
             self.add_field(name=_('Refuelings'), value='\n'.join(numbers))
         else:
             self.add_field(name=_('No refuelings found for this user.'), value='_ _')
+
+
+class Nemesis(report.EmbedElement):
+    async def render(self, ucid: str, flt: StatisticsFilter) -> None:
+        inner = flt.filter(self.env.bot)
+        sql = f"""
+            WITH nemesis_kills AS (
+                SELECT
+                    target_id AS nemesis_id,
+                    COUNT(*) AS "Times killed Nemesis"
+                FROM missionstats
+                WHERE init_id   = %(ucid)s
+                  AND target_id != %(ucid)s
+                  AND event     = 'S_EVENT_KILL'
+                  AND {inner}
+                GROUP BY target_id
+            )
+            SELECT
+                p.name AS "Nemesis name",
+                COUNT(*) AS "Times killed by Nemesis",
+                COALESCE(nk."Times killed Nemesis", 0) AS "Times killed Nemesis"
+            FROM missionstats ms
+            JOIN players p
+                ON p.ucid = ms.init_id
+            LEFT JOIN nemesis_kills nk
+                ON nk.nemesis_id = ms.init_id
+            WHERE ms.target_id = %(ucid)s
+              AND ms.init_id  != '-1'
+              AND ms.init_id  != %(ucid)s
+              AND ms.event    = 'S_EVENT_KILL'
+              AND {inner}
+            GROUP BY ms.init_id, p.name, nk."Times killed Nemesis"
+            ORDER BY "Times killed by Nemesis" DESC
+            LIMIT 1;
+        """
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, {"ucid": ucid})
+                if cursor.rowcount == 0:
+                    if flt.period and flt.period != 'all':
+                        self.embed.description = "You have not been killed by anybody in this period."
+                    else:
+                        self.embed.description = "You have not been killed by anybody yet."
+                    return
+                row = await cursor.fetchone()
+                for k,v in row.items():
+                    self.embed.add_field(name=k, value=v)
+
+class Antagonist(report.EmbedElement):
+    async def render(self, ucid: str, flt: StatisticsFilter) -> None:
+        inner = flt.filter(self.env.bot)
+        sql = f"""
+            WITH they_killed_you AS (
+                SELECT
+                    init_id AS killer_id,
+                    COUNT(*) AS "Times they have killed you"
+                FROM missionstats
+                WHERE target_id = %(ucid)s
+                  AND init_id  != %(ucid)s
+                  AND event    = 'S_EVENT_KILL'
+                  AND {inner}
+               GROUP BY init_id
+            )
+            SELECT
+                p.name AS "You are the Nemesis of",
+                COUNT(*) AS "Times you killed them",
+                COALESCE(tky."Times they have killed you", 0) AS "Times they have killed you"
+            FROM missionstats ms
+            JOIN players p
+                ON p.ucid = ms.target_id
+            LEFT JOIN they_killed_you tky
+                ON tky.killer_id = ms.target_id
+            WHERE ms.init_id   = %(ucid)s
+              AND ms.target_id != '-1'
+              AND ms.target_id != %(ucid)s
+              AND ms.event     = 'S_EVENT_KILL'
+              AND {inner}
+            GROUP BY ms.target_id, p.name, tky."Times they have killed you"
+            ORDER BY "Times you killed them" DESC
+            LIMIT 5;
+        """
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, {"ucid": ucid})
+                if cursor.rowcount == 0:
+                    if flt.period and flt.period != 'all':
+                        self.embed.description = "You have not killed anybody in this period."
+                    else:
+                        self.embed.description = "You have not killed anybody yet."
+                    return
+                row = await cursor.fetchone()
+                for k,v in row.items():
+                    self.embed.add_field(name=k, value=v)

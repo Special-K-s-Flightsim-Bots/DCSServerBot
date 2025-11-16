@@ -10,11 +10,7 @@
       }
     },
     {
-      "type": "SQLTable",
-      "params":  {
-		"sql": "SELECT p.name as \"You are the Nemesis of\", COUNT(*) as \"Times you killed them\", (SELECT COUNT(*) FROM missionstats WHERE init_id = MS.target_id AND target_id = %(ucid)s AND init_id != %(ucid)s AND event = 'S_EVENT_KILL') as \"Times they have killed you\" FROM missionstats MS INNER JOIN players p ON p.ucid = MS.target_id WHERE MS.init_id = %(ucid)s AND MS.target_id != '-1' AND MS.target_id != %(ucid)s AND MS.event = 'S_EVENT_KILL' GROUP BY MS.target_id, p.name ORDER BY \"Times you killed them\" DESC LIMIT 5",
-        "no_data": "You have not killed anybody yet."
-		}
+      "class": "plugins.missionstats.reports.Antagonist"
     }
   ]
 }
