@@ -5,6 +5,7 @@ import discord
 import inspect
 import numpy as np
 import os
+import pandas as pd
 import re
 import sys
 import traceback
@@ -16,6 +17,7 @@ from core import utils
 from datetime import timedelta, datetime
 from discord import ButtonStyle, Interaction
 from io import BytesIO
+from matplotlib.axes import Axes
 from matplotlib import pyplot as plt
 from psycopg.rows import dict_row
 from typing import Any, TYPE_CHECKING
@@ -32,6 +34,7 @@ if TYPE_CHECKING:
 warnings.filterwarnings('ignore', category=UserWarning, module='matplotlib')
 
 __all__ = [
+    "df_to_table",
     "ReportElement",
     "EmbedElement",
     "Image",
@@ -66,6 +69,36 @@ def get_supported_fonts() -> set[str]:
                         lang = match.group(1)
                         _languages.add(lang)
     return _languages
+
+
+def df_to_table(ax: Axes, df: pd.DataFrame, *, col_labels: list[str] = None, fontsize: int | None = 10) -> Axes:
+    df = df.copy()
+    for col in df.select_dtypes(include='timedelta64[ns]').columns:
+        df[col] = df[col].dt.total_seconds().apply(utils.convert_time)
+
+    ax.axis('off')
+    ax.set_frame_on(False)
+    table = ax.table(
+        cellText=df.values,
+        colLabels=df.columns if col_labels is None else col_labels,
+        cellLoc='center',
+        loc='upper left',
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(fontsize)
+    for i in range(len(df.columns)):
+        table.auto_set_column_width(i)
+    table.scale(1, 1.5)
+    for (row, col), cell in table.get_celld().items():
+        if row == 0:  # header row
+            cell.set_facecolor('#4c9f44')  # dark green
+            cell.set_text_props(weight='bold', color='white')
+        else:
+            # alternate row colors for readability
+            bg = '#e8f5e9' if row % 2 else '#ffffff'
+            cell.set_facecolor(bg)
+            cell.set_text_props(color='black')
+    return ax
 
 
 class ReportElement(ABC):
@@ -232,9 +265,17 @@ class Graph(ReportElement):
 
     def _plot(self):
         plt.subplots_adjust(wspace=self.wspace, hspace=self.hspace)
-        self.env.filename = f'{uuid.uuid4()}.png'
+
+        # ask the renderer for the tight bounding box (in pixels)
+        renderer = self.env.figure.canvas.get_renderer()
+        tight_bbox = self.env.figure.get_tightbbox(renderer)
+
+        # convert that pixel‑bbox to inches and resize the figure
+        fig_w, fig_h = tight_bbox.width, tight_bbox.height
+        self.env.figure.set_size_inches(fig_w, fig_h, forward=True)
 
         # Save with adjusted dimensions while maintaining aspect ratio
+        self.env.filename = f'{uuid.uuid4()}.png'
         self.env.buffer = BytesIO()
         self.env.figure.savefig(
             self.env.buffer,
@@ -243,10 +284,6 @@ class Graph(ReportElement):
             dpi=self.dpi
         )
         self.env.buffer.seek(0)
-
-    async def _async_plot(self):
-        async with self.plot_lock:
-            self._plot()
 
     async def render(self, **kwargs):
         plt.style.use('dark_background')
@@ -296,7 +333,8 @@ class Graph(ReportElement):
 
             # only render the graph if we don't have a rendered graph already attached as a file (image)
             if not self.env.filename:
-                await self._async_plot()
+                async with self.plot_lock:
+                    await asyncio.to_thread(self._plot)
             self.env.embed.set_image(url='attachment://' + os.path.basename(self.env.filename))
             footer = self.env.embed.footer.text or ''
             if footer is None:

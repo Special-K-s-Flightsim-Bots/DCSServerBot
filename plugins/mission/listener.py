@@ -1022,7 +1022,7 @@ class MissionEventListener(EventListener["Mission"]):
         player.verified = True
         async with self.apool.connection() as conn:
             async with conn.transaction():
-                # now check, if there was an old validated mapping for this discord_id (meaning the UCID has changed)
+                # now check if there was an old validated mapping for this discord_id (meaning the UCID has changed)
                 cursor = await conn.execute("SELECT ucid FROM players WHERE discord_id = %s and ucid != %s",
                                             (discord_id, player.ucid))
                 row = await cursor.fetchone()

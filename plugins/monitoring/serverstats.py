@@ -536,7 +536,7 @@ class UsersPerMissionTime(report.GraphElement):
 
         # Merge data with all possible hours (left join) and fill missing user counts with 0
         merged_df = pd.merge(all_hours, df, on='time', how='left')
-        merged_df['users'] = merged_df['users'].fillna(0)
+        merged_df['users'] = merged_df['users'].astype(float).fillna(0)
 
         # Step 4: Create the bar plot
         barplot = sns.barplot(x='time', y='users', data=merged_df, ax=self.axes, color='dodgerblue')

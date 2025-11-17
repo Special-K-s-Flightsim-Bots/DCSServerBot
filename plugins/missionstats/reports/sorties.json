@@ -4,7 +4,22 @@
   "elements":
   [
     {
-      "class": "plugins.missionstats.reports.Sorties"
+      "type": "Graph",
+      "params": {
+        "width": 1,
+        "height": 1,
+        "rows": 1,
+        "cols": 1,
+        "elements": [
+          {
+            "class": "plugins.missionstats.reports.Sorties",
+            "params": {
+              "row": 0,
+              "col": 0
+            }
+          }
+        ]
+      }
     }
   ]
 }

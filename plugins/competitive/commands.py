@@ -97,6 +97,7 @@ class Competitive(Plugin[CompetitiveListener]):
 
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
         await conn.execute('UPDATE trueskill SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
+        await conn.execute('UPDATE trueskill_hist SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
     async def _trueskill_player(self, interaction: discord.Interaction, user: discord.Member | str) -> None:
         if not user:

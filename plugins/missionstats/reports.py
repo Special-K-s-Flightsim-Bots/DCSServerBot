@@ -1,6 +1,7 @@
+import numpy as np
 import pandas as pd
 
-from core import report, ReportEnv, utils, Side, Coalition, get_translation
+from core import report, ReportEnv, utils, Side, Coalition, get_translation, df_to_table
 from dataclasses import dataclass
 from datetime import datetime
 from plugins.userstats.filter import StatisticsFilter
@@ -14,29 +15,37 @@ class Flight:
     start: datetime = None
     end: datetime = None
     plane: str = None
+    death: bool = False
 
 
-class Sorties(report.EmbedElement):
+class Sorties(report.GraphElement):
 
-    def __init__(self, env: ReportEnv) -> None:
-        super().__init__(env)
-        self.sorties = pd.DataFrame(columns=['plane', 'time'])
+    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int | None = 0, col: int | None = 0,
+                 colspan: int | None = 1, rowspan: int | None = 1, polar: bool | None = False):
+        super().__init__(env, rows, cols, row, col, colspan, rowspan, polar)
+        self.sorties = pd.DataFrame(columns=['plane', 'time', 'death'])
 
     def add_flight(self, flight: Flight) -> Flight:
         if flight.start and flight.end and flight.plane:
-            self.sorties.loc[len(self.sorties.index)] = [flight.plane, flight.end - flight.start]
+            self.sorties.loc[len(self.sorties.index)] = [flight.plane, flight.end - flight.start, flight.death]
         return Flight()
 
     async def render(self, ucid: str, flt: StatisticsFilter) -> None:
-        sql = """
+        sql = f"""
             SELECT mission_id, init_type, init_cat, event, place, time 
             FROM missionstats s
-            WHERE event IN ('S_EVENT_BIRTH', 'S_EVENT_TAKEOFF', 'S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 
-                            'S_EVENT_PLAYER_LEAVE_UNIT')
+            WHERE event IN (
+                'S_EVENT_BIRTH', 
+                'S_EVENT_TAKEOFF', 
+                'S_EVENT_LAND', 
+                'S_EVENT_UNIT_LOST', 
+                'S_EVENT_PLAYER_LEAVE_UNIT'
+            )
+            AND {flt.filter(self.env.bot)}
+            AND init_id = %s 
+            ORDER BY id
         """
         self.env.embed.title = flt.format(self.env.bot) + self.env.embed.title
-        sql += ' AND ' + flt.filter(self.env.bot)
-        sql += ' AND init_id = %s ORDER BY 6'
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -66,24 +75,39 @@ class Sorties(report.EmbedElement):
                             flight.start = row['time']
                     elif row['event'] in ['S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT']:
                         flight.end = row['time']
+                        if row['event'] == 'S_EVENT_UNIT_LOST':
+                            flight.death = True
                         flight = self.add_flight(flight)
                 df = self.sorties.groupby('plane').agg(
-                    count=('time', 'size'), total_time=('time', 'sum')).sort_values(by=['total_time'],
-                                                                                    ascending=False).reset_index()
-                planes = sorties = times = ''
-                for index, row in df.iterrows():
-                    planes += row['plane'] + '\n'
-                    sorties += str(row['count']) + '\n'
-                    times += utils.convert_time(row['total_time'].total_seconds()) + '\n'
-                if len(planes) == 0:
-                    self.add_field(name=_('No sorties found for this player.'), value='_ _')
-                else:
-                    self.add_field(name=_('Module'), value=planes)
-                    self.add_field(name=_('Sorties'), value=sorties)
-                    self.add_field(name=_('Total Flighttime'), value=times)
-                    self.embed.set_footer(
-                        text=_('Flighttime is the time you were airborne from takeoff to landing / leave or\n'
-                               'airspawn to landing / leave.'))
+                    count=('time', 'size'), total_time=('time', 'sum'), avg_time=('time', 'mean')
+                ).sort_values(by=['total_time'], ascending=False).reset_index()
+                if df.empty:
+                    self.axes.axis('off')
+                    self.axes.text(0.5, 0.5, _('No sorties found for this player.'), ha='center', va='center',
+                                   rotation=45, size=15, transform=self.axes.transAxes)
+                    return
+
+                # Sum the time of those flights per plane
+                survival_sum = self.sorties.groupby('plane')['time'].sum()
+
+                # Count how many deaths exist per plane
+                death_counts = self.sorties[self.sorties.death == True].groupby('plane').size()
+                interval_counts = death_counts - 1  # pairs = deaths‑1
+                interval_counts[interval_counts < 0] = np.nan  # protect against 0 deaths
+
+                # Average survival time
+                avg_survival = survival_sum / interval_counts
+
+                # Merge into the original dataframe
+                df = df.merge(avg_survival.rename('avg_survival'), on='plane', how='left')
+
+                self.axes = df_to_table(
+                    self.axes, df[['plane', 'count', 'total_time', 'avg_time', 'avg_survival']],
+                    col_labels=['Plane', 'Sorties', 'Total Flighttime', 'Avg. Flighttime', 'Avg. Survivaltime']
+                )
+                self.env.embed.set_footer(
+                    text=_('Flighttime is the time you were airborne from takeoff to landing / leave or\n'
+                           'airspawn to landing / leave.'))
 
 
 class MissionStats(report.EmbedElement):
@@ -214,15 +238,21 @@ class ModuleStats2(report.EmbedElement):
 
 class Refuelings(report.EmbedElement):
     async def render(self, ucid: str, flt: StatisticsFilter) -> None:
-        sql = "SELECT init_type, COUNT(*) FROM missionstats WHERE EVENT = 'S_EVENT_REFUELING_STOP'"
+        sql = f"""
+              SELECT init_type, COUNT(*) 
+              FROM missionstats 
+              WHERE EVENT = 'S_EVENT_REFUELING_STOP'
+              AND {flt.filter(self.env.bot)}
+              AND init_id = %s 
+              GROUP BY 1 
+              ORDER BY 2 DESC
+        """
         self.env.embed.title = flt.format(self.env.bot) + self.env.embed.title
-        sql += ' AND ' + flt.filter(self.env.bot)
-        sql += ' AND init_id = %s GROUP BY 1 ORDER BY 2 DESC'
 
         modules = []
         numbers = []
         async with self.apool.connection() as conn:
-            cursor = await conn.execute(sql, (ucid, ))
+            cursor = await conn.execute(sql, (ucid,))
             async for row in cursor:
                 modules.append(row[0])
                 numbers.append(str(row[1]))
