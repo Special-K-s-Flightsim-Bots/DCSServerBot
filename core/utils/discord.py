@@ -1070,7 +1070,7 @@ class InstanceTransformer(app_commands.Transformer):
                     if instance not in node.instances
                 ]
             else:
-                instances = [node.instances.keys()]
+                instances = list(node.instances.keys())
             return [
                 app_commands.Choice(name=x, value=x)
                 for x in instances
