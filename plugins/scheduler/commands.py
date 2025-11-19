@@ -948,12 +948,14 @@ class Scheduler(Plugin[SchedulerListener]):
             embed.description += f"\n- Timeout while shutting down. Please check if the server has shut down properly."
             embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
             await msg.edit(embed=embed)
+            raise
         except Exception as ex:
             self.log.exception(ex)
             embed.description += f"\n- Something went wrong. Please check the dcssb*.log."
             embed.description += f"\nException: {str(ex)}"
             embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
             await msg.edit(embed=embed)
+            raise
 
     @group.command(description='Shuts a DCS server down')
     @utils.app_has_role('DCS Admin')
@@ -1000,8 +1002,11 @@ class Scheduler(Plugin[SchedulerListener]):
         embed = discord.Embed(title=f"Shutting down DCS Server \"{server.display_name}\"",
                               color=discord.Color.blue())
         embed.description = ""
-        await self._shutdown(interaction, embed=embed, server=server, maintenance=maintenance, force=force,
-                             ephemeral=ephemeral)
+        try:
+            await self._shutdown(interaction, embed=embed, server=server, maintenance=maintenance, force=force,
+                                 ephemeral=ephemeral)
+        except Exception as ex:
+            self.log.error(ex)
 
     @group.command(description='Restarts a DCS server')
     @utils.app_has_role('DCS Admin')
@@ -1060,9 +1065,12 @@ class Scheduler(Plugin[SchedulerListener]):
                 message = _("!!! Server will restart NOW !!!")
                 await server.sendPopupMessage(Coalition.ALL, message)
 
-        await self._shutdown(interaction, embed=embed, server=server, msg=msg, maintenance=None, force=force)
-        await self._startup(interaction, embed=embed, server=server, msg=msg, maintenance=None,
-                            run_extensions=run_extensions, use_orig=use_orig, mission_id=mission_id)
+        try:
+            await self._shutdown(interaction, embed=embed, server=server, msg=msg, maintenance=None, force=force)
+            await self._startup(interaction, embed=embed, server=server, msg=msg, maintenance=None,
+                                run_extensions=run_extensions, use_orig=use_orig, mission_id=mission_id)
+        except Exception as ex:
+            self.log.error(ex)
 
         if server.maintenance != maintenance:
             server.maintenance = maintenance
