@@ -34,7 +34,7 @@ end
 
 dcsbot.sendBotTable = dcsbot.sendBotTable or function (tbl, channel)
 	tbl.server_name = cfg.name
-	tbl.channel = channel or "-1"
+	tbl.channel = tostring(channel or "-1")
 	socket.try(dcsbot.UDPSendSocket:sendto(net.lua2json(tbl), config.BOT_HOST, config.BOT_PORT))
 end
 

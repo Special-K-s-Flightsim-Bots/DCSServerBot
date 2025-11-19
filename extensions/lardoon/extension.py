@@ -4,7 +4,7 @@ import os
 import psutil
 import subprocess
 
-from core import Extension, Server, utils, get_translation, PortType, Port
+from core import Extension, Server, utils, get_translation, PortType, Port, ThreadSafeDict
 from discord.ext import tasks
 from threading import Thread
 from typing_extensions import override
@@ -21,7 +21,7 @@ __all__ = [
 class Lardoon(Extension):
     _process: psutil.Process | None = None
     _servers: set[str] = set()
-    _tacview_dirs: dict[str, set[str]] = {}
+    _tacview_dirs: dict[str, set[str]] = ThreadSafeDict()
     _lock = asyncio.Lock()
 
     CONFIG_DICT = {

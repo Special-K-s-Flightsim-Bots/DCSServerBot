@@ -395,7 +395,7 @@ def check_roles(roles: Iterable[str | int], member: discord.Member | None = None
     :param member: The discord.Member object to check roles for. Defaults to None.
     :return: A boolean value indicating whether the member has any of the specified roles. Returns False if member is None.
     """
-    if not member:
+    if not member or not isinstance(member, discord.Member):
         return False
     for role in member.roles:
         for valid_role in roles:

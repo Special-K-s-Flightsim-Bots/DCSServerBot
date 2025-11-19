@@ -33,7 +33,7 @@ function sendBotTable(tbl, channel)
 		server_name = loadSettingsRaw().name
 	end
 	tbl.server_name = server_name
-	tbl.channel = channel or "-1"
+	tbl.channel = tostring(channel or "-1")
 	socket.try(UDPSendSocket:sendto(net.lua2json(tbl), config.BOT_HOST, config.BOT_PORT))
 end
 
