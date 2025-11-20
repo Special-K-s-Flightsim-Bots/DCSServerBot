@@ -24,10 +24,10 @@ croniter==6.0.0
 discord.py==2.6.4
 
 # eyeD3: Python module and program for processing ID3 tags (metadata) in MP3 files
-eyeD3==0.9.8
+eyeD3==0.9.9
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.121.2
+fastapi==0.121.3
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -107,7 +107,7 @@ rich==14.2.0
 
 # ruamel-yaml: YAML parser/emitter supporting roundtrip comment preservation
 ruamel.yaml==0.18.16
-ruamel-yaml-clib==0.2.14 ; python_version < "3.14"
+ruamel-yaml-clib==0.2.15
 
 # seaborn: Extension for Matplotlib with more and nicer graphics
 seaborn==0.13.2
