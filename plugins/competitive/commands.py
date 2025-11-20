@@ -13,6 +13,7 @@ from services.bot import DCSServerBot
 from trueskill import Rating, BETA, global_env
 
 from .listener import CompetitiveListener
+from ..userstats.filter import MissionStatisticsFilter, PeriodTransformer, StatisticsFilter
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -215,7 +216,11 @@ class Competitive(Plugin[CompetitiveListener]):
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
     async def history(self, interaction: discord.Interaction,
-                      user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None):
+                      user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None,
+                      period: app_commands.Transform[
+                                  StatisticsFilter,
+                                  PeriodTransformer(flt=[MissionStatisticsFilter])
+                              ] | None = MissionStatisticsFilter()):
         if not user:
             user = interaction.user
 
@@ -239,7 +244,7 @@ class Competitive(Plugin[CompetitiveListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         report = Report(self.bot, self.plugin_name, 'trueskill_hist.json')
-        env = await report.render(ucid=ucid, name=name)
+        env = await report.render(ucid=ucid, name=name, flt=period)
         try:
             file = discord.File(fp=env.buffer, filename=env.filename)
             await interaction.followup.send(embed=env.embed, file=file, ephemeral=ephemeral)

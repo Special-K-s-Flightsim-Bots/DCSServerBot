@@ -89,8 +89,9 @@ class MatchLog(report.EmbedElement):
 
 class History(report.GraphElement):
 
-    async def render(self, ucid: str, name: str):
-        query = """
+    async def render(self, ucid: str, name: str, flt: StatisticsFilter):
+        self.env.embed.title = flt.format(self.bot) + ' ' + self.env.embed.title
+        query = f"""
                 SELECT time, skill_mu, skill_sigma FROM (
                     SELECT time, skill_mu, skill_sigma
                     FROM trueskill
@@ -100,7 +101,8 @@ class History(report.GraphElement):
                     FROM trueskill_hist
                     WHERE player_ucid = %(ucid)s
                 ) x
-                ORDER BY x.time DESC
+                WHERE {flt.filter(self.bot)}
+                ORDER BY time DESC
                 """
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -114,7 +116,6 @@ class History(report.GraphElement):
                            transform=self.axes.transAxes)
             return
 
-        # ---------- 3️⃣  Plot ----------
         sns.set_theme(style="whitegrid")
 
         # μ line
