@@ -89,6 +89,8 @@ DEFAULT:
     - cron: '0 4 * * 1'                 # shut the server down once a week on Monday
       action:
         type: halt                      # reboot the server each monday night at 03:00
+        params:
+          maintenance: false            # Optional: reset any maintenance flag to false
 ```
 
 d) cmd

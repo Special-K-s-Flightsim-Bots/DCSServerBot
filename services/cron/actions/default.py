@@ -48,26 +48,30 @@ async def restart(node: Node, server: Server | None = None, shutdown: bool | Non
     elif reboot:
         bus = ServiceRegistry.get(ServiceBus)
         for server in [x for x in bus.servers.values() if x.status not in [Status.SHUTDOWN, Status.UNREGISTERED]]:
-            if not server.is_remote:
-                await bus.send_to_node({"command": "onShutdown", "server_name": server.name})
-                await asyncio.sleep(1)
-                await server.shutdown()
-                if maintenance is not None:
-                    server.maintenance = maintenance
+            if server.is_remote:
+                continue
+            await bus.send_to_node({"command": "onShutdown", "server_name": server.name})
+            await asyncio.sleep(1)
+            await server.shutdown()
+            if maintenance is not None:
+                server.maintenance = maintenance
         atexit.register(_reboot)
         await node.shutdown()
 
 
-async def halt(node: Node):
+async def halt(node: Node, maintenance: bool | None = None):
     def _halt():
         os.system("shutdown /s /t 1")
 
     bus = ServiceRegistry.get(ServiceBus)
     for server in [x for x in bus.servers.values() if x.status not in [Status.SHUTDOWN, Status.UNREGISTERED]]:
-        if not server.is_remote:
-            await bus.send_to_node({"command": "onShutdown", "server_name": server.name})
-            await asyncio.sleep(1)
-            await server.shutdown()
+        if server.is_remote:
+            continue
+        await bus.send_to_node({"command": "onShutdown", "server_name": server.name})
+        await asyncio.sleep(1)
+        await server.shutdown()
+        if maintenance is not None:
+            server.maintenance = maintenance
     atexit.register(_halt)
     await node.shutdown()
 
