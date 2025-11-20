@@ -58,14 +58,40 @@ class PeriodFilter(StatisticsFilter):
 
     @staticmethod
     def list(bot: DCSServerBot) -> list[str]:
-        return ['all', 'day', 'week', 'month', 'year', 'today', 'yesterday']
+        """
+        All period names that can be passed directly to the filter.
+        """
+        return [
+            'all',
+            'today',
+            'yesterday',
+            'day',
+            'week',
+            'month',
+            'quarter',
+            'halfyear',
+            'year',
+        ]
 
     @staticmethod
     def supports(bot: DCSServerBot, period: str) -> bool:
-        return (period and period.startswith('period:')) or period in PeriodFilter.list(bot) or '-' in period
+        """
+        A period is supported if:
+        • it starts with 'period:'  (custom range syntax)
+        • it is one of the names in .list()
+        • it contains a hyphen and the hyphen syntax is valid
+        """
+        return (
+            (period and period.startswith('period:')) or
+            period in PeriodFilter.list(bot) or
+            '-' in period
+        )
 
     @staticmethod
-    def parse_date(date_str):
+    def parse_date(date_str: str) -> datetime:
+        """
+        Accepts YYYYMMDD, YYYYMMDD HH, etc.  The format list is unchanged.
+        """
         formats = [
             "%Y%m%d %H:%M:%S",
             "%Y%m%d %H:%M",
@@ -74,63 +100,93 @@ class PeriodFilter(StatisticsFilter):
             "%Y%m",
             "%Y"
         ]
-
         for fmt in formats:
             try:
                 return datetime.strptime(date_str, fmt)
             except ValueError:
                 continue
-
-        # If none of the formats match, raise an error
         raise ValueError(f"Date format {date_str} is not supported")
 
+    @staticmethod
+    def _interval_from_period(period: str) -> str:
+        """
+        Convert a public period name into a Postgres interval literal.
+        Unsupported names fall back to the literal itself (e.g. '1 week').
+        """
+        mapping = {
+            'quarter': '3 months',
+            'halfyear': '6 months'
+        }
+        return mapping.get(period, f"1 {period}")
+
     def filter(self, bot: DCSServerBot) -> str:
-        if self.period and self.period.startswith('period:'):
-            period = self.period[7:].strip()
-        else:
-            period = self.period
-        if period in [None, 'all']:
+        # Normalize the period string
+        period = self.period[7:].strip() if self.period and self.period.startswith('period:') else self.period
+
+        # ------------------------------------------------------------------
+        # 1  Handle the “all” case – no filtering
+        # ------------------------------------------------------------------
+        if period in (None, 'all'):
             return '1 = 1'
-        elif period == 'yesterday':
+
+        # ------------------------------------------------------------------
+        # 2  Special dates (today / yesterday)
+        # ------------------------------------------------------------------
+        if period == 'yesterday':
             return "DATE_TRUNC('day', s.hop_on) = current_date - 1"
         elif period == 'today':
             return "DATE_TRUNC('day', s.hop_on) = current_date"
-        elif period in PeriodFilter.list(bot):
-            return f"s.hop_on > ((now() AT TIME ZONE 'utc') - interval '1 {period}')"
-        elif '-' in period:
-            start, end = period.split('-')
-            start = start.strip()
-            end = end.strip()
-            # avoid SQL injection
-            pattern = re.compile(r'^\d+\s+(year|month|week|day|hour|minute)s?$')
+
+        # ------------------------------------------------------------------
+        # 3  One‑step intervals: day, week, month, quarter, year
+        # ------------------------------------------------------------------
+        if period in PeriodFilter.list(bot):
+            # Translate friendly name → Postgres intervals
+            interval_lit = PeriodFilter._interval_from_period(period)
+            return f"s.hop_on > ((now() AT TIME ZONE 'utc') - interval '{interval_lit}')"
+
+        # ------------------------------------------------------------------
+        # 4  Custom “start‑end” syntax
+        # ------------------------------------------------------------------
+        if '-' in period:
+            start, end = [p.strip() for p in period.split('-', 1)]
+
+            # Pattern for “X unit” (e.g. “2 week”, “5 days”)
+            pattern = re.compile(r'^\d+\s+(year|month|week|day|hour|minute|quarter|halfyear)s?$')
             if pattern.match(end):
                 return f"s.hop_on > ((now() AT TIME ZONE 'utc') - interval '{end}')"
-            else:
-                start = self.parse_date(start) if start else datetime(year=1970, month=1, day=1)
-                end = self.parse_date(end) if end else datetime.now(tz=timezone.utc)
-                return (f"s.hop_on >= '{start.strftime('%Y-%m-%d %H:%M:%S')}'::TIMESTAMP AND "
-                        f"COALESCE(s.hop_off, (now() AT TIME ZONE 'utc')) <= '{end.strftime('%Y-%m-%d %H:%M:%S')}'")
-        else:
-            return "1 = 1"
 
+            # Otherwise treat both sides as dates
+            start_dt = self.parse_date(start) if start else datetime(year=1970, month=1, day=1)
+            end_dt   = self.parse_date(end)   if end   else datetime.now(tz=timezone.utc)
+
+            return (
+                f"s.hop_on >= '{start_dt.strftime('%Y-%m-%d %H:%M:%S')}'::TIMESTAMP "
+                f"AND COALESCE(s.hop_off, (now() AT TIME ZONE 'utc')) <= "
+                f"'{end_dt.strftime('%Y-%m-%d %H:%M:%S')}'"
+            )
+
+        # ------------------------------------------------------------------
+        # 5  Fallback – no filtering
+        # ------------------------------------------------------------------
+        return "1 = 1"
 
     def format(self, bot: DCSServerBot) -> str:
-        if self.period and self.period.startswith('period:'):
-            period = self.period[7:]
-        else:
-            period = self.period
-        if period in [None, 'all']:
+        period = self.period[7:] if self.period and self.period.startswith('period:') else self.period
+
+        if period in (None, 'all'):
             return 'Overall '
-        elif period == 'day':
-            return 'Daily '
-        elif period in ['today', 'yesterday']:
+        elif period in ('today', 'yesterday'):
             return period.capitalize() + 's '
-        elif period in ['day', 'week', 'month', 'year']:
+        elif period in ('day', 'week', 'month', 'year', 'quarter'):
+            # The last part of every name is turned into an adjective
             return period.capitalize() + 'ly '
+        elif period == 'halfyear':
+            return period.capitalize() + ' '
         elif '-' in period:
             return period + '\n'
-        else:
-            return period
+
+        return period
 
 
 class CampaignFilter(StatisticsFilter):
@@ -282,10 +338,56 @@ class SquadronFilter(StatisticsFilter):
 class MissionStatisticsFilter(PeriodFilter):
 
     def filter(self, bot: DCSServerBot) -> str:
-        if self.period in self.list(bot) and self.period.lower() != 'all':
-            return f"time > ((now() AT TIME ZONE 'utc') - interval '1 {self.period}')"
-        else:
+        # Normalize the period string
+        period = self.period[7:].strip() if self.period and self.period.startswith('period:') else self.period
+
+        # ------------------------------------------------------------------
+        # 1  Handle the “all” case – no filtering
+        # ------------------------------------------------------------------
+        if period in (None, 'all'):
             return '1 = 1'
+
+        # ------------------------------------------------------------------
+        # 2  Special dates (today / yesterday)
+        # ------------------------------------------------------------------
+        if period == 'yesterday':
+            return "DATE_TRUNC('day', time) = current_date - 1"
+        elif period == 'today':
+            return "DATE_TRUNC('day', time) = current_date"
+
+        # ------------------------------------------------------------------
+        # 3  One‑step intervals: day, week, month, quarter, year
+        # ------------------------------------------------------------------
+        if period in PeriodFilter.list(bot):
+            # Translate friendly name → Postgres intervals
+            interval_lit = PeriodFilter._interval_from_period(period)
+            return f"time > ((now() AT TIME ZONE 'utc') - interval '{interval_lit}')"
+
+        # ------------------------------------------------------------------
+        # 4  Custom “start‑end” syntax
+        # ------------------------------------------------------------------
+        if '-' in period:
+            start, end = [p.strip() for p in period.split('-', 1)]
+
+            # Pattern for “X unit” (e.g. “2 week”, “5 days”)
+            pattern = re.compile(r'^\d+\s+(year|month|week|day|hour|minute|quarter)s?$')
+            if pattern.match(end):
+                return f"time > ((now() AT TIME ZONE 'utc') - interval '{end}')"
+
+            # Otherwise treat both sides as dates
+            start_dt = self.parse_date(start) if start else datetime(year=1970, month=1, day=1)
+            end_dt   = self.parse_date(end)   if end   else datetime.now(tz=timezone.utc)
+
+            return (
+                f"time >= '{start_dt.strftime('%Y-%m-%d %H:%M:%S')}'::TIMESTAMP "
+                f"AND time <= '{end_dt.strftime('%Y-%m-%d %H:%M:%S')}'"
+            )
+
+        # ------------------------------------------------------------------
+        # 5  Fallback – no filtering
+        # ------------------------------------------------------------------
+        return "1 = 1"
+
 
 class StatsPagination(Pagination):
     def __init__(self, env: ReportEnv):

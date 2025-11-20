@@ -90,7 +90,7 @@ class MatchLog(report.EmbedElement):
 class History(report.GraphElement):
 
     async def render(self, ucid: str, name: str, flt: StatisticsFilter):
-        self.env.embed.title = flt.format(self.bot) + ' ' + self.env.embed.title
+        self.env.embed.title = flt.format(self.bot) + self.env.embed.title
         query = f"""
                 SELECT time, skill_mu, skill_sigma FROM (
                     SELECT time, skill_mu, skill_sigma
