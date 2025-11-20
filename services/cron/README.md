@@ -78,6 +78,7 @@ DEFAULT:
           rotate: true                  # Optional: rotate to the next mission
           shutdown: true                # Optional: shutdown the DCS server
           reboot: true                  # Optional: reboot the PC (shutdown /r)
+          maintenance: false            # Optional: reset any maintenance flag to false
 ```
 
 c) halt
