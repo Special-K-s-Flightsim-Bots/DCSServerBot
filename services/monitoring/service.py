@@ -350,27 +350,29 @@ class MonitoringService(Service):
             total, free = utils.get_drive_space(drive)
             warn_pct = config['warn'] / 100
             alert_pct = config['alert'] / 100
-            if (free < total * warn_pct) and not self.space_warning_sent[drive]:
-                message = config['message'].format(
-                    drive=drive,
-                    pct=config['warn'],
-                    bytes_free=self.convert_bytes(free),
-                    bytes_total=self.convert_bytes(total)
-                )
-                self.log.warning(message)
-                await self.node.audit(message)
-                self.space_warning_sent[drive] = True
-            if (free < total * alert_pct) and not self.space_alert_sent[drive]:
-                message = config['message'].format(
-                    drive=drive,
-                    pct=config['alert'],
-                    bytes_free=self.convert_bytes(free),
-                    bytes_total=self.convert_bytes(total)
-                )
-                self.log.error(message)
-                await self.send_alert(title=f"Your DCS drive on node {self.node.name} is running out of space!",
-                                      message=message)
-                self.space_alert_sent[drive] = True
+            if free < total * alert_pct:
+                if not self.space_alert_sent[drive]:
+                    message = config['message'].format(
+                        drive=drive,
+                        pct=config['alert'],
+                        bytes_free=self.convert_bytes(free),
+                        bytes_total=self.convert_bytes(total)
+                    )
+                    self.log.error(message)
+                    await self.send_alert(title=f"Your DCS drive on node {self.node.name} is running out of space!",
+                                          message=message)
+                    self.space_alert_sent[drive] = True
+            elif free < total * warn_pct:
+                if not self.space_warning_sent[drive]:
+                    message = config['message'].format(
+                        drive=drive,
+                        pct=config['warn'],
+                        bytes_free=self.convert_bytes(free),
+                        bytes_total=self.convert_bytes(total)
+                    )
+                    self.log.warning(message)
+                    await self.node.audit(message)
+                    self.space_warning_sent[drive] = True
 
     @tasks.loop(minutes=1.0)
     async def monitoring(self):

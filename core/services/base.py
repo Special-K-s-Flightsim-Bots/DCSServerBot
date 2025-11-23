@@ -42,7 +42,7 @@ def proxy(_func: Callable[..., Any] | None = None, *, timeout: float = 60):
     async def my_fancy_method(self, server: Server, *args, **kwargs) -> Any:
         ...
 
-    This will call my_fancy_method on the remote node, if the server is remote, and on the local node, if it is not.
+    This will call my_fancy_method on the remote node if the server is remote, and on the local node, if it is not.
     """
     def decorator(original_function: Callable[..., Any]):
         @wraps(original_function)

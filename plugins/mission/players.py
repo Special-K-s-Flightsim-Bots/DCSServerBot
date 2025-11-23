@@ -1,4 +1,6 @@
 from core import report, Server, Side, Coalition
+from plugins.srs.commands import SRS
+from typing import cast
 
 
 class Main(report.EmbedElement):
@@ -10,12 +12,13 @@ class Main(report.EmbedElement):
             Side.RED: {"names": [], "units": [], "SRS": []},
             Side.NEUTRAL: {"names": [], "units": [], "SRS": []}
         }
-        srs_plugin = self.bot.cogs.get('SRS', None)
+        srs_plugin = cast(SRS, self.bot.cogs.get('SRS', None))
         if srs_plugin:
             srs_users = srs_plugin.eventlistener.srs_users.get(server.name, {})
         else:
             srs_users = {}
-        for player in players:
+        players_sorted = sorted(players, key=lambda p: p.display_name)
+        for player in players_sorted:
             sides[player.side]['names'].append(player.display_name)
             if player.side != Side.SPECTATOR:
                 unit = player.unit_type

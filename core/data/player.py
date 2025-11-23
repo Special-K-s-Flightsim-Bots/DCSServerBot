@@ -59,49 +59,50 @@ class Player(DataObject):
         lock_time = self.server.locals.get('coalitions', {}).get('lock_time', '1 day')
         with self.pool.connection() as conn:
             with conn.transaction():
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute(f"""
-                        SELECT DISTINCT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
-                               p.manual, c.coalition, 
-                               CASE WHEN w.player_ucid IS NOT NULL THEN TRUE ELSE FALSE END AS watchlict, p.vip 
-                        FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
-                        LEFT OUTER JOIN coalitions c 
-                             ON p.ucid = c.player_ucid 
-                             AND c.server_name = %s 
-                             AND c.coalition_join > (NOW() AT TIME ZONE 'UTC' - interval '{lock_time}')
-                        LEFT OUTER JOIN watchlist w ON p.ucid = w.player_ucid
-                        WHERE p.ucid = %s 
-                        AND COALESCE(b.banned_until, (now() AT TIME ZONE 'utc')) >= (now() AT TIME ZONE 'utc')
-                    """, (self.server.name, self.ucid))
-                    # existing member found?
-                    if cursor.rowcount == 1:
-                        row = cursor.fetchone()
-                        self._member = self.bot.get_member_by_ucid(self.ucid)
-                        if self._member:
-                            # special handling for discord-less bots
-                            if isinstance(self._member, discord.Member):
-                                self._verified = row[2]
-                            else:
-                                self._verified = True
-                        self.banned = row[1]
-                        if row[3]:
-                            self.coalition = Coalition(row[3])
-                        self._watchlist = row[4]
-                        self._vip = row[5]
-                    else:
-                        rules = self.server.locals.get('rules')
-                        if rules:
-                            cursor.execute("""
-                                INSERT INTO messages (sender, player_ucid, message, ack) 
-                                VALUES (%s, %s, %s, %s)
-                            """, (self.server.locals.get('server_user', 'Admin'), self.ucid, rules,
-                                  self.server.locals.get('accept_rules_on_join', False)))
+                # add new players to the database
+                conn.execute("""
+                    INSERT INTO players (ucid, discord_id, name, last_seen) 
+                    VALUES (%s, -1, %s, (now() AT TIME ZONE 'utc')) 
+                    ON CONFLICT (ucid) DO UPDATE SET name=excluded.name, last_seen=excluded.last_seen
+                    """, (self.ucid, self.name))
+                # get the player information
+                cursor = conn.execute(f"""
+                    SELECT DISTINCT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
+                           p.manual, c.coalition, 
+                           CASE WHEN w.player_ucid IS NOT NULL THEN TRUE ELSE FALSE END AS watchlict, p.vip 
+                    FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
+                    LEFT OUTER JOIN coalitions c 
+                         ON p.ucid = c.player_ucid 
+                         AND c.server_name = %s 
+                         AND c.coalition_join > (NOW() AT TIME ZONE 'UTC' - interval '{lock_time}')
+                    LEFT OUTER JOIN watchlist w ON p.ucid = w.player_ucid
+                    WHERE p.ucid = %s 
+                    AND COALESCE(b.banned_until, (now() AT TIME ZONE 'utc')) >= (now() AT TIME ZONE 'utc')
+                """, (self.server.name, self.ucid))
+                # existing member found?
+                if cursor.rowcount == 1:
+                    row = cursor.fetchone()
+                    self._member = self.bot.get_member_by_ucid(self.ucid)
+                    if self._member:
+                        # special handling for discord-less bots
+                        if isinstance(self._member, discord.Member):
+                            self._verified = row[2]
+                        else:
+                            self._verified = True
+                    self.banned = row[1]
+                    if row[3]:
+                        self.coalition = Coalition(row[3])
+                    self._watchlist = row[4]
+                    self._vip = row[5]
+                else:
+                    rules = self.server.locals.get('rules')
+                    if rules:
+                        cursor.execute("""
+                            INSERT INTO messages (sender, player_ucid, message, ack) 
+                            VALUES (%s, %s, %s, %s)
+                        """, (self.server.locals.get('server_user', 'Admin'), self.ucid, rules,
+                              self.server.locals.get('accept_rules_on_join', False)))
 
-                    cursor.execute("""
-                        INSERT INTO players (ucid, discord_id, name, last_seen) 
-                        VALUES (%s, -1, %s, (now() AT TIME ZONE 'utc')) 
-                        ON CONFLICT (ucid) DO UPDATE SET name=excluded.name, last_seen=excluded.last_seen
-                        """, (self.ucid, self.name))
         # if automatch is enabled, try to match the user
         if not self.member and self.bot.locals.get('automatch', False):
             discord_user = self.bot.match_user({"ucid": self.ucid, "name": self.name})
