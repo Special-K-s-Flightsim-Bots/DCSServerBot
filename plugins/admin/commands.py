@@ -722,8 +722,6 @@ class Admin(Plugin[AdminEventListener]):
                         return
                     elif _server:
                         await cursor.execute('DELETE FROM servers WHERE server_name = %s', (_server, ))
-                        await cursor.execute('VACCUM FULL statistics')
-                        await cursor.execute('VACUUM FULL missionstats')
                         await interaction.followup.send(_("Data of server {} deleted.").format(_server))
                         return
                     elif view.what in ['users', 'non-members']:
@@ -754,8 +752,6 @@ class Admin(Plugin[AdminEventListener]):
                         # some plugins need to prune their data based on the provided days
                         for plugin in self.bot.cogs.values():  # type: Plugin
                             await plugin.prune(conn, days)
-                        await cursor.execute('VACCUM FULL statistics')
-                        await cursor.execute('VACUUM FULL missionstats')
                         await interaction.followup.send(_("All data older than {} days pruned.").format(days),
                                                         ephemeral=ephemeral)
         await self.bot.audit(f'pruned the database', user=interaction.user)
