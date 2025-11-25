@@ -448,22 +448,8 @@ class ServerImpl(Server):
             async with self.apool.connection() as conn:
                 async with conn.transaction():
                     # we need to remove any older server that might have had the same name
-                    await conn.execute('DELETE FROM servers WHERE server_name = %s', (new_name, ))
-                    await conn.execute("""
-                        UPDATE servers SET server_name = %s WHERE server_name IS NOT DISTINCT FROM %s
-                    """, (new_name, old_name))
-                    await conn.execute('DELETE FROM instances WHERE server_name = %s', (new_name, ))
-                    await conn.execute("""
-                        UPDATE instances 
-                        SET server_name = %s 
-                        WHERE instance = %s AND server_name IS NOT DISTINCT FROM %s
-                    """, (new_name, self.instance.name, old_name))
-                    await conn.execute('DELETE FROM message_persistence WHERE server_name = %s', (new_name, ))
-                    await conn.execute("""
-                        UPDATE message_persistence 
-                        SET server_name = %s 
-                        WHERE server_name IS NOT DISTINCT FROM %s
-                    """, (new_name, old_name))
+                    await conn.execute("UPDATE servers SET server_name = %s WHERE server_name = %s",
+                                       (new_name, old_name))
 
         async def update_cluster(new_name: str):
             # only the master can take care of a cluster-wide rename

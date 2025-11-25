@@ -714,26 +714,23 @@ class Admin(Plugin[AdminEventListener]):
                         else:
                             await interaction.followup.send("{} is not a valid UCID!".format(user))
                             return
-                        for plugin in self.bot.cogs.values():  # type: Plugin
-                            await plugin.prune(conn, ucids=[ucid])
-                            await cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
-                            await cursor.execute('DELETE FROM players_hist WHERE ucid = %s', (ucid, ))
+                        await cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
                         if isinstance(user, discord.Member):
                             await interaction.followup.send(_("Data of user {} deleted.").format(user.display_name))
                         else:
                             await interaction.followup.send(_("Data of UCID {} deleted.").format(ucid))
                         return
                     elif _server:
-                        for plugin in self.bot.cogs.values():  # type: Plugin
-                            await plugin.prune(conn, server=_server)
-                            await cursor.execute('DELETE FROM servers WHERE server_name = %s', (_server, ))
-                            await cursor.execute('DELETE FROM instances WHERE server_name = %s', (_server, ))
-                            await cursor.execute('DELETE FROM message_persistence WHERE server_name = %s', (_server, ))
+                        await cursor.execute('DELETE FROM servers WHERE server_name = %s', (_server, ))
+                        await cursor.execute('VACCUM FULL statistics')
+                        await cursor.execute('VACUUM FULL missionstats')
                         await interaction.followup.send(_("Data of server {} deleted.").format(_server))
                         return
                     elif view.what in ['users', 'non-members']:
-                        sql = (f"SELECT ucid FROM players "
-                               f"WHERE last_seen < (DATE((now() AT TIME ZONE 'utc')) - interval '{view.age} days')")
+                        sql = f"""
+                            SELECT ucid FROM players 
+                            WHERE last_seen < (DATE((now() AT TIME ZONE 'utc')) - interval '{view.age} days')
+                        """
                         if view.what == 'non-members':
                             sql += ' AND discord_id = -1'
                         await cursor.execute(sql)
@@ -745,11 +742,8 @@ class Admin(Plugin[AdminEventListener]):
                                 interaction, _("This will delete {} players incl. their stats from the database.\n"
                                                "Are you sure?").format(len(ucids)), ephemeral=ephemeral):
                             return
-                        for plugin in self.bot.cogs.values():  # type: Plugin
-                            await plugin.prune(conn, ucids=ucids)
                         for ucid in ucids:
                             await cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
-                            await cursor.execute('DELETE FROM players_hist WHERE ucid = %s', (ucid,))
                         await interaction.followup.send(f"{len(ucids)} players pruned.", ephemeral=ephemeral)
                     elif view.what == 'data':
                         days = int(view.age)
@@ -757,8 +751,11 @@ class Admin(Plugin[AdminEventListener]):
                                 interaction, _("This will delete all data older than {} days from the database.\n"
                                                "Are you sure?").format(days), ephemeral=ephemeral):
                             return
+                        # some plugins need to prune their data based on the provided days
                         for plugin in self.bot.cogs.values():  # type: Plugin
-                            await plugin.prune(conn, days=days)
+                            await plugin.prune(conn, days)
+                        await cursor.execute('VACCUM FULL statistics')
+                        await cursor.execute('VACUUM FULL missionstats')
                         await interaction.followup.send(_("All data older than {} days pruned.").format(days),
                                                         ephemeral=ephemeral)
         await self.bot.audit(f'pruned the database', user=interaction.user)

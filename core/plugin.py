@@ -332,8 +332,7 @@ class Plugin(commands.Cog, Generic[TEventListener], metaclass=PluginMeta):
     async def after_dcs_update(self) -> None:
         pass
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: str | None = None) -> None:
+    async def prune(self, conn: psycopg.AsyncConnection, days: int) -> None:
         pass
 
     async def _init_db(self) -> bool:
@@ -507,12 +506,8 @@ class Plugin(commands.Cog, Generic[TEventListener], metaclass=PluginMeta):
             self._config[server.node.name][server.instance.name] = utils.deep_merge(default, specific)
         return self._config[server.node.name][server.instance.name]
 
-    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str) -> None:
-        # this function has to be implemented in your own plugins, if a server rename takes place
-        pass
-
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
-        # this function has to be implemented in your own plugins, if the ucid of a user changed (steam <=> standalone)
+        # this function has to be implemented in your own plugin if the ucid of a user changed (steam <=> standalone)
         pass
 
     async def on_ready(self) -> None:

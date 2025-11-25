@@ -172,26 +172,35 @@ class Mission(Plugin[MissionEventListener]):
                 migrate_function(self)
             self.locals = self.read_locals()
 
-    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
-        await conn.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: str | None = None) -> None:
+    async def prune(self, conn: psycopg.AsyncConnection, days: int) -> None:
         self.log.debug('Pruning Mission ...')
-        if days > -1:
-            # noinspection PyTypeChecker
-            await conn.execute(f"""
-                DELETE FROM missions 
-                WHERE mission_end < (DATE((now() AT TIME ZONE 'utc')) - interval '{days} days')
-            """)
-        if server:
-            await conn.execute("DELETE FROM missions WHERE server_name = %s", (server, ))
+        await conn.execute(f"""
+            DELETE FROM missions WHERE mission_end < (DATE(now() AT TIME ZONE 'utc') - %s::interval)
+        """, (f'{days} days', ))
         self.log.debug('Mission pruned.')
 
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
-        await conn.execute("""
-            UPDATE bans SET ucid = %s WHERE ucid = %s AND NOT EXISTS (SELECT 1 FROM bans WHERE ucid = %s)
-        """, (new_ucid, old_ucid, new_ucid))
+        # check if the new ucid was banned already
+        cursor = await conn.execute("""
+            SELECT banned_by, reason, banned_at, banned_until 
+            FROM bans WHERE ucid = %s
+            AND banned_until > (NOW() AT TIME ZONE 'UTC')
+        """,(new_ucid, ))
+        if cursor.rowcount == 1:
+            row = await cursor.fetchone()
+            # if yes, create a ban for the old ucid also
+            await conn.execute("""
+                INSERT INTO bans (ucid, banned_by, reason, banned_at, banned_until)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (ucid) DO NOTHING
+            """, (old_ucid, row[0], row[1], row[2], row[3]))
+        else:
+            # otherwise create a new ban if the old ucid was banned already
+            await conn.execute(f"""
+                INSERT INTO bans (ucid, banned_by, reason, banned_at, banned_until) 
+                SELECT %(new_ucid)s, banned_by, reason, banned_at, banned_until FROM bans WHERE ucid = %(old_ucid)s
+                ON CONFLICT (ucid) DO NOTHING
+            """, {"new_ucid": new_ucid, "old_ucid": old_ucid})
 
     # New command group "/mission"
     mission = Group(name="mission", description=_("Commands to manage a DCS mission"))

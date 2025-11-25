@@ -82,8 +82,8 @@ DEFAULT_PLUGINS = [
     "userstats",
     "missionstats",
     "monitoring",
-    "creditsystem",
     "gamemaster",
+    "creditsystem",
     "cloud"
 ]
 
@@ -1066,7 +1066,8 @@ class NodeImpl(Node):
                             return True
                         # The master is not alive, take over
                         elif not master or not await is_node_alive(master, config.get('heartbeat', 30)):
-                            self.log.warning("The master node is not responding, taking over ...")
+                            if master is not None:
+                                self.log.warning(f"The master node {master} is not responding, taking over ...")
                             await take_over()
                             return True
                         # Master is alive, but we are the preferred one
@@ -1211,17 +1212,12 @@ class NodeImpl(Node):
 
     @override
     async def rename_server(self, server: Server, new_name: str):
-        from services.bot import BotService
         from services.servicebus import ServiceBus
 
         if not self.master:
             self.log.error(
                 f"Rename request received for server {server.name} that should have gone to the master node!")
             return
-        # do not rename initially created servers (they should not be there anyway)
-        if server.name != 'n/a':
-            # we are doing the plugin changes, as we are the master
-            await ServiceRegistry.get(BotService).rename_server(server, new_name)
         # update the ServiceBus
         ServiceRegistry.get(ServiceBus).rename_server(server, new_name)
         # change the proxy name for remote servers (ServerImpl will rename local ones)
@@ -1566,8 +1562,12 @@ class NodeImpl(Node):
             # rename the directory
             os.rename(instance.home, new_home)
             # rename the instance
+            old_name = instance.name
             instance.name = new_name
             instance.locals['home'] = new_home
+            self.instances[new_name] = self.instances.pop(old_name)
+
+            # write the new nodes.yaml
             with open(config_file, mode='w', encoding='utf-8') as outfile:
                 yaml.dump(config, outfile)
 
@@ -1590,7 +1590,8 @@ class NodeImpl(Node):
                     self.log.exception(f"Failed to start service {list(ServiceRegistry.services().keys())[i]}")
         finally:
             # re-init the attached server instance
-            await instance.server.reload()
+            if instance.server:
+                await instance.server.reload()
 
     @override
     async def find_all_instances(self) -> list[tuple[str, str]]:

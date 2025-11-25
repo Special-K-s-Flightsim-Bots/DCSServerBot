@@ -8,7 +8,7 @@ import uuid
 
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
-from core import Server, Mission, Node, Status, utils, Instance, FatalException, Port, PortType
+from core import Server, Mission, Node, Status, utils, Instance, FatalException, Port, PortType, SettingsDict
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
 from core.data.impl.instanceimpl import InstanceImpl
@@ -161,16 +161,9 @@ class ServiceBus(Service):
     def init_servers(self):
         for instance in self.node.instances.values():
             try:
-                with self.pool.connection() as conn:
-                    cursor = conn.execute("""
-                        SELECT server_name FROM instances 
-                        WHERE node=%s AND instance=%s AND server_name IS NOT NULL
-                    """, (self.node.name, instance.name))
-                    row = cursor.fetchone()
-                # was there a server bound to this instance?
-                if row:
+                if instance.server_name:
                     server: ServerImpl = DataObjectFactory().new(
-                        ServerImpl, node=self.node, port=instance.bot_port, name=row[0], bus=self)
+                        ServerImpl, node=self.node, port=instance.bot_port, name=instance.server_name, bus=self)
                     instance.server = server
                     self.servers[server.name] = server
                 else:

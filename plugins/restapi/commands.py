@@ -941,7 +941,7 @@ class RestAPI(Plugin):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
-                    REFRESH MATERIALIZED VIEW mv_serverstats;
+                    REFRESH MATERIALIZED VIEW CONCURRENTLY mv_serverstats;
                 """)
 
     @refresh_views.before_loop

@@ -142,16 +142,6 @@ class ModManager(Plugin):
         if not self.service:
             raise PluginInstallationError(plugin=self.plugin_name, reason='ModManager service not loaded.')
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: str | None = None) -> None:
-        self.log.debug('Pruning ModManager ...')
-        if server:
-            await conn.execute("DELETE FROM mm_packages WHERE server_name = %s", (server, ))
-        self.log.debug('ModManager pruned.')
-
-    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
-        await conn.execute('UPDATE mm_packages SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-
     # New command group "/mods"
     mods = Group(name="mods", description=_("Commands to manage custom mods in your DCS server"))
 

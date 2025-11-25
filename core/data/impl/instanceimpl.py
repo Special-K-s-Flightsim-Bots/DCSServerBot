@@ -59,8 +59,7 @@ class InstanceImpl(Instance):
 #            dirty |= True
         if dirty:
             autoexec.net = net
-
-        server_name = None
+        self._server_name = None
         settings_path = os.path.join(self.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):
             settings = SettingsDict(self, settings_path, root='cfg')
@@ -69,21 +68,28 @@ class InstanceImpl(Instance):
                 settings['port'] = dcs_port
             else:
                 self.locals['dcs_port'] = settings.get('port', 10308)
-            server_name = settings.get('name', 'DCS Server') if settings else None
-            if server_name == 'n/a':
-                server_name = None
-        self.update_instance(server_name)
+            self._server_name = settings.get('name', 'DCS Server') if settings else None
+            if self._server_name == 'n/a':
+                self._server_name = None
+        self.update_instance()
 
-    def update_instance(self, server_name: str | None = None):
+    @property
+    def server_name(self) -> str:
+        if self.server:
+            return self.server.name
+        else:
+            return self._server_name
+
+    def update_instance(self):
         try:
             with self.pool.connection() as conn:
                 with conn.transaction():
                     conn.execute("""
-                        INSERT INTO instances (node, instance, port, server_name)
-                        VALUES (%s, %s, %s, %s) 
+                        INSERT INTO instances (node, instance, port)
+                        VALUES (%s, %s, %s) 
                         ON CONFLICT (node, instance) DO UPDATE 
-                        SET port=excluded.port, server_name=excluded.server_name 
-                    """, (self.node.name, self.name, self.locals.get('bot_port', 6666), server_name))
+                        SET port=excluded.port 
+                    """, (self.node.name, self.name, self.locals.get('bot_port', 6666)))
         except psycopg.errors.UniqueViolation:
             self.log.error(f"bot_port {self.locals.get('bot_port', 6666)} is already in use on node {self.node.name}!")
             raise

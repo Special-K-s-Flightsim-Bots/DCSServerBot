@@ -1,0 +1,12 @@
+DELETE FROM pu_events WHERE server_name NOT IN (SELECT server_name FROM servers);
+DELETE FROM pu_events WHERE init_id NOT IN (SELECT ucid FROM players);
+DELETE FROM pu_events WHERE target_id NOT IN (SELECT ucid FROM players);
+ALTER TABLE pu_events ADD CONSTRAINT pu_events_server_name_fkey FOREIGN KEY (server_name) REFERENCES servers (server_name) ON UPDATE CASCADE ON DELETE CASCADE;
+ALTER TABLE pu_events ADD CONSTRAINT pu_events_init_id_fkey FOREIGN KEY (init_id) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE;
+ALTER TABLE pu_events ADD CONSTRAINT pu_events_target_id_fkey FOREIGN KEY (target_id) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE;
+DELETE FROM pu_events_sdw WHERE server_name NOT IN (SELECT server_name FROM servers);
+DELETE FROM pu_events_sdw WHERE init_id NOT IN (SELECT ucid FROM players);
+DELETE FROM pu_events_sdw WHERE target_id NOT IN (SELECT ucid FROM players);
+ALTER TABLE pu_events_sdw ADD CONSTRAINT pu_events_sdw_server_name_fkey FOREIGN KEY (server_name) REFERENCES servers (server_name) ON UPDATE CASCADE ON DELETE CASCADE;
+ALTER TABLE pu_events_sdw ADD CONSTRAINT pu_events_sdw_init_id_fkey FOREIGN KEY (init_id) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE;
+ALTER TABLE pu_events_sdw ADD CONSTRAINT pu_events_sdw_target_id_fkey FOREIGN KEY (target_id) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE;

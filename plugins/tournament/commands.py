@@ -292,9 +292,6 @@ class Tournament(Plugin[TournamentEventListener]):
             self.match_scheduler.cancel()
         await super().cog_unload()
 
-    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
-        await conn.execute('UPDATE tm_matches SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-
     def get_admin_channel(self):
         config = self.get_config()
         channel_id = config.get('channels', {}).get('admin')

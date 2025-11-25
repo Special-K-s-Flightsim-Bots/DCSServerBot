@@ -215,10 +215,3 @@ class BotService(Service):
     async def audit(self, message, user: discord.Member | str | None = None,
                     server: Server | None = None, node: Node | None = None, **kwargs):
         await self.bot.audit(message, user=user, server=server, node=node, **kwargs)
-
-    async def rename_server(self, server: Server, new_name: str):
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # call rename() in all Plugins
-                for plugin in self.bot.cogs.values():  # type: Plugin
-                    await plugin.rename(conn, server.name, new_name)

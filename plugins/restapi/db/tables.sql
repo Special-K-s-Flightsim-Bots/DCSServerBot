@@ -11,3 +11,4 @@ SELECT s.server_name, COUNT(DISTINCT p.ucid) AS "totalPlayers",
 FROM players p
 JOIN mv_statistics s ON p.ucid = s.player_ucid
 GROUP BY 1;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_serverstats ON mv_serverstats(server_name);

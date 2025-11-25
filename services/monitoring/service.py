@@ -150,7 +150,8 @@ class MonitoringService(Service):
                 for server in [x for x in self.bus.servers.values() if not x.is_remote]:
                     if server.process and server.process.pid == pid:
                         if server.maintenance:
-                            self.log.warning(f"Popup ignored on server {server.name} due to maintenance mode.")
+                            self.log.warning(f"Popup with title \"{title}\" ignored on server {server.name} due to "
+                                             f"maintenance mode.")
                             return
                         await server.shutdown(force=True)
                         await self.node.audit(f'Server killed due to a popup with title "{title}".',

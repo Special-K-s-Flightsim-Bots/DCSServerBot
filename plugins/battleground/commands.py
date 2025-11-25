@@ -1,18 +1,14 @@
 import discord
-import psycopg
-from discord import app_commands
-from discord.app_commands import Group
 
 from core import Plugin, utils, Channel, Coalition, Server, get_translation
+from discord import app_commands
+from discord.app_commands import Group
 from services.bot import DCSServerBot
 
 _ = get_translation(__name__.split('.')[1])
 
 
 class Battleground(Plugin):
-
-    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str) -> None:
-        await conn.execute("UPDATE bg_geometry SET server = %s WHERE server= %s", (new_name, old_name))
 
     battleground = Group(name="battleground", description=_("DCSBattleground commands"))
 

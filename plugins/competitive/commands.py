@@ -23,7 +23,12 @@ class Competitive(Plugin[CompetitiveListener]):
     async def install(self) -> bool:
         if not await super().install():
             return False
-        asyncio.create_task(self.init_trueskill())
+        # only generate TrueSkill values if there are statistics already
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("SELECT COUNT(*) FROM missionstats")
+            count = (await cursor.fetchone())[0]
+        if count > 0:
+            asyncio.create_task(self.init_trueskill())
         return True
 
     async def init_trueskill(self):
@@ -95,10 +100,6 @@ class Competitive(Plugin[CompetitiveListener]):
                         self.log.info(f"- {total_processed} missionstats rows processed (up to id {last_id})")
 
         self.log.info("TrueSkill values calculated.")
-
-    async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
-        await conn.execute('UPDATE trueskill SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
-        await conn.execute('UPDATE trueskill_hist SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
     async def _trueskill_player(self, interaction: discord.Interaction, user: discord.Member | str) -> None:
         if not user:

@@ -288,7 +288,7 @@ class Nemesis(report.EmbedElement):
             LEFT JOIN nemesis_kills nk
                 ON nk.nemesis_id = ms.init_id
             WHERE ms.target_id = %(ucid)s
-              AND ms.init_id  != '-1'
+              AND ms.init_id  IS NOT NULL
               AND ms.init_id  != %(ucid)s
               AND ms.event    = 'S_EVENT_KILL'
               AND {inner}
@@ -334,7 +334,7 @@ class Antagonist(report.EmbedElement):
             LEFT JOIN they_killed_you tky
                 ON tky.killer_id = ms.target_id
             WHERE ms.init_id   = %(ucid)s
-              AND ms.target_id != '-1'
+              AND ms.target_id IS NOT NULL
               AND ms.target_id != %(ucid)s
               AND ms.event     = 'S_EVENT_KILL'
               AND {inner}

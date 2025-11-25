@@ -131,13 +131,6 @@ class Music(Plugin[MusicEventListener]):
             return super().get_config(server, plugin_name=plugin_name, use_cache=use_cache)
         return self.service.get_config(server)
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: str | None = None) -> None:
-        self.log.debug('Pruning Music ...')
-        if server:
-            await conn.execute("DELETE FROM music_radios WHERE server_name = %s", (server, ))
-        self.log.debug('Music pruned.')
-
     # New command group "/music"
     music = Group(name="music", description=_("Commands to manage music in your (DCS) server"))
 

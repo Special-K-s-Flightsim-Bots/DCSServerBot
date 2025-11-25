@@ -86,3 +86,7 @@ class Instance(DataObject, ABC):
 
     def set_server(self, server: Server | None):
         self._server = server
+
+    @property
+    def server_name(self) -> str:
+        raise NotImplementedError()
