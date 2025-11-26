@@ -8,7 +8,7 @@ import uuid
 
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
-from core import Server, Mission, Node, Status, utils, Instance, FatalException, Port, PortType, SettingsDict
+from core import Server, Mission, Node, Status, utils, Instance, FatalException, Port, PortType
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
 from core.data.impl.instanceimpl import InstanceImpl

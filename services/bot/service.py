@@ -26,7 +26,7 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 if TYPE_CHECKING:
-    from core import Server, Plugin, Node
+    from core import Server, Node
 
 __all__ = ["BotService"]
 

@@ -1,7 +1,6 @@
 import asyncio
 import discord
 import os
-import psycopg
 
 from core import (Plugin, PluginInstallationError, Status, Group, utils, Server, ServiceRegistry, get_translation,
                   NodeUploadHandler, Channel)

@@ -2,7 +2,6 @@ import asyncio
 import discord
 import itertools
 import math
-import psycopg
 
 from core import Plugin, utils, get_translation, Node, Group, Report
 from datetime import datetime

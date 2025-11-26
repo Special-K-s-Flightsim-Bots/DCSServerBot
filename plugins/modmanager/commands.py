@@ -1,7 +1,6 @@
 import aiohttp
 import discord
 import os
-import psycopg
 
 from core import Status, Plugin, utils, Server, ServiceRegistry, PluginInstallationError, Group, get_translation
 from discord import SelectOption, app_commands, ButtonStyle, TextStyle

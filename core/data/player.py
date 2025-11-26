@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import discord
 
-from contextlib import closing
 from core import utils
 from core.data.dataobject import DataObject, DataObjectFactory
 from core.data.const import Side, Coalition

@@ -1,5 +1,4 @@
 import discord
-import psycopg
 
 from datetime import timezone
 from discord import app_commands, SelectOption

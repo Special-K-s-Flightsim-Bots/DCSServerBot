@@ -228,8 +228,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 ephemeral=ephemeral):
             async with self.apool.connection() as conn:
                 async with conn.transaction():
-                    for plugin in self.bot.cogs.values():  # type: Plugin
-                        await plugin.prune(conn, ucids=[ucid])
+                    await conn.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid,))
+                    await conn.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid,))
                 await interaction.followup.send(_('Statistics for user "{}" have been wiped.').format(name),
                                                 ephemeral=ephemeral)
 
@@ -812,11 +812,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         if self.get_config().get('wipe_stats_on_leave', True):
             async with self.apool.connection() as conn:
                 async with conn.transaction():
-                    cursor = await conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (member.id,))
                     self.bot.log.debug(f'- Deleting their statistics due to wipe_stats_on_leave')
-                    ucids = [row[0] async for row in cursor]
-                    for plugin in self.bot.cogs.values():  # type: Plugin
-                        await plugin.prune(conn, ucids=ucids)
+                    await conn.execute('DELETE FROM players WHERE discord_id = %s', (member.id,))
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):

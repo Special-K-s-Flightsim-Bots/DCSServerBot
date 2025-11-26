@@ -1,5 +1,4 @@
 import discord
-import psycopg
 
 from core import Plugin, utils, Server, Status, command
 from discord import app_commands
