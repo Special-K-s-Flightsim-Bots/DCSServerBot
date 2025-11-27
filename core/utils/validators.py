@@ -47,6 +47,7 @@ __all__ = [
     "check_main_structure",
     "is_node",
     "is_server",
+    "is_element",
     "validate"
 ]
 
@@ -336,6 +337,8 @@ def is_server(value, rule_obj, path):
         raise SchemaError(f'Invalid regular expression: "{ex.pattern}"', path=path)
 
 def is_element(value, rule_obj, path):
+    if path == '/DEFAULT':
+        return True
     node_data = get_node_data()
     for instance in value.keys():
         if instance in node_data.all_instances:
