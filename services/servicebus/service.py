@@ -761,7 +761,7 @@ class ServiceBus(Service):
                 server.last_seen = datetime.now(timezone.utc)
 
                 # Handle sync channels
-                if 'channel' in msg_data and msg_data['channel'].startswith('sync-'):
+                if 'channel' in msg_data and str(msg_data['channel']).startswith('sync-'):
                     if msg_data['channel'] in server.listeners:
                         f = server.listeners.get(msg_data['channel'])
                         if f and not f.done():

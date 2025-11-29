@@ -493,14 +493,14 @@ class MissionEventListener(EventListener["Mission"]):
 
     async def _smooth_pause(self, server: Server, seconds: int):
         if server.current_mission:
-            # wait for the server to be initialised correctly
+            # wait for the server to be initialized correctly
             while server.status == Status.LOADING:
                 await asyncio.sleep(1)
             # now do the smooth pause
             self.log.debug(f"Smooth pausing server {server.name} after {seconds}s")
             await server.current_mission.unpause()
             await asyncio.sleep(seconds)
-            if not server.get_active_players():
+            if server.current_mission and not server.get_active_players():
                 await server.current_mission.pause()
 
     @event(name="onSimulationStart")

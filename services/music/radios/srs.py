@@ -58,10 +58,6 @@ class SRSRadio(Radio):
                     "-n", self.config.get('display_name', 'DCSSB MusicBox'),
                     "-i", file
                 ]
-                # TODO: temporary workaround
-                if parse(self.server.extensions['SRS'].version) == parse('2.3.3.2'):
-                    args.extend(['--unitId', '1000'])
-
                 if debug:
                     self.log.debug(f"Running {' '.join(args)}")
                 p = subprocess.Popen(args, stdout=out, stderr=err)
