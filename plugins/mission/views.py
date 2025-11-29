@@ -3,16 +3,14 @@ import discord
 import os
 
 from contextlib import suppress
-from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils, ServiceRegistry, \
-    get_translation
+from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils, get_translation
 from discord import SelectOption, ButtonStyle
-from discord.ui import View, Select, Button, Modal, TextInput
+from discord.ui import View, Select, Button
 from io import StringIO
 from ruamel.yaml import YAML
 from typing import cast
 
-from services.bot import DCSServerBot, BotService
-from services.servicebus import ServiceBus
+from services.bot import DCSServerBot
 
 WARNING_ICON = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true"
 _ = get_translation(__name__.split('.')[1])
@@ -462,17 +460,3 @@ class ModifyView(View):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
-
-
-class ProfanityView(View):
-    def __init__(self, ucid: str, name: str):
-        super().__init__(timeout=None)
-        # noinspection PyTypeChecker
-        button = Button(label="Whitelist", style=ButtonStyle.primary, custom_id=f"whitelist_{name}")
-        self.add_item(button)
-        # noinspection PyTypeChecker
-        button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_{ucid}")
-        self.add_item(button)
-        # noinspection PyTypeChecker
-        button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
-        self.add_item(button)

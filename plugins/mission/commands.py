@@ -2278,8 +2278,12 @@ class Mission(Plugin[MissionEventListener]):
                 # noinspection PyUnresolvedReferences
                 await interaction.response.edit_message(view=None)
             elif custom_id.startswith('ban_'):
-                ucid = custom_id[len('ban_'):]
-                await self.bus.ban(ucid, interaction.user.display_name, _("Inappropriate nickname"))
+                if custom_id.startswith('ban_profanity_'):
+                    ucid = custom_id[len('ban_profanity_'):]
+                    await self.bus.ban(ucid, interaction.user.display_name, _("Inappropriate nickname"))
+                elif custom_id.startswith('ban_evade_'):
+                    ucid = custom_id[len('ban_evade_'):]
+                    await self.bus.ban(ucid, interaction.user.display_name, _("Trying to evade a ban with a 2nd account."))
                 # noinspection PyUnresolvedReferences
                 await interaction.response.edit_message(view=None)
             elif custom_id == 'cancel':

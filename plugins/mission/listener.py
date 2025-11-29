@@ -8,7 +8,9 @@ from copy import deepcopy
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Player, Coalition, \
     Channel, DataObjectFactory, event, chat_command, ServiceRegistry, ChatCommand, get_translation
 from datetime import datetime, timezone
+from discord import ButtonStyle
 from discord.ext import tasks
+from discord.ui import View, Button
 from pathlib import Path
 from psycopg.rows import dict_row
 from services.servicebus import ServiceBus
@@ -16,7 +18,6 @@ from services.bot.dummy import DummyBot
 from typing import TYPE_CHECKING, Callable, Coroutine
 
 from .menu import read_menu_config, filter_menu
-from .views import ProfanityView
 
 if TYPE_CHECKING:
     from core import Server
@@ -654,7 +655,49 @@ class MissionEventListener(EventListener["Mission"]):
         else:
             message = _("User {} (ucid={})\nPotentially inappropriate nickname.").format(
                 data['name'], data['ucid'])
-        view = ProfanityView(ucid=data['ucid'], name=data['name'])
+
+        view = View(timeout=None)
+        # noinspection PyTypeChecker
+        button = Button(label="Whitelist", style=ButtonStyle.primary, custom_id=f"whitelist_{data['name']}")
+        view.add_item(button)
+        # noinspection PyTypeChecker
+        button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_profanity_{data['ucid']}")
+        view.add_item(button)
+        # noinspection PyTypeChecker
+        button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
+        view.add_item(button)
+        await admin_channel.send(f"```{message}```", view=view)
+
+    @event(name="onBanReject")
+    async def onBanReject(self, server: Server, data: dict) -> None:
+        admin_channel = self.bot.get_admin_channel(server)
+        if not admin_channel:
+            return
+        message = _('Banned user {name} (ucid={ucid}, ipaddr={ipaddr}) rejected. Reason: {reason}').format(
+            name=data['name'], ucid=data['ucid'], ipaddr=data['ipaddr'], reason=data['reason'])
+        await admin_channel.send(f"```{message}```")
+
+    @event(name="onBanEvade")
+    async def onBanEvade(self, server: Server, data: dict) -> None:
+        admin_channel = self.bot.get_admin_channel(server)
+        if not admin_channel:
+            return
+        old_name = await self.bot.get_member_or_name_by_ucid(data['old_ucid'])
+        if isinstance(old_name, discord.Member):
+            old_name = old_name.display_name
+
+        message = _('Player {name} (ucid={ucid}) connected from the same IP (ipaddr={ipaddr}) '
+                    'as banned player {old_name} (ucid={old_ucid}), who was banned for {reason}!').format(
+            name=data['name'], ucid=data['ucid'], ipaddr=data['ipaddr'], old_name=old_name,
+            old_ucid=data['old_ucid'], reason=data['reason']
+        )
+        view = View(timeout=None)
+        # noinspection PyTypeChecker
+        button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_evade_{data['ucid']}")
+        view.add_item(button)
+        # noinspection PyTypeChecker
+        button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
+        view.add_item(button)
         await admin_channel.send(f"```{message}```", view=view)
 
     async def _stop_player(self, server: Server, player: Player):
