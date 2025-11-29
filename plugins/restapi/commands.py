@@ -639,36 +639,36 @@ class RestAPI(Plugin):
                        f'last_session="{last_session}"')
 
         ucid = await self.get_ucid(nick, date)
-        if server_name:
-            where = "AND s.server_name = %(server_name)s"
-        else:
-            where = ""
-        query = f"""
-            SELECT COALESCE(SUM(playtime), 0)::BIGINT AS playtime, 
-                   COALESCE(SUM(s.kills), 0) as "kills", 
-                   COALESCE(SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground), 0) AS "deaths", 
-                   COALESCE(SUM(s.pvp), 0) AS "kills_pvp", 
-                   COALESCE(SUM(s.deaths_pvp), 0) AS "deaths_pvp",
-                   COALESCE(SUM(s.kills_sams), 0) AS "kills_sams",
-                   COALESCE(SUM(s.kills_ships), 0) AS "kills_ships",
-                   COALESCE(SUM(s.kills_ground), 0) AS "kills_ground",
-                   COALESCE(SUM(s.kills_planes), 0) AS "kills_planes",
-                   COALESCE(SUM(s.kills_helicopters), 0) AS "kills_helicopters",
-                   COALESCE(SUM(s.deaths_sams), 0) AS "deaths_sams",
-                   COALESCE(SUM(s.deaths_ships), 0) AS "deaths_ships",
-                   COALESCE(SUM(s.deaths_ground), 0) AS "deaths_ground",
-                   COALESCE(SUM(s.deaths_planes), 0) AS "deaths_planes",
-                   COALESCE(SUM(s.deaths_helicopters), 0) AS "deaths_helicopters",
-                   COALESCE(SUM(s.takeoffs), 0) AS "takeoffs", 
-                   COALESCE(SUM(s.landings), 0) AS "landings", 
-                   COALESCE(SUM(s.ejections), 0) AS "ejections",
-                   COALESCE(SUM(s.crashes), 0) AS "crashes", 
-                   COALESCE(SUM(s.teamkills), 0) AS "teamkills"
-            FROM mv_statistics s
-            WHERE s.player_ucid = %(ucid)s
-            {where}
-        """
         if last_session:
+            if server_name:
+                where = "AND m.server_name = %(server_name)s"
+            else:
+                where = ""
+            query = f"""
+                SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))), 0)::BIGINT AS playtime, 
+                       COALESCE(SUM(s.kills), 0) as "kills", 
+                       COALESCE(SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground), 0) AS "deaths", 
+                       COALESCE(SUM(s.pvp), 0) AS "kills_pvp", 
+                       COALESCE(SUM(s.deaths_pvp), 0) AS "deaths_pvp",
+                       COALESCE(SUM(s.kills_sams), 0) AS "kills_sams",
+                       COALESCE(SUM(s.kills_ships), 0) AS "kills_ships",
+                       COALESCE(SUM(s.kills_ground), 0) AS "kills_ground",
+                       COALESCE(SUM(s.kills_planes), 0) AS "kills_planes",
+                       COALESCE(SUM(s.kills_helicopters), 0) AS "kills_helicopters",
+                       COALESCE(SUM(s.deaths_sams), 0) AS "deaths_sams",
+                       COALESCE(SUM(s.deaths_ships), 0) AS "deaths_ships",
+                       COALESCE(SUM(s.deaths_ground), 0) AS "deaths_ground",
+                       COALESCE(SUM(s.deaths_planes), 0) AS "deaths_planes",
+                       COALESCE(SUM(s.deaths_helicopters), 0) AS "deaths_helicopters",
+                       COALESCE(SUM(s.takeoffs), 0) AS "takeoffs", 
+                       COALESCE(SUM(s.landings), 0) AS "landings", 
+                       COALESCE(SUM(s.ejections), 0) AS "ejections",
+                       COALESCE(SUM(s.crashes), 0) AS "crashes", 
+                       COALESCE(SUM(s.teamkills), 0) AS "teamkills"
+                FROM statistics s JOIN missions m ON s.mission_id = m.id
+                WHERE s.player_ucid = %(ucid)s
+                {where}
+            """
             if server_name:
                 inner_query = f"AND m2.server_name = %(server_name)s"
             else:
@@ -682,6 +682,38 @@ class RestAPI(Plugin):
                     GROUP BY 1
                 )
             """
+        else:
+            if server_name:
+                where = "AND s.server_name = %(server_name)s"
+            else:
+                where = ""
+
+            query = f"""
+                SELECT COALESCE(SUM(playtime), 0)::BIGINT AS playtime, 
+                       COALESCE(SUM(s.kills), 0) as "kills", 
+                       COALESCE(SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground), 0) AS "deaths", 
+                       COALESCE(SUM(s.pvp), 0) AS "kills_pvp", 
+                       COALESCE(SUM(s.deaths_pvp), 0) AS "deaths_pvp",
+                       COALESCE(SUM(s.kills_sams), 0) AS "kills_sams",
+                       COALESCE(SUM(s.kills_ships), 0) AS "kills_ships",
+                       COALESCE(SUM(s.kills_ground), 0) AS "kills_ground",
+                       COALESCE(SUM(s.kills_planes), 0) AS "kills_planes",
+                       COALESCE(SUM(s.kills_helicopters), 0) AS "kills_helicopters",
+                       COALESCE(SUM(s.deaths_sams), 0) AS "deaths_sams",
+                       COALESCE(SUM(s.deaths_ships), 0) AS "deaths_ships",
+                       COALESCE(SUM(s.deaths_ground), 0) AS "deaths_ground",
+                       COALESCE(SUM(s.deaths_planes), 0) AS "deaths_planes",
+                       COALESCE(SUM(s.deaths_helicopters), 0) AS "deaths_helicopters",
+                       COALESCE(SUM(s.takeoffs), 0) AS "takeoffs", 
+                       COALESCE(SUM(s.landings), 0) AS "landings", 
+                       COALESCE(SUM(s.ejections), 0) AS "ejections",
+                       COALESCE(SUM(s.crashes), 0) AS "crashes", 
+                       COALESCE(SUM(s.teamkills), 0) AS "teamkills"
+                FROM mv_statistics s
+                WHERE s.player_ucid = %(ucid)s
+                {where}
+            """
+
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(query, {"ucid": ucid, "server_name": server_name})
