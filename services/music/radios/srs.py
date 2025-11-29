@@ -34,8 +34,7 @@ class SRSRadio(Radio):
             self.current = file
 
             def exe_path() -> str:
-                version = self.server.extensions['SRS'].version
-                if parse(version) >= parse('2.2.0.0'):
+                if parse(self.server.extensions['SRS'].version) >= parse('2.2.0.0'):
                     return os.path.join(srs_inst, "ExternalAudio", "DCS-SR-ExternalAudio.exe")
                 else:
                     return os.path.join(srs_inst, "DCS-SR-ExternalAudio.exe")
@@ -43,7 +42,7 @@ class SRSRadio(Radio):
             def run_subprocess() -> subprocess.Popen:
                 def _log_output(p: subprocess.Popen):
                     for line in iter(p.stdout.readline, b''):
-                        self.log.debug(line.decode('utf-8').rstrip())
+                        self.log.debug(line.decode('utf-8', errors='replace').rstrip())
 
                 debug = self.service.get_config().get('debug', False)
                 out = subprocess.PIPE if debug else subprocess.DEVNULL
@@ -59,6 +58,10 @@ class SRSRadio(Radio):
                     "-n", self.config.get('display_name', 'DCSSB MusicBox'),
                     "-i", file
                 ]
+                # TODO: temporary workaround
+                if parse(self.server.extensions['SRS'].version) == parse('2.3.3.2'):
+                    args.extend(['--unitId', '1000'])
+
                 if debug:
                     self.log.debug(f"Running {' '.join(args)}")
                 p = subprocess.Popen(args, stdout=out, stderr=err)
