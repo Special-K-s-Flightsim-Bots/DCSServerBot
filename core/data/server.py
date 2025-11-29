@@ -330,7 +330,7 @@ class Server(DataObject):
         if self.status == Status.STOPPED:
             timeout = 300 if self.node.locals.get('slow_system', False) else 180
             self.status = Status.LOADING
-            rc = await self.send_to_dcs_sync({"command": "start_server"})
+            rc = await self.send_to_dcs_sync({"command": "start_server"}, timeout)
             if rc['result'] == 0:
                 await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
                 return True
