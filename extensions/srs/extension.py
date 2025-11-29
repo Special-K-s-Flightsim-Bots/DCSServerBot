@@ -178,6 +178,10 @@ class SRS(Extension, FileSystemEventHandler):
         self.config['spectators_audio_disabled'] = False
         dirty |= self._maybe_update_config('General Settings', 'SPECTATORS_AUDIO_DISABLED',
                                            'spectators_audio_disabled')
+        # new instructor mode
+        if parse(self.version) >= parse('2.3.3.0'):
+            dirty |= self._maybe_update_config('General Settings', 'ALLOW_INSTRUCTOR_MODE',
+                                               'instructor_mode')
         # disable effects (for music plugin)
         # TODO: better alignment with the music plugin!
         dirty |= self._maybe_update_config('General Settings', 'RADIO_EFFECT_OVERRIDE',
@@ -272,11 +276,16 @@ class SRS(Extension, FileSystemEventHandler):
                     info = None
                 out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
                 err = subprocess.PIPE if self.config.get('debug', False) else subprocess.STDOUT
+                # we want the SRS logfile in our normal logs folder
+                cwd = os.path.join(self.server.instance.home, 'Logs')
 
-                proc = subprocess.Popen([
-                    self.get_exe_path(),
-                    f"-cfg={self.get_config_path()}"
-                ], startupinfo=info, stdout=out, stderr=err, close_fds=True)
+                proc = subprocess.Popen(
+                    [
+                        self.get_exe_path(),
+                        f"-cfg={self.get_config_path()}"
+                    ],
+                    cwd=cwd, startupinfo=info, stdout=out, stderr=err, close_fds=True
+                )
 
                 if self.config.get('debug', False):
                     Thread(target=log_output, args=(proc.stdout,logging.DEBUG), daemon=True).start()

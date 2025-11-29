@@ -35,6 +35,7 @@ schema;node_srs_schema:
     always_on: {type: bool, nullable: false}
     radio_effect_override: {type: bool, nullable: false}
     global_lobby_frequencies: {type: str, nullable: false, range: {min: 1}}
+    instructor_mode: {type: bool, nullable: false}
 
 schema;instance_srs_schema:
   type: map
