@@ -10,6 +10,7 @@ dcsbot.locked = dcsbot.locked or {}
 dcsbot.userInfo = dcsbot.userInfo or {}
 dcsbot.red_slots = dcsbot.red_slots or {}
 dcsbot.blue_slots = dcsbot.blue_slots or {}
+dcsbot.whitelist = dcsbot.whitelist or {}
 
 local mission = mission or {}
 mission.last_landing = {}
@@ -143,22 +144,17 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
         return false, config.messages.message_seat_locked
     end
     -- check if player uses profanity
-    if config.profanity_filter then
+    if config.profanity_filter and not dcsbot.whitelist[name] then
         name2 = normalize(name)
         if name2 ~= Censorship.censor(name2) then
+            local msg = {
+                command = 'onCensoredPlayerName',
+                ucid = ucid,
+                name = name
+            }
+            utils.sendBotTable(msg, config.channels.admin)
             if config.no_join_with_cursename then
-                local msg = {
-                    command = 'sendMessage',
-                    message = 'User ' .. name .. ' (ucid=' .. ucid .. ') rejected due to inappropriate nickname.'
-                }
-                utils.sendBotTable(msg, config.channels.admin)
                 return false, config.messages.message_player_inappropriate_username
-            else
-                local msg = {
-                    command = 'sendMessage',
-                    message = 'User ' .. name .. ' (ucid=' .. ucid .. ') potentially inappropriate nickname.'
-                }
-                utils.sendBotTable(msg, config.channels.admin)
             end
         end
     end

@@ -178,7 +178,9 @@ class PeriodFilter(StatisticsFilter):
             return 'Overall '
         elif period in ('today', 'yesterday'):
             return period.capitalize() + 's '
-        elif period in ('day', 'week', 'month', 'year', 'quarter'):
+        elif period == 'day':
+            return 'Daily'
+        elif period in ('week', 'month', 'year', 'quarter'):
             # The last part of every name is turned into an adjective
             return period.capitalize() + 'ly '
         elif period == 'halfyear':

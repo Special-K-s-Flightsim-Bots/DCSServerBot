@@ -1,3 +1,4 @@
+import aiofiles
 import asyncio
 import discord
 import importlib
@@ -147,6 +148,7 @@ class Mission(Plugin[MissionEventListener]):
         self.check_for_unban.start()
         self.expire_token.add_exception_type(psycopg.DatabaseError)
         self.expire_token.start()
+        self.lock = asyncio.Lock()
         if self.bot.locals.get('autorole', {}):
             self.check_roles.add_exception_type(psycopg.DatabaseError)
             self.check_roles.add_exception_type(discord.errors.DiscordException)
@@ -2252,6 +2254,37 @@ class Mission(Plugin[MissionEventListener]):
                     'ucid': player.ucid,
                     'roles': [x.id for x in after.roles]
                 })
+
+    @commands.Cog.listener()
+    async def on_interaction(self, interaction: discord.Interaction):
+        if interaction.type is discord.InteractionType.component:
+            custom_id = interaction.data.get('custom_id')
+            if custom_id.startswith('whitelist_'):
+                name = custom_id[len('whitelist_'):]
+                async with self.lock:
+                    if not self.eventlistener.whitelist:
+                        self.eventlistener.whitelist = await asyncio.to_thread(self.eventlistener._read_whitelist)
+                    if name not in self.eventlistener.whitelist:
+                        self.eventlistener.whitelist.add(name)
+                        whitelist = Path(self.node.config_dir) / 'whitelist.txt'
+                        async with aiofiles.open(whitelist, mode="a", encoding='utf-8') as f:
+                            await f.write(f"{name}\n")
+                for server in self.bus.servers.values():
+                    if server.status in [Status.RUNNING, Status.PAUSED]:
+                        await server.send_to_dcs({
+                            "command": "uploadWhitelist",
+                            "name": name
+                        })
+                # noinspection PyUnresolvedReferences
+                await interaction.response.edit_message(view=None)
+            elif custom_id.startswith('ban_'):
+                ucid = custom_id[len('ban_'):]
+                await self.bus.ban(ucid, interaction.user.display_name, _("Inappropriate nickname"))
+                # noinspection PyUnresolvedReferences
+                await interaction.response.edit_message(view=None)
+            elif custom_id == 'cancel':
+                # noinspection PyUnresolvedReferences
+                await interaction.response.edit_message(view=None)
 
 
 async def setup(bot: DCSServerBot):

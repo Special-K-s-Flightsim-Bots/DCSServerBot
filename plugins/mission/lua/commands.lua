@@ -16,11 +16,30 @@ dcsbot.userInfo = dcsbot.userInfo or {}
 dcsbot.red_slots = dcsbot.red_slots or {}
 dcsbot.blue_slots = dcsbot.blue_slots or {}
 dcsbot.extensions = dcsbot.extension or {}
+dcsbot.whitelist = dcsbot.whitelist or {}
 
 function dcsbot.loadParams(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: loadParams(' .. json.plugin ..')')
     dcsbot.params = dcsbot.params or {}
     dcsbot.params[json.plugin] = json.params
+end
+
+local function add_name(name)
+    if type(name) == "string" and name ~= "" then
+        dcsbot.whitelist[name] = true
+    end
+end
+
+function dcsbot.uploadWhitelist(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: uploadWhitelist()')
+    if json.name then
+        add_name(json.name)
+    end
+    if json.name_list and type(json.name_list) == "table" then
+        for _, name in ipairs(json.name_list) do
+            add_name(name)
+        end
+    end
 end
 
 function dcsbot.registerDCSServer(json)

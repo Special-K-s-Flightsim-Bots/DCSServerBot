@@ -9,12 +9,14 @@ from core import utils, EventListener, PersistentReport, Plugin, Report, Status,
     Channel, DataObjectFactory, event, chat_command, ServiceRegistry, ChatCommand, get_translation
 from datetime import datetime, timezone
 from discord.ext import tasks
+from pathlib import Path
 from psycopg.rows import dict_row
 from services.servicebus import ServiceBus
 from services.bot.dummy import DummyBot
 from typing import TYPE_CHECKING, Callable, Coroutine
 
 from .menu import read_menu_config, filter_menu
+from .views import ProfanityView
 
 if TYPE_CHECKING:
     from core import Server
@@ -95,6 +97,8 @@ class MissionEventListener(EventListener["Mission"]):
         self.player_embeds: dict[str, bool] = {}
         self.mission_embeds: dict[str, bool] = {}
         self.alert_fired: dict[str, bool] = {}
+        self.whitelist: set[str] = set()
+        # start schedulers
         self.print_queue.start()
         self.update_player_embed.start()
         self.update_mission_embed.start()
@@ -357,6 +361,22 @@ class MissionEventListener(EventListener["Mission"]):
             'roles': roles
         })
 
+    def _read_whitelist(self) -> set[str]:
+        whitelist = Path(self.node.config_dir) / 'whitelist.txt'
+        if not whitelist.exists():
+            whitelist.touch()
+        with whitelist.open('r', encoding='utf-8') as f:
+            return set(f.read().splitlines())
+
+    async def _upload_whitelist(self, server: Server):
+        if not self.whitelist:
+            self.whitelist = await asyncio.to_thread(self._read_whitelist)
+        if self.whitelist:
+            await server.send_to_dcs({
+                'command': 'uploadWhitelist',
+                'name_list': list(self.whitelist)
+            })
+
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         channels = deepcopy(server.locals.get('channels', {}))
@@ -377,6 +397,10 @@ class MissionEventListener(EventListener["Mission"]):
                 "smart_bans": server.locals.get('smart_bans', True)
             }
         }))
+        # init the profanity filter
+        if server.locals.get('profanity_filter', False):
+            asyncio.create_task(self._upload_whitelist(server))
+
         if not data.get('current_mission'):
             server.status = Status.STOPPED
             return
@@ -618,6 +642,20 @@ class MissionEventListener(EventListener["Mission"]):
         server.afk[player.ucid] = datetime.now(timezone.utc)
         self.display_mission_embed(server)
         self.display_player_embed(server)
+
+    @event(name="onCensoredPlayerName")
+    async def onCensoredPlayerName(self, server: Server, data: dict) -> None:
+        admin_channel = self.bot.get_admin_channel(server)
+        if not admin_channel:
+            return
+        if server.locals.get('no_join_with_cursename'):
+            message = _("User {} (ucid={})\nRejected due to inappropriate nickname.").format(
+                data['name'], data['ucid'])
+        else:
+            message = _("User {} (ucid={})\nPotentially inappropriate nickname.").format(
+                data['name'], data['ucid'])
+        view = ProfanityView(ucid=data['ucid'], name=data['name'])
+        await admin_channel.send(f"```{message}```", view=view)
 
     async def _stop_player(self, server: Server, player: Player):
         player.active = False

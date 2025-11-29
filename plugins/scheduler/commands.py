@@ -840,7 +840,7 @@ class Scheduler(Plugin[SchedulerListener]):
                             await msg.edit(embed=embed)
                     else:
                         embed.description += f"\n- Timeout while launching. Please check if the server has started properly."
-                        embed.set_thumbnail(url=TRAFFIC_LIGHTS['yellow'])
+                        embed.set_thumbnail(url=TRAFFIC_LIGHTS['amber'])
                         await msg.edit(embed=embed)
                         break
         except Exception as ex:
