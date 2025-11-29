@@ -401,7 +401,7 @@ class Scheduler(Plugin[SchedulerListener]):
 
         if server.status in [Status.SHUTDOWN, Status.LOADING]:
             self.log.debug(f"{self.__cog_name__}: Starting server {server.name}")
-            await server.startup(modify_mission=False, use_orig=False)
+            await server.startup(modify_mission=modify_mission, use_orig=use_orig)
         else:
             rc = await server.loadMission(
                 current_mission,
