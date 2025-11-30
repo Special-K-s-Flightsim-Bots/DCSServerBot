@@ -412,13 +412,17 @@ class CampaignCredits(BaseModel):
     id: int = Field(..., description="Campaign ID")
     name: str = Field(..., description="Campaign name")
     credits: float = Field(..., description="Player's credits in this campaign")
+    rank: str | None = Field(..., description="Player's rank")
+    badge: str | None = Field(..., description="Player's badge")
 
     model_config = {
         "json_schema_extra": {
             "example": {
                 "id": 1,
                 "name": "Summer Campaign 2025",
-                "credits": 1500.0
+                "credits": 1500.0,
+                "rank": "Rookie",
+                "badge": "https://example.com/rookie_badge.png"
             }
         }
     }

@@ -40,7 +40,10 @@ DEFAULT:                # valid for all servers
   achievements:       # OPTIONAL: you can give players Discord roles according to their achievements
   - credits: 0
     playtime: 0       # Playtime is in hours
-    role: Rookie      # Initially, with 0 credits and 0 playtime, you get the role "Rookie" (has to be in Discord)
+    badge:            # Optional: give the player a badge
+      name: Rookie
+      img: https://example.com/rookie_badge.png
+    role: Rookie      # Optional: Initially, with 0 credits and 0 playtime, you get the role "Rookie" (has to be in Discord)
   - credits: 50
     playtime: 25
     role: Veteran     # to get the Veteran role, you have to have EITHER 50 credit points OR a playtime of 25 hrs

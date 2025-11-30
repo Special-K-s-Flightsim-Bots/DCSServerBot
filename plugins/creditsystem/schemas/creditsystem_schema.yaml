@@ -66,6 +66,12 @@ schema;element_schema:
             playtime: {type: int, range: {min: 0}, nullable: false}
             combined: {type: bool, nullable: false}
             role: {type: text, nullable: false}
+            badge:
+              type: map
+              nullable: true
+              mapping:
+                name: {type: str, nullable: false, range: {min: 1}}
+                img: {type: url, nullable: false}
     leaderboard:
       type: map
       nullable: false

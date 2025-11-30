@@ -822,11 +822,13 @@ class RestAPI(Plugin):
                 else:
                     where = "WHERE (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc')"
                 await cursor.execute(f"""
-                    SELECT c.id, c.name, COALESCE(SUM(s.points), 0) AS credits 
-                    FROM campaigns c LEFT OUTER JOIN credits s 
-                    ON (c.id = s.campaign_id AND s.player_ucid = %(ucid)s) 
+                    SELECT c.id, c.name, b.badge_name AS rank, b.badge_url AS badge, 
+                           COALESCE(SUM(s.points), 0) AS credits 
+                    FROM campaigns c 
+                    LEFT OUTER JOIN credits s ON (c.id = s.campaign_id AND s.player_ucid = %(ucid)s) 
+                    LEFT OUTER JOIN players_badges b ON (c.id = b.campaign_id AND b.player_ucid = %(ucid)s)
                     {where}
-                    GROUP BY 1, 2
+                    GROUP BY 1, 2, 3, 4
                 """, {"ucid": ucid, "campaign": campaign})
                 row = await cursor.fetchone()
                 if not row:

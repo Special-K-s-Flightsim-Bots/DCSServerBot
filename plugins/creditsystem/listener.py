@@ -2,7 +2,7 @@ import asyncio
 import discord
 
 from core import EventListener, Server, Status, utils, event, chat_command, get_translation, DataObjectFactory
-from typing import cast, TYPE_CHECKING
+from typing import cast, TYPE_CHECKING, Literal
 
 from .player import CreditPlayer
 from .squadron import Squadron
@@ -115,17 +115,17 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             cursor = await conn.execute("""
                 SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), 0) AS playtime 
                 FROM statistics s JOIN missions m ON m.id = s.mission_id 
-                JOIN campaigns c ON c.id = %s
+                JOIN campaigns c ON c.id = %(campaign_id)s
                 JOIN campaigns_servers cs ON cs.campaign_id = c.id
-                WHERE s.player_ucid = %s 
+                WHERE s.player_ucid = %(ucid)s 
                 AND m.server_name = cs.server_name 
                 AND tsrange(s.hop_on, s.hop_off) && tsrange(c.start, c.stop)
-            """, (ucid, campaign_id))
+            """, {"campaign_id": campaign_id, "ucid": ucid})
             return int((await cursor.fetchone())[0])
 
     async def process_achievements(self, server: Server, player: CreditPlayer):
 
-        async def manage_role(member: discord.Member, role: str | int, action: str):
+        async def manage_role(role: str | int, action: Literal['add', 'remove']):
             _role = self.bot.get_role(role)
             if not _role:
                 self.log.error(f"Role {role} not found in your Discord!")
@@ -141,38 +141,71 @@ class CreditSystemListener(EventListener["CreditSystem"]):
                 self.log.error(
                     f'The bot needs the "Manage Roles" permission or needs to be placed higher than role {_role.name}!')
 
-        # only linked player can achieve roles
-        member = player.member
-        if not member:
-            return
+        async def manage_badge(badge: dict, action: Literal['add', 'remove']):
+            if action == "add":
+                async with self.apool.connection() as conn:
+                    async with conn.transaction():
+                        await conn.execute("""
+                            INSERT INTO players_badges (campaign_id, player_ucid, badge_name, badge_url) 
+                            VALUES (%s, %s, %s, %s)
+                            ON CONFLICT (campaign_id, player_ucid) DO NOTHING
+                        """, (campaign_id, player.ucid, badge['name'], badge['img']))
+                        await self.bot.audit(f"achieved the badge {badge['name']}", user=player.ucid)
+            elif action == "remove":
+                async with self.apool.connection() as conn:
+                    async with conn.transaction():
+                        await conn.execute("""
+                            DELETE FROM players_badges WHERE campaign_id = %s AND player_ucid = %s
+                        """, (campaign_id, player.ucid))
+                        await self.bot.audit(f"lost the badge {badge['name']}", user=player.ucid)
+
         config: dict = self.plugin.get_config(server)
         if 'achievements' not in config:
             return
 
         campaign_id, _ = utils.get_running_campaign(self.node, server)
+        # only members can get roles
+        member = player.member
         playtime = (await self.get_flighttime(player.ucid, campaign_id)) / 3600.0
         sorted_achievements = sorted(config['achievements'],
                                      key=lambda x: x['credits'] if 'credits' in x else x['playtime'],
                                      reverse=True)
-        given = False
+        role_given = badge_given = False
         for achievement in sorted_achievements:
-            if given:
-                await manage_role(member, achievement['role'], 'remove')
+            if role_given or badge_given:
+                if role_given:
+                    await manage_role(achievement['role'], 'remove')
+                if badge_given:
+                    await manage_badge(achievement['badge'], 'remove')
                 continue
             if achievement.get('combined'):
                 if ('credits' in achievement and player.points >= achievement['credits']) and \
                         ('playtime' in achievement and playtime >= achievement['playtime']):
-                    await manage_role(member, achievement['role'], 'add')
-                    given = True
+                    if 'role' in achievement and member:
+                        await manage_role(achievement['role'], 'add')
+                        role_given = True
+                    if 'badge' in achievement:
+                        await manage_badge(achievement['badge'], 'add')
+                        badge_given = True
                 else:
-                    await manage_role(member, achievement['role'], 'remove')
+                    if 'role' in achievement and member:
+                        await manage_role(achievement['role'], 'remove')
+                    if 'badge' in achievement:
+                        await manage_badge(achievement['badge'], 'remove')
             else:
                 if ('credits' in achievement and player.points >= achievement['credits']) or \
                         ('playtime' in achievement and playtime >= achievement['playtime']):
-                    await manage_role(member, achievement['role'], 'add')
-                    given = True
+                    if 'role' in achievement and member:
+                        await manage_role(achievement['role'], 'add')
+                        role_given = True
+                    if 'badge' in achievement:
+                        await manage_badge(achievement['badge'], 'add')
+                        badge_given = True
                 else:
-                    await manage_role(member, achievement['role'], 'remove')
+                    if 'role' in achievement and member:
+                        await manage_role(achievement['role'], 'remove')
+                    if 'badge' in achievement:
+                        await manage_badge(achievement['badge'], 'remove')
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
@@ -180,7 +213,7 @@ class CreditSystemListener(EventListener["CreditSystem"]):
         if not config or server.status != Status.RUNNING:
             return
         if data['eventName'] == 'kill':
-            # players gain points only, if they don't kill themselves and no teamkills
+            # players gain points only if they don't kill themselves and no teamkills
             if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
                 # Multicrew - pilot and all crew members gain points
                 for player in server.get_crew_members(server.get_player(id=data['arg1'])):  # type: CreditPlayer
