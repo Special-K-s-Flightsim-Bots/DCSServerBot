@@ -24,6 +24,26 @@ if sys.platform == 'win32':
 
     from pywinauto.win32defines import SEE_MASK_NOCLOSEPROCESS, SW_HIDE, SW_SHOWMINNOACTIVE
 
+    class SHELLEXECUTEINFO(ctypes.Structure):
+        _fields_ = [
+            ("cbSize", ctypes.c_ulong),
+            ("fMask", ctypes.c_ulong),
+            ("hwnd", ctypes.c_void_p),
+            ("lpVerb", ctypes.c_wchar_p),
+            ("lpFile", ctypes.c_wchar_p),
+            ("lpParameters", ctypes.c_wchar_p),
+            ("lpDirectory", ctypes.c_wchar_p),
+            ("nShow", ctypes.c_int),
+            ("hInstApp", ctypes.c_void_p),
+            ("lpIDList", ctypes.c_void_p),
+            ("lpClass", ctypes.c_wchar_p),
+            ("hkeyClass", ctypes.c_void_p),
+            ("dwHotKey", ctypes.c_ulong),
+            ("hIcon", ctypes.c_void_p),
+            ("hProcess", ctypes.c_void_p),
+        ]
+
+
 __all__ = [
     "find_process",
     "find_process_async",
@@ -311,27 +331,6 @@ class CloudRotatingFileHandler(RotatingFileHandler):
             if log_file_size >= self.maxBytes:
                 return 1
         return 0
-
-
-if sys.platform == 'win32':
-    class SHELLEXECUTEINFO(ctypes.Structure):
-        _fields_ = [
-            ("cbSize", ctypes.c_ulong),
-            ("fMask", ctypes.c_ulong),
-            ("hwnd", ctypes.c_void_p),
-            ("lpVerb", ctypes.c_wchar_p),
-            ("lpFile", ctypes.c_wchar_p),
-            ("lpParameters", ctypes.c_wchar_p),
-            ("lpDirectory", ctypes.c_wchar_p),
-            ("nShow", ctypes.c_int),
-            ("hInstApp", ctypes.c_void_p),
-            ("lpIDList", ctypes.c_void_p),
-            ("lpClass", ctypes.c_wchar_p),
-            ("hkeyClass", ctypes.c_void_p),
-            ("dwHotKey", ctypes.c_ulong),
-            ("hIcon", ctypes.c_void_p),
-            ("hProcess", ctypes.c_void_p),
-        ]
 
 
 def run_elevated(exe_path, cwd, *args):

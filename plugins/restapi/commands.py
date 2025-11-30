@@ -762,9 +762,9 @@ class RestAPI(Plugin):
                    CASE WHEN SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) = 0 
                         THEN SUM(s.kills) ELSE SUM(s.kills)::DECIMAL / SUM((s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground)::DECIMAL) END AS "kdr" 
             FROM mv_statistics s
-            WHERE player_ucid = %(ucid)s 
+            WHERE s.player_ucid = %(ucid)s 
             {where}
-            GROUP BY 1 HAVING SUM(kills) > 1 
+            GROUP BY 1 HAVING SUM(s.kills) > 0 
             ORDER BY 2 DESC
         """
         async with self.apool.connection() as conn:
