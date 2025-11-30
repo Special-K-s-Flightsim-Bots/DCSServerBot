@@ -67,6 +67,9 @@ DEFAULT:
 You can configure the behaviour of the mission plugin with an optional config/plugins/mission.yaml:
 ```yaml
 DEFAULT:
+  messages:
+    ban_username: Inappropriate username.
+    ban_evasion: Trying to evade a ban with a 2nd account.
   event_filter:       # do NOT report these events (default: [])
     - connect
     - disconnect

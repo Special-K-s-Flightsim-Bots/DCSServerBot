@@ -697,7 +697,7 @@ class ServerImpl(Server):
         if await self.is_running():
             if not force:
                 await self.do_shutdown()
-                # wait 30/60s for the process to terminate
+                # wait 30 / 60s for the process to terminate
                 for i in range(1, 60 if self.node.locals.get('slow_system', False) else 30):
                     if not self.process or not self.process.is_running():
                         break
@@ -723,7 +723,7 @@ class ServerImpl(Server):
             if not self.process or not self.process.is_running():
                 return
             self.process.terminate()
-            # wait 30/60s for the process to terminate
+            # wait 30 / 60s for the process to terminate
             for i in range(1, 60 if self.node.locals.get('slow_system', False) else 30):
                 if not self.process or not self.process.is_running():
                     return
@@ -1036,14 +1036,24 @@ class ServerImpl(Server):
             except ValueError:
                 return False
         else:
+            timeout = 300 if self.node.locals.get('slow_system', False) else 180
             try:
                 idx = mission_list.index(filename) + 1
                 if idx == start_index:
-                    rc = await self.send_to_dcs_sync({"command": "startMission", "filename": filename})
+                    rc = await self.send_to_dcs_sync({
+                        "command": "startMission",
+                        "filename": filename
+                    }, timeout=timeout)
                 else:
-                    rc = await self.send_to_dcs_sync({"command": "startMission", "id": idx})
+                    rc = await self.send_to_dcs_sync({
+                        "command": "startMission",
+                        "id": idx
+                    }, timeout=timeout)
             except ValueError:
-                rc = await self.send_to_dcs_sync({"command": "startMission", "filename": filename})
+                rc = await self.send_to_dcs_sync({
+                    "command": "startMission",
+                    "filename": filename
+                }, timeout=timeout)
             # We could not load the mission
             result = rc['result'] if isinstance(rc['result'], bool) else (rc['result'] == 0)
             if not result:
