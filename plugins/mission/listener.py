@@ -803,6 +803,7 @@ class MissionEventListener(EventListener["Mission"]):
                 ('player ' + player2.name) if player2 else 'AI',
                 data['arg2'] or 'Cannon/Bomblet')
             )
+
         elif data['eventName'] == 'self_kill':
             player = server.get_player(id=data['arg1']) if data['arg1'] != -1 else None
             side = player.side if player else Side.UNKNOWN
@@ -821,9 +822,16 @@ class MissionEventListener(EventListener["Mission"]):
                 data['arg2'] or 'SCENERY', Side(data['arg6']).name,
                 ('player ' + player2.name) if player2 is not None else 'AI',
                 data['arg5'] or 'SCENERY', data['arg7'] or 'Cannon/Bomblet'))
+
             # report teamkills from players to admins (only on public servers)
             if server.is_public() and player1 and player2 and data['arg1'] != data['arg4'] \
                     and data['arg3'] == data['arg6']:
+                # do not report if the punishment plugin is active and teamkills are punished
+                if self.bot.cogs.get('Punishment'):
+                    _config = self.get_config(server, plugin_name='Punishment')
+                    if any(x for x in _config.get('penalties', []) if x.get('event', "") == 'kill'):
+                       return
+
                 name = ('Member ' + player1.member.display_name) \
                     if player1.member else ('Player ' + player1.display_name)
                 message = f"{name} (ucid={player1.ucid}) is killing team members."

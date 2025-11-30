@@ -12,7 +12,7 @@ class Main(report.EmbedElement):
             Side.RED: {"names": [], "units": [], "SRS": []},
             Side.NEUTRAL: {"names": [], "units": [], "SRS": []}
         }
-        srs_plugin = cast(SRS, self.bot.cogs.get('SRS', None))
+        srs_plugin = cast(SRS, self.bot.cogs.get('SRS'))
         if srs_plugin:
             srs_users = srs_plugin.eventlistener.srs_users.get(server.name, {})
         else:

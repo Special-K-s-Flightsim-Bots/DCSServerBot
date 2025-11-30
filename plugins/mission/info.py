@@ -3,6 +3,8 @@ import discord
 from core import report, Side, Player, DataObjectFactory, Member, utils
 from datetime import datetime, timezone
 from psycopg.rows import dict_row
+from plugins.srs.commands import SRS
+from typing import cast
 
 
 class Header(report.EmbedElement):
@@ -182,7 +184,7 @@ class PlayerInfo(report.EmbedElement):
             self.add_field(name="Slot", value=player.unit_callsign)
 
             self.add_field(name="Module", value=player.unit_display_name)
-            srs_plugin = self.bot.cogs.get('SRS', None)
+            srs_plugin = cast(SRS, self.bot.cogs.get('SRS'))
             if srs_plugin:
                 srs_users = srs_plugin.eventlistener.srs_users.get(player.server.name, {})
                 if player.name in srs_users:
