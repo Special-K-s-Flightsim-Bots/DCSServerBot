@@ -868,7 +868,7 @@ class Tournament(Plugin[TournamentEventListener]):
             if admin_channel:
                 await admin_channel.send(_("Squadron {} signed up for tournament {}, you can now {} them.").format(
                     squadron['name'], tournament['name'],
-                    (await utils.get_command(self.bot, group='tournament', name='verify')).mention))
+                    (await utils.get_command(self.bot, group=self.tournament.name, name=self.verify.name)).mention))
         except UniqueViolation:
             # noinspection PyUnresolvedReferences
             await interaction.followup.send(_("Squadron already signed up for tournament."), ephemeral=True)
@@ -1569,7 +1569,7 @@ class Tournament(Plugin[TournamentEventListener]):
                               mission_id: int | None = None) -> str:
         config = self.get_config(server)
         # set startindex or use last mission
-        if mission_id is not None and server.settings['listStartIndex'] != mission_id + 1:
+        if mission_id is not None and server.settings['listStartIndex'] != (mission_id + 1):
             await server.setStartIndex(mission_id + 1)
 
         # change the mission

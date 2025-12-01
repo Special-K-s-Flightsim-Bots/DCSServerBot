@@ -63,6 +63,6 @@ class GameMasterUploadHandler(ServerUploadHandler):
         if num > 0:
             await self.channel.send(
                 _("{num} LUA files uploaded. You can load any of them with {command} now.").format(
-                    num=num, command=(await utils.get_command(self.bot, name='do_script_file')).mention
+                    num=num, command=(await utils.get_command(self.bot, name=self.plugin.do_script_file.name)).mention
                 )
             )

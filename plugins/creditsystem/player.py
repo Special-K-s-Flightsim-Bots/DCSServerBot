@@ -28,6 +28,9 @@ class CreditPlayer(Player):
             if cursor.rowcount == 1:
                 row = cursor.fetchone()
                 campaign_id, _ = utils.get_running_campaign(self.node, self.server)
+                if not campaign_id:
+                    self.squadron = None
+                    return
                 self.squadron = DataObjectFactory().new(Squadron, node=self.node, name=row[0], campaign_id=campaign_id)
             else:
                 self.squadron = None

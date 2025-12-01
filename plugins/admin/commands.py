@@ -1369,7 +1369,7 @@ Please make sure you forward the following ports:
         else:
             await message.channel.send(
                 _('To apply the new config by restarting a node or the whole cluster, use {}').format(
-                    (await utils.get_command(self.bot, group='node', name='restart')).mention
+                    (await utils.get_command(self.bot, group=self.node_group.name, name=self.restart.name)).mention
                 )
             )
 

@@ -241,7 +241,7 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _('You need to specify grades in your greenieboard.yaml to use {}!').format(
-                    (await utils.get_command(self.bot, group='traps', name='add')).mention
+                    (await utils.get_command(self.bot, group=self.traps.name, name=self.add.name)).mention
                 ), ephemeral=True)
             return
 

@@ -816,7 +816,8 @@ class Scheduler(Plugin[SchedulerListener]):
                             title=f"DCS server \"{server.display_name}\" started.",
                             text="Server is in maintenance mode!\n"
                                  "Use {} to reset maintenance mode.".format(
-                                (await utils.get_command(self.bot, group='scheduler', name='clear')).mention
+                                (await utils.get_command(self.bot, group=self.scheduler.name,
+                                                         name=self.clear.name)).mention
                             )
                         )
                         await msg.edit(embed=embed)
@@ -932,7 +933,7 @@ class Scheduler(Plugin[SchedulerListener]):
                     title=f"DCS server \"{server.display_name}\" shut down.",
                     text="Server is in maintenance mode!\n"
                          "Use {} to reset maintenance mode.".format(
-                        (await utils.get_command(self.bot, group='scheduler', name='clear')).mention
+                        (await utils.get_command(self.bot, group=self.scheduler.name, name=self.clear.name)).mention
                     )
                 )
                 await msg.edit(embed=embed)
@@ -1298,7 +1299,7 @@ class Scheduler(Plugin[SchedulerListener]):
                         title=f"DCS server \"{server.display_name}\" started.",
                         text="Server is in maintenance mode!\n"
                              "Use {} to reset maintenance mode.".format(
-                            (await utils.get_command(self.bot, group='scheduler', name='clear')).mention
+                            (await utils.get_command(self.bot, group=self.scheduler.name, name=self.clear.name)).mention
                         )
                     )
                     await interaction.followup.send(embed=embed, ephemeral=ephemeral)

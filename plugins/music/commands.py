@@ -147,7 +147,7 @@ class Music(Plugin[MusicEventListener]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("You don't have any playlists to play. Please create one with {}.").format(
-                    (await utils.get_command(self.bot, group='playlist', name='add')).mention
+                    (await utils.get_command(self.bot, group=self.plgroup.name, name=self.add.name)).mention
                 ), ephemeral=True)
             return
         view = MusicPlayer(server=_server, radio_name=radio_name, playlists=playlists)

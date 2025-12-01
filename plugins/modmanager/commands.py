@@ -497,7 +497,7 @@ class ModManager(Plugin):
                 return
             await msg.edit(content=_("{file} downloaded. Use {command} to install it.").format(
                 file=f"{package_name}_v{version}",
-                command=(await utils.get_command(self.bot, group='mods', name='install')).mention
+                command=(await utils.get_command(self.bot, group=self.mods.name, name=self._install.name)).mention
             ))
         else:
             filename = url.split('/')[-1]
@@ -510,7 +510,8 @@ class ModManager(Plugin):
                     return
                 await self.service.download_from_repo(url, folder, version=version, force=True)
             await msg.edit(content=_("{file} downloaded. Use {command} to install it.").format(
-                file=filename, command=(await utils.get_command(self.bot, group='mods', name='install')).mention))
+                file=filename, command=(await utils.get_command(self.bot, group=self.mods.name,
+                                                                name=self._install.name)).mention))
 
 
 async def setup(bot: DCSServerBot):

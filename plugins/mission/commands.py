@@ -395,7 +395,7 @@ class Mission(Plugin[MissionEventListener]):
                 _("Timeout while the mission {what}.\n"
                   "Please check with {command}, if the mission is running.").format(
                     what=_(actions.get(what)),
-                    command=(await utils.get_command(self.bot, group='mission', name='info')).mention
+                    command=(await utils.get_command(self.bot, group=self.mission.name, name=self.info.name)).mention
                 ), ephemeral=ephemeral)
 
     async def _load(self, interaction: discord.Interaction, server: Server, mission: int | str | None = None,
@@ -488,7 +488,7 @@ class Mission(Plugin[MissionEventListener]):
                             message += _('\nThis mission is NOT in the mission list and will not auto-load on server '
                                          'or mission restarts.\n'
                                          'If you want it to auto-load, use {}').format(
-                                (await utils.get_command(self.bot, group='mission', name='add')).mention)
+                                (await utils.get_command(self.bot, group=self.mission.name, name=self.add.name)).mention)
                         await msg.edit(content=message)
                         await self.bot.audit(f"loaded mission {utils.escape_string(name)}", server=server,
                                              user=interaction.user)
@@ -1336,12 +1336,12 @@ class Mission(Plugin[MissionEventListener]):
 
     watch = Group(name="watch", description="Commands to manage the watchlist")
 
-    @watch.command(description=_('Puts a player onto the watchlist'))
+    @watch.command(name='add', description=_('Puts a player onto the watchlist'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def add(self, interaction: discord.Interaction,
-                  user: app_commands.Transform[discord.Member | str, utils.UserTransformer(
-                      sel_type=PlayerType.PLAYER, watchlist=False)], reason: str):
+    async def _add(self, interaction: discord.Interaction,
+                   user: app_commands.Transform[discord.Member | str, utils.UserTransformer(
+                       sel_type=PlayerType.PLAYER, watchlist=False)], reason: str):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
@@ -1349,8 +1349,13 @@ class Mission(Plugin[MissionEventListener]):
                 await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name),
                                                         ephemeral=True)
                 return
-        else:
+        elif utils.is_ucid(user):
             ucid = user
+        else:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("User not found."), ephemeral=True)
+            return
+
         try:
             async with self.apool.connection() as conn:
                 async with conn.transaction():
@@ -1624,7 +1629,7 @@ class Mission(Plugin[MissionEventListener]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("This user does not exist. Try {} to find them in the historic data.").format(
-                    (await utils.get_command(self.bot, name='find')).mention
+                    (await utils.get_command(self.bot, name=self.find.name)).mention
                 ), ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)

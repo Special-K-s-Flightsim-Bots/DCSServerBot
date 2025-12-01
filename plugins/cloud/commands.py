@@ -375,6 +375,11 @@ class Cloud(Plugin[CloudListener]):
                                 self.log.warning(f"Could not replicate user {row[0]}: {ex}")
                         await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row[0], ))
 
+    @cloud_sync.before_loop
+    async def before_cloud_sync(self):
+        await self.bot.wait_until_ready()
+
+
     @tasks.loop(hours=1)
     async def register(self):
         async with self.apool.connection() as conn:

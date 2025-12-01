@@ -608,6 +608,9 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         campaign_id, name = utils.get_running_campaign(self.node, server)
+        if not campaign_id:
+            await interaction.followup.send(_("You don't have an active campaign."), ephemeral=True)
+            return
         squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
         squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
                                                campaign_id=campaign_id)

@@ -125,6 +125,9 @@ class RealWeather(Plugin[RealWeatherEventListener]):
                 filename = await server.get_current_mission_file()
                 new_filename = await server.run_on_extension('RealWeather', 'apply_realweather',
                                                              filename=filename, config=config, use_orig=use_orig)
+            except ValueError:
+                await msg.edit(content='Could not apply weather, RealWeather extension not loaded.')
+                return
             except (FileNotFoundError, UnsupportedMizFileException):
                 await msg.edit(content='Could not apply weather due to an error in RealWeather.')
                 return

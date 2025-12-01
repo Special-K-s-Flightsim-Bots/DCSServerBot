@@ -102,6 +102,9 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             squadron = self.squadrons.get(data['squadron'])
             if not squadron:
                 campaign_id, name = utils.get_running_campaign(self.node, server)
+                if not campaign_id:
+                    self.log.warning("You need an active campaign to use squadron credits!")
+                    return
                 squadron = DataObjectFactory().new(Squadron, node=self.node, name=data['squadron'],
                                                    campaign_id=campaign_id)
                 self.squadrons[data['squadron']] = squadron
