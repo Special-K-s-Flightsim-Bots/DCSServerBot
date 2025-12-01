@@ -226,7 +226,8 @@ function dcsbot.startMission(json)
         json.result = net.missionlist_run(json.id)
         if json.result == true then
             utils.saveSettings({
-                listStartIndex=json.id
+                listStartIndex = json.id,
+                current = json.id
             })
         end
     else
@@ -269,7 +270,8 @@ end
 function dcsbot.setStartIndex(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: setStartIndex()')
 	utils.saveSettings({
-		listStartIndex = json.id
+		listStartIndex = json.id,
+		current = json.id
     })
 end
 
@@ -319,15 +321,11 @@ end
 function dcsbot.replaceMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: replaceMission()')
 	local current_missions = net.missionlist_get()
+	local listStartIndex = current_missions["listStartIndex"]
     net.missionlist_delete(tonumber(json.index))
     net.missionlist_append(json.path)
     net.missionlist_move(#current_missions["missionList"], tonumber(json.index))
 	current_missions = net.missionlist_get()
-    -- workaround DCS bug
-	local listStartIndex = current_missions["listStartIndex"]
-    if #current_missions['missionList'] < listStartIndex then
-        listStartIndex = 1
-    end
 	utils.saveSettings({
 		missionList = current_missions["missionList"],
 		listStartIndex = listStartIndex
