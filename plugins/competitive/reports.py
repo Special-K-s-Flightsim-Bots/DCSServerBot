@@ -1,5 +1,7 @@
 import discord
 import numpy as np
+import pandas as pd
+import seaborn as sns
 
 from core import report
 from datetime import datetime, timezone
@@ -83,3 +85,57 @@ class MatchLog(report.EmbedElement):
             logs.append(log)
         self.add_field(name="Time", value="\n".join([f"<t:{int(t.timestamp())}:T>" for t in times]))
         self.add_field(name="Log", value="\n".join(logs))
+
+
+class History(report.GraphElement):
+
+    async def render(self, ucid: str, name: str, flt: StatisticsFilter):
+        self.env.embed.title = flt.format(self.bot) + self.env.embed.title
+        query = f"""
+                SELECT time, skill_mu, skill_sigma FROM (
+                    SELECT time, skill_mu, skill_sigma
+                    FROM trueskill
+                    WHERE player_ucid = %(ucid)s
+                    UNION
+                    SELECT time, skill_mu, skill_sigma
+                    FROM trueskill_hist
+                    WHERE player_ucid = %(ucid)s
+                ) x
+                WHERE {flt.filter(self.bot)}
+                ORDER BY time DESC
+                """
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(query, {"ucid": ucid})
+                data = await cursor.fetchall()
+                df = pd.DataFrame.from_dict(data)
+
+        if df.empty:
+            self.axes.set_xticks([])
+            self.axes.text(0.5, 0.5, 'No data available.', ha='center', va='center', rotation=45, size=15,
+                           transform=self.axes.transAxes)
+            return
+
+        sns.set_theme(style="whitegrid")
+
+        # μ line
+        sns.lineplot(x='time', y='skill_mu',
+                     data=df,
+                     ax=self.axes,
+                     color='steelblue',
+                     marker='o',
+                     label='TrueSkill μ')
+
+        # σ as shaded band
+        self.axes.fill_between(df['time'],
+                               df['skill_mu'] - df['skill_sigma'],
+                               df['skill_mu'] + df['skill_sigma'],
+                               color='steelblue',
+                               alpha=0.2,
+                               label='σ (confidence)')
+
+        # Formatting
+        self.axes.set_title(f"TrueSkill evolution – {name}")
+        self.axes.set_xlabel("Date")
+        self.axes.set_ylabel("TrueSkill μ")
+        self.axes.legend(loc='upper right')

@@ -3,7 +3,7 @@ import discord
 import os
 
 from contextlib import suppress
-from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils
+from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils, get_translation
 from discord import SelectOption, ButtonStyle
 from discord.ui import View, Select, Button
 from io import StringIO
@@ -13,6 +13,7 @@ from typing import cast
 from services.bot import DCSServerBot
 
 WARNING_ICON = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true"
+_ = get_translation(__name__.split('.')[1])
 
 
 class ServerView(View):

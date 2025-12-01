@@ -73,20 +73,14 @@ class FunkMan(Plugin[FunkManEventListener]):
             self._config[server.node.name][server.instance.name] = default | specific
         return self._config[server.node.name][server.instance.name]
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: str | None = None) -> None:
+    async def prune(self, conn: psycopg.AsyncConnection, days: int) -> None:
         self.log.debug('Pruning FunkMan ...')
-        if ucids:
-            for ucid in ucids:
-                await conn.execute('DELETE FROM bomb_runs WHERE player_ucid = %s', (ucid,))
-                await conn.execute('DELETE FROM strafe_runs WHERE player_ucid = %s', (ucid,))
-        elif days > -1:
-            await conn.execute(f"""
-                DELETE FROM bomb_runs WHERE time < (DATE(now() AT TIME ZONE 'utc') - %s::interval)
-            """, (f'{days} days', ))
-            await conn.execute("""
-                DELETE FROM strafe_runs WHERE time < (DATE(now() AT TIME ZONE 'utc') - %s::interval)
-            """, (f'{days} days', ))
+        await conn.execute(f"""
+            DELETE FROM bomb_runs WHERE time < (DATE(now() AT TIME ZONE 'utc') - %s::interval)
+        """, (f'{days} days', ))
+        await conn.execute("""
+            DELETE FROM strafe_runs WHERE time < (DATE(now() AT TIME ZONE 'utc') - %s::interval)
+        """, (f'{days} days', ))
         self.log.debug('FunkMan pruned.')
 
 

@@ -148,16 +148,6 @@ class Monitoring(Plugin[MonitoringListener]):
                 await ServiceRegistry.get(MonitoringService).stop()
                 await ServiceRegistry.get(MonitoringService).start()
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: str | None = None) -> None:
-        self.log.debug('Pruning Monitoring ...')
-        if server:
-            await conn.execute("DELETE FROM serverstats WHERE server_name = %s", (server, ))
-        self.log.debug('Monitoring pruned.')
-
-    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
-        await conn.execute('UPDATE serverstats SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-
     def get_config(self, server: Server | None = None, *, plugin_name: str | None = None,
                    use_cache: bool | None = True) -> dict:
         if plugin_name:

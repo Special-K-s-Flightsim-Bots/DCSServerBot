@@ -106,11 +106,11 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             dataset = {
                 'mission_id': server.mission_id,
                 'event': data['eventName'],
-                'init_id': init_player.ucid if init_player else -1,
+                'init_id': init_player.ucid if init_player else None,
                 'init_side': get_value(data, 'initiator', 'coalition'),
                 'init_type': get_value(data, 'initiator', 'unit_type'),
                 'init_cat': self.UNIT_CATEGORY.get(get_value(data, 'initiator', 'category'), 'Unknown'),
-                'target_id': target_player.ucid if target_player else -1,
+                'target_id': target_player.ucid if target_player else None,
                 'target_side': get_value(data, 'target', 'coalition'),
                 'target_type': get_value(data, 'target', 'unit_type'),
                 'target_cat': self.UNIT_CATEGORY.get(get_value(data, 'target', 'category'), 'Unknown'),

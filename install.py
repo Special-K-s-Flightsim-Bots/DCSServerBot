@@ -582,6 +582,36 @@ If you need any further assistance, please visit the support discord, listed in 
                 data[new_name] = data.pop(old_name)
                 with Path(file).open('w', encoding='utf-8') as f:
                     yaml.dump(data, f)
+        main = yaml.load(Path(os.path.join(config_dir, 'main.yaml')).read_text(encoding='utf-8'))
+        nodes = yaml.load(Path(os.path.join(config_dir, 'nodes.yaml')).read_text(encoding='utf-8'))
+        url = nodes.get(new_name, {}).get('database', {}).get('url', main.get('database', {}).get('url'))
+        if not url:
+            print(_("No database URL found. Please configure the database URL in the main.yaml or nodes.yaml file."))
+            return
+        url = url.replace('SECRET', utils.get_password('database', config_dir))
+        with psycopg.connect(url, autocommit=True) as conn:
+            # rename nodes in all relevant tables
+            conn.execute("UPDATE instances SET node = %s WHERE node = %s", (new_name, old_name))
+            conn.execute("UPDATE nodestats SET node = %s WHERE node = %s", (old_name, new_name))
+            conn.execute("UPDATE audit SET node = %s WHERE node = %s", (old_name, new_name))
+            # serverstats might not be there
+            conn.execute(
+                sql.SQL(
+                    """
+                    DO $$
+                    BEGIN
+                        IF to_regclass('public.serverstats') IS NOT NULL THEN
+                            UPDATE serverstats
+                            SET node = {new_val}
+                            WHERE node = {old_val};
+                        END IF;
+                    END $$;
+                    """
+                ).format(
+                    new_val=sql.Literal(new_name),
+                    old_val=sql.Literal(old_name),
+                )
+            )
 
 
 if __name__ == "__main__":

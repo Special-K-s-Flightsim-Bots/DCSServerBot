@@ -1,5 +1,4 @@
 import discord
-import psycopg
 import logging
 
 from core import (
@@ -24,11 +23,6 @@ class PypptrTest(Plugin):
         # Do whatever is needed to initialize your plugin.
         # You usually don't need to implement this function.
         logging.getLogger("pyppeteer").setLevel(logging.CRITICAL)
-
-    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
-        # If a server rename takes place, you might want to update data in your created tables
-        # if they contain a server_name value. You usually don't need to implement this function.
-        ...
 
     # New command group "/vnao"
     pypptr = Group(name="pypptr", description="Pypptr commands")

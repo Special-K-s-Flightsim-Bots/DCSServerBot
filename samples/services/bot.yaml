@@ -1,4 +1,4 @@
-token: AAaahhg2347286adhjdjasd2347263473        # Your TOKEN, as received from the discord developer portal.
+token: SECRET_DISCORD_TOKEN                     # Your TOKEN, as received from the discord developer portal. The bot will auto-move this to a secret place.
 owner: 1122334455667788                         # The ID of your bot user. Right click, select "Copy User ID".
 automatch: true                                 # Use the bots auto-matching functionality (see below), default is true.
 autoban: false                                  # Use the bots auto-ban functionality (see below), default is false.

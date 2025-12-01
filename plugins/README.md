@@ -128,17 +128,12 @@ class Sample(Plugin[SampleEventListener]):
         # do something after a DCS upgrade took place and before the servers are started
         ...
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: Optional[str] = None) -> None:
-        # cleanup (the database) with data older than days and/or for specific users (ucids) 
-        ...
-
-    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str) -> None:
-        # this function has to be implemented in your own plugins if a server rename takes place
+    async def prune(self, conn: psycopg.AsyncConnection, days: int) -> None:
+        # Rare: cleanup (the database) with data older than days (if you have tables with timestamps) 
         ...
 
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
-        # this function has to be implemented in your own plugins if the ucid of a user changed (steam <=> standalone)
+        # Rare: If you need to do something on an UCID change
         ...
 ```
 > [!NOTE]
@@ -512,9 +507,26 @@ optional "db" directory below your plugin directory.
 tables.sql:
 ```sql
 CREATE TABLE IF NOT EXISTS bans (
-    ucid TEXT PRIMARY KEY, banned_by TEXT NOT NULL, reason TEXT, banned_at TIMESTAMP NOT NULL DEFAULT NOW()
+    ucid TEXT PRIMARY KEY, 
+    banned_by TEXT NOT NULL, 
+    reason TEXT, 
+    banned_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 ```
+
+> [!NOTE]
+> Whenever using server names (column name server_name) or UCIDs (column name player_ucid or ucid), use foreign keys
+> to the respective master tables.
+> 
+> These are:
+> - servers (server_name) <-> yourtable (server_name)
+> - players (ucid) <-> yourtable (player_ucid)
+> - mission (id) <-> yourtable (mission_id)
+> - squadron (id) <-> yourtable (squadron_id)
+> - campaign (id) <-> yourtable (campaign_id)
+> 
+> For server name and UCID I recommend using ON CASCADE UPDATE and ON CASCADE DELETE, 
+> where you can use ON CASCADE DELETE for all others.
 
 To interact with the database, it is recommended to use the asynchronous database pool offered by each common 
 framework class:
@@ -532,6 +544,9 @@ class MyPlugin(Plugin):
                     ON CONFLICT DO NOTHING
                 """, (player.ucid, self.plugin_name, reason))
 ```
+
+> [!NOTE]
+> There is also a synchronous pool, if needed: self.pool
 
 ## Third-party Python libraries
 If your solution needs additional third-party libraries, you can define them in a file named `requirements.local` at 
@@ -584,7 +599,7 @@ class Sample(Plugin[SampleEventListener]):
         if new_version == '1.1':
             # change the config.yaml file to represent the changes introduced in version 1.1
             ...
-            # don't forget to re-read the plugin configuration if you have changed any of it during migration.
+            # remember to re-read the plugin configuration if you have changed any of it during migration.
             self.read_locals()
 ```
 This function handles the tasks necessary for a migration to version `new_version`. 

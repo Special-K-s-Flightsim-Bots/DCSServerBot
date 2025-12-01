@@ -89,6 +89,8 @@ class GameMasterEventListener(EventListener["GameMaster"]):
             ))
 
     async def get_coalition(self, server: Server, player: Player) -> Coalition | None:
+        if not server.locals.get('coalitions'):
+            return None
         if not player.coalition:
             lock_time = server.locals['coalitions'].get('lock_time', '1 day')
             async with self.apool.connection() as conn:

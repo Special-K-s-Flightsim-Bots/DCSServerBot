@@ -7,7 +7,7 @@ from abc import ABC
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core import Server
+    from core import Server, Port
 
 __all__ = [
     "Extension",
@@ -128,15 +128,15 @@ class Extension(ABC):
         return self.enabled
 
     async def install(self):
-        ...
+        pass
 
     async def uninstall(self):
-        ...
+        pass
 
     async def get_config(self, **kwargs) -> dict:
         return self.config
 
-    async def get_ports(self) -> dict:
+    def get_ports(self) -> dict[str, Port]:
         return {}
 
     async def change_config(self, config: dict):

@@ -8,7 +8,7 @@ import uuid
 
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
-from core import Server, Mission, Node, Status, utils, Instance, FatalException
+from core import Server, Mission, Node, Status, utils, Instance, FatalException, Port, PortType
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
 from core.data.impl.instanceimpl import InstanceImpl
@@ -159,18 +159,11 @@ class ServiceBus(Service):
         self.log.debug(f'  - EventListener {type(listener).__name__} unregistered.')
 
     def init_servers(self):
-        for instance in self.node.instances:
+        for instance in self.node.instances.values():
             try:
-                with self.pool.connection() as conn:
-                    cursor = conn.execute("""
-                        SELECT server_name FROM instances 
-                        WHERE node=%s AND instance=%s AND server_name IS NOT NULL
-                    """, (self.node.name, instance.name))
-                    row = cursor.fetchone()
-                # was there a server bound to this instance?
-                if row:
+                if instance.server_name:
                     server: ServerImpl = DataObjectFactory().new(
-                        ServerImpl, node=self.node, port=instance.bot_port, name=row[0], bus=self)
+                        ServerImpl, node=self.node, port=instance.bot_port, name=instance.server_name, bus=self)
                     instance.server = server
                     self.servers[server.name] = server
                 else:
@@ -194,8 +187,8 @@ class ServiceBus(Service):
                 "options": server.options,
                 "channels": server.locals.get('channels', {}),
                 "node": self.node.name,
-                "dcs_port": server.instance.dcs_port,
-                "webgui_port": server.instance.webgui_port,
+                "dcs_port": int(server.instance.dcs_port),
+                "webgui_port": int(server.instance.webgui_port),
                 "maintenance": server.maintenance
             }
         }, timeout=timeout)
@@ -220,7 +213,7 @@ class ServiceBus(Service):
                     if server.maintenance:
                         self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
 
-                    if utils.is_open(server.instance.dcs_host, server.instance.webgui_port):
+                    if utils.is_open(server.instance.dcs_host, int(server.instance.webgui_port)):
                         calls[server.name] = asyncio.create_task(
                             server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
                         )
@@ -458,15 +451,15 @@ class ServiceBus(Service):
             if not server or not server.is_remote:
                 server = ServerProxy(
                     node=node,
-                    port=-1,
+                    port=Port(-1, PortType.BOTH),
                     name=server_name,
                     bus=self
                 )
-                _instance = next((x for x in node.instances if x.name == instance), None)
+                _instance = node.instances.get(instance)
                 if not _instance:
                     # first time we see this instance, so register it
                     _instance = InstanceProxy(name=instance, node=node)
-                    node.instances.append(_instance)
+                    node.instances[instance] = _instance
                 cast(InstanceProxy, _instance).home = home
                 server.instance = _instance
                 server.instance.locals['dcs_port'] = dcs_port
@@ -591,7 +584,13 @@ class ServiceBus(Service):
         except Exception as ex:
             if isinstance(ex, TimeoutError) or isinstance(ex, asyncio.TimeoutError):
                 self.log.warning(f"Timeout error during an RPC call: {data['method']}!", exc_info=True)
-            elif not isinstance(ex, (ValueError, AttributeError, IndexError, discord.app_commands.CheckFailure)):
+            elif not isinstance(ex, (
+                    FileNotFoundError,
+                    ValueError,
+                    AttributeError,
+                    IndexError,
+                    discord.app_commands.CheckFailure
+            )):
                 self.log.exception(ex)
             if data.get('channel', '').startswith('sync-'):
                 await self.send_to_node({
@@ -680,7 +679,7 @@ class ServiceBus(Service):
 
             instance_key = kwargs.get('instance')
             if instance_key and func_signature and func_signature['instance'].annotation != 'str':
-                kwargs['instance'] = next((inst for inst in self.node.instances if inst.name == instance_key), None)
+                kwargs['instance'] = self.node.instances.get(instance_key)
 
             # Handle master-specific mappings
             if self.master:
@@ -737,13 +736,13 @@ class ServiceBus(Service):
 
             def datagram_received(derived, data, addr):
                 if not data:
-                    self.log.warning(f"Empty request received on port {self.node.listen_port} - ignoring.")
+                    self.log.warning(f"Empty request received on port {self.node.listen_port.port} - ignoring.")
                     return
 
                 try:
                     msg_data: dict = json.loads(data.strip())
                 except json.JSONDecodeError:
-                    self.log.warning(f"Invalid request received on port {self.node.listen_port} - ignoring.")
+                    self.log.warning(f"Invalid request received on port {self.node.listen_port.port} - ignoring.")
                     return
 
                 server_name = msg_data.get('server_name')
@@ -762,7 +761,7 @@ class ServiceBus(Service):
                 server.last_seen = datetime.now(timezone.utc)
 
                 # Handle sync channels
-                if 'channel' in msg_data and msg_data['channel'].startswith('sync-'):
+                if 'channel' in msg_data and str(msg_data['channel']).startswith('sync-'):
                     if msg_data['channel'] in server.listeners:
                         f = server.listeners.get(msg_data['channel'])
                         if f and not f.done():
@@ -834,7 +833,7 @@ class ServiceBus(Service):
 
         # Start the UDP server
         host = self.node.listen_address
-        port = self.node.listen_port
+        port = self.node.listen_port.port
         max_packet_size = 65504  # Maximum UDP packet size
 
         class UDPSocket(socket.socket):

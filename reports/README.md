@@ -265,6 +265,7 @@ To display nice graphics like bar-charts or pie-charts, you need to wrap them in
 ```
 > [!NOTE]
 > Only one Graph element is allowed per report.
+> You can use a MultiGraphElement though.
 
 You can configure sub-elements like so:
 ```json

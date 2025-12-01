@@ -12,6 +12,7 @@ import shutil
 import sqlparse
 import sys
 
+from abc import ABC, ABCMeta
 from copy import deepcopy
 from core import utils
 from core.services.registry import ServiceRegistry
@@ -228,7 +229,12 @@ class Group(app_commands.Group):
         return decorator
 
 
-class Plugin(commands.Cog, Generic[TEventListener]):
+class PluginMeta(type(commands.Cog), ABCMeta):
+    """Metaclass that satisfies both CogMeta and ABCMeta."""
+    pass
+
+
+class Plugin(commands.Cog, Generic[TEventListener], metaclass=PluginMeta):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None, name: str | None = None):
         from services.servicebus import ServiceBus
@@ -318,17 +324,16 @@ class Plugin(commands.Cog, Generic[TEventListener]):
         return False
 
     async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
-        ...
+        pass
 
     async def before_dcs_update(self) -> None:
-        ...
+        pass
 
     async def after_dcs_update(self) -> None:
-        ...
+        pass
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: str | None = None) -> None:
-        ...
+    async def prune(self, conn: psycopg.AsyncConnection, days: int) -> None:
+        pass
 
     async def _init_db(self) -> bool:
         async with self.apool.connection() as conn:
@@ -501,16 +506,12 @@ class Plugin(commands.Cog, Generic[TEventListener]):
             self._config[server.node.name][server.instance.name] = utils.deep_merge(default, specific)
         return self._config[server.node.name][server.instance.name]
 
-    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str) -> None:
-        # this function has to be implemented in your own plugins, if a server rename takes place
-        ...
-
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
-        # this function has to be implemented in your own plugins, if the ucid of a user changed (steam <=> standalone)
-        ...
+        # this function has to be implemented in your own plugin if the ucid of a user changed (steam <=> standalone)
+        pass
 
     async def on_ready(self) -> None:
-        ...
+        pass
 
     @tasks.loop(count=1)
     async def wait_for_on_ready(self):
@@ -521,7 +522,7 @@ class Plugin(commands.Cog, Generic[TEventListener]):
         await self.bot.wait_until_ready()
 
 
-class PluginError(Exception):
+class PluginError(Exception, ABC):
     ...
 
 

@@ -111,7 +111,7 @@ If we now look at CVN_73 for instance, this will be the result:
 ```
 
 > [!NOTE]
-> Besides "replace", you can also use: 
+> Besides "replace" you can also use: 
 > - delete: delete something from your mission, a unit type for instance, random failures, a whole coalition, etc.
 > - merge: merge two parts of your mission file, like blue and neutral countries to create a new blue. 
 

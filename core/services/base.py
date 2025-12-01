@@ -6,7 +6,7 @@ import logging
 import os
 
 from abc import ABC
-from core import utils
+from core import utils, Port
 from enum import Enum
 from functools import wraps
 from pathlib import Path
@@ -33,7 +33,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def proxy(original_function: Callable[..., Any] = None, *, timeout: float = 60):
+def proxy(_func: Callable[..., Any] | None = None, *, timeout: float = 60):
     """
     Can be used as a decorator to any service method, that should act as a remote call, if the server provided
     is not on the same node.
@@ -42,56 +42,62 @@ def proxy(original_function: Callable[..., Any] = None, *, timeout: float = 60):
     async def my_fancy_method(self, server: Server, *args, **kwargs) -> Any:
         ...
 
-    This will call my_fancy_method on the remote node, if the server is remote, and on the local node, if it is not.
+    This will call my_fancy_method on the remote node if the server is remote, and on the local node, if it is not.
     """
+    def decorator(original_function: Callable[..., Any]):
+        @wraps(original_function)
+        async def wrapper(self, *args, **kwargs):
+            signature = inspect.signature(original_function)
+            bound_args = signature.bind(self, *args, **kwargs)
+            bound_args.apply_defaults()
+            arg_dict = {k: v for k, v in bound_args.arguments.items() if k != "self"}
 
-    @wraps(original_function)
-    async def wrapper(self, *args, **kwargs):
-        signature = inspect.signature(original_function)
-        bound_args = signature.bind(self, *args, **kwargs)
-        bound_args.apply_defaults()
-        arg_dict = {k: v for k, v in bound_args.arguments.items() if k != "self"}
+            # Dereference DataObject and Enum values in parameters
+            params = {
+                k: v.name if isinstance(v, DataObject)
+                else v.value if isinstance(v, Enum)
+                else v
+                for k, v in arg_dict.items()
+                if v is not None  # Ignore None values
+            }
 
-        # Dereference DataObject and Enum values in parameters
-        params = {
-            k: v.name if isinstance(v, DataObject)
-            else v.value if isinstance(v, Enum)
-            else v
-            for k, v in arg_dict.items()
-            if v is not None  # Ignore None values
-        }
+            call = {
+                "command": "rpc",
+                "service": self.__class__.__name__,
+                "method": original_function.__name__,
+                "params": params
+            }
 
-        call = {
-            "command": "rpc",
-            "service": self.__class__.__name__,
-            "method": original_function.__name__,
-            "params": params
-        }
+            # Try to pick the node from the functions arguments
+            node = None
+            if arg_dict.get("server"):
+                node = arg_dict["server"].node
+            elif arg_dict.get("instance"):
+                node = arg_dict["instance"].node
+            elif arg_dict.get("node"):
+                node = arg_dict["node"]
 
-        # Try to pick the node from the functions arguments
-        node = None
-        if arg_dict.get("server"):
-            node = arg_dict["server"].node
-        elif arg_dict.get("instance"):
-            node = arg_dict["instance"].node
-        elif arg_dict.get("node"):
-            node = arg_dict["node"]
+            # Log an error if no valid object is found
+            if node is None:
+                raise ValueError(
+                    f"Cannot proxy function {original_function.__name__}: no valid reference object found in arguments. "
+                    f"Expected 'server', 'instance', or 'node' parameter with valid node reference.")
 
-        # Log an error if no valid object is found
-        if node is None:
-            raise ValueError(
-                f"Cannot proxy function {original_function.__name__}: no valid reference object found in arguments. "
-                f"Expected 'server', 'instance', or 'node' parameter with valid node reference.")
+            # If the node is remote, send the call synchronously
+            if node.is_remote:
+                data = await self.bus.send_to_node_sync(call, node=node.name, timeout=timeout)
+                return data.get('return')
 
-        # If the node is remote, send the call synchronously
-        if node.is_remote:
-            data = await self.bus.send_to_node_sync(call, node=node.name, timeout=timeout)
-            return data.get('return')
+            # Otherwise, call the original function directly
+            return await original_function(self, *args, **kwargs)
+        return wrapper
 
-        # Otherwise, call the original function directly
-        return await original_function(self, *args, **kwargs)
+    # If used as @proxy(timeout=nn)
+    if _func is None:
+        return decorator
 
-    return wrapper
+    # If used as @proxy without parentheses
+    return decorator(_func)
 
 
 class Service(ABC):
@@ -173,6 +179,9 @@ class Service(ABC):
 
     def reload(self):
         self.locals = self.read_locals()
+
+    def get_ports(self) -> dict[str, Port]:
+        return {}
 
 
 class ServiceInstallationError(Exception):

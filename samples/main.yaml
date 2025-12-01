@@ -1,8 +1,9 @@
 guild_id: 112233445566  # Your Discord server ID. Right-click on your server and select "Copy Server ID".
-use_dashboard: true     # Use the dashboard display for your node. Default is true.
+use_dashboard: false     # Use the dashboard display for your node. Default is true.
 chat_command_prefix: .  # The command prefix to be used for in-game chat commands. Default is "."
 database:
-  url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME
+  url:
+    postgres://dcsserverbot:SECRET@localhost:5432/dcsserverbot?sslmode=prefer # The bot will auto-move the database password from here to a secret place and replace it with SECRET.
   pool_min: 5           # min size of the DB pool, default is 5
   pool_max: 10          # max size of the DB pool, default is 10
 logging:
@@ -13,15 +14,15 @@ filter:
   server_name: ^Special K -           # Filter to shorten your server names on many bot displays. Default is none.
   mission_name: ^Operation|_|\(.*\)   # Filter to shorten your mission names on many bot displays. Default is none.
   tag: "'^[JDS]'"                     # If your community uses specific tags, this helps with the bots automatch functionality.
-opt_plugins:                          # Optional: list of optional plugins to be loaded and used by the bot
-- serverstats                         # see above
-- dbexporter
-- motd
-- greenieboard
-- punishment
-- slotblocking
-- music
-- funkman
-- modmanager
-- commands
-- restapi
+opt_plugins: # Optional: list of optional plugins to be loaded and used by the bot
+  - serverstats                         # see above
+  - dbexporter
+  - motd
+  - greenieboard
+  - punishment
+  - slotblocking
+  - music
+  - funkman
+  - modmanager
+  - commands
+  - restapi

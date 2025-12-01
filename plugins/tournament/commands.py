@@ -292,9 +292,6 @@ class Tournament(Plugin[TournamentEventListener]):
             self.match_scheduler.cancel()
         await super().cog_unload()
 
-    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
-        await conn.execute('UPDATE tm_matches SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-
     def get_admin_channel(self):
         config = self.get_config()
         channel_id = config.get('channels', {}).get('admin')
@@ -871,7 +868,7 @@ class Tournament(Plugin[TournamentEventListener]):
             if admin_channel:
                 await admin_channel.send(_("Squadron {} signed up for tournament {}, you can now {} them.").format(
                     squadron['name'], tournament['name'],
-                    (await utils.get_command(self.bot, group='tournament', name='verify')).mention))
+                    (await utils.get_command(self.bot, group=self.tournament.name, name=self.verify.name)).mention))
         except UniqueViolation:
             # noinspection PyUnresolvedReferences
             await interaction.followup.send(_("Squadron already signed up for tournament."), ephemeral=True)
@@ -1572,7 +1569,7 @@ class Tournament(Plugin[TournamentEventListener]):
                               mission_id: int | None = None) -> str:
         config = self.get_config(server)
         # set startindex or use last mission
-        if mission_id is not None and server.settings['listStartIndex'] != mission_id + 1:
+        if mission_id is not None and server.settings['listStartIndex'] != (mission_id + 1):
             await server.setStartIndex(mission_id + 1)
 
         # change the mission

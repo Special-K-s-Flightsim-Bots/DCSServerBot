@@ -96,25 +96,11 @@ class GameMaster(Plugin[GameMasterEventListener]):
                     server.settings['advanced'] = advanced
         return init
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: str | None = None) -> None:
+    async def prune(self, conn: psycopg.AsyncConnection, days: int) -> None:
         self.log.debug('Pruning Gamemaster ...')
-        if ucids:
-            for ucid in ucids:
-                await conn.execute('DELETE FROM coalitions WHERE player_ucid = %s', (ucid, ))
-        if days > -1:
-            await conn.execute("DELETE FROM campaigns WHERE stop < (DATE(now() AT TIME ZONE 'utc') - %s::interval)",
-                               (f'{days} days', ))
-        if server:
-            await conn.execute("DELETE FROM campaigns_servers WHERE server_name = %s", (server, ))
-            await conn.execute("DELETE FROM coalitions WHERE server_name = %s", (server, ))
+        await conn.execute("DELETE FROM campaigns WHERE stop < (DATE(now() AT TIME ZONE 'utc') - %s::interval)",
+                           (f'{days} days', ))
         self.log.debug('Gamemaster pruned.')
-
-    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
-        await conn.execute('UPDATE campaigns_servers SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-
-    async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
-        await conn.execute('UPDATE coalitions SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
     @command(description=_('Send a chat message to DCS'))
     @app_commands.guild_only()
@@ -157,15 +143,24 @@ class GameMaster(Plugin[GameMasterEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
+        received: dict[str, bool] = {}
         for server in self.bot.get_servers(manager=interaction.user).values():
             if server.status != Status.RUNNING:
-                await interaction.followup.send(_('Message NOT sent to server {server} because it is {status}.'
-                                                  ).format(server=server.display_name, status=server.status.name),
-                                                ephemeral=True)
+                received[server.display_name] = False
                 continue
             await server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
-            await interaction.followup.send(_('Message sent to server {}.').format(server.display_name),
-                                            ephemeral=ephemeral)
+            received[server.display_name] = True
+        embed = discord.Embed(colour=discord.Colour.blue())
+        embed.title = _("The message was sent to the following servers")
+        embed.description = f"```{message}```"
+        names = []
+        status = []
+        for name, stat in received.items():
+            names.append(name)
+            status.append(':white_check_mark:' if stat else ':x:')
+        embed.add_field(name=_("Server"), value='\n'.join(names))
+        embed.add_field(name=_("Message sent"), value='\n'.join(status))
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
     @command(description=_('Set or get a flag inside the mission'))
     @app_commands.guild_only()
@@ -539,6 +534,35 @@ class GameMaster(Plugin[GameMasterEventListener]):
                 """, (interaction.user.display_name, ucid, modal.message.value, acknowledge))
                 await interaction.followup.send(_("Message will be displayed to the user."),
                                                 ephemeral=utils.get_ephemeral(interaction))
+
+    @message.command(description=_('Lists active messages'), name='list')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    async def _list(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                sender = []
+                receiver = []
+                time = []
+                async for row in await cursor.execute("""
+                    SELECT m.sender, p.name, p.ucid, m.message, m.ack, m.time 
+                    FROM messages m JOIN players p ON m.player_ucid = p.ucid 
+                    ORDER BY id DESC
+                """):
+                    sender.append(row['sender'])
+                    receiver.append(f"{row['name']} ({row['ucid']})")
+                    time.append(row['time'].strftime('%Y-%m-%d %H:%M:%S'))
+        if not sender:
+            await interaction.followup.send(_("There are no active messages."), ephemeral=True)
+            return
+
+        embed = discord.Embed(title=_("List of active messages"))
+        embed.add_field(name=_("Sender"), value="\n".join(sender), inline=True)
+        embed.add_field(name=_("Receiver"), value="\n".join(receiver), inline=True)
+        embed.add_field(name=_("Time"), value="\n".join(time), inline=True)
+        await interaction.followup.send(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
     @message.command(description=_('Edit or delete a user-message'))
     @app_commands.guild_only()

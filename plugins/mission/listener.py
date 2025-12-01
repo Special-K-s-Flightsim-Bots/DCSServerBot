@@ -8,7 +8,10 @@ from copy import deepcopy
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Player, Coalition, \
     Channel, DataObjectFactory, event, chat_command, ServiceRegistry, ChatCommand, get_translation
 from datetime import datetime, timezone
+from discord import ButtonStyle
 from discord.ext import tasks
+from discord.ui import View, Button
+from pathlib import Path
 from psycopg.rows import dict_row
 from services.servicebus import ServiceBus
 from services.bot.dummy import DummyBot
@@ -95,6 +98,8 @@ class MissionEventListener(EventListener["Mission"]):
         self.player_embeds: dict[str, bool] = {}
         self.mission_embeds: dict[str, bool] = {}
         self.alert_fired: dict[str, bool] = {}
+        self.whitelist: set[str] = set()
+        # start schedulers
         self.print_queue.start()
         self.update_player_embed.start()
         self.update_mission_embed.start()
@@ -357,6 +362,22 @@ class MissionEventListener(EventListener["Mission"]):
             'roles': roles
         })
 
+    def _read_whitelist(self) -> set[str]:
+        whitelist = Path(self.node.config_dir) / 'whitelist.txt'
+        if not whitelist.exists():
+            whitelist.touch()
+        with whitelist.open('r', encoding='utf-8') as f:
+            return set(f.read().splitlines())
+
+    async def _upload_whitelist(self, server: Server):
+        if not self.whitelist:
+            self.whitelist = await asyncio.to_thread(self._read_whitelist)
+        if self.whitelist:
+            await server.send_to_dcs({
+                'command': 'uploadWhitelist',
+                'name_list': list(self.whitelist)
+            })
+
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         channels = deepcopy(server.locals.get('channels', {}))
@@ -377,6 +398,10 @@ class MissionEventListener(EventListener["Mission"]):
                 "smart_bans": server.locals.get('smart_bans', True)
             }
         }))
+        # init the profanity filter
+        if server.locals.get('profanity_filter', False):
+            asyncio.create_task(self._upload_whitelist(server))
+
         if not data.get('current_mission'):
             server.status = Status.STOPPED
             return
@@ -469,14 +494,14 @@ class MissionEventListener(EventListener["Mission"]):
 
     async def _smooth_pause(self, server: Server, seconds: int):
         if server.current_mission:
-            # wait for the server to be initialised correctly
+            # wait for the server to be initialized correctly
             while server.status == Status.LOADING:
                 await asyncio.sleep(1)
             # now do the smooth pause
             self.log.debug(f"Smooth pausing server {server.name} after {seconds}s")
             await server.current_mission.unpause()
             await asyncio.sleep(seconds)
-            if not server.get_active_players():
+            if server.current_mission and not server.get_active_players():
                 await server.current_mission.pause()
 
     @event(name="onSimulationStart")
@@ -619,6 +644,62 @@ class MissionEventListener(EventListener["Mission"]):
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
+    @event(name="onCensoredPlayerName")
+    async def onCensoredPlayerName(self, server: Server, data: dict) -> None:
+        admin_channel = self.bot.get_admin_channel(server)
+        if not admin_channel:
+            return
+        if server.locals.get('no_join_with_cursename'):
+            message = _("User {} (ucid={})\nRejected due to inappropriate nickname.").format(
+                data['name'], data['ucid'])
+        else:
+            message = _("User {} (ucid={})\nPotentially inappropriate nickname.").format(
+                data['name'], data['ucid'])
+
+        view = View(timeout=None)
+        # noinspection PyTypeChecker
+        button = Button(label="Whitelist", style=ButtonStyle.primary, custom_id=f"whitelist_{data['name']}")
+        view.add_item(button)
+        # noinspection PyTypeChecker
+        button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_profanity_{data['ucid']}")
+        view.add_item(button)
+        # noinspection PyTypeChecker
+        button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
+        view.add_item(button)
+        await admin_channel.send(f"```{message}```", view=view)
+
+    @event(name="onBanReject")
+    async def onBanReject(self, server: Server, data: dict) -> None:
+        admin_channel = self.bot.get_admin_channel(server)
+        if not admin_channel:
+            return
+        message = _('Banned user {name} (ucid={ucid}, ipaddr={ipaddr}) rejected. Reason: {reason}').format(
+            name=data['name'], ucid=data['ucid'], ipaddr=data['ipaddr'], reason=data['reason'])
+        await admin_channel.send(f"```{message}```")
+
+    @event(name="onBanEvade")
+    async def onBanEvade(self, server: Server, data: dict) -> None:
+        admin_channel = self.bot.get_admin_channel(server)
+        if not admin_channel:
+            return
+        old_name = await self.bot.get_member_or_name_by_ucid(data['old_ucid'])
+        if isinstance(old_name, discord.Member):
+            old_name = old_name.display_name
+
+        message = _('Player {name} (ucid={ucid}) connected from the same IP (ipaddr={ipaddr}) '
+                    'as banned player {old_name} (ucid={old_ucid}), who was banned for {reason}!').format(
+            name=data['name'], ucid=data['ucid'], ipaddr=data['ipaddr'], old_name=old_name,
+            old_ucid=data['old_ucid'], reason=data['reason']
+        )
+        view = View(timeout=None)
+        # noinspection PyTypeChecker
+        button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_evade_{data['ucid']}")
+        view.add_item(button)
+        # noinspection PyTypeChecker
+        button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
+        view.add_item(button)
+        await admin_channel.send(f"```{message}```", view=view)
+
     async def _stop_player(self, server: Server, player: Player):
         player.active = False
         server.afk.pop(player.ucid, None)
@@ -722,6 +803,7 @@ class MissionEventListener(EventListener["Mission"]):
                 ('player ' + player2.name) if player2 else 'AI',
                 data['arg2'] or 'Cannon/Bomblet')
             )
+
         elif data['eventName'] == 'self_kill':
             player = server.get_player(id=data['arg1']) if data['arg1'] != -1 else None
             side = player.side if player else Side.UNKNOWN
@@ -740,9 +822,16 @@ class MissionEventListener(EventListener["Mission"]):
                 data['arg2'] or 'SCENERY', Side(data['arg6']).name,
                 ('player ' + player2.name) if player2 is not None else 'AI',
                 data['arg5'] or 'SCENERY', data['arg7'] or 'Cannon/Bomblet'))
+
             # report teamkills from players to admins (only on public servers)
             if server.is_public() and player1 and player2 and data['arg1'] != data['arg4'] \
                     and data['arg3'] == data['arg6']:
+                # do not report if the punishment plugin is active and teamkills are punished
+                if self.bot.cogs.get('Punishment'):
+                    _config = self.get_config(server, plugin_name='Punishment')
+                    if any(x for x in _config.get('penalties', []) if x.get('event', "") == 'kill'):
+                       return
+
                 name = ('Member ' + player1.member.display_name) \
                     if player1.member else ('Player ' + player1.display_name)
                 message = f"{name} (ucid={player1.ucid}) is killing team members."
@@ -1022,7 +1111,7 @@ class MissionEventListener(EventListener["Mission"]):
         player.verified = True
         async with self.apool.connection() as conn:
             async with conn.transaction():
-                # now check, if there was an old validated mapping for this discord_id (meaning the UCID has changed)
+                # now check if there was an old validated mapping for this discord_id (meaning the UCID has changed)
                 cursor = await conn.execute("SELECT ucid FROM players WHERE discord_id = %s and ucid != %s",
                                             (discord_id, player.ucid))
                 row = await cursor.fetchone()

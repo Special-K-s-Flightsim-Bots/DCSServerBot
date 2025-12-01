@@ -1,7 +1,6 @@
 import asyncio
 import discord
 import os
-import psycopg
 
 from core import (Plugin, PluginInstallationError, Status, Group, utils, Server, ServiceRegistry, get_translation,
                   NodeUploadHandler, Channel)
@@ -131,13 +130,6 @@ class Music(Plugin[MusicEventListener]):
             return super().get_config(server, plugin_name=plugin_name, use_cache=use_cache)
         return self.service.get_config(server)
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: str | None = None) -> None:
-        self.log.debug('Pruning Music ...')
-        if server:
-            await conn.execute("DELETE FROM music_radios WHERE server_name = %s", (server, ))
-        self.log.debug('Music pruned.')
-
     # New command group "/music"
     music = Group(name="music", description=_("Commands to manage music in your (DCS) server"))
 
@@ -155,7 +147,7 @@ class Music(Plugin[MusicEventListener]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("You don't have any playlists to play. Please create one with {}.").format(
-                    (await utils.get_command(self.bot, group='playlist', name='add')).mention
+                    (await utils.get_command(self.bot, group=self.plgroup.name, name=self.add.name)).mention
                 ), ephemeral=True)
             return
         view = MusicPlayer(server=_server, radio_name=radio_name, playlists=playlists)

@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 from core import const, report, Status, Server, utils, ServiceRegistry, Plugin, Side, cache_with_expiration
 from datetime import datetime, timedelta, timezone
@@ -33,7 +34,12 @@ class Init(report.EmbedElement):
         if server.status in [Status.PAUSED, Status.RUNNING] and server.current_mission:
             self.embed.description = f"Mission: \"{server.current_mission.display_name}\""
         else:
-            self.embed.description = f"_{server.status.value}_"
+            mission_file = await server.get_current_mission_file()
+            if mission_file:
+                mission_file = utils.escape_string(os.path.basename(mission_file)[:-4])
+            else:
+                mission_file = server.status.value
+            self.embed.description = f"_{mission_file}_"
         self.embed.set_footer(text='')
 
 
@@ -201,11 +207,8 @@ class ScheduleInfo(report.EmbedElement):
         self.add_field(name="This server runs on the following schedule:", value='_ _', inline=False)
         value = ''
         now = datetime.now()
-        tz = now.astimezone().tzinfo
+        tz = ZoneInfo(config['timezone']) if 'timezone' in config else now.astimezone().tzinfo
         for period, daystate in config['schedule'].items():
-            if period == 'timezone':
-                tz = ZoneInfo(daystate)
-                continue
             for c in daystate:
                 if c == 'Y':
                     value += '✅|'

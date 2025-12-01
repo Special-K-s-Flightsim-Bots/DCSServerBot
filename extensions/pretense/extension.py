@@ -3,6 +3,8 @@ import glob
 import os
 import re
 
+from typing_extensions import override
+
 from core import Extension, Server
 
 __all__ = [
@@ -21,6 +23,7 @@ class Pretense(Extension):
     async def _set_missions_dir(self):
         self.missions_dir = await self.server.get_missions_dir()
 
+    @override
     async def prepare(self) -> bool:
         if self.locals.get('randomize', False):
             path = os.path.join(self.missions_dir, 'Saves')
@@ -28,6 +31,7 @@ class Pretense(Extension):
             open(os.path.join(path, 'randomize.lua'), 'w').close()
         return await super().prepare()
 
+    @override
     @property
     def version(self) -> str | None:
         if not self._version:
@@ -42,6 +46,7 @@ class Pretense(Extension):
             self._version = _version[0] if _version else None
         return self._version
 
+    @override
     async def render(self, param: dict | None = None) -> dict:
         return {
             "name": self.name,
@@ -49,8 +54,10 @@ class Pretense(Extension):
             "value": "enabled"
         }
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         return await super().startup(quiet=True)
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         return super().shutdown(quiet=True)

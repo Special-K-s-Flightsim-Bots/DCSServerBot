@@ -2,6 +2,7 @@ from __future__ import annotations
 import inspect
 import logging
 
+from abc import ABCMeta
 from dataclasses import MISSING
 from typing import TypeVar, TYPE_CHECKING, Any, Type, Iterable, Callable, Generic
 
@@ -92,7 +93,12 @@ class EventListenerMeta(type):
         return new_cls
 
 
-class EventListener(Generic[TPlugin], metaclass=EventListenerMeta):
+class EventListenerMetaABC(EventListenerMeta, ABCMeta):
+    """Metaclass to prevent instantiation of EventListener classes."""
+    pass
+
+
+class EventListener(Generic[TPlugin], metaclass=EventListenerMetaABC):
     __events__: dict[str, Event]
     __chat_commands__: dict[str, ChatCommand]
     __all_commands__: dict[str, ChatCommand]
@@ -179,7 +185,7 @@ class EventListener(Generic[TPlugin], metaclass=EventListenerMeta):
         await command(self, server, player, data.get('params'))
 
     async def shutdown(self) -> None:
-        ...
+        pass
 
     async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
         if not command.enabled or (command.roles and not player.has_discord_roles(command.roles)):

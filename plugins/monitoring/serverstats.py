@@ -536,7 +536,7 @@ class UsersPerMissionTime(report.GraphElement):
 
         # Merge data with all possible hours (left join) and fill missing user counts with 0
         merged_df = pd.merge(all_hours, df, on='time', how='left')
-        merged_df['users'] = merged_df['users'].fillna(0)
+        merged_df['users'] = merged_df['users'].astype(float).fillna(0)
 
         barplot = sns.barplot(x='time', y='users', data=merged_df, ax=self.axes, color='dodgerblue')
 
@@ -591,8 +591,9 @@ class ServerLoad(report.MultiGraphElement):
             FROM serverstats 
             WHERE {period.filter(self.env.bot)}
             and time < (now() at time zone 'UTC')
-            AND node = %(node)s 
         """
+        if node:
+            inner_sql += "AND node = %(node)s"
         if server_name:
             sql = f"""
                 {inner_sql}

@@ -398,7 +398,7 @@ class ModManagerService(Service):
         self.log.info(f"- Package {package_name}_v{version} successfully installed in {target}.")
         return True
 
-    @proxy
+    @proxy(timeout=180)
     async def install_package(self, server: Server, folder: Folder | str, package_name: str, version: str,
                               repo: str | None = None) -> bool:
         self.log.info(f"Installing package {package_name}_v{version} ...")
@@ -456,7 +456,7 @@ class ModManagerService(Service):
         self.log.info(f"- Package {package_name}_v{version} successfully removed.")
         return True
 
-    @proxy
+    @proxy(timeout=180)
     async def uninstall_package(self, server: Server, folder: Folder | str, package_name: str,
                                 version: str) -> bool:
         if isinstance(folder, str):

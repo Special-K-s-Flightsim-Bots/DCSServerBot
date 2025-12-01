@@ -1,11 +1,11 @@
 DEFAULT:
-  messages:                     # General messages for servers. You can overwrite any in any server.
-    greeting_message_members: "{player.name}, welcome back to {server.name}!"
+  messages: # General messages for servers. You can overwrite any in any server.
+    greeting_message_members: '{player.name}, welcome back to {server.name}!'
     greeting_message_unmatched: '{player.name}, please use /linkme in our Discord, if you want to see your user stats!'
-    message_player_username: Your player name contains invalid characters. # Default message for players with invalid usernames
-      Please change your name to join our server.
-    message_player_default_username: Please change your default player name at the top right  # Default message for players with default usernames
-      of the multiplayer selection list to an individual one!
+    message_player_username: Your player name contains invalid characters.
+      Please change your name to join our server.  # Default message for players with invalid usernames
+    message_player_default_username: Please change your default player name at the top right
+      of the multiplayer selection list to an individual one! # Default message for players with default usernames
     message_ban: 'You are banned from this server. Reason: {}' # default message, if a player is banned on the DCS server
     message_reserved: 'This server is locked for specific users.\nPlease contact a server admin.' # Message if server requires discord role (optional)
     message_no_voice: You need to be in voice channel "{}" to use this server!  # default message, if you are not in Discord voice, but force_voice is on.
@@ -19,14 +19,14 @@ DEFAULT:
     3) Be a decent human being
     4) ...
   accept_rules_on_join: true    # True, if rules have to be acknowledged (players will be moved to spectators otherwise, default: false)
-My Fancy Server:                # Your server name, as displayed in the server list and listed in serverSettings.lua
+My Fancy Server: # Your server name, as displayed in the server list and listed in serverSettings.lua
   server_user: Admin            # Name of the server user #1 (technical user), default is "Admin".
   smooth_pause: 5               # Servers that are configured to PAUSE on startup will run for this amount of seconds until they are paused again (default 0 = off)
   ping_admin_on_crash: true     # Ping DCS Admin role in discord, when the server crashed. Default: true
   autoscan: false               # Enable autoscan for new missions (and auto-add them to the mission list). Default: false
   autorole: Fancy Players       # Optional: give people this role, if they are online on this server (overwrites autorole[online] in bot.yaml!).
   force_voice: false            # Optional: enforce the usage of a voice channel (users needs to be linked!) - default: false
-  discord:                      # Optional: specify discord roles that are allowed to use this server
+  discord: # Optional: specify discord roles that are allowed to use this server
     - '@everyone'               # Attention: people can not self-link on these servers and have to be liked properly already!
   channels:
     status: 1122334455667788    # The Discord channel to display the server status embed and players embed into. Right-click on your channel and select "Copy Channel ID". You can disable it with -1
@@ -37,24 +37,24 @@ My Fancy Server:                # Your server name, as displayed in the server l
     count: 10                   # A log file that holds the in-game chat to check for abuse. Tells how many files will be kept, default is 10.
     size: 1048576               # Max logfile size, default is 1 MB.
   no_coalition_chat: true       # Do not replicate red and blue chats to the Discord chat replication (default: false)
-  afk:                          # Optional: AFK check
+  afk: # Optional: AFK check
     message: '{player.name}, you have been kicked for being AFK for more than {time}.'  # default message for AFK users
     afk_time: 300               # Time in seconds after which a player that is on spectators is considered being AFK. Default: -1, which is disabled
-    exemptions:                 # List of UCIDs or discord roles that are exempted from AFK kicks (besides the users that have the DCS Admin or GameMaster role)
+    exemptions: # List of UCIDs or discord roles that are exempted from AFK kicks (besides the users that have the DCS Admin or GameMaster role)
       ucid:
         - aabbccddeeff1122334455
       discord:
         - Donators              # DCS Admin and GameMaster are automatically exempted from AFK kicks
-  usage_alarm:          # Optional: usage alarms for your server
+  usage_alarm: # Optional: usage alarms for your server
     min_threshold: 30   # send a message, if less than 30 people fly on your server
     max_threshold: 10   # send a message, if more than 10 people fly on your server
     role: DCS Admin     # the role that should be pinged
     channel: 1122334455 # the channel to send the ping in (default: admin channel)
-  slot_spamming:        # Optional: allow for max x slot changes per y seconds (5 in 5 in the example)
+  slot_spamming: # Optional: allow for max x slot changes per y seconds (5 in 5 in the example)
     message: You have been kicked for slot spamming! # default message for slot spamming
     check_time: 5       # number of seconds to test
     slot_changes: 5     # number of slot changes in these number of seconds that are allowed
-  serverSettings:               # Overwrite the serverSettings.lua with these values
+  serverSettings: # Overwrite the serverSettings.lua with these values
     port: 10308
     advanced:
       resume_mode: 0

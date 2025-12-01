@@ -23,10 +23,10 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
     async def get_modules(ucid: str) -> list[str]:
         async with interaction.client.apool.connection() as conn:
             return [row[0] async for row in await conn.execute("""
-                SELECT DISTINCT slot, COUNT(*) FROM statistics 
+                SELECT DISTINCT slot, usage FROM mv_statistics 
                 WHERE player_ucid =  %s 
                 AND slot NOT IN ('', '?', '''forward_observer', 'instructor', 'observer', 'artillery_commander') 
-                GROUP BY 1 ORDER BY 2 DESC
+                ORDER BY 2 DESC
             """, (ucid, ))]
 
     try:
@@ -52,30 +52,11 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
 
 class MissionStatistics(Plugin[MissionStatisticsEventListener]):
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: str | None = None) -> None:
+    async def prune(self, conn: psycopg.AsyncConnection, days: int) -> None:
         self.log.debug('Pruning Missionstats ...')
-        if ucids:
-            for ucid in ucids:
-                await conn.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid,))
-        elif days > -1:
-            await conn.execute("DELETE FROM missionstats WHERE time < (DATE(NOW()) - %s::interval)", (f'{days} days', ))
-        if server:
-            await conn.execute("""
-                DELETE FROM missionstats WHERE mission_id in (
-                    SELECT id FROM missions WHERE server_name = %s
-                )
-            """, (server, ))
-            await conn.execute("""
-                DELETE FROM missionstats WHERE mission_id NOT IN (
-                    SELECT id FROM missions
-                )
-            """)
+        await conn.execute("DELETE FROM missionstats WHERE time < (DATE(NOW()) - %s::interval)",
+                           (f'{days} days', ))
         self.log.debug('Missionstats pruned.')
-
-    async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
-        await conn.execute("UPDATE missionstats SET init_id = %s WHERE init_id = %s", (new_ucid, old_ucid))
-        await conn.execute("UPDATE missionstats SET target_id = %s WHERE target_id = %s", (new_ucid, old_ucid))
 
     @command(description=_('Display Mission Statistics'))
     @app_commands.guild_only()
@@ -121,7 +102,12 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'sorties.json')
         env = await report.render(ucid=ucid, member_name=name, flt=period)
-        await interaction.followup.send(embed=env.embed, ephemeral=True)
+        try:
+            file = discord.File(fp=env.buffer, filename=env.filename)
+            await interaction.followup.send(embed=env.embed, file=file, ephemeral=True)
+        finally:
+            if env.buffer:
+                env.buffer.close()
 
     @command(description=_('Module statistics'))
     @app_commands.guild_only()
@@ -186,7 +172,10 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def nemesis(self, interaction: discord.Interaction,
-                      user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None):
+                      user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None,
+                      period: app_commands.Transform[
+                                  StatisticsFilter,
+                                  PeriodTransformer(flt=[MissionStatisticsFilter])] | None = MissionStatisticsFilter()):
         if not user:
             user = interaction.user
         if isinstance(user, str):
@@ -202,14 +191,18 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'nemesis.json')
-        env = await report.render(ucid=ucid, member_name=name)
+        env = await report.render(ucid=ucid, member_name=name, flt=period)
         await interaction.followup.send(embed=env.embed, ephemeral=True)
 
     @command(description=_("Find who you've killed the most"))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def antagonist(self, interaction: discord.Interaction,
-                         user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None):
+                         user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None,
+                         period: app_commands.Transform[
+                                     StatisticsFilter,
+                                     PeriodTransformer(
+                                         flt=[MissionStatisticsFilter])] | None = MissionStatisticsFilter()):
         if not user:
             user = interaction.user
         if isinstance(user, str):
@@ -225,7 +218,7 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'antagonist.json')
-        env = await report.render(ucid=ucid, member_name=name)
+        env = await report.render(ucid=ucid, member_name=name, flt=period)
         await interaction.followup.send(embed=env.embed, ephemeral=True)
 
     @command(description=_('Event History'))

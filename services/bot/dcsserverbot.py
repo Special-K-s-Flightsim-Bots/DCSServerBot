@@ -484,8 +484,9 @@ class DCSServerBot(commands.Bot):
             cursor = await conn.execute("""
                 SELECT embed, thread
                 FROM message_persistence
-                WHERE server_name = %s AND embed_name = %s
-            """, (server.name if server else 'Master', embed_name))
+                WHERE server_name IS NOT DISTINCT FROM %s 
+                  AND embed_name = %s
+            """, (server.name if server else None, embed_name))
             row = await cursor.fetchone()
 
         message = None
@@ -510,7 +511,7 @@ class DCSServerBot(commands.Bot):
     async def setEmbed(self, *, embed_name: str, embed: discord.Embed, channel_id: Channel | int = Channel.STATUS,
                        file: discord.File | None = None, server: "Server | None" = None):
         async with self.lock:
-            # do not update any embed, if the session is closed already
+            # do not update any embed if the session is closed already
             if self.is_closed():
                 return
             if server and isinstance(channel_id, Channel):
@@ -571,7 +572,7 @@ class DCSServerBot(commands.Bot):
                         await conn.execute("""
                             INSERT INTO message_persistence (server_name, embed_name, embed, thread) 
                             VALUES (%s, %s, %s, %s) 
-                            ON CONFLICT (server_name, embed_name) 
+                            ON CONFLICT ON CONSTRAINT uq_message_persistence_norm 
                             DO UPDATE SET embed=excluded.embed, thread=excluded.thread
-                        """, (server.name if server else 'Master', embed_name, message.id,
+                        """, (server.name if server else None, embed_name, message.id,
                               thread.id if thread else None))

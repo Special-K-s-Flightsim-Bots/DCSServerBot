@@ -58,15 +58,18 @@ DEFAULT:
 ```
 > [!NOTE]
 > DCS World can only create menus for groups. This means, that you should create groups that contain single units only,
-> especially, if you use commands that can only be called by specific roles.
+> especially if you use commands that can only be called by specific roles.
 > 
-> Roles are checked twice though: once, when the menu gets created. You should not see any command, that your role can
-> not use. A second check is done, when the command is being executed (onChatCommand only).
+> Roles are checked twice: once when the menu gets created. You should not see any command, that your role can
+> not use. A second check is done when the command is being executed (onChatCommand only).
 
 ## Configuration
 You can configure the behaviour of the mission plugin with an optional config/plugins/mission.yaml:
 ```yaml
 DEFAULT:
+  messages:
+    ban_username: Inappropriate username.
+    ban_evasion: Trying to evade a ban with a 2nd account.
   event_filter:       # do NOT report these events (default: [])
     - connect
     - disconnect

@@ -47,6 +47,7 @@ __all__ = [
     "check_main_structure",
     "is_node",
     "is_server",
+    "is_element",
     "validate"
 ]
 
@@ -143,7 +144,14 @@ def dir_exists(value, _, path):
             raise SchemaError(msg=f'Directory "{value}" does not exist or is no directory', path=path)
     return True
 
-def obsolete(value, rule, path):
+def deprecated(value, rule_obj, path):
+    message = f'Parameter "{os.path.basename(path)}" is deprecated.'
+    enum = rule_obj.schema_str.get('enum', [])
+    if enum:
+        message += ' ' + enum[0]
+    raise SchemaError(msg=message, path=path)
+
+def obsolete(value, rule_obj, path):
     if _is_valid(path):
         logger.warning(f'"{os.path.basename(path)}" is obsolete and will be set by the bot: Path "{path}"')
     return True
@@ -329,6 +337,8 @@ def is_server(value, rule_obj, path):
         raise SchemaError(f'Invalid regular expression: "{ex.pattern}"', path=path)
 
 def is_element(value, rule_obj, path):
+    if path == '/DEFAULT':
+        return True
     node_data = get_node_data()
     for instance in value.keys():
         if instance in node_data.all_instances:

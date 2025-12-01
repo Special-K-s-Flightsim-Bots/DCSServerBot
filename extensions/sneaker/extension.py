@@ -7,9 +7,10 @@ import os
 import psutil
 import subprocess
 
-from core import Extension, Status, ServiceRegistry, Server, utils, get_translation
+from core import Extension, Status, ServiceRegistry, Server, utils, get_translation, PortType, Port
 from services.servicebus import ServiceBus
 from threading import Thread
+from typing_extensions import override
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -93,6 +94,7 @@ class Sneaker(Extension):
             Thread(target=self._log_output, args=(p,), daemon=True).start()
         return p
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Sneaker needs Tacview to be enabled in your server!')
@@ -126,6 +128,7 @@ class Sneaker(Extension):
             self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
             return False
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         try:
             type(self)._servers.remove(self.server.name)
@@ -149,13 +152,16 @@ class Sneaker(Extension):
             self.log.exception(ex)
             return False
 
+    @override
     def is_running(self) -> bool:
         return type(self)._process and type(self)._process.is_running() and self.server.name in type(self)._servers
 
+    @override
     @property
     def version(self) -> str | None:
         return utils.get_windows_version(self.config['cmd'])
 
+    @override
     def is_installed(self) -> bool:
         if not super().is_installed():
             return False
@@ -165,6 +171,7 @@ class Sneaker(Extension):
             return False
         return True
 
+    @override
     async def render(self, param: dict | None = None) -> dict:
         if 'url' in self.config:
             value = self.config['url']
@@ -176,7 +183,8 @@ class Sneaker(Extension):
             "value": value
         }
 
-    def get_ports(self) -> dict:
+    @override
+    def get_ports(self) -> dict[str, Port]:
         return {
-            "Sneaker": self.config['bind'].split(':')[1]
+            "Sneaker": Port(self.config['bind'].split(':')[1], PortType.TCP, public=True)
         } if self.enabled else {}

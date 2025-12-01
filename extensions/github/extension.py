@@ -4,6 +4,7 @@ import os
 import subprocess
 
 from core import Extension, utils, Server
+from typing_extensions import override
 from urllib.parse import urlparse
 
 
@@ -71,6 +72,7 @@ class GitHub(Extension):
         else:
             git.Repo.clone_from(self.repo, self.target)
 
+    @override
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         try:
             await self.update()
@@ -78,8 +80,10 @@ class GitHub(Extension):
             await self.clone()
         return filename, False
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         return await super().startup(quiet=True)
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         return super().shutdown(quiet=True)

@@ -2,9 +2,9 @@ import asyncio
 import discord
 import itertools
 import math
-import psycopg
 
-from core import Plugin, utils, get_translation, Node, Group
+from core import Plugin, utils, get_translation, Node, Group, Report
+from datetime import datetime
 from discord import app_commands
 from plugins.competitive import rating
 from psycopg.rows import dict_row
@@ -12,6 +12,7 @@ from services.bot import DCSServerBot
 from trueskill import Rating, BETA, global_env
 
 from .listener import CompetitiveListener
+from ..userstats.filter import MissionStatisticsFilter, PeriodTransformer, StatisticsFilter
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -21,62 +22,83 @@ class Competitive(Plugin[CompetitiveListener]):
     async def install(self) -> bool:
         if not await super().install():
             return False
-        asyncio.create_task(self.init_trueskill())
+        # only generate TrueSkill values if there are statistics already
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("SELECT COUNT(*) FROM missionstats")
+            count = (await cursor.fetchone())[0]
+        if count > 0:
+            asyncio.create_task(self.init_trueskill())
         return True
 
     async def init_trueskill(self):
         # we need to calculate the TrueSkill values for players
         self.log.warning("Calculating TrueSkill values for players... Please do NOT stop your bot!")
-        ratings: dict[str, Rating] = dict()
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                size = 1000
-                await cursor.execute("""
-                    SELECT p1.discord_id AS init_discord_id, m.init_id, 
-                           p2.discord_id AS target_discord_id, m.target_id 
-                    FROM missionstats m, players p1, players p2
-                    WHERE p1.ucid = m.init_id
-                    AND p2.ucid = m.target_id 
-                    AND event = 'S_EVENT_KILL' AND init_id != '-1' AND target_id != '-1'
-                    AND init_side <> target_side
-                    AND init_cat = 'Airplanes' AND target_cat = 'Airplanes'
-                    ORDER BY id
-                """)
-                rows = await cursor.fetchmany(size=size)
-                while len(rows) > 0:
-                    for row in rows:
-                        init_id = row['init_discord_id'] if row['init_discord_id'] != -1 else row['init_id']
-                        target_id = row['target_discord_id'] if row['target_discord_id'] != -1 else row['target_id']
-                        if init_id not in ratings:
-                            ratings[init_id] = rating.create_rating()
-                        if target_id not in ratings:
-                            ratings[target_id] = rating.create_rating()
-                        ratings[init_id], ratings[target_id] = rating.rate_1vs1(
-                            ratings[init_id], ratings[target_id])
-                    rows = await cursor.fetchmany(size=size)
-            async with conn.transaction():
-                for player_id, skill in ratings.items():
-                    if isinstance(player_id, str):
-                        await conn.execute("""
-                            INSERT INTO trueskill (player_ucid, skill_mu, skill_sigma) 
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT (player_ucid) DO UPDATE
-                            SET skill_mu = EXCLUDED.skill_mu, skill_sigma = EXCLUDED.skill_sigma
-                        """, (player_id, skill.mu, skill.sigma))
-                    else:
-                        cursor = await conn.execute("SELECT ucid FROM players WHERE discord_id = %s", (player_id, ))
-                        rows = await cursor.fetchall()
-                        for row in rows:
-                            await conn.execute("""
-                                INSERT INTO trueskill (player_ucid, skill_mu, skill_sigma) 
-                                VALUES (%s, %s, %s)
-                                ON CONFLICT (player_ucid) DO UPDATE
-                                SET skill_mu = EXCLUDED.skill_mu, skill_sigma = EXCLUDED.skill_sigma
-                            """, (row[0], skill.mu, skill.sigma))
-        self.log.info("TrueSkill values calculated.")
+        ratings: dict[str, Rating] = {}
 
-    async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
-        await conn.execute('UPDATE trueskill SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
+        batch_size = 10000  # missionstats rows per batch
+
+        last_id = 0
+        total_processed = 0
+
+        while True:
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    async with conn.cursor(row_factory=dict_row) as cursor:
+                        await cursor.execute("""
+                            SELECT id, init_id, target_id, time
+                            FROM missionstats
+                            WHERE event = 'S_EVENT_KILL'
+                              AND init_id  != '-1'
+                              AND target_id != '-1'
+                              AND init_side <> target_side
+                              AND init_cat   = 'Airplanes'
+                              AND target_cat = 'Airplanes'
+                              AND id > %s
+                            ORDER BY id
+                            LIMIT %s
+                        """, (last_id, batch_size))
+                        rows = await cursor.fetchall()
+                        if not rows:
+                            break
+
+                        # Compute rating changes and collect upserts for this batch
+                        insert_params: list[tuple[str, float, float, datetime]] = []
+                        for row in rows:
+                            init_id = row['init_id']
+                            target_id = row['target_id']
+
+                            if init_id not in ratings:
+                                ratings[init_id] = rating.create_rating()
+                            if target_id not in ratings:
+                                ratings[target_id] = rating.create_rating()
+
+                            ratings[init_id], ratings[target_id] = rating.rate_1vs1(
+                                ratings[init_id], ratings[target_id]
+                            )
+
+                            init_rating = ratings[init_id]
+                            target_rating = ratings[target_id]
+                            t = row['time']
+
+                            insert_params.append((init_id, float(init_rating.mu), float(init_rating.sigma), t))
+                            insert_params.append((target_id, float(target_rating.mu), float(target_rating.sigma), t))
+
+                            last_id = row['id']
+
+                        if insert_params:
+                            await cursor.executemany("""
+                                INSERT INTO trueskill (player_ucid, skill_mu, skill_sigma, time)
+                                VALUES (%s, %s, %s, %s)
+                                ON CONFLICT (player_ucid) DO UPDATE
+                                SET skill_mu    = EXCLUDED.skill_mu,
+                                    skill_sigma = EXCLUDED.skill_sigma,
+                                    time        = EXCLUDED.time
+                            """, insert_params)
+
+                        total_processed += len(rows)
+                        self.log.info(f"- {total_processed} missionstats rows processed (up to id {last_id})")
+
+        self.log.info("TrueSkill values calculated.")
 
     async def _trueskill_player(self, interaction: discord.Interaction, user: discord.Member | str) -> None:
         if not user:
@@ -190,6 +212,46 @@ class Competitive(Plugin[CompetitiveListener]):
         else:
             await self._trueskill_player(interaction, user)
 
+    @trueskill.command(description=_('Display TrueSkill:tm: history'))
+    @utils.app_has_role('DCS')
+    @app_commands.guild_only()
+    async def history(self, interaction: discord.Interaction,
+                      user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None,
+                      period: app_commands.Transform[
+                                  StatisticsFilter,
+                                  PeriodTransformer(flt=[MissionStatisticsFilter])
+                              ] | None = MissionStatisticsFilter()):
+        if not user:
+            user = interaction.user
+
+        if isinstance(user, discord.Member):
+            ucid = await self.bot.get_ucid_by_member(user)
+            if not ucid:
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(_("User {} is not linked.").format(user.display_name),
+                                                        ephemeral=True)
+                return
+            name = user.display_name
+        else:
+            ucid = user
+            member = await self.bot.get_member_or_name_by_ucid(ucid)
+            if isinstance(member, discord.Member):
+                name = member.display_name
+            else:
+                name = member
+
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        report = Report(self.bot, self.plugin_name, 'trueskill_hist.json')
+        env = await report.render(ucid=ucid, name=name, flt=period)
+        try:
+            file = discord.File(fp=env.buffer, filename=env.filename)
+            await interaction.followup.send(embed=env.embed, file=file, ephemeral=ephemeral)
+        finally:
+            if env.buffer:
+                env.buffer.close()
+
     @trueskill.command(description=_('Delete TrueSkill:tm: ratings'))
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
@@ -222,6 +284,26 @@ class Competitive(Plugin[CompetitiveListener]):
                     await conn.execute("TRUNCATE trueskill CASCADE")
         # noinspection PyUnresolvedReferences
         await interaction.followup.send(_("TrueSkill:tm: ratings deleted."), ephemeral=True)
+
+    @trueskill.command(description=_('Regenerate TrueSkill:tm: ratings'))
+    @utils.app_has_role('Admin')
+    @app_commands.guild_only()
+    async def regenerate(self, interaction: discord.Interaction):
+        if not await utils.yn_question(interaction,
+                                       question=_("Do you really want to regenerate **all** TrueSkill:tm: ratings?"),
+                                       message=_("This can take a while.")):
+            await interaction.followup.send(_("Aborted."), ephemeral=True)
+            return
+        ephemeral = utils.get_ephemeral(interaction)
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("TRUNCATE trueskill CASCADE")
+                await conn.execute("TRUNCATE trueskill_hist CASCADE")
+        await interaction.followup.send(_("TrueSkill:tm: ratings deleted.\nGenerating new values now ..."),
+                                        ephemeral=ephemeral)
+        channel = interaction.channel
+        await self.init_trueskill()
+        await channel.send(_("TrueSkill:tm: ratings regenerated."))
 
 
 async def setup(bot: DCSServerBot):

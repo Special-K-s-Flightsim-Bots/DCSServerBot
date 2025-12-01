@@ -1,0 +1,10 @@
+ALTER TABLE tm_squadron_time_preferences ADD CONSTRAINT tm_squadron_time_preferences_tm_squadrons_fkey FOREIGN KEY (tournament_id, squadron_id) REFERENCES tm_squadrons(tournament_id, squadron_id) ON DELETE CASCADE;
+ALTER TABLE tm_squadron_terrain_preferences ADD CONSTRAINT tm_squadron_terrain_preferences_tm_squadrons_fkey FOREIGN KEY (tournament_id, squadron_id) REFERENCES tm_squadrons(tournament_id, squadron_id) ON DELETE CASCADE;
+ALTER TABLE tm_matches ADD CONSTRAINT tm_matches_server_name_fkey FOREIGN KEY (server_name) REFERENCES servers(server_name) ON UPDATE CASCADE ON DELETE CASCADE;
+ALTER TABLE tm_matches ADD CONSTRAINT tm_matches_squadron_red_fkey FOREIGN KEY (tournament_id, squadron_red) REFERENCES tm_squadrons(tournament_id, squadron_id) ON DELETE CASCADE;
+ALTER TABLE tm_matches ADD CONSTRAINT tm_matches_squadron_blue_fkey FOREIGN KEY (tournament_id, squadron_blue) REFERENCES tm_squadrons(tournament_id, squadron_id) ON DELETE CASCADE;
+ALTER TABLE tm_matches ADD CONSTRAINT tm_matches_winner_squadron_fkey FOREIGN KEY (tournament_id, winner_squadron_id) REFERENCES tm_squadrons(tournament_id, squadron_id);
+ALTER TABLE tm_choices ADD CONSTRAINT tm_choices_squadron_id_fkey FOREIGN KEY (squadron_id) REFERENCES squadrons(id);
+ALTER TABLE tm_persistent_choices ADD CONSTRAINT tm_persistent_choices_squadron_id_fkey FOREIGN KEY (squadron_id) REFERENCES squadrons(id);
+DELETE FROM tm_squadrons WHERE squadron_id NOT IN (SELECT id FROM squadrons);
+ALTER TABLE tm_squadrons ADD CONSTRAINT tm_squadrons_squadron_id_fkey FOREIGN KEY (squadron_id) REFERENCES squadrons(id) ON DELETE CASCADE;

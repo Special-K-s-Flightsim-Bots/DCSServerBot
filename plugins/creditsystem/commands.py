@@ -1,5 +1,4 @@
 import discord
-import psycopg
 
 from datetime import timezone
 from discord import app_commands, SelectOption
@@ -28,22 +27,6 @@ class CreditSystem(Plugin[CreditSystemListener]):
         if config.get('leaderboard'):
             self.update_leaderboard.cancel()
         await super().cog_unload()
-
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: str | None = None) -> None:
-        self.log.debug('Pruning Creditsystem ...')
-        if ucids:
-            for ucid in ucids:
-                await conn.execute('DELETE FROM credits WHERE player_ucid = %s', (ucid,))
-                await conn.execute('DELETE FROM credits_log WHERE player_ucid = %s', (ucid,))
-        self.log.debug('Creditsystem pruned.')
-
-    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
-        await conn.execute('UPDATE campaigns_servers SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-
-    async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
-        await conn.execute('UPDATE credits SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
-        await conn.execute('UPDATE credits_log SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
     async def get_credits(self, ucid: str) -> list[dict]:
         async with self.apool.connection() as conn:

@@ -52,8 +52,8 @@ function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
     if not cfg then
         return
     end
-    if cfg['slots'] then
-        local max = tonumber(utils.loadSettingsRaw()['maxPlayers'])
+    if cfg['slots'] ~= nil then
+        local max = tonumber(utils.loadSettingsRaw()['maxPlayers']) or 16
         local current = #net.get_player_list() + 1
         if current >= (max - tonumber(cfg['slots'])) then
             if not is_vip(ucid) then
@@ -151,11 +151,10 @@ function balance_slots(playerID, side, slotID)
 
         -- only count real seats
         if sub_slot == 0 and slot ~= -1 then
-            if side == 2 then
-                numPlayersBlue = numPlayersBlue + 1
-            end
             if side == 1 then
                 numPlayersRed = numPlayersRed + 1
+            elseif side == 2 then
+                numPlayersBlue = numPlayersBlue + 1
             end
         end
     end

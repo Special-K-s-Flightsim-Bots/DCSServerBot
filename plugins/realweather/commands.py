@@ -125,6 +125,9 @@ class RealWeather(Plugin[RealWeatherEventListener]):
                 filename = await server.get_current_mission_file()
                 new_filename = await server.run_on_extension('RealWeather', 'apply_realweather',
                                                              filename=filename, config=config, use_orig=use_orig)
+            except ValueError:
+                await msg.edit(content='Could not apply weather, RealWeather extension not loaded.')
+                return
             except (FileNotFoundError, UnsupportedMizFileException):
                 await msg.edit(content='Could not apply weather due to an error in RealWeather.')
                 return
@@ -139,7 +142,11 @@ class RealWeather(Plugin[RealWeatherEventListener]):
                 await server.restart(modify_mission=False)
                 message += '\nMission reloaded.'
             elif result == 'later':
-                server.on_empty = {"command": "load", "mission_file": new_filename, "user": interaction.user}
+                server.on_empty = {
+                    "method": "load",
+                    "mission_file": new_filename,
+                    "user": interaction.user
+                }
                 msg += 'Mission will restart, when server is empty.'
 
             await self.bot.audit("changed weather", server=server, user=interaction.user)

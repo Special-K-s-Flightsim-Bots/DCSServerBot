@@ -19,7 +19,7 @@ import sys
 
 from collections import defaultdict
 from contextlib import closing
-from core import utils, Status
+from core import utils, Status, Port, PortType
 from core.const import SAVED_GAMES
 from core.data.maintenance import ServerMaintenanceManager
 from core.translations import get_translation
@@ -34,6 +34,7 @@ from psycopg.errors import UndefinedTable, InFailedSqlTransaction, ConnectionTim
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
 from typing import Awaitable, Callable, Any, cast
+from typing_extensions import override
 from urllib.parse import urlparse, quote
 from version import __version__
 from zoneinfo import ZoneInfo
@@ -81,8 +82,8 @@ DEFAULT_PLUGINS = [
     "userstats",
     "missionstats",
     "monitoring",
-    "creditsystem",
     "gamemaster",
+    "creditsystem",
     "cloud"
 ]
 
@@ -181,19 +182,23 @@ class NodeImpl(Node):
     async def __aexit__(self, type, value, traceback):
         await self.close_db()
 
+    @override
     @property
     def master(self) -> bool:
         return self._master
 
+    @override
     @master.setter
     def master(self, value: bool):
         if self._master != value:
             self._master = value
 
+    @override
     @property
     def public_ip(self) -> str:
         return self._public_ip
 
+    @override
     @property
     def installation(self) -> str:
         return os.path.expandvars(self.locals['DCS']['installation'])
@@ -203,8 +208,8 @@ class NodeImpl(Node):
         return self.locals.get('listen_address', '127.0.0.1')
 
     @property
-    def listen_port(self) -> int:
-        return self.locals.get('listen_port', 10042)
+    def listen_port(self) -> Port:
+        return Port(self.locals.get('listen_port', 10042), PortType.UDP)
 
     async def audit(self, message, *, user: discord.Member | str | None = None,
                     server: Server | None = None, **kwargs):
@@ -238,13 +243,16 @@ class NodeImpl(Node):
         else:
             self.after_update.pop(name, None)
 
+    @override
     async def shutdown(self, rc: int = SHUTDOWN):
         self.rc = rc
         self.is_shutdown.set()
 
+    @override
     async def restart(self):
         await self.shutdown(RESTART)
 
+    @override
     def read_locals(self) -> dict:
         _locals = dict()
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
@@ -414,8 +422,7 @@ class NodeImpl(Node):
         # initialize the nodes
         for _name, _element in self.locals.pop('instances', {}).items():
             try:
-                instance = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
-                self.instances.append(instance)
+                self.instances[_name] = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
             except UniqueViolation:
                 self.log.error(f"Instance \"{_name}\" can't be added."
                                f"There is an instance already with the same server name or bot port.")
@@ -543,6 +550,7 @@ class NodeImpl(Node):
                 raise
         return False
 
+    @override
     async def upgrade_pending(self) -> bool:
         self.log.debug('- Checking for updates...')
         try:
@@ -578,11 +586,13 @@ class NodeImpl(Node):
                WHERE guild_id = %s
            """, (__version__, self.guild_id))
 
+    @override
     async def upgrade(self):
         async with self.cpool.connection() as conn:
             async with conn.transaction():
                 await self._upgrade(conn)
 
+    @override
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         if not self.dcs_branch or not self.dcs_version:
             try:
@@ -685,7 +695,7 @@ class NodeImpl(Node):
                         # init profanity filter, if needed
                         if any(
                                 instance.server.locals.get('profanity_filter', False)
-                                for instance in self.instances if instance.server
+                                for instance in self.instances.values() if instance.server
                         ):
                             utils.init_profanity_filter(self)
                     self.log.info(f"{self.installation} updated to version {dcs_version}.")
@@ -696,6 +706,7 @@ class NodeImpl(Node):
                     await callback()
                 self.update_pending = False
 
+    @override
     async def dcs_repair(self, warn_times: list[int] = None, slow: bool | None = False,
                          check_extra_files: bool | None = False):
 
@@ -751,7 +762,7 @@ class NodeImpl(Node):
                         # init profanity filter, if needed
                         if any(
                                 instance.server.locals.get('profanity_filter', False)
-                                for instance in self.instances if instance.server
+                                for instance in self.instances.values() if instance.server
                         ):
                             utils.init_profanity_filter(self)
                     self.log.info(f"{self.installation} repaired.")
@@ -786,6 +797,7 @@ class NodeImpl(Node):
 
             return rc
 
+    @override
     async def handle_module(self, what: str, module: str):
         if sys.platform == 'win32':
             startupinfo = subprocess.STARTUPINFO()
@@ -807,12 +819,14 @@ class NodeImpl(Node):
         ):
             await asyncio.to_thread(run_subprocess)
 
+    @override
     @cache_with_expiration(expiration=60)
     async def get_installed_modules(self) -> list[str]:
         with open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
             data = json.load(cfg)
         return data['modules']
 
+    @override
     @cache_with_expiration(expiration=120)
     async def get_available_modules(self) -> list[str]:
         licenses = {
@@ -855,6 +869,7 @@ class NodeImpl(Node):
                         pass
         return list(licenses)
 
+    @override
     @cache_with_expiration(expiration=120)
     async def get_available_dcs_versions(self, branch: str) -> list[str] | None:
 
@@ -896,6 +911,7 @@ class NodeImpl(Node):
             return await _get_latest_versions_auth()
 
 
+    @override
     async def get_latest_version(self, branch: str) -> str | None:
         versions = await self.get_available_dcs_versions(branch)
         return versions[-1] if versions else None
@@ -1050,7 +1066,8 @@ class NodeImpl(Node):
                             return True
                         # The master is not alive, take over
                         elif not master or not await is_node_alive(master, config.get('heartbeat', 30)):
-                            self.log.warning("The master node is not responding, taking over ...")
+                            if master is not None:
+                                self.log.warning(f"The master node {master} is not responding, taking over ...")
                             await take_over()
                             return True
                         # Master is alive, but we are the preferred one
@@ -1090,6 +1107,7 @@ class NodeImpl(Node):
             cursor = await conn.execute(query, (self.guild_id, self.name))
             return [row[0] async for row in cursor]
 
+    @override
     async def shell_command(self, cmd: str, timeout: int = 60) -> tuple[str, str] | None:
         def run_subprocess():
             proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -1106,6 +1124,7 @@ class NodeImpl(Node):
         except subprocess.TimeoutExpired:
             raise TimeoutError()
 
+    @override
     async def read_file(self, path: str) -> bytes | int:
         async def _read_file(path: str):
             if path.startswith('http'):
@@ -1132,6 +1151,7 @@ class NodeImpl(Node):
                     """, (self.guild_id, path, psycopg.Binary(await _read_file(path))))
                     return (await cursor.fetchone())[0]
 
+    @override
     async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
         if os.path.exists(filename) and not overwrite:
             return UploadStatus.FILE_EXISTS
@@ -1151,6 +1171,7 @@ class NodeImpl(Node):
                 else:
                     return UploadStatus.READ_ERROR
 
+    @override
     async def list_directory(self, path: str, *, pattern: str | list[str] = '*',
                              order: SortOrder = SortOrder.DATE,
                              is_dir: bool = False, ignore: list[str] = None, traverse: bool = False
@@ -1175,29 +1196,28 @@ class NodeImpl(Node):
 
         return str(directory), ret
 
+    @override
     async def create_directory(self, path: str):
         os.makedirs(path, exist_ok=True)
 
+    @override
     async def remove_file(self, path: str):
         files = glob.glob(path)
         for file in files:
             os.remove(file)
 
+    @override
     async def rename_file(self, old_name: str, new_name: str, *, force: bool | None = False):
         shutil.move(old_name, new_name, copy_function=shutil.copy2 if force else None)
 
+    @override
     async def rename_server(self, server: Server, new_name: str):
-        from services.bot import BotService
         from services.servicebus import ServiceBus
 
         if not self.master:
             self.log.error(
                 f"Rename request received for server {server.name} that should have gone to the master node!")
             return
-        # do not rename initially created servers (they should not be there anyway)
-        if server.name != 'n/a':
-            # we are doing the plugin changes, as we are the master
-            await ServiceRegistry.get(BotService).rename_server(server, new_name)
         # update the ServiceBus
         ServiceRegistry.get(ServiceBus).rename_server(server, new_name)
         # change the proxy name for remote servers (ServerImpl will rename local ones)
@@ -1220,6 +1240,7 @@ class NodeImpl(Node):
             self.log.warning("DCS update check failed, possible server outage at ED.")
         return None
 
+    @override
     async def dcs_update(self, *, branch: str | None = None, version: str | None = None,
                          warn_times: list[int] = None, announce: bool | None = True):
         from services.bot import BotService
@@ -1340,17 +1361,18 @@ class NodeImpl(Node):
             await self.dcs_update(version=new_version)
         self.update_pending = False
 
+    @override
     async def add_instance(self, name: str, *, template: str = "") -> "Instance":
         from services.servicebus import ServiceBus
 
         max_bot_port = max_dcs_port = max_webgui_port = -1
-        for instance in self.instances:
-            if instance.bot_port > max_bot_port:
-                max_bot_port = instance.bot_port
-            if instance.dcs_port > max_dcs_port:
-                max_dcs_port = instance.dcs_port
-            if instance.webgui_port > max_webgui_port:
-                max_webgui_port = instance.webgui_port
+        for instance in self.instances.values():
+            if int(instance.bot_port) > max_bot_port:
+                max_bot_port = int(instance.bot_port)
+            if int(instance.dcs_port) > max_dcs_port:
+                max_dcs_port = int(instance.dcs_port)
+            if int(instance.webgui_port) > max_webgui_port:
+                max_webgui_port = int(instance.webgui_port)
         os.makedirs(os.path.join(SAVED_GAMES, name), exist_ok=True)
         instance = DataObjectFactory().new(InstanceImpl, node=self, name=name, locals={
             "bot_port": max_bot_port + 1 if max_bot_port != -1 else 6666,
@@ -1360,7 +1382,7 @@ class NodeImpl(Node):
         os.makedirs(os.path.join(instance.home, 'Config'), exist_ok=True)
         if template:
             # copy from a template
-            _template = next(x for x in self.node.instances if x.name == template)
+            _template = self.node.instances[template]
             files = [
                 os.path.join(_template.home, 'Config', 'autoexec.cfg'),
                 os.path.join(_template.home, 'Config', 'serverSettings.lua'),
@@ -1403,7 +1425,7 @@ class NodeImpl(Node):
             config[self.name]['instances'] = {}
         config[self.name]['instances'][instance.name] = {
             "home": instance.home,
-            "bot_port": instance.bot_port
+            "bot_port": int(instance.bot_port)
         }
         with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
@@ -1411,19 +1433,20 @@ class NodeImpl(Node):
         if os.path.exists(settings_path):
             # TODO: dirty cast
             settings = SettingsDict(cast(DataObject, cast(object, self)), settings_path, root='cfg')
-            settings['port'] = instance.dcs_port
+            settings['port'] = int(instance.dcs_port)
             settings['name'] = 'n/a'
             settings['missionList'] = []
             settings['listStartIndex'] = 0
         bus = ServiceRegistry.get(ServiceBus)
         server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name='n/a', bus=bus)
         instance.server = server
-        self.instances.append(instance)
+        self.instances[instance.name] = instance
         bus.servers[server.name] = server
         if not self.master:
             await bus.send_init(server)
         return instance
 
+    @override
     async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:
@@ -1433,13 +1456,14 @@ class NodeImpl(Node):
             yaml.dump(config, outfile)
         if instance.server:
             await self.unregister_server(instance.server)
-        self.instances.remove(instance)
+        self.instances.pop(instance.name, None)
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("DELETE FROM instances WHERE instance = %s", (instance.name, ))
         if remove_files:
             shutil.rmtree(instance.home, ignore_errors=True)
 
+    @override
     async def rename_instance(self, instance: Instance, new_name: str) -> None:
         from services.bot import BotService
 
@@ -1538,8 +1562,12 @@ class NodeImpl(Node):
             # rename the directory
             os.rename(instance.home, new_home)
             # rename the instance
+            old_name = instance.name
             instance.name = new_name
             instance.locals['home'] = new_home
+            self.instances[new_name] = self.instances.pop(old_name)
+
+            # write the new nodes.yaml
             with open(config_file, mode='w', encoding='utf-8') as outfile:
                 yaml.dump(config, outfile)
 
@@ -1562,11 +1590,14 @@ class NodeImpl(Node):
                     self.log.exception(f"Failed to start service {list(ServiceRegistry.services().keys())[i]}")
         finally:
             # re-init the attached server instance
-            await instance.server.reload()
+            if instance.server:
+                await instance.server.reload()
 
+    @override
     async def find_all_instances(self) -> list[tuple[str, str]]:
         return utils.findDCSInstances()
 
+    @override
     async def migrate_server(self, server: Server, instance: Instance) -> None:
         from services.servicebus import ServiceBus
 
@@ -1579,6 +1610,7 @@ class NodeImpl(Node):
             await bus.send_init(server)
         server.status = Status.SHUTDOWN
 
+    @override
     async def unregister_server(self, server: Server) -> None:
         from services.servicebus import ServiceBus
 
@@ -1586,6 +1618,7 @@ class NodeImpl(Node):
         instance.server = None
         ServiceRegistry.get(ServiceBus).servers.pop(server.name)
 
+    @override
     async def install_plugin(self, plugin: str) -> bool:
         from services.bot import BotService
         from services.servicebus import ServiceBus
@@ -1612,6 +1645,7 @@ class NodeImpl(Node):
         await ServiceRegistry.get(BotService).bot.load_plugin(plugin)
         return True
 
+    @override
     async def uninstall_plugin(self, plugin: str) -> bool:
         from services.bot import BotService
 
@@ -1627,6 +1661,7 @@ class NodeImpl(Node):
         self.plugins.remove(plugin)
         return True
 
+    @override
     async def get_cpu_info(self) -> bytes | int:
         def create_image() -> bytes:
             p_core_affinity_mask = utils.get_p_core_affinity()
@@ -1650,3 +1685,32 @@ class NodeImpl(Node):
                         RETURNING id
                     """, (self.guild_id, 'cpuinfo', psycopg.Binary(create_image())))
                     return (await cursor.fetchone())[0]
+
+    @override
+    async def info(self) -> dict:
+        cpool_url, lpool_url = self.get_database_urls()
+
+        node_dict = {
+            "Node": self.node.name,
+            "Listen Port": self.node.listen_port,
+            "Public IP": self.node.public_ip,
+            "Bot Version": f"{self.node.bot_version}.{self.node.sub_version}",
+            "DCS Branch": self.dcs_branch,
+            "DCS Version": self.dcs_version,
+        }
+        if cpool_url != lpool_url:
+            node_dict.update({
+                "Cluster Database": cpool_url,
+            })
+        node_dict.update({
+            "Database URL": lpool_url
+        })
+        # all services ports
+        for service_class in ServiceRegistry.services().values():
+            service = ServiceRegistry.get(service_class)
+            if not service:
+                continue
+            for key, value in service.get_ports().items():
+                node_dict[key] = value
+
+        return node_dict

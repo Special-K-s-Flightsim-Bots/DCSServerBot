@@ -10,6 +10,7 @@ dcsbot.locked = dcsbot.locked or {}
 dcsbot.userInfo = dcsbot.userInfo or {}
 dcsbot.red_slots = dcsbot.red_slots or {}
 dcsbot.blue_slots = dcsbot.blue_slots or {}
+dcsbot.whitelist = dcsbot.whitelist or {}
 
 local mission = mission or {}
 mission.last_landing = {}
@@ -124,17 +125,21 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
             log.write('DCSServerBot', log.DEBUG, 'Mission: Smart Bans disabled')
         end
         local msg = {
-            command = 'sendMessage',
-            message = 'Banned user ' .. name .. ' (ucid=' .. ucid .. ', ipaddr=' .. ipaddr .. ') rejected. Reason: ' .. dcsbot.banList[ucid]
+            command = 'onBanReject',
+            ucid = ucid,
+            ipaddr = ipaddr,
+            reason = dcsbot.banList[ucid]
         }
         utils.sendBotTable(msg, config.channels.admin)
         return false, string.gsub(config['messages']['message_ban'], "{}", dcsbot.banList[ucid])
     elseif isBanned(ipaddr) and dcsbot.banList[dcsbot.banList[ipaddr]] then
         local old_ucid = dcsbot.banList[ipaddr]
         local msg = {
-            command = 'sendMessage',
-            message = 'Player ' .. name .. ' (ucid=' .. ucid .. ') connected from the same IP (ipaddr=' .. ipaddr .. ') as banned player (ucid=' .. old_ucid .. '), who was banned for ' .. dcsbot.banList[old_ucid] ..'!',
-            mention = 'DCS Admin'
+            command = 'onBanEvade',
+            ucid = ucid,
+            ipaddr = ipaddr,
+            old_ucid = old_ucid,
+            reason = dcsbot.banList[old_ucid]
         }
         utils.sendBotTable(msg, config.channels.admin)
         return false, string.gsub(config.messages.message_ban, "{}", dcsbot.banList[old_ucid])
@@ -143,22 +148,17 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
         return false, config.messages.message_seat_locked
     end
     -- check if player uses profanity
-    if config.profanity_filter then
+    if config.profanity_filter and not dcsbot.whitelist[name] then
         name2 = normalize(name)
         if name2 ~= Censorship.censor(name2) then
+            local msg = {
+                command = 'onCensoredPlayerName',
+                ucid = ucid,
+                name = name
+            }
+            utils.sendBotTable(msg)
             if config.no_join_with_cursename then
-                local msg = {
-                    command = 'sendMessage',
-                    message = 'User ' .. name .. ' (ucid=' .. ucid .. ') rejected due to inappropriate nickname.'
-                }
-                utils.sendBotTable(msg, config.channels.admin)
                 return false, config.messages.message_player_inappropriate_username
-            else
-                local msg = {
-                    command = 'sendMessage',
-                    message = 'User ' .. name .. ' (ucid=' .. ucid .. ') potentially inappropriate nickname.'
-                }
-                utils.sendBotTable(msg, config.channels.admin)
             end
         end
     end

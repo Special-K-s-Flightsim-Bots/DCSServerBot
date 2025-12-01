@@ -19,6 +19,7 @@ MyNode:
       autoupdate: true      # auto update your DCS-SRS installation, if a new version is available online (default: false)
       use_upnp: true        # Do you want to use UPnP to auto-forward your SRS ports? If not set, the global setting will be used.
       announce:             # Optional: post a message to Discord after every update
+        channel: 1122334455667788
         title: DCS-SRS has been updated to version {}!
         description: 'The following servers have been updated:'
         footer: Please make sure you update your DCS-SRS client also!
@@ -43,11 +44,11 @@ MyNode:
           show_passwords: false   # Optional: do not show red/blue passwords in the status embed (default: true)
           radio_effect_override: false                # optional: disable radio effects (LOS, etc)
           global_lobby_frequencies: 248.22,30.0,127.0 # optional: set your music channels in here
-          autostart: true     # optional: if you manage your SRS servers outside of DCSSB, set that to false
-          always_on: true     # start SRS as soon as possible  (includes no_shutdown: true)
-          no_shutdown: true   # optional: don't shut down SRS on mission end (default: false)
+          autostart: true         # optional: if you manage your SRS servers outside of DCSSB, set that to false
+          always_on: true         # start SRS as soon as possible  (includes no_shutdown: true)
+          no_shutdown: true       # optional: don't shut down SRS on mission end (default: false)
           srs_nudge_message: 'Optional nudge message' # optional: overwrite the existing nudge message
-          
+          instructor_mode: true   # enable instructor mode (as of SRS 2.3.3.0)
 ```
 You need one entry in the node section, pointing to your DCS-SRS installation and one in every instance section, 
 where you want to use SRS with. The next time the bot starts your server, it will auto-launch SRS and take care of it.

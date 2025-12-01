@@ -4,6 +4,7 @@ import aiohttp
 import logging
 import os
 
+from abc import ABC, abstractmethod
 from core import utils
 from core.translations import get_translation
 from core.utils.helper import YAMLError
@@ -49,13 +50,13 @@ class FatalException(Exception):
         super().__init__(message)
 
 
-class Node:
+class Node(ABC):
 
     def __init__(self, name: str, config_dir: str | None = 'config'):
         self.name = name
         self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.config_dir = config_dir
-        self.instances: list[Instance] = list()
+        self.instances: dict[str, Instance] = {}
         self.locals = None
         self.config = self.read_config(os.path.join(config_dir, 'main.yaml'))
         self.guild_id: int = int(self.config['guild_id'])
@@ -67,18 +68,22 @@ class Node:
         return self.name
 
     @property
+    @abstractmethod
     def master(self) -> bool:
         raise NotImplementedError()
 
     @master.setter
+    @abstractmethod
     def master(self, value: bool):
         raise NotImplementedError()
 
     @property
+    @abstractmethod
     def public_ip(self) -> str:
         raise NotImplementedError()
 
     @property
+    @abstractmethod
     def installation(self) -> str:
         raise NotImplementedError()
 
@@ -140,97 +145,131 @@ class Node:
         except MarkedYAMLError as ex:
             raise YAMLError(file, ex)
 
+    @abstractmethod
     def read_locals(self) -> dict:
         raise NotImplementedError()
 
+    @abstractmethod
     async def shutdown(self, rc: int = -2):
         raise NotImplementedError()
 
+    @abstractmethod
     async def restart(self):
         raise NotImplementedError()
 
+    @abstractmethod
     async def upgrade_pending(self) -> bool:
         raise NotImplementedError()
 
+    @abstractmethod
     async def upgrade(self):
         raise NotImplementedError()
 
+    @abstractmethod
     async def dcs_update(self, branch: str | None = None, version: str | None = None,
                          warn_times: list[int] = None, announce: bool | None = True):
         raise NotImplementedError()
 
+    @abstractmethod
     async def dcs_repair(self, warn_times: list[int] = None, slow: bool | None = False,
                          check_extra_files: bool | None = False):
         raise NotImplementedError()
 
+    @abstractmethod
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         raise NotImplementedError()
 
+    @abstractmethod
     async def handle_module(self, what: str, module: str) -> None:
         raise NotImplementedError()
 
+    @abstractmethod
     async def get_installed_modules(self) -> list[str]:
         raise NotImplementedError()
 
+    @abstractmethod
     async def get_available_modules(self) -> list[str]:
         raise NotImplementedError()
 
+    @abstractmethod
     async def get_available_dcs_versions(self, branch: str) -> list[str] | None:
         raise NotImplementedError()
 
+    @abstractmethod
     async def get_latest_version(self, branch: str) -> str | None:
         raise NotImplementedError()
 
+    @abstractmethod
     async def shell_command(self, cmd: str, timeout: int = 60) -> tuple[str, str] | None:
         raise NotImplementedError()
 
+    @abstractmethod
     async def read_file(self, path: str) -> bytes | int:
         raise NotImplementedError()
 
+    @abstractmethod
     async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
         raise NotImplementedError()
 
+    @abstractmethod
     async def list_directory(self, path: str, *, pattern: str | list[str] = '*',
                              order: SortOrder = SortOrder.DATE,
                              is_dir: bool = False, ignore: list[str] = None, traverse: bool = False
                              ) -> tuple[str, list[str]]:
         raise NotImplementedError()
 
+    @abstractmethod
     async def create_directory(self, path: str):
         raise NotImplementedError()
 
+    @abstractmethod
     async def remove_file(self, path: str):
         raise NotImplementedError()
 
+    @abstractmethod
     async def rename_file(self, old_name: str, new_name: str, *, force: bool | None = False):
         raise NotImplementedError()
 
+    @abstractmethod
     async def rename_server(self, server: Server, new_name: str):
         raise NotImplementedError()
 
+    @abstractmethod
     async def add_instance(self, name: str, *, template: str = "") -> Instance:
         raise NotImplementedError()
 
+    @abstractmethod
     async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
         raise NotImplementedError()
 
+    @abstractmethod
     async def rename_instance(self, instance: Instance, new_name: str) -> None:
         raise NotImplementedError()
 
+    @abstractmethod
     async def find_all_instances(self) -> list[tuple[str, str]]:
         raise NotImplementedError()
 
+    @abstractmethod
     async def migrate_server(self, server: Server, instance: Instance) -> None:
         raise NotImplementedError()
 
+    @abstractmethod
     async def unregister_server(self, server: Server) -> None:
         raise NotImplementedError()
 
+    @abstractmethod
     async def install_plugin(self, plugin: str) -> bool:
         raise NotImplementedError()
 
+    @abstractmethod
     async def uninstall_plugin(self, plugin: str) -> bool:
         raise NotImplementedError()
 
+    @abstractmethod
     async def get_cpu_info(self) -> bytes | int:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def info(self) -> dict:
         raise NotImplementedError()

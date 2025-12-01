@@ -29,7 +29,7 @@ class ServerMaintenanceManager:
 
     async def __aenter__(self):
         tasks = []
-        for instance in self.node.instances:
+        for instance in self.node.instances.values():
             server = instance.server
             if not server or server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
                 continue

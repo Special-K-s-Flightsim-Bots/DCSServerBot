@@ -6,13 +6,13 @@ import shutil
 import sys
 
 from core import Extension, utils, ServiceRegistry, Server, get_translation, InstallException, DISCORD_FILE_SIZE_LIMIT, \
-    Status
-from packaging.version import parse
-
+    Status, PortType, Port
 from extensions.tacview.recorder import TacviewRecorder
+from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
 from typing import Any
+from typing_extensions import override
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -75,6 +75,7 @@ class Tacview(Extension):
         self.stopped = asyncio.Event()
         self.recorder: TacviewRecorder | None = None
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         self.stop_event.clear()
         self.stopped.clear()
@@ -86,6 +87,7 @@ class Tacview(Extension):
         await self.stopped.wait()
         super().shutdown()
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         if self.config.get('target'):
             self.loop.create_task(self._shutdown())
@@ -94,6 +96,7 @@ class Tacview(Extension):
         else:
             return super().shutdown()
 
+    @override
     def load_config(self) -> dict | None:
         if self.server.options['plugins']:
             options = self.server.options['plugins']
@@ -127,6 +130,7 @@ class Tacview(Extension):
             return True
         return False
 
+    @override
     async def prepare(self) -> bool:
         await self.handle_update()
         options = self.server.options['plugins']
@@ -178,6 +182,7 @@ class Tacview(Extension):
         type(self)._rcp_ports[rcp_port] = self.server.name
         return await super().prepare()
 
+    @override
     @property
     def version(self) -> str:
         return utils.get_windows_version(os.path.join(self.server.instance.home, r'Mods\tech\Tacview\bin\tacview.dll'))
@@ -207,6 +212,7 @@ class Tacview(Extension):
                                            "please specify it manually in your nodes.yaml!")
         return self._inst_path
 
+    @override
     async def render(self, param: dict | None = None) -> dict:
         if not self.locals:
             raise NotImplementedError()
@@ -235,6 +241,7 @@ class Tacview(Extension):
             "value": value
         }
 
+    @override
     def is_installed(self) -> bool:
         if not super().is_installed():
             return False
@@ -371,6 +378,7 @@ class Tacview(Extension):
         path = os.path.join(self.get_inst_path(), 'DCS', 'Mods', 'tech', 'Tacview', 'bin')
         return utils.get_windows_version(os.path.join(path, 'tacview.dll'))
 
+    @override
     async def install(self) -> bool:
         def ignore_funct(dirname, filenames) -> list[str]:
             ignored = []
@@ -404,6 +412,7 @@ class Tacview(Extension):
         self.log.info(f"  => {self.name} {self.version} installed into instance {self.server.instance.name}.")
         return True
 
+    @override
     async def uninstall(self) -> bool:
         if not self.get_inst_path():
             self.log.error("You need to specify an installation path for Tacview!")
@@ -473,12 +482,14 @@ class Tacview(Extension):
                     }
                 })
 
-    async def get_ports(self) -> dict:
+    @override
+    def get_ports(self) -> dict[str, Port]:
         return {
-            "tacviewRealTimeTelemetryPort": self.locals.get('tacviewRealTimeTelemetryPort', 42674),
-            "tacviewRemoteControlPort": self.locals.get('tacviewRemoteControlPort', 42675)
+            "tacviewRealTimeTelemetryPort": Port(self.locals.get('tacviewRealTimeTelemetryPort', 42674), PortType.TCP, public=True),
+            "tacviewRemoteControlPort": Port(self.locals.get('tacviewRemoteControlPort', 42675), PortType.TCP, public=True)
         } if self.enabled else {}
 
+    @override
     async def change_config(self, config: dict):
         if config.get('target') and not self.config.get('target'):
             asyncio.create_task(self.check_log())

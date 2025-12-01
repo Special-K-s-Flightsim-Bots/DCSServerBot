@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any
+from typing_extensions import override
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -25,6 +26,7 @@ class Cloud(Extension):
         self.client = None
         self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
 
+    @override
     def load_config(self) -> dict | None:
         return yaml.load(Path(os.path.join(self.node.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
 
@@ -90,7 +92,7 @@ class Cloud(Extension):
             payload = {
                 "guild_id": self.node.guild_id,
                 "server_name": self.server.name,
-                "port": self.server.instance.dcs_port,
+                "port": int(self.server.instance.dcs_port),
                 "password": (self.server.settings.get('password', '') != ''),
                 "theatre": self.server.current_mission.map,
                 "dcs_version": self.node.dcs_version,
@@ -123,10 +125,12 @@ class Cloud(Extension):
             self.log.warning(f"Could not unregister server {self.server.name} from the cloud.", exc_info=ex)
             self.log.debug(payload)
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         self.loop.create_task(self.cloud_register())
         return await super().startup(quiet=True)
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         self.loop.create_task(self.cloud_unregister())
         return super().shutdown(quiet=True)

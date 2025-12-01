@@ -6,6 +6,7 @@ More to come.
 As per usual, the service is configured with a yaml file, in this case config/services/cron.yaml:
 ```yaml
 DEFAULT:
+  timezone: UTC                         # Set the timezone the schedule should run on
   actions:
     - cron: '0 * * * *'                 # run every full hour
       action:
@@ -77,6 +78,7 @@ DEFAULT:
           rotate: true                  # Optional: rotate to the next mission
           shutdown: true                # Optional: shutdown the DCS server
           reboot: true                  # Optional: reboot the PC (shutdown /r)
+          maintenance: false            # Optional: reset any maintenance flag to false
 ```
 
 c) halt
@@ -87,6 +89,8 @@ DEFAULT:
     - cron: '0 4 * * 1'                 # shut the server down once a week on Monday
       action:
         type: halt                      # reboot the server each monday night at 03:00
+        params:
+          maintenance: false            # Optional: reset any maintenance flag to false
 ```
 
 d) cmd

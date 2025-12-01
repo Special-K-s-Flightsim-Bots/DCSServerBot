@@ -35,7 +35,7 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
     }
 
     SQL_MISSION_HANDLING = {
-        'start_mission': 'INSERT INTO missions (server_name, mission_name, mission_theatre) VALUES (%s, %s, %s)',
+        'start_mission': 'INSERT INTO missions (server_name, mission_name, mission_theatre) VALUES (%s, %s, %s) RETURNING id',
         'current_mission_id': 'SELECT id, mission_name FROM missions WHERE server_name = %s AND mission_end IS NULL',
         'close_statistics': "UPDATE statistics SET hop_off = GREATEST((hop_on + INTERVAL '1 second'), (now() AT TIME ZONE 'utc')) WHERE mission_id = %s AND hop_off IS NULL",
         'close_mission': "UPDATE missions SET mission_end = (now() AT TIME ZONE 'utc') WHERE id = %s",
@@ -132,7 +132,6 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
                         # create a new mission
                         cursor.execute(self.SQL_MISSION_HANDLING['start_mission'],
                                        (server.name, data['current_mission'], data['current_map']))
-                        cursor.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
                         if cursor.rowcount == 1:
                             mission_id = (cursor.fetchone())[0]
                         else:
@@ -177,9 +176,8 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
         with self.pool.connection() as conn:
             with conn.transaction():
                 self.close_all_statistics(conn, server)
-                conn.execute(self.SQL_MISSION_HANDLING['start_mission'],
-                             (server.name, data['current_mission'], data['current_map']))
-                cursor = conn.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
+                cursor = conn.execute(self.SQL_MISSION_HANDLING['start_mission'],
+                                      (server.name, data['current_mission'], data['current_map']))
                 if cursor.rowcount == 1:
                     server.mission_id = (cursor.fetchone())[0]
                 else:

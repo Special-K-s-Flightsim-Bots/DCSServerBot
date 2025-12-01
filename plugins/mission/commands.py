@@ -1,3 +1,4 @@
+import aiofiles
 import asyncio
 import discord
 import importlib
@@ -147,6 +148,7 @@ class Mission(Plugin[MissionEventListener]):
         self.check_for_unban.start()
         self.expire_token.add_exception_type(psycopg.DatabaseError)
         self.expire_token.start()
+        self.lock = asyncio.Lock()
         if self.bot.locals.get('autorole', {}):
             self.check_roles.add_exception_type(psycopg.DatabaseError)
             self.check_roles.add_exception_type(discord.errors.DiscordException)
@@ -172,26 +174,35 @@ class Mission(Plugin[MissionEventListener]):
                 migrate_function(self)
             self.locals = self.read_locals()
 
-    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
-        await conn.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
-                    server: str | None = None) -> None:
+    async def prune(self, conn: psycopg.AsyncConnection, days: int) -> None:
         self.log.debug('Pruning Mission ...')
-        if days > -1:
-            # noinspection PyTypeChecker
-            await conn.execute(f"""
-                DELETE FROM missions 
-                WHERE mission_end < (DATE((now() AT TIME ZONE 'utc')) - interval '{days} days')
-            """)
-        if server:
-            await conn.execute("DELETE FROM missions WHERE server_name = %s", (server, ))
+        await conn.execute(f"""
+            DELETE FROM missions WHERE mission_end < (DATE(now() AT TIME ZONE 'utc') - %s::interval)
+        """, (f'{days} days', ))
         self.log.debug('Mission pruned.')
 
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
-        await conn.execute("""
-            UPDATE bans SET ucid = %s WHERE ucid = %s AND NOT EXISTS (SELECT 1 FROM bans WHERE ucid = %s)
-        """, (new_ucid, old_ucid, new_ucid))
+        # check if the new ucid was banned already
+        cursor = await conn.execute("""
+            SELECT banned_by, reason, banned_at, banned_until 
+            FROM bans WHERE ucid = %s
+            AND banned_until > (NOW() AT TIME ZONE 'UTC')
+        """,(new_ucid, ))
+        if cursor.rowcount == 1:
+            row = await cursor.fetchone()
+            # if yes, create a ban for the old ucid also
+            await conn.execute("""
+                INSERT INTO bans (ucid, banned_by, reason, banned_at, banned_until)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (ucid) DO NOTHING
+            """, (old_ucid, row[0], row[1], row[2], row[3]))
+        else:
+            # otherwise create a new ban if the old ucid was banned already
+            await conn.execute(f"""
+                INSERT INTO bans (ucid, banned_by, reason, banned_at, banned_until) 
+                SELECT %(new_ucid)s, banned_by, reason, banned_at, banned_until FROM bans WHERE ucid = %(old_ucid)s
+                ON CONFLICT (ucid) DO NOTHING
+            """, {"new_ucid": new_ucid, "old_ucid": old_ucid})
 
     # New command group "/mission"
     mission = Group(name="mission", description=_("Commands to manage a DCS mission"))
@@ -335,10 +346,10 @@ class Mission(Plugin[MissionEventListener]):
                 return
             elif result == 'later':
                 server.on_empty = {
-                    "command": what,
-                    "user": interaction.user,
+                    "method": what,
                     "run_extensions": run_extensions,
-                    "use_orig": use_orig
+                    "use_orig": use_orig,
+                    "user": interaction.user
                 }
                 server.restart_pending = True
                 await interaction.followup.send(_('Mission will {}, when server is empty.').format(_(what)),
@@ -384,7 +395,7 @@ class Mission(Plugin[MissionEventListener]):
                 _("Timeout while the mission {what}.\n"
                   "Please check with {command}, if the mission is running.").format(
                     what=_(actions.get(what)),
-                    command=(await utils.get_command(self.bot, group='mission', name='info')).mention
+                    command=(await utils.get_command(self.bot, group=self.mission.name, name=self.info.name)).mention
                 ), ephemeral=ephemeral)
 
     async def _load(self, interaction: discord.Interaction, server: Server, mission: int | str | None = None,
@@ -435,10 +446,10 @@ class Mission(Plugin[MissionEventListener]):
         if server.current_mission and mission == server.current_mission.filename:
             if result == 'later':
                 server.on_empty = {
-                    "command": "restart",
-                    "user": interaction.user,
+                    "method": "restart",
                     "run_extensions": run_extensions,
-                    "use_orig": use_orig
+                    "use_orig": use_orig,
+                    "user": interaction.user
                 }
                 server.restart_pending = True
                 await interaction.followup.send(_('Mission will {}, when server is empty.').format(_('restart')),
@@ -449,10 +460,10 @@ class Mission(Plugin[MissionEventListener]):
         else:
             name = os.path.basename(mission[:-4])
             if mission_id is not None and result == 'later':
-                # make sure, we load that mission, independently on what happens to the server
+                # make sure we load that mission, independently of what happens to the server
                 await server.setStartIndex(mission_id + 1)
                 server.on_empty = {
-                    "command": "load",
+                    "method": "load",
                     "mission_id": mission_id + 1,
                     "run_extensions": run_extensions,
                     "use_orig": use_orig,
@@ -477,7 +488,7 @@ class Mission(Plugin[MissionEventListener]):
                             message += _('\nThis mission is NOT in the mission list and will not auto-load on server '
                                          'or mission restarts.\n'
                                          'If you want it to auto-load, use {}').format(
-                                (await utils.get_command(self.bot, group='mission', name='add')).mention)
+                                (await utils.get_command(self.bot, group=self.mission.name, name=self.add.name)).mention)
                         await msg.edit(content=message)
                         await self.bot.audit(f"loaded mission {utils.escape_string(name)}", server=server,
                                              user=interaction.user)
@@ -623,7 +634,13 @@ class Mission(Plugin[MissionEventListener]):
                 ephemeral=ephemeral)
 
     async def simulate(self, interaction: discord.Interaction, server: Server, use_orig: bool, presets_file: str,
-                       presets: list[str], ephemeral: bool):
+                       presets: list[str] | None, ephemeral: bool):
+
+        presets = {x: utils.get_preset(self.node, x, filename=presets_file) for x in presets} if presets else None
+        if not presets:
+            await interaction.followup.send("No presets provided for simulation.")
+            return
+
         mission_file = await server.get_current_mission_file()
         if use_orig:
             if server.is_remote:
@@ -633,11 +650,6 @@ class Mission(Plugin[MissionEventListener]):
             mission_file = utils.get_orig_file(mission_file)
         old_mission: MizFile = await asyncio.to_thread(MizFile, mission_file)
         new_mission: MizFile = await asyncio.to_thread(MizFile, mission_file)
-        presets = {x: utils.get_preset(self.node, x, filename=presets_file) for x in presets}
-
-        if not presets:
-            await interaction.followup.send("You need to select presets.", ephemeral=True)
-            return
 
         for k, v in presets.items():
             try:
@@ -763,8 +775,9 @@ class Mission(Plugin[MissionEventListener]):
 
         if result == 'later':
             server.on_empty = {
-                "command": "preset",
-                "preset": view.result,
+                "method": "restart",
+                "presets": presets_file,
+                "settings": view.result,
                 "use_orig": use_orig,
                 "user": interaction.user
             }
@@ -1323,12 +1336,12 @@ class Mission(Plugin[MissionEventListener]):
 
     watch = Group(name="watch", description="Commands to manage the watchlist")
 
-    @watch.command(description=_('Puts a player onto the watchlist'))
+    @watch.command(name='add', description=_('Puts a player onto the watchlist'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def add(self, interaction: discord.Interaction,
-                  user: app_commands.Transform[discord.Member | str, utils.UserTransformer(
-                      sel_type=PlayerType.PLAYER, watchlist=False)], reason: str):
+    async def _add(self, interaction: discord.Interaction,
+                   user: app_commands.Transform[discord.Member | str, utils.UserTransformer(
+                       sel_type=PlayerType.PLAYER, watchlist=False)], reason: str):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
@@ -1336,8 +1349,13 @@ class Mission(Plugin[MissionEventListener]):
                 await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name),
                                                         ephemeral=True)
                 return
-        else:
+        elif utils.is_ucid(user):
             ucid = user
+        else:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("User not found."), ephemeral=True)
+            return
+
         try:
             async with self.apool.connection() as conn:
                 async with conn.transaction():
@@ -1611,7 +1629,7 @@ class Mission(Plugin[MissionEventListener]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("This user does not exist. Try {} to find them in the historic data.").format(
-                    (await utils.get_command(self.bot, name='find')).mention
+                    (await utils.get_command(self.bot, name=self.find.name)).mention
                 ), ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
@@ -2160,7 +2178,7 @@ class Mission(Plugin[MissionEventListener]):
         for node_name, node in self.locals.items():
             if node_name == 'commands':
                 continue
-            if node_name == DEFAULT_TAG:
+            elif node_name == DEFAULT_TAG:
                 channel = node.get('uploads', {}).get('channel')
                 if channel:
                     if message.channel.id == channel:
@@ -2190,9 +2208,11 @@ class Mission(Plugin[MissionEventListener]):
             server = await MissionUploadHandler.get_server(message)
 
         if not server:
+            self.log.debug("Mission upload: No server found, you are in the wrong channel!")
             return
 
         try:
+            self.log.debug(f"Uploading mission {message.attachments[0].filename} to server {server.name} ...")
             handler = MissionUploadHandler(plugin=self, server=server, message=message, pattern=pattern)
             base_dir = await handler.server.get_missions_dir()
             ignore = ['.dcssb', 'Saves', 'Scripts']
@@ -2239,6 +2259,53 @@ class Mission(Plugin[MissionEventListener]):
                     'ucid': player.ucid,
                     'roles': [x.id for x in after.roles]
                 })
+
+    @commands.Cog.listener()
+    async def on_interaction(self, interaction: discord.Interaction):
+        if (interaction.type is not discord.InteractionType.component or
+                not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user)):
+            return
+
+        custom_id = interaction.data.get('custom_id')
+        if custom_id.startswith('whitelist_'):
+            name = custom_id[len('whitelist_'):]
+            async with self.lock:
+                if not self.eventlistener.whitelist:
+                    self.eventlistener.whitelist = await asyncio.to_thread(self.eventlistener._read_whitelist)
+                if name not in self.eventlistener.whitelist:
+                    self.eventlistener.whitelist.add(name)
+                    whitelist = Path(self.node.config_dir) / 'whitelist.txt'
+                    async with aiofiles.open(whitelist, mode="a", encoding='utf-8') as f:
+                        await f.write(f"{name}\n")
+            for server in self.bus.servers.values():
+                if server.status in [Status.RUNNING, Status.PAUSED]:
+                    await server.send_to_dcs({
+                        "command": "uploadWhitelist",
+                        "name": name
+                    })
+            # noinspection PyUnresolvedReferences
+            await interaction.response.edit_message(view=None)
+            await interaction.message.add_reaction('✅')
+        elif custom_id.startswith('ban_'):
+            config = self.get_config()
+            if custom_id.startswith('ban_profanity_'):
+                ucid = custom_id[len('ban_profanity_'):]
+                await self.bus.ban(
+                    ucid, interaction.user.display_name,
+                    config.get('messages', {}).get('ban_username', 'Inappropriate username.')
+                )
+            elif custom_id.startswith('ban_evade_'):
+                ucid = custom_id[len('ban_evade_'):]
+                await self.bus.ban(
+                    ucid, interaction.user.display_name,
+                    config.get('messages', {}).get('ban_evasion', 'Trying to evade a ban with a 2nd account.')
+                )
+            # noinspection PyUnresolvedReferences
+            await interaction.response.edit_message(view=None)
+            await interaction.message.add_reaction('🚫')
+        elif custom_id == 'cancel':
+            # noinspection PyUnresolvedReferences
+            await interaction.response.edit_message(view=None)
 
 
 async def setup(bot: DCSServerBot):

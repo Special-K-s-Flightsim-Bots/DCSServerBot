@@ -36,14 +36,6 @@ class Punishment(Plugin[PunishmentEventListener]):
         self.check_punishments.cancel()
         await super().cog_unload()
 
-    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
-        await conn.execute('UPDATE pu_events SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-        await conn.execute('UPDATE pu_events_sdw SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-
-    async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
-        await conn.execute("UPDATE pu_events SET init_id = %s WHERE init_id = %s", (new_ucid, old_ucid))
-        await conn.execute("UPDATE pu_events SET target_id = %s WHERE target_id = %s", (new_ucid, old_ucid))
-
     async def punish(self, server: Server, ucid: str, punishment: dict, reason: str, points: float | None = None):
         player: Player = server.get_player(ucid=ucid)
         member = self.bot.get_member_by_ucid(ucid)
@@ -183,6 +175,10 @@ class Punishment(Plugin[PunishmentEventListener]):
                             WHERE time < (timezone('utc', now()) - interval '{days} days') AND decay_run < %s
                         """, (d['weight'], days, days))
                         await conn.execute("DELETE FROM pu_events WHERE points = 0.0")
+
+    @decay.before_loop
+    async def before_decay(self):
+        await self.bot.wait_until_ready()
 
     @command(name='punish', description=_('Adds punishment points to a user\n'))
     @utils.app_has_role('DCS Admin')

@@ -2,8 +2,8 @@ import discord
 import os
 import pandas as pd
 
-from core import Plugin, Report, ReportEnv, command, utils, get_translation, Status, async_cache, Command
-from discord import app_commands, Interaction, ButtonStyle, TextStyle
+from core import Plugin, Report, ReportEnv, command, utils, get_translation, Status, async_cache, Command, Port, Node
+from discord import app_commands, Interaction, ButtonStyle, TextStyle, SelectOption
 from discord.ui import View, Select, Button, Modal, TextInput, Item
 from io import BytesIO
 from services.bot import DCSServerBot
@@ -103,13 +103,14 @@ class Help(Plugin[HelpListener]):
 
         async def print_commands(self, interaction: discord.Interaction, *, plugin: str) -> discord.Embed:
             prefix = self.bot.locals.get('command_prefix', '.')
+            module = f'plugins.{plugin.lower()}.commands'
             title = _('{} Help').format(self.bot.user.display_name)
             help_embed = discord.Embed(title=title, color=discord.Color.blue())
-            help_embed.description = '**Plugin: ' + plugin.split('.')[1].title() + '**\n'
+            help_embed.description = f'**Plugin: {plugin}**\n'
             cmds = ""
             descriptions = ""
             for name, cmd in (await get_commands(interaction)).items():
-                if cmd.module != plugin:
+                if cmd.module != module:
                     continue
                 # noinspection PyUnresolvedReferences
                 fqn = cmd.mention if isinstance(cmd, Command) else f"{prefix}{cmd.name}"
@@ -199,10 +200,10 @@ class Help(Plugin[HelpListener]):
     async def help(self, interaction: discord.Interaction, cmd: str | None):
         ephemeral = utils.get_ephemeral(interaction)
         options = [
-            discord.SelectOption(label=x.title(), value=f'plugins.{x}.commands')
-            for x in sorted(self.bot.plugins)
-            if x != 'help'
-        ]
+            discord.SelectOption(label=plugin.__cog_name__, value=plugin.__cog_name__)
+            for name, plugin in sorted(self.bot.cogs.items())
+            if name != 'Help'
+        ][:25]
         view = self.HelpView(self.bot, interaction, options)
         if cmd:
             try:
@@ -245,7 +246,7 @@ class Help(Plugin[HelpListener]):
                         # noinspection PyUnresolvedReferences
                         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
                 else:
-                    embed = await view.print_commands(interaction, plugin='plugins.help.commands')
+                    embed = await view.print_commands(interaction, plugin='Help')
                     # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
                 if await view.wait() or not view.result:
@@ -269,7 +270,7 @@ class Help(Plugin[HelpListener]):
                         roles = check.roles
                     else:
                         continue
-                    plugin = cmd.binding.plugin_name.title() if cmd.binding else ''
+                    plugin = cmd.binding.__cog_name__ if cmd.binding else ''
                     # noinspection PyUnresolvedReferences
                     data_df = pd.DataFrame(
                         [(plugin, f"/{cmd.qualified_name}" if not use_mention else cmd.mention,
@@ -280,7 +281,7 @@ class Help(Plugin[HelpListener]):
                 except AttributeError as ex:
                     self.log.error("Name: {} has no attribute '{}'".format(cmd.name, ex.name))
             else:
-                plugin = cmd.binding.plugin_name.title() if cmd.binding else ''
+                plugin = cmd.binding.__cog_name__  if cmd.binding else ''
                 data_df = pd.DataFrame(
                     [(plugin, '/' + cmd.qualified_name, get_usage(cmd), '', cmd.description.strip('\n'))],
                     columns=df.columns)
@@ -292,7 +293,7 @@ class Help(Plugin[HelpListener]):
         for listener in self.bot.eventListeners:
             for cmd in listener.chat_commands:
                 data_df = pd.DataFrame([
-                    (listener.plugin_name.title(), listener.prefix + cmd.name, cmd.usage, ','.join(cmd.roles), cmd.help)
+                    (listener.plugin.__cog_name__, listener.prefix + cmd.name, cmd.usage, ','.join(cmd.roles), cmd.help)
                 ], columns=df.columns)
                 df = pd.concat([df, data_df], ignore_index=True)
         return df
@@ -387,18 +388,19 @@ _ _
                 'Name': server.name,
                 'Password': server.settings.get('password'),
                 'Max Players': server.settings.get('maxPlayers', 16),
-                'DCS Port': server.instance.dcs_port,
-                'WebGUI Port': server.instance.webgui_port,
-                'Bot Port': server.instance.bot_port
+                'DCS Port': repr(server.instance.dcs_port),
+                'WebGUI Port': repr(server.instance.webgui_port),
+                'Bot Port': repr(server.instance.bot_port)
             }
 
             if server.status == Status.SHUTDOWN:
                 await server.init_extensions()
+            # all extension ports
             for ext in server.instance.locals.get('extensions', {}).keys():
                 try:
                     rc = await server.run_on_extension(ext, 'get_ports')
                     for key, value in rc.items():
-                        server_dict[key] = value
+                        server_dict[key] = repr(value)
                 except ValueError:
                     pass
 
@@ -408,15 +410,24 @@ _ _
         df = df[columns + [col for col in df.columns if col not in columns]]
         return df
 
+    async def nodes_info_to_df(self) -> pd.DataFrame:
+        columns = ['Node', 'Listen Port']
+        df = pd.DataFrame(columns=columns)
+
+        for node in self.node.all_nodes.values():
+            if not node:
+                continue
+            node_dict = await node.info()
+            for k, v in node_dict.copy().items():
+                if isinstance(v, Port):
+                    node_dict[k] = repr(v)
+            data_df = pd.DataFrame([node_dict])
+            df = pd.concat([df, data_df], ignore_index=True)
+
+        return df
+
     async def generate_server_docs(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
-        await interaction.response.defer()
-        await interaction.followup.send("Generating server documentation... Please wait a moment.")
-        server_info = (await self.server_info_to_df()).sort_values(['Node', 'Instance'])
-        output = BytesIO()
-        with pd.ExcelWriter(output) as writer:
-            server_info.to_excel(writer, sheet_name='Server Info', index=False)
-            worksheet = writer.sheets['Server Info']
+        def adjust_columns(worksheet):
             # Apply a filter to all the columns.
             worksheet.auto_filter.ref = worksheet.calculate_dimension()
 
@@ -433,21 +444,84 @@ _ _
                 adjusted_width = max_length + 3  # Add buffer width
                 worksheet.column_dimensions[column.column_letter].width = adjusted_width
 
+        await interaction.followup.send("Generating server documentation... Please wait a moment.", ephemeral=True)
+        node_info = (await self.nodes_info_to_df()).sort_values(['Node'])
+        server_info = (await self.server_info_to_df()).sort_values(['Node', 'Instance'])
+        output = BytesIO()
+        with pd.ExcelWriter(output) as writer:
+            node_info.to_excel(writer, sheet_name='Node Info', index=False)
+            server_info.to_excel(writer, sheet_name='Server Info', index=False)
+            for sheet in ['Node Info', 'Server Info']:
+                worksheet = writer.sheets[sheet]
+                adjust_columns(worksheet)
         output.seek(0)
-        await interaction.followup.send(file=discord.File(fp=output, filename='ServerInfo.xlsx'))
+        await interaction.followup.send(file=discord.File(fp=output, filename='ServerInfo.xlsx'), ephemeral=True)
         output.close()
+
+    async def generate_firewall_rules(self, interaction: discord.Interaction, node: Node) -> str:
+        ports: list[Port] = []
+        for server in self.bot.servers.values():
+            ports.append(server.instance.dcs_port)
+            ports.append(server.instance.webgui_port)
+
+            for ext in server.instance.locals.get('extensions', {}).keys():
+                try:
+                    rc = await server.run_on_extension(ext, 'get_ports')
+                    for key, value in rc.items():
+                        if value.public:
+                            ports.append(value)
+                except ValueError:
+                    pass
+        info = await node.info()
+        for k, v in info.items():
+            if isinstance(v, Port):
+                if v.public:
+                    ports.append(v)
+
+        return utils.generate_firewall_rules(ports)
 
     @command(description=_('Generate Documentation'))
     @app_commands.guild_only()
     @app_commands.rename(fmt='format')
     @utils.app_has_role('Admin')
-    async def doc(self, interaction: discord.Interaction, what: Literal['Commands', 'Server'],
-                  fmt: Literal['channel', 'xls'], role: Literal['Admin', 'DCS Admin', 'DCS'] | None = None,
+    async def doc(self, interaction: discord.Interaction,
+                  what: Literal['Command Overview', 'Server Config Sheet', 'Firewall Ruleset'],
+                  fmt: Literal['channel', 'xls'] | None = None,
+                  role: Literal['Admin', 'DCS Admin', 'DCS'] | None = None,
                   channel: discord.TextChannel | None = None):
-        if what == 'Commands':
+        if what == 'Command Overview':
+            if not fmt:
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(_("Please specify the format (channel or xls)."),
+                                                        ephemeral=True)
+                return
             await self.generate_commands_doc(interaction, fmt, role, channel)
-        elif what == 'Server':
+        elif what == 'Server Config Sheet':
+            if not await utils.yn_question(interaction, _("Do you want to generate the server documentation?"),
+                                       message=_("The file may contain passwords!")):
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(_("Aborted."), ephemeral=True)
+                return
             await self.generate_server_docs(interaction)
+        elif what == 'Firewall Ruleset':
+            all_nodes = list(self.node.all_nodes.values())
+            idx = await utils.selection(interaction,
+                                   title="Select a node",
+                                   options=[
+                                       SelectOption(label=x.name, value=str(idx))
+                                       for idx, x in enumerate(all_nodes)
+                                       if x is not None
+                                   ])
+            if idx:
+                rules = await self.generate_firewall_rules(interaction, all_nodes[int(idx)])
+                file = discord.File(fp=BytesIO(rules.encode('utf-8')), filename='firewall_rules.ps1')
+                # noinspection PyUnresolvedReferences
+                if not interaction.response.is_done():
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.defer(ephemeral=True)
+                await interaction.followup.send(content=_("Your firewall ruleset:"), file=file, ephemeral=True)
+            else:
+                await interaction.followup.send(_("Aborted."), ephemeral=True)
         else:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Unknown option {}!").format(what), ephemeral=True)

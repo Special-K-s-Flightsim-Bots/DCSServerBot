@@ -11,6 +11,7 @@ schema;element_schema:
   func: is_element
   nullable: false
   mapping:
+    timezone: {type: str, nullable: false, range: {min: 1}}
     actions:
       type: seq
       nullable: false
@@ -18,7 +19,7 @@ schema;element_schema:
         - type: map
           nullable: false
           mapping:
-            cron: {type: str, nullable: false, range: {min: 1}} # a proper cron syntax is needed, but the regex for that would be huge
+            cron: {type: str, nullable: false, pattern: '^\s*(?:\S+\s+){4,6}\S+\s*$'}
             mission_time: {type: int, range: {min: 0}, nullable: false}
             action:
               type: map

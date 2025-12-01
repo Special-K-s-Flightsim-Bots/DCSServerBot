@@ -13,10 +13,7 @@ others:
 > [Examples](#examples) below.
 
 ## Configuration
-
-> [!TIP]
-> The scheduler configuration is quite complex. 
-> Please read the following part thoroughly.
+The configuration is held in the config\plugins\scheduler.yaml file. 
 
 ### High Level Structure
 The main structure of the scheduler.yaml consists out of these blocks:
@@ -37,20 +34,22 @@ DEFAULT:                                          # the DEFAULT block is valid f
 b) Instance-specific Section
 The instance-specific section consists out of three blocks:
 
-| Block    | Description                             |
-|:---------|:----------------------------------------|
-| schedule | WHEN should the server run?             |
-| startup  | WHAT should happen on STARTUP?          |
-| action   | WHAT should happen durning the RUNTIME? |
+| Block    | Description                                     |
+|:---------|:------------------------------------------------|
+| timezone | Optional: timezone to be used for all sections. |
+| schedule | WHEN should the server run?                     |
+| startup  | Optional: WHAT should happen on STARTUP?        |
+| action   | WHAT should happen durning the RUNTIME?         |
 
 ```yaml
 DCS.dcs_serverrelease:                              
+  timezone: UTC     # Optional: timezone (default: local timezone)
   schedule:         # Server "DCS.dcs_serverrelease" will run 24x7
     00-24: YYYYYYY
   startup:          # Optional
     mission_id: 3   # Load mission #3 from the mission list on startup (could be a list also / random pick)
-  action:           # At 04:00 and 08:00 local time of the server ...
-    local_times:
+  action:           # At 04:00 and 08:00 UTC (timezone see above) ...
+    times:
     - 04:00
     - 08:00
     method: restart # ... the mission will restart ...
@@ -75,6 +74,14 @@ DCS.dcs_serverrelease:
       10: Сервер перезапускается!
 ```
 
+### Section "timezone"
+The timezone used for any of the sections below. 
+You can only use one timezone. If you do not specify a timezone, the local timezone of the server will be used.
+
+```yaml
+    timezone: Europe/Berlin       # Optional: timezone (default: local time)
+```
+
 ### Section "schedule"
 The schedule controls when the server should be online, offline, or shut down automatically based on the days of the 
 week and the time of day.
@@ -86,7 +93,6 @@ week and the time of day.
 
 ```yaml
   schedule:
-    timezone: Europe/Berlin       # Optional: timezone (default: local time)
     <time‑range>: <7‑char‑pattern>
     <time‑range>: <7‑char‑pattern>
 ```
@@ -114,7 +120,19 @@ Characters represent Mon, Tue, Wed, Thu, Fri, Sat, Sun in that order.
 > ```
 
 ### Section "startup"
-Here you can provide a mission_id to be started on server startup.
+The "startup" section is treated like a "load" command:
+```yaml
+startup:
+  mission_id: 1           # Set the mission id to be loaded at startup. Could also be a mission_file.
+  presets:
+    - config/presets.yaml # Optional: presets file to be used for modifications
+  settings:
+    - NoMods              # Optional: apply the "NoMods" preset to the mission prior to startup
+```
+
+> [!NOTE]
+> When a preset is set to be applied to a mission upon startup, 
+> any configurations made in the nodes.yaml file for MizEdit will be bypassed.
 
 ### Section "action"
 
@@ -122,12 +140,12 @@ Here you can provide a mission_id to be started on server startup.
 |:-----------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | method           | One of restart, rotate, load, stop or shutdown. See below.                                                                                                                          |
 | shutdown         | If true, the server will be shut down prior to restarting or rotating (default: false).                                                                                             |
+| times            | List of times in the format HH24:MM, when the mission should be restated or rotated. The timezone settings apply.                                                                   |
+| cron             | A [cron](https://en.wikipedia.org/wiki/Cron)-like string that defines when this action should run. The timezone settings apply.                                                     |
 | mission_time     | Time in minutes (according to the mission time passed) when the mission has to be restarted.                                                                                        |
 | max_mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted, even if people are in.                                                                 |
 | real_time        | Time in minutes since the start of your server (not necessarily your mission, if that is paused for instance), when a restart should happen. Only works with restart_with_shutdown. |
 | idle_time        | Time in minutes, the server was not in use (no people in the server)                                                                                                                |
-| local_times      | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                   |
-| utc_times        | Like local_times but UTC.                                                                                                                                                           |
 | mission_id       | For load only: the mission_id to load (1 = first from the mission list). Can be an integer or a list of integers for random pick.                                                   |
 | mission_file     | For load only: the mission file name to load (has to be in the mission list). Can be a single mission or list of missions for random pick.                                          |
 | populated        | If **false**, the mission will be restarted / rotated only, if no player is in (default: true).                                                                                     |
@@ -135,6 +153,50 @@ Here you can provide a mission_id to be started on server startup.
 | run_extensions   | If true, extensions will be applied to the mission prior to the restart / rotation (default: true) .                                                                                |
 | use_orig         | Use the original mission as a reference.                                                                                                                                            |
 | no_reload        | load only: Do not reload an already running mission.                                                                                                                                |
+
+> [!NOTE]
+> "local_times" and "utc_times" are deprecated now and no longer mentioned in here.
+> Please migrate to the new "times" structure, or even to "cron" if possible.
+> 
+> Example:
+> ```yaml
+> action:
+>   - cron: 0 0,8 * * *      # was local_times: [00:00, 08:00]
+> ```
+> ```yaml
+> timezone: UTC
+> action:
+>   - cron: 0 0,8 * * *      # was utc_times: [00:00, 08:00] 
+> ```
+>```yaml
+> timezone: UTC
+> action:
+>   - times: [08:13, 19:27]  # was utc_times: [08:13, 19:27] 
+>```
+
+> [!NOTE]
+> Please note that our cron implementation has two more 
+> optional fields.
+> 
+> Standard cron has five fields:
+> ```
+> * * * * *
+> | | | | |
+> | | | | └─ day of week
+> | | | └─── month
+> | | └───── day of month
+> | └─────── hour
+> └───────── minute
+> ─────────────────────────────────────────────
+> • minute  : 0–59
+> • hour    : 0–23
+> • dom     : 1–31 (day of month)
+> • month   : 1–12 (or names Jan–Dec)
+> • dow     : 0–6 (Sunday=0) (or names Sun–Sat)
+> ```
+> Our implementation has 2 additional fields:
+> - You can add a 6th field at the front for seconds
+> - You can add a 7th field at the end for the year
 
 ### method
 
@@ -227,12 +289,12 @@ DCS.dcs_serverrelease:
     mission_id: 3                                 # Load mission #3 from the mission list on startup (could be a list also / random pick)
 
 instance2:
+  timezone: Europe/Berlin                         # optional: timezone (default: local time)
   schedule:                                       # Server "instance2" will run every day from 0h-12h in the specified time zone
-    timezone: Europe/Berlin                       # optional: timezone (default: local time)
     00-12: YYYYYYY
     12-24: NNNNNNN
-  action:                                         # at 04:00 and 08:00 LT ...
-    local_times:
+  action:                                         # at 04:00 and 08:00 local time Europe/Berlin ...
+    times:
     - 04:00
     - 08:00
     method: rotate                                # ... it will rotate ...                                
@@ -252,7 +314,23 @@ instance3:
     mission_time: 480
     populated: false                              # ... only if nobody is on the server (or as soon as that happens afterward)
 
+instance4:
+  schedule:                                      # server "instance4" will run 24x7
+    00-24: YYYYYYY
+  action:                                        
+    - method: load
+      cron: '0 */6 * * 1-5'                      # every Mo-Fr at every 6 hrs starting from 00:00, load mission number 1
+      mission_id: 1
+      presets:                                   # Optional: presets file(s) to be used
+        - config/presets.yaml
+      settings:                                  # MizEdit settings to be applied (overrides what's set in your nodes.yaml)
+        - NoMods
+    - method: load
+      cron: '0 */4 * * 0,6'                      # every Sa-Su at every 4 hrs starting from 00:00, load mission number 2
+      mission_id: 2
+      shutdown: true
+
 mission:
   schedule:
-    18-00: NNNNNNY                                # our mission server will only run on Sundays from 18h - midnight LT
+    18-00: NNNNNNY                                # our mission server will only run on Sundays from 18h - midnight local time
 ```

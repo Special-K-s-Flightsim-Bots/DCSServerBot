@@ -1,15 +1,14 @@
 CREATE MATERIALIZED VIEW mv_serverstats AS
-SELECT m.server_name, COUNT(DISTINCT p.ucid) AS "totalPlayers",
-       ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))) / 3600)::INTEGER AS "totalPlaytime",
-       ROUND(AVG(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::INTEGER AS "avgPlaytime",
-       SUM(CASE WHEN s.hop_off IS NULL THEN 1 ELSE 0 END) AS "activePlayers",
-       COUNT(*) AS "totalSorties",
+SELECT s.server_name, COUNT(DISTINCT p.ucid) AS "totalPlayers",
+       (SUM(s.playtime) / 3600)::INTEGER AS "totalPlaytime",
+       (SUM(s.playtime) / SUM(s.usage))::INTEGER AS "avgPlaytime",
+       SUM(s.usage) AS "totalSorties",
        SUM(s.kills) AS "totalKills",
        SUM(s.deaths) AS "totalDeaths",
        SUM(s.pvp) AS "totalPvPKills",
        SUM(s.deaths_pvp) AS "totalPvPDeaths",
        NOW() AT TIME ZONE 'UTC' as "timestamp"
 FROM players p
-JOIN statistics s ON p.ucid = s.player_ucid
-JOIN missions m on s.mission_id = m.id
+JOIN mv_statistics s ON p.ucid = s.player_ucid
 GROUP BY 1;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_serverstats ON mv_serverstats(server_name);

@@ -3,6 +3,7 @@ import asyncio
 from core import ServiceRegistry, Service, DEFAULT_TAG, utils, Server, Status
 from datetime import datetime
 from discord.ext import tasks
+from zoneinfo import ZoneInfo
 
 from . import actions
 from ..bot import BotService
@@ -37,7 +38,10 @@ class CronService(Service):
                 return self.locals.get(server.instance.name, {})
 
     async def do_actions(self, config: dict, server: Server | None = None):
-        action = config['action']
+        action = config.get('action')
+        if not action:
+            self.log.error("Cron: No action specified.")
+            return
         try:
             func = getattr(actions, action['type'])
             kwargs = action.get("params", {})
@@ -53,12 +57,14 @@ class CronService(Service):
         except AttributeError:
             self.log.error(f"Cron: Action {action} needs to be defined in the DFAULT section.")
         except Exception as ex:
-            self.log.error(f"Cron: error while processing action {action}", exc_info=ex)
+            self.log.error(f"Cron: Error while processing action {action}", exc_info=ex)
 
     @tasks.loop(minutes=1)
     async def schedule(self):
         async def check_run(config: dict, server: Server | None = None):
-            now = datetime.now().replace(second=0, microsecond=0)
+            timezone = config.get("timezone")
+            tz = ZoneInfo(timezone) if timezone else None
+            now = datetime.now(tz=tz).replace(second=0, microsecond=0)
             for cfg in config['actions']:
                 if 'cron' in cfg and not utils.matches_cron(now, cfg['cron']):
                     continue

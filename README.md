@@ -45,7 +45,7 @@ Discord commands, like the Music service. Some services only run on the master n
 
 | Service     | Scope                                                                                                     | Plugin      | Documentation                             |
 |:------------|:----------------------------------------------------------------------------------------------------------|:------------|:------------------------------------------|
-| Backup      | Backup your bot- and DCS-configuration, your missions, database, etc.                                     | Backup      | [README](./services/backup/README.md)     |
+| Backup      | Backup and restore your bot- and DCS-configuration, your missions, database, etc.                         | Backup      | [README](./services/backup/README.md)     |
 | Bot         | The Discord bot handling all discord commands. There is a Discord-free variant available also (see blow)! |             | [README](./services/bot/README.md)        |
 | Cleanup     | Cleanup log-files, track-files, etc. from your disk.                                                      |             | [README](./services/cleanup/README.md)    |
 | Cron        | Schedule tasks based on a cron-like configuration.                                                        |             | [README](./services/cron/README.md)       |
@@ -73,7 +73,7 @@ from time to time, but you as a community member can also create your own plugin
 | Cloud         | Cloud-based statistics and connection to the [DGSA](#dgsa) global ban system.                   | yes[^1]  | Userstats                             | [README](./plugins/cloud/README.md)         |
 | MissionStats  | Detailed users statistics / mission statistics.                                                 | yes[^1]  | Userstats                             | [README](./plugins/missionstats/README.md)  |
 | Monitoring    | Monitoring and statistics for your DCS servers.                                                 | yes[^1]  | Userstats                             | [README](plugins/monitoring/README.md)      |
-| Backup        | Create a backup of your database, server or bot configurations.                                 |   yes    |                                       | [README](./plugins/backup/README.md)        |
+| Backup        | Backup or restore your database, server or bot configurations.                                  |   yes    |                                       | [README](./plugins/backup/README.md)        |
 | Battleground  | Support for [DCS Battleground](https://github.com/Frigondin/DCSBattleground)                    |   yes    |                                       | [README](./plugins/battleground/README.md)  |
 | Battleground2 | Support for the new version of [DCS Battleground](https://github.com/Frigondin/DCSBattleground) |   yes    |                                       | [README](./plugins/battleground2/README.md) |
 | Commands      | Create custom discord commands.                                                                 |   yes    |                                       | [README](./plugins/commands/README.md)      |
@@ -88,6 +88,7 @@ from time to time, but you as a community member can also create your own plugin
 | Music         | Upload and play music over SRS.                                                                 |   yes    |                                       | [README](./plugins/music/README.md)         |
 | ModManager    | Install or update mods into your DCS server.                                                    |   yes    |                                       | [README](./plugins/modmanager/README.md)    |
 | Pretense      | Commands for Pretense missions.                                                                 |   yes    |                                       | [README](./plugins/pretense/README.md)      |
+| Profiler      | Attaches LUA profilers to DCS (WIP).                                                            |   yes    |                                       | [README](./plugins/profiler/README.md)      |
 | Punishment    | Punish users for team-hits or team-kills.                                                       |   yes    | Mission                               | [README](./plugins/punishment/README.md)    |
 | RealWeather   | Apply real weather to your missions (also available as an extension).                           |   yes    |                                       | [README](./plugins/realweather/README.md)   |
 | RestAPI       | Simple REST-API to query users and statistics (WIP).                                            |   yes    | Userstats, MissionStats               | [README](./plugins/restapi/README.md)       |
@@ -152,8 +153,10 @@ You need the following software to run DCSServerBot:
 You need to have [Python](https://www.python.org/downloads/) 3.10 - 3.13 installed. 
 Please make sure that you tick "Add python.exe to PATH" during your Python installation.
 
-> [!IMPORTANT]
-> Python 3.14 does not work yet, despite listed differently in the changelog.
+> [!WARNING]
+> Pythong 3.14 is still very new and many third-party libraries are either not yet or not fully supported yet.
+> The bot should install with 3.14 though, but you can not expect the same performance as with 3.13 yet.
+> That said - use 3.14 on your own risk.
 
 #### b) PostgreSQL
 DCSServerBot needs a database to store information in. I decided to use [PostgreSQL](https://www.postgresql.org/download/), as it has great performance
@@ -200,9 +203,10 @@ you can now install DCSServerBot without the need to use Discord. Select the res
 installation, and you will install a variant that works without.
 
 > [!NOTE]
-> Please keep in mind that DCSServerBot was originally built for Discord and that there are some functionalities that
-> only work with Discord, like statistics graphs, greenieboards, and others.<br>
-> You can still use a lot without Discord as in-game chat-commands, automated restarts, etc.
+> It's important to note that DCSServerBot was initially designed for integration with Discord, and certain features 
+> only function properly within that platform, such as statistics graphs, greenieboards, and others. 
+> However, many aspects of the bot can still be used without Discord, including in-game chat commands, automated 
+> restarts, etc.
 
 ### Download
 Best is to use ```git clone https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git``` as you then always have 
@@ -415,7 +419,6 @@ NODENAME:                       # this will usually be your hostname
           host: 127.0.0.1       # SRS servers local IP (default is 127.0.0.1)
           port: 5002            # SRS servers local port (default is 5002). The bot will change this in your SRS configuration if set here!
           autostart: true       # this will autostart your DCS server with the DCS server start (default: true)
-          autoupdate: true      # This will auto-update your SRS servers. Default is false, you need to run the bot as Administrator to make it work!
         Tacview:
           show_passwords: false # If you don't want to show the Tacview passwords (default: true)
 #    instance2:                 # you can have an unlimited number of instance configurations, but each instance has to have a physical representation on your disk.
@@ -435,10 +438,10 @@ DEFAULT:
   messages:                     # General messages for servers. You can overwrite any in any server.
     greeting_message_members: "{player.name}, welcome back to {server.name}!"
     greeting_message_unmatched: '{player.name}, please use /linkme in our Discord, if you want to see your user stats!'
-    message_player_username: Your player name contains invalid characters. # Default message for players with invalid usernames
-      Please change your name to join our server.
-    message_player_default_username: Please change your default player name at the top right  # Default message for players with default usernames
-      of the multiplayer selection list to an individual one!
+    message_player_username: Your player name contains invalid characters. 
+      Please change your name to join our server. # Default message for players with invalid usernames
+    message_player_default_username: Please change your default player name at the top right  
+      of the multiplayer selection list to an individual one! # Default message for players with default usernames
     message_player_inappropriate_username: Your username is inappropriate and needs to be changed to join this server.
     message_ban: 'You are banned from this server. Reason: {}' # default message, if a player is banned on the DCS server
     message_reserved: 'This server is locked for specific users.\nPlease contact a server admin.' # Message if server requires discord role (optional)
@@ -711,6 +714,29 @@ corrupted. In rare cases, it can also happen, that an auto-update is not possibl
 that was not supposed to be changed, or some other corruption has occurred.<br>
 In these cases, you can run the `repair.cmd` script in the DCSServerBot installation folder.
 
+---
+
+## Backup and Restore
+The platform allows you to backup and restore your database, server configurations, or bot settings. 
+The backup and restore functionality are accessible in the Backup [service](./services/backup/README.md) 
+and [plugin](./plugins/backup/README.md).
+
+> [!NOTE]
+> The bot includes an auto-restore feature that allows you to easily transfer your data. 
+> To use this feature, copy the appropriate backup file into a folder named restore within the DCSServerBot 
+> installation directory (make sure to create it first). Upon startup, DCSServerBot will read this file and restore any 
+> saved information such as:
+> * Database backup
+> * DCSServerBot configuration backup
+> * Instance backup (including missions and configurations; for details, see the backup service)
+
+> [!TIP]
+> Utilizing the auto-restore feature can be helpful when moving your database from one computer to another. 
+> After installing DCSServerBot on the new system, place the appropriate db_*.tar file in a `restore` folder within the 
+> bot's installation directory and ensure the node's nodes.yaml file points to the newly created database. 
+> Then launch the bot and allow the restoration process to complete.
+> 
+> _Please be prepared to provide the new PostgreSQL master password when prompted._
 ---
 
 ## How to use DCSServerBot in Missions?

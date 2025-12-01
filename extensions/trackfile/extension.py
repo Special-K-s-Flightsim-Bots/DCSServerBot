@@ -7,6 +7,7 @@ from pathlib import Path
 from services.bot import BotService
 from services.servicebus import ServiceBus
 from typing import cast
+from typing_extensions import override
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -17,6 +18,7 @@ class Trackfile(Extension):
         super().__init__(server, config)
         self.bus = ServiceRegistry.get(ServiceBus)
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         if self.config.get('enabled', True):
             cfg = Autoexec(cast(InstanceImpl, self.server.instance))
@@ -60,6 +62,7 @@ class Trackfile(Extension):
             except Exception:
                 self.log.warning(f"Can't upload track file {filename} to {target}: ", exc_info=True)
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         if self.config.get('enabled', True):
             self.loop.create_task(self.upload_trackfile())

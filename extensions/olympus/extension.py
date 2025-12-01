@@ -11,9 +11,10 @@ import stat
 import subprocess
 import sys
 
-from core import Extension, utils, Server, get_translation
+from core import Extension, utils, Server, get_translation, PortType, Port
 from threading import Thread
 from typing import cast
+from typing_extensions import override
 
 from extensions.srs import SRS
 
@@ -80,6 +81,7 @@ class Olympus(Extension):
             self.backend_tag = 'backend'
             self.frontend_tag = 'frontend'
 
+    @override
     @property
     def version(self) -> str | None:
         return utils.get_windows_version(os.path.join(self.home, 'bin', 'olympus.dll'))
@@ -91,6 +93,7 @@ class Olympus(Extension):
         else:
             return os.path.join(self.server.instance.home, 'Config', 'olympus.json')
 
+    @override
     def load_config(self) -> dict | None:
         try:
             with open(self.config_path, mode='r', encoding='utf-8') as file:
@@ -121,6 +124,7 @@ class Olympus(Extension):
                     "frontend": frontend
                 }
 
+    @override
     def is_installed(self) -> bool:
         if not super().is_installed():
             return False
@@ -132,6 +136,7 @@ class Olympus(Extension):
             return False
         return True
 
+    @override
     async def render(self, param: dict | None = None) -> dict:
         if 'url' in self.config:
             value = self.config['url']
@@ -234,6 +239,7 @@ class Olympus(Extension):
             async with aiofiles.open(export_file, mode='w', encoding='utf-8') as outfile:
                 await outfile.writelines(lines)
 
+    @override
     async def prepare(self) -> bool:
         if not self.is_installed():
             return False
@@ -248,6 +254,7 @@ class Olympus(Extension):
             self.log.error(f"Error during preparation of {self.name}: {str(ex)}")
             return False
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
 
         def log_output(pipe, level=logging.INFO):
@@ -311,6 +318,7 @@ class Olympus(Extension):
             return False
         return await super().startup()
 
+    @override
     def is_running(self) -> bool:
         return self.process is not None and self.process.is_running()
 
@@ -323,12 +331,15 @@ class Olympus(Extension):
             self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
             return False
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         super().shutdown()
         return self.terminate()
 
-    def get_ports(self) -> dict:
+    @override
+    def get_ports(self) -> dict[str, Port]:
         return {
-            "Olympus " + self.backend_tag.capitalize(): self.config.get(self.backend_tag, {}).get('port', 3001),
-            "Olympus " + self.frontend_tag.capitalize(): self.config.get(self.frontend_tag, {}).get('port', 3000)
+            "Olympus " + self.backend_tag.capitalize(): Port(self.config.get(self.backend_tag, {}).get('port', 4512), PortType.TCP),
+            "Olympus " + self.frontend_tag.capitalize(): Port(self.config.get(self.frontend_tag, {}).get('port', 3000), PortType.TCP, public=True),
+            "Olympus WSPort": Port(self.config.get('audio', {}).get('WSPort', 4000), PortType.TCP, public=(self.config.get('audio', {}).get('WSEndpoint') is None))
         } if self.enabled else {}

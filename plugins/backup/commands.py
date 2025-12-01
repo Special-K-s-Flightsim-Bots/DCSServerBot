@@ -1,8 +1,10 @@
+import asyncio
 import discord
 import os
 import re
 
-from core import Plugin, ServiceRegistry, command, utils, Node, YAMLError, get_translation, PluginInstallationError
+from core import (Plugin, ServiceRegistry, command, utils, Node, YAMLError, get_translation, PluginInstallationError,
+                  Status)
 from discord import app_commands
 from pathlib import Path
 from services.bot import DCSServerBot
@@ -33,7 +35,7 @@ async def backup_autocomplete(interaction: discord.Interaction, current: str) ->
 
 async def date_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     async def get_all_dates(node: Node, target: str) -> list[str]:
-        _, all_directories = await node.list_directory(target, pattern=f"{node.name.lower()}_*")
+        _, all_directories = await node.list_directory(target, is_dir=True, pattern=f"{node.name.lower()}_*")
 
         date_pattern = re.compile(rf"{node.name.lower()}_([0-9]{{8}})")
         dates = []
@@ -94,36 +96,42 @@ class Backup(Plugin):
         except Exception:
             await msg.edit(content=_("Backup of {} failed. Please check log for details.").format(what.title()))
 
-    @command(description=_('Recover your data from an existing backup'))
+    @command(description=_('Restore your data from existing backups'))
     @app_commands.guild_only()
     @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(what=backup_autocomplete)
     @app_commands.autocomplete(date=date_autocomplete)
-    async def recover(self, interaction: discord.Interaction, node: app_commands.Transform[Node, utils.NodeTransformer],
+    async def restore(self, interaction: discord.Interaction, node: app_commands.Transform[Node, utils.NodeTransformer],
                       what: str, date: str):
         ephemeral = utils.get_ephemeral(interaction)
         if what == 'database' and not node.master:
             node = self.node
         if not await utils.yn_question(interaction,
-                                       _("I am going to recover your {what} from {date}.\n"
-                                         "This will delete **ALL** data that was there before.\n"
-                                         "Are you 100% sure that you want to do that?").format(what=what.title(),
-                                                                                               date=date),
-                                       ephemeral=ephemeral):
+                                       _("I am about to restore your {what} from {date}.\n"
+                                         "This action will completely overwrite any existing data.\n"
+                                         "Are you absolutely certain that you want to proceed?").format(
+                                           what=what.title(), date=date), ephemeral=ephemeral):
             await interaction.followup.send(_("Aborted."), ephemeral=ephemeral)
             return
         try:
-            rc = await self.bus.send_to_node_sync({
+            if what == 'servers':
+                tasks = []
+                for server in self.bot.servers.values():
+                    if server.instance.node.name == node.name and server.status != Status.SHUTDOWN:
+                        tasks.append(server.shutdown())
+                await asyncio.gather(*tasks, return_exceptions=True)
+
+            await self.bus.send_to_node({
                 "command": "rpc",
                 "service": BackupService.__name__,
-                "method": f"recover_{what}",
+                "method": f"restore_{what}",
                 "params": {
                     "date": date
                 }
-            }, node=node.name, timeout=300)
-            assert rc['return'] is True
-            await interaction.followup.send(_("Recovery of {} completed.").format(what.title()), ephemeral=ephemeral)
+            }, node=node.name)
+            await interaction.followup.send(_("Restore of {} triggered. The node will now restart.").format(
+                what.title()), ephemeral=ephemeral)
         except Exception:
             await interaction.followup.send(
                 _("Recovery of {} failed. Please check log for details.").format(what.title()), ephemeral=ephemeral)

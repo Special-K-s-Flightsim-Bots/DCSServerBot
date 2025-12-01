@@ -122,6 +122,8 @@ def is_in_timeframe(time: datetime, timeframe: str, tz: tzinfo = None) -> bool:
         start_time = end_time = parse_time(timeframe, tz).replace(year=time.year, month=time.month, day=time.day,
                                                                   second=0, microsecond=0)
     check_time = time.replace(second=0, microsecond=0)
+    if tz:
+        check_time = check_time.astimezone(tz=tz)
     return start_time <= check_time <= end_time
 
 
@@ -387,7 +389,7 @@ def get_presets(node: Node) -> Iterable[str]:
     return presets
 
 
-def get_preset(node: Node, name: str, filename: str | None = None) -> dict | None:
+def get_preset(node: Node, name: str, filename: str | list[str] | None = None) -> dict | None:
     """
     :param node: The node where the configuration is stored.
     :param name: The name of the preset to retrieve.
@@ -405,13 +407,17 @@ def get_preset(node: Node, name: str, filename: str | None = None) -> dict | Non
             return [_read_presets_from_file(filename, x) for x in preset]
         return preset
 
-    if filename:
-        return _read_presets_from_file(Path(filename), name)
+    if isinstance(filename, str):
+        preset_files = [filename]
+    elif isinstance(filename, list):
+        preset_files = filename
     else:
-        for file in Path(node.config_dir).glob('presets*.yaml'):
-            preset = _read_presets_from_file(file, name)
-            if preset:
-                return preset
+        preset_files = Path(node.config_dir).glob('presets*.yaml')
+
+    for file in preset_files:
+        preset = _read_presets_from_file(Path(file), name)
+        if preset:
+            return preset
     return None
 
 

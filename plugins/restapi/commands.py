@@ -1,6 +1,5 @@
 import asyncio
 import os
-
 import psycopg
 import random
 import re
@@ -283,7 +282,7 @@ class RestAPI(Plugin):
                     where = ""
                 await cursor.execute(f"""
                     SELECT SUM("totalPlayers") AS "totalPlayers", SUM("totalPlaytime") AS "totalPlaytime",
-                           SUM("avgPlaytime") AS "avgPlaytime", SUM("activePlayers") AS "activePlayers",
+                           SUM("avgPlaytime") AS "avgPlaytime",
                            SUM("totalSorties") AS "totalSorties", SUM("totalKills") AS "totalKills",
                            SUM("totalDeaths") AS "totalDeaths", SUM("totalPvPKills") AS "totalPvPKills",
                            SUM("totalPvPDeaths") AS "totalPvPDeaths" 
@@ -291,6 +290,15 @@ class RestAPI(Plugin):
                     {where}
                 """, {"server_name": server_name})
                 serverstats = await cursor.fetchone()
+
+                if server_name:
+                    server = self.bot.servers.get(server_name)
+                    serverstats['activePlayers'] = len(server.get_active_players())
+                else:
+                    active = 0
+                    for server in self.bot.servers.values():
+                        active += len(server.get_active_players())
+                    serverstats['activePlayers'] = active
 
                 if server_name:
                     join = f"JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
@@ -439,9 +447,9 @@ class RestAPI(Plugin):
             raise HTTPException(status_code=400, detail="Invalid ordering column supplied")
 
         if server_name:
-            join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
+            where = "WHERE s.server_name = %(server_name)s"
         else:
-            join = ""
+            where = ""
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -458,14 +466,14 @@ class RestAPI(Plugin):
                         CASE WHEN SUM(s.deaths_pvp) = 0 
                              THEN SUM(s.pvp) ELSE ROUND(SUM(s.pvp::DECIMAL) / SUM(s.deaths_pvp::DECIMAL), 2) 
                         END AS "kdr_pvp",
-                        ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))))::BIGINT AS playtime,
+                        SUM(playtime)::BIGINT AS playtime,
                         MAX(COALESCE(c.points, 0)) AS "credits",
-                        COUNT(*) OVER() as total_count
-                        FROM statistics s 
+                        COUNT(s.usage) as total_count
+                        FROM mv_statistics s 
                         JOIN players p ON s.player_ucid = p.ucid 
-                        {join}
                         LEFT OUTER JOIN credits c ON c.player_ucid = s.player_ucid
                         LEFT OUTER JOIN campaigns ca ON ca.id = c.campaign_id AND NOW() AT TIME ZONE 'utc' BETWEEN ca.start AND COALESCE(ca.stop, NOW() AT TIME ZONE 'utc')
+                        {where}
                         GROUP BY 1, 2 
                         ORDER BY {order_column} {order} 
                         LIMIT %(limit)s
@@ -507,18 +515,17 @@ class RestAPI(Plugin):
                         server_name: str = Query(default=None)):
         self.log.debug(f'Calling /trueskill with limit={limit}, server_name={server_name}')
         if server_name:
-            join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
+            where = "WHERE s.server_name = %(server_name)s"
         else:
-            join = ""
+            where = ""
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(f"""
                     SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date",
                     SUM(pvp) AS "kills_pvp", SUM(deaths_pvp) AS "deaths_pvp", t.skill_mu AS "TrueSkill" 
-                    FROM statistics s JOIN players p ON s.player_ucid = p.ucid
+                    FROM mv_statistics s JOIN players p ON s.player_ucid = p.ucid
                     JOIN trueskill t ON t.player_ucid = p.ucid
-                    {join}
-                    WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
+                    {where}
                     GROUP BY 1, 2, 5 ORDER BY 5 DESC 
                     LIMIT {limit} OFFSET {offset}
                 """, {"server_name": server_name})
@@ -632,36 +639,36 @@ class RestAPI(Plugin):
                        f'last_session="{last_session}"')
 
         ucid = await self.get_ucid(nick, date)
-        if server_name:
-            join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
-        else:
-            join = ""
-        query = f"""
-            SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))), 0)::BIGINT AS playtime, 
-                   COALESCE(SUM(s.kills), 0) as "kills", 
-                   COALESCE(SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground), 0) AS "deaths", 
-                   COALESCE(SUM(s.pvp), 0) AS "kills_pvp", 
-                   COALESCE(SUM(s.deaths_pvp), 0) AS "deaths_pvp",
-                   COALESCE(SUM(s.kills_sams), 0) AS "kills_sams",
-                   COALESCE(SUM(s.kills_ships), 0) AS "kills_ships",
-                   COALESCE(SUM(s.kills_ground), 0) AS "kills_ground",
-                   COALESCE(SUM(s.kills_planes), 0) AS "kills_planes",
-                   COALESCE(SUM(s.kills_helicopters), 0) AS "kills_helicopters",
-                   COALESCE(SUM(s.deaths_sams), 0) AS "deaths_sams",
-                   COALESCE(SUM(s.deaths_ships), 0) AS "deaths_ships",
-                   COALESCE(SUM(s.deaths_ground), 0) AS "deaths_ground",
-                   COALESCE(SUM(s.deaths_planes), 0) AS "deaths_planes",
-                   COALESCE(SUM(s.deaths_helicopters), 0) AS "deaths_helicopters",
-                   COALESCE(SUM(s.takeoffs), 0) AS "takeoffs", 
-                   COALESCE(SUM(s.landings), 0) AS "landings", 
-                   COALESCE(SUM(s.ejections), 0) AS "ejections",
-                   COALESCE(SUM(s.crashes), 0) AS "crashes", 
-                   COALESCE(SUM(s.teamkills), 0) AS "teamkills"
-            FROM statistics s
-            {join}
-            WHERE s.player_ucid = %(ucid)s
-        """
         if last_session:
+            if server_name:
+                where = "AND m.server_name = %(server_name)s"
+            else:
+                where = ""
+            query = f"""
+                SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM(COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))), 0)::BIGINT AS playtime, 
+                       COALESCE(SUM(s.kills), 0) as "kills", 
+                       COALESCE(SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground), 0) AS "deaths", 
+                       COALESCE(SUM(s.pvp), 0) AS "kills_pvp", 
+                       COALESCE(SUM(s.deaths_pvp), 0) AS "deaths_pvp",
+                       COALESCE(SUM(s.kills_sams), 0) AS "kills_sams",
+                       COALESCE(SUM(s.kills_ships), 0) AS "kills_ships",
+                       COALESCE(SUM(s.kills_ground), 0) AS "kills_ground",
+                       COALESCE(SUM(s.kills_planes), 0) AS "kills_planes",
+                       COALESCE(SUM(s.kills_helicopters), 0) AS "kills_helicopters",
+                       COALESCE(SUM(s.deaths_sams), 0) AS "deaths_sams",
+                       COALESCE(SUM(s.deaths_ships), 0) AS "deaths_ships",
+                       COALESCE(SUM(s.deaths_ground), 0) AS "deaths_ground",
+                       COALESCE(SUM(s.deaths_planes), 0) AS "deaths_planes",
+                       COALESCE(SUM(s.deaths_helicopters), 0) AS "deaths_helicopters",
+                       COALESCE(SUM(s.takeoffs), 0) AS "takeoffs", 
+                       COALESCE(SUM(s.landings), 0) AS "landings", 
+                       COALESCE(SUM(s.ejections), 0) AS "ejections",
+                       COALESCE(SUM(s.crashes), 0) AS "crashes", 
+                       COALESCE(SUM(s.teamkills), 0) AS "teamkills"
+                FROM statistics s JOIN missions m ON s.mission_id = m.id
+                WHERE s.player_ucid = %(ucid)s
+                {where}
+            """
             if server_name:
                 inner_query = f"AND m2.server_name = %(server_name)s"
             else:
@@ -675,6 +682,38 @@ class RestAPI(Plugin):
                     GROUP BY 1
                 )
             """
+        else:
+            if server_name:
+                where = "AND s.server_name = %(server_name)s"
+            else:
+                where = ""
+
+            query = f"""
+                SELECT COALESCE(SUM(playtime), 0)::BIGINT AS playtime, 
+                       COALESCE(SUM(s.kills), 0) as "kills", 
+                       COALESCE(SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground), 0) AS "deaths", 
+                       COALESCE(SUM(s.pvp), 0) AS "kills_pvp", 
+                       COALESCE(SUM(s.deaths_pvp), 0) AS "deaths_pvp",
+                       COALESCE(SUM(s.kills_sams), 0) AS "kills_sams",
+                       COALESCE(SUM(s.kills_ships), 0) AS "kills_ships",
+                       COALESCE(SUM(s.kills_ground), 0) AS "kills_ground",
+                       COALESCE(SUM(s.kills_planes), 0) AS "kills_planes",
+                       COALESCE(SUM(s.kills_helicopters), 0) AS "kills_helicopters",
+                       COALESCE(SUM(s.deaths_sams), 0) AS "deaths_sams",
+                       COALESCE(SUM(s.deaths_ships), 0) AS "deaths_ships",
+                       COALESCE(SUM(s.deaths_ground), 0) AS "deaths_ground",
+                       COALESCE(SUM(s.deaths_planes), 0) AS "deaths_planes",
+                       COALESCE(SUM(s.deaths_helicopters), 0) AS "deaths_helicopters",
+                       COALESCE(SUM(s.takeoffs), 0) AS "takeoffs", 
+                       COALESCE(SUM(s.landings), 0) AS "landings", 
+                       COALESCE(SUM(s.ejections), 0) AS "ejections",
+                       COALESCE(SUM(s.crashes), 0) AS "crashes", 
+                       COALESCE(SUM(s.teamkills), 0) AS "teamkills"
+                FROM mv_statistics s
+                WHERE s.player_ucid = %(ucid)s
+                {where}
+            """
+
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(query, {"ucid": ucid, "server_name": server_name})
@@ -685,7 +724,7 @@ class RestAPI(Plugin):
 
                 await cursor.execute("""
                                      SELECT slot AS "module", SUM(kills) AS "kills"
-                                     FROM statistics
+                                     FROM mv_statistics
                                      WHERE player_ucid = %s
                                      GROUP BY 1
                                      HAVING SUM(kills) > 1
@@ -693,11 +732,11 @@ class RestAPI(Plugin):
                                      """, (ucid,))
                 data['killsByModule'] = await cursor.fetchall()
                 await cursor.execute("""
-                                     SELECT slot                                           AS "module",
+                                     SELECT slot AS "module",
                                             CASE
                                                 WHEN SUM(deaths) = 0 THEN SUM(kills)
                                                 ELSE ROUND(SUM(kills) / SUM(deaths::DECIMAL), 2) END AS "kdr"
-                                     FROM statistics
+                                     FROM mv_statistics
                                      WHERE player_ucid = %s
                                      GROUP BY 1
                                      HAVING SUM(kills) > 1
@@ -713,19 +752,19 @@ class RestAPI(Plugin):
 
         ucid = await self.get_ucid(nick, date)
         if server_name:
-            join = "JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
+            where = "AND s.server_name = %(server_name)s"
         else:
-            join = ""
+            where = ""
         query = f"""
             SELECT s.slot AS "module", 
                    SUM(s.kills) AS "kills",
                    SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths",
                    CASE WHEN SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) = 0 
                         THEN SUM(s.kills) ELSE SUM(s.kills)::DECIMAL / SUM((s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground)::DECIMAL) END AS "kdr" 
-            FROM statistics s
-            {join}
-            WHERE player_ucid = %(ucid)s 
-            GROUP BY 1 HAVING SUM(kills) > 1 
+            FROM mv_statistics s
+            WHERE s.player_ucid = %(ucid)s 
+            {where}
+            GROUP BY 1 HAVING SUM(s.kills) > 0 
             ORDER BY 2 DESC
         """
         async with self.apool.connection() as conn:
@@ -783,11 +822,13 @@ class RestAPI(Plugin):
                 else:
                     where = "WHERE (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc')"
                 await cursor.execute(f"""
-                    SELECT c.id, c.name, COALESCE(SUM(s.points), 0) AS credits 
-                    FROM campaigns c LEFT OUTER JOIN credits s 
-                    ON (c.id = s.campaign_id AND s.player_ucid = %(ucid)s) 
+                    SELECT c.id, c.name, b.badge_name AS rank, b.badge_url AS badge, 
+                           COALESCE(SUM(s.points), 0) AS credits 
+                    FROM campaigns c 
+                    LEFT OUTER JOIN credits s ON (c.id = s.campaign_id AND s.player_ucid = %(ucid)s) 
+                    LEFT OUTER JOIN players_badges b ON (c.id = b.campaign_id AND b.player_ucid = %(ucid)s)
                     {where}
-                    GROUP BY 1, 2
+                    GROUP BY 1, 2, 3, 4
                 """, {"ucid": ucid, "campaign": campaign})
                 row = await cursor.fetchone()
                 if not row:
@@ -934,7 +975,7 @@ class RestAPI(Plugin):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
-                    REFRESH MATERIALIZED VIEW mv_serverstats;
+                    REFRESH MATERIALIZED VIEW CONCURRENTLY mv_serverstats;
                 """)
 
     @refresh_views.before_loop

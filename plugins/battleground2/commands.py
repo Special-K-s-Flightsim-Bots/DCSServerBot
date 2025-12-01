@@ -1,5 +1,4 @@
 import discord
-import psycopg
 import json
 
 from core import Plugin, utils, Channel, Coalition, Server, get_translation
@@ -13,11 +12,6 @@ _ = get_translation(__name__.split('.')[1])
 
 
 class Battleground(Plugin[BattlegroundEventListener]):
-
-    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str) -> None:
-        await conn.execute("UPDATE bg_geometry2 SET server_name = %s WHERE server_name = %s", (new_name, old_name))
-        await conn.execute("UPDATE bg_missions SET server_name = %s WHERE server_name = %s", (new_name, old_name))
-        await conn.execute("UPDATE bg_task SET server_name = %s WHERE server_name = %s", (new_name, old_name))
 
     battleground = Group(name="battleground", description=_("DCSBattleground commands"))
 

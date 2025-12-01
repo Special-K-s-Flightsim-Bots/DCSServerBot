@@ -1,5 +1,4 @@
 import discord
-import psycopg
 
 from core import Plugin, utils, Server, Status, command
 from discord import app_commands
@@ -33,11 +32,6 @@ class Sample(Plugin[SampleEventListener]):
         super().__init__(bot, listener)
         # Do whatever is needed to initialize your plugin.
         # You usually don't need to implement this function.
-
-    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
-        # If a server rename takes place, you might want to update data in your created tables
-        # if they contain a server_name value. You usually don't need to implement this function.
-        ...
 
     @command(description='This is a sample command.')
     @app_commands.guild_only()

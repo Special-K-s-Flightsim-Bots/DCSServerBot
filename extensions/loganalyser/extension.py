@@ -13,6 +13,7 @@ from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
 from typing import Callable, cast
+from typing_extensions import override
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -72,6 +73,7 @@ class LogAnalyser(Extension):
             self.register_callback(ERROR_DETECTIONS['mist version'], self.mist_check)
         asyncio.create_task(self.check_log())
 
+    @override
     async def prepare(self) -> bool:
         with suppress(Exception):
             if os.path.exists(self.logfile):
@@ -81,6 +83,7 @@ class LogAnalyser(Extension):
         await super().prepare()
         return await super().startup()
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         if not self.is_running():
             await self.do_startup()
@@ -91,6 +94,7 @@ class LogAnalyser(Extension):
         await self.stopped.wait()
         self.pattern.clear()
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         self.loop.create_task(self._shutdown())
         self.stop_event.set()

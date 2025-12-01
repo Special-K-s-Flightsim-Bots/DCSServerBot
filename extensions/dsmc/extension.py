@@ -3,6 +3,7 @@ import re
 import shutil
 
 from core import Extension, Server
+from typing_extensions import override
 
 __all__ = [
     "DSMC"
@@ -17,6 +18,7 @@ class DSMC(Extension):
             server.locals['mission_rewrite'] = False
             server.locals['validate_missions'] = False
 
+    @override
     @property
     def version(self) -> str | None:
         hook = os.path.join(self.server.instance.home, 'Scripts', 'Hooks', 'DSMC_hooks.lua')
@@ -33,6 +35,7 @@ class DSMC(Extension):
         except Exception:
             return None
 
+    @override
     def load_config(self) -> dict | None:
         def parse(_value: str) -> int | str | bool:
             if _value.startswith('"'):
@@ -61,6 +64,7 @@ class DSMC(Extension):
                     cfg[key] = value
         return cfg
 
+    @override
     async def prepare(self) -> bool:
         if 'DSMC_updateMissionList' not in self.locals:
             self.log.error('  => DSMC_updateMissionList missing in DSMC_Dedicated_Server_options.lua! '
@@ -88,6 +92,7 @@ class DSMC(Extension):
             self.log.info('  => DSMC configuration changed to be compatible with DCSServerBot.')
         return await super().prepare()
 
+    @override
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         if not os.path.basename(filename).startswith('DSMC'):
             return filename, False
@@ -102,6 +107,7 @@ class DSMC(Extension):
         else:
             return orig, False
 
+    @override
     async def render(self, param: dict | None = None) -> dict:
         return {
             "name": self.name,
@@ -109,6 +115,7 @@ class DSMC(Extension):
             "value": "enabled"
         }
 
+    @override
     def is_installed(self) -> bool:
         if not super().is_installed():
             return False
@@ -119,8 +126,10 @@ class DSMC(Extension):
             return False
         return True
 
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         return await super().startup(quiet=True)
 
+    @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         return super().shutdown(quiet=True)

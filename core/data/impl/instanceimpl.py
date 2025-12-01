@@ -9,6 +9,7 @@ from core.const import SAVED_GAMES
 from core.utils.helper import SettingsDict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from typing_extensions import override
 
 if TYPE_CHECKING:
     from core import Server
@@ -20,6 +21,7 @@ __all__ = ["InstanceImpl"]
 @DataObjectFactory.register()
 class InstanceImpl(Instance):
 
+    @override
     def __post_init__(self):
         super().__post_init__()
         self.is_remote = False
@@ -57,8 +59,7 @@ class InstanceImpl(Instance):
 #            dirty |= True
         if dirty:
             autoexec.net = net
-
-        server_name = None
+        self._server_name = None
         settings_path = os.path.join(self.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):
             settings = SettingsDict(self, settings_path, root='cfg')
@@ -67,25 +68,33 @@ class InstanceImpl(Instance):
                 settings['port'] = dcs_port
             else:
                 self.locals['dcs_port'] = settings.get('port', 10308)
-            server_name = settings.get('name', 'DCS Server') if settings else None
-            if server_name == 'n/a':
-                server_name = None
-        self.update_instance(server_name)
+            self._server_name = settings.get('name', 'DCS Server') if settings else None
+            if self._server_name == 'n/a':
+                self._server_name = None
+        self.update_instance()
 
-    def update_instance(self, server_name: str | None = None):
+    @property
+    def server_name(self) -> str:
+        if self.server:
+            return self.server.name
+        else:
+            return self._server_name
+
+    def update_instance(self):
         try:
             with self.pool.connection() as conn:
                 with conn.transaction():
                     conn.execute("""
-                        INSERT INTO instances (node, instance, port, server_name)
-                        VALUES (%s, %s, %s, %s) 
+                        INSERT INTO instances (node, instance, port)
+                        VALUES (%s, %s, %s) 
                         ON CONFLICT (node, instance) DO UPDATE 
-                        SET port=excluded.port, server_name=excluded.server_name 
-                    """, (self.node.name, self.name, self.locals.get('bot_port', 6666), server_name))
+                        SET port=excluded.port 
+                    """, (self.node.name, self.name, self.locals.get('bot_port', 6666)))
         except psycopg.errors.UniqueViolation:
             self.log.error(f"bot_port {self.locals.get('bot_port', 6666)} is already in use on node {self.node.name}!")
             raise
 
+    @override
     @property
     def home(self) -> str:
         return os.path.expandvars(self.locals.get('home', os.path.join(SAVED_GAMES, self.name)))
@@ -98,6 +107,7 @@ class InstanceImpl(Instance):
                     WHERE node = %s AND instance = %s
                 """, (server.name if server and server.name != 'n/a' else None, self.node.name, self.name))
 
+    @override
     def set_server(self, server: Server | None):
         if self._server and self._server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
             raise InstanceBusyError()
@@ -107,12 +117,12 @@ class InstanceImpl(Instance):
             settings_path = os.path.join(self.home, 'Config', 'serverSettings.lua')
             if os.path.exists(settings_path):
                 os.remove(settings_path)
-        self.prepare()
+        self._prepare()
         if server and server.name:
             server.instance = self
         self.update_server(server)
 
-    def prepare(self):
+    def _prepare(self):
         if 'DCS' not in self.node.locals:
             return
         # desanitisation of Slmod (if there)
