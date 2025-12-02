@@ -20,7 +20,7 @@ function dcsbot.shutdown(json)
 	Sim.exitProcess()
 end
 
-function handlePassword(json, settings, passwordKey, passwordHashKey)
+function _handlePassword(json, settings, passwordKey, passwordHashKey)
     local password = json[passwordKey]
     if password then
         if password == '' then
@@ -31,12 +31,20 @@ function handlePassword(json, settings, passwordKey, passwordHashKey)
     end
 end
 
+
+function dcsbot.setPassword(json)
+    log.write('DCSServerBot', log.DEBUG, 'Scheduler: setPassword()')
+    utils.saveSettings({
+        password = json.password
+    })
+end
+
 function dcsbot.setCoalitionPassword(json)
     log.write('DCSServerBot', log.DEBUG, 'Scheduler: setCoalitionPassword()')
     local settings = utils.loadSettingsRaw()
 
-    handlePassword(json, settings, 'bluePassword', 'bluePasswordHash')
-    handlePassword(json, settings, 'redPassword', 'redPasswordHash')
+    _handlePassword(json, settings, 'bluePassword', 'bluePasswordHash')
+    _handlePassword(json, settings, 'redPassword', 'redPasswordHash')
 
     utils.saveSettings(settings)
 end

@@ -788,20 +788,8 @@ class ServerImpl(Server):
                         if _dirty:
                             self.log.info(f'  => {ext.name} applied on {new_filename}.')
                         dirty |= _dirty
-                # we did not change anything in the mission
-                if not dirty:
-                    return filename
-                # check if the original mission can be written
-                if filename != new_filename:
-                    missions: list[str] = self.settings['missionList']
-                    try:
-                        index = missions.index(filename) + 1
-                        await self.replaceMission(index, new_filename)
-                    except ValueError:
-                        # we should not be here, but just in case
-                        if new_filename not in missions:
-                            await self.addMission(new_filename)
-                return new_filename
+
+                return filename if not dirty else new_filename
             except Exception as ex:
                 self.log.error(ex)
                 if filename != new_filename and os.path.exists(new_filename):
@@ -899,7 +887,7 @@ class ServerImpl(Server):
 
     @override
     async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
-        await self.loadMission(int(self.settings['listStartIndex']), modify_mission=modify_mission, use_orig=use_orig)
+        await self.loadMission(self._get_current_mission_file(), modify_mission=modify_mission, use_orig=use_orig)
 
     @override
     async def setStartIndex(self, mission_id: int) -> None:
@@ -912,22 +900,32 @@ class ServerImpl(Server):
 
     @override
     async def setPassword(self, password: str):
-        self.settings['password'] = password or ''
+        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            await self.send_to_dcs({"command": "setPassword", "password": password})
+        else:
+            self.settings['password'] = password or ''
 
     @override
     async def setCoalitionPassword(self, coalition: Coalition, password: str):
-        advanced = self.settings['advanced']
-        if coalition == Coalition.BLUE:
-            if password:
-                advanced['bluePasswordHash'] = utils.hash_password(password)
-            else:
-                advanced.pop('bluePasswordHash', None)
+        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            if coalition == Coalition.BLUE:
+                await self.send_to_dcs({"command": "setCoalitionPassword", "bluePassword": password or ''})
+            elif coalition == Coalition.RED:
+                await self.send_to_dcs({"command": "setCoalitionPassword", "redPassword": password or ''})
         else:
-            if password:
-                advanced['redPasswordHash'] = utils.hash_password(password)
+            advanced = self.settings['advanced']
+            if coalition == Coalition.BLUE:
+                if password:
+                    advanced['bluePasswordHash'] = utils.hash_password(password)
+                else:
+                    advanced.pop('bluePasswordHash', None)
             else:
-                advanced.pop('redPasswordHash', None)
-        self.settings['advanced'] = advanced
+                if password:
+                    advanced['redPasswordHash'] = utils.hash_password(password)
+                else:
+                    advanced.pop('redPasswordHash', None)
+            self.settings['advanced'] = advanced
+
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format(
@@ -994,38 +992,34 @@ class ServerImpl(Server):
     @override
     async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
                           use_orig: bool | None = True, no_reload: bool | None = False) -> bool | None:
-        start_index = int(self.settings.get('listStartIndex', 1))
+
         mission_list = self.settings['missionList']
-        # check if we re-load the running mission
-        if ((isinstance(mission, int) and mission == start_index) or
-            (isinstance(mission, str) and mission == self._get_current_mission_file())):
-            # if we should not reload, then return here
-            if no_reload:
-                return None
-            mission = self._get_current_mission_file()
-            if not mission:
-                return False
-            if use_orig:
-                new_filename = utils.create_writable_mission(mission)
-                orig_mission = utils.get_orig_file(mission)
-                shutil.copy2(orig_mission, new_filename)
-                if new_filename != mission:
-                    mission_list = await self.replaceMission(start_index, new_filename)
-            elif modify_mission:
-                # don't use the orig file, still make sure we have a writable mission
-                new_filename = utils.create_writable_mission(mission)
-                if new_filename != mission:
-                    shutil.copy2(mission, new_filename)
-                    mission_list = await self.replaceMission(start_index, new_filename)
+        start_index = int(self.settings.get('listStartIndex', 1))
+        try:
+            current_mission = self._get_current_mission_file()
+            current_index = mission_list.index(current_mission) + 1
+        except ValueError:
+            current_index = start_index
+            current_mission = mission_list[current_index - 1]
 
         if isinstance(mission, int):
-            if mission > len(mission_list):
-                mission = 1
-            filename = mission_list[mission - 1]
+            mission = mission_list[mission - 1]
+
+        # we should not reload the running mission
+        if no_reload and mission == current_mission:
+            return None
+
+        if modify_mission:
+            filename = await self.apply_mission_changes(mission, use_orig=use_orig)
+        elif use_orig:
+            filename = utils.create_writable_mission(mission)
+            orig_mission = utils.get_orig_file(mission)
+            shutil.copy2(orig_mission, filename)
         else:
             filename = mission
-        if modify_mission:
-            filename = await self.apply_mission_changes(filename)
+
+        if mission == current_mission and filename != mission:
+            mission_list = await self.replaceMission(current_index, filename)
 
         if self.status == Status.STOPPED:
             try:
@@ -1039,7 +1033,7 @@ class ServerImpl(Server):
             timeout = 300 if self.node.locals.get('slow_system', False) else 180
             try:
                 idx = mission_list.index(filename) + 1
-                if idx == start_index:
+                if idx == current_index:
                     rc = await self.send_to_dcs_sync({
                         "command": "startMission",
                         "filename": filename
@@ -1054,6 +1048,7 @@ class ServerImpl(Server):
                     "command": "startMission",
                     "filename": filename
                 }, timeout=timeout)
+
             # We could not load the mission
             result = rc['result'] if isinstance(rc['result'], bool) else (rc['result'] == 0)
             if not result:

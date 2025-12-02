@@ -1173,13 +1173,13 @@ class Scheduler(Plugin[SchedulerListener]):
                 else:
                     await server.setPassword(derived.password.value)
                     await self.bot.audit(f"changed password", user=interaction.user, server=server)
-                await interaction.followup.send("Password changed.", ephemeral=ephemeral)
+                if server.status in [Status.PAUSED, Status.RUNNING]:
+                    message = _("Password will be changed on next server start.")
+                else:
+                    message = _("Password changed.")
 
-        if server.status in [Status.PAUSED, Status.RUNNING]:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f'Server "{server.display_name}" has to be stopped or shut down '
-                                                    f'to change the password.', ephemeral=True)
-            return
+                await interaction.followup.send(message, ephemeral=ephemeral)
+
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(PasswordModal())
 

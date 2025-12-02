@@ -44,7 +44,7 @@ class Server(DataObject, ABC):
     _options: utils.SettingsDict | utils.RemoteSettingsDict | None = field(default=None, compare=False)
     _settings: utils.SettingsDict | utils.RemoteSettingsDict | None = field(default=None, compare=False)
     current_mission: Mission | None = field(default=None, compare=False)
-    mission_id: int = field(default=-1, compare=False)
+    _mission_id: int = field(default=None, compare=False)
     players: dict[int, Player] = field(default_factory=dict, compare=False)
     process: Process | None = field(default=None, compare=False)
     _maintenance: bool = field(compare=False, default=False)
@@ -117,6 +117,26 @@ class Server(DataObject, ABC):
     @status.setter
     def status(self, status: Status | str):
         self.set_status(status)
+
+    @property
+    def mission_id(self) -> int:
+        if not self._mission_id:
+            with self.pool.connection() as conn:
+                cursor = conn.execute("""
+                    SELECT id FROM missions 
+                    WHERE server_name = %s AND mission_end IS NULL
+                    ORDER BY mission_start DESC
+                    LIMIT 1
+                """, (self.name, ))
+                if cursor.rowcount == 1:
+                    self._mission_id = cursor.fetchone()[0]
+                else:
+                    self._mission_id = -1
+        return self._mission_id
+
+    @mission_id.setter
+    def mission_id(self, mission_id: int):
+        self._mission_id = mission_id
 
     # allow overloading of setter
     def set_status(self, status: Status | str):

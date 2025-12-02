@@ -1,7 +1,9 @@
 import aiohttp
+import asyncio
 import ipaddress
 import socket
 import sys
+import time
 
 from contextlib import closing, suppress
 from core import Port, PortType
@@ -14,7 +16,8 @@ __all__ = [
     "is_open",
     "get_public_ip",
     "is_upnp_available",
-    "generate_firewall_rules"
+    "generate_firewall_rules",
+    "wait_for_internet"
 ]
 
 API_URLS = [
@@ -140,3 +143,56 @@ def generate_firewall_rules(ports: Iterable[Port]) -> str:
             lines.append("")
 
     return "\n".join(lines)
+
+
+async def _check_google_dns(
+    host: str = "8.8.8.8",
+    port: int = 53,
+    per_attempt_timeout: float = 3.0,
+) -> bool:
+    """
+    Try to open a TCP connection once with a per-attempt timeout.
+    Returns True if successful, False otherwise.
+    """
+    try:
+        conn_coro = asyncio.open_connection(host, port)
+        reader, writer = await asyncio.wait_for(conn_coro, timeout=per_attempt_timeout)
+        writer.close()
+        await writer.wait_closed()
+        return True
+    except (asyncio.TimeoutError, OSError):
+        return False
+
+
+async def wait_for_internet(
+    timeout: float,
+    interval: float = 1.0,
+    host: str = "8.8.8.8",
+    port: int = 53,
+    per_attempt_timeout: float = 3.0,
+) -> bool:
+    """
+    Wait until an internet connection is available or until 'timeout' seconds pass.
+
+    Returns:
+        True  if a connection was established before timeout,
+        False if timeout was reached without success.
+    """
+    deadline = time.monotonic() + timeout
+
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+
+        # Don't let a single attempt take longer than remaining time
+        attempt_timeout = min(per_attempt_timeout, remaining)
+
+        if await _check_google_dns(host=host, port=port, per_attempt_timeout=attempt_timeout):
+            return True
+
+        # Sleep before the next attempt, but don't overshoot the deadline
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        await asyncio.sleep(min(interval, remaining))
