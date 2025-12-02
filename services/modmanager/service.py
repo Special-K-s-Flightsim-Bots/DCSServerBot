@@ -139,17 +139,19 @@ class ModManagerService(Service):
             return None, None
 
     async def get_installed_packages(self, reference: Server | Node, folder: Folder) -> list[tuple[str, str]]:
+        if isinstance(reference, Server):
+            column = 'server_name'
+        else:
+            column = 'node'
         async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(
-                    """
-                        SELECT * FROM mm_packages 
-                        WHERE server_name = %s AND folder = %s 
-                        ORDER BY package_name, version
-                    """, (reference.name, folder.value))
-                return [
-                    (x['package_name'], x['version']) async for x in cursor
-                ]
+            cursor = await conn.execute(f"""
+                SELECT package_name, version FROM mm_packages 
+                WHERE {column} = %s AND folder = %s 
+                ORDER BY package_name, version
+            """, (reference.name, folder.value))
+            return [
+                (x[0], x[1]) async for x in cursor
+            ]
 
     async def get_repo_versions(self, repo: str) -> set[str]:
         url = f"https://api.github.com/repos/{self.extract_repo_name(repo)}/releases"
@@ -258,9 +260,14 @@ class ModManagerService(Service):
         return await self._get_latest_file_version(package)
 
     async def get_installed_package(self, reference: Server | Node, folder: Folder, package_name: str) -> str | None:
+        if isinstance(reference, Server):
+            column = 'server_name'
+        else:
+            column = 'node'
         async with self.apool.connection() as conn:
-            cursor = await conn.execute("""
-                SELECT version FROM mm_packages WHERE server_name = %s AND package_name = %s AND folder = %s
+            cursor = await conn.execute(f"""
+                SELECT version FROM mm_packages 
+                WHERE {column} = %s AND package_name = %s AND folder = %s
             """, (reference.name, package_name, folder.value))
             return (await cursor.fetchone())[0] if cursor.rowcount == 1 else None
 
@@ -387,12 +394,17 @@ class ModManagerService(Service):
                                  errors='replace') as log:
             await log.writelines(log_entries)
 
+        if isinstance(reference, Server):
+            column = 'server_name'
+        else:
+            column = 'node'
+
         async with self.apool.connection() as conn:
             async with conn.transaction():
-                await conn.execute("""
-                    INSERT INTO mm_packages (server_name, package_name, version, folder) 
+                await conn.execute(f"""
+                    INSERT INTO mm_packages ({column}, package_name, version, folder) 
                     VALUES (%s, %s, %s, %s) 
-                    ON CONFLICT (server_name, package_name) 
+                    ON CONFLICT ({column}, package_name) 
                     DO UPDATE SET version=excluded.version
                 """, (reference.name, package_name, version, folder.value))
         self.log.info(f"- Package {package_name}_v{version} successfully installed in {target}.")
@@ -447,11 +459,16 @@ class ModManagerService(Service):
                             self.log.warning(f"- Can't recover file {filename}, because it has been removed! "
                                              f"You might need to run a slow repair.")
         utils.safe_rmtree(packages_path)
+
+        if isinstance(reference, Server):
+            column = 'server_name'
+        else:
+            column = 'node'
         async with self.apool.connection() as conn:
             async with conn.transaction():
-                await conn.execute("""
+                await conn.execute(f"""
                     DELETE FROM mm_packages 
-                    WHERE server_name = %s AND folder = %s AND package_name = %s AND version = %s
+                    WHERE {column} = %s AND folder = %s AND package_name = %s AND version = %s
                 """, (reference.name, folder, package_name, version))
         self.log.info(f"- Package {package_name}_v{version} successfully removed.")
         return True
