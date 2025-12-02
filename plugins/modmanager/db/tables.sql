@@ -4,6 +4,5 @@ CREATE TABLE IF NOT EXISTS mm_packages (
     version TEXT NOT NULL,
     folder TEXT NOT NULL,
     time TIMESTAMP DEFAULT NOW(),
-    PRIMARY KEY(server_name, package_name),
-    FOREIGN KEY (server_name) REFERENCES servers (server_name) ON UPDATE CASCADE ON DELETE CASCADE
+    PRIMARY KEY(server_name, package_name)
 );
