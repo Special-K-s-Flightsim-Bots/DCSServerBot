@@ -905,7 +905,7 @@ class Admin(Plugin[AdminEventListener]):
         if node:
             await _node_offline(node.name)
         else:
-            tasks = [_node_offline(node.name) for node in self.bus.nodes.values()]
+            tasks = [_node_offline(node.name) for node in self.node.all_nodes.values()]
             tasks.append(_node_offline(self.node.name))
             await asyncio.gather(*tasks)
 
