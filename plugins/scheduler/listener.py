@@ -59,27 +59,18 @@ class SchedulerListener(EventListener["Scheduler"]):
                     return delta, restart
                 else:
                     return 0, restart
-            elif 'local_times' in restart:
+            elif 'times' in restart:
+                config = self.get_config(server)
+                tz = (
+                    ZoneInfo(config.get('timezone'))
+                    if 'timezone' in config
+                    else None
+                )
                 min_time_difference = 86400
-                for t in restart['local_times']:
-                    restart_time = utils.parse_time(t)
-                    check_time = datetime.now().replace(year=restart_time.year, month=restart_time.month,
-                                                        day=restart_time.day, second=0, microsecond=0)
-                    if restart_time <= check_time:
-                        restart_time += timedelta(days=1)
-                    time_difference_in_seconds = int((restart_time - check_time).total_seconds())
-                    if 0 < time_difference_in_seconds < min_time_difference:
-                        min_time_difference = time_difference_in_seconds
-                if min_time_difference != 86400:
-                    return min_time_difference, restart
-                else:
-                    return None
-            elif 'utc_times' in restart:
-                min_time_difference = 86400
-                for t in restart['utc_times']:
-                    restart_time = utils.parse_time(t, tz=timezone.utc)
-                    check_time = datetime.now(tz=timezone.utc).replace(
-                        year=restart_time.year, month=restart_time.month, day=restart_time.day, second=0, microsecond=0)
+                for t in restart['times']:
+                    restart_time = utils.parse_time(t, tz=tz)
+                    check_time = datetime.now(tz=tz).replace(year=restart_time.year, month=restart_time.month,
+                                                             day=restart_time.day, second=0, microsecond=0)
                     if restart_time <= check_time:
                         restart_time += timedelta(days=1)
                     time_difference_in_seconds = int((restart_time - check_time).total_seconds())

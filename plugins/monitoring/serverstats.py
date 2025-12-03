@@ -543,7 +543,7 @@ class UsersPerMissionTime(report.GraphElement):
 
         # Step 5: Customize plot appearance
         self.axes.set_title(
-            f'Users per Mission-Time | past {interval.replace("1", "").strip()}',
+            f'Average Users per Mission-Time | past {interval.replace("1", "").strip()}',
             color='white',
             fontsize=25
         )

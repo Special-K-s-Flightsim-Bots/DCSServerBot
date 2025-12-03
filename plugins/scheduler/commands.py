@@ -1339,7 +1339,7 @@ class Scheduler(Plugin[SchedulerListener]):
         else:
             item = f'The mission on server {_server.name}'
         message = f"{item} will {what}"
-        if (any(key in rconf for key in ['local_times', 'utc_times', 'real_time', 'idle_time', 'cron']) or
+        if (any(key in rconf for key in ['times', 'real_time', 'idle_time', 'cron']) or
                 _server.status == Status.RUNNING):
             if _server.restart_time >= datetime.now(tz=timezone.utc):
                 message += f" <t:{int(_server.restart_time.timestamp())}:R>"
