@@ -829,7 +829,7 @@ class MissionEventListener(EventListener["Mission"]):
                     and data['arg3'] == data['arg6']:
                 # do not report if the punishment plugin is active and teamkills are punished
                 if self.bot.cogs.get('Punishment'):
-                    _config = self.get_config(server, plugin_name='Punishment')
+                    _config = self.get_config(server, plugin_name='punishment')
                     if any(x for x in _config.get('penalties', []) if x.get('event', "") == 'kill'):
                        return
 
