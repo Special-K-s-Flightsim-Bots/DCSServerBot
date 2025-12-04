@@ -46,6 +46,7 @@ commands:
         type: str
         required: false
         default: C:\Program Files\Eagle Dynamics\DCS World
+    ephemeral: true     # The commands output should be ephemeral
   setflag:
     roles:
     - DCS Admin
