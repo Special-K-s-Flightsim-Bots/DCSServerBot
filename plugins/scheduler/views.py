@@ -106,14 +106,15 @@ class ConfigView(View):
     async def on_config(self, interaction: discord.Interaction, _: Button):
         class ConfigModal(Modal, title="Server Configuration"):
             # noinspection PyTypeChecker
-            name = TextInput(label="Name", default=self.server.name if self.server.name != 'n/a' else '',
+            name = TextInput(label="Name", default=self.server.name[:80] if self.server.name != 'n/a' else '',
                              min_length=3, max_length=80, required=True)
             # noinspection PyTypeChecker
             description = TextInput(label="Description", style=TextStyle.long,
-                                    default=self.server.settings.get('description'), max_length=2000, required=False)
+                                    default=self.server.settings.get('description')[:2000], max_length=2000,
+                                    required=False)
             # noinspection PyTypeChecker
-            password = TextInput(label="Password", placeholder="n/a", default=self.server.settings.get('password'),
-                                 max_length=20, required=False)
+            password = TextInput(label="Password", placeholder="n/a",
+                                 default=self.server.settings.get('password')[:80], max_length=80, required=False)
             # noinspection PyTypeChecker
             port = TextInput(label="Port", default=str(self.server.settings.get('port', 10308)), max_length=5,
                              required=True)
