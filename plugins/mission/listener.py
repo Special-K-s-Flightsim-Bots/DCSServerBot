@@ -673,8 +673,9 @@ class MissionEventListener(EventListener["Mission"]):
         admin_channel = self.bot.get_admin_channel(server)
         if not admin_channel:
             return
+        player = server.get_player(ucid=data['ucid'])
         message = _('Banned user {name} (ucid={ucid}, ipaddr={ipaddr}) rejected. Reason: {reason}').format(
-            name=data['name'], ucid=data['ucid'], ipaddr=data['ipaddr'], reason=data['reason'])
+            name=player.display_name, ucid=data['ucid'], ipaddr=data['ipaddr'], reason=data['reason'])
         await admin_channel.send(f"```{message}```")
 
     @event(name="onBanEvade")
