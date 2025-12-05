@@ -123,12 +123,13 @@ class Commands(Plugin):
         interaction: discord.Interaction,
         *msgs: str,
         embed: discord.Embed | None = None,
+        ephemeral: bool = False
     ):
-        await interaction.followup.send(msgs[0], embed=embed)
+        await interaction.followup.send(msgs[0], embed=embed, ephemeral=ephemeral)
         for msg in msgs[1:]:
-            await interaction.followup.send(msg)
+            await interaction.followup.send(msg, ephemeral=ephemeral)
 
-    async def execute(self, interaction: discord.Interaction, config: dict, **kwargs):
+    async def execute(self, interaction: discord.Interaction, config: dict, ephemeral: bool, **kwargs):
         cmd = [config["cmd"]]
         if "args" in config:
             cmd.extend([utils.format_string(a, **kwargs) for a in shlex.split(config["args"])])
@@ -150,11 +151,11 @@ class Commands(Plugin):
                 stdout, stderr = await asyncio.to_thread(run_cmd)
 
             except Exception as ex:
-                await self._send(interaction, str(ex))
+                await self._send(interaction, str(ex), ephemeral=True)
                 return
 
             if not stdout:
-                await self._send(interaction, "Done")
+                await self._send(interaction, "Done", ephemeral=ephemeral)
                 return
 
             # split stdout into 2‑K chunks wrapped in code blocks
@@ -173,7 +174,7 @@ class Commands(Plugin):
             messages.append(cur)
 
             for m in messages:
-                await self._send(interaction, m)
+                await self._send(interaction, m, ephemeral=ephemeral)
 
         else:  # no shell – just fire and forget
             try:
@@ -183,14 +184,15 @@ class Commands(Plugin):
 
                 p = await asyncio.to_thread(run_cmd)
                 self.processes[psutil.Process(p.pid)] = cmd[0]
-                await self._send(interaction, f"Process with PID {p.pid} started.")
+                await self._send(interaction, f"Process with PID {p.pid} started.", ephemeral=ephemeral)
             except Exception as ex:
-                await self._send(interaction, str(ex))
+                await self._send(interaction, str(ex), ephemeral=True)
 
     async def event(
         self,
         interaction: discord.Interaction,
         config: dict,
+        ephemeral: bool,
         **kwargs,
     ) -> list[dict]:
         async def do_send(server: Server):
@@ -201,16 +203,22 @@ class Commands(Plugin):
                     await self._send(
                         interaction,
                         f"Server {server.name} is {server.status.name}.",
+                        ephemeral=True
                     )
                     return None
             else:
                 if server.status != Status.SHUTDOWN:
                     await server.send_to_dcs(config)
-                    await self._send(interaction, f"Event sent to {server.name}.")
+                    await self._send(
+                        interaction,
+                        f"Event sent to {server.name}.",
+                        ephemeral=ephemeral
+                    )
                 else:
                     await self._send(
                         interaction,
                         f"Server {server.name} is {server.status.name}.",
+                        ephemeral=True
                     )
                 return None
 
@@ -242,6 +250,7 @@ class Commands(Plugin):
             **kwargs: Any
     ) -> None:
         cfg = self.commands[interaction.command.name]
+        ephemeral = cfg.get("ephemeral", False)
 
         # remove any missing args
         for arg in kwargs.copy():
@@ -266,15 +275,15 @@ class Commands(Plugin):
         data: list[dict] = []
 
         if "execute" in cfg:
-            await self.execute(interaction, cfg["execute"], **kwargs)
+            await self.execute(interaction, cfg["execute"], ephemeral=ephemeral, **kwargs)
         elif "event" in cfg:
-            data = await self.event(interaction, cfg["event"], **kwargs)
+            data = await self.event(interaction, cfg["event"], ephemeral=ephemeral, **kwargs)
         elif "sequence" in cfg:
             for seq in cfg["sequence"]:
                 if "execute" in seq:
-                    await self.execute(interaction, seq["execute"], **kwargs)
+                    await self.execute(interaction, seq["execute"], ephemeral=ephemeral, **kwargs)
                 elif "event" in seq:
-                    data.extend(await self.event(interaction, seq["event"], **kwargs))
+                    data.extend(await self.event(interaction, seq["event"], ephemeral=ephemeral, **kwargs))
 
         if "report" in cfg:
             if len(data) == 1:
@@ -283,11 +292,17 @@ class Commands(Plugin):
                 await self._send(
                     interaction,
                     f"Can't call commands {interaction.command.name} on multiple servers.",
+                    ephemeral=True
                 )
                 return
             report = Report(self.bot, self.plugin_name, cfg["report"])
             env = await report.render(**kwargs)
-            await self._send(interaction, env.mention, embed=env.embed)
+            await self._send(
+                interaction,
+                env.mention,
+                embed=env.embed,
+                ephemeral=ephemeral
+            )
         elif data:
             if len(data) > 1:
                 embed = discord.Embed(color=discord.Color.blue())
@@ -298,9 +313,9 @@ class Commands(Plugin):
                         ret["server_name"],
                     ).strip()
                     embed.add_field(name=name or "_ _", value=ret["value"] or "_ _", inline=False)
-                await self._send(interaction, embed=embed)
+                await self._send(interaction, embed=embed, ephemeral=ephemeral)
             else:
-                await self._send(interaction, data[0]["value"])
+                await self._send(interaction, data[0]["value"], ephemeral=ephemeral)
 
     @staticmethod
     def annotated_params(params: dict) -> str:
@@ -332,27 +347,28 @@ class Commands(Plugin):
         for name, cmd in self.locals["commands"].items():
             sanitized_name = utils.to_valid_pyfunc_name(name)
             try:
+                ephemeral = cmd.get("ephemeral", False)
+
                 checks: list = []
                 if "roles" in cmd:
                     # noinspection PyUnresolvedReferences
                     checks.append(utils.cmd_has_roles(roles=cmd["roles"]).predicate)
 
                 params = cmd.get("params", {})
-
                 if params:
                     # keyword‑only params
                     kw_only = self.annotated_params(params)
                     kw_as_args = ", ".join(f"{n}={n}" for n in params.keys())
                     src = f"""
 async def __{sanitized_name}_callback(interaction: discord.Interaction, {kw_only}):
-   await interaction.response.defer()
+   await interaction.response.defer(ephemeral={ephemeral})
    await self.exec_slash_command(interaction, {kw_as_args})
                     """
                 else:
                     # no options – only interaction
                     src = f"""
 async def __{sanitized_name}_callback(interaction: discord.Interaction):
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral={ephemeral})
     await self.exec_slash_command(interaction)
                     """
 

@@ -541,7 +541,7 @@ class UsersPerMissionTime(report.GraphElement):
         barplot = sns.barplot(x='time', y='users', data=merged_df, ax=self.axes, color='dodgerblue')
 
         self.axes.set_title(
-            f'Users per Mission-Time | past {interval.replace("1", "").strip()}',
+            f'Average Users per Mission-Time | past {interval.replace("1", "").strip()}',
             color='white',
             fontsize=25
         )

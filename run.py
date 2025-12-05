@@ -15,13 +15,14 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 from psycopg import OperationalError
+from typing import Any, Coroutine
 
 # DCSServerBot imports
 try:
     from core import (
         NodeImpl, ServiceRegistry, ServiceInstallationError, utils, YAMLError, FatalException, COMMAND_LINE_ARGS,
-        CloudRotatingFileHandler
-    )
+        CloudRotatingFileHandler, wait_for_internet
+)
     from pid import PidFile, PidFileError
     from rich import print
     from rich.console import Console
@@ -249,6 +250,15 @@ async def restore_node(name: str, config_dir: str, restarted: bool) -> int:
         utils.safe_rmtree('restore')
 
 
+def myasyncio_run(func: Coroutine[Any, Any, Any]) -> Any:
+    if sys.platform == "win32" and sys.version_info >= (3, 14):
+        import selectors
+
+        return asyncio.run(func, loop_factory=lambda: asyncio.SelectorEventLoop(selectors.SelectSelector()))
+    else:
+        return asyncio.run(func)
+
+
 if __name__ == "__main__":
     console = Console()
 
@@ -287,49 +297,30 @@ if __name__ == "__main__":
 
     # Call the restore process
     if os.path.exists('restore'):
-        if sys.platform == "win32" and sys.version_info >= (3, 14):
-            import selectors
-
-            rc = asyncio.run(
-                restore_node(name=args.node, config_dir=args.config, restarted=args.restarted),
-                loop_factory=lambda: asyncio.SelectorEventLoop(selectors.SelectSelector()),
-            )
-        else:
-            rc = asyncio.run(restore_node(name=args.node, config_dir=args.config, restarted=args.restarted))
+        rc = myasyncio_run(restore_node(name=args.node, config_dir=args.config, restarted=args.restarted))
         if rc:
             exit(rc)
         else:
             print("")
 
     fault_log = open(os.path.join('logs', 'fault.log'), 'w')
+    # wait for an internet connection to be available (after system reboots)
+    log.info("Checking internet connection ...")
+    if not myasyncio_run(wait_for_internet(host="8.8.8.8", timeout=300.0)):
+        print("Internet connection not available. Exiting.")
+        exit(-1)
     try:
         # enable faulthandler
         faulthandler.enable(file=fault_log, all_threads=True)
 
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
-                if sys.platform == "win32" and sys.version_info >= (3, 14):
-                    import selectors
-
-                    rc = asyncio.run(
-                        run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate),
-                        loop_factory=lambda: asyncio.SelectorEventLoop(selectors.SelectSelector()),
-                    )
-                else:
-                    rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
+                rc = myasyncio_run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
             except FatalException:
                 from install import Install
 
                 Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
-                if sys.platform == "win32" and sys.version_info >= (3, 14):
-                    import selectors
-
-                    rc = asyncio.run(
-                        run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate),
-                        loop_factory=lambda: asyncio.SelectorEventLoop(selectors.SelectSelector()),
-                    )
-                else:
-                    rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
+                rc = myasyncio_run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
     except PermissionError as ex:
         log.error(f"There is a permission error: {ex}", exc_info=True)
         # do not restart again

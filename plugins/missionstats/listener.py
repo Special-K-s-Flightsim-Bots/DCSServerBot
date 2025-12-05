@@ -93,7 +93,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                 return None
             return values[index1][index2]
 
-        if not config.get('persistence', True):
+        if not config.get('persistence', True) or server.mission_id == -1:
             return
         player = get_value(data, 'initiator', 'name')
         init_player = server.get_player(name=player) if player else None
@@ -129,7 +129,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                                     %(target_id)s, %(target_side)s, %(target_type)s, %(target_cat)s, %(weapon)s, 
                                     %(place)s, %(comment)s)
                         """, dataset)
-            except psycopg_pool.PoolTimeout as ex:
+            except Exception as ex:
                 self.log.warning(str(ex) + ' / ignoring event')
 
     @event(name="onMissionEvent")

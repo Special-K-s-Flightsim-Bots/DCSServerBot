@@ -905,7 +905,7 @@ class Admin(Plugin[AdminEventListener]):
         if node:
             await _node_offline(node.name)
         else:
-            tasks = [_node_offline(node.name) for node in self.bus.nodes.values()]
+            tasks = [_node_offline(node.name) for node in self.node.all_nodes.values()]
             tasks.append(_node_offline(self.node.name))
             await asyncio.gather(*tasks)
 
@@ -1045,6 +1045,7 @@ Please make sure you forward the following ports:
                 """).format(instance=name, node=node.name, dcs_port=repr(instance.dcs_port),
                             webgui_port=repr(instance.webgui_port)), ephemeral=ephemeral)
             else:
+                await instance.server.unlink()
                 await interaction.followup.send(
                     _("Instance {} created blank with no server assigned.").format(instance.name), ephemeral=ephemeral)
         else:
@@ -1079,7 +1080,7 @@ Please make sure you forward the following ports:
                 await mod_manager.uninstall_package(instance.server, folder, package, version)
 
         remove_files = await utils.yn_question(
-            interaction, _("Do you want to remove the directory {}?").format(instance.home), ephemeral=ephemeral)
+            interaction, _("Do you want to remove the directory\n{}?").format(instance.home), ephemeral=ephemeral)
         try:
             await node.delete_instance(instance, remove_files)
             await interaction.followup.send(

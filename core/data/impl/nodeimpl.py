@@ -1429,17 +1429,11 @@ class NodeImpl(Node):
         }
         with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
-        settings_path = os.path.join(instance.home, 'Config', 'serverSettings.lua')
-        if os.path.exists(settings_path):
-            # TODO: dirty cast
-            settings = SettingsDict(cast(DataObject, cast(object, self)), settings_path, root='cfg')
-            settings['port'] = int(instance.dcs_port)
-            settings['name'] = 'n/a'
-            settings['missionList'] = []
-            settings['listStartIndex'] = 0
         bus = ServiceRegistry.get(ServiceBus)
         server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name='n/a', bus=bus)
         instance.server = server
+        # we cannot use instance.dcs_port here as that would refer to the assigned serverSettings.lua already
+        server.settings["port"] = int(instance.locals['dcs_port'])
         self.instances[instance.name] = instance
         bus.servers[server.name] = server
         if not self.master:

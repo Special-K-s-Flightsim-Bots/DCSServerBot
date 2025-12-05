@@ -1,4 +1,6 @@
 import asyncio
+from distutils.dep_util import newer
+
 import discord
 import math
 import os
@@ -356,10 +358,9 @@ class Scheduler(Plugin[SchedulerListener]):
             ]:
                 return idx + 1
         else:
-            self.log.error(f"Mission {filename} not found in your serverSettings.lua!")
             return 0
 
-    async def _run_with_presets(self, server: Server, rconf: dict, current_mission: int, is_running_mission: bool):
+    async def _run_with_presets(self, server: Server, rconf: dict, new_mission: int, is_running_mission: bool):
         # get config
         use_orig = rconf.get('use_orig', True)
 
@@ -367,7 +368,7 @@ class Scheduler(Plugin[SchedulerListener]):
         if (is_running_mission and server.status in [Status.RUNNING, Status.PAUSED] and
                 not server.locals.get('mission_rewrite', True)):
             await server.stop()
-        filename = (await server.getMissionList())[current_mission - 1]
+        filename = (await server.getMissionList())[new_mission - 1]
         preset_files = rconf.get('presets', os.path.join(self.node.config_dir, 'presets.yaml'))
         new_filename = await server.modifyMission(
             filename,
@@ -376,7 +377,7 @@ class Scheduler(Plugin[SchedulerListener]):
         )
         if new_filename != filename:
             self.log.info(f"{self.__cog_name__}: New mission written: {new_filename}")
-            await server.replaceMission(current_mission, new_filename)
+            await server.replaceMission(new_mission, new_filename)
         else:
             self.log.info(f"{self.__cog_name__}: Mission {filename} overwritten.")
 
@@ -393,7 +394,7 @@ class Scheduler(Plugin[SchedulerListener]):
                 use_orig=False
             )
 
-    async def _run_without_presets(self, server: Server, rconf: dict, current_mission: int):
+    async def _run_without_presets(self, server: Server, rconf: dict, new_mission: int):
         # get config
         modify_mission = rconf.get('run_extensions', True)
         use_orig = rconf.get('use_orig', True)
@@ -404,16 +405,16 @@ class Scheduler(Plugin[SchedulerListener]):
             await server.startup(modify_mission=modify_mission, use_orig=use_orig)
         else:
             rc = await server.loadMission(
-                current_mission,
+                new_mission,
                 modify_mission=modify_mission,
                 use_orig=use_orig,
                 no_reload=no_reload
             )
             if rc is False:
-                self.log.error(f"Mission {current_mission} not loaded on server {server.name}")
+                self.log.error(f"Mission {new_mission} not loaded on server {server.name}")
                 return
             elif rc is None:
-                self.log.debug(f"Mission {current_mission} already loaded on server {server.name}")
+                self.log.debug(f"Mission {new_mission} already loaded on server {server.name}")
                 return
 
     async def run_action(self, server: Server, rconf: dict):
@@ -433,35 +434,37 @@ class Scheduler(Plugin[SchedulerListener]):
 
         # select the new mission id
         if method == 'load':
-            current_mission = rconf.get('mission_id')
-            if isinstance(current_mission, list):
-                current_mission = random.choice(current_mission)
-            elif not current_mission:
-                current_mission = await self.get_mission_from_list(server, rconf.get('mission_file'))
-                if isinstance(current_mission, list):
-                    current_mission = random.choice(current_mission)
-                if not current_mission:
-                    self.log.error(f"{self.__cog_name__}: No mission provided for load!")
+            new_mission = rconf.get('mission_id')
+            if isinstance(new_mission, list):
+                new_mission = random.choice(new_mission)
+            elif not new_mission:
+                new_mission = await self.get_mission_from_list(server, rconf.get('mission_file'))
+                if not new_mission:
+                    self.log.error(f"{self.__cog_name__}: "
+                                   f"Mission {rconf['mission_file']} cannot be loaded on server {server.name}!")
                     return
-            elif isinstance(current_mission, list):
-                current_mission = random.choice(current_mission)
         else:
-            current_mission = int(server.settings.get('listStartIndex', 1))
+            new_mission = int(server.settings.get('listStartIndex', 1))
             if method == 'rotate':
-                current_mission += 1
+                new_mission += 1
 
         # do we change the running mission?
-        is_running_mission = (current_mission == int(server.settings['listStartIndex']))
+        mission_list = await server.getMissionList()
+        if server.status in [Status.RUNNING, Status.PAUSED] and server.current_mission:
+            new_mission_file = mission_list[new_mission - 1]
+            is_running_mission = (new_mission_file == server.current_mission.filename)
+        else:
+            is_running_mission = False
 
         # set the new start index if the server is shut down
         if server.status == Status.SHUTDOWN:
-            await server.setStartIndex(current_mission)
+            await server.setStartIndex(new_mission)
 
         # apply presets if configured
         if rconf.get('settings'):
-            await self._run_with_presets(server, rconf, current_mission, is_running_mission)
+            await self._run_with_presets(server, rconf, new_mission, is_running_mission)
         else:
-            await self._run_without_presets(server, rconf, current_mission)
+            await self._run_without_presets(server, rconf, new_mission)
 
         mission_name = server.current_mission.display_name if server.current_mission else ""
         await self.bot.audit(
@@ -1006,6 +1009,8 @@ class Scheduler(Plugin[SchedulerListener]):
         try:
             await self._shutdown(interaction, embed=embed, server=server, maintenance=maintenance, force=force,
                                  ephemeral=ephemeral)
+        except TimeoutError as ex:
+            self.log.error(f"Timeout while shutting down server {server.name}.")
         except Exception as ex:
             self.log.error(ex)
 
@@ -1070,6 +1075,8 @@ class Scheduler(Plugin[SchedulerListener]):
             await self._shutdown(interaction, embed=embed, server=server, msg=msg, maintenance=None, force=force)
             await self._startup(interaction, embed=embed, server=server, msg=msg, maintenance=None,
                                 run_extensions=run_extensions, use_orig=use_orig, mission_id=mission_id)
+        except TimeoutError as ex:
+            self.log.error(f"Timeout while restarting server {server.name}.")
         except Exception as ex:
             self.log.error(ex)
 
@@ -1173,13 +1180,13 @@ class Scheduler(Plugin[SchedulerListener]):
                 else:
                     await server.setPassword(derived.password.value)
                     await self.bot.audit(f"changed password", user=interaction.user, server=server)
-                await interaction.followup.send("Password changed.", ephemeral=ephemeral)
+                if server.status in [Status.PAUSED, Status.RUNNING]:
+                    message = _("Password will be changed on next server start.")
+                else:
+                    message = _("Password changed.")
 
-        if server.status in [Status.PAUSED, Status.RUNNING]:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f'Server "{server.display_name}" has to be stopped or shut down '
-                                                    f'to change the password.', ephemeral=True)
-            return
+                await interaction.followup.send(message, ephemeral=ephemeral)
+
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(PasswordModal())
 
@@ -1339,7 +1346,7 @@ class Scheduler(Plugin[SchedulerListener]):
         else:
             item = f'The mission on server {_server.name}'
         message = f"{item} will {what}"
-        if (any(key in rconf for key in ['local_times', 'utc_times', 'real_time', 'idle_time', 'cron']) or
+        if (any(key in rconf for key in ['times', 'real_time', 'idle_time', 'cron']) or
                 _server.status == Status.RUNNING):
             if _server.restart_time >= datetime.now(tz=timezone.utc):
                 message += f" <t:{int(_server.restart_time.timestamp())}:R>"

@@ -43,6 +43,7 @@ mapping:
         nullable: false
         mapping:
           description: {type: str, nullable: false, range: {min: 1}}
+          ephemeral: {type: bool, nullable: false}
           roles:
             type: seq
             nullable: false
