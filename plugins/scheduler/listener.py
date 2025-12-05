@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 
 from croniter import croniter
 
-from core import EventListener, utils, Server, Player, event, chat_command
+from core import EventListener, utils, Server, Player, event, chat_command, Status
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
@@ -34,8 +34,13 @@ class SchedulerListener(EventListener["Scheduler"]):
                 mission_id = restart.get('mission_id')
                 if not mission_id:
                     mission_id = await self.plugin.get_mission_from_list(server, restart.get('mission_file'))
-                if not mission_id or mission_id == server.settings.get('listStartIndex', 1):
+                if not mission_id:
                     return None
+                mission_list = await server.getMissionList()
+                if server.status in [Status.RUNNING, Status.PAUSED] and server.current_mission:
+                    new_mission_file = mission_list[mission_id - 1]
+                    if new_mission_file == server.current_mission.filename:
+                        return None
 
             if server.is_populated():
                 mission_time = restart.get('max_mission_time', restart.get('mission_time'))
