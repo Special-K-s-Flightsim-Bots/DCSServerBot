@@ -20,6 +20,7 @@ if not COMMAND_LINE_ARGS:
         parser.add_argument('-x', '--noupdate', action='store_true', help='Do not autoupdate')
         parser.add_argument('-s', '--secret', action='store_true', help='Reveal all stored passwords')
         parser.add_argument('-a', '--restarted', action='store_true', help='Indicates if the bot was restarted')
+        parser.add_argument('-p', '--ping', action='store_true', help='Ping Google DNS on startup to assure internet connection')
     elif program == 'update.py':
         parser.add_argument('-n', '--node', help='Node name', default=platform.node())
         parser.add_argument('-r', '--no-restart', action='store_true', default=False,
