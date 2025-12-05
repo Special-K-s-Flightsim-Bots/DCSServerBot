@@ -304,11 +304,12 @@ if __name__ == "__main__":
             print("")
 
     fault_log = open(os.path.join('logs', 'fault.log'), 'w')
-    # wait for an internet connection to be available (after system reboots)
-    log.info("Checking internet connection ...")
-    if not myasyncio_run(wait_for_internet(host="8.8.8.8", timeout=300.0)):
-        print("Internet connection not available. Exiting.")
-        exit(-1)
+    if args.ping:
+        # wait for an internet connection to be available (after system reboots)
+        log.info("Checking internet connection ...")
+        if not myasyncio_run(wait_for_internet(host="8.8.8.8", timeout=300.0)):
+            print("Internet connection not available. Exiting.")
+            exit(-1)
     try:
         # enable faulthandler
         faulthandler.enable(file=fault_log, all_threads=True)
