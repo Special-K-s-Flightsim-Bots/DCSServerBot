@@ -109,7 +109,7 @@ class ServiceRegistry(Generic[T]):
             if isinstance(ret[idx], Exception):
                 ServiceRegistry._log.error(f"  => Service {name} NOT started.", exc_info=ret[idx])
                 if isinstance(ret[idx], FatalException):
-                    raise
+                    raise ret[idx]
             else:
                 ServiceRegistry._log.debug(f"  => Service {name} started.")
         ServiceRegistry._log.info("- Services started.")
