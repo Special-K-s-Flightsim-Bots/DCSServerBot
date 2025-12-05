@@ -235,6 +235,15 @@ class ServerProxy(Server):
         self.name = new_name
 
     @override
+    async def unlink(self):
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "unlink",
+            "server_name": self.name
+        }, node=self.node.name, timeout=60)
+
+    @override
     async def render_extensions(self) -> list[dict]:
         if not self._extensions:
             timeout = 60 if not self.node.slow_system else 120

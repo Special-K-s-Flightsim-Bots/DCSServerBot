@@ -294,6 +294,10 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    async def unlink(self):
+        raise NotImplementedError()
+
+    @abstractmethod
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
         raise NotImplementedError()
 

@@ -113,11 +113,15 @@ class ServerImpl(Server):
         self._lock = asyncio.Lock()
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute("INSERT INTO servers (server_name) VALUES (%s) ON CONFLICT (server_name) DO NOTHING",
-                             (self.name, ))
-            row = conn.execute("SELECT maintenance FROM servers WHERE server_name = %s", (self.name,)).fetchone()
-            if row:
-                self._maintenance = row[0]
+                cursor = conn.execute("""
+                    INSERT INTO servers (server_name) 
+                    VALUES (%s) 
+                    ON CONFLICT (server_name) DO NOTHING
+                    RETURNING maintenance
+                """, (self.name, ))
+                row = cursor.fetchone()
+                if row:
+                    self._maintenance = row[0]
         atexit.register(self.stop_observer)
 
     @override
@@ -141,6 +145,7 @@ class ServerImpl(Server):
             # if someone managed to destroy the mission list, fix it...
             if 'missionList' not in self._settings:
                 self._settings['missionList'] = []
+                self._settings['listStartIndex'] = 0
             elif isinstance(self._settings['missionList'], dict):
                 self._settings['missionList'] = list(self._settings['missionList'].values())
         return self._settings
@@ -447,9 +452,11 @@ class ServerImpl(Server):
             # rename the server in the database
             async with self.apool.connection() as conn:
                 async with conn.transaction():
-                    # we need to remove any older server that might have had the same name
                     await conn.execute("UPDATE servers SET server_name = %s WHERE server_name = %s",
-                                       (new_name, old_name))
+                                       (new_name, old_name or 'n/a'))
+                    if not old_name:
+                        await conn.execute("UPDATE instances SET server_name = %s WHERE instance = %s",
+                                           (new_name, self.instance.name))
 
         async def update_cluster(new_name: str):
             # only the master can take care of a cluster-wide rename
@@ -483,6 +490,13 @@ class ServerImpl(Server):
                 raise
         except Exception:
             self.log.exception(f"Error during renaming of server {old_name} to {new_name}: ", exc_info=True)
+
+    async def unlink(self):
+        if self.name == 'n/a':
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("DELETE FROM servers WHERE server_name = 'n/a'")
+        self.instance.server = None
 
     @performance_log()
     def do_startup(self):
