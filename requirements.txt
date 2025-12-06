@@ -99,7 +99,7 @@ typing-inspection==0.4.2
 tzdata==2025.2
 tzfpy==1.1.0
 upnpy==1.1.8 ; python_version >= "3.14"
-urllib3==2.5.0
+urllib3==2.6.0
 uvicorn==0.38.0
 watchdog==6.0.0
 wheel==0.45.1
