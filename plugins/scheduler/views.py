@@ -84,7 +84,7 @@ class ConfigView(View):
     @discord.ui.select(
         cls=discord.ui.ChannelSelect,
         channel_types=[ChannelType.text],
-        placeholder="Select a chat channel"
+        placeholder="Select a chat channel (optional)"
     )
     async def chat_channel(self, interaction: discord.Interaction, select: ChannelSelect[discord.TextChannel]) -> None:
         # noinspection PyUnresolvedReferences
