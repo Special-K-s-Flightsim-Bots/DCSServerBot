@@ -1196,6 +1196,10 @@ class Scheduler(Plugin[SchedulerListener]):
     @utils.app_has_role('DCS Admin')
     async def config(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer]):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
         if server.status in [Status.RUNNING, Status.PAUSED]:
             if await utils.yn_question(interaction, question='Server has to be stopped to change its configuration.\n'
                                                              'Do you want to stop it?'):
@@ -1204,9 +1208,6 @@ class Scheduler(Plugin[SchedulerListener]):
                 await interaction.followup.send('Aborted.')
                 return
 
-        ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
-        await interaction.response.defer(ephemeral=ephemeral)
         view = ConfigView(self.bot, server)
         embed = discord.Embed(title=f'Please edit the configuration of server\n"{server.display_name}"')
         msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
