@@ -93,7 +93,7 @@ class MissionUploadHandler(ServerUploadHandler):
                 modify = False
             msg = await self.channel.send(_('Loading mission {} ...').format(name))
             try:
-                if not await self.server.loadMission(filename, modify_mission=modify):
+                if not await self.server.loadMission(filename, modify_mission=modify, use_orig=False):
                     await msg.edit(content=_('Mission {} NOT loaded.').format(name))
                 else:
                     await self.bot.audit(f"loaded mission {name}", server=self.server, user=self.message.author)

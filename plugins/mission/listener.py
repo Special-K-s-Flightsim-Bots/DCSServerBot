@@ -964,7 +964,7 @@ class MissionEventListener(EventListener["Mission"]):
             mission_file = await server.modifyMission(
                 mission_file, [utils.get_preset(self.node, x) for x in presets], use_orig
             )
-        await server.loadMission(mission_file, modify_mission=False)
+        await server.loadMission(mission_file, modify_mission=False, use_orig=False)
 
     @event(name="changeMission")
     async def changeMission(self, server: Server, data: dict) -> None:
@@ -1201,7 +1201,7 @@ class MissionEventListener(EventListener["Mission"]):
                 new_filename = await server.modifyMission(filename, preset)
                 if new_filename != filename:
                     await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
-                    await server.loadMission(new_filename, modify_mission=False)
+                    await server.loadMission(new_filename, modify_mission=False, use_orig=False)
                 else:
                     await server.restart(modify_mission=False)
                 if server.status == Status.STOPPED:

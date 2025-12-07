@@ -812,7 +812,7 @@ class Mission(Plugin[MissionEventListener]):
                         await server.restart(modify_mission=False)
                     # otherwise we load the new mission
                     else:
-                        await server.loadMission(new_filename, modify_mission=False)
+                        await server.loadMission(new_filename, modify_mission=False, use_orig=False)
                     message += _('\nMission reloaded.')
                     await self.bot.audit("changed preset {}".format(','.join(view.result)), server=server,
                                          user=interaction.user)
