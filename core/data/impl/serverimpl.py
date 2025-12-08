@@ -113,11 +113,13 @@ class ServerImpl(Server):
         self._lock = asyncio.Lock()
         with self.pool.connection() as conn:
             with conn.transaction():
-                cursor = conn.execute("""
+                conn.execute("""
                     INSERT INTO servers (server_name) 
                     VALUES (%s) 
                     ON CONFLICT (server_name) DO NOTHING
-                    RETURNING maintenance
+                """, (self.name, ))
+                cursor = conn.execute("""
+                    SELECT maintenance FROM servers WHERE server_name = %s
                 """, (self.name, ))
                 row = cursor.fetchone()
                 if row:
