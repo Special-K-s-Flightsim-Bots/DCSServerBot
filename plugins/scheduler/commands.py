@@ -419,6 +419,8 @@ class Scheduler(Plugin[SchedulerListener]):
 
     async def run_action(self, server: Server, rconf: dict):
         method = rconf['method']
+        mission_list = await server.getMissionList()
+
         if method == 'shutdown' or rconf.get('shutdown', False):
             self.log.debug(f"{self.__cog_name__}: Shutting down server {server.name} ...")
             await self.teardown_dcs(server)
@@ -447,9 +449,10 @@ class Scheduler(Plugin[SchedulerListener]):
             new_mission = int(server.settings.get('listStartIndex', 1))
             if method == 'rotate':
                 new_mission += 1
+                if new_mission > len(mission_list):
+                    new_mission = 1
 
         # do we change the running mission?
-        mission_list = await server.getMissionList()
         if server.status in [Status.RUNNING, Status.PAUSED] and server.current_mission:
             new_mission_file = mission_list[new_mission - 1]
             is_running_mission = (new_mission_file == server.current_mission.filename)
