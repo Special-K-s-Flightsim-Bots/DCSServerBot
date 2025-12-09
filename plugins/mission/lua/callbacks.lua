@@ -126,6 +126,7 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
         end
         local msg = {
             command = 'onBanReject',
+            name = name,
             ucid = ucid,
             ipaddr = ipaddr,
             reason = dcsbot.banList[ucid]
@@ -136,6 +137,7 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
         local old_ucid = dcsbot.banList[ipaddr]
         local msg = {
             command = 'onBanEvade',
+            name = name,
             ucid = ucid,
             ipaddr = ipaddr,
             old_ucid = old_ucid,
