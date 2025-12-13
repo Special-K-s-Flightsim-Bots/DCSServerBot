@@ -1067,7 +1067,7 @@ class NodeImpl(Node):
                         # The master is not alive, take over
                         elif not master or not await is_node_alive(master, config.get('heartbeat', 30)):
                             if master is not None:
-                                self.log.warning(f"The master node {master} is not responding, taking over ...")
+                                self.log.warning(f"The master node {master} is not alive, taking over ...")
                             await take_over()
                             return True
                         # Master is alive, but we are the preferred one
