@@ -161,7 +161,7 @@ class PubSub:
                             WHERE id IN (SELECT id FROM to_delete)
                             RETURNING id
                         """).format(table=sql.Identifier(self.name)), (self.node.guild_id, self.node.name)):
-                            self.read_queue.put_nowait(row['id'])
+                            self.read_queue.put_nowait(row[0])
                         await cursor.execute(sql.SQL("LISTEN {table}").format(table=sql.Identifier(self.name)))
                         gen = conn.notifies()
                         async for n in gen:
