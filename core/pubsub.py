@@ -1,4 +1,5 @@
 import asyncio
+import zlib
 
 from contextlib import suppress
 from psycopg import sql, Connection, OperationalError, AsyncConnection
