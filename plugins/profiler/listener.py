@@ -9,6 +9,10 @@ _ = get_translation(__name__.split('.')[1])
 
 class ProfilerListener(EventListener["Profiler"]):
 
+    def __init__(self, plugin: "Profiler") -> None:
+        super().__init__(plugin)
+        self.max_hung_minutes: dict[str, int] = {}
+
     async def _load_profiler(self, server: Server) -> bool:
         config = self.get_config(server)
         profiler = config.get('profiler', 'chrome').lower()
@@ -47,12 +51,16 @@ class ProfilerListener(EventListener["Profiler"]):
 
     @event(name="onProfilingStart")
     async def onProfilingStart(self, server: Server, data: dict) -> None:
+        # profiled servers might take more CPU and respond slower
+        self.max_hung_minutes[server.name] = server.instance.locals.get('max_hung_minutes', 3)
+        server.instance.locals['max_hung_minutes'] = 99999
         channel = self.bot.get_channel(int(data.get('channel', -1)))
         if channel:
             await channel.send(_("Profiling started."))
 
     @event(name="onProfilingStop")
     async def onProfilingStop(self, server: Server, data: dict) -> None:
+        server.instance.locals['max_hung_minutes'] = self.max_hung_minutes.get(server.name, 3)
         channel = self.bot.get_channel(int(data.get('channel', -1)))
         if channel:
             await channel.send(_("Profiling stopped."))

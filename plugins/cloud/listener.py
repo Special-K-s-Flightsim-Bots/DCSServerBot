@@ -55,7 +55,7 @@ class CloudListener(EventListener["Cloud"]):
         player: Player = server.get_player(ucid=data['ucid'])
         if not player:
             return
-        if player.side == Side.SPECTATOR:
+        if player.side == Side.NEUTRAL:
             return
         asyncio.create_task(self.update_cloud_data(server, player))
 

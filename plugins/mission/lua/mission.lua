@@ -1,158 +1,159 @@
-local base	= _G
-dcsbot 		= base.dcsbot
+local base        = _G
+local Terrain     = base.require('terrain')
+dcsbot            = base.dcsbot
 
-local _menuItems = {}
-local _roles = {}
+local _menuItems  = {}
+local _roles      = {}
 local _extensions = {}
 
 -- deprecated
 function dcsbot.sendPopupMessage(to, message, time)
-	env.info('DCSServerBot - Popup Message')
-	if to == 'all' then
+    env.info('DCSServerBot - Popup Message')
+    if to == 'all' then
         trigger.action.outText(message, time)
-	elseif to == 'red' then
-		trigger.action.outTextForCoalition(coalition.side.RED, message, time)
-	elseif to == 'blue' then
-		trigger.action.outTextForCoalition(coalition.side.BLUE, message, time)
-	elseif to == 'neutrals' then
-		trigger.action.outTextForCoalition(coalition.side.NEUTRAL, message, time)
-	else
+    elseif to == 'red' then
+        trigger.action.outTextForCoalition(coalition.side.RED, message, time)
+    elseif to == 'blue' then
+        trigger.action.outTextForCoalition(coalition.side.BLUE, message, time)
+    elseif to == 'neutrals' then
+        trigger.action.outTextForCoalition(coalition.side.NEUTRAL, message, time)
+    else
         local unit = Unit.getByName(to)
         if unit and unit:isExist() then
             trigger.action.outTextForUnit(unit:getID(), message, time)
         end
-	end
+    end
 end
 
 -- deprecated
 function dcsbot.playSound(to, sound)
-	env.info('DCSServerBot - Play Sound')
-	if to == 'all' then
+    env.info('DCSServerBot - Play Sound')
+    if to == 'all' then
         trigger.action.outSound(sound)
-	elseif to == 'red' then
-		trigger.action.outSoundForCoalition(coalition.side.RED, sound)
-	elseif to == 'blue' then
-		trigger.action.outSoundForCoalition(coalition.side.BLUE, sound)
-	elseif to == 'neutrals' then
-		trigger.action.outSoundForCoalition(coalition.side.NEUTRAL, sound)
-	else
+    elseif to == 'red' then
+        trigger.action.outSoundForCoalition(coalition.side.RED, sound)
+    elseif to == 'blue' then
+        trigger.action.outSoundForCoalition(coalition.side.BLUE, sound)
+    elseif to == 'neutrals' then
+        trigger.action.outSoundForCoalition(coalition.side.NEUTRAL, sound)
+    else
         local unit = Unit.getByName(to)
         if unit and unit:isExist() then
             trigger.action.outSoundForUnit(unit:getID(), sound)
         end
-	end
+    end
 end
 
 function dcsbot.sendPopupMessage2(to, id, message, time)
-	env.info('DCSServerBot - Popup Message')
-	if to == 'all' then
+    env.info('DCSServerBot - Popup Message')
+    if to == 'all' then
         trigger.action.outText(message, time)
-	elseif to == 'coalition' then
-		if id == 'all' then
-	        trigger.action.outText(message, time)
-		elseif id == 'red' then
-			trigger.action.outTextForCoalition(coalition.side.RED, message, time)
-		elseif id == 'blue' then
-			trigger.action.outTextForCoalition(coalition.side.BLUE, message, time)
-		elseif id == 'neutrals' then
-			trigger.action.outTextForCoalition(coalition.side.NEUTRAL, message, time)
-		end
-	elseif to == 'unit' then
+    elseif to == 'coalition' then
+        if id == 'all' then
+            trigger.action.outText(message, time)
+        elseif id == 'red' then
+            trigger.action.outTextForCoalition(coalition.side.RED, message, time)
+        elseif id == 'blue' then
+            trigger.action.outTextForCoalition(coalition.side.BLUE, message, time)
+        elseif id == 'neutrals' then
+            trigger.action.outTextForCoalition(coalition.side.NEUTRAL, message, time)
+        end
+    elseif to == 'unit' then
         local unit = Unit.getByName(id)
         if unit and unit:isExist() then
             trigger.action.outTextForUnit(unit:getID(), message, time)
         end
-	elseif to == 'group' then
-		local group = Group.getByName(id)
-		if group and group:isExist() then
+    elseif to == 'group' then
+        local group = Group.getByName(id)
+        if group and group:isExist() then
             trigger.action.outTextForGroup(group:getID(), message, time)
-		end
-	end
+        end
+    end
 end
 
 function dcsbot.playSound2(to, id, sound)
-	env.info('DCSServerBot - Play Sound')
-	if to == 'all' then
+    env.info('DCSServerBot - Play Sound')
+    if to == 'all' then
         trigger.action.outSound(sound, time)
-	elseif to == 'coalition' then
-		if id == 'all' then
-	        trigger.action.outSound(sound, time)
-		elseif id == 'red' then
-			trigger.action.outSoundForCoalition(coalition.side.RED, sound)
-		elseif id == 'blue' then
-			trigger.action.outSoundForCoalition(coalition.side.BLUE, sound)
-		elseif id == 'neutrals' then
-			trigger.action.outSoundForCoalition(coalition.side.NEUTRAL, sound)
-		end
-	elseif to == 'unit' then
+    elseif to == 'coalition' then
+        if id == 'all' then
+            trigger.action.outSound(sound, time)
+        elseif id == 'red' then
+            trigger.action.outSoundForCoalition(coalition.side.RED, sound)
+        elseif id == 'blue' then
+            trigger.action.outSoundForCoalition(coalition.side.BLUE, sound)
+        elseif id == 'neutrals' then
+            trigger.action.outSoundForCoalition(coalition.side.NEUTRAL, sound)
+        end
+    elseif to == 'unit' then
         local unit = Unit.getByName(id)
         if unit and unit:isExist() then
             trigger.action.outSoundForUnit(unit:getID(), sound)
         end
-	elseif to == 'group' then
-		local group = Group.getByName(id)
-		if group and group:isExist() then
+    elseif to == 'group' then
+        local group = Group.getByName(id)
+        if group and group:isExist() then
             trigger.action.outSoundForGroup(group:getID(), sound)
-		end
-	end
+        end
+    end
 end
 
 function dcsbot.callback(msg, channel)
-	local newmsg = msg
-	newmsg.subcommand = msg.command
-	newmsg.command = 'callback'
-	dcsbot.sendBotTable(newmsg, channel)
+    local newmsg = msg
+    newmsg.subcommand = msg.command
+    newmsg.command = 'callback'
+    dcsbot.sendBotTable(newmsg, channel)
 end
 
 function dcsbot.startMission(id)
-	local msg = {
-		command = 'startMission',
-		id = id
-	}
-	dcsbot.callback(msg)
+    local msg = {
+        command = 'startMission',
+        id = id
+    }
+    dcsbot.callback(msg)
 end
 
 function dcsbot.shutdown()
-	local msg = {
-		command = 'shutdown'
-	}
-	dcsbot.callback(msg)
+    local msg = {
+        command = 'shutdown'
+    }
+    dcsbot.callback(msg)
 end
 
 function dcsbot.restartMission()
-	local msg = {
-		command = 'restartMission'
-	}
-	dcsbot.callback(msg)
+    local msg = {
+        command = 'restartMission'
+    }
+    dcsbot.callback(msg)
 end
 
 function dcsbot.sendEmbed(title, description, img, fields, footer, channel)
-	dcsbot.updateEmbed(nil, title, description, img, fields, footer, channel)
+    dcsbot.updateEmbed(nil, title, description, img, fields, footer, channel)
 end
 
 function dcsbot.updateEmbed(id, title, description, img, fields, footer, channel)
-	local msg = {
-		command = 'sendEmbed',
-		id = id,
-		title = title,
-		description = description,
-		img = img,
-		fields = fields,
-		footer = footer
-	}
-	dcsbot.sendBotTable(msg, channel)
+    local msg = {
+        command = 'sendEmbed',
+        id = id,
+        title = title,
+        description = description,
+        img = img,
+        fields = fields,
+        footer = footer
+    }
+    dcsbot.sendBotTable(msg, channel)
 end
 
 function dcsbot.setFog(visibility, thickness, channel)
     if visibility ~= -1 then
-    	world.weather.setFogVisibilityDistance(visibility)
+        world.weather.setFogVisibilityDistance(visibility)
     end
     if thickness ~= -1 then
-    	world.weather.setFogThickness(thickness)
+        world.weather.setFogThickness(thickness)
     end
     local msg = {
         command = 'setFog',
-        thickness =  world.weather.getFogThickness(),
+        thickness = world.weather.getFogThickness(),
         visibility = world.weather.getFogVisibilityDistance()
     }
     dcsbot.sendBotTable(msg, channel)
@@ -161,7 +162,7 @@ end
 function dcsbot.getFog(channel)
     local msg = {
         command = 'getFog',
-        thickness =  world.weather.getFogThickness(),
+        thickness = world.weather.getFogThickness(),
         visibility = world.weather.getFogVisibilityDistance()
     }
     dcsbot.sendBotTable(msg, channel)
@@ -171,7 +172,7 @@ function dcsbot.setFogAnimation(animation, channel)
     world.weather.setFogAnimation(animation)
     local msg = {
         command = 'setFogAnimation',
-        thickness =  world.weather.getFogThickness(),
+        thickness = world.weather.getFogThickness(),
         visibility = world.weather.getFogVisibilityDistance()
     }
     dcsbot.sendBotTable(msg, channel)
@@ -264,6 +265,160 @@ end
 
 function dcsbot.getExtensions()
     return _extensions
+end
+
+local function isWarehouseUnlimited(warehouse, type)
+
+    local total = nil
+
+    -- Get current amount of type.
+    if tonumber(type) then
+        total = warehouse:getLiquidAmount(type)
+    else
+        total = warehouse:getItemCount(type)
+    end
+
+    local unlimited = false
+
+    if total > 0 then
+        local n = nil
+        if tonumber(type) then
+            warehouse:removeLiquid(type, 1)
+            n = warehouse:getLiquidAmount(type)
+        else
+            warehouse:removeItem(type, 1)
+            n = warehouse:getItemCount(type)
+        end
+
+        -- If amount did not change, it is unlimited.
+        unlimited = unlimited or n > 2 ^ 29 or n == total
+
+        -- Add item back.
+        if not unlimited then
+            if tonumber(type) then
+                warehouse:addLiquid(type, 1)
+            else
+                warehouse:addItem(type, 1)
+            end
+        end
+    end
+
+    return unlimited
+end
+
+function dcsbot.getAirbase(name, channel)
+    env.info("dcsbot.getAirbase(" .. name .. ")")
+    local msg = {
+        command = "getAirbase",
+    }
+
+    local airbase = Airbase.getByName(name)
+    if not airbase or not airbase:isExist() then
+        msg.name = name
+        msg.error = "Not found."
+        dcsbot.sendBotTable(msg, channel)
+        return
+    end
+
+    local position = airbase:getPoint()
+    local lat, lng = Terrain.convertMetersToLatLon(position.x, position.z)
+    local alt = Terrain.GetHeight(position.x, position.z)
+    local warehouse = airbase:getWarehouse()
+
+
+    local msg = {
+        command = "getAirbase",
+        name = airbase:getName(),
+        position = position,
+        lat = lat,
+        lng = lng,
+        alt = alt,
+        coalition = airbase:getCoalition(),
+        radio_silent = airbase:getRadioSilentMode(),
+        auto_capture = airbase:autoCaptureIsOn(),
+        runways = airbase:getRunways(),
+        parking = airbase:getParking(true),
+        warehouse = warehouse:getInventory() or {},
+        unlimited = {
+            aircraft = isWarehouseUnlimited(warehouse, 'A-10C'),
+            liquids = isWarehouseUnlimited(warehouse, 0),
+            weapon = isWarehouseUnlimited(warehouse, 'weapons.bombs.Mk_82')
+        }
+    }
+    dcsbot.sendBotTable(msg, channel)
+end
+
+function dcsbot.captureAirbase(name, coalition, channel)
+    env.info("dcsbot.captureAirbase(" .. name .. ")")
+    local airbase = Airbase.getByName(name)
+    airbase:autoCapture(false)
+    airbase:setCoalition(coalition)
+    local msg = {
+        command = "captureAirbase",
+        name = airbase:getName(),
+        coalition = airbase:getCoalition()
+    }
+    dcsbot.sendBotTable(msg, channel)
+end
+
+local function wstype_to_table(wstype)
+    local numbers = {}
+    for num in wstype:gmatch("%d+%.-%d*") do
+        table.insert(numbers, tonumber(num))
+    end
+    return numbers
+end
+
+function dcsbot.getWarehouseItem(name, item, channel)
+    env.info("dcsbot.getWarehouseItem(" .. name .. "," .. item .. ")")
+    local airbase = Airbase.getByName(name)
+    local warehouse = airbase:getWarehouse()
+    local msg = {
+        command = "getWarehouseItem",
+        item = item,
+        value = warehouse:getItemCount(wstype_to_table(item))
+    }
+    dcsbot.sendBotTable(msg, channel)
+end
+
+function dcsbot.setWarehouseItem(name, item, value, channel)
+    env.info("dcsbot.setWarehouseItem(" .. name .. "," .. item .. "," .. value .. ")")
+    local airbase = Airbase.getByName(name)
+    local warehouse = airbase:getWarehouse()
+    warehouse:setItem(wstype_to_table(item), value)
+    dcsbot.getWarehouseItem(name, item, channel)
+end
+
+function dcsbot.getWarehouseLiquid(name, item, channel)
+    env.info("dcsbot.getWarehouseLiquid(" .. name .. "," .. item .. ")")
+    local airbase = Airbase.getByName(name)
+    local warehouse = airbase:getWarehouse()
+    local msg = {
+        command = "getWarehouseLiquid",
+        item = item,
+        value = warehouse:getLiquidAmount(item)
+    }
+    dcsbot.sendBotTable(msg, channel)
+end
+
+function dcsbot.setWarehouseLiquid(name, item, value, channel)
+    env.info("dcsbot.setWarehouseLiquid(" .. name .. "," .. item .. "," .. value .. ")")
+    local airbase = Airbase.getByName(name)
+    local warehouse = airbase:getWarehouse()
+    warehouse:setLiquidAmount(item, value)
+    dcsbot.getWarehouseLiquid(name, item, channel)
+end
+
+function dcsbot.setAutoCapture(name, value)
+    env.info("dcsbot.setAutoCapture(" .. name .. "," .. tostring(value) .. ")")
+    local airbase = Airbase.getByName(name)
+    airbase:autoCapture(value)
+end
+
+function dcsbot.setRadioSilentMode(name, value)
+    env.info("dcsbot.setRadioSilentMode(" .. name .. "," .. tostring(value) .. ")")
+    local airbase = Airbase.getByName(name)
+    airbase:setRadioSilentMode(value)
 end
 
 -- Disable error popups in missions

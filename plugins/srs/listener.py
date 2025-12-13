@@ -80,7 +80,7 @@ class SRSEventListener(EventListener["SRS"]):
             asyncio.create_task(server.send_to_dcs({"command": "disableSRS", "name": data['player_name']}))
             if self.get_config(server).get('move_to_spec', False):
                 player = server.get_player(name=data['player_name'])
-                if player and player.side != Side.SPECTATOR:
+                if player and player.side != Side.NEUTRAL:
                     asyncio.create_task(server.move_to_spectators(player, reason=self.get_config(server).get(
                         'message_no_srs', 'You need to use SRS to play on this server!')))
         self.mission.eventlistener.display_player_embed(server)

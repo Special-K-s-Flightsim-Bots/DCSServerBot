@@ -159,7 +159,7 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
                             else:
                                 # session will be kept
                                 player_started = True
-                        if not player_started and player.side != Side.SPECTATOR:
+                        if not player_started and player.side != Side.NEUTRAL:
                             cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
                                            (
                                                mission_id,
@@ -205,7 +205,7 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute(self.SQL_MISSION_HANDLING['stop_player'], (server.mission_id, data['ucid']))
-                if Side(data['side']) != Side.SPECTATOR:
+                if Side(data['side']) != Side.NEUTRAL:
                     conn.execute(self.SQL_MISSION_HANDLING['start_player'],
                                  (
                                      server.mission_id,

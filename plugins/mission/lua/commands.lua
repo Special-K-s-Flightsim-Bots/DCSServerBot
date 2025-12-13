@@ -53,14 +53,15 @@ function dcsbot.registerDCSServer(json)
     -- airbases
     msg.airbases = {}
     -- mission
+    local mission = Sim.getCurrentMission()
     if Sim.getCurrentMission() then
         msg.filename = Sim.getMissionFilename()
         msg.current_mission = Sim.getMissionName()
-        msg.current_map = Sim.getCurrentMission().mission.theatre
+        msg.current_map = mission.mission.theatre
         msg.mission_time = Sim.getModelTime()
         msg.real_time = Sim.getRealTime()
-        msg.start_time = Sim.getCurrentMission().mission.start_time
-        msg.date = Sim.getCurrentMission().mission.date
+        msg.start_time = mission.mission.start_time
+        msg.date = mission.mission.date
         msg.pause = Sim.getPause()
         -- weather
         msg.weather = {}
@@ -207,10 +208,98 @@ function dcsbot.getAirbases(json)
                 heading = 360 + heading
             end
             airbase.rwy_heading = heading
+            airbase.dynamic = DCS.getDynamicSpawnSettings(airdromeID, true)
             table.insert(msg.airbases, airbase)
         end
     end
 	utils.sendBotTable(msg, json.channel)
+end
+
+function dcsbot.getWarehouseResources(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getWarehouseResources()')
+    local all_resources = base.get_all_available_resource_for_warehouse()
+    local weapons = {}
+    for i, o in pairs(all_resources.weaponsList) do
+        local weapon = {
+            wstype = o.wsTypeStr,
+            name = base.get_weapon_display_name_by_wstype(o.wsType),
+        }
+        table.insert(weapons, weapon)
+    end
+    local aircraft_list = {}
+    for i, o in pairs(all_resources.aircraft_combined) do
+        obj = base.Objects[i]
+        local aircraft = {
+            wstype = base.wsTypeToString(o.wsType),
+            type = obj.type,
+            name = obj.DisplayName
+        }
+        table.insert(aircraft_list, aircraft)
+    end
+    local msg = {
+        command = "getWarehouseResources",
+        weapon = weapons,
+        aircraft = aircraft_list,
+        liquids = {
+            [1] = {
+                name = "Jet Fuel",
+                wstype = 0
+            },
+            [2] = {
+                name = "Aviation Gasoline",
+                wstype = 1
+            },
+            [3] = {
+                name = "MW-50",
+                wstype = 2
+            },
+            [4] = {
+                name = "Diesel",
+                wstype = 3
+            }
+        }
+    }
+	utils.sendBotTable(msg, json.channel)
+end
+
+function dcsbot.getAirbase(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getAirbase()')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getAirbase("' .. json.name .. '", "' .. json.channel ..'")') .. ')')
+end
+
+function dcsbot.captureAirbase(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: captureAirbase()')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.captureAirbase("' .. json.name .. '", ' .. json.coalition .. ', "' .. json.channel ..'")') .. ')')
+end
+
+function dcsbot.getWarehouseItem(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getWarehouseItem()')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getWarehouseItem("' .. json.name .. '", "' .. json.item .. '", "' .. json.channel ..'")') .. ')')
+end
+
+function dcsbot.setWarehouseItem(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: setWarehouseItem()')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setWarehouseItem("' .. json.name .. '", "' .. json.item .. '", ' .. json.value .. ', "' .. json.channel ..'")') .. ')')
+end
+
+function dcsbot.getWarehouseLiquid(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getWarehouseLiquid()')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getWarehouseLiquid("' .. json.name .. '", ' .. json.item .. ', "' .. json.channel ..'")') .. ')')
+end
+
+function dcsbot.setWarehouseLiquid(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: setWarehouseLiquid()')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setWarehouseLiquid("' .. json.name .. '", ' .. json.item .. ', ' .. json.value .. ', "' .. json.channel ..'")') .. ')')
+end
+
+function dcsbot.setAutoCapture(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: setAutoCapture()')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setAutoCapture("' .. json.name .. '", ' .. tostring(json.value) .. ')') .. ')')
+end
+
+function dcsbot.setRadioSilentMode(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: setRadioSilentMode()')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setRadioSilentMode("' .. json.name .. '", ' .. tostring(json.value) .. ')') .. ')')
 end
 
 function dcsbot.listMissions(json)

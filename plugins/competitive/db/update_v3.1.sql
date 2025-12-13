@@ -4,8 +4,12 @@ CREATE OR REPLACE FUNCTION trueskill_hist_change()
 RETURNS trigger
 AS $$
 BEGIN
-    INSERT INTO trueskill_hist(player_ucid, skill_mu, skill_sigma, time)
-    SELECT OLD.player_ucid, OLD.skill_mu, OLD.skill_sigma, old.time;
+    INSERT INTO trueskill_hist (player_ucid, skill_mu, skill_sigma, time)
+    VALUES (OLD.player_ucid, OLD.skill_mu, OLD.skill_sigma, OLD.time)
+    ON CONFLICT (player_ucid, time) DO UPDATE
+    SET skill_mu    = EXCLUDED.skill_mu,
+        skill_sigma = EXCLUDED.skill_sigma;
+
     RETURN NEW;
 END;
 $$ LANGUAGE 'plpgsql';

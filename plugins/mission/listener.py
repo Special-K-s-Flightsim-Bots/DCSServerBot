@@ -57,6 +57,9 @@ class MissionEventListener(EventListener["Mission"]):
             'S_EVENT_HIT': '```ansi\n\u001b[0;31mRED {} in {} hit {} {} in {}.```'
         },
         Side.NEUTRAL: {
+            'connect': '```\nPlayer {} connected to server {}```',
+            'disconnect': '```\nPlayer {} disconnected from server {}```',
+            'spectators': '```ansi\n\u001b[0;32mNEUTRAL player {} returned to Spectators```',
             'takeoff': '```ansi\n\u001b[0;32mNEUTRAL player {} took off from {}.```',
             'landing': '```ansi\n\u001b[0;32mNEUTRAL player {} landed at {}.```',
             'eject': '```ansi\n\u001b[0;32mNEUTRAL player {} ejected.```',
@@ -65,20 +68,7 @@ class MissionEventListener(EventListener["Mission"]):
             'kill': '```ansi\n\u001b[0;32mNEUTRAL {} in {} killed {} {} in {} with {}.```',
             'friendly_fire': '```ansi\n\u001b[1;33mNEUTRAL {} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```ansi\n\u001b[0;32mNEUTRAL player {} killed themselves - Ooopsie!```',
-            'change_slot': '```ansi\n\u001b[0;32m{} player {} occupied {} {}.```',
-            'disconnect': '```ansi\n\u001b[0;32mNEUTRAL player {} disconnected from server {}.```'
-        },
-        Side.SPECTATOR: {
-            'connect': '```\nPlayer {} connected to server {}```',
-            'disconnect': '```\nPlayer {} disconnected from server {}```',
-            'spectators': '```\n{} player {} returned to Spectators```',
-            'takeoff': '```\nPlayer {} took off from {}.```',
-            'landing': '```\nPlayer {} landed at {}.```',
-            'crash': '```\nPlayer {} crashed.```',
-            'eject': '```\nPlayer {} ejected.```',
-            'pilot_death': '```\n[Player {} died.```',
-            'kill': '```\n{} in {} killed {} {} in {} with {}.```',
-            'friendly_fire': '```ansi\n\u001b[1;33m{} FRIENDLY FIRE onto {} with {}.```'
+            'change_slot': '```ansi\n\u001b[0;32m{} player {} occupied {} {}.```'
         },
         Side.UNKNOWN: {
             'takeoff': '```\n{} took off from {}.```',
@@ -442,7 +432,7 @@ class MissionEventListener(EventListener["Mission"]):
                     asyncio.create_task(player.add_role(autorole))
 
             asyncio.create_task(self._upload_user_roles(server, player))
-            if Side(p['side']) == Side.SPECTATOR:
+            if Side(p['side']) == Side.NEUTRAL:
                 server.afk[player.ucid] = datetime.now(timezone.utc)
         # cleanup inactive players
         for player_id in [p.id for p in server.players.values() if not p.active and p.id != 1]:
@@ -460,6 +450,9 @@ class MissionEventListener(EventListener["Mission"]):
         # Set the status at the latest possible place
         if data['channel'].startswith('sync-'):
             server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
+        # only read resources if they are not set yet
+        if not server.resources:
+            asyncio.create_task(server.send_to_dcs({"command": "getWarehouseResources"}))
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
@@ -472,6 +465,14 @@ class MissionEventListener(EventListener["Mission"]):
     @event(name="getAirbases")
     async def getAirbases(self, server: Server, data: dict):
         server.current_mission.airbases = data.get('airbases')
+
+    @event(name="getWarehouseResources")
+    async def getWarehouseResources(self, server: Server, data: dict):
+        server.resources = {
+            "aircraft": data.get('aircraft'),
+            "weapon": data.get('weapon'),
+            "liquids": data.get('liquids')
+        }
 
     @event(name="onMissionLoadBegin")
     async def onMissionLoadBegin(self, server: Server, data: dict) -> None:
@@ -532,7 +533,7 @@ class MissionEventListener(EventListener["Mission"]):
     async def onSimulationStop(self, server: Server, _: dict) -> None:
         server.status = Status.STOPPED
         for p in server.get_active_players():
-            p.side = Side.SPECTATOR
+            p.side = Side.NEUTRAL
         self.alert_fired.pop(server.name, None)
         self.display_mission_embed(server)
         self.display_player_embed(server)
@@ -552,7 +553,7 @@ class MissionEventListener(EventListener["Mission"]):
         if data['id'] == 1:
             return
         if 'connect' not in self.get_config(server).get('event_filter', []):
-            self.send_dcs_event(server, Side.SPECTATOR, self.EVENT_TEXTS[Side.SPECTATOR]['connect'].format(
+            self.send_dcs_event(server, Side.NEUTRAL, self.EVENT_TEXTS[Side.NEUTRAL]['connect'].format(
                 data['name'], server.name))
 
         player: Player = server.get_player(ucid=data['ucid'])
@@ -688,7 +689,7 @@ class MissionEventListener(EventListener["Mission"]):
 
         message = _('Player {name} (ucid={ucid}) connected from the same IP (ipaddr={ipaddr}) '
                     'as banned player {old_name} (ucid={old_ucid}), who was banned for {reason}!').format(
-            name=data['name'], ucid=data['ucid'], ipaddr=data['ipaddr'], old_name=old_name,
+            name=data.get('name', 'n/a'), ucid=data['ucid'], ipaddr=data['ipaddr'], old_name=old_name,
             old_ucid=data['old_ucid'], reason=data['reason']
         )
         view = View(timeout=None)
@@ -755,7 +756,7 @@ class MissionEventListener(EventListener["Mission"]):
         if not player:
             return
         try:
-            if Side(data['side']) != Side.SPECTATOR:
+            if Side(data['side']) != Side.NEUTRAL:
                 if player.ucid in server.afk:
                     del server.afk[player.ucid]
                 if 'change_slot' not in self.get_config(server).get('event_filter', []):
@@ -765,9 +766,9 @@ class MissionEventListener(EventListener["Mission"]):
             else:
                 server.afk[player.ucid] = datetime.now(timezone.utc)
                 if 'change_slot' not in self.get_config(server).get('event_filter', []):
-                    self.send_dcs_event(server, Side.SPECTATOR,
-                                        self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
-                                                                                              data['name']))
+                    self.send_dcs_event(server, Side.NEUTRAL,
+                                        self.EVENT_TEXTS[Side.NEUTRAL]['spectators'].format(player.side.name,
+                                                                                            data['name']))
         finally:
             await player.update(data)
             self.display_player_embed(server)
@@ -882,6 +883,15 @@ class MissionEventListener(EventListener["Mission"]):
             if not _player:
                 return
             player = server.get_player(name=_player)
+            if not player:
+                return
+
+            # Send ATIS information (if configured)
+            place = data.get('place', {}).get('name')
+            if place and server.locals.get('show_atis', False):
+                asyncio.create_task(self.send_atis(server, player, place))
+
+            # Build menu
             menu = await filter_menu(self, read_menu_config(self, server), server, player)
             if menu:
                 group_id = data['initiator'].get('group', {}).get('id_')
@@ -892,6 +902,7 @@ class MissionEventListener(EventListener["Mission"]):
                         "groupID": group_id,
                         "menu": menu
                     })
+
         elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
             initiator = data.get('initiator', {})
             if initiator:
@@ -901,6 +912,7 @@ class MissionEventListener(EventListener["Mission"]):
                         "command": "deleteMenu",
                         "groupID": group_id
                     })
+
         elif data['eventName'] == 'S_EVENT_SHOT' and 'shot' not in config.get('event_filter', []):
             initiator = data.get('initiator', {})
             target = data.get('target', {})
@@ -987,6 +999,32 @@ class MissionEventListener(EventListener["Mission"]):
             asyncio.create_task(server.current_mission.unpause())
             await player.sendChatMessage("Mission unpaused.")
 
+    async def send_atis(self, server: Server, player: Player, name: str) -> bool:
+        airbase = next((
+            x for x in server.current_mission.airbases
+            if (name.casefold() in x['name'].casefold()) or (name.upper() == x['code'])), None)
+
+        if not airbase:
+            airbase = await server.send_to_dcs_sync({
+                "command": "getAirbase",
+                "name": name
+            })
+
+        if airbase:
+            response = await server.send_to_dcs_sync({
+                "command": "getWeatherInfo",
+                "x": airbase['position']['x'],
+                "y": airbase['position']['y'],
+                "z": airbase['position']['z']
+            })
+            report = Report(self.bot, self.plugin_name, 'atis-ingame.json')
+            env = await report.render(airbase=airbase, data=response, server=server)
+            message = utils.embed_to_simpletext(env.embed)
+            await player.sendUserMessage(message, 30)
+            return True
+
+        return False
+
     @chat_command(name="atis", usage="<airport>", help="display ATIS information")
     async def atis(self, server: Server, player: Player, params: list[str]):
         if len(params) == 0:
@@ -994,20 +1032,8 @@ class MissionEventListener(EventListener["Mission"]):
                 prefix=self.prefix, command=self.atis.name))
             return
         name = ' '.join(params)
-        for airbase in server.current_mission.airbases:
-            if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
-                response = await server.send_to_dcs_sync({
-                    "command": "getWeatherInfo",
-                    "x": airbase['position']['x'],
-                    "y": airbase['position']['y'],
-                    "z": airbase['position']['z']
-                })
-                report = Report(self.bot, self.plugin_name, 'atis-ingame.json')
-                env = await report.render(airbase=airbase, data=response, server=server)
-                message = utils.embed_to_simpletext(env.embed)
-                await player.sendUserMessage(message, 30)
-                return
-        await player.sendChatMessage(f"No ATIS information found for {name}.")
+        if not await self.send_atis(server, player, name):
+            await player.sendChatMessage(f"No ATIS information found for {name}.")
 
     @chat_command(name="restart", roles=['DCS Admin'], usage="[time]", help="restart the running mission")
     async def restart(self, server: Server, player: Player, params: list[str]):

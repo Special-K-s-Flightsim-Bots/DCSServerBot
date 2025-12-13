@@ -7,10 +7,9 @@ class Main(report.EmbedElement):
     async def render(self, server: Server, sides: list[Coalition]):
         players = server.get_active_players()
         sides = {
-            Side.SPECTATOR: {"names": [], "units": [], "SRS": []},
+            Side.NEUTRAL: {"names": [], "units": [], "SRS": []},
             Side.BLUE: {"names": [], "units": [], "SRS": []},
-            Side.RED: {"names": [], "units": [], "SRS": []},
-            Side.NEUTRAL: {"names": [], "units": [], "SRS": []}
+            Side.RED: {"names": [], "units": [], "SRS": []}
         }
         srs_plugin = cast(SRS, self.bot.cogs.get('SRS'))
         if srs_plugin:
@@ -20,7 +19,7 @@ class Main(report.EmbedElement):
         players_sorted = sorted(players, key=lambda p: p.display_name)
         for player in players_sorted:
             sides[player.side]['names'].append(player.display_name)
-            if player.side != Side.SPECTATOR:
+            if player.side != Side.NEUTRAL:
                 unit = player.unit_type
                 if player.sub_slot > 0:
                     unit += ' (crew)'
@@ -29,7 +28,7 @@ class Main(report.EmbedElement):
                 sides[player.side]['units'].append('')
             if srs_users:
                 sides[player.side]['SRS'].append(':green_circle:' if player.name in srs_users else ':red_circle:')
-        for side in [Side.BLUE, Side.RED, Side.NEUTRAL, Side.SPECTATOR]:
+        for side in [Side.BLUE, Side.RED, Side.NEUTRAL]:
             if side in sides and len(sides[side]['names']):
                 self.add_field(name='▬' * 13 + f' {side.name.title()} ' + '▬' * 13, value='_ _', inline=False)
                 self.add_field(name='Name', value='\n'.join(sides[side]['names']) or '_ _')

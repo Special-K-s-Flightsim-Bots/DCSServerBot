@@ -145,7 +145,7 @@ class ServerInfo(report.EmbedElement):
             self.add_field(name='▬' * 13 + ' Current Activity ' + '▬' * 13, value='_ _', inline=False)
             self.add_field(name='Active on Server', value=player.server.display_name)
             self.add_field(name='DCS Name', value=player.display_name)
-            self.add_field(name='Slot', value=player.unit_type if player.side != Side.SPECTATOR else 'Spectator')
+            self.add_field(name='Slot', value=player.unit_type if player.side != Side.NEUTRAL else 'Spectator')
 
 
 class Footer(report.EmbedElement):

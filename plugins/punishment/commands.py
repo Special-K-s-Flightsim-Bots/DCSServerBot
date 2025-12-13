@@ -227,6 +227,12 @@ class Punishment(Plugin[PunishmentEventListener]):
     async def forgive(self, interaction: discord.Interaction,
                       user: app_commands.Transform[str | discord.Member, utils.UserTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
+
+        if not user:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("The user provided is invalid."), ephemeral=True)
+            return
+
         if await utils.yn_question(
                 interaction,
                 _("This will delete all the punishment points for this user and unban them if they were banned.\n"
@@ -241,6 +247,7 @@ class Punishment(Plugin[PunishmentEventListener]):
                                                             ephemeral=True)
                     else:
                         ucids = [user]
+
                     for ucid in ucids:
                         await conn.execute('DELETE FROM pu_events WHERE init_id = %s', (ucid, ))
                         await conn.execute('DELETE FROM pu_events_sdw WHERE init_id = %s', (ucid, ))

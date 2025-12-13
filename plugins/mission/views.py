@@ -3,7 +3,7 @@ import discord
 import os
 
 from contextlib import suppress
-from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils, get_translation
+from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils, get_translation, Side
 from discord import SelectOption, ButtonStyle
 from discord.ui import View, Select, Button
 from io import StringIO
@@ -457,6 +457,83 @@ class ModifyView(View):
         await interaction.edit_original_response(embed=self.embed)
 
     async def cancel(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.stop()
+
+
+class AirbaseView(View):
+    def __init__(self, server: Server, airbase: dict, data: dict):
+        super().__init__(timeout=None)
+        self.server = server
+        self.airbase = airbase
+        self.data = data
+        self.render()
+
+    def render(self):
+        capture = self.children[0]
+        capture.style = discord.ButtonStyle.blurple if self.data['coalition'] == 1 else discord.ButtonStyle.red
+        capture_toggle = self.children[1]
+        capture_toggle.style = discord.ButtonStyle.primary if not self.data['auto_capture'] else discord.ButtonStyle.secondary
+        capture_toggle.label = _('Enable Auto Capture') if not self.data['auto_capture'] else _('Disable Auto Capture')
+        radio_toggle = self.children[2]
+        radio_toggle.style = discord.ButtonStyle.primary if not self.data['radio_silent'] else discord.ButtonStyle.secondary
+        radio_toggle.label = _('Unsilence Radios') if self.data['radio_silent'] else _('Silence Radios')
+
+    # noinspection PyTypeChecker
+    @discord.ui.button(label=_('Capture'))
+    async def capture(self, interaction: discord.Interaction, button: Button):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.data['coalition'] = (self.data['coalition'] % 2) + 1
+        await self.server.send_to_dcs_sync({
+            "command": "captureAirbase",
+            "name": self.airbase['name'],
+            "coalition": self.data['coalition']
+        })
+        self.data['auto_capture'] = False
+        self.render()
+        msg = await interaction.original_response()
+        embed = msg.embeds[0]
+        colors = {
+            1: discord.Color.red(),
+            2: discord.Color.blue()
+        }
+        embed.colour = colors[self.data['coalition']]
+        embed.set_field_at(1, name=_('Coalition'), value=Side(self.data['coalition']).name.title())
+        await interaction.edit_original_response(embed=embed, view=self)
+
+    # noinspection PyTypeChecker
+    @discord.ui.button()
+    async def toggle_capture(self, interaction: discord.Interaction, button: Button):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.data['auto_capture'] = not self.data['auto_capture']
+        await self.server.send_to_dcs({
+            "command": "setAutoCapture",
+            "name": self.airbase['name'],
+            "value": self.data['auto_capture']
+        })
+        self.render()
+        await interaction.edit_original_response(view=self)
+
+    # noinspection PyTypeChecker
+    @discord.ui.button()
+    async def silence_radio(self, interaction: discord.Interaction, button: Button):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.data['radio_silent'] = not self.data['radio_silent']
+        await self.server.send_to_dcs({
+            "command": "setRadioSilentMode",
+            "name": self.airbase['name'],
+            "value": self.data['radio_silent']
+        })
+        self.render()
+        await interaction.edit_original_response(view=self)
+
+    # noinspection PyTypeChecker
+    @discord.ui.button(label=_('Cancel'), style=discord.ButtonStyle.secondary)
+    async def cancel(self, interaction: discord.Interaction, button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
