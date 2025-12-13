@@ -1,16 +1,13 @@
 import asyncio
-import json
-import zlib
 
 from contextlib import suppress
-from psycopg import sql, Connection, OperationalError, AsyncConnection, InternalError
+from psycopg import sql, Connection, OperationalError, AsyncConnection
 from typing import Callable
 
 from core.data.impl.nodeimpl import NodeImpl
 
 
 class PubSub:
-    _SENTINEL = object()
 
     def __init__(self, node: NodeImpl, name: str, url: str, handler: Callable):
         self.node = node
@@ -92,28 +89,27 @@ class PubSub:
                 async with await AsyncConnection.connect(self.url, autocommit=True) as conn:
                     while not self._stop_event.is_set():
                         message = await self.write_queue.get()
-                        if message == self._SENTINEL:
+                        if not message:
+                            return
+                        try:
+                            query = sql.SQL("""
+                                INSERT INTO {table} (guild_id, node, data) 
+                                VALUES (%(guild_id)s, %(node)s, %(data)s)
+                            """).format(table=sql.Identifier(self.name))
+                            await conn.execute(query, message)
+                        finally:
                             # Notify the queue that the message has been processed.
                             self.write_queue.task_done()
-                            return
-                        query = sql.SQL("""
-                            INSERT INTO {table} (guild_id, node, data) 
-                            VALUES (%(guild_id)s, %(node)s, %(data)s)
-                        """).format(table=sql.Identifier(self.name))
-                        await conn.execute(query, message)
-                        # Notify the queue that the message has been processed.
-                        self.write_queue.task_done()
 
     async def _process_read(self):
-        async def do_read(id: int):
+        async def do_read():
             ids_to_delete = []
             query = sql.SQL("""
                 SELECT id, data FROM {table} 
-                WHERE id <= %(id)s AND guild_id = %(guild_id)s AND node = %(node)s
+                WHERE guild_id = %(guild_id)s AND node = %(node)s 
                 ORDER BY id
             """).format(table=sql.Identifier(self.name))
             cursor = await conn.execute(query, {
-                'id': id,
                 'guild_id': self.node.guild_id,
                 'node': "Master" if self.node.master else self.node.name
             })
@@ -134,14 +130,17 @@ class PubSub:
             with suppress(OperationalError):
                 async with await AsyncConnection.connect(self.url, autocommit=True) as conn:
                     while not self._stop_event.is_set():
-                        row_id = await self.read_queue.get()
-                        if row_id == self._SENTINEL:
-                            # Notify the queue that the message has been processed.
-                            self.read_queue.task_done()
-                            return
-                        await do_read(row_id)
-                        # Notify the queue that the message has been processed.
-                        self.read_queue.task_done()
+                        try:
+                            # we will read every 5s independent if there is data in the queue or not
+                            if not await asyncio.wait_for(self.read_queue.get(), timeout=5.0):
+                                return
+                            try:
+                                await do_read()
+                            finally:
+                                # Notify the queue that the message has been processed.
+                                self.read_queue.task_done()
+                        except (TimeoutError, asyncio.TimeoutError):
+                            await do_read()
 
     async def subscribe(self):
         while not self._stop_event.is_set():
@@ -149,19 +148,6 @@ class PubSub:
                 async with await AsyncConnection.connect(self.url, autocommit=True) as conn:
                     async with conn.cursor() as cursor:
                         # preprocess all rows that might be there
-                        async for row in await cursor.execute(sql.SQL("""
-                            WITH to_delete AS (
-                                SELECT id
-                                FROM   {table}
-                                WHERE  guild_id = %s
-                                  AND  node = %s
-                                ORDER BY id
-                            )
-                            DELETE FROM {table}
-                            WHERE id IN (SELECT id FROM to_delete)
-                            RETURNING id
-                        """).format(table=sql.Identifier(self.name)), (self.node.guild_id, self.node.name)):
-                            self.read_queue.put_nowait(row[0])
                         await cursor.execute(sql.SQL("LISTEN {table}").format(table=sql.Identifier(self.name)))
                         gen = conn.notifies()
                         async for n in gen:
@@ -169,11 +155,9 @@ class PubSub:
                                 self.log.debug(f'- {self.name.title()} stopped.')
                                 await gen.aclose()
                                 return
-                            data = json.loads(n.payload)
-                            if data['guild_id'] == self.node.guild_id and data['node'] == self.node.name or (
-                                    self.node.master and data['node'] == 'Master'
-                            ):
-                                self.read_queue.put_nowait(data['row_id'])
+                            node = n.payload
+                            if node == self.node.name or (self.node.master and node == 'Master'):
+                                self.read_queue.put_nowait(n.payload)
             await asyncio.sleep(1)
 
     async def publish(self, data: dict) -> None:
@@ -200,7 +184,7 @@ class PubSub:
 
     async def close(self):
         self._stop_event.set()
-        self.write_queue.put_nowait(self._SENTINEL)
+        self.write_queue.put_nowait(None)
         await self.write_worker
-        self.read_queue.put_nowait(self._SENTINEL)
+        self.read_queue.put_nowait(None)
         await self.read_worker
