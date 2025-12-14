@@ -27,7 +27,7 @@ backups:
   servers:                                    # Backup your DCS servers
     directories:                              # List of directories to be backed up
     - Config
-    - Missions
+    - Missions/Scripts                        # only back up this subdirectory
     - Scripts
     schedule:
       times:
