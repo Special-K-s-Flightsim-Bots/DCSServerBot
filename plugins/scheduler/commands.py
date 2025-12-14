@@ -90,12 +90,18 @@ class Scheduler(Plugin[SchedulerListener]):
                     instance['timezone'] = 'UTC'
                     action['times'] = action.pop('utc_times')
 
+        def change_instance_3_4(instance: dict):
+            if 'warn' in instance and 'text' in instance['warn']:
+                instance['warn']['message'] = instance['warn'].pop('text')
+
         if new_version == '3.1':
             change_instance = change_instance_3_1
         elif new_version == '3.2':
             change_instance = change_instance_3_2
         elif new_version == '3.3':
             change_instance = change_instance_3_3
+        elif new_version == '3.4':
+            change_instance = change_instance_3_4
         else:
             return
 
@@ -245,7 +251,7 @@ class Scheduler(Plugin[SchedulerListener]):
         times: list | dict = warn.get('times', [0])
         if isinstance(times, list):
             warn_times = sorted(times, reverse=True)
-            warn_text = warn.get('text', '!!! {item} will {what} in {when} !!!')
+            warn_text = warn.get('message', '!!! {item} will {what} in {when} !!!')
         elif isinstance(times, dict):
             warn_times = sorted(times.keys(), reverse=True)
         else:
@@ -292,8 +298,26 @@ class Scheduler(Plugin[SchedulerListener]):
             if math.ceil(i/(60 if i >= 60 else 1)) <= math.ceil(restart_in/(60 if i >= 60 else 1))
         ]
         await utils.run_parallel_nofail(*tasks)
-        # sleep until the restart should happen
-        await asyncio.sleep(min(restart_in, min(warn_times)))
+
+        if warn.get('countdown'):
+            timer = min(restart_in, min(warn_times))
+            countdown = warn['countdown'].get('time', 10)
+            warn_text = warn.get('message', warn['countdown'].get('message', 0))
+            while timer > countdown:
+                await asyncio.sleep(1)
+                timer -= 1
+            while timer != 0:
+                message = warn_text.format(item=item, what=action, when=utils.format_time(timer))
+                await server.sendPopupMessage(Coalition.ALL, message, 1)
+                await server.sendChatMessage(Coalition.ALL, message)
+                await asyncio.sleep(1)
+                timer -= 1
+
+            # sleep until the countdown should happen
+            await asyncio.sleep(min(restart_in, min(warn_times)))
+        else:
+            # sleep until the restart should happen
+            await asyncio.sleep(min(restart_in, min(warn_times)))
 
     async def teardown_dcs(self, server: Server, member: discord.Member | None = None):
         await self.bot.bus.send_to_node({"command": "onShutdown", "server_name": server.name})
