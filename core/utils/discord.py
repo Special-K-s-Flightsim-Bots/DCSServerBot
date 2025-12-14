@@ -1105,7 +1105,7 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
+        server: Server = await ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         base_dir = await server.get_missions_dir()
