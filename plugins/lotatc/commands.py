@@ -22,11 +22,10 @@ async def gci_autocomplete(interaction: discord.Interaction, current: str) -> li
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await utils.ServerTransformer().transform(interaction,
-                                                                   utils.get_interaction_param(interaction, 'server'))
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
-        coalition: str = utils.get_interaction_param(interaction, 'coalition')
+        coalition: str = interaction.namespace.coalition
         listener = interaction.client.cogs['LotAtc'].eventlistener
         choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=x, value=x)

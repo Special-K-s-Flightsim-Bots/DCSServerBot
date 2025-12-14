@@ -448,7 +448,7 @@ class DCSServerBot(commands.Bot):
 
         return {k: v for k,v in self.servers.items() if check_server_roles(v)}
 
-    def get_server(self, ctx: discord.Interaction | discord.Message | str, *,
+    def get_server(self, ctx: commands.Context | discord.Interaction | discord.Message | str, *,
                    admin_only: bool | None = False) -> "Server | None":
 
         all_servers = self.get_servers(manager=ctx.user if isinstance(ctx, discord.Interaction) else ctx.author)

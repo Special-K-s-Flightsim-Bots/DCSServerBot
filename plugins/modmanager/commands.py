@@ -50,8 +50,7 @@ async def installed_mods_autocomplete(interaction: discord.Interaction, current:
         return []
     service = ServiceRegistry.get(ModManagerService)
     try:
-        server: Server = await utils.ServerTransformer().transform(interaction,
-                                                                   utils.get_interaction_param(interaction, 'server'))
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         return [
@@ -69,8 +68,7 @@ async def available_mods_autocomplete(interaction: discord.Interaction, current:
         return []
     service = ServiceRegistry.get(ModManagerService)
     try:
-        server: Server = await utils.ServerTransformer().transform(interaction,
-                                                                   utils.get_interaction_param(interaction, 'server'))
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         return [
@@ -91,12 +89,11 @@ async def available_versions_autocomplete(interaction: discord.Interaction,
         return []
     service = ServiceRegistry.get(ModManagerService)
     try:
-        server: Server = await utils.ServerTransformer().transform(interaction,
-                                                                   utils.get_interaction_param(interaction, 'server'))
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         try:
-            folder, mod = utils.get_interaction_param(interaction, 'mod').split('/')
+            folder, mod = interaction.namespace.mod.split('/')
         except (ValueError, AttributeError):
             return []
         return [
@@ -114,7 +111,7 @@ async def repo_version_autocomplete(interaction: discord.Interaction, current: s
         return []
     service = ServiceRegistry.get(ModManagerService)
     try:
-        repo = utils.get_interaction_param(interaction, 'url')
+        repo = interaction.namespace.url
 
         if not repo or not utils.is_github_repo(repo):
             return []

@@ -30,7 +30,7 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
             """, (ucid, ))]
 
     try:
-        user = await utils.UserTransformer().transform(interaction, utils.get_interaction_param(interaction, "user"))
+        user = await utils.UserTransformer().transform(interaction, interaction.namespace.user)
         if not user:
             return []
         if isinstance(user, str):

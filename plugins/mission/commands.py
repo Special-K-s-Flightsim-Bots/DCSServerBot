@@ -1,12 +1,15 @@
+import aiohttp
 import aiofiles
 import asyncio
 import discord
 import importlib
 import os
+import pandas as pd
 import psycopg
 import random
 import re
 import traceback
+import warnings
 
 from contextlib import suppress
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
@@ -24,6 +27,7 @@ from services.bot import DCSServerBot
 from typing import Literal, Type
 
 from .airbase import Info
+from .const import LIQUIDS
 from .listener import MissionEventListener
 from .upload import MissionUploadHandler
 from .views import ServerView, PresetView, InfoView, ModifyView, AirbaseView
@@ -35,13 +39,19 @@ yaml = YAML()
 
 _ = get_translation(__name__.split('.')[1])
 
+SHEET_TITLES = {
+    "aircraft": "Aircraft",
+    "weapon": "Weapons",
+    "liquids": "Liquids",
+}
+REVERSE_LIQUIDS = {v: k for k, v in LIQUIDS.items()}
+
 
 async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await utils.ServerTransformer().transform(
-            interaction, utils.get_interaction_param(interaction, 'server'))
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         base_dir = await server.get_missions_dir()
@@ -66,8 +76,7 @@ async def orig_mission_autocomplete(interaction: discord.Interaction, current: s
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await utils.ServerTransformer().transform(interaction,
-                                                                   utils.get_interaction_param(interaction, 'server'))
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         _, file_list = await server.node.list_directory(await server.get_missions_dir(), pattern='*.orig',
@@ -113,9 +122,7 @@ async def nosav_autocomplete(interaction: discord.Interaction, current: str) -> 
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await utils.ServerTransformer().transform(
-            interaction, utils.get_interaction_param(interaction, 'server')
-        )
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         base_dir = await server.get_missions_dir()
@@ -137,17 +144,15 @@ async def wh_category_autocomplete(interaction: discord.Interaction, current: st
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await utils.ServerTransformer().transform(interaction,
-                                                                   utils.get_interaction_param(interaction, 'server'))
-        idx = utils.get_interaction_param(interaction, 'airbase')
-        airbase = server.current_mission.airbases[idx]
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
+        idx = interaction.namespace.airbase
+        airbase: dict = server.current_mission.airbases[idx]
         data = await get_airbase(server, airbase['name'])
-        choices: list[app_commands.Choice[str]] = [
+        return [
             app_commands.Choice(name=x.title(), value=x)
             for x in sorted(server.resources.keys())
-            if not data['unlimited'][x] and (not current or current.casefold() in x.casefold())
+            if not data['unlimited'][x]
         ]
-        return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -156,13 +161,11 @@ async def wh_category_autocomplete(interaction: discord.Interaction, current: st
 async def wh_item_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    server: Server = await utils.ServerTransformer().transform(interaction,
-                                                               utils.get_interaction_param(interaction, 'server'))
-    category = utils.get_interaction_param(interaction, 'category')
+    server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
+    category = interaction.namespace.category
     try:
         choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=x['name'],
-                                value='.'.join(map(str, x['wstype'])) if isinstance(x['wstype'], list) else str(x['wstype']))
+            app_commands.Choice(name=x['name'], value=x['wstype'])
             for x in sorted(server.resources.get(category, {}), key=lambda x: x['name'])
             if not current or current.casefold() in x['name'].casefold()
         ]
@@ -1092,7 +1095,7 @@ class Mission(Plugin[MissionEventListener]):
         if utils.check_roles(set(self.bot.roles['DCS Admin'] + self.bot.roles['GameMaster']), interaction.user):
             view = AirbaseView(server, airbase, data)
         else:
-            view = None
+            view = discord.utils.MISSING
         msg = await interaction.followup.send(embed=env.embed, view=view, ephemeral=utils.get_ephemeral(interaction))
         try:
             await view.wait()
@@ -1160,7 +1163,8 @@ class Mission(Plugin[MissionEventListener]):
                 airbase['name'], coalition.lower()), ephemeral=utils.get_ephemeral(interaction))
 
     @staticmethod
-    async def manage_items(server: Server, airbase: dict, category: str, item: str, value: int | None = None) -> dict:
+    async def manage_items(server: Server, airbase: dict, category: str, item: str | list[int],
+                           value: int | None = None) -> dict:
         if value is None:
             if category == 'liquids':
                 return await server.send_to_dcs_sync({
@@ -1194,7 +1198,10 @@ class Mission(Plugin[MissionEventListener]):
     async def manage_category(server: Server, airbase: dict, category: str, value: int | None = None) -> None:
         tasks = []
         for item in [x['wstype'] for x in server.resources[category]]:
-            tasks.append(asyncio.create_task(Mission.manage_items(server, airbase, category, item, value)))
+            _item = list(map(int, item.split('.'))) if isinstance(item, str) else item
+            tasks.append(asyncio.create_task(
+                Mission.manage_items(server, airbase, category, _item, value))
+            )
         await asyncio.gather(*tasks)
 
     @staticmethod
@@ -1234,7 +1241,8 @@ class Mission(Plugin[MissionEventListener]):
                               color=discord.Color.blue())
 
         if category and item:
-            data = await Mission.manage_items(server, airbase, category, item, value)
+            _item = list(map(int, item.split('.'))) if isinstance(item, str) else item
+            data = await Mission.manage_items(server, airbase, category, _item, value)
             if data['value'] == 1000000:
                 display = _("unlimited")
             elif category == 'liquids':
@@ -1630,10 +1638,10 @@ class Mission(Plugin[MissionEventListener]):
                 user.display_name if isinstance(user, discord.Member) else user),
             ephemeral=utils.get_ephemeral(interaction))
 
-    @watch.command(description=_('Shows the watchlist'))
+    @watch.command(name='list', description=_('Shows the watchlist'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def list(self, interaction: discord.Interaction):
+    async def _list(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
@@ -2396,8 +2404,7 @@ class Mission(Plugin[MissionEventListener]):
                 await member.add_roles(role)
                 self.log.debug(f"=> Member {member.display_name} is linked and got the {role.name} role.")
 
-    @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
+    async def handle_miz_uploads(self, message: discord.Message):
         pattern = ['.miz', '.sav']
         config = self.get_config().get('uploads', {})
         if not MissionUploadHandler.is_valid(message, pattern, config.get('discord', self.bot.roles['DCS Admin'])):
@@ -2458,6 +2465,122 @@ class Mission(Plugin[MissionEventListener]):
         finally:
             with suppress(discord.errors.NotFound):
                 await message.delete()
+
+    @staticmethod
+    async def load_warehouse_data(buffer: BytesIO) -> dict[str, dict]:
+        xlsx = pd.ExcelFile(buffer)
+        sheets: dict[str, dict] = {}
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            for key, title in SHEET_TITLES.items():
+                df = pd.read_excel(xlsx, sheet_name=title, dtype={"Name": str, "Count": object})
+                data = df.set_index("Name")["Count"].to_dict()
+                if key == "liquids":
+                    data = {
+                        REVERSE_LIQUIDS.get(name, name): value
+                        for name, value in data.items()
+                    }
+                sheets[key] = data
+
+        return sheets
+
+    @staticmethod
+    async def upload_warehouse_data(channel: discord.TextChannel, server: Server, sheets: dict[str, dict],
+                                    airports: list[str]) -> None:
+        for airport in airports:
+            await channel.send(_("Loading warehouse for airport {} ...").format(airport))
+            for key, values in sheets.items():
+                await channel.send(_("Uploading {} information to your warehouse ...").format(SHEET_TITLES[key]))
+                for k, v in values.items():
+                    if key != 'liquids':
+                        cmd = "setWarehouseItem"
+                    else:
+                        cmd = "setWarehouseLiquid"
+                    await server.send_to_dcs_sync({
+                        "command": cmd,
+                        "name": airport,
+                        "item": k,
+                        "value": v
+                    }, timeout=60)
+            await channel.send(_("Warehouse updated."))
+
+    async def handle_warehouse_uploads(self, message: discord.Message):
+        if not utils.check_roles(set(self.bot.roles['DCS Admin'] + self.bot.roles['GameMaster']), message.author):
+            await message.channel.send(_("You need to be DCS Admin or GameMaster to upload data."))
+            return
+
+        ctx = await self.bot.get_context(message)
+        server = self.bot.get_server(message, admin_only=True)
+        if not server:
+            server = await utils.server_selection(self.bot, ctx, title=_("To which server do you want to upload?"))
+
+        if not server:
+            await message.channel.send(_("Aborted."))
+            return
+
+        if server.status not in [Status.PAUSED, Status.RUNNING]:
+            await message.channel.send(_("Server {} has to be running or paused.").format(server.display_name))
+            return
+
+        att = message.attachments[0]
+        filename = att.filename.lower()
+        match = re.match(r'^warehouse-([a-zA-Z]{4})\.xlsx?$', filename)
+        if not match:
+            coalition = await utils.selection(
+                ctx,
+                title=_("Upload to all warehouses of this coalition:"),
+                options=[SelectOption(label="Blue", value="BLUE"), SelectOption(label="Red", value="RED")]
+            )
+            if not coalition:
+                await message.channel.send(_("Aborted."))
+                return
+
+            data = await server.send_to_dcs_sync({"command": "getMissionSituation"})
+            airports = data.get('coalitions', {}).get(coalition, {}).get('airbases')
+        else:
+            icao = match.group(1).upper()
+            airport = next((x for x in server.current_mission.airbases if x['code'] == icao), None)
+            if not airport:
+                await message.channel.send(_("Airport with ICAO {} not found.").format(icao))
+                return
+            airports = [airport['name']]
+
+        if not await utils.yn_question(
+                ctx,
+                question=_("Do you want to load a new warehouse configuration?"),
+                message=_("This will replace the warehouse configuration for {}").format(','.join(airports))
+        ):
+            await message.channel.send(_("Aborted."))
+            return
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(att.url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                    response.raise_for_status()
+                    sheets = await self.load_warehouse_data(BytesIO(await response.read()))
+
+            await self.upload_warehouse_data(message.channel, server, sheets, airports)
+            await message.channel.send(_("All data uploaded."))
+        except Exception as ex:
+            self.log.exception(ex)
+            await message.channel.send(_("Error while processing the file: {}").format(ex))
+        finally:
+            with suppress(discord.errors.NotFound):
+                await message.delete()
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.author.bot or not message.attachments:
+            return
+
+        att = message.attachments[0]
+        filename = att.filename.lower()
+        filetype = filename.lower().split('.')[-1]
+
+        if filetype in ['miz', 'sav']:
+            await self.handle_miz_uploads(message)
+        elif filename.startswith('warehouse') and filetype.startswith('xls'):
+            await self.handle_warehouse_uploads(message)
 
     @commands.Cog.listener()
     async def on_member_ban(self, _: discord.Guild, member: discord.Member):

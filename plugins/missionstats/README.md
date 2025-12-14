@@ -33,7 +33,7 @@ DCS.dcs_serverrelease:
 > those default exclusions, you'll need to add them explicitly to your custom filter.
 
 
-## How to disable Missionstats inside of missions
+## How to disable Missionstats inside missions
 To disable mission statistics for a specific mission, you can use the following piece of code somewhere in your mission 
 (not in an on-startup trigger, but shortly after).
 ```lua

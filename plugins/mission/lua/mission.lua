@@ -361,31 +361,23 @@ function dcsbot.captureAirbase(name, coalition, channel)
     dcsbot.sendBotTable(msg, channel)
 end
 
-local function wstype_to_table(wstype)
-    local numbers = {}
-    for num in wstype:gmatch("%d+%.-%d*") do
-        table.insert(numbers, tonumber(num))
-    end
-    return numbers
-end
-
 function dcsbot.getWarehouseItem(name, item, channel)
-    env.info("dcsbot.getWarehouseItem(" .. name .. "," .. item .. ")")
+    env.info("dcsbot.getWarehouseItem(" .. name .. "," .. net.lua2json(item) .. ")")
     local airbase = Airbase.getByName(name)
     local warehouse = airbase:getWarehouse()
     local msg = {
         command = "getWarehouseItem",
         item = item,
-        value = warehouse:getItemCount(wstype_to_table(item))
+        value = warehouse:getItemCount(item)
     }
     dcsbot.sendBotTable(msg, channel)
 end
 
 function dcsbot.setWarehouseItem(name, item, value, channel)
-    env.info("dcsbot.setWarehouseItem(" .. name .. "," .. item .. "," .. value .. ")")
+    env.info("dcsbot.setWarehouseItem(" .. name .. "," .. net.lua2json(item) .. "," .. value .. ")")
     local airbase = Airbase.getByName(name)
     local warehouse = airbase:getWarehouse()
-    warehouse:setItem(wstype_to_table(item), value)
+    warehouse:setItem(item, value)
     dcsbot.getWarehouseItem(name, item, channel)
 end
 

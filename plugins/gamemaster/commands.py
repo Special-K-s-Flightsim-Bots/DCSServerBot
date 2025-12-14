@@ -23,8 +23,7 @@ async def scriptfile_autocomplete(interaction: discord.Interaction, current: str
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await utils.ServerTransformer().transform(interaction,
-                                                                   utils.get_interaction_param(interaction, 'server'))
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         base_dir = os.path.join(await server.get_missions_dir(), 'Scripts')
@@ -65,7 +64,7 @@ async def campaign_servers_autocomplete(interaction: discord.Interaction, curren
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        campaign_name = utils.get_interaction_param(interaction, 'campaign')
+        campaign_name = interaction.namespace.campaign
         async with interaction.client.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT DISTINCT server_name FROM campaigns_servers

@@ -272,14 +272,44 @@ function dcsbot.captureAirbase(json)
 	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.captureAirbase("' .. json.name .. '", ' .. json.coalition .. ', "' .. json.channel ..'")') .. ')')
 end
 
+local function repr(obj)
+  if type(obj) ~= "table" then
+    return tostring(obj)
+  end
+
+  local parts = {"{"}
+  local first = true
+
+  for i, v in ipairs(obj) do
+    if not first then parts[#parts+1] = ", " end
+    parts[#parts+1] = repr(v)
+    first = false
+  end
+
+  parts[#parts+1] = "}"
+  return table.concat(parts)
+end
+
 function dcsbot.getWarehouseItem(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getWarehouseItem()')
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getWarehouseItem("' .. json.name .. '", "' .. json.item .. '", "' .. json.channel ..'")') .. ')')
+    local item
+    if type(json.item) == "table" then
+        item = repr(json.item)
+    else
+        item = '"' .. json.item .. '"'
+    end
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getWarehouseItem("' .. json.name .. '", ' .. item .. ', "' .. json.channel ..'")') .. ')')
 end
 
 function dcsbot.setWarehouseItem(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: setWarehouseItem()')
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setWarehouseItem("' .. json.name .. '", "' .. json.item .. '", ' .. json.value .. ', "' .. json.channel ..'")') .. ')')
+    local item
+    if type(json.item) == "table" then
+        item = repr(json.item)
+    else
+        item = '"' .. json.item .. '"'
+    end
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setWarehouseItem("' .. json.name .. '", ' .. item .. ', ' .. json.value .. ', "' .. json.channel ..'")') .. ')')
 end
 
 function dcsbot.getWarehouseLiquid(json)

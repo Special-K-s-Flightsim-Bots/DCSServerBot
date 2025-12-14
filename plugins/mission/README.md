@@ -1,6 +1,6 @@
 # Plugin "Mission"
 The mission plugin adds commands for amending the mission list, persistent mission- and player-embeds to be displayed 
-in your status channels and ATIS like information for the missions' airports. 
+in your status channels, and ATIS like information for the missions' airports. 
 
 ## User Linking
 It is recommended that your users link their Discord ID to their UCID (DCS World ID). The bot can try to do that by 
@@ -12,12 +12,12 @@ differ a lot.
 
 ## Uploading of Missions
 You can upload .miz files in the configured admin channel of your server(s). Existing missions will be replaced (with 
-security question) and if the server is running with that mission, it will be restarted (another security question 
+security question), and if the server is running with that mission, it will be restarted (another security question 
 will apply). Newly added missions will be auto-added to the mission list.<br>
 
 ## Custom User Menus
-DCSServerBot allows you to create custom user menus, that people can use via the F10 menu. The default usecase is to
-call chat commands with them.<br>
+DCSServerBot allows you to create custom user menus that people can use via the F10 menu. 
+The default usecase is to call chat commands with them.<br>
 To configure the menu, you need to create a file "config/menus.yaml" in your configuration directory like so:
 ```yaml
 DEFAULT:
@@ -26,7 +26,7 @@ DEFAULT:
           command: onChatCommand
           subcommand: help          # Call the "help" chat-command
       - GameMaster:                 # Sub-menu section
-        - Launch AWACS:             # Command inside of the subsection
+        - Launch AWACS:             # Command inside the subsection
             command: onChatCommand
             subcommand: flag        # Call the chat-command "flag 1 1", which sets flag 1 to value 1
             params: [ 1, 1 ]
@@ -57,14 +57,33 @@ DEFAULT:
             params: ['UGKO']
 ```
 > [!NOTE]
-> DCS World can only create menus for groups. This means, that you should create groups that contain single units only,
+> DCS World can only create menus for groups. This means that you should create groups that contain single units only,
 > especially if you use commands that can only be called by specific roles.
 > 
-> Roles are checked twice: once when the menu gets created. You should not see any command, that your role can
+> Roles are checked twice: once when the menu gets created. You should not see any command that your role can
 > not use. A second check is done when the command is being executed (onChatCommand only).
 
+## Warehouse Information
+You can download, alter, and re-upload your warehouse data via Excel files.
+An Excel file containing the warehouse details for a particular airport can be produced with the command `/airbase info`.
+Afterward, you can revise this file and upload it again by placing it in your admin channel.
+
+### Upload a Warehouse Inventory to another Airbase
+On export, the Excel file will be named `warehouse_<airport>.xlsx`, where airport is the ICAO of the respective airport.
+If you want to upload the warehouse information to any other airport, all you need to do is change the ICAO in its name.
+
+### Upload a Warehouse Inventory to all Airbases of a Coalition
+You can also _remove_ the ICAO completely and upload a file named `warehouse.xlsx`.
+You will then be asked to which coalition you want to upload the warehouse inventory.
+Afterward, all warehouses of this coalition will be filled with the respective inventory information.
+
+> [!NOTE]
+> Please keep in mind that uploading a lot of information to DCS might result in a load peak.
+> You should only upload as much information as necessary. 
+> Delete all lines from your Excel that should not be changed.
+
 ## Configuration
-You can configure the behaviour of the mission plugin with an optional config/plugins/mission.yaml:
+You can configure the behavior of the mission plugin with an optional config/plugins/mission.yaml:
 ```yaml
 DEFAULT:
   messages:
@@ -85,14 +104,14 @@ DEFAULT:
     - shot
     - hit
   uploads:                      # Configure how mission uploads are handled
-    enabled: true               # Here you can disable the feature at all (default: true = enabled)
+    enabled: true               # Here you can completely disable the feature (default: true = enabled)
     channel: 112233445566778899 # Optional: mission upload channel (default: admin channel)
     discord:
       - DCS Admin               # Define which roles are allowed to upload missions (default: DCS Admin)
 ```
 
 ## Auto-Scanning
-If you set `autoscan: true` in your server configuration of your servers.yaml, all miz files that were added into the 
+If you set `autoscan: true` in your server configuration of your servers.yaml, all miz files added into the 
 Missions folder of your DCS-server (for instance via a Google Drive) will be auto-added to your mission list.
 
 ## Discord Commands

@@ -4,7 +4,7 @@ from core.data.node import Node
 from discord import app_commands
 from psycopg.rows import dict_row
 
-from .discord import get_interaction_param, check_roles
+from .discord import check_roles
 
 _all_ = [
     'squadron_autocomplete',
@@ -65,7 +65,7 @@ async def squadron_users_autocomplete(interaction: discord.Interaction, current:
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        squadron_id = get_interaction_param(interaction, 'squadron')
+        squadron_id = interaction.namespace.squadron
         if not squadron_id:
             return []
         async with interaction.client.apool.connection() as conn:
@@ -94,7 +94,7 @@ def get_squadron_admins(node: Node, squadron_id: int) -> list[int]:
 
 def squadron_role_check():
     def predicate(interaction: discord.Interaction) -> bool:
-        squadron_id = get_interaction_param(interaction, 'squadron')
+        squadron_id = interaction.namespace.squadron
         if isinstance(squadron_id, int):
             admins = get_squadron_admins(interaction.client.node, squadron_id)
             if interaction.user.id in admins:

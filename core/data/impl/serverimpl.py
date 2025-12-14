@@ -20,6 +20,7 @@ from collections import OrderedDict
 from contextlib import suppress
 from copy import deepcopy
 from core import utils, Server
+from core.const import MAX_SAFE_INTEGER
 from core.data.dataobject import DataObjectFactory
 from core.data.const import Status, Channel, Coalition
 from core.extension import Extension, InstallException, UninstallException
@@ -399,7 +400,7 @@ class ServerImpl(Server):
             if isinstance(value, bool):
                 return value
             elif isinstance(value, int):
-                return str(value)
+                return value if value < MAX_SAFE_INTEGER else str(value)
             elif isinstance(value, Enum):
                 return value.value
             elif isinstance(value, dict):

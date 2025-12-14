@@ -48,7 +48,7 @@ async def date_autocomplete(interaction: discord.Interaction, current: str) -> l
     if not await interaction.command._check_can_run(interaction):
         return []
     target = interaction.client.cogs['Backup'].locals.get('target')
-    node = await utils.NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, "node"))
+    node = await utils.NodeTransformer().transform(interaction, interaction.namespace.node)
     return [
         app_commands.Choice(name=date, value=date) for date in await get_all_dates(node, target)
         if not current or current in date

@@ -3,13 +3,18 @@ import discord
 import os
 
 from contextlib import suppress
+
+import pandas as pd
+from openpyxl.utils import get_column_letter
+
 from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils, get_translation, Side
 from discord import SelectOption, ButtonStyle
 from discord.ui import View, Select, Button
-from io import StringIO
+from io import StringIO, BytesIO
 from ruamel.yaml import YAML
 from typing import cast
 
+from plugins.mission.const import LIQUIDS
 from services.bot import DCSServerBot
 
 WARNING_ICON = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true"
@@ -475,10 +480,11 @@ class AirbaseView(View):
         capture.style = discord.ButtonStyle.blurple if self.data['coalition'] == 1 else discord.ButtonStyle.red
         capture_toggle = self.children[1]
         capture_toggle.style = discord.ButtonStyle.primary if not self.data['auto_capture'] else discord.ButtonStyle.secondary
-        capture_toggle.label = _('Enable Auto Capture') if not self.data['auto_capture'] else _('Disable Auto Capture')
+        capture_toggle.label = _('Auto Capture') if not self.data['auto_capture'] else _('No Auto Capture')
         radio_toggle = self.children[2]
         radio_toggle.style = discord.ButtonStyle.primary if not self.data['radio_silent'] else discord.ButtonStyle.secondary
-        radio_toggle.label = _('Unsilence Radios') if self.data['radio_silent'] else _('Silence Radios')
+        radio_toggle.label = _('ATC On') if self.data['radio_silent'] else _('ATC Off')
+        self.children[3].disabled = all(x is True for x in self.data['unlimited'].values())
 
     # noinspection PyTypeChecker
     @discord.ui.button(label=_('Capture'))
@@ -530,6 +536,63 @@ class AirbaseView(View):
         })
         self.render()
         await interaction.edit_original_response(view=self)
+
+    # noinspection PyTypeChecker
+    @discord.ui.button(label=_("Download Inventory"), style=discord.ButtonStyle.green)
+    async def download(self, interaction: discord.Interaction, button: Button):
+        def dict_to_df(mapping: dict) -> pd.DataFrame:
+            df = pd.DataFrame(list(mapping.items()), columns=["Name", "Count"])
+            return df
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+
+        sheet_titles = {
+            "aircraft": "Aircraft",
+            "weapon": "Weapons",
+            "liquids": "Liquids",
+        }
+
+        warehouse = self.data.get('warehouse', {})
+
+        dataframes = {}
+        for key, title in sheet_titles.items():
+            inner_dict = warehouse.get(key)
+            if key == "liquids":
+                mapped = {LIQUIDS.get(k, k): v for k, v in inner_dict.items()}
+            else:
+                mapped = inner_dict
+            df = dict_to_df(mapped)
+            df.sort_values("Name", inplace=True)
+            dataframes[title] = df
+
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+            for sheet_name, df in dataframes.items():
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+            wb = writer.book
+            for sheet_name, df in dataframes.items():
+                ws = wb[sheet_name]
+                ws.auto_filter.ref = f"A1:{get_column_letter(len(df.columns))}{len(df) + 1}"
+
+                for col_idx, col_name in enumerate(df.columns, start=1):
+                    max_len = max(
+                        df[col_name].astype(str).map(len).max(),  # data
+                        len(col_name)  # header
+                    )
+                    column_letter = get_column_letter(col_idx)
+                    ws.column_dimensions[column_letter].width = max_len + 2
+
+        buffer.seek(0)
+        try:
+            # noinspection PyUnresolvedReferences
+            await interaction.followup.send(
+                file=discord.File(fp=buffer, filename=f"warehouse-{self.airbase['code'].lower()}.xlsx"), ephemeral=True
+            )
+            self.stop()
+        finally:
+            buffer.close()
 
     # noinspection PyTypeChecker
     @discord.ui.button(label=_('Cancel'), style=discord.ButtonStyle.secondary)
