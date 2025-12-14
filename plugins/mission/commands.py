@@ -2539,7 +2539,7 @@ class Mission(Plugin[MissionEventListener]):
             airports = data.get('coalitions', {}).get(coalition, {}).get('airbases')
         else:
             icao = match.group(1).upper()
-            airport = next((x for x in server.current_mission.airbases if x['code'] == icao), None)
+            airport = next((x for x in server.current_mission.airbases if x.get('code', x.get('type')) == icao), None)
             if not airport:
                 await message.channel.send(_("Airport with ICAO {} not found.").format(icao))
                 return

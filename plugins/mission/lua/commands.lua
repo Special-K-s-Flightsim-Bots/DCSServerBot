@@ -164,6 +164,7 @@ function dcsbot.getAirbases(json)
     local airdromes = Terrain.GetTerrainConfig("Airdromes")
     if (airdromes == nil) then
     	utils.sendBotTable(msg, json.channel)
+    	return
     end
     for airdromeID, airdrome in pairs(airdromes) do
         if (airdrome.reference_point) and (airdrome.abandoned ~= true)  then
@@ -211,6 +212,41 @@ function dcsbot.getAirbases(json)
             airbase.dynamic = DCS.getDynamicSpawnSettings(airdromeID, true)
             table.insert(msg.airbases, airbase)
         end
+    end
+    local farpsAndCarriers = DCS.getFarpsAndCarriersMissionData()
+    for carrierID, carrier in pairs(farpsAndCarriers.carriers) do
+        local airbase = {}
+        airbase.name = carrier.name
+        airbase.type = carrier.type
+        airbase.coalition = carrier.coalition
+        airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(carrier.x, carrier.y)
+        airbase.alt = Terrain.GetHeight(carrier.x, carrier.y)
+        airbase.position = {}
+        airbase.position.x = carrier.x
+        airbase.position.y = airbase.alt
+        airbase.position.z = carrier.y
+        airbase.dynamic = DCS.getDynamicSpawnSettings(carrierID, true) or {
+            dynamicSpawnAvailable = false,
+            allowHotSpawn = false
+        }
+        table.insert(msg.airbases, airbase)
+    end
+    for farpID, farp in pairs(farpsAndCarriers.farps) do
+        local airbase = {}
+        airbase.name = farp.name
+        airbase.type = farp.type
+        airbase.coalition = farp.coalition
+        airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(farp.x, farp.y)
+        airbase.alt = Terrain.GetHeight(farp.x, farp.y)
+        airbase.position = {}
+        airbase.position.x = farp.x
+        airbase.position.y = airbase.alt
+        airbase.position.z = farp.y
+        airbase.dynamic = DCS.getDynamicSpawnSettings(farpID, true) or {
+            dynamicSpawnAvailable = false,
+            allowHotSpawn = false
+        }
+        table.insert(msg.airbases, airbase)
     end
 	utils.sendBotTable(msg, json.channel)
 end

@@ -1073,9 +1073,11 @@ async def airbase_autocomplete(interaction: discord.Interaction, current: str) -
         if not server or not server.current_mission:
             return []
         choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=x['name'], value=idx)
+            app_commands.Choice(name="{}".format(x['name'] if x.get('type', '') != 'FARP' else f"FARP {x['name']}"),
+                                value=idx)
             for idx, x in enumerate(server.current_mission.airbases)
-            if not current or current.casefold() in x['name'].casefold() or current.casefold() in x['code'].casefold()
+            if not current or current.casefold() in x['name'].casefold() or
+               current.casefold() in x.get('code', x.get('type')).casefold()
         ]
         return choices[:25]
     except Exception as ex:

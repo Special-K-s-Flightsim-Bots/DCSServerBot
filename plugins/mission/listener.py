@@ -1002,7 +1002,7 @@ class MissionEventListener(EventListener["Mission"]):
     async def send_atis(self, server: Server, player: Player, name: str) -> bool:
         airbase = next((
             x for x in server.current_mission.airbases
-            if (name.casefold() in x['name'].casefold()) or (name.upper() == x['code'])), None)
+            if (name.casefold() in x['name'].casefold()) or (name.upper() == x.get('code', x.get('type')))), None)
 
         if not airbase:
             airbase = await server.send_to_dcs_sync({

@@ -221,7 +221,10 @@ class Info(report.EmbedElement):
         )
 
     async def render(self, airbase: dict, data: dict):
-        self.add_field(name=_('Code'), value=airbase['code'])
+        if 'code' in airbase:
+            self.add_field(name=_('Code'), value=airbase['code'])
+        else:
+            self.add_field(name=_('Type'), value=airbase['type'])
         self.add_field(name=_('Coalition'), value=Side(data['coalition']).name.title())
         self.add_field(name='_ _', value='_ _')
         self.add_field(name=_('Dynamic Spawns'),
