@@ -674,7 +674,7 @@ class MissionEventListener(EventListener["Mission"]):
         admin_channel = self.bot.get_admin_channel(server)
         if not admin_channel:
             return
-        message = _('Banned user {name} (ucid={ucid}, ipaddr={ipaddr}) rejected. Reason: {reason}').format(
+        message = _('Banned user {name} (ucid={ucid}, ipaddr={ipaddr}) rejected.\nReason: {reason}').format(
             name=data.get('name', 'n/a'), ucid=data['ucid'], ipaddr=data['ipaddr'], reason=data['reason'])
         await admin_channel.send(f"```{message}```")
 

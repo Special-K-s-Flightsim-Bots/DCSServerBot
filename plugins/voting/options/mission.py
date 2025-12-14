@@ -10,6 +10,9 @@ class Mission(VotableItem):
     def __init__(self, server: Server, config: dict, params: list[str] | None = None):
         super().__init__('mission', server, config, params)
 
+    def __repr__(self) -> str:
+        return f"Vote to change mission"
+
     async def print(self) -> str:
         return ("You can now vote to change the mission of this server.\n"
                 "If you vote for the current mission, the mission will be restarted!\n"
@@ -23,10 +26,12 @@ class Mission(VotableItem):
     async def execute(self, winner: str):
         if winner == 'No Change':
             return
-        message = f"The mission will change in 60s."
-        await self.server.sendChatMessage(Coalition.ALL, message)
-        await self.server.sendPopupMessage(Coalition.ALL, message)
-        await asyncio.sleep(60)
+        if self.server.is_populated():
+            message = f"The mission will change in 60s."
+            await self.server.sendChatMessage(Coalition.ALL, message)
+            await self.server.sendPopupMessage(Coalition.ALL, message)
+            await asyncio.sleep(60)
+
         for idx, mission in enumerate(await self.server.getMissionList()):
             if winner in mission:
                 asyncio.create_task(self.server.loadMission(mission=idx + 1, modify_mission=False))

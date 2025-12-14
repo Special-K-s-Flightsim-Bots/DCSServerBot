@@ -13,12 +13,15 @@ class Tempban(VotableItem):
         if not self.player:
             raise ValueError('Player "{}" not found.'.format(' '.join(params)))
 
+    def __repr__(self) -> str:
+        return f"Vote to temp ban player {self.player.name}"
+
     async def print(self) -> str:
         return (f"You can now vote to temporary ban player {self.player.name} for {self.config.get('duration', 3)} "
                 f"days because of misbehaviour.")
 
     async def get_choices(self) -> list[str]:
-        return [f"Ban {self.player.name}", f"Don't ban {self.player.name}"]
+        return [f"Don't ban {self.player.name}", f"Ban {self.player.name}"]
 
     async def execute(self, winner: str):
         if winner.startswith("Don't"):

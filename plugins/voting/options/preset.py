@@ -9,6 +9,9 @@ class Preset(VotableItem):
     def __init__(self, server: Server, config: dict, params: list[str] | None = None):
         super().__init__('preset', server, config, params)
 
+    def __repr__(self) -> str:
+        return f"Vote to change preset"
+
     async def print(self) -> str:
         return "You can now vote to change the preset of this server."
 
