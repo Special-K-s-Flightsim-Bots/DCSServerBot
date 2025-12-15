@@ -586,9 +586,10 @@ class AirbaseView(View):
 
         buffer.seek(0)
         try:
+            code = utils.slugify(self.airbase.get('code', self.airbase.get('name', 'XXXX')))
             # noinspection PyUnresolvedReferences
             await interaction.followup.send(
-                file=discord.File(fp=buffer, filename=f"warehouse-{self.airbase['code'].lower()}.xlsx"), ephemeral=True
+                file=discord.File(fp=buffer, filename=f"warehouse-{code.lower()}.xlsx"), ephemeral=True
             )
             self.stop()
         finally:
