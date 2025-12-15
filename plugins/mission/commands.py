@@ -2524,7 +2524,7 @@ class Mission(Plugin[MissionEventListener]):
 
         att = message.attachments[0]
         filename = att.filename.lower()
-        match = re.match(r'^warehouse-([a-zA-Z]{4})\.xlsx?$', filename)
+        match = re.match(r'^warehouse_([^.]*)\.xlsx?$', filename)
         if not match:
             coalition = await utils.selection(
                 ctx,
@@ -2537,6 +2537,9 @@ class Mission(Plugin[MissionEventListener]):
 
             data = await server.send_to_dcs_sync({"command": "getMissionSituation"})
             airports = data.get('coalitions', {}).get(coalition, {}).get('airbases')
+        elif match.group(1).upper() in ['RED', 'BLUE']:
+            data = await server.send_to_dcs_sync({"command": "getMissionSituation"})
+            airports = data.get('coalitions', {}).get(match.group(1).upper(), {}).get('airbases')
         else:
             icao = match.group(1).upper()
             airport = next((x for x in server.current_mission.airbases if x.get('code', x.get('type')) == icao), None)

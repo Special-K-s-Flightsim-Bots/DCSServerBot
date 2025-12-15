@@ -73,6 +73,7 @@ On export, the Excel file will be named `warehouse_<airport>.xlsx`, where airpor
 If you want to upload the warehouse information to any other airport, all you need to do is change the ICAO in its name.
 
 ### Upload a Warehouse Inventory to all Airbases of a Coalition
+If you add "RED" or "BLUE" instead of an ICAO, you can upload the warehouse inventory to all airbases of this coalition.
 You can also _remove_ the ICAO completely and upload a file named `warehouse.xlsx`.
 You will then be asked to which coalition you want to upload the warehouse inventory.
 Afterward, all warehouses of this coalition will be filled with the respective inventory information.
