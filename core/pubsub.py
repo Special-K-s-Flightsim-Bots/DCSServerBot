@@ -45,11 +45,7 @@ class PubSub:
                     RETURNS trigger
                         AS $$
                     BEGIN
-                        PERFORM pg_notify({name}, json_build_object(
-                            'row_id', NEW.id,
-                            'guild_id', NEW.guild_id,
-                            'node', NEW.node
-                        )::text);
+                        PERFORM pg_notify({name}, NEW.node);
                         RETURN NEW;
                     END;
                     $$ LANGUAGE plpgsql;
