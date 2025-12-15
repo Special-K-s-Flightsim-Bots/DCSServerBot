@@ -2490,19 +2490,21 @@ class Mission(Plugin[MissionEventListener]):
         for airport in airports:
             await channel.send(_("Loading warehouse for airport {} ...").format(airport))
             for key, values in sheets.items():
-                await channel.send(_("Uploading {} information to your warehouse ...").format(SHEET_TITLES[key]))
+                await channel.send(_("> uploading {} information ...").format(SHEET_TITLES[key].lower()))
+                tasks = []
                 for k, v in values.items():
                     if key != 'liquids':
                         cmd = "setWarehouseItem"
                     else:
                         cmd = "setWarehouseLiquid"
-                    await server.send_to_dcs_sync({
+                    tasks.append(server.send_to_dcs_sync({
                         "command": cmd,
                         "name": airport,
                         "item": k,
                         "value": v
-                    }, timeout=60)
-            await channel.send(_("Warehouse updated."))
+                    }, timeout=60))
+                await asyncio.gather(*tasks)
+            await channel.send(_("Warehouse at {} updated.").format(airport))
 
     async def handle_warehouse_uploads(self, message: discord.Message):
         if not utils.check_roles(set(self.bot.roles['DCS Admin'] + self.bot.roles['GameMaster']), message.author):
@@ -2559,7 +2561,7 @@ class Mission(Plugin[MissionEventListener]):
         if not await utils.yn_question(
                 ctx,
                 question=_("Do you want to load a new warehouse configuration?"),
-                message=_("This will replace the warehouse configuration for {}").format(','.join(airports))
+                message=_("This will replace the warehouse configuration for:\n{}").format(','.join(airports))
         ):
             await message.channel.send(_("Aborted."))
             return
