@@ -499,14 +499,14 @@ def async_cache(func: Callable):
         # Convert unhashable types to hashable forms
         hashable_args = []
         for k, v in bound_args.arguments.items():
-            if k not in ["interaction"]:  # Removed "self" from exclusion list
+            if k not in ["interaction"]:  # Removed "self" from the exclusion list
                 # For the self-parameter, use its id as part of the key
                 if k == "self":
                     hashable_args.append(id(v))
                 # if we have a .name element, use this as key instead
                 elif hasattr(v, "name") and not isinstance(v, (str, bytes)):
                     hashable_args.append(("name", getattr(v, "name", None)))
-                # Convert lists to tuples, and handle nested lists
+                # Convert lists to tuples and handle nested lists
                 elif isinstance(v, list):
                     hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
                 else:
@@ -608,7 +608,7 @@ def cache_with_expiration(expiration: int):
             # Fast path
             lock = locks.get(cache_key)
             if lock is None:
-                # Create lazily; small race is fine (we only need mutual exclusion, not singletons)
+                # Create lazily; a small race is fine (we only need mutual exclusion, not singletons)
                 lock = asyncio.Lock()
                 locks[cache_key] = lock
             return lock
@@ -958,7 +958,7 @@ def deep_merge(dict1, dict2):
 
 
 def hash_password(password: str) -> str:
-    # Generate an 11 character alphanumeric string
+    # Generate an 11-character alphanumeric string
     key = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(11))
 
     # Create a 32-byte-digest using the "Blake2b" hash algorithm
@@ -1115,7 +1115,7 @@ def for_each(data: dict, search: list[str], depth: int | None = 0, *,
 class YAMLError(Exception):
     """
 
-    The `YAMLError` class is an exception class that is raised when there is an error encountered while parsing or scanning a YAML file.
+    The `YAMLError` class is an exception class raised when there is an error encountered while parsing or scanning a YAML file.
 
     **Methods:**
 

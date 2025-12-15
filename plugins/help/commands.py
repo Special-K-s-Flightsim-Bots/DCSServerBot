@@ -302,8 +302,10 @@ class Help(Plugin[HelpListener]):
                                     role: Literal['Admin', 'DCS Admin', 'DCS'] | None = None,
                                     channel: discord.TextChannel | None = None):
         class DocModal(Modal):
+            # noinspection PyTypeChecker
             header = TextInput(label="Header", default=_("## DCSServerBot Commands"), style=TextStyle.short,
                                required=True)
+            # noinspection PyTypeChecker
             intro = TextInput(label="Intro", style=TextStyle.long, required=True)
 
             def __init__(derived, role: str | None):

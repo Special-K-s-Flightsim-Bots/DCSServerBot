@@ -436,7 +436,7 @@ class Tacview(Extension):
                     try:
                         os.rmdir(dir_y)  # only removes empty directories
                     except OSError:
-                        pass  # directory not empty
+                        pass  # the directory is not empty
         # rewrite / remove the export.lua file
         if os.path.exists(export_file):
             async with aiofiles.open(export_file, mode='r', encoding='utf-8') as infile:

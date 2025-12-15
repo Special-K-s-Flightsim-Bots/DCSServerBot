@@ -8,7 +8,7 @@ from core.listener import EventListener
 from core.services.registry import ServiceRegistry
 from datetime import datetime, timezone
 from discord.ext import commands
-from typing import TYPE_CHECKING, Any, Iterable, cast
+from typing import TYPE_CHECKING, Any, Iterable
 
 if TYPE_CHECKING:
     from core import Server, NodeImpl
@@ -496,7 +496,7 @@ class DCSServerBot(commands.Bot):
         if row:
             try:
                 if channel.type == discord.ChannelType.forum:
-                    thread = cast(discord.ForumChannel, channel).get_thread(row[1])
+                    thread = channel.get_thread(row[1])
                     if thread:
                         message = await thread.fetch_message(row[0])
                 else:

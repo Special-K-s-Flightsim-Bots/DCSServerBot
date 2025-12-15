@@ -261,7 +261,7 @@ and database names if you want to install multiple bots for multiple Discord gro
 > If you need to rename a node, just launch `install.cmd` again with the --node parameter and give it the new name.
 > You will then get a list of existing nodes and will be asked to either add a new node or rename an existing one.
 > Select rename an `existing` one and select the node to be renamed.<br>
-> This might be necessary, if your hostname changes or you move a bot from one PC to another.
+> This might be necessary, if your hostname changes, or you move a bot from one PC to another.
 
 ### Desanitization
 DCSServerBot desanitizes your MissionScripting environment. That means it changes entries in Scripts\MissionScripting.lua
@@ -718,7 +718,7 @@ In these cases, you can run the `repair.cmd` script in the DCSServerBot installa
 ---
 
 ## Backup and Restore
-The platform allows you to backup and restore your database, server configurations, or bot settings. 
+The platform allows you to back up and restore your database, server configurations, or bot settings. 
 The backup and restore functionality are accessible in the Backup [service](./services/backup/README.md) 
 and [plugin](./plugins/backup/README.md).
 

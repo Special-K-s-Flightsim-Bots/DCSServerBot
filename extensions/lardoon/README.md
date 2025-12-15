@@ -29,7 +29,7 @@ MyNode:
           tacviewExportPath: 'G:\My Drive\Tacview Files'  # Alternative drive for tacview files (default: auto-detect from Tacview)
 ```
 Remember to add some kind of security before exposing services like that to the outside world, with, for instance,
-an nginx reverse proxy.</br>
+a nginx reverse proxy.</br>
 If you plan to build Lardoon on your own, I'd recommend the fork of [Team LimaKilo](https://github.com/team-limakilo/lardoon).
 
 > [!IMPORTANT]

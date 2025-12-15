@@ -1480,7 +1480,7 @@ class Tournament(Plugin[TournamentEventListener]):
             'red': utils.get_squadron(self.node, squadron_id=match['squadron_red'])
         }
 
-        # back-up the serversettings.lua
+        # back up the serversettings.lua
         filename = os.path.join(server.instance.home, 'Config', 'serverSettings.lua')
         orig_file = filename + '.orig'
         if not os.path.exists(orig_file):
@@ -1498,7 +1498,7 @@ class Tournament(Plugin[TournamentEventListener]):
         server.locals['channels']['blue'] = channels['blue']
         server.locals['channels']['red'] = channels['red']
 
-        # setup streamer channel (replicates all events from red and blue)
+        # set up streamer channel (replicates all events from red and blue)
         streamer_channel = config.get('channels', {}).get('streamer')
         if streamer_channel:
             server.locals['channels']['blue_events'] = streamer_channel

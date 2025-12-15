@@ -33,7 +33,8 @@ class Restore:
         self.config_dir = config_dir
         self.quiet = quiet
 
-    def unzip(self, file: Path, target: Path) -> None:
+    @staticmethod
+    def unzip(file: Path, target: Path) -> None:
         with zipfile.ZipFile(file, 'r') as zip_ref:
             zip_ref.extractall(target)
 

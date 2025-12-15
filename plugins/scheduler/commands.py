@@ -1,6 +1,4 @@
 import asyncio
-from distutils.dep_util import newer
-
 import discord
 import math
 import os

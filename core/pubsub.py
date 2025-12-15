@@ -2,7 +2,7 @@ import asyncio
 import zlib
 
 from contextlib import suppress
-from psycopg import sql, Connection, OperationalError, AsyncConnection
+from psycopg import sql, Connection, OperationalError, AsyncConnection, InternalError
 from typing import Callable
 
 from core.data.impl.nodeimpl import NodeImpl

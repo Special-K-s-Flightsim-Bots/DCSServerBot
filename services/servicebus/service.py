@@ -277,7 +277,7 @@ class ServiceBus(Service):
                 self.log.info(f"  => Remote DCS-server \"{server_name}\" unregistered.")
                 server.status = Status.UNREGISTERED
                 del self.servers[server_name]
-        # we do not delete the node but set it to None, to reactivate it later
+        # we do not delete the node but set it to "None" to reactivate it later
         self.node.all_nodes[node.name] = None
         self.log.info(f"- Remote node {node.name} unregistered.")
 
@@ -460,7 +460,7 @@ class ServiceBus(Service):
                     # first time we see this instance, so register it
                     _instance = InstanceProxy(name=instance, node=node)
                     node.instances[instance] = _instance
-                cast(InstanceProxy, _instance).home = home
+                _instance.home = home
                 server.instance = _instance
                 server.instance.locals['dcs_port'] = dcs_port
                 server.instance.locals['webgui_port'] = webgui_port

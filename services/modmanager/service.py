@@ -13,7 +13,6 @@ from filecmp import cmp
 from functools import total_ordering
 from packaging import version
 from pathlib import Path, PurePosixPath
-from psycopg.rows import dict_row
 from urllib.parse import urlparse
 
 from ..servicebus import ServiceBus
