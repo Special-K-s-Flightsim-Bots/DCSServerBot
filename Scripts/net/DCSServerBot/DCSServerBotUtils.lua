@@ -47,7 +47,7 @@ function sendBotTable(tbl, channel)
         return
     end
 
-    local msg_id      = tostring(os.time())
+    local msg_id      = tostring(math.floor(socket.gettime() * 1e6))
     local total_parts = math.ceil(#msg / MAX_CHUNK)
 
     for part = 1, total_parts do
