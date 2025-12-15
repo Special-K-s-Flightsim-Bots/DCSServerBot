@@ -229,11 +229,9 @@ function fillCoalitionsData(color)
     end
 
     coalitionColor.statics = {}
---[[
 	for _, static in pairs(coalition.getStaticObjects(coalition.side[color])) do
 		table.insert(coalitionColor.statics, static:getName())
     end
-]]
 	return coalitionColor
 end
 
@@ -244,7 +242,7 @@ function dcsbot.getMissionSituation(channel)
         coalitions = {
 			BLUE = fillCoalitionsData('BLUE'),
 			RED = fillCoalitionsData('RED'),
-			-- NEUTRAL = fillCoalitionsData('NEUTRAL')
+			NEUTRAL = fillCoalitionsData('NEUTRAL')
 		}
     }
     dcsbot.sendBotTable(msg, channel)
