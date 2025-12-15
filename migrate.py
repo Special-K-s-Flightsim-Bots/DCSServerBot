@@ -407,9 +407,10 @@ def migrate_3(node: str):
                 'owner': int(cfg['BOT']['OWNER']),
                 'automatch': cfg['BOT'].getboolean('AUTOMATCH'),
                 'autoban': cfg['BOT'].getboolean('AUTOBAN'),
-                'message_ban': cfg['BOT']['MESSAGE_BAN'],
-                'message_autodelete': int(cfg['BOT']['MESSAGE_AUTODELETE'])
+                'message_ban': cfg['BOT']['MESSAGE_BAN']
             }
+            if int(cfg['BOT']['MESSAGE_AUTODELETE']) > 0:
+                bot['message_autodelete'] = int(cfg['BOT']['MESSAGE_AUTODELETE'])
             # take the first admin channel as the single one
             if single_admin:
                 for server_name, instance in utils.findDCSInstances():

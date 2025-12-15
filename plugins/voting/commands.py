@@ -45,11 +45,12 @@ class Voting(Plugin[VotingListener]):
 
     @vote.command(description=_('Create a vote'))
     @app_commands.guild_only()
+    @app_commands.rename(_server='server')
     @utils.app_has_role('DCS')
     async def create(self, interaction: discord.Interaction,
-                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                     _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                      what: Literal['Restart', 'Mission Change', 'Weather Change']):
-        config = self.get_config(server)
+        config = self.get_config(_server)
         # Users with either the "creator" role or "DCS Admin" can use this command
         roles = set(config.get('creator', []) + self.bot.roles['DCS Admin'])
         if not utils.check_roles(roles, interaction.user):
@@ -71,7 +72,7 @@ class Voting(Plugin[VotingListener]):
                 return
             _creditssystem = cast(CreditSystem, self.bot.cogs['CreditSystem'])
             data = await _creditssystem.get_credits(ucid)
-            campaign_id, campaign_name = utils.get_running_campaign(self.node, server)
+            campaign_id, campaign_name = utils.get_running_campaign(self.node, _server)
             credits = next((x['credits'] for x in data if x['id'] == campaign_id), 0)
             if credits < points:
                 # noinspection PyUnresolvedReferences
@@ -79,20 +80,20 @@ class Voting(Plugin[VotingListener]):
                     _("You don't have enough credits to create a vote!"), ephemeral=True)
                 return
 
-        if self.eventlistener._all_votes.get(server.name):
+        if self.eventlistener._all_votes.get(_server.name):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_('There is already a voting running on this server.'),
                                                     ephemeral=True)
             return
 
         if what == 'Mission Change' and config['options'].get('mission') is not None:
-            message = _("Vote for a mission change on server {}").format(server.name)
+            message = _("Vote for a mission change on server {}").format(_server.name)
             element = 'mission'
         elif what == 'Restart' and config['options'].get('restart') is not None:
-            message = _("Vote for a restart of server {}").format(server.name)
+            message = _("Vote for a restart of server {}").format(_server.name)
             element = 'restart'
         elif what == 'Weather Change' and config['options'].get('preset') is not None:
-            message = _("Vote for a weather change on server {}").format(server.name)
+            message = _("Vote for a weather change on server {}").format(_server.name)
             element = 'preset'
         else:
             # noinspection PyUnresolvedReferences
@@ -108,7 +109,7 @@ class Voting(Plugin[VotingListener]):
 
         class_name = f"plugins.voting.options.{element}.{element.title()}"
         item: VotableItem = utils.str_to_class(class_name)(
-            server, config['options'].get(element)
+            _server, config['options'].get(element)
         )
         choices = await item.get_choices()
         if len(choices) > 2:
@@ -130,8 +131,8 @@ class Voting(Plugin[VotingListener]):
         if not item.can_vote():
             await interaction.followup.send(_('This option is not available at the moment.'), ephemeral=True)
 
-        handler = VotingHandler(listener=self.eventlistener, item=item, server=server, config=config)
-        self.eventlistener._all_votes[server.name] = handler
+        handler = VotingHandler(listener=self.eventlistener, item=item, server=_server, config=config)
+        self.eventlistener._all_votes[_server.name] = handler
         handler.votes[vote] = 1
 
         await interaction.followup.send(_('{} created. It is open for {}').format(

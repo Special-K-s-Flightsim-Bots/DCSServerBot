@@ -530,7 +530,7 @@ autorole:                                       # Automatically give roles to pe
   online: Online                                # Give people that are online on any of your servers the "Online" role.
 no_dcs_autoban: false                           # If true, people banned on your Discord will not be banned on your servers (default: false)
 message_ban: User has been banned on Discord.   # Default reason to show people that try to join your DCS servers when they are banned on Discord.
-message_autodelete: 300                         # Most of the Discord messages are private messages. If not, this is the timeout after which they vanish. Default is 300 (5 mins). 
+message_autodelete: 300                         # Optional: Most of the Discord messages are private messages. If not, this is the timeout after which they vanish. Default is 300 (5 mins). 
 channels:
   admin: 1122334455667788                       # Optional: Central admin channel (see below).
   audit: 88776655443322                         # Central audit channel to send audit events to (default: none)

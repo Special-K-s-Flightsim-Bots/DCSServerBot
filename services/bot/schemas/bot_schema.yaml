@@ -15,7 +15,7 @@ mapping:
       online: {type: text, nullable: false}
   no_dcs_autoban: {type: bool, nullable: false}
   message_ban: {type: str, nullable: false, range: {min: 1}}
-  message_autodelete: {type: int, range: {min: 0}, nullable: false}
+  message_autodelete: {type: int, range: {min: 1}, nullable: false}
   channels:
     type: map
     nullable: false
