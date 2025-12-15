@@ -1,13 +1,14 @@
 import asyncio
 import discord
 
+from aiohttp import ClientError
 from core import Channel, utils, Status, PluginError, Group, Node
 from core.data.node import FatalException
 from core.listener import EventListener
 from core.services.registry import ServiceRegistry
 from datetime import datetime, timezone
 from discord.ext import commands
-from typing import TYPE_CHECKING, Any, Iterable, cast
+from typing import TYPE_CHECKING, Any, Iterable
 
 if TYPE_CHECKING:
     from core import Server, NodeImpl
@@ -251,7 +252,7 @@ class DCSServerBot(commands.Bot):
                 self.synced = True
                 self.log.info('  => Discord Commands registered.')
                 self.log.info('- Discord Bot started, accepting commands.')
-                await self.audit(message="Discord Bot started.")
+                asyncio.create_task(self.audit(message="Discord Bot started."))
             else:
                 self.log.warning('- Discord connection re-established.')
         except FatalException:
@@ -375,6 +376,8 @@ class DCSServerBot(commands.Bot):
                 if ex.code != 429:
                     raise
                 self.log.warning("Audit message discarded due to Discord rate limits: " + message)
+            except ClientError:
+                self.log.warning("Audit message discarded due to connection issue: " + message)
 
         async with self.apool.connection() as conn:
             async with conn.transaction():
@@ -445,7 +448,7 @@ class DCSServerBot(commands.Bot):
 
         return {k: v for k,v in self.servers.items() if check_server_roles(v)}
 
-    def get_server(self, ctx: discord.Interaction | discord.Message | str, *,
+    def get_server(self, ctx: commands.Context | discord.Interaction | discord.Message | str, *,
                    admin_only: bool | None = False) -> "Server | None":
 
         all_servers = self.get_servers(manager=ctx.user if isinstance(ctx, discord.Interaction) else ctx.author)
@@ -493,7 +496,7 @@ class DCSServerBot(commands.Bot):
         if row:
             try:
                 if channel.type == discord.ChannelType.forum:
-                    thread = cast(discord.ForumChannel, channel).get_thread(row[1])
+                    thread = channel.get_thread(row[1])
                     if thread:
                         message = await thread.fetch_message(row[0])
                 else:

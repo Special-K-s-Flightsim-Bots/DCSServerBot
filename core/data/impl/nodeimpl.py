@@ -33,21 +33,21 @@ from psycopg import sql
 from psycopg.errors import UndefinedTable, InFailedSqlTransaction, ConnectionTimeout, UniqueViolation
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
-from typing import Awaitable, Callable, Any, cast
+from typing import Awaitable, Callable, Any
 from typing_extensions import override
 from urllib.parse import urlparse, quote
 from version import __version__
 from zoneinfo import ZoneInfo
 
 from core.autoexec import Autoexec
-from core.data.dataobject import DataObjectFactory, DataObject
+from core.data.dataobject import DataObjectFactory
 from core.data.node import Node, UploadStatus, SortOrder, FatalException
 from core.data.instance import Instance
 from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
 from core.data.impl.serverimpl import ServerImpl
 from core.services.registry import ServiceRegistry
-from core.utils.helper import SettingsDict, YAMLError, cache_with_expiration
+from core.utils.helper import YAMLError, cache_with_expiration
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -1067,7 +1067,7 @@ class NodeImpl(Node):
                         # The master is not alive, take over
                         elif not master or not await is_node_alive(master, config.get('heartbeat', 30)):
                             if master is not None:
-                                self.log.warning(f"The master node {master} is not responding, taking over ...")
+                                self.log.warning(f"The master node {master} is not alive, taking over ...")
                             await take_over()
                             return True
                         # Master is alive, but we are the preferred one

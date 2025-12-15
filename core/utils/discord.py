@@ -21,6 +21,7 @@ from fuzzywuzzy import fuzz
 from packaging.version import parse, Version
 from psycopg.rows import dict_row
 from typing import cast, TYPE_CHECKING, Iterable, Any, Callable
+from typing_extensions import deprecated
 
 from .helper import get_all_players, is_ucid, format_string, cache_with_expiration
 
@@ -57,7 +58,6 @@ __all__ = [
     "print_ruler",
     "match",
     "find_similar_names",
-    "get_interaction_param",
     "get_all_linked_members",
     "NodeTransformer",
     "InstanceTransformer",
@@ -406,6 +406,7 @@ def check_roles(roles: Iterable[str | int], member: discord.Member | None = None
     return False
 
 
+@deprecated("Use app_has_role instead")
 def has_role(role: str):
     """
     Decorator for non-application commands to check if the user has a specific role.
@@ -440,6 +441,7 @@ def app_has_role(role: str):
     return app_commands.check(predicate)
 
 
+@deprecated("Use app_has_roles instead")
 def has_roles(roles: list[str]):
     """
     Decorator for non-application commands to check if the user has one of the provided roles.
@@ -493,8 +495,10 @@ def is_restricted(interaction: discord.Interaction) -> bool:
         return True
     return False
 
+
 def restricted_check(interaction: discord.Interaction) -> bool:
     return not is_restricted(interaction)
+
 
 def get_role_ids(plugin: Plugin, role_names) -> list[int]:
     role_ids = []
@@ -884,29 +888,6 @@ def find_similar_names(list1: list[str], list2: list[str], threshold: int = 90) 
     return similar_names
 
 
-def get_interaction_param(interaction: discord.Interaction, name: str) -> Any | None:
-    """
-    Returns the value of a specific parameter in a Discord interaction.
-
-    :param interaction: The Discord interaction object.
-    :param name: The name of the parameter to retrieve.
-    :return: The value of the parameter, or None if not found.
-    """
-    def inner(root: dict | list) -> Any | None:
-        if isinstance(root, dict):
-            if root.get('name') == name:
-                return root.get('value')
-        elif isinstance(root, list):
-            for param in root:
-                if 'options' in param:
-                    return inner(param['options'])
-                if param['name'] == name:
-                    return param['value']
-        return None
-
-    return inner(interaction.data.get('options', {}))
-
-
 def get_all_linked_members(interaction: discord.Interaction) -> list[discord.Member]:
     """
     :param interaction: the discord Interaction
@@ -1048,7 +1029,7 @@ class InstanceTransformer(app_commands.Transformer):
 
     async def transform(self, interaction: discord.Interaction, value: str | None) -> Instance | None:
         if value:
-            node: Node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, 'node'))
+            node: Node = await NodeTransformer().transform(interaction, interaction.namespace.node)
             if not node:
                 return None
             return node.instances.get(value)
@@ -1061,7 +1042,7 @@ class InstanceTransformer(app_commands.Transformer):
         if not await interaction.command._check_can_run(interaction):
             return []
         try:
-            node: Node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, 'node'))
+            node: Node = await NodeTransformer().transform(interaction, interaction.namespace.node)
             if not node:
                 return []
             if self.unused:
@@ -1088,13 +1069,15 @@ async def airbase_autocomplete(interaction: discord.Interaction, current: str) -
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
+        server: Server = await ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server or not server.current_mission:
             return []
         choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=x['name'], value=idx)
+            app_commands.Choice(name="{}".format(x['name'] if x.get('type', '') != 'FARP' else f"FARP {x['name']}"),
+                                value=idx)
             for idx, x in enumerate(server.current_mission.airbases)
-            if not current or current.casefold() in x['name'].casefold() or current.casefold() in x['code'].casefold()
+            if not current or current.casefold() in x['name'].casefold() or
+               current.casefold() in x.get('code', x.get('type')).casefold()
         ]
         return choices[:25]
     except Exception as ex:
@@ -1124,7 +1107,7 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
+        server: Server = await ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         base_dir = await server.get_missions_dir()
@@ -1143,8 +1126,7 @@ async def group_autocomplete(interaction: discord.Interaction, current: str) -> 
     # is a user is not allowed to run the interaction, they are not allowed to see the autocompletions also
     if not await interaction.command._check_can_run(interaction):
         return []
-    server: Server = await ServerTransformer().transform(interaction,
-                                                         get_interaction_param(interaction, 'server'))
+    server: Server = await ServerTransformer().transform(interaction, interaction.namespace.server)
     return [
         app_commands.Choice(name=group_name, value=group_name)
         for group_name in set(player.group_name for player in server.get_active_players() if player.group_id != 0)
@@ -1227,7 +1209,7 @@ class PlayerTransformer(app_commands.Transformer):
         self.vip = vip
 
     async def transform(self, interaction: discord.Interaction, value: str) -> Player:
-        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
+        server: Server = await ServerTransformer().transform(interaction, interaction.namespace.server)
         return server.get_player(ucid=value, active=self.active)
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -1235,8 +1217,7 @@ class PlayerTransformer(app_commands.Transformer):
             return []
         try:
             if self.active:
-                server: Server = await ServerTransformer().transform(interaction,
-                                                                     get_interaction_param(interaction, 'server'))
+                server: Server = await ServerTransformer().transform(interaction, interaction.namespace.server)
                 if not server:
                     return []
                 choices: list[app_commands.Choice[str]] = [

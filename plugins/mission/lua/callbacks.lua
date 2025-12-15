@@ -1,27 +1,27 @@
-local base      = _G
+local base               = _G
 
-local dcsbot    = base.dcsbot
-local utils 	= base.require("DCSServerBotUtils")
-local Censorship= base.require('censorship')
-local textutil  = base.require('textutil')
+local dcsbot             = base.dcsbot
+local utils              = base.require("DCSServerBotUtils")
+local Censorship         = base.require('censorship')
+local textutil           = base.require('textutil')
 
-dcsbot.banList = dcsbot.banList or {}
-dcsbot.locked = dcsbot.locked or {}
-dcsbot.userInfo = dcsbot.userInfo or {}
-dcsbot.red_slots = dcsbot.red_slots or {}
-dcsbot.blue_slots = dcsbot.blue_slots or {}
-dcsbot.whitelist = dcsbot.whitelist or {}
+dcsbot.banList           = dcsbot.banList or {}
+dcsbot.locked            = dcsbot.locked or {}
+dcsbot.userInfo          = dcsbot.userInfo or {}
+dcsbot.red_slots         = dcsbot.red_slots or {}
+dcsbot.blue_slots        = dcsbot.blue_slots or {}
+dcsbot.whitelist         = dcsbot.whitelist or {}
 
-local mission = mission or {}
-mission.last_landing = {}
+local mission            = mission or {}
+mission.last_landing     = {}
 mission.last_change_slot = {}
 mission.num_change_slots = {}
-mission.last_collision = {}
-mission.last_victim = {}
+mission.last_collision   = {}
+mission.last_victim      = {}
 
-local SERVER_USER_ID = 1
+local SERVER_USER_ID     = 1
 
-local default_names = {
+local default_names      = {
     'Player',
     'Joueur',
     'Spieler',
@@ -52,29 +52,45 @@ local function normalize(name)
     -- 1.  Leet → alpha (single‑char only)
     ---------
     local leet = {
-        ["4"] = "a", ["@"] = "a",
-        ["8"] = "b", ["|3"] = "b",
+        ["4"] = "a",
+        ["@"] = "a",
+        ["8"] = "b",
+        ["|3"] = "b",
         ["3"] = "e",
-        ["1"] = "i", ["!"] = "i", ["|"] = "i",
-        ["0"] = "o", ["()"] = "o",
-        ["$"] = "s", ["5"] = "s",
-        ["7"] = "t", ["+"] = "t",
+        ["1"] = "i",
+        ["!"] = "i",
+        ["|"] = "i",
+        ["0"] = "o",
+        ["()"] = "o",
+        ["$"] = "s",
+        ["5"] = "s",
+        ["7"] = "t",
+        ["+"] = "t",
         ["2"] = "z",
-        ["9"] = "g", ["6"] = "g",
+        ["9"] = "g",
+        ["6"] = "g",
     }
 
     -- Process longer keys first only if you *add* any multi‑char keys again
     for k, v in pairs(leet) do
-        local pat = escapePat(k)        -- literal pattern
-        name = name:gsub(pat, v)        -- replace
+        local pat = escapePat(k) -- literal pattern
+        name = name:gsub(pat, v) -- replace
     end
 
     ---------
     -- 2.  Diacritics → ASCII
     ---------
     local diacritics = {
-        ["á"] = "a", ["é"] = "e", ["í"] = "i", ["ó"] = "o", ["ú"] = "u",
-        ["ä"] = "a", ["ë"] = "e", ["ï"] = "i", ["ö"] = "o", ["ü"] = "u",
+        ["á"] = "a",
+        ["é"] = "e",
+        ["í"] = "i",
+        ["ó"] = "o",
+        ["ú"] = "u",
+        ["ä"] = "a",
+        ["ë"] = "e",
+        ["ï"] = "i",
+        ["ö"] = "o",
+        ["ü"] = "u",
         ["ñ"] = "n",
     }
     for k, v in pairs(diacritics) do
@@ -88,7 +104,7 @@ local function normalize(name)
 end
 
 local function isBanned(ucid)
-	return dcsbot.banList[ucid] ~= nil
+    return dcsbot.banList[ucid] ~= nil
 end
 
 local function isLocked(ucid)
@@ -126,7 +142,7 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
         end
         local msg = {
             command = 'onBanReject',
-			name = name,
+            name = name,
             ucid = ucid,
             ipaddr = ipaddr,
             reason = dcsbot.banList[ucid]
@@ -137,7 +153,7 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
         local old_ucid = dcsbot.banList[ipaddr]
         local msg = {
             command = 'onBanEvade',
-			name = name,
+            name = name,
             ucid = ucid,
             ipaddr = ipaddr,
             old_ucid = old_ucid,
@@ -145,7 +161,7 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
         }
         utils.sendBotTable(msg, config.channels.admin)
         return false, string.gsub(config.messages.message_ban, "{}", dcsbot.banList[old_ucid])
-    -- check if a player is temporarily locked
+        -- check if a player is temporarily locked
     elseif isLocked(ucid) then
         return false, config.messages.message_seat_locked
     end
@@ -168,10 +184,10 @@ end
 
 function mission.onMissionLoadBegin()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onMissionLoadBegin()')
-	if dcsbot.registered == false then
-		dcsbot.registerDCSServer()
-	end
-	if Sim.getCurrentMission() then
+    if dcsbot.registered == false then
+        dcsbot.registerDCSServer()
+    end
+    if Sim.getCurrentMission() then
         local msg = {
             command = 'onMissionLoadBegin',
             current_mission = Sim.getMissionName(),
@@ -200,7 +216,7 @@ function mission.onMissionLoadEnd()
     local availableSlots = Sim.getAvailableSlots("red")
     dcsbot.red_slots = {}
     if availableSlots ~= nil then
-        for k,v in pairs(availableSlots) do
+        for k, v in pairs(availableSlots) do
             dcsbot.red_slots[v.unitId] = v
             num_slots_red = num_slots_red + 1
         end
@@ -210,7 +226,7 @@ function mission.onMissionLoadEnd()
     availableSlots = Sim.getAvailableSlots("blue")
     dcsbot.blue_slots = {}
     if availableSlots ~= nil then
-        for k,v in pairs(availableSlots) do
+        for k, v in pairs(availableSlots) do
             dcsbot.blue_slots[v.unitId] = v
             num_slots_blue = num_slots_blue + 1
         end
@@ -231,10 +247,10 @@ end
 
 function mission.onPlayerConnect(id)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerConnect()')
-	if id == SERVER_USER_ID and dcsbot.registered == false then
-		dcsbot.registerDCSServer()
-	end
-	local msg = {
+    if id == SERVER_USER_ID and dcsbot.registered == false then
+        dcsbot.registerDCSServer()
+    end
+    local msg = {
         command = 'onPlayerConnect',
         id = id,
         name = net.get_player_info(id, 'name'),
@@ -251,15 +267,15 @@ function mission.onPlayerConnect(id)
     dcsbot.userInfo[msg.ucid] = dcsbot.userInfo[msg.ucid] or {}
     dcsbot.userInfo[msg.ucid].points = nil
     mission.num_change_slots[id] = 0
-	utils.sendBotTable(msg)
+    utils.sendBotTable(msg)
 end
 
 function mission.onPlayerStart(id)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerStart()')
-	if id == SERVER_USER_ID and dcsbot.registered == false then
-		dcsbot.registerDCSServer()
-	end
-	local msg = {
+    if id == SERVER_USER_ID and dcsbot.registered == false then
+        dcsbot.registerDCSServer()
+    end
+    local msg = {
         command = 'onPlayerStart',
         id = id,
         ucid = net.get_player_info(id, 'ucid'),
@@ -275,7 +291,7 @@ function mission.onPlayerStart(id)
     else
         msg.active = true
     end
-	utils.sendBotTable(msg)
+    utils.sendBotTable(msg)
 end
 
 function mission.onPlayerStop(id)
@@ -309,23 +325,23 @@ function mission.onPlayerTryChangeSlot(id, side, slot)
     if not slot_spamming or not tonumber(slot) or utils.isDynamic(slot) then
         return
     end
-	if mission.last_change_slot[id] and mission.last_change_slot[id] > (os.clock() - tonumber(slot_spamming['check_time'] or 5)) then
-		mission.num_change_slots[id] = mission.num_change_slots[id] + 1
-		if mission.num_change_slots[id] > tonumber(slot_spamming['slot_changes'] or 5) then
+    if mission.last_change_slot[id] and mission.last_change_slot[id] > (os.clock() - tonumber(slot_spamming['check_time'] or 5)) then
+        mission.num_change_slots[id] = mission.num_change_slots[id] + 1
+        if mission.num_change_slots[id] > tonumber(slot_spamming['slot_changes'] or 5) then
             mission.num_change_slots[id] = -1
-			net.kick(id, slot_spamming['message'])
+            net.kick(id, slot_spamming['message'])
             name = net.get_player_info(id, 'name')
             local msg = {
                 command = 'sendMessage',
                 message = 'Player ' .. name .. ' (ucid=' .. ucid .. ') kicked for slot spamming!'
             }
             utils.sendBotTable(msg, config['channels']['admin'])
-			return false
+            return false
         end
-	else
-		mission.last_change_slot[id] = os.clock()
-    	mission.num_change_slots[id] = 0
-	end
+    else
+        mission.last_change_slot[id] = os.clock()
+        mission.num_change_slots[id] = 0
+    end
 end
 
 function mission.onPlayerChangeSlot(id)
@@ -375,18 +391,18 @@ end
 
 function mission.onSimulationPause()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onSimulationPause()')
-	local msg = {
+    local msg = {
         command = 'onSimulationPause'
     }
-	utils.sendBotTable(msg)
+    utils.sendBotTable(msg)
 end
 
 function mission.onSimulationResume()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onSimulationResume()')
-	local msg = {
+    local msg = {
         command = 'onSimulationResume'
     }
-	utils.sendBotTable(msg)
+    utils.sendBotTable(msg)
 end
 
 local function handleTakeoffLanding(arg1)
@@ -427,7 +443,7 @@ local eventHandlers = {
             end
         end
     end,
-    kill = function(arg1,arg2,arg3,arg4,arg5,arg6,arg7)
+    kill = function(arg1, arg2, arg3, arg4, arg5, arg6, arg7)
         unit_type, slot, sub_slot = utils.getMulticrewAllParameters(arg1)
         display_name = Sim.getUnitTypeAttribute(Sim.getUnitType(slot), "DisplayName")
         -- do we have collision kill (weapon == unit name)
@@ -440,17 +456,17 @@ local eventHandlers = {
     end
 }
 
-function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
+function mission.onGameEvent(eventName, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onGameEvent(' .. eventName .. ')')
     -- Call the appropriate handler based on the eventName
     if eventHandlers[eventName] then
-        result = eventHandlers[eventName](arg1,arg2,arg3,arg4,arg5,arg6,arg7)
+        result = eventHandlers[eventName](arg1, arg2, arg3, arg4, arg5, arg6, arg7)
         if result == false then
             return
         end
     end
 
-	local msg = {
+    local msg = {
         command = 'onGameEvent',
         eventName = eventName,
         arg1 = arg1,
@@ -461,11 +477,11 @@ function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
         arg6 = arg6,
         arg7 = arg7
     }
-	if eventName == 'kill' then
-		msg.killerCategory = utils.getCategory(arg2)
-		msg.victimCategory = utils.getCategory(arg5)
-	end
-	utils.sendBotTable(msg)
+    if eventName == 'kill' then
+        msg.killerCategory = utils.getCategory(arg2)
+        msg.victimCategory = utils.getCategory(arg5)
+    end
+    utils.sendBotTable(msg)
 end
 
 function mission.onPlayerTrySendChat(from, message, to)

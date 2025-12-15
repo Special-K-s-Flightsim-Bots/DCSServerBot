@@ -9,6 +9,9 @@ class Restart(VotableItem):
     def __init__(self, server: Server, config: dict, params: list[str] | None = None):
         super().__init__('restart', server, config, params)
 
+    def __repr__(self):
+        return "Vote to restart server"
+
     def can_vote(self) -> bool:
         return True
         # return not self.server.restart_pending
@@ -23,7 +26,7 @@ class Restart(VotableItem):
         return message
 
     async def get_choices(self) -> list[str]:
-        return ["Restart", "Don't restart"]
+        return ["Don't restart", "Restart"]
 
     async def execute(self, winner: str):
         try:

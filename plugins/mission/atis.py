@@ -10,23 +10,26 @@ class Main(report.EmbedElement):
         lat = ('N' if d > 0 else 'S') + '{:02d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(abs(m)), int(abs(s)))
         d, m, s, f = utils.dd_to_dms(airbase['lng'])
         lng = ('E' if d > 0 else 'W') + '{:03d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(abs(m)), int(abs(s)))
-        self.add_field(name='Code', value=airbase['code'])
+        if airbase.get('code'):
+            self.add_field(name='Code', value=airbase['code'])
         self.add_field(name='Position', value=f'{lat}\n{lng}')
         alt = int(airbase['alt'] * const.METER_IN_FEET)
         self.add_field(name='Altitude', value='{} ft'.format(alt))
-        self.add_field(name='▬' * 30, value='_ _', inline=False)
-        if airbase['frequencyList'] and isinstance(airbase['frequencyList'][0], list):
-            self.add_field(name='Tower Frequencies', value='\n'.join(
-                '{:.3f} MHz'.format(x[0] / 1000000) for x in airbase['frequencyList']))
-        else:
-            self.add_field(name='Tower Frequencies', value='\n'.join(
-                '{:.3f} MHz'.format(x / 1000000) for x in airbase['frequencyList']))
+        if airbase.get('frequencyList'):
+            self.add_field(name='▬' * 30, value='_ _', inline=False)
+            if isinstance(airbase['frequencyList'][0], list):
+                self.add_field(name='Tower Frequencies', value='\n'.join(
+                    '{:.3f} MHz'.format(x[0] / 1000000) for x in airbase['frequencyList']))
+            else:
+                self.add_field(name='Tower Frequencies', value='\n'.join(
+                    '{:.3f} MHz'.format(x / 1000000) for x in airbase['frequencyList']))
         weather = data['weather']
-        active_runways = utils.get_active_runways(airbase['runwayList'], weather['wind']['atGround'])
-        self.add_field(name='Runways (# = active)',
-                       value='\n'.join([(x + '#' if x in active_runways else x) for x in airbase['runwayList']]))
-        self.add_field(name='Heading', value='{}°\n{}°'.format(
-            (airbase['rwy_heading'] + 180) % 360, airbase['rwy_heading']))
+        if airbase.get('runwayList'):
+            active_runways = utils.get_active_runways(airbase['runwayList'], weather['wind']['atGround'])
+            self.add_field(name='Runways (# = active)',
+                           value='\n'.join([(x + '#' if x in active_runways else x) for x in airbase['runwayList']]))
+            self.add_field(name='Heading', value='{}°\n{}°'.format(
+                (airbase['rwy_heading'] + 180) % 360, airbase['rwy_heading']))
         self.add_field(name='▬' * 30, value='_ _', inline=False)
         self.add_field(name='Temperature', value='{:.2f}° C'.format(data['temp']))
         self.add_field(name='Surface Wind',

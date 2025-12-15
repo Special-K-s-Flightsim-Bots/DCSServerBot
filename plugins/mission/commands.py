@@ -1,17 +1,20 @@
+import aiohttp
 import aiofiles
 import asyncio
 import discord
 import importlib
 import os
+import pandas as pd
 import psycopg
 import random
 import re
 import traceback
+import warnings
 
 from contextlib import suppress
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
     Group, ReportEnv, command, PlayerType, DataObjectFactory, Member, DEFAULT_TAG, get_translation, \
-    UnsupportedMizFileException
+    UnsupportedMizFileException, cache_with_expiration
 from datetime import datetime, timezone
 from discord import Interaction, app_commands, SelectOption
 from discord.app_commands import Range, describe
@@ -23,9 +26,11 @@ from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from typing import Literal, Type
 
+from .airbase import Info
+from .const import LIQUIDS
 from .listener import MissionEventListener
 from .upload import MissionUploadHandler
-from .views import ServerView, PresetView, InfoView, ModifyView
+from .views import ServerView, PresetView, InfoView, ModifyView, AirbaseView
 from ..userstats.filter import PeriodFilter
 
 # ruamel YAML support
@@ -34,13 +39,19 @@ yaml = YAML()
 
 _ = get_translation(__name__.split('.')[1])
 
+SHEET_TITLES = {
+    "aircraft": "Aircraft",
+    "weapon": "Weapons",
+    "liquids": "Liquids",
+}
+REVERSE_LIQUIDS = {v: k for k, v in LIQUIDS.items()}
+
 
 async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await utils.ServerTransformer().transform(
-            interaction, utils.get_interaction_param(interaction, 'server'))
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         base_dir = await server.get_missions_dir()
@@ -65,8 +76,7 @@ async def orig_mission_autocomplete(interaction: discord.Interaction, current: s
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await utils.ServerTransformer().transform(interaction,
-                                                                   utils.get_interaction_param(interaction, 'server'))
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         _, file_list = await server.node.list_directory(await server.get_missions_dir(), pattern='*.orig',
@@ -112,9 +122,7 @@ async def nosav_autocomplete(interaction: discord.Interaction, current: str) -> 
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await utils.ServerTransformer().transform(
-            interaction, utils.get_interaction_param(interaction, 'server')
-        )
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         base_dir = await server.get_missions_dir()
@@ -124,6 +132,44 @@ async def nosav_autocomplete(interaction: discord.Interaction, current: str) -> 
             if not x.endswith('.sav') and (not current or current.casefold() in get_name(base_dir, x).casefold())
         ]
         return sorted(choices, key=lambda choice: choice.name)[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+        return []
+
+@cache_with_expiration(180)
+async def get_airbase(server: Server, name: str) -> dict:
+    return await server.send_to_dcs_sync({"command": "getAirbase", "name": name})
+
+async def wh_category_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    try:
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
+        idx = interaction.namespace.airbase
+        airbase: dict = server.current_mission.airbases[idx]
+        data = await get_airbase(server, airbase['name'])
+        return [
+            app_commands.Choice(name=x.title(), value=x)
+            for x in sorted(server.resources.keys())
+            if not data['unlimited'][x]
+        ]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+        return []
+
+
+async def wh_item_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
+    category = interaction.namespace.category
+    try:
+        choices: list[app_commands.Choice[str]] = [
+            app_commands.Choice(name=x['name'], value=x['wstype'])
+            for x in sorted(server.resources.get(category, {}), key=lambda x: x['name'])
+            if not current or current.casefold() in x['name'].casefold()
+        ]
+        return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -207,10 +253,10 @@ class Mission(Plugin[MissionEventListener]):
     # New command group "/mission"
     mission = Group(name="mission", description=_("Commands to manage a DCS mission"))
 
-    @mission.command(description=_('Info about the running mission'))
+    @mission.command(name="info", description=_('Info about the running mission'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
-    async def info(self, interaction: Interaction, server: app_commands.Transform[Server, utils.ServerTransformer]):
+    async def mission_info(self, interaction: Interaction, server: app_commands.Transform[Server, utils.ServerTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -236,35 +282,6 @@ class Mission(Plugin[MissionEventListener]):
             await view.wait()
         finally:
             await interaction.delete_original_response()
-
-    @mission.command(description=_('Information about a specific airport'))
-    @utils.app_has_role('DCS')
-    @app_commands.guild_only()
-    @app_commands.rename(idx=_('airport'))
-    @app_commands.describe(idx=_('Airport for ATIS information'))
-    @app_commands.autocomplete(idx=utils.airbase_autocomplete)
-    async def atis(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer(
-                       status=[Status.RUNNING, Status.PAUSED])],
-                   idx: int):
-        if server.status not in [Status.RUNNING, Status.PAUSED]:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
-                                                    ephemeral=True)
-            return
-        # noinspection PyUnresolvedReferences
-        await interaction.response.defer()
-        airbase = server.current_mission.airbases[idx]
-        data = await server.send_to_dcs_sync({
-            "command": "getWeatherInfo",
-            "x": airbase['position']['x'],
-            "y": airbase['position']['y'],
-            "z": airbase['position']['z']
-        })
-        report = Report(self.bot, self.plugin_name, 'atis.json')
-        env = await report.render(airbase=airbase, data=data, server=server)
-        msg = await interaction.original_response()
-        await msg.edit(embed=env.embed, delete_after=self.bot.locals.get('message_autodelete'))
 
     @mission.command(description=_('Shows briefing of the active mission'))
     @utils.app_has_role('DCS')
@@ -1042,6 +1059,231 @@ class Mission(Plugin[MissionEventListener]):
         await interaction.followup.send(
             _("Persistence for mission {} enabled.").format(os.path.basename(filename)[:-4]), ephemeral=ephemeral)
 
+    # New command group "/airbase"
+    airbase = Group(name='airbase', description=_('Commands to manage airbases'))
+
+    @airbase.command(name="info", description=_('Information about a specific airbase'))
+    @utils.app_has_role('DCS')
+    @app_commands.guild_only()
+    @app_commands.rename(idx=_('airbase'))
+    @app_commands.describe(idx=_('Airbase for warehouse information'))
+    @app_commands.autocomplete(idx=utils.airbase_autocomplete)
+    async def airbase_info(self, interaction: discord.Interaction,
+                           server: app_commands.Transform[Server, utils.ServerTransformer(
+                               status=[Status.RUNNING, Status.PAUSED])],
+                           idx: int):
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
+                                                    ephemeral=True)
+            return
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        airbase = server.current_mission.airbases[idx]
+        data = await server.send_to_dcs_sync({
+            "command": "getAirbase",
+            "name": airbase['name']
+        })
+        colors = {
+            0: "dark_gray",
+            1: "red",
+            2: "blue"
+        }
+        report = Report(self.bot, self.plugin_name, 'airbase.json')
+        env = await report.render(coalition=colors[data['coalition']], airbase=airbase, data=data)
+        if utils.check_roles(set(self.bot.roles['DCS Admin'] + self.bot.roles['GameMaster']), interaction.user):
+            view = AirbaseView(server, airbase, data)
+        else:
+            view = discord.utils.MISSING
+        msg = await interaction.followup.send(embed=env.embed, view=view, ephemeral=utils.get_ephemeral(interaction))
+        try:
+            await view.wait()
+        finally:
+            try:
+                await msg.delete()
+            except discord.NotFound:
+                pass
+
+    @airbase.command(description=_('Automatic Terminal Information Service (ATIS)'))
+    @utils.app_has_role('DCS')
+    @app_commands.guild_only()
+    @app_commands.rename(idx=_('airbase'))
+    @app_commands.describe(idx=_('Airbase for ATIS information'))
+    @app_commands.autocomplete(idx=utils.airbase_autocomplete)
+    async def atis(self, interaction: discord.Interaction,
+                   server: app_commands.Transform[Server, utils.ServerTransformer(
+                       status=[Status.RUNNING, Status.PAUSED])],
+                   idx: int):
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
+                                                    ephemeral=True)
+            return
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        airbase = server.current_mission.airbases[idx]
+        data = await server.send_to_dcs_sync({
+            "command": "getWeatherInfo",
+            "x": airbase['position']['x'],
+            "y": airbase['position']['y'],
+            "z": airbase['position']['z']
+        })
+        report = Report(self.bot, self.plugin_name, 'atis.json')
+        env = await report.render(airbase=airbase, data=data, server=server)
+        msg = await interaction.original_response()
+        await msg.edit(embed=env.embed, delete_after=self.bot.locals.get('message_autodelete'))
+
+    @airbase.command(description=_('Capture an airbase'))
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    @app_commands.guild_only()
+    @app_commands.rename(idx=_('airbase'))
+    @app_commands.describe(idx=_('Airbase to capture'))
+    @app_commands.autocomplete(idx=utils.airbase_autocomplete)
+    async def capture(self, interaction: discord.Interaction,
+                      server: app_commands.Transform[Server, utils.ServerTransformer(
+                          status=[Status.RUNNING, Status.PAUSED])],
+                      idx: int, coalition: Literal['Red', 'Blue', 'Neutral'] | None = None):
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
+                                                    ephemeral=True)
+            return
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        airbase = server.current_mission.airbases[idx]
+        await server.send_to_dcs_sync({
+            "command": "captureAirbase",
+            "name": airbase['name'],
+            "coalition": 1 if coalition == 'Red' else 2 if coalition == 'Blue' else 0
+        })
+        await interaction.followup.send(
+            _("Airbase \"{}\": Coalition changed to **{}**.\n:warning: Auto-capturing is now **disabled**!").format(
+                airbase['name'], coalition.lower()), ephemeral=utils.get_ephemeral(interaction))
+
+    @staticmethod
+    async def manage_items(server: Server, airbase: dict, category: str, item: str | list[int],
+                           value: int | None = None) -> dict:
+        if value is None:
+            if category == 'liquids':
+                return await server.send_to_dcs_sync({
+                    "command": "getWarehouseLiquid",
+                    "name": airbase['name'],
+                    "item": int(item)
+                })
+            else:
+                return await server.send_to_dcs_sync({
+                    "command": "getWarehouseItem",
+                    "name": airbase['name'],
+                    "item": item
+                })
+        else:
+            if category == 'liquids':
+                return await server.send_to_dcs_sync({
+                    "command": "setWarehouseLiquid",
+                    "name": airbase['name'],
+                    "item": int(item),
+                    "value": value * 1000
+                })
+            else:
+                return await server.send_to_dcs_sync({
+                    "command": "setWarehouseItem",
+                    "name": airbase['name'],
+                    "item": item,
+                    "value": value
+                })
+
+    @staticmethod
+    async def manage_category(server: Server, airbase: dict, category: str, value: int | None = None) -> None:
+        tasks = []
+        for item in [x['wstype'] for x in server.resources[category]]:
+            _item = list(map(int, item.split('.'))) if isinstance(item, str) else item
+            tasks.append(asyncio.create_task(
+                Mission.manage_items(server, airbase, category, _item, value))
+            )
+        await asyncio.gather(*tasks)
+
+    @staticmethod
+    async def manage_warehouse(server: Server, airbase: dict, value: int | None = None) -> None:
+        tasks = []
+        for category in server.resources.keys():
+            tasks.append(asyncio.create_task(Mission.manage_category(server, airbase, category, value)))
+        await asyncio.gather(*tasks)
+
+    @airbase.command(description=_('Manage warehouses'))
+    @utils.app_has_role('DCS')
+    @app_commands.guild_only()
+    @app_commands.rename(idx=_('airbase'))
+    @app_commands.describe(idx=_('Airbase for warehouse information'))
+    @app_commands.autocomplete(idx=utils.airbase_autocomplete)
+    @app_commands.autocomplete(category=wh_category_autocomplete)
+    @app_commands.autocomplete(item=wh_item_autocomplete)
+    async def warehouse(self, interaction: discord.Interaction,
+                        server: app_commands.Transform[Server, utils.ServerTransformer(
+                            status=[Status.RUNNING, Status.PAUSED])],
+                        idx: int, category: str | None = None, item: str | None = None, value: int | None = None):
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
+                                                    ephemeral=True)
+            return
+
+        if value is not None and not utils.check_roles(set(self.bot.roles['DCS Admin'] + self.bot.roles['GameMaster']),
+                                                       interaction.user):
+            raise PermissionError(_("You cannot change warehouse items."))
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        airbase = server.current_mission.airbases[idx]
+
+        embed = discord.Embed(title=_("Warehouse information for {}").format(airbase['name']),
+                              color=discord.Color.blue())
+
+        if category and item:
+            _item = list(map(int, item.split('.'))) if isinstance(item, str) else item
+            data = await Mission.manage_items(server, airbase, category, _item, value)
+            if data['value'] == 1000000:
+                display = _("unlimited")
+            elif category == 'liquids':
+                display = _("{} tons").format(data['value'] / 1000)
+            else:
+                display = _("{} pcs").format(data['value'])
+
+            item_name = next(
+                (x['name'] for x in server.resources.get(category) if str(x['wstype']) == item),
+                'n/a'
+            )
+            embed.add_field(name=_("Inventory for {}").format(item_name), value="```" + display + "```")
+            await interaction.followup.send(embed=embed, ephemeral=utils.get_ephemeral(interaction))
+
+        else:
+            if value is not None:
+                message = _("Do you really want to set all {}values in your warehouse to {}?").format(
+                    (category + ' ') if category else '', value)
+                if not utils.yn_question(interaction, message):
+                    await interaction.followup.send(_("Aborted."))
+                    return
+
+                if category is not None:
+                    await Mission.manage_category(server, airbase, category, value)
+                else:
+                    await Mission.manage_warehouse(server, airbase, value)
+
+            data = await server.send_to_dcs_sync({
+                "command": "getAirbase",
+                "name": airbase['name']
+            })
+
+            if not category or category == 'liquids':
+                Info.render_liquids(embed, data)
+            if not category or category == 'weapon':
+                Info.render_weapons(embed, data)
+            if not category or category == 'aircraft':
+                Info.render_aircraft(embed, data)
+
+            await interaction.followup.send(embed=embed, ephemeral=utils.get_ephemeral(interaction))
+
     # New command group "/player"
     player = Group(name="player", description=_("Commands to manage DCS players"))
 
@@ -1396,10 +1638,10 @@ class Mission(Plugin[MissionEventListener]):
                 user.display_name if isinstance(user, discord.Member) else user),
             ephemeral=utils.get_ephemeral(interaction))
 
-    @watch.command(description=_('Shows the watchlist'))
+    @watch.command(name='list', description=_('Shows the watchlist'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def list(self, interaction: discord.Interaction):
+    async def _list(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
@@ -1662,12 +1904,12 @@ class Mission(Plugin[MissionEventListener]):
             except discord.NotFound:
                 pass
 
-    @player.command(description=_('Shows player information'))
+    @player.command(name="info", description=_('Shows player information'))
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
-    async def info(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
-                   player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
+    async def player_info(self, interaction: discord.Interaction,
+                          server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                          player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
         report = Report(self.bot, 'mission', 'player-info.json')
         env = await report.render(player=player)
         # noinspection PyUnresolvedReferences
@@ -1906,7 +2148,7 @@ class Mission(Plugin[MissionEventListener]):
             # Inform about their non-matching playtimes
             await interaction.followup.send(_("The players never played at the same time."))
 
-            # check both players names
+            # check both player names
             cursor = await conn.execute("""
                 SELECT DISTINCT name FROM (
                     SELECT name FROM players WHERE ucid = %(ucid)s
@@ -2092,7 +2334,7 @@ class Mission(Plugin[MissionEventListener]):
                     await channel.edit(name=name)
             except discord.Forbidden:
                 pass
-            except Exception as ex:
+            except Exception:
                 self.log.debug(f"Exception in update_channel_name() for server {server_name}", exc_info=True)
 
     @update_channel_name.before_loop
@@ -2162,8 +2404,7 @@ class Mission(Plugin[MissionEventListener]):
                 await member.add_roles(role)
                 self.log.debug(f"=> Member {member.display_name} is linked and got the {role.name} role.")
 
-    @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
+    async def handle_miz_uploads(self, message: discord.Message):
         pattern = ['.miz', '.sav']
         config = self.get_config().get('uploads', {})
         if not MissionUploadHandler.is_valid(message, pattern, config.get('discord', self.bot.roles['DCS Admin'])):
@@ -2224,6 +2465,125 @@ class Mission(Plugin[MissionEventListener]):
         finally:
             with suppress(discord.errors.NotFound):
                 await message.delete()
+
+    @staticmethod
+    async def load_warehouse_data(buffer: BytesIO) -> dict[str, dict]:
+        xlsx = pd.ExcelFile(buffer)
+        sheets: dict[str, dict] = {}
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            for key, title in SHEET_TITLES.items():
+                df = pd.read_excel(xlsx, sheet_name=title, dtype={"Name": str, "Count": object})
+                data = df.set_index("Name")["Count"].to_dict()
+                if key == "liquids":
+                    data = {
+                        REVERSE_LIQUIDS.get(name, name): value
+                        for name, value in data.items()
+                    }
+                sheets[key] = data
+
+        return sheets
+
+    @staticmethod
+    async def upload_warehouse_data(channel: discord.TextChannel, server: Server, sheets: dict[str, dict],
+                                    airports: list[str]) -> None:
+        for airport in airports:
+            await channel.send(_("Loading warehouse for airport {} ...").format(airport))
+            for key, values in sheets.items():
+                await channel.send(_("Uploading {} information to your warehouse ...").format(SHEET_TITLES[key]))
+                for k, v in values.items():
+                    if key != 'liquids':
+                        cmd = "setWarehouseItem"
+                    else:
+                        cmd = "setWarehouseLiquid"
+                    await server.send_to_dcs_sync({
+                        "command": cmd,
+                        "name": airport,
+                        "item": k,
+                        "value": v
+                    }, timeout=60)
+            await channel.send(_("Warehouse updated."))
+
+    async def handle_warehouse_uploads(self, message: discord.Message):
+        if not utils.check_roles(set(self.bot.roles['DCS Admin'] + self.bot.roles['GameMaster']), message.author):
+            await message.channel.send(_("You need to be DCS Admin or GameMaster to upload data."))
+            return
+
+        ctx = await self.bot.get_context(message)
+        server = self.bot.get_server(message, admin_only=True)
+        if not server:
+            server = await utils.server_selection(self.bot, ctx, title=_("To which server do you want to upload?"))
+
+        if not server:
+            await message.channel.send(_("Aborted."))
+            return
+
+        if server.status not in [Status.PAUSED, Status.RUNNING]:
+            await message.channel.send(_("Server {} has to be running or paused.").format(server.display_name))
+            return
+
+        att = message.attachments[0]
+        filename = att.filename.lower()
+        match = re.match(r'^warehouse_([^.]*)\.xlsx?$', filename)
+        if not match:
+            coalition = await utils.selection(
+                ctx,
+                title=_("Upload to all warehouses of this coalition:"),
+                options=[SelectOption(label="Blue", value="BLUE"), SelectOption(label="Red", value="RED")]
+            )
+            if not coalition:
+                await message.channel.send(_("Aborted."))
+                return
+
+            data = await server.send_to_dcs_sync({"command": "getMissionSituation"})
+            airports = data.get('coalitions', {}).get(coalition, {}).get('airbases')
+        elif match.group(1).upper() in ['RED', 'BLUE']:
+            data = await server.send_to_dcs_sync({"command": "getMissionSituation"})
+            airports = data.get('coalitions', {}).get(match.group(1).upper(), {}).get('airbases')
+        else:
+            icao = match.group(1).upper()
+            airport = next((x for x in server.current_mission.airbases if x.get('code', x.get('type')) == icao), None)
+            if not airport:
+                await message.channel.send(_("Airport with ICAO {} not found.").format(icao))
+                return
+            airports = [airport['name']]
+
+        if not await utils.yn_question(
+                ctx,
+                question=_("Do you want to load a new warehouse configuration?"),
+                message=_("This will replace the warehouse configuration for {}").format(','.join(airports))
+        ):
+            await message.channel.send(_("Aborted."))
+            return
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(att.url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                    response.raise_for_status()
+                    sheets = await self.load_warehouse_data(BytesIO(await response.read()))
+
+            await self.upload_warehouse_data(message.channel, server, sheets, airports)
+            await message.channel.send(_("All data uploaded."))
+        except Exception as ex:
+            self.log.exception(ex)
+            await message.channel.send(_("Error while processing the file: {}").format(ex))
+        finally:
+            with suppress(discord.errors.NotFound):
+                await message.delete()
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.author.bot or not message.attachments:
+            return
+
+        att = message.attachments[0]
+        filename = att.filename.lower()
+        filetype = filename.lower().split('.')[-1]
+
+        if filetype in ['miz', 'sav']:
+            await self.handle_miz_uploads(message)
+        elif filename.startswith('warehouse') and filetype.startswith('xls'):
+            await self.handle_warehouse_uploads(message)
 
     @commands.Cog.listener()
     async def on_member_ban(self, _: discord.Guild, member: discord.Member):

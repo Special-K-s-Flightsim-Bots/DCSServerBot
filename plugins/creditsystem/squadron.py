@@ -47,12 +47,14 @@ class Squadron(DataObject):
                 return row[0]
             else:
                 with conn.transaction():
-                    cursor = conn.execute("""
+                    conn.execute("""
                         INSERT INTO squadron_credits (campaign_id, squadron_id, points) 
                         VALUES (%s, %s, %s) 
                         ON CONFLICT DO NOTHING
-                        RETURNING points;
                     """, (self.campaign_id, self.squadron_id, self.config.get('initial_points', 0)))
+                    cursor = conn.execute("""
+                        SELECT points FROM squadron_credits WHERE campaign_id = %s AND squadron_id = %s
+                    """, (self.campaign_id, self.squadron_id))
                     row = cursor.fetchone()
                 return row[0]
 

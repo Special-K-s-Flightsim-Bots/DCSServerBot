@@ -1,0 +1,10 @@
+{
+  "color": "{coalition}",
+  "title": "Information for \"{airbase[name]}\"",
+  "elements":
+  [
+    {
+      "class": "plugins.mission.airbase.Info"
+    }
+  ]
+}

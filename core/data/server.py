@@ -58,6 +58,7 @@ class Server(DataObject, ABC):
     last_seen: datetime = field(compare=False, default=datetime.now(timezone.utc))
     restart_time: datetime = field(compare=False, default=None)
     idle_since: datetime | None = field(compare=False, default=None)
+    resources: dict = field(repr=False, default_factory=dict)
 
     def __post_init__(self):
         super().__post_init__()

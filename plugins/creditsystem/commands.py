@@ -81,9 +81,10 @@ class CreditSystem(Plugin[CreditSystemListener]):
             member = interaction.user
             ucid = await self.bot.get_ucid_by_member(member)
             if not ucid:
+                _mission = self.bot.cogs['Mission']
                 # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(_("Use {} to link your account.").format(
-                    (await utils.get_command(self.bot, name='linkme')).mention
+                    (await utils.get_command(self.bot, name=_mission.linkme.name)).mention
                 ), ephemeral=True)
                 return
         data = await self.get_credits(ucid)

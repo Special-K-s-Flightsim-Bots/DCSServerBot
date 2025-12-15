@@ -80,7 +80,8 @@ class Report:
         env.params['bot'] = self.bot
 
         # Create an embed with optional color
-        embed_color = getattr(discord.Color, report_def.get('color', 'blue'), discord.Color.blue)()
+        embed_color = getattr(discord.Color, utils.format_string(report_def.get('color', 'blue'), **env.params),
+                              discord.Color.blue)()
         env.embed = discord.Embed(color=embed_color)
 
         # Predefine keys that need formatting and apply transformations

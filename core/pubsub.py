@@ -1,7 +1,8 @@
 import asyncio
+import zlib
 
 from contextlib import suppress
-from psycopg import sql, Connection, OperationalError, AsyncConnection
+from psycopg import sql, Connection, OperationalError, AsyncConnection, InternalError
 from typing import Callable
 
 from core.data.impl.nodeimpl import NodeImpl
@@ -23,58 +24,60 @@ class PubSub:
         self.write_worker = asyncio.create_task(self._process_write())
 
     def create_table(self):
+        lock_key = zlib.crc32(f"PubSubDDL:{self.name}".encode("utf-8"))
+
         with Connection.connect(self.url, autocommit=True) as conn:
-            query = sql.SQL("""
-                CREATE TABLE IF NOT EXISTS {table} (
-                    id SERIAL PRIMARY KEY, 
-                    guild_id BIGINT NOT NULL, 
-                    node TEXT NOT NULL, 
-                    time TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'), 
-                    data JSON
-                )
-            """).format(table=sql.Identifier(self.name))
-            conn.execute(query)
-            query = sql.SQL("""
-                CREATE TABLE IF NOT EXISTS {table} (
-                    id SERIAL PRIMARY KEY, 
-                    guild_id BIGINT NOT NULL, 
-                    node TEXT NOT NULL, 
-                    time TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'), 
-                    data JSON
-                )
-            """).format(table=sql.Identifier(self.name))
-            conn.execute(query)
-            query = sql.SQL("""
-                CREATE OR REPLACE FUNCTION {func}()
-                RETURNS trigger
-                    AS $$
-                BEGIN
-                    PERFORM pg_notify({name}, NEW.node);
-                    RETURN NEW;
-                END;
-                $$ LANGUAGE plpgsql;
-            """).format(func=sql.Identifier(self.name + '_notify'), name=sql.Literal(self.name))
-            conn.execute(query)
-            query = sql.SQL("""
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1
-                        FROM pg_trigger
-                        WHERE tgname = {trigger_name}
-                        AND tgrelid = {name}::regclass
-                    ) THEN
-                        CREATE TRIGGER {trigger}
-                        AFTER INSERT OR UPDATE ON {table}
-                        FOR EACH ROW
-                        EXECUTE PROCEDURE {func}();
-                    END IF;
-                END;
-                $$;
-            """).format(table=sql.Identifier(self.name), trigger=sql.Identifier(self.name + '_trigger'),
-                        func=sql.Identifier(self.name + '_notify'), name=sql.Literal(self.name),
-                        trigger_name=sql.Literal(self.name + '_trigger'))
-            conn.execute(query)
+            try:
+                conn.execute("SELECT pg_advisory_lock(%s)", (lock_key,))
+
+                query = sql.SQL("""
+                    CREATE TABLE IF NOT EXISTS {table} (
+                        id SERIAL PRIMARY KEY, 
+                        guild_id BIGINT NOT NULL, 
+                        node TEXT NOT NULL, 
+                        time TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'), 
+                        data JSONB
+                    )
+                """).format(table=sql.Identifier(self.name))
+                conn.execute(query)
+                query = sql.SQL("""
+                    CREATE OR REPLACE FUNCTION {func}()
+                    RETURNS trigger
+                        AS $$
+                    BEGIN
+                        PERFORM pg_notify({name}, NEW.node);
+                        RETURN NEW;
+                    END;
+                    $$ LANGUAGE plpgsql;
+                """).format(func=sql.Identifier(self.name + '_notify'), name=sql.Literal(self.name))
+                conn.execute(query)
+                query = sql.SQL("""
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1
+                            FROM pg_trigger
+                            WHERE tgname = {trigger_name}
+                            AND tgrelid = {name}::regclass
+                        ) THEN
+                            CREATE TRIGGER {trigger}
+                            AFTER INSERT OR UPDATE ON {table}
+                            FOR EACH ROW
+                            EXECUTE PROCEDURE {func}();
+                        END IF;
+                    END;
+                    $$;
+                """).format(table=sql.Identifier(self.name), trigger=sql.Identifier(self.name + '_trigger'),
+                            func=sql.Identifier(self.name + '_notify'), name=sql.Literal(self.name),
+                            trigger_name=sql.Literal(self.name + '_trigger'))
+                conn.execute(query)
+
+            except InternalError as ex:
+                self.log.exception(ex)
+                raise
+            finally:
+                with suppress(Exception):
+                    conn.execute("SELECT pg_advisory_unlock(%s)", (lock_key,))
 
     async def _process_write(self):
         await asyncio.sleep(1)  # Ensure the rest of __init__ has finished

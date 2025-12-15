@@ -310,8 +310,6 @@ class CreditSystemListener(EventListener["CreditSystem"]):
 
     @chat_command(name="tip", help=_("Tip a GCI with points"))
     async def tip(self, server: Server, player: CreditPlayer, params: list[str]):
-        player: CreditPlayer = cast(CreditPlayer, player)
-
         if not params:
             await player.sendChatMessage(_("Usage: {prefix}{command} points [gci_number]").format(
                 prefix=self.prefix, command=self.tip.name))

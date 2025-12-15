@@ -46,7 +46,7 @@ async def available_modules_autocomplete(interaction: discord.Interaction,
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        node = await utils.NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, "node"))
+        node = await utils.NodeTransformer().transform(interaction, interaction.namespace.node)
         available_modules = (set(await node.get_available_modules()) -
                              set(await node.get_installed_modules()))
         return [
@@ -64,7 +64,7 @@ async def installed_modules_autocomplete(interaction: discord.Interaction,
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        node = await utils.NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, "node"))
+        node = await utils.NodeTransformer().transform(interaction, interaction.namespace.node)
         available_modules = await node.get_installed_modules()
         choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=x, value=x)
@@ -81,8 +81,7 @@ async def label_autocomplete(interaction: discord.Interaction, current: str) -> 
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await utils.ServerTransformer().transform(
-            interaction, utils.get_interaction_param(interaction, 'server'))
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         config = interaction.client.cogs['Admin'].get_config(server)
@@ -102,8 +101,7 @@ async def label_autocomplete(interaction: discord.Interaction, current: str) -> 
 
 async def _mission_file_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     try:
-        server: Server = await utils.ServerTransformer().transform(
-            interaction, utils.get_interaction_param(interaction, 'server'))
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         file_list = await server.getAllMissionFiles()
         exp_base = await server.get_missions_dir()
         choices: list[app_commands.Choice[str]] = [
@@ -121,11 +119,10 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await utils.ServerTransformer().transform(
-            interaction, utils.get_interaction_param(interaction, 'server'))
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
-        label = utils.get_interaction_param(interaction, "what")
+        label = interaction.namespace.what
         # missions will be handled differently
         if label == 'Missions':
             return await _mission_file_autocomplete(interaction, current)
@@ -211,9 +208,9 @@ async def get_dcs_branches(interaction: discord.Interaction, current: str) -> li
 async def get_dcs_versions(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    branch = utils.get_interaction_param(interaction, 'branch')
+    branch = interaction.namespace.branch
     if not branch:
-        node = await NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, 'node'))
+        node = await NodeTransformer().transform(interaction, interaction.namespace.node)
         branch, _ = await node.get_dcs_branch_and_version()
     versions = await interaction.client.node.get_available_dcs_versions(branch)
     return [
@@ -240,8 +237,7 @@ async def all_servers_autocomplete(interaction: discord.Interaction, current: st
 async def extensions_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    server: Server = await utils.ServerTransformer().transform(
-        interaction, utils.get_interaction_param(interaction, 'server'))
+    server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
     extensions = await server.list_extension()
     current = current.casefold()
     choices: list[app_commands.Choice[str]] = [

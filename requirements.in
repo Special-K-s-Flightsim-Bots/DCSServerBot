@@ -27,7 +27,7 @@ discord.py==2.6.4
 eyeD3==0.9.9
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.123.10
+fastapi==0.124.4
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -45,7 +45,7 @@ jsonschema==4.25.1
 lupa==2.6
 
 # Matplotlib: Python 2D plotting library
-matplotlib>=3.9.4
+matplotlib==3.10.8
 
 # MGRS: Python library for handling MGRS conversions
 mgrs>=1.5.0 ; python_version < "3.13"
@@ -73,7 +73,7 @@ pid==3.0.4
 pip-tools==7.5.2
 
 # Psycopg: PostgreSQL database adapter for Python
-psycopg[binary]==3.3.1
+psycopg[binary]==3.3.2
 
 # Psycopg Pool: PostgreSQL database adapter pool for Python
 psycopg-pool==3.3.0

@@ -65,7 +65,7 @@ async def songs_autocomplete(interaction: discord.Interaction, current: str) -> 
     try:
         service = ServiceRegistry.get(MusicService)
         music_dir = await service.get_music_dir()
-        playlist = await Playlist.create(utils.get_interaction_param(interaction, 'playlist'))
+        playlist = await Playlist.create(interaction.namespace.playlist)
         ret = []
         for song in playlist.items:
             title = get_tag(os.path.join(music_dir, song)).title or song
@@ -82,8 +82,7 @@ async def radios_autocomplete(interaction: discord.Interaction, current: str) ->
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await utils.ServerTransformer().transform(
-            interaction, utils.get_interaction_param(interaction, 'server'))
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         service = ServiceRegistry.get(MusicService)

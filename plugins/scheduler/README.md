@@ -20,11 +20,14 @@ The main structure of the scheduler.yaml consists out of these blocks:
 
 a) DEFAULT Section
 ```yaml
-DEFAULT:                                          # the DEFAULT block is valid for ALL your servers
-  startup_delay: 10                               # delay in seconds between the startup of each DCS instance (default: 10)
-  warn:                                           # warn times before a restart / shutdown (see an alternative format below)
-    text: '!!! {item} will {what} in {when} !!!'  # Message to be displayed as a popup in DCS. These variables can be used in your own message. 
-    times:                                        # List of times when a message will be displayed
+DEFAULT:                                              # the DEFAULT block is valid for ALL your servers
+  startup_delay: 10                                   # delay in seconds between the startup of each DCS instance (default: 10)
+  warn:                                               # warn times before a restart / shutdown (see an alternative format below)
+    message: '!!! {item} will {what} in {when} !!!'   # Message to be displayed as a popup in DCS. These variables can be used in your own message. 
+    countdown:                                        # Optional: Send a countdown
+      time: 10                                        # ... 10 seconds before shutdown
+      message: '!!! {item} will {what} in {when} !!!' # Optional: Message to be sent (default: warn/message)
+    times:                                            # List of times when a message will be displayed
     - 600
     - 300
     - 60

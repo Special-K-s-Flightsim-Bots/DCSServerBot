@@ -81,6 +81,7 @@ mapping:
       no_join_with_cursename: {type: bool, nullable: false}
       server_user: {type: str, nullable: false, range: {min: 1}}
       show_passwords: {type: bool, nullable: false}
+      show_atis: {type: bool, nullable: false}
       mission_rewrite: {type: bool, nullable: false}
       afk:
         type: map

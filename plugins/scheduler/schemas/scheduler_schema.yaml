@@ -70,13 +70,18 @@ schema;element_schema:
       type: map
       nullable: false
       mapping:
-        text: {type: str, nullable: false}
+        message: {type: str, nullable: false}
         sound: {type: str, nullable: false}
         times:
           type: any
           nullable: false
           func: seq_or_map
           enum: ['warn_seq', 'warn_map']
+        countdown:
+          type: map
+          mapping:
+            time: {type: int, range: {min: 0}, nullable: false}
+            message: {type: str, nullable: false}
     schedule:
       type: map
       nullable: false

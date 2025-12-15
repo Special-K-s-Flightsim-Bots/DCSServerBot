@@ -267,7 +267,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             return
 
         delta_time = int(time.time()) - shot_time
-        if delta_time < MAX_MISSILE_TIME:
+        if shot_time > 0 and delta_time < MAX_MISSILE_TIME:
             event = {
                 "eventName": "reslot",
                 "server_name": server.name,

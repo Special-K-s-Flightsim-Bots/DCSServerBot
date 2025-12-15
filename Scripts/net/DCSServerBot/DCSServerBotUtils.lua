@@ -57,6 +57,9 @@ end
 
 function saveSettings(settings)
     mergedSettings = mergeGuiSettings(settings)
+    if mergedSettings.name ~= server_name then
+        server_name = mergedSettings.name
+    end
     U.saveInFile(mergedSettings, "cfg", lfs.writedir() .. "Config/serverSettings.lua")
     return true
 end

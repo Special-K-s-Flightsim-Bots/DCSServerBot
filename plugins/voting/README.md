@@ -57,10 +57,21 @@ DEFAULT:
     mission: {}         # Select all available presets of your serverSettings.lua
 ```
 
+## Discord Commands
+| Command      | Parameter     | Channel | Role      | Description                                                              |
+|:-------------|:--------------|:-------:|:----------|:-------------------------------------------------------------------------|
+| /vote list   |               |   all   | DCS       | Lists all active votes on servers.                                       |
+| /vote create | server choice |   all   | DCS       | Create a new vote. Permission specifics might apply (e.g. creator role). |
+| /vote cancel | server        |   all   | DCS Admin | Cancel the running vote on this server.                                  |
+
+> [!IMPORTANT]
+> You need to define the `creator` role in your voting.yaml to use `/vote create`.
+> This is to avoid that random people can create votes in your Discord server.
+
 ## In-Game Commands
 | Command | Parameter          | Description                                      |
-|---------|--------------------|--------------------------------------------------|
-| -vote   | \<what\> \[param\] | Start a voting .                                 | 
+|:--------|:-------------------|:-------------------------------------------------|
+| -vote   | \<what\> \[param\] | Start a voting.                                  | 
 | -vote   | cancel             | Cancel a voting (only DCS Admin can do that).    |
 | -vote   | <num>              | Vote for one of the options.                     |
 | -vote   |                    | Display the current voting and the leading vote. |

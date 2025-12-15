@@ -79,7 +79,7 @@ async def squadron_autocomplete(interaction: discord.Interaction, current: str,
         ucid = None
         squadron_admin_sql = ""
 
-    tournament_id = utils.get_interaction_param(interaction, "tournament")
+    tournament_id = interaction.namespace.tournament
     if config == 'all':
         sub_query = ""
     elif config == 'reject':
@@ -122,7 +122,7 @@ async def valid_squadron_autocomplete(interaction: discord.Interaction, current:
 async def stage_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    tournament_id = utils.get_interaction_param(interaction, "tournament")
+    tournament_id = interaction.namespace.tournament
     async with interaction.client.apool.connection() as conn:
         cursor = await conn.execute("""
             SELECT COALESCE(MAX(stage), 1) 
@@ -139,7 +139,7 @@ async def stage_autocomplete(interaction: discord.Interaction, current: str) -> 
 async def server_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    tournament_id = utils.get_interaction_param(interaction, "tournament")
+    tournament_id = interaction.namespace.tournament
     async with interaction.client.apool.connection() as conn:
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=row[0], value=row[0])
@@ -161,7 +161,7 @@ async def server_autocomplete(interaction: discord.Interaction, current: str) ->
 async def all_matches_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    tournament_id = utils.get_interaction_param(interaction, "tournament")
+    tournament_id = interaction.namespace.tournament
     async with interaction.client.apool.connection() as conn:
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=row[1] + ' vs ' + row[2], value=row[0])
@@ -182,7 +182,7 @@ async def all_matches_autocomplete(interaction: discord.Interaction, current: st
 async def active_matches_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    tournament_id = utils.get_interaction_param(interaction, "tournament")
+    tournament_id = interaction.namespace.tournament
     async with interaction.client.apool.connection() as conn:
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=row[1] + ' vs ' + row[2], value=row[0])
@@ -211,7 +211,7 @@ async def active_matches_autocomplete(interaction: discord.Interaction, current:
 async def match_squadrons_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    match_id = utils.get_interaction_param(interaction, "match")
+    match_id = interaction.namespace.match
     async with interaction.client.apool.connection() as conn:
         cursor = await conn.execute("SELECT squadron_blue, squadron_red FROM tm_matches WHERE match_id = %s",
                                     (match_id, ))
@@ -227,7 +227,7 @@ async def match_squadrons_autocomplete(interaction: discord.Interaction, current
 async def mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    match_id = utils.get_interaction_param(interaction, "match")
+    match_id = interaction.namespace.match
     async with interaction.client.apool.connection() as conn:
         cursor = await conn.execute(f"""
             SELECT server_name FROM tm_matches WHERE match_id = %s
@@ -252,7 +252,7 @@ async def date_autocomplete(interaction: discord.Interaction, current: str) -> l
 
 
 async def time_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    tournament_id = utils.get_interaction_param(interaction, "tournament")
+    tournament_id = interaction.namespace.tournament
     async with interaction.client.apool.connection() as conn:
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=row[0].strftime("%H:%M"), value=row[0].hour * 3600 + row[0].minute * 60)
@@ -264,8 +264,8 @@ async def time_autocomplete(interaction: discord.Interaction, current: str) -> l
 
 
 async def tickets_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    tournament_id = utils.get_interaction_param(interaction, "tournament")
-    squadron_id = utils.get_interaction_param(interaction, "squadron")
+    tournament_id = interaction.namespace.tournament
+    squadron_id = interaction.namespace.squadron
     async with interaction.client.apool.connection() as conn:
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=row[0], value=row[0])
@@ -1480,7 +1480,7 @@ class Tournament(Plugin[TournamentEventListener]):
             'red': utils.get_squadron(self.node, squadron_id=match['squadron_red'])
         }
 
-        # back-up the serversettings.lua
+        # back up the serversettings.lua
         filename = os.path.join(server.instance.home, 'Config', 'serverSettings.lua')
         orig_file = filename + '.orig'
         if not os.path.exists(orig_file):
@@ -1498,7 +1498,7 @@ class Tournament(Plugin[TournamentEventListener]):
         server.locals['channels']['blue'] = channels['blue']
         server.locals['channels']['red'] = channels['red']
 
-        # setup streamer channel (replicates all events from red and blue)
+        # set up streamer channel (replicates all events from red and blue)
         streamer_channel = config.get('channels', {}).get('streamer')
         if streamer_channel:
             server.locals['channels']['blue_events'] = streamer_channel

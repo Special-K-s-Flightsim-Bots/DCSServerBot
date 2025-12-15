@@ -13,8 +13,7 @@ _ = get_translation(__name__.split('.')[1])
 
 async def list_tacview_files(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     try:
-        server: Server = await utils.ServerTransformer().transform(
-            interaction, utils.get_interaction_param(interaction, 'server'))
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         config = (server.node.locals.get('extensions', {}).get('Tacview', {}) |

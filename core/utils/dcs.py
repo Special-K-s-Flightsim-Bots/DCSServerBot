@@ -28,6 +28,7 @@ __all__ = [
     "dms_to_dd",
     "dd_to_mgrs",
     "mgrs_to_dd",
+    "rad_to_heading",
     "get_active_runways",
     "create_writable_mission",
     "get_orig_file",
@@ -310,7 +311,12 @@ def mgrs_to_dd(value: str) -> tuple[float, float]:
         return ll_coords['lat'], ll_coords['lon']
 
 
-def get_active_runways(runways, wind):
+def rad_to_heading(rad: float) -> float:
+    """Return a heading in [0, 360) degrees for a radian value."""
+    return (360.0 - (rad * 180.0 / math.pi)) % 360.0
+
+
+def get_active_runways(runways: list, wind: dict):
     retval = []
     for runway in runways:
         heading = int(runway[:2]) * 10
