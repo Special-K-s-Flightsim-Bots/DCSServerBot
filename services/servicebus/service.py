@@ -965,12 +965,12 @@ class ServiceBus(Service):
         port = self.node.listen_port.port
 
         class UDPSocket(socket.socket):
-            def __init__(self):
+            def __init__(derived):
                 super().__init__(socket.AF_INET, socket.SOCK_DGRAM)
-                self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                derived.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 # make them buffers huge
-                self.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 2 << 20)
-                self.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2 << 20)
+                derived.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 2 << 20)
+                derived.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2 << 20)
 
         sock = UDPSocket()
         sock.bind((host, port))
