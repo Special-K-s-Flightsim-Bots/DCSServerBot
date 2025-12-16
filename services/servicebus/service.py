@@ -4,6 +4,7 @@ import discord
 import inspect
 import json
 import socket
+import time
 import uuid
 
 from concurrent.futures import ThreadPoolExecutor
@@ -725,37 +726,165 @@ class ServiceBus(Service):
         await asyncio.gather(*tasks, return_exceptions=True)
 
     async def start_udp_listener(self):
-        class UDPProtocol(asyncio.DatagramProtocol):
+        MAX_WAIT = 30.0  # seconds – drop fragments that never finish
+        CLEANUP_INTERVAL = 10.0  # seconds
+
+        class FragmentBuffer:
+            """
+            Holds incomplete fragments keyed by (msg_id, server_name).
+            """
+
             def __init__(derived):
-                self.log.debug('Initializing UDP Protocol')
+                # key: (msg_id, port)
+                # value: {"total": int, "parts": dict[int, bytes], "timestamp": float}
+                derived._data: dict[tuple[str, int], dict] = {}
+                derived._lock = asyncio.Lock()
+
+            async def add_fragment(derived, msg_id: str, total: int, seq: int,
+                                   payload: bytes, port: int) -> bool:
+                """
+                Add a fragment. Returns True when the whole message is now complete.
+                """
+                key = (msg_id, port)
+                async with derived._lock:
+                    buf = derived._data.setdefault(key, {
+                        "total": total,
+                        "parts": {},
+                        "timestamp": time.time(),
+                    })
+                    # Sanity check – ignore out‑of‑range or duplicate fragments
+                    if seq < 1 or seq > total:
+                        self.log.debug("Ignoring out‑of‑range fragment %d/%d", seq, total)
+                        return False
+                    if seq in buf["parts"]:
+                        self.log.debug("Duplicate fragment %d/%d", seq, total)
+                        return False
+
+                    buf["parts"][seq] = payload
+                    buf["timestamp"] = time.time()
+
+                    # Are we done yet?
+                    if len(buf["parts"]) == total:
+                        return True
+                    return False
+
+            async def get_full_message(derived, msg_id: str, port: int) -> bytes | None:
+                """
+                Retrieve and remove the fully assembled payload, or None if incomplete.
+                """
+                key = (msg_id, port)
+                async with derived._lock:
+                    buf = derived._data.get(key)
+                    if not buf or len(buf["parts"]) != buf["total"]:
+                        return None
+                    # Reorder parts
+                    parts = [buf["parts"][i] for i in range(1, buf["total"] + 1)]
+                    full_payload = b"".join(parts)
+                    # Clean up
+                    del derived._data[key]
+                    return full_payload
+
+            async def cleanup(derived):
+                """
+                Drop any fragment set that has been idle longer than MAX_WAIT.
+                """
+                async with derived._lock:
+                    now = time.time()
+                    keys_to_remove = [
+                        k for k, v in derived._data.items()
+                        if now - v["timestamp"] > MAX_WAIT
+                    ]
+                    for k in keys_to_remove:
+                        self.log.info("Fragment buffer timeout for %s", k)
+                        del derived._data[k]
+
+        class UDPProtocol(asyncio.DatagramProtocol):
+            """
+            The original protocol you already have, extended with reassembly.
+            """
+
+            def __init__(derived,):
                 derived.transport = None
                 derived.message_queue: dict[str, asyncio.Queue] = {}
+                derived._frag_buf = FragmentBuffer()
+                derived._cleanup_task = asyncio.create_task(derived._cleanup_loop())
 
             def connection_made(derived, transport):
                 derived.transport = transport
 
-            def datagram_received(derived, data, addr):
+            async def _cleanup_loop(derived):
+                while True:
+                    await asyncio.sleep(CLEANUP_INTERVAL)
+                    await derived._frag_buf.cleanup()
+
+            def datagram_received(derived, data: bytes, addr):
+                """
+                1. Try to split the header.
+                2. If the header is present, store the fragment.
+                3. If the message is complete, pass it to the normal handler.
+                4. If not split, treat it as a normal JSON packet.
+                """
                 if not data:
-                    self.log.warning(f"Empty request received on port {self.node.listen_port.port} - ignoring.")
+                    self.log.warning(f"Empty request received from {addr} - ignoring.")
                     return
 
+                # Check for the split header
+                parts = data.split(b"|", 4)
+                if len(parts) == 5:
+                    msg_id_b, port_b, total_b, seq_b, payload = parts
+                    try:
+                        msg_id = msg_id_b.decode("ascii")
+                        port = int(port_b)
+                        total = int(total_b)
+                        seq = int(seq_b)
+                    except Exception as e:
+                        self.log.debug("Invalid split header %s – treating as normal", parts)
+                        derived._handle_raw_payload(data)
+                    else:
+                        # 2️⃣  Store fragment and see if we are finished
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(derived._process_fragment(msg_id, port, total, seq, payload))
+                        return  # early exit – we’ll process once all fragments are in
+
+                # Normal (unsplit) JSON packet
+                derived._handle_raw_payload(data)
+
+            async def _process_fragment(derived, msg_id: str, port: int, total: int, seq: int, payload: bytes):
+                """
+                Called when a split fragment is received.  When the message
+                is complete, the fully assembled payload is handed to
+                _handle_raw_payload().
+                """
+                finished = await derived._frag_buf.add_fragment(
+                    msg_id, total, seq, payload, port
+                )
+
+                if finished:
+                    full_payload = await derived._frag_buf.get_full_message(msg_id, port)
+                    if full_payload is None:
+                        self.log.error("Buffer race – full payload vanished")
+                        return
+                    derived._handle_raw_payload(full_payload)
+
+            def _handle_raw_payload(derived, payload: bytes):
                 try:
-                    msg_data: dict = json.loads(data.strip())
+                    msg_data = json.loads(payload.decode("utf-8"))
                 except json.JSONDecodeError:
-                    self.log.warning(f"Invalid request received on port {self.node.listen_port.port} - ignoring.")
+                    self.log.warning(f"Invalid JSON from {derived.transport.get_extra_info('peername')}")
                     return
 
                 server_name = msg_data.get('server_name')
                 if not server_name:
-                    self.log.warning('Message without server_name received: {}'.format(msg_data))
+                    self.log.warning("Message without server_name received: %s", msg_data)
                     return
 
-                self.log.debug('{}->HOST: {}'.format(server_name, json.dumps(msg_data)))
+                self.log.debug(f"{server_name}->HOST: {json.dumps(msg_data)}")
 
                 server = self.servers.get(server_name)
                 if not server:
                     self.log.debug(
-                        f"Command {msg_data['command']} received for unregistered server {server_name}, ignoring.")
+                        f"Command {msg_data.get('command')} received for unregistered server {server_name}, ignoring."
+                    )
                     return
 
                 server.last_seen = datetime.now(timezone.utc)
@@ -766,8 +895,8 @@ class ServiceBus(Service):
                         f = server.listeners.get(msg_data['channel'])
                         if f and not f.done():
                             self.loop.call_soon(f.set_result, msg_data)
-                        if msg_data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
-                            return
+                    if msg_data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
+                        return
 
                 # Create a queue if it doesn't exist and schedule processing
                 if server_name not in derived.message_queue:
@@ -834,14 +963,14 @@ class ServiceBus(Service):
         # Start the UDP server
         host = self.node.listen_address
         port = self.node.listen_port.port
-        max_packet_size = 65504  # Maximum UDP packet size
 
         class UDPSocket(socket.socket):
             def __init__(self):
                 super().__init__(socket.AF_INET, socket.SOCK_DGRAM)
                 self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                self.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, max_packet_size)
-                self.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, max_packet_size)
+                # make them buffers huge
+                self.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 2 << 20)
+                self.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2 << 20)
 
         sock = UDPSocket()
         sock.bind((host, port))

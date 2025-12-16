@@ -74,7 +74,8 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'missionstats.json')
         env = await report.render(stats=stats, mission_id=server.mission_id,
-                                  sides=utils.get_sides(interaction.client, interaction, server))
+                                  sides=utils.get_sides(interaction.client, interaction, server),
+                                  title='Mission Statistics')
         await interaction.followup.send(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
     @command(description=_('Display statistics about sorties'))

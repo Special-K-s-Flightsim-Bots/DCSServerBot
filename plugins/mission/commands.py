@@ -1065,23 +1065,24 @@ class Mission(Plugin[MissionEventListener]):
     @airbase.command(name="info", description=_('Information about a specific airbase'))
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
+    @app_commands.rename(_server='server')
     @app_commands.rename(idx=_('airbase'))
     @app_commands.describe(idx=_('Airbase for warehouse information'))
     @app_commands.autocomplete(idx=utils.airbase_autocomplete)
     async def airbase_info(self, interaction: discord.Interaction,
-                           server: app_commands.Transform[Server, utils.ServerTransformer(
+                           _server: app_commands.Transform[Server, utils.ServerTransformer(
                                status=[Status.RUNNING, Status.PAUSED])],
                            idx: int):
-        if server.status not in [Status.RUNNING, Status.PAUSED]:
+        if _server.status not in [Status.RUNNING, Status.PAUSED]:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
                                                     ephemeral=True)
             return
 
         # noinspection PyUnresolvedReferences
-        await interaction.response.defer()
-        airbase = server.current_mission.airbases[idx]
-        data = await server.send_to_dcs_sync({
+        await interaction.response.defer(ephemeral=utils.get_ephemeral(interaction))
+        airbase = _server.current_mission.airbases[idx]
+        data = await _server.send_to_dcs_sync({
             "command": "getAirbase",
             "name": airbase['name']
         })
@@ -1093,10 +1094,10 @@ class Mission(Plugin[MissionEventListener]):
         report = Report(self.bot, self.plugin_name, 'airbase.json')
         env = await report.render(coalition=colors[data['coalition']], airbase=airbase, data=data)
         if utils.check_roles(set(self.bot.roles['DCS Admin'] + self.bot.roles['GameMaster']), interaction.user):
-            view = AirbaseView(server, airbase, data)
+            view = AirbaseView(_server, airbase, data)
         else:
             view = discord.utils.MISSING
-        msg = await interaction.followup.send(embed=env.embed, view=view, ephemeral=utils.get_ephemeral(interaction))
+        msg = await interaction.followup.send(embed=env.embed, view=view)
         try:
             await view.wait()
         finally:
@@ -1108,29 +1109,30 @@ class Mission(Plugin[MissionEventListener]):
     @airbase.command(description=_('Automatic Terminal Information Service (ATIS)'))
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
+    @app_commands.rename(_server='server')
     @app_commands.rename(idx=_('airbase'))
     @app_commands.describe(idx=_('Airbase for ATIS information'))
     @app_commands.autocomplete(idx=utils.airbase_autocomplete)
     async def atis(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer(
+                   _server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.RUNNING, Status.PAUSED])],
                    idx: int):
-        if server.status not in [Status.RUNNING, Status.PAUSED]:
+        if _server.status not in [Status.RUNNING, Status.PAUSED]:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
                                                     ephemeral=True)
             return
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
-        airbase = server.current_mission.airbases[idx]
-        data = await server.send_to_dcs_sync({
+        airbase = _server.current_mission.airbases[idx]
+        data = await _server.send_to_dcs_sync({
             "command": "getWeatherInfo",
             "x": airbase['position']['x'],
             "y": airbase['position']['y'],
             "z": airbase['position']['z']
         })
         report = Report(self.bot, self.plugin_name, 'atis.json')
-        env = await report.render(airbase=airbase, data=data, server=server)
+        env = await report.render(airbase=airbase, data=data, server=_server)
         msg = await interaction.original_response()
         await msg.edit(embed=env.embed, delete_after=self.bot.locals.get('message_autodelete'))
 
@@ -1151,7 +1153,7 @@ class Mission(Plugin[MissionEventListener]):
             return
 
         # noinspection PyUnresolvedReferences
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=utils.get_ephemeral(interaction))
         airbase = server.current_mission.airbases[idx]
         await server.send_to_dcs_sync({
             "command": "captureAirbase",
@@ -1160,7 +1162,7 @@ class Mission(Plugin[MissionEventListener]):
         })
         await interaction.followup.send(
             _("Airbase \"{}\": Coalition changed to **{}**.\n:warning: Auto-capturing is now **disabled**!").format(
-                airbase['name'], coalition.lower()), ephemeral=utils.get_ephemeral(interaction))
+                airbase['name'], coalition.lower()))
 
     @staticmethod
     async def manage_items(server: Server, airbase: dict, category: str, item: str | list[int],
@@ -1214,16 +1216,17 @@ class Mission(Plugin[MissionEventListener]):
     @airbase.command(description=_('Manage warehouses'))
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
+    @app_commands.rename(_server='server')
     @app_commands.rename(idx=_('airbase'))
     @app_commands.describe(idx=_('Airbase for warehouse information'))
     @app_commands.autocomplete(idx=utils.airbase_autocomplete)
     @app_commands.autocomplete(category=wh_category_autocomplete)
     @app_commands.autocomplete(item=wh_item_autocomplete)
     async def warehouse(self, interaction: discord.Interaction,
-                        server: app_commands.Transform[Server, utils.ServerTransformer(
+                        _server: app_commands.Transform[Server, utils.ServerTransformer(
                             status=[Status.RUNNING, Status.PAUSED])],
                         idx: int, category: str | None = None, item: str | None = None, value: int | None = None):
-        if server.status not in [Status.RUNNING, Status.PAUSED]:
+        if _server.status not in [Status.RUNNING, Status.PAUSED]:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
                                                     ephemeral=True)
@@ -1234,15 +1237,15 @@ class Mission(Plugin[MissionEventListener]):
             raise PermissionError(_("You cannot change warehouse items."))
 
         # noinspection PyUnresolvedReferences
-        await interaction.response.defer()
-        airbase = server.current_mission.airbases[idx]
+        await interaction.response.defer(ephemeral=True)
+        airbase = _server.current_mission.airbases[idx]
 
         embed = discord.Embed(title=_("Warehouse information for {}").format(airbase['name']),
                               color=discord.Color.blue())
 
         if category and item:
             _item = list(map(int, item.split('.'))) if isinstance(item, str) else item
-            data = await Mission.manage_items(server, airbase, category, _item, value)
+            data = await Mission.manage_items(_server, airbase, category, _item, value)
             if data['value'] == 1000000:
                 display = _("unlimited")
             elif category == 'liquids':
@@ -1251,11 +1254,11 @@ class Mission(Plugin[MissionEventListener]):
                 display = _("{} pcs").format(data['value'])
 
             item_name = next(
-                (x['name'] for x in server.resources.get(category) if str(x['wstype']) == item),
+                (x['name'] for x in _server.resources.get(category) if str(x['wstype']) == item),
                 'n/a'
             )
             embed.add_field(name=_("Inventory for {}").format(item_name), value="```" + display + "```")
-            await interaction.followup.send(embed=embed, ephemeral=utils.get_ephemeral(interaction))
+            await interaction.followup.send(embed=embed)
 
         else:
             if value is not None:
@@ -1266,11 +1269,11 @@ class Mission(Plugin[MissionEventListener]):
                     return
 
                 if category is not None:
-                    await Mission.manage_category(server, airbase, category, value)
+                    await Mission.manage_category(_server, airbase, category, value)
                 else:
-                    await Mission.manage_warehouse(server, airbase, value)
+                    await Mission.manage_warehouse(_server, airbase, value)
 
-            data = await server.send_to_dcs_sync({
+            data = await _server.send_to_dcs_sync({
                 "command": "getAirbase",
                 "name": airbase['name']
             })
@@ -2490,19 +2493,21 @@ class Mission(Plugin[MissionEventListener]):
         for airport in airports:
             await channel.send(_("Loading warehouse for airport {} ...").format(airport))
             for key, values in sheets.items():
-                await channel.send(_("Uploading {} information to your warehouse ...").format(SHEET_TITLES[key]))
+                await channel.send(_("> uploading {} information ...").format(SHEET_TITLES[key].lower()))
+                tasks = []
                 for k, v in values.items():
                     if key != 'liquids':
                         cmd = "setWarehouseItem"
                     else:
                         cmd = "setWarehouseLiquid"
-                    await server.send_to_dcs_sync({
+                    tasks.append(server.send_to_dcs_sync({
                         "command": cmd,
                         "name": airport,
                         "item": k,
                         "value": v
-                    }, timeout=60)
-            await channel.send(_("Warehouse updated."))
+                    }, timeout=60))
+                await asyncio.gather(*tasks)
+            await channel.send(_("Warehouse at {} updated.").format(airport))
 
     async def handle_warehouse_uploads(self, message: discord.Message):
         if not utils.check_roles(set(self.bot.roles['DCS Admin'] + self.bot.roles['GameMaster']), message.author):
@@ -2559,7 +2564,7 @@ class Mission(Plugin[MissionEventListener]):
         if not await utils.yn_question(
                 ctx,
                 question=_("Do you want to load a new warehouse configuration?"),
-                message=_("This will replace the warehouse configuration for {}").format(','.join(airports))
+                message=_("This will replace the warehouse configuration for:\n{}").format(','.join(airports))
         ):
             await message.channel.send(_("Aborted."))
             return

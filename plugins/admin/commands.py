@@ -918,7 +918,8 @@ class Admin(Plugin[AdminEventListener]):
                 await server.startup()
                 server.maintenance = False
             except (TimeoutError, asyncio.TimeoutError):
-                await interaction.followup.send(_("Timeout while starting server {}!").format(server.name))
+                await interaction.followup.send(_("Timeout while starting server {}!").format(server.name),
+                                                ephemeral=True)
 
         async def _node_online(node_name: str):
             next_startup = 0
@@ -929,7 +930,7 @@ class Admin(Plugin[AdminEventListener]):
                     next_startup += startup_delay
                 else:
                     server.maintenance = False
-            await interaction.followup.send(_("Node {} is now online.").format(node_name))
+            await interaction.followup.send(_("Node {} is now online.").format(node_name), ephemeral=ephemeral)
             await self.bot.audit(f"took node {node_name} online.", user=interaction.user)
 
         ephemeral = utils.get_ephemeral(interaction)

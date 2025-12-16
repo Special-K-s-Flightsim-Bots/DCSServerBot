@@ -458,12 +458,18 @@ class MissionEventListener(EventListener["Mission"]):
 
     @event(name="getWeatherInfo")
     async def getWeatherInfo(self, server: Server, data: dict):
+        if not server.current_mission:
+            self.log.warning("getWeatherInfo received without running mission.")
+            return
         server.current_mission.weather = data.get('weather')
         server.current_mission.clouds = data.get('clouds')
         self.display_mission_embed(server)
 
     @event(name="getAirbases")
     async def getAirbases(self, server: Server, data: dict):
+        if not server.current_mission:
+            self.log.warning("getAirbases received without running mission.")
+            return
         server.current_mission.airbases = data.get('airbases')
 
     @event(name="getWarehouseResources")

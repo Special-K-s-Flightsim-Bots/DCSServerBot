@@ -13,6 +13,7 @@ local tostring		= base.tostring
 local Sim			= base.Sim
 local type			= base.type
 local os            = base.os
+local math          = base.math
 
 local lfs			= require('lfs')
 local TableUtils 	= require('TableUtils')
@@ -28,13 +29,36 @@ UDPSendSocket = socket.udp()
 -- this is the DCS server name
 server_name = nil
 
+local MAX_CHUNK   = 65000          -- safe UDP payload size
+local HEADER_SEP  = '|'            -- separator in the header
+local HEADER_FMT = '%s'..HEADER_SEP..'%d'..HEADER_SEP..'%d'..HEADER_SEP..'%d'..HEADER_SEP
+
 function sendBotTable(tbl, channel)
-	if server_name == nil then
-		server_name = loadSettingsRaw().name
-	end
-	tbl.server_name = server_name
-	tbl.channel = tostring(channel or "-1")
-	socket.try(UDPSendSocket:sendto(net.lua2json(tbl), config.BOT_HOST, config.BOT_PORT))
+    if server_name == nil then
+        server_name = loadSettingsRaw().name
+    end
+    tbl.server_name = server_name
+    tbl.channel = tostring(channel or "-1")
+
+    local msg = net.lua2json(tbl)
+
+    if #msg <= MAX_CHUNK then
+        socket.try(UDPSendSocket:sendto(msg, config.BOT_HOST, config.BOT_PORT))
+        return
+    end
+
+    local msg_id      = tostring(math.floor(socket.gettime() * 1e6))
+    local total_parts = math.ceil(#msg / MAX_CHUNK)
+
+    for part = 1, total_parts do
+        local start_idx = (part-1) * MAX_CHUNK + 1
+        local end_idx   = math.min(start_idx + MAX_CHUNK - 1, #msg)
+        local payload   = msg:sub(start_idx, end_idx)
+
+        local header = string.format(HEADER_FMT, msg_id, config.DCS_PORT, total_parts, part)
+        local packet = header .. payload
+        socket.try(UDPSendSocket:sendto(packet, config.BOT_HOST, config.BOT_PORT))
+    end
 end
 
 function loadSettingsRaw()
@@ -56,7 +80,7 @@ function mergeGuiSettings(new_settings)
 end
 
 function saveSettings(settings)
-    mergedSettings = mergeGuiSettings(settings)
+    local mergedSettings = mergeGuiSettings(settings)
     if mergedSettings.name ~= server_name then
         server_name = mergedSettings.name
     end
@@ -106,7 +130,7 @@ function getMulticrewAllParameters(PlayerId)
 
 			if (not tonumber(_player_slot)) then
 				-- If this is multiseat slot parse master slot and look for seat number
-				_t_start, _t_end = string.find(_player_slot, '_%d+')
+				local _t_start, _t_end = string.find(_player_slot, '_%d+')
 
 				if _t_start then
 					-- This is co-player
@@ -165,7 +189,7 @@ function isWithinInterval(last_event, interval)
 end
 
 function loadScript(scriptPath)
-    command = 'dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. 'Scripts/net/DCSServerBot/' .. scriptPath .. '\\")'
+    local command = 'dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. 'Scripts/net/DCSServerBot/' .. scriptPath .. '\\")'
     net.dostring_in('mission', 'a_do_script("' .. command .. '")')
 end
 
@@ -181,12 +205,12 @@ end
 function isDynamic(slotId)
     if not(string.find(slotId, 'red') or string.find(slotId, 'blue')) then
         -- Player took model
-        _master_slot = slotId
-        _sub_slot = 0
+        local _master_slot = slotId
+        local _sub_slot = 0
 
         if (not tonumber(slotId)) then
             -- If this is multiseat slot parse master slot and look for seat number
-            _t_start, _t_end = string.find(slotId, '_%d+')
+            local _t_start, _t_end = string.find(slotId, '_%d+')
 
             if _t_start then
                 -- This is co-player

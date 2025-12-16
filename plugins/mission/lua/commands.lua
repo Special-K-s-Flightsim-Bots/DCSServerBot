@@ -70,7 +70,7 @@ function dcsbot.registerDCSServer(json)
         local availableSlots = Sim.getAvailableSlots("red")
         dcsbot.red_slots = {}
         if availableSlots ~= nil then
-            for k,v in pairs(availableSlots) do
+            for _k,v in pairs(availableSlots) do
                 dcsbot.red_slots[v.unitId] = v
                 num_slots_red = num_slots_red + 1
             end
@@ -80,7 +80,7 @@ function dcsbot.registerDCSServer(json)
         availableSlots = Sim.getAvailableSlots("blue")
         dcsbot.blue_slots = {}
         if availableSlots ~= nil then
-            for k,v in pairs(availableSlots) do
+            for _k,v in pairs(availableSlots) do
                 dcsbot.blue_slots[v.unitId] = v
                 num_slots_blue = num_slots_blue + 1
             end
@@ -90,7 +90,7 @@ function dcsbot.registerDCSServer(json)
         msg.num_slots_red = num_slots_red
         -- players
         msg.players = {}
-        plist = net.get_player_list()
+        local plist = net.get_player_list()
         for i = 1, #plist do
             msg.players[i] = net.get_player_info(plist[i])
             msg.players[i].ipaddr = utils.getIP(msg.players[i].ipaddr)
@@ -187,10 +187,10 @@ function dcsbot.getAirbases(json)
                 frequencyList	= airdrome.frequency
             else
                 if airdrome.radio then
-                    for k, radioId in pairs(airdrome.radio) do
+                    for _k, radioId in pairs(airdrome.radio) do
                         local frequencies = Sim.getATCradiosData(radioId)
                         if frequencies then
-                            for kk,vv in pairs(frequencies) do
+                            for _kk,vv in pairs(frequencies) do
                                 table.insert(frequencyList, vv)
                             end
                         end
@@ -200,11 +200,11 @@ function dcsbot.getAirbases(json)
             airbase.frequencyList = frequencyList
             airbase.runwayList = {}
             if (airdrome.runwayName ~= nil) then
-                for r, runwayName in pairs(airdrome.runwayName) do
+                for _r, runwayName in pairs(airdrome.runwayName) do
                     table.insert(airbase.runwayList, runwayName)
                 end
             end
-            heading = UC.toDegrees(Terrain.getRunwayHeading(airdrome.roadnet))
+            local heading = UC.toDegrees(Terrain.getRunwayHeading(airdrome.roadnet))
             if (heading < 0) then
                 heading = 360 + heading
             end
@@ -255,7 +255,7 @@ function dcsbot.getWarehouseResources(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getWarehouseResources()')
     local all_resources = base.get_all_available_resource_for_warehouse()
     local weapons = {}
-    for i, o in pairs(all_resources.weaponsList) do
+    for _i, o in pairs(all_resources.weaponsList) do
         local weapon = {
             wstype = o.wsTypeStr,
             name = base.get_weapon_display_name_by_wstype(o.wsType),
@@ -264,7 +264,7 @@ function dcsbot.getWarehouseResources(json)
     end
     local aircraft_list = {}
     for i, o in pairs(all_resources.aircraft_combined) do
-        obj = base.Objects[i]
+        local obj = base.Objects[i]
         local aircraft = {
             wstype = base.wsTypeToString(o.wsType),
             type = obj.type,
@@ -316,7 +316,7 @@ local function repr(obj)
   local parts = {"{"}
   local first = true
 
-  for i, v in ipairs(obj) do
+  for _i, v in ipairs(obj) do
     if not first then parts[#parts+1] = ", " end
     parts[#parts+1] = repr(v)
     first = false
@@ -412,12 +412,12 @@ function dcsbot.restartMission(json)
 	utils.sendBotTable(json, json.channel)
 end
 
-function dcsbot.pauseMission(json)
+function dcsbot.pauseMission(_json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: pauseMission()')
 	Sim.setPause(true)
 end
 
-function dcsbot.unpauseMission(json)
+function dcsbot.unpauseMission(_json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: unpauseMission()')
 	Sim.setPause(false)
 end
@@ -539,7 +539,7 @@ function dcsbot.getWeatherInfo(json)
 	msg.weather = weather
 	local clouds = msg.weather.clouds
 	if clouds.preset ~= nil then
-		local func, err = loadfile(lfs.currentdir() .. '/Config/Effects/clouds.lua')
+		local func, _err = loadfile(lfs.currentdir() .. '/Config/Effects/clouds.lua')
 
 		local env = {
 			type = _G.type,
@@ -703,20 +703,21 @@ end
 
 function dcsbot.lock_server(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: lock_server()')
-	dcsbot.server_locked = true
-	if json.message then
-	    messages = dcsbot.params['mission']['messages']
-	    messages['message_server_locked_old'] = messages['message_server_locked']
-        messages['message_server_locked'] = json.message
+    dcsbot.server_locked = true
+
+    if json.message then
+        local m = dcsbot.params.mission.messages
+        m.message_server_locked_old, m.message_server_locked = m.message_server_locked, json.message
     end
 end
 
-function dcsbot.unlock_server(json)
+function dcsbot.unlock_server(_json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: unlock_server()')
 	dcsbot.server_locked = false
+
     -- reset the message to default
-    messages = dcsbot.params['mission']['messages']
-    messages['message_server_locked'] = messages['message_server_locked_old']
+    local m = dcsbot.params['mission']['messages']
+    m.message_server_locked = m.message_server_locked_old
 end
 
 function dcsbot.makeScreenshot(json)
@@ -751,7 +752,7 @@ end
 function dcsbot.setFogAnimation(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: setFogAnimation()')
     local animation = '{'
-    for i, value in pairs(json.values) do
+    for _i, value in pairs(json.values) do
         animation = animation .. '{' .. value[1] .. ',' .. value[2] .. ',' .. value[3] .. '},'
     end
     animation = animation .. '}'
