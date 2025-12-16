@@ -1,7 +1,6 @@
 import asyncio
 
 from core import EventListener, chat_command, Server, Player, utils, Coalition, event, ChatCommand, get_translation
-from functools import partial
 from itertools import islice
 from typing import TYPE_CHECKING
 

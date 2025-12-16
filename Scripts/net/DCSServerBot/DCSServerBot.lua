@@ -61,11 +61,11 @@ dcsbot.sendBotTable = dcsbot.sendBotTable or function (tbl, channel)
     end
 end
 
-dcsbot.enableExtension = dcsbot.enableExtension or function (extension, config)
+dcsbot.enableExtension = dcsbot.enableExtension or function (extension, cfg)
     local msg = {
         command = 'enableExtension',
         extension = extension,
-        config = config
+        config = cfg
     }
 	dcsbot.sendBotTable(msg, "-1")
 end

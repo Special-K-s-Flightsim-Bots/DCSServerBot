@@ -55,7 +55,7 @@ function onMissionEvent(event)
 
     if event.initiator then
         msg.initiator = {}
-        category = Object.getCategory(event.initiator)
+        local category = Object.getCategory(event.initiator)
         if category == Object.Category.UNIT then
             msg.initiator.type = 'UNIT'
             msg.initiator.unit = event.initiator
@@ -120,7 +120,7 @@ function onMissionEvent(event)
     end
     if event.target then
         msg.target = {}
-        category = Object.getCategory(event.target)
+        local category = Object.getCategory(event.target)
         if category == Object.Category.UNIT then
             msg.target.type = 'UNIT'
             msg.target.unit = event.target
@@ -143,7 +143,7 @@ function onMissionEvent(event)
         elseif category == Object.Category.STATIC then
             msg.target.type = 'STATIC'
             msg.target.unit = event.target
-            if msg.target.unit.isExist ~= nil and msg.target.unit:isExist() then
+            if msg.target.unit.isExist ~= nil and msg.target.unit:isExist() == true then
                 msg.target.unit_name = msg.target.unit:getName()
                 if msg.target.unit_name ~= nil and msg.target.unit_name ~= '' then
                     msg.target.coalition = msg.target.unit:getCoalition()
