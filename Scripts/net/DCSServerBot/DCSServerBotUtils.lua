@@ -24,7 +24,12 @@ local config		= require('DCSServerBotConfig')
 package.path  = package.path..";.\\LuaSocket\\?.lua;"
 package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
 local socket = require("socket")
-UDPSendSocket = socket.udp()
+
+if UDPSendSocket == nil then
+    UDPSendSocket = socket.udp()
+    UDPSendSocket:settimeout(0)
+    UDPSendSocket:setsockname("*", 0)
+end
 
 -- this is the DCS server name
 server_name = nil
