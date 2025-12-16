@@ -351,8 +351,10 @@ end
 function dcsbot.captureAirbase(name, coalition, channel)
     env.info("dcsbot.captureAirbase(" .. name .. ")")
     local airbase = Airbase.getByName(name)
-    airbase:autoCapture(false)
-    airbase:setCoalition(coalition)
+    if airbase:getCoalition() ~= coalition then
+        airbase:autoCapture(false)
+        airbase:setCoalition(coalition)
+    end
     local msg = {
         command = "captureAirbase",
         name = airbase:getName(),
