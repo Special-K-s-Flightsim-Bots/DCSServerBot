@@ -222,7 +222,7 @@ class Info(report.EmbedElement):
 
     async def render(self, airbase: dict, data: dict):
         if 'code' in airbase:
-            self.add_field(name=_('Code'), value=airbase['code'])
+            self.add_field(name=_('Code'), value=airbase['code'] or 'n/a')
         else:
             self.add_field(name=_('Type'), value=airbase['type'])
         self.add_field(name=_('Coalition'), value=Side(data['coalition']).name.title())

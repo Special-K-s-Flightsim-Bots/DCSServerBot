@@ -138,7 +138,7 @@ async def nosav_autocomplete(interaction: discord.Interaction, current: str) -> 
 
 @cache_with_expiration(180)
 async def get_airbase(server: Server, name: str) -> dict:
-    return await server.send_to_dcs_sync({"command": "getAirbase", "name": name})
+    return await server.send_to_dcs_sync({"command": "getAirbase", "name": name}, timeout=60)
 
 async def wh_category_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
@@ -187,6 +187,10 @@ class Mission(Plugin[MissionEventListener]):
 
     def __init__(self, bot: DCSServerBot, listener: Type[MissionEventListener] = None):
         super().__init__(bot, listener)
+        self.lock = asyncio.Lock()
+
+    async def cog_load(self) -> None:
+        await super().cog_load()
         self.update_channel_name.add_exception_type(AttributeError)
         self.update_channel_name.start()
         self.afk_check.start()
@@ -194,7 +198,6 @@ class Mission(Plugin[MissionEventListener]):
         self.check_for_unban.start()
         self.expire_token.add_exception_type(psycopg.DatabaseError)
         self.expire_token.start()
-        self.lock = asyncio.Lock()
         if self.bot.locals.get('autorole', {}):
             self.check_roles.add_exception_type(psycopg.DatabaseError)
             self.check_roles.add_exception_type(discord.errors.DiscordException)
@@ -305,7 +308,7 @@ class Mission(Plugin[MissionEventListener]):
         await interaction.response.defer()
         mission_info = await server.send_to_dcs_sync({
             "command": "getMissionDetails"
-        })
+        }, timeout=60)
         mission_info['passwords'] = await read_passwords()
         report = Report(self.bot, self.plugin_name, 'briefing.json')
         env = await report.render(mission_info=mission_info, server_name=server.name, interaction=interaction)
@@ -939,7 +942,7 @@ class Mission(Plugin[MissionEventListener]):
         if thickness is None and visibility is None:
             ret = await server.send_to_dcs_sync({
                 "command": "getFog"
-            })
+            }, timeout=60)
         else:
             if thickness and thickness < 100:
                 await interaction.followup.send(_("Thickness has to be in the range 100-5000"))
@@ -951,7 +954,7 @@ class Mission(Plugin[MissionEventListener]):
                 "command": "setFog",
                 "thickness": thickness if thickness is not None else -1,
                 "visibility": visibility if visibility is not None else -1
-            })
+            }, timeout=60)
         await interaction.followup.send(_("Current Fog Settings:\n- Thickness: {thickness:.2f}m\n- Visibility:\t{visibility:.2f}m").format(
             thickness=ret['thickness'], visibility=ret['visibility']), ephemeral=ephemeral)
 
@@ -1016,7 +1019,7 @@ class Mission(Plugin[MissionEventListener]):
                             (key, value["visibility"], value["thickness"])
                             for key, value in fog.items()
                         ]
-                    })
+                    }, timeout=60)
                 message = _('The following preset was applied: {}.').format(view.result[0])
                 await interaction.followup.send(message, ephemeral=ephemeral)
         finally:
@@ -1085,7 +1088,7 @@ class Mission(Plugin[MissionEventListener]):
         data = await _server.send_to_dcs_sync({
             "command": "getAirbase",
             "name": airbase['name']
-        })
+        }, timeout=60)
         colors = {
             0: "dark_gray",
             1: "red",
@@ -1130,7 +1133,7 @@ class Mission(Plugin[MissionEventListener]):
             "x": airbase['position']['x'],
             "y": airbase['position']['y'],
             "z": airbase['position']['z']
-        })
+        }, timeout=60)
         report = Report(self.bot, self.plugin_name, 'atis.json')
         env = await report.render(airbase=airbase, data=data, server=_server)
         msg = await interaction.original_response()
@@ -1145,7 +1148,7 @@ class Mission(Plugin[MissionEventListener]):
     async def capture(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.RUNNING, Status.PAUSED])],
-                      idx: int, coalition: Literal['Red', 'Blue', 'Neutral'] | None = None):
+                      idx: int, coalition: Literal['Red', 'Blue', 'Neutral']):
         if server.status not in [Status.RUNNING, Status.PAUSED]:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
@@ -1155,11 +1158,21 @@ class Mission(Plugin[MissionEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=utils.get_ephemeral(interaction))
         airbase = server.current_mission.airbases[idx]
+        data = await server.send_to_dcs_sync({
+            "command": "getAirbase",
+            "name": airbase['name']
+        }, timeout=60)
+        ret_coalition = 'Red' if data['coalition'] == 1 else 'Blue' if data['coalition'] == 2 else 'Neutral'
+        if ret_coalition == coalition:
+            await interaction.followup.send(_('Airbase \"{}\" belonged to coalition {} already.').format(
+                airbase['name'], coalition.lower()), ephemeral=True)
+            return
+
         await server.send_to_dcs_sync({
             "command": "captureAirbase",
             "name": airbase['name'],
             "coalition": 1 if coalition == 'Red' else 2 if coalition == 'Blue' else 0
-        })
+        }, timeout=60)
         await interaction.followup.send(
             _("Airbase \"{}\": Coalition changed to **{}**.\n:warning: Auto-capturing is now **disabled**!").format(
                 airbase['name'], coalition.lower()))
@@ -1173,13 +1186,13 @@ class Mission(Plugin[MissionEventListener]):
                     "command": "getWarehouseLiquid",
                     "name": airbase['name'],
                     "item": int(item)
-                })
+                }, timeout=60)
             else:
                 return await server.send_to_dcs_sync({
                     "command": "getWarehouseItem",
                     "name": airbase['name'],
                     "item": item
-                })
+                }, timeout=60)
         else:
             if category == 'liquids':
                 return await server.send_to_dcs_sync({
@@ -1187,14 +1200,14 @@ class Mission(Plugin[MissionEventListener]):
                     "name": airbase['name'],
                     "item": int(item),
                     "value": value * 1000
-                })
+                }, timeout=60)
             else:
                 return await server.send_to_dcs_sync({
                     "command": "setWarehouseItem",
                     "name": airbase['name'],
                     "item": item,
                     "value": value
-                })
+                }, timeout=60)
 
     @staticmethod
     async def manage_category(server: Server, airbase: dict, category: str, value: int | None = None) -> None:
@@ -1276,7 +1289,7 @@ class Mission(Plugin[MissionEventListener]):
             data = await _server.send_to_dcs_sync({
                 "command": "getAirbase",
                 "name": airbase['name']
-            })
+            }, timeout=60)
 
             if not category or category == 'liquids':
                 Info.render_liquids(embed, data)
@@ -2540,10 +2553,10 @@ class Mission(Plugin[MissionEventListener]):
                 await message.channel.send(_("Aborted."))
                 return
 
-            data = await server.send_to_dcs_sync({"command": "getMissionSituation"})
+            data = await server.send_to_dcs_sync({"command": "getMissionSituation"}, timeout=60)
             airports = data.get('coalitions', {}).get(coalition, {}).get('airbases')
         elif match.group(1).upper() in ['RED', 'BLUE']:
-            data = await server.send_to_dcs_sync({"command": "getMissionSituation"})
+            data = await server.send_to_dcs_sync({"command": "getMissionSituation"}, timeout=60)
             airports = data.get('coalitions', {}).get(match.group(1).upper(), {}).get('airbases')
         elif len(match.group(1)) == 4:
             icao = match.group(1).upper()

@@ -1,16 +1,14 @@
 import asyncio
 import discord
 import os
+import pandas as pd
 
 from contextlib import suppress
-
-import pandas as pd
-from openpyxl.utils import get_column_letter
-
 from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils, get_translation, Side
 from discord import SelectOption, ButtonStyle
 from discord.ui import View, Select, Button
 from io import StringIO, BytesIO
+from openpyxl.utils import get_column_letter
 from ruamel.yaml import YAML
 from typing import cast
 
@@ -586,7 +584,7 @@ class AirbaseView(View):
 
         buffer.seek(0)
         try:
-            code = utils.slugify(self.airbase.get('code', self.airbase.get('name', 'XXXX')))
+            code = utils.slugify(self.airbase.get('code', '') or self.airbase.get('name', 'XXXX'))
             # noinspection PyUnresolvedReferences
             await interaction.followup.send(
                 file=discord.File(fp=buffer, filename=f"warehouse-{code.lower()}.xlsx"), ephemeral=True
