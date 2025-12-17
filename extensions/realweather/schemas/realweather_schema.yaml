@@ -208,6 +208,7 @@ schema;instance_realweather_schema:
                 maximum: {type: int, range: {max: 50}, nullable: false}
                 gust-minimum: {type: int, range: {min: 0}, nullable: false}
                 gust-maximum: {type: int, range: {max: 50}, nullable: false}
+                scale-factor: {type: float, range: {min: 0.1}, nullable: false}
                 direction-minimum: {type: int, range: {min: 0, max: 359}, nullable: false}
                 direction-maximum: {type: int, range: {min: 0, max: 359}, nullable: false}
                 stability: {type: float, nullable: false}
