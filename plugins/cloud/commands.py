@@ -36,23 +36,9 @@ class Cloud(Plugin[CloudListener]):
         self.config = self.get_config()
         if not self.config:
             raise PluginConfigurationError(plugin=self.plugin_name, option=DEFAULT_TAG)
-        self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
+        self.base_url = None
         self._session = None
         self.client = None
-        if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
-            self.cloud_bans.add_exception_type(IndexError)
-            self.cloud_bans.add_exception_type(aiohttp.ClientError)
-            self.cloud_bans.add_exception_type(discord.Forbidden)
-            self.cloud_bans.add_exception_type(psycopg.DatabaseError)
-            self.cloud_bans.add_exception_type(DiscordServerError)
-            self.cloud_bans.start()
-        if 'token' in self.config:
-            self.cloud_sync.add_exception_type(IndexError)
-            self.cloud_sync.add_exception_type(aiohttp.ClientError)
-            self.cloud_sync.add_exception_type(psycopg.DatabaseError)
-            self.cloud_sync.start()
-        if self.config.get('register', True):
-            self.register.start()
 
     @property
     def session(self):
@@ -75,6 +61,23 @@ class Cloud(Plugin[CloudListener]):
 
     async def cog_load(self):
         await super().cog_load()
+        self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
+        self._session = None
+        self.client = None
+        if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
+            self.cloud_bans.add_exception_type(IndexError)
+            self.cloud_bans.add_exception_type(aiohttp.ClientError)
+            self.cloud_bans.add_exception_type(discord.Forbidden)
+            self.cloud_bans.add_exception_type(psycopg.DatabaseError)
+            self.cloud_bans.add_exception_type(DiscordServerError)
+            self.cloud_bans.start()
+        if 'token' in self.config:
+            self.cloud_sync.add_exception_type(IndexError)
+            self.cloud_sync.add_exception_type(aiohttp.ClientError)
+            self.cloud_sync.add_exception_type(psycopg.DatabaseError)
+            self.cloud_sync.start()
+        if self.config.get('register', True):
+            self.register.start()
         if self.config.get('upload_errors', True):
             cloud_logger = CloudLoggingHandler(node=self.node, url=self.base_url + '/errors/')
             self.log.root.addHandler(cloud_logger)

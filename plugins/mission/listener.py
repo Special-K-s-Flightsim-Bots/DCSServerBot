@@ -958,7 +958,11 @@ class MissionEventListener(EventListener["Mission"]):
                 pass
 
     async def do_change_mission(self, server: Server, player: Player, params: dict):
-        mission_file = os.path.expandvars(params.get('mission_file'))
+        mission_file = params.get('mission_file')
+        if not mission_file or not isinstance(mission_file, str):
+            self.log.error("Error in menu configuration. No mission_file provided or mission_file is no string!")
+            return
+        mission_file = os.path.expandvars(mission_file)
         if not os.path.isabs(mission_file):
             mission_file = os.path.join(await server.get_missions_dir(), mission_file)
         if not mission_file:
@@ -1016,7 +1020,7 @@ class MissionEventListener(EventListener["Mission"]):
                 "name": name
             })
 
-        if airbase:
+        if airbase and 'position' in airbase:
             response = await server.send_to_dcs_sync({
                 "command": "getWeatherInfo",
                 "x": airbase['position']['x'],

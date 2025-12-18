@@ -52,7 +52,7 @@ async def available_modules_autocomplete(interaction: discord.Interaction,
         return [
             app_commands.Choice(name=x, value=x)
             for x in available_modules
-            if not current or current.casefold() in x.casefold()
+            if 0 < len(x) <= 100 and (not current or current.casefold() in x.casefold())
         ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
@@ -250,8 +250,8 @@ async def extensions_autocomplete(interaction: discord.Interaction, current: str
 
 class Admin(Plugin[AdminEventListener]):
 
-    def __init__(self, bot: DCSServerBot, listener: Type[AdminEventListener]):
-        super().__init__(bot, listener)
+    async def cog_load(self):
+        await super().cog_load()
         self.cleanup.add_exception_type(psycopg.DatabaseError)
         self.cleanup.start()
 
@@ -1378,8 +1378,12 @@ Please make sure you forward the following ports:
         if ucid and self.bot.locals.get('autoban', False):
             await self.bus.unban(ucid)
         if self.bot.locals.get('greeting_dm'):
-            channel = await member.create_dm()
-            await channel.send(self.bot.locals['greeting_dm'].format(name=member.name, guild=member.guild.name))
+            try:
+                channel = await member.create_dm()
+                await channel.send(self.bot.locals['greeting_dm'].format(name=member.name, guild=member.guild.name))
+            except discord.Forbidden:
+                self.log.debug("Could not send greeting DM to user {} due to their Discord limitations.".format(
+                    member.display_name))
         autorole = self.bot.locals.get('autorole', {}).get('on_join')
         if autorole:
             try:

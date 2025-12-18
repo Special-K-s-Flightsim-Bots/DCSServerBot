@@ -39,11 +39,18 @@ class RestAPI(Plugin):
         if not os.path.exists(os.path.join(self.node.config_dir, 'services', 'webservice.yaml')):
             raise PluginInstallationError(plugin=self.plugin_name, reason="WebService is not configured")
 
-        self.refresh_views.start()
-        self.refresh_views.add_exception_type(psycopg.DatabaseError)
         self.web_service: WebService | None = None
         self.app: FastAPI | None = None
+
+    async def cog_load(self) -> None:
+        await super().cog_load()
+        self.refresh_views.add_exception_type(psycopg.DatabaseError)
+        self.refresh_views.start()
         asyncio.create_task(self.init_webservice())
+
+    async def cog_unload(self) -> None:
+        self.refresh_views.cancel()
+        await super().cog_unload()
 
     async def init_webservice(self):
         # give the webservice 10 seconds to launch on master switches
@@ -58,10 +65,6 @@ class RestAPI(Plugin):
         self.log.debug(f"   - {self.__cog_name__}: WebService is running")
         self.app = self.web_service.app
         self.register_routes()
-
-    async def cog_unload(self) -> None:
-        self.refresh_views.cancel()
-        await super().cog_unload()
 
     def register_routes(self):
         prefix = self.locals.get(DEFAULT_TAG, {}).get('prefix', '')

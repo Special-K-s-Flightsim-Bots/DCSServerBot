@@ -13,6 +13,7 @@ _ = get_translation(__name__.split('.')[1])
 
 
 class Voting(Plugin[VotingListener]):
+
     def __init__(self, bot: DCSServerBot, eventlistener: Type[VotingListener] = None):
         super().__init__(bot, eventlistener)
         if not self.locals:

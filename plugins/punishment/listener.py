@@ -25,6 +25,12 @@ class PunishmentEventListener(EventListener["Punishment"]):
         self.pending_forgiveness: dict[tuple[str, str], list[asyncio.Task]] = {}
         self.pending_kill: dict[str, int] = ThreadSafeDict()
 
+    async def shutdown(self) -> None:
+        for tasks in self.pending_forgiveness.values():
+            for task in tasks:
+                task.cancel()
+                await task
+
     async def processEvent(self, name: str, server: Server, data: dict) -> None:
         try:
             if name == 'registerDCSServer' or server.name in self.active_servers:

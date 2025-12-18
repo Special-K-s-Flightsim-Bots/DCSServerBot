@@ -13,7 +13,6 @@ from discord.utils import MISSING
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Type
 
 from .filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, SquadronFilter, \
     TheatreFilter
@@ -52,8 +51,8 @@ def parse_params(self, ctx, member: discord.Member | str | None, *params) \
 
 class UserStatistics(Plugin[UserStatisticsEventListener]):
 
-    def __init__(self, bot: DCSServerBot, listener: Type[UserStatisticsEventListener]):
-        super().__init__(bot, listener)
+    async def cog_load(self) -> None:
+        await super().cog_load()
         if self.locals:
             self.persistent_highscore.start()
             self.refresh_views.start()
@@ -65,6 +64,11 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 super().change_commands({
                     "squadron": {"leave": {"enabled": False}}
                 }, {x.name: x for x in self.get_app_commands()})
+
+    async def cog_unload(self):
+        if self.locals:
+            self.persistent_highscore.cancel()
+        await super().cog_unload()
 
     async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
         if new_version == '3.2':
@@ -94,11 +98,6 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                     yaml.dump(self.locals, outfile)
                 self.locals = self.read_locals()
                 self.log.warning(f"New file {path} written, please check for possible errors.")
-
-    async def cog_unload(self):
-        if self.locals:
-            self.persistent_highscore.cancel()
-        await super().cog_unload()
 
     async def prune(self, conn: psycopg.AsyncConnection, days: int) -> None:
         self.log.debug('Pruning Userstats ...')

@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 _ = get_translation(__name__.split('.')[1])
 
 class VotingHandler:
+
     def __init__(self, listener: 'VotingListener', item: VotableItem, server: Server, config: dict):
         self.loop = asyncio.get_event_loop()
         self.listener = listener
@@ -135,6 +136,10 @@ class VotingHandler:
 
 class VotingListener(EventListener["Voting"]):
     _all_votes: dict[str, 'VotingHandler'] = dict()
+
+    async def shutdown(self) -> None:
+        for handler in type(self)._all_votes.values():
+            handler.cancel()
 
     async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
         config = self.get_config(server=server)

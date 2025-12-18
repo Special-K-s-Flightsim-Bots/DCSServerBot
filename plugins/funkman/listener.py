@@ -141,6 +141,13 @@ class FunkManEventListener(EventListener["FunkMan"]):
         except Exception as ex:
             self.log.exception(ex)
 
+    @event(name='registerDCSServer')
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
+        config = self.get_config(server)
+        for name in ['CHANNELID_MAIN', 'CHANNELID_RANGE', 'CHANNELID_AIRBOSS']:
+            if name in config:
+                self.bot.check_channel(self.config[name])
+
     @event(name="moose_text")
     async def moose_text(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)

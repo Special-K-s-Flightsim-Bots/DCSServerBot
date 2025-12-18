@@ -544,15 +544,11 @@ class ServiceBus(Service):
                 f = self.listeners[data['channel']]
                 if not f.done():
                     if 'exception' in data:
-                        try:
-                            ex = utils.str_to_class(data['exception']['class'])(*data['exception']['args'],
-                                                                                **data['exception']['kwargs'])
-                        except Exception:
-                            ex = PermissionError(data['exception']['args'])
+                        ex = utils.rebuild_exception(data['exception'])
                         self.loop.call_soon_threadsafe(f.set_exception, ex)
                     else:
                         # TODO: change to data['return']
-                        self.loop.call_soon_threadsafe(f.set_result, data)
+                        self.loop.call_soon_threadsafe(utils.safe_set_result, f, data)
             return
         self.log.debug(f"RPC: {json.dumps(data)}")
         obj = None
@@ -599,11 +595,7 @@ class ServiceBus(Service):
                     "method": data['method'],
                     "channel": data['channel'],
                     "return": '',
-                    "exception": {
-                        "class": f"{ex.__class__.__module__}.{ex.__class__.__name__}",
-                        "args": ex.args,
-                        "kwargs": getattr(ex, 'kwargs', {})
-                    }
+                    "exception": utils.exception_to_dict(ex)
                 }, node=data.get('node'))
             else:
                 self.log.exception(ex)
@@ -632,7 +624,7 @@ class ServiceBus(Service):
                 return
             f = server.listeners.get(data['channel'])
             if f and not f.done():
-                self.loop.call_soon_threadsafe(f.set_result, data)
+                self.loop.call_soon_threadsafe(utils.safe_set_result, f, data)
             if data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
                 return
         self.udp_server.message_queue[server_name].put_nowait(data)
@@ -894,7 +886,7 @@ class ServiceBus(Service):
                     if msg_data['channel'] in server.listeners:
                         f = server.listeners.get(msg_data['channel'])
                         if f and not f.done():
-                            self.loop.call_soon(f.set_result, msg_data)
+                            self.loop.call_soon(utils.safe_set_result, f, msg_data)
                     if msg_data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
                         return
 

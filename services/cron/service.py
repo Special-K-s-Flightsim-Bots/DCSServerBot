@@ -56,6 +56,11 @@ class CronService(Service):
                 await asyncio.to_thread(_aux_func)
         except AttributeError:
             self.log.error(f"Cron: Action {action} needs to be defined in the DFAULT section.")
+        except TypeError:
+            if not server:
+                self.log.error(f"Cron: Action {action} needs to be defined in an instance-specific section.")
+            else:
+                self.log.error(f"Cron: Action {action} is missing a parameter.")
         except Exception as ex:
             self.log.error(f"Cron: Error while processing action {action}", exc_info=ex)
 

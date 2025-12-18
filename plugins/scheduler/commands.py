@@ -15,7 +15,7 @@ from discord.ui import Modal, TextInput
 from functools import partial
 from pathlib import Path
 from services.bot import DCSServerBot
-from typing import Type, Literal
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 from .listener import SchedulerListener
@@ -30,8 +30,8 @@ _ = get_translation(__name__.split('.')[1])
 
 class Scheduler(Plugin[SchedulerListener]):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[SchedulerListener] = None):
-        super().__init__(bot, eventlistener)
+    async def cog_load(self) -> None:
+        await super().cog_load()
         self.check_state.start()
 
     async def cog_unload(self):

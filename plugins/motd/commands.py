@@ -19,6 +19,9 @@ class MOTD(Plugin[MOTDListener]):
         if not self.locals:
             raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)
         self.nudge_active: dict[str, dict[int, asyncio.TimerHandle]] = {}
+
+    async def cog_load(self) -> None:
+        await super().cog_load()
         self.nudge.start()
 
     async def cog_unload(self):

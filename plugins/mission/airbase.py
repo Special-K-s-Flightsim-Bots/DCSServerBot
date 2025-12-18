@@ -1,7 +1,7 @@
 import discord
 
 from collections import defaultdict
-from core import report, get_translation, utils, Side, const
+from core import report, get_translation, utils, Side, const, Server, Coalition
 from typing import Counter
 
 from .const import LIQUIDS
@@ -220,7 +220,7 @@ class Info(report.EmbedElement):
             inline=False
         )
 
-    async def render(self, airbase: dict, data: dict):
+    async def render(self, interaction: discord.Interaction, server: Server, airbase: dict, data: dict):
         if 'code' in airbase:
             self.add_field(name=_('Code'), value=airbase['code'] or 'n/a')
         else:
@@ -276,10 +276,13 @@ class Info(report.EmbedElement):
             self.add_field(name=_('Count'), value='\n'.join(f"{count}" for count in spot_count.values()))
             self.add_field(name='_ _', value='_ _')
 
-        warehouse = data.get('warehouse')
-        if warehouse:
-            await report.Ruler(self.env).render(header=_('Warehouse'))
+        sides = utils.get_sides(interaction.client, interaction, server)
+        if ((data['coalition'] in [0, 2] and Coalition.BLUE in sides) or
+                (data['coalition'] in [0, 1] and Coalition.RED in sides)):
+            warehouse = data.get('warehouse')
+            if warehouse:
+                await report.Ruler(self.env).render(header=_('Warehouse'))
 
-            Info.render_liquids(self.embed, data)
-            Info.render_weapons(self.embed, data)
-            Info.render_aircraft(self.embed, data)
+                Info.render_liquids(self.embed, data)
+                Info.render_weapons(self.embed, data)
+                Info.render_aircraft(self.embed, data)

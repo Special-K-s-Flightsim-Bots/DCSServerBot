@@ -37,7 +37,11 @@ class RealWeatherEventListener(EventListener["RealWeather"]):
             return self.generate_config_2_0(icao)
 
     @chat_command(name="realweather", help=_("applies real weather"), roles=['DCS Admin'], usage="<icao|airport>")
-    async def penalty(self, server: Server, player: Player, params: list[str]):
+    async def realweather(self, server: Server, player: Player, params: list[str]):
+        if 'RealWeather' not in await server.list_extension():
+            await player.sendChatMessage("RealWeather is not enabled in this server.")
+            return
+
         if len(params):
             icao = next(
                 (

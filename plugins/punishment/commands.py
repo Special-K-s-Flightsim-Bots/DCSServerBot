@@ -19,15 +19,18 @@ _ = get_translation(__name__.split('.')[1])
 
 
 class Punishment(Plugin[PunishmentEventListener]):
+
     def __init__(self, bot: DCSServerBot, eventlistener: Type[PunishmentEventListener] = None):
         super().__init__(bot, eventlistener)
         if not self.locals:
             raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)
+
+    async def cog_load(self) -> None:
+        await super().cog_load()
         self.check_punishments.add_exception_type(psycopg.DatabaseError)
         self.check_punishments.add_exception_type(discord.DiscordException)
         self.check_punishments.add_exception_type(KeyError)
         self.check_punishments.start()
-        self.decay_config = self.locals.get(DEFAULT_TAG, {}).get('decay')
         self.decay.add_exception_type(psycopg.DatabaseError)
         self.decay.start()
 
@@ -159,11 +162,12 @@ class Punishment(Plugin[PunishmentEventListener]):
 
     @tasks.loop(hours=1.0)
     async def decay(self):
-        if self.decay_config:
+        decay_config = self.locals.get(DEFAULT_TAG, {}).get('decay')
+        if decay_config:
             self.log.debug('Punishment - Running decay ...')
             async with self.apool.connection() as conn:
                 async with conn.transaction():
-                    for d in self.decay_config:
+                    for d in decay_config:
                         days = d['days']
                         await conn.execute(f"""
                             UPDATE pu_events SET points = ROUND((points * %s)::numeric, 2), decay_run = %s 

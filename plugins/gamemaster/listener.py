@@ -27,6 +27,10 @@ class GameMasterEventListener(EventListener["GameMaster"]):
         self.chat_log = dict()
         self.tasks: dict[str, asyncio.TimerHandle] = {}
 
+    async def shutdown(self) -> None:
+        for task in self.tasks.values():
+            task.cancel()
+
     async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
         coalitions_enabled = server.locals.get('coalitions')
         coalition = await self.get_coalition(server, player) if coalitions_enabled else None

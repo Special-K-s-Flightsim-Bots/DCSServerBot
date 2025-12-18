@@ -62,13 +62,19 @@ class CloudListener(EventListener["Cloud"]):
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] != 1:
-            await server.run_on_extension(extension='Cloud', method='cloud_register')
+            try:
+                await server.run_on_extension(extension='Cloud', method='cloud_register')
+            except ValueError:
+                self.log.warning("Cloud extension is not active.")
             self.updates[server.name] = datetime.now(tz=timezone.utc)
 
     @event(name="onPlayerStop")
     async def onPlayerStop(self, server: Server, data: dict) -> None:
         if data['id'] != 1:
-            await server.run_on_extension(extension='Cloud', method='cloud_register')
+            try:
+                await server.run_on_extension(extension='Cloud', method='cloud_register')
+            except ValueError:
+                self.log.warning("Cloud extension is not active.")
             self.updates[server.name] = datetime.now(tz=timezone.utc)
 
     @event(name="getMissionUpdate")

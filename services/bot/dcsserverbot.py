@@ -221,9 +221,10 @@ class DCSServerBot(commands.Bot):
                 for role in ['Admin', 'DCS Admin', 'Alert', 'DCS', 'GameMaster']:
                     roles |= set(self.roles[role])
                 self.check_roles(roles)
-                admin_channel = self.locals.get('channels', {}).get('admin')
-                if admin_channel:
-                    self.check_channel(int(admin_channel))
+                # check channels in bot.yaml
+                for name, channel in self.locals.get('channels', {}).items():
+                    self.check_channel(int(channel))
+                # check channels in servers.yaml
                 for server in self.servers.values():
                     if server.locals.get('coalitions'):
                         roles.clear()
