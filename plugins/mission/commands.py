@@ -1107,13 +1107,14 @@ class Mission(Plugin[MissionEventListener]):
         else:
             view = discord.utils.MISSING
         msg = await interaction.followup.send(embed=env.embed, view=view)
-        try:
-            await view.wait()
-        finally:
+        if view:
             try:
-                await msg.delete()
-            except discord.NotFound:
-                pass
+                await view.wait()
+            finally:
+                try:
+                    await msg.delete()
+                except discord.NotFound:
+                    pass
 
     @airbase.command(description=_('Automatic Terminal Information Service (ATIS)'))
     @utils.app_has_role('DCS')
