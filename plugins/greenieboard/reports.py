@@ -344,7 +344,15 @@ class GreenieBoard(GraphElement):
                     return
 
         # Calculate dynamic figure size based on rows and columns
-        pilot_column_width = max([len(item['name']) for item in rows]) * 0.20
+        max_len = -1
+        for item in rows:
+            member = self.bot.get_member_by_ucid(item['player_ucid'])
+            if member:
+                item['name'] = member.display_name
+            if len(item['name']) > max_len:
+                max_len = len(item['name'])
+
+        pilot_column_width = max_len * 0.20
         padding = 1.0  # Padding between columns
         fig_width = pilot_column_width + padding + (
                     num_columns * column_width) + 2  # Additional padding on the sides
@@ -378,12 +386,7 @@ class GreenieBoard(GraphElement):
                 self.axes.add_patch(plt.Rectangle((-0.5, y_position - row_height / 2), fig_width, row_height,
                                                   color=odd_row_bg_color, zorder=1))
 
-            member = self.bot.get_member_by_ucid(row['player_ucid'])
-            if member:
-                name = member.display_name
-            else:
-                name = row['name']
-
+            name = row['name']
             self.axes.text(0, y_position, name, va='center', ha='left', fontsize=text_size, color=text_color,
                            fontweight='bold', fontname=font_name)
             self.axes.text(pilot_column_width + padding, y_position, f'{row["points"]:.1f}', va='center',
