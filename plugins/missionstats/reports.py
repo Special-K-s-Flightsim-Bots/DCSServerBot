@@ -111,12 +111,12 @@ class Sorties(report.GraphElement):
 
 
 class MissionStats(report.EmbedElement):
-    async def render(self, stats: dict, sql: str, mission_id: int) -> None:
+    async def render(self, stats: dict, sql: str, mission_id: int, sides: list[Coalition]) -> None:
         self.add_field(name='▬▬▬▬▬▬▬▬▬▬▬ {} ▬▬▬▬▬▬▬▬▬▬▬'.format(_('Current Situation')),
                        value='_ _', inline=False)
         self.add_field(
             name='_ _', value=_('Airbases / FARPs\nPlanes\nHelicopters\nGround Units\nShips\nStructures'))
-        for coalition in [Coalition.BLUE, Coalition.RED]:
+        for coalition in sides:
             coalition_data = stats['coalitions'][coalition.name]
             value = '{}\n'.format(len(coalition_data['airbases']))
             for unit_type in [_('Airplanes'), _('Helicopters'), _('Ground Units'), _('Ships')]:
@@ -141,10 +141,12 @@ class MissionStats(report.EmbedElement):
                                 continue
                             elements[s][name] = value
                     self.add_field(name='_ _', value='\n'.join(elements[Side.BLUE].keys()) or '_ _')
-                    self.add_field(name=Side.BLUE.name.capitalize(),
-                                   value='\n'.join([str(x) for x in elements[Side.BLUE].values()]) or '_ _')
-                    self.add_field(name=Side.RED.name.capitalize(),
-                                   value='\n'.join([str(x) for x in elements[Side.RED].values()]) or '_ _')
+                    if Coalition.BLUE in sides:
+                        self.add_field(name=Side.BLUE.name.capitalize(),
+                                       value='\n'.join([str(x) for x in elements[Side.BLUE].values()]) or '_ _')
+                    if Coalition.RED in sides:
+                        self.add_field(name=Side.RED.name.capitalize(),
+                                       value='\n'.join([str(x) for x in elements[Side.RED].values()]) or '_ _')
 
 
 class ModuleStats1(report.EmbedElement):

@@ -1,5 +1,4 @@
 import asyncio
-import psycopg_pool
 
 from core import EventListener, PersistentReport, Server, Coalition, Channel, event, Report, get_translation, \
     ThreadSafeDict
@@ -282,5 +281,6 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                 if 'coalitions' in stats:
                     report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json',
                                               embed_name='stats_embed', server=server)
-                    await report.render(stats=stats, mission_id=server.mission_id, title='Mission Statistics')
+                    await report.render(stats=stats, mission_id=server.mission_id, title='Mission Statistics',
+                                        sides=[Coalition.BLUE, Coalition.RED])
             self.update[server_name] = False

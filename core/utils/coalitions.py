@@ -25,7 +25,7 @@ def get_sides(bot: DCSServerBot, ctx: discord.Interaction | discord.Message, ser
     da_roles = [bot.get_role(x) for x in bot.roles['DCS Admin']]
     gm_roles = [bot.get_role(x) for x in bot.roles['GameMaster']]
     blue_role = bot.get_role(server.locals['coalitions']['blue_role'])
-    red_role = bot.get_role(server.locals['coalitions']['blue_role'])
+    red_role = bot.get_role(server.locals['coalitions']['red_role'])
     everyone = discord.utils.get(channel.guild.roles, name="@everyone")
 
     # check which coalition-specific data can be displayed in the questioned channel by that user

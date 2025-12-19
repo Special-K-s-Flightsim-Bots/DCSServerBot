@@ -10,6 +10,7 @@ if base.dcsbot ~= nil then
 	return
 end
 
+local MAGIC_BYTE = string.char(1)
 local MAX_CHUNK   = 65000          -- safe UDP payload size
 local HEADER_SEP  = '|'            -- separator in the header
 local HEADER_FMT = '%s'..HEADER_SEP..'%d'..HEADER_SEP..'%d'..HEADER_SEP..'%d'..HEADER_SEP
@@ -57,7 +58,7 @@ dcsbot.sendBotTable = dcsbot.sendBotTable or function (tbl, channel)
         local payload   = msg:sub(start_idx, end_idx)
 
         local header = string.format(HEADER_FMT, msg_id, config.DCS_PORT, total_parts, part)
-        local packet = header .. payload
+        local packet = MAGIC_BYTE .. header .. payload
         socket.try(dcsbot.UDPSendSocket:sendto(packet, config.BOT_HOST, config.BOT_PORT))
     end
 end

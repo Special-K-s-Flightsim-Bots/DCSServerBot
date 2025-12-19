@@ -820,23 +820,25 @@ class ServiceBus(Service):
                     self.log.warning(f"Empty request received from {addr} - ignoring.")
                     return
 
-                # Check for the split header
-                parts = data.split(b"|", 4)
-                if len(parts) == 5:
-                    msg_id_b, port_b, total_b, seq_b, payload = parts
-                    try:
-                        msg_id = msg_id_b.decode("ascii")
-                        port = int(port_b)
-                        total = int(total_b)
-                        seq = int(seq_b)
-                    except Exception as e:
-                        self.log.debug("Invalid split header %s – treating as normal", parts)
-                        derived._handle_raw_payload(data)
-                    else:
-                        # 2️⃣  Store fragment and see if we are finished
-                        loop = asyncio.get_running_loop()
-                        loop.create_task(derived._process_fragment(msg_id, port, total, seq, payload))
-                        return  # early exit – we’ll process once all fragments are in
+                if data[0:1] == b'\x01':
+                    data = data[1:]
+
+                    # Check for the split header
+                    parts = data.split(b"|", 4)
+                    if len(parts) == 5:
+                        msg_id_b, port_b, total_b, seq_b, payload = parts
+                        try:
+                            msg_id = msg_id_b.decode("ascii")
+                            port = int(port_b)
+                            total = int(total_b)
+                            seq = int(seq_b)
+                        except Exception as e:
+                            self.log.debug("Malformed header after magic byte – dropping packet")
+                            return
+                        else:
+                            loop = asyncio.get_running_loop()
+                            loop.create_task(derived._process_fragment(msg_id, port, total, seq, payload))
+                            return  # early exit – we’ll process once all fragments are in
 
                 # Normal (unsplit) JSON packet
                 derived._handle_raw_payload(data)
