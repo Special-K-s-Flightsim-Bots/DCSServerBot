@@ -127,6 +127,8 @@ class DCSServerBot(commands.Bot):
                 self.log.error(f"  => Role {role} not found in your Discord!")
 
     def check_channel(self, channel_id: int) -> bool:
+        if channel_id == -1:
+            return True
         channel = self.get_channel(channel_id)
         if not channel:
             self.log.error(f'No channel with ID {channel_id} found!')
