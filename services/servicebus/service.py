@@ -839,7 +839,6 @@ class ServiceBus(Service):
                         seq = int(seq_b)
                     except Exception as e:
                         self.log.debug("Invalid split header %s – treating as normal", parts)
-                        derived._handle_raw_payload(data)
                     else:
                         # 2️⃣  Store fragment and see if we are finished
                         loop = asyncio.get_running_loop()
