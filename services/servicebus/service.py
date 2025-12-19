@@ -864,8 +864,7 @@ class ServiceBus(Service):
                 try:
                     msg_data = json.loads(payload.decode("utf-8"))
                 except json.JSONDecodeError:
-                    self.log.debug(str(payload))
-                    self.log.warning(f"Invalid JSON from {derived.transport.get_extra_info('peername')}")
+                    self.log.warning(f"Invalid JSON {payload}")
                     return
 
                 server_name = msg_data.get('server_name')
