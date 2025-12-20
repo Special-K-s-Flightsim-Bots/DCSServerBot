@@ -196,7 +196,9 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                 if unit_name not in units:
                     units.append(unit_name)
             elif initiator['type'] == 'STATIC':
-                units = coalition_stats.setdefault('statics', [])
+                if len(coalition_stats['statics']) == 0:
+                    coalition_stats['statics'] = []
+                units = coalition_stats['statics']
                 if unit_name not in units:
                     units.append(unit_name)
             update = True
