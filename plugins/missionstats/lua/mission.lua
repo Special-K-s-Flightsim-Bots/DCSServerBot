@@ -116,6 +116,9 @@ function onMissionEvent(event)
             msg.initiator.unit_name = msg.initiator.unit:getName()
             msg.initiator.coalition = msg.initiator.unit:getCoalition()
             msg.initiator.unit_type = msg.initiator.unit:getTypeName()
+        else
+            -- ignore the event
+            return
         end
     end
     if event.target then
@@ -176,6 +179,9 @@ function onMissionEvent(event)
             msg.target.unit_name = msg.target.unit:getName()
             msg.target.coalition = msg.target.unit:getCoalition()
             msg.target.unit_type = msg.target.unit:getTypeName()
+        else
+            -- ignore the event
+            return
         end
     end
     if event.place and event.place:isExist() then

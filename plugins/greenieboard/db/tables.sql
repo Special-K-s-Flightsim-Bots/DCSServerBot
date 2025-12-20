@@ -30,5 +30,5 @@ SELECT mission_id, init_id, init_type, grade, comment, place, 1, wire, FALSE,
                REPLACE(SUBSTRING(comment, 'LSO: GRADE:([_\(\)-BCKOW]{1,4})'), '---', '--') AS grade,
                REGEXP_REPLACE(TRIM(REGEXP_REPLACE(comment, 'LSO: GRADE:.*:', '')), 'WIRE# [1234]', '') as comment,
                place, substring(comment FROM NULLIF(position('WIRE' IN comment), 0) + 6 FOR 1)::INTEGER as wire, time
-            FROM missionstats WHERE event LIKE '%QUALITY%' AND init_type IS NOT NULL
+            FROM missionstats WHERE event LIKE '%QUALITY%' AND init_id IS NOT NULL
        ) AS landings;

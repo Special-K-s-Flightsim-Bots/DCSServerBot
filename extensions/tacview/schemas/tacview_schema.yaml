@@ -1,6 +1,7 @@
 schema;node_tacview_schema:
   type: map
   nullable: false
+  allowempty: true
   mapping:
     name: {type: str, nullable: false, range: {min: 1}}
     installation: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
@@ -25,6 +26,7 @@ schema;node_tacview_schema:
 schema;instance_tacview_schema:
   type: map
   nullable: false
+  allowempty: true
   mapping:
     enabled: {type: bool, nullable: false}
     name: {type: str, nullable: false, range: {min: 1}}

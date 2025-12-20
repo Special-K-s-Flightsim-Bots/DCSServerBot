@@ -111,7 +111,7 @@ class Sorties(report.GraphElement):
 
 
 class MissionStats(report.EmbedElement):
-    async def render(self, stats: dict, sql: str, mission_id: int, sides: list[Coalition]) -> None:
+    async def render(self, stats: dict, mission_id: int, sides: list[Coalition], **kwargs) -> None:
         self.add_field(name='▬▬▬▬▬▬▬▬▬▬▬ {} ▬▬▬▬▬▬▬▬▬▬▬'.format(_('Current Situation')),
                        value='_ _', inline=False)
         self.add_field(
@@ -124,6 +124,11 @@ class MissionStats(report.EmbedElement):
                                        if unit_type in coalition_data['units'] else 0)
             value += '{}\n'.format(len(coalition_data['statics']))
             self.add_field(name=coalition.name, value=value)
+
+        # if no SQL was provided, do not print the actual achievements
+        sql = kwargs.get('sql')
+        if not sql:
+            return
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(sql, self.env.params)

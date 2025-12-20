@@ -726,16 +726,22 @@ class Scheduler(Plugin[SchedulerListener]):
         startup_delay = self.get_config().get('startup_delay', 10)
         for server_name, server in self.bot.servers.items():
             # only care about servers that are not in the startup phase
-            if server.status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTTING_DOWN] or server.maintenance:
+            if server.status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTTING_DOWN]:
                 continue
             config = self.get_config(server)
+            if server.maintenance:
+                if not config.get('startup', {}).get('clear_maintenance'):
+                    continue
+                server.maintenance = False
+                self.log.warning(f"Maintenance mode cleared on server {server.name}.")
+
             # if no config is defined for this server, ignore it
             if config:
                 try:
                     target_state = await self.check_server_state(server, config)
                     if target_state == Status.RUNNING and server.status == Status.SHUTDOWN:
                         server.status = Status.LOADING
-                        if 'startup' in config:
+                        if 'startup' in config and ('mission_file' in config['startup'] or 'mission_id' in config['startup']):
                             rconf = config.get('startup').copy()
                             # run "load" if a startup-section was provided
                             rconf['method'] = 'load'

@@ -3,7 +3,7 @@ import asyncio
 from core import EventListener, PersistentReport, Server, Coalition, Channel, event, Report, get_translation, \
     ThreadSafeDict
 from discord.ext import tasks
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Counter
 
 if TYPE_CHECKING:
     from .commands import MissionStatistics
@@ -20,14 +20,30 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
         3: Coalition.NEUTRAL
     }
 
-    UNIT_CATEGORY = {
-        None: None,
-        0: 'Airplanes',
-        1: 'Helicopters',
-        2: 'Ground Units',
-        3: 'Ships',
-        4: 'Structures',
-        5: 'Unknown'
+    CATEGORY = {
+        "UNIT": {
+            None: None,
+            0: 'Airplanes',
+            1: 'Helicopters',
+            2: 'Ground Units',
+            3: 'Ships',
+            4: 'Structures'
+        },
+        "WEAPON": {
+            None: None,
+            0: 'Shell',
+            1: 'Missile',
+            2: 'Rocket',
+            3: 'Bomb'
+        },
+        "STATIC": {
+            None: None,
+            0: 'Static Object'
+        },
+        "SCENERY": {
+            None: None,
+            0: 'Scenery Object'
+        }
     }
 
     EVENT_TEXTS = {
@@ -102,17 +118,29 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
         target_type = get_value(data, 'target', 'type')
         if (config.get('persist_ai_statistics', False) or (init_player and init_type == 'UNIT') or
                 (target_player and target_type == 'UNIT')):
+            init_type = get_value(data, 'initiator', 'type')
+            if init_type:
+                init_cat = self.CATEGORY[init_type].get(
+                    get_value(data, 'initiator', 'category'), 'Unknown')
+            else:
+                init_cat = None
+            target_type = get_value(data, 'target', 'type')
+            if target_type:
+                target_cat = self.CATEGORY[target_type].get(
+                    get_value(data, 'target', 'category'), 'Unknown')
+            else:
+                target_cat = None
             dataset = {
                 'mission_id': server.mission_id,
                 'event': data['eventName'],
                 'init_id': init_player.ucid if init_player else None,
                 'init_side': get_value(data, 'initiator', 'coalition'),
                 'init_type': get_value(data, 'initiator', 'unit_type'),
-                'init_cat': self.UNIT_CATEGORY.get(get_value(data, 'initiator', 'category'), 'Unknown'),
+                'init_cat': init_cat,
                 'target_id': target_player.ucid if target_player else None,
                 'target_side': get_value(data, 'target', 'coalition'),
                 'target_type': get_value(data, 'target', 'unit_type'),
-                'target_cat': self.UNIT_CATEGORY.get(get_value(data, 'target', 'category'), 'Unknown'),
+                'target_cat': target_cat,
                 'weapon': get_value(data, 'weapon', 'name'),
                 'place': get_value(data, 'place', 'name'),
                 'comment': data['comment'] if 'comment' in data else ''
@@ -138,8 +166,10 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             asyncio.create_task(self._update_database(server, config, data))
         if not data['server_name'] in self.mission_stats or not data.get('initiator'):
             return
+
         stats = self.mission_stats[data['server_name']]
         update = False
+
         if data['eventName'] == 'S_EVENT_BIRTH':
             initiator = data['initiator']
             # set the real unit id in the player
@@ -152,21 +182,25 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             # no stats for Neutral
             if coalition == Coalition.NEUTRAL:
                 return
+
             unit_name = initiator['unit_name']
+            coalition_stats = stats['coalitions'][coalition.name]
             if initiator['type'] == 'UNIT':
-                category = self.UNIT_CATEGORY.get(initiator['category'], 'Unknown')
-                if not stats['coalitions'][coalition.name]['units'].get(category):
+                category = self.CATEGORY['UNIT'].get(initiator['category'], 'Unknown')
+                if not coalition_stats['units'].get(category):
                     # lua does initialize the empty dict as an array
-                    if len(stats['coalitions'][coalition.name]['units']) == 0:
-                        stats['coalitions'][coalition.name]['units'] = {}
-                    stats['coalitions'][coalition.name]['units'][category] = []
-                if unit_name not in stats['coalitions'][coalition.name]['units'][category]:
-                    stats['coalitions'][coalition.name]['units'][category].append(unit_name)
+                    if len(coalition_stats['units']) == 0:
+                        coalition_stats['units'] = {}
+                    coalition_stats['units'][category] = []
+                units = coalition_stats['units'][category]
+                if unit_name not in units:
+                    units.append(unit_name)
             elif initiator['type'] == 'STATIC':
-                if not stats['coalitions'][coalition.name].get('statics'):
-                    stats['coalitions'][coalition.name]['statics'] = []
-                stats['coalitions'][coalition.name]['statics'].append(unit_name)
+                units = coalition_stats.setdefault('statics', [])
+                if unit_name not in units:
+                    units.append(unit_name)
             update = True
+
         elif data['eventName'] == 'S_EVENT_KILL':
             killer = data['initiator']
             victim = data.get('target')
@@ -175,40 +209,40 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                 # no stats for Neutral
                 if coalition == Coalition.NEUTRAL:
                     return
+
+                coalition_stats = stats['coalitions'][coalition.name]
                 if victim['type'] == 'UNIT':
-                    category = self.UNIT_CATEGORY.get(victim['category'], 'Unknown')
-                    if 'kills' not in stats['coalitions'][coalition.name]:
-                        stats['coalitions'][coalition.name]['kills'] = {}
-                    if category not in stats['coalitions'][coalition.name]['kills']:
-                        stats['coalitions'][coalition.name]['kills'][category] = 1
-                    else:
-                        stats['coalitions'][coalition.name]['kills'][category] += 1
+                    category = self.CATEGORY['UNIT'].get(victim['category'], 'Unknown')
+                    kill_counter = coalition_stats.setdefault('kills', Counter())
+                    kill_counter[category] += 1
                 elif victim['type'] == 'STATIC':
-                    if 'kills' not in stats['coalitions'][coalition.name]:
-                        stats['coalitions'][coalition.name]['kills'] = {}
-                    if 'Static' not in stats['coalitions'][coalition.name]['kills']:
-                        stats['coalitions'][coalition.name]['kills']['Static'] = 1
-                    else:
-                        stats['coalitions'][coalition.name]['kills']['Static'] += 1
+                    kill_counter = coalition_stats.setdefault('kills', Counter())
+                    kill_counter['Static'] += 1
                 update = True
+
         elif data['eventName'] in ['S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT']:
             initiator = data['initiator']
             # no stats for Neutral
             coalition: Coalition = self.COALITION[initiator['coalition']]
             if coalition == Coalition.NEUTRAL:
                 return
+
+            coalition_stats = stats['coalitions'][coalition.name]
             unit_name = initiator['unit_name']
             if initiator['type'] == 'UNIT':
-                category = self.UNIT_CATEGORY.get(initiator['category'], 'Unknown')
+                category = self.CATEGORY['UNIT'].get(initiator['category'], 'Unknown')
                 if category == 'Structures':
-                    if unit_name in stats['coalitions'][coalition.name]['statics']:
-                        stats['coalitions'][coalition.name]['statics'].remove(unit_name)
-                elif unit_name in stats['coalitions'][coalition.name]['units'][category]:
-                    stats['coalitions'][coalition.name]['units'][category].remove(unit_name)
+                    units = coalition_stats['statics']
+                else:
+                    units = coalition_stats['units'][category]
+                if unit_name in units:
+                    units.remove(unit_name)
             elif initiator['type'] == 'STATIC':
-                if unit_name in stats['coalitions'][coalition.name]['statics']:
-                    stats['coalitions'][coalition.name]['statics'].remove(unit_name)
+                units = coalition_stats['statics']
+                if unit_name in units:
+                    units.remove(unit_name)
             update = True
+
         elif data['eventName'] == 'S_EVENT_BASE_CAPTURED':
             # TODO: rewrite that code, so the initiator is not needed
             win_coalition = self.COALITION[data['initiator']['coalition']]
@@ -218,15 +252,13 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             if name in stats['coalitions'][win_coalition.name]['airbases'] or \
                     name not in stats['coalitions'][lose_coalition.name]['airbases']:
                 return
-            if not stats['coalitions'][win_coalition.name]['airbases']:
-                stats['coalitions'][win_coalition.name]['airbases'] = []
-            stats['coalitions'][win_coalition.name]['airbases'].append(name)
-            if 'captures' not in stats['coalitions'][win_coalition.name]:
-                stats['coalitions'][win_coalition.name]['captures'] = 1
-            else:
-                stats['coalitions'][win_coalition.name]['captures'] += 1
-            if name in stats['coalitions'][lose_coalition.name]['airbases']:
-                stats['coalitions'][lose_coalition.name]['airbases'].remove(name)
+
+            wc = stats['coalitions'][win_coalition.name]
+            wc.setdefault('airbases', []).append(name)
+            wc['captures'] = wc.get('captures', 0) + 1
+            lc = stats['coalitions'][lose_coalition.name]
+            if name in lc['airbases']:
+                lc['airbases'].remove(name)
                 message = self.EVENT_TEXTS[win_coalition]['capture_from'].format(name)
             else:
                 message = self.EVENT_TEXTS[win_coalition]['capture'].format(name)
@@ -234,8 +266,9 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             events_channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
             if events_channel:
                 asyncio.create_task(events_channel.send(message))
-        if update:
-            self.update[server.name] = True
+
+        # is an embed update necessary?
+        self.update[server.name] = update
 
     async def _process_event(self, server: Server) -> None:
         try:
