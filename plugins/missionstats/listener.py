@@ -187,18 +187,17 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             coalition_stats = stats['coalitions'][coalition.name]
             if initiator['type'] == 'UNIT':
                 category = self.CATEGORY['UNIT'].get(initiator['category'], 'Unknown')
-                if not coalition_stats['units'].get(category):
-                    # lua does initialize the empty dict as an array
-                    if len(coalition_stats['units']) == 0:
+                if not coalition_stats.get('units', {}).get(category):
+                    if not coalition_stats.get('units'):
                         coalition_stats['units'] = {}
                     coalition_stats['units'][category] = []
                 units = coalition_stats['units'][category]
                 if unit_name not in units:
                     units.append(unit_name)
             elif initiator['type'] == 'STATIC':
-                if len(coalition_stats['statics']) == 0:
-                    coalition_stats['statics'] = []
-                units = coalition_stats['statics']
+                units = coalition_stats.get('statics')
+                if not units:
+                    units = coalition_stats['statics'] = []
                 if unit_name not in units:
                     units.append(unit_name)
             update = True
