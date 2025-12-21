@@ -2445,7 +2445,7 @@ class Mission(Plugin[MissionEventListener]):
             return
         # check if upload is enabled
         if not config.get('enabled', True):
-            self.log.debug("Mission upload is disabled!")
+            self.log.warning("Mission upload is disabled!")
             return
 
         # check if we are in the correct channel

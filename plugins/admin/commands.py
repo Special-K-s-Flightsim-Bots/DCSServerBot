@@ -20,7 +20,7 @@ from plugins.modmanager.commands import get_installed_mods
 from plugins.scheduler.views import ConfigView
 from services.bot import DCSServerBot
 from services.modmanager import ModManagerService
-from typing import Literal, Type
+from typing import Literal
 from zipfile import ZipFile, ZIP_DEFLATED
 
 # ruamel YAML support

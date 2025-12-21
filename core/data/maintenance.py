@@ -49,7 +49,7 @@ class ServerMaintenanceManager:
         for server in self.to_start:
             if server not in self.in_maintenance:
                 server.maintenance = False
-            elif self.shutdown:
+            if self.shutdown:
                 tasks.append(server.startup())
 
         if tasks:
