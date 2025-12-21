@@ -366,8 +366,8 @@ class GreenieBoard(GraphElement):
         tp_header = TextPath((0, 0), "Pilot", size=text_size, prop=font_props)
         header_width_points = tp_header.get_extents().width
 
-        # Convert points (1/72 inch) to inches
-        pilot_column_width = max(header_width_points, max_name_width_points) / 50.0
+        # 72 points = 1 inch. We add a 40% buffer (1.4x) for visual breathing room.
+        pilot_column_width = (max(header_width_points, max_name_width_points) / 72.0) * 1.4
 
         padding = 1.0  # Padding between columns
         fig_width = pilot_column_width + padding + (
