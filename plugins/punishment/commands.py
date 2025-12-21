@@ -4,7 +4,7 @@ import psycopg
 
 from contextlib import suppress
 from core import (Plugin, PluginRequiredError, utils, Player, Server, PluginInstallationError, command, DEFAULT_TAG,
-                  Report, get_translation)
+                  Report, get_translation, SEND_ONLY_CHANNEL_PERMISSIONS)
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import tasks
@@ -42,7 +42,13 @@ class Punishment(Plugin[PunishmentEventListener]):
     async def punish(self, server: Server, ucid: str, punishment: dict, reason: str, points: float | None = None):
         player: Player = server.get_player(ucid=ucid)
         member = self.bot.get_member_by_ucid(ucid)
-        admin_channel = self.bot.get_admin_channel(server)
+        channel_id = self.get_config(server).get('channel')
+        if channel_id:
+            self.bot.check_channel(channel_id, SEND_ONLY_CHANNEL_PERMISSIONS)
+            channel = self.bot.get_channel(channel_id)
+        else:
+            channel = self.bot.get_admin_channel(server)
+
         if punishment['action'] == 'ban':
             # we must not punish for reslots here
             self.eventlistener.pending_kill.pop(ucid, None)
@@ -66,8 +72,8 @@ class Punishment(Plugin[PunishmentEventListener]):
                 message = _("Player with ucid {ucid} banned by {banned_by} for {reason}.").format(
                     ucid=ucid, banned_by=self.bot.member.name, reason=reason)
             # audit
-            if admin_channel:
-                await admin_channel.send("```" + message + "```")
+            if channel:
+                await channel.send("```" + message + "```")
             await self.bot.audit(message)
 
         # everything after that point can only be executed if players are active
@@ -114,8 +120,8 @@ class Punishment(Plugin[PunishmentEventListener]):
                                                                                                   points=points))
         if message:
             # audit
-            if admin_channel:
-                await admin_channel.send("```" + message + "```")
+            if channel:
+                await channel.send("```" + message + "```")
             await self.bot.audit(message)
 
     # TODO: change to pubsub

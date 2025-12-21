@@ -2,7 +2,8 @@ import asyncio
 import discord
 
 from aiohttp import ClientError
-from core import Channel, utils, Status, PluginError, Group, Node
+from core import Channel, utils, Status, PluginError, Group, Node, DEFAULT_CHANNEL_PERMISSIONS, \
+    SEND_ONLY_CHANNEL_PERMISSIONS
 from core.data.node import FatalException
 from core.listener import EventListener
 from core.services.registry import ServiceRegistry
@@ -126,42 +127,79 @@ class DCSServerBot(commands.Bot):
             if not self.get_role(role):
                 self.log.error(f"  => Role {role} not found in your Discord!")
 
-    def check_channel(self, channel_id: int) -> bool:
+    @staticmethod
+    def _channel_path(channel: discord.abc.GuildChannel) -> str:
+        """
+        Helper: return 'category/channel' if the channel has a category,
+        otherwise just 'channel'.
+        """
+        # Use ASCII‑safe names in the log (just like the original code)
+        channel_name = channel.name.encode("utf-8", "replace").decode()
+
+        if channel.category:  # `channel.category` is a CategoryChannel or None
+            cat_name = channel.category.name.encode("ascii", "replace").decode()
+            return f"{cat_name}/{channel_name}"
+        return channel_name
+
+    def check_channel(
+        self,
+        channel_id: int,
+        permissions: Iterable[str] | None = None,
+    ) -> bool:
+        """
+        Verify that the bot has the *required* permissions on the given channel.
+
+        Parameters
+        ----------
+        channel_id : int
+            Discord channel ID. `-1` is treated as a “no‑check” marker.
+        permissions : Iterable[str] | None
+            Permission names to check for (e.g. ``'view_channel'``).
+            If omitted, the default set in ``const.DEFAULT_CHANNEL_PERMISSIONS`` is used.
+
+        Returns
+        -------
+        bool
+            ``True`` if *all* requested permissions are present; otherwise ``False``.
+        """
         if channel_id == -1:
+            # A sentinel value – we purposely skip the check.
             return True
+
         channel = self.get_channel(channel_id)
         if not channel:
-            self.log.error(f'No channel with ID {channel_id} found!')
+            self.log.error(f"No channel with ID {channel_id} found!")
             return False
-        channel_name = channel.name.encode(encoding='ASCII', errors='replace').decode()
-        # name changes of the status channel will only happen with the correct permission
-        ret = True
-        permissions = channel.permissions_for(self.member)
-        if not permissions.view_channel:
-            self.log.error(f'  => Permission "View Channel" missing for channel {channel_name}')
-            ret = False
-        if not permissions.send_messages:
-            self.log.error(f'  => Permission "Send Messages" missing for channel {channel_name}')
-            ret = False
-        if not permissions.read_messages:
-            self.log.error(f'  => Permission "Read Messages" missing for channel {channel_name}')
-            ret = False
-        if not permissions.read_message_history:
-            self.log.error(f'  => Permission "Read Message History" missing for channel {channel_name}')
-            ret = False
-        if not permissions.add_reactions:
-            self.log.error(f'  => Permission "Add Reactions" missing for channel {channel_name}')
-            ret = False
-        if not permissions.attach_files:
-            self.log.error(f'  => Permission "Attach Files" missing for channel {channel_name}')
-            ret = False
-        if not permissions.embed_links:
-            self.log.error(f'  => Permission "Embed Links" missing for channel {channel_name}')
-            ret = False
-        if not permissions.manage_messages:
-            self.log.error(f'  => Permission "Manage Messages" missing for channel {channel_name}')
-            ret = False
-        return ret
+
+        # Make a *copy* so that the caller can pass in a mutable list without
+        # accidentally mutating the defaults.
+        required_perms: set[str] = set(permissions or DEFAULT_CHANNEL_PERMISSIONS)
+
+        channel_name = self._channel_path(channel)
+        channel_perms = channel.permissions_for(self.member)
+
+        # ------------------------------------------------------------------
+        # Iterate over the permission names and flag missing ones.
+        # ------------------------------------------------------------------
+        has_all = True
+        for perm_name in required_perms:
+            # If the attribute does not exist on the Permission object we
+            # raise a clear error – this is a programming mistake, not a
+            # runtime Discord issue.
+            if not hasattr(channel_perms, perm_name):
+                raise AttributeError(
+                    f"Permission object has no attribute '{perm_name}'. "
+                    "Check the spelling against the discord.py docs."
+                )
+
+            if not getattr(channel_perms, perm_name):
+                self.log.error(
+                    f"  => Permission '{perm_name.replace('_', ' ').title()}' "
+                    f"missing for channel '{channel_name}'"
+                )
+                has_all = False
+
+        return has_all
 
     def get_channel(self, channel_id: int, /) -> Any:
         if channel_id == -1:
@@ -179,16 +217,22 @@ class DCSServerBot(commands.Bot):
         else:
             return None
 
-    def check_channels(self, server: "Server"):
-        channels = ['status', 'chat']
+    def _check_server_channels(self, server: "Server"):
+        channels = {
+            'status': DEFAULT_CHANNEL_PERMISSIONS,
+            'chat': SEND_ONLY_CHANNEL_PERMISSIONS
+        }
         if not self.locals.get('channels', {}).get('admin'):
-            channels.append('admin')
+            channels['admin'] = DEFAULT_CHANNEL_PERMISSIONS
         if server.locals.get('coalitions'):
-            channels.extend(['red', 'blue'])
-        for c in channels:
+            channels |= {
+                'red': SEND_ONLY_CHANNEL_PERMISSIONS,
+                'blue': SEND_ONLY_CHANNEL_PERMISSIONS
+            }
+        for c, perms in channels.items():
             channel_id = int(server.channels[Channel(c)])
             if channel_id != -1:
-                self.check_channel(channel_id)
+                self.check_channel(channel_id, perms)
 
     async def on_ready(self):
         async def register_guild_name():
@@ -225,7 +269,7 @@ class DCSServerBot(commands.Bot):
                 self.check_roles(roles)
                 # check channels in bot.yaml
                 for name, channel in self.locals.get('channels', {}).items():
-                    self.check_channel(int(channel))
+                    self.check_channel(int(channel), DEFAULT_CHANNEL_PERMISSIONS)
                 # check channels in servers.yaml
                 for server in self.servers.values():
                     if server.locals.get('coalitions'):
@@ -234,7 +278,7 @@ class DCSServerBot(commands.Bot):
                         roles.add(server.locals['coalitions']['red_role'])
                         self.check_roles(roles)
                     try:
-                        self.check_channels(server)
+                        self._check_server_channels(server)
                     except KeyError:
                         self.log.error(f"  => Mandatory channel(s) missing for server {server.name} in servers.yaml!")
 

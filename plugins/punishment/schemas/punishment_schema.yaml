@@ -12,6 +12,7 @@ schema;element_schema:
   nullable: false
   mapping:
     enabled: {type: bool, nullable: false}
+    channel: {type: int, nullable: false}
     penalties:
       type: seq
       nullable: false

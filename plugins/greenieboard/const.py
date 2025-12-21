@@ -1,8 +1,8 @@
 GRADES = {
     "_OK_": {"rating": 5, "grade": "Perfect pass", "legend": "PERFECT"},
     "OK": {"rating": 4, "grade": "Minimum deviation with good correction", "color": "#29C248", "legend": "OK"},
-    "(OK)": {"rating": 3, "grade": "Reasonable deviation with average correction", "color": "#F2C038", "legend": "FAIR"},
-    "B": {"rating": 2.5, "grade": "Tailhook did not catch a wire, aircraft went around for another pass", "color": '#088199', "legend": "BOLTER"},
+    "(OK)": {"rating": 3, "grade": "Reasonable deviation with avg. correction", "color": "#F2C038", "legend": "FAIR"},
+    "B": {"rating": 2.5, "grade": "No wire-catch, go-around needed", "color": '#088199', "legend": "BOLTER"},
     "--": {"rating": 2, "grade": "No grade. Below average corrections but safe pass", "color": "#73481d", "legend": "NO GRADE"},
     "WO": {"rating": 1, "grade": "Wave-off", "color": "#000000", "legend": "WAVE OFF"},
     "C": {"rating": 0, "grade": "Cut. Unsafe, gross deviations inside the wave-off window", "color": "#CC0000", "legend": "CUT"},
