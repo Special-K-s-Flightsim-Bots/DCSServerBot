@@ -42,6 +42,7 @@ class Report:
         self.apool = bot.apool
         self.env = ReportEnv(bot)
         self.filename, self.report_def = self.load_report_def(plugin, filename)
+        self.env.report = self.filename
 
     def load_report_def(self, plugin: str, filename: str):
         default = f'./plugins/{plugin}/reports/{filename}'

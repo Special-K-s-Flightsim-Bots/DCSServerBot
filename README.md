@@ -150,13 +150,13 @@ DCSServerBot supports a lot of them already which can add some quality of life.
 You need the following software to run DCSServerBot:
 
 #### a) Python
-You need to have [Python](https://www.python.org/downloads/) 3.10 or higher installed. 
+You need to have [Python](https://www.python.org/downloads/) 3.11 or higher installed. 
 Please make sure that you tick "Add python.exe to PATH" during your Python installation.
 
 > [!WARNING]
-> Pythong 3.14 is still very new and many third-party libraries are either not yet or not fully supported yet.
-> The bot should install with 3.14 though, but you can not expect the same performance as with 3.13 yet.
-> That said - use 3.14 on your own risk.
+> Python 3.14 is still very new, and many third-party libraries are either not or not fully supported yet.
+> The bot should install with 3.14, though, but you cannot expect the same performance as with 3.13 yet.
+> That said – use 3.14 at your own risk.
 
 #### b) PostgreSQL
 DCSServerBot needs a database to store information in. I decided to use [PostgreSQL](https://www.postgresql.org/download/), as it has great performance

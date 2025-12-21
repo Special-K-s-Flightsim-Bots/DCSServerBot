@@ -103,6 +103,10 @@ class HighscoreElement(report.GraphElement):
 
     async def render(self, interaction: discord.Interaction, server_name: str, limit: int, kill_type: str,
                      flt: StatisticsFilter, bar_labels: bool | None = True):
+
+        if flt is None:
+            raise ValueError('Wrong period provided!')
+
         sql_parts = {
             'Air Targets': 'SUM(s.kills_planes+s.kills_helicopters)',
             'Ships': 'SUM(s.kills_ships)',

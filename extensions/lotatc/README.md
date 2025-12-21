@@ -26,8 +26,10 @@ MyNode:
         LotAtc:
           autoupdate: true          # auto update LotAtc in this instance, if a new version is available (default: false)
           show_passwords: false     # show passwords in the server status embed (default = true)
-          host: "myfancyhost.com"   # Show a different hostname instead of your servers external IP
-          port: 10310               # you can specify any parameter from LotAtc's config.lua in here to overwrite it
+          host: "myfancyhost.com"   # Optional: Show a different hostname instead of your servers external IP
+          port: 10310               # Optional: your LotAtc port (default: 10310)
+          jsonserver_port: 8081     # Optional: you can specify any parameter from LotAtc's config.lua in here to overwrite it
+          # ...
 ```
 
 > [!TIP]

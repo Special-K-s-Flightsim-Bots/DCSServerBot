@@ -327,8 +327,8 @@ class Graph(ReportElement):
             for result in results:
                 if isinstance(result, Exception):
                     if not isinstance(result, NothingToPlot):
-                        self.log.error("Error in Graph:\n{stacktrace}".format(
-                            stacktrace=''.join(traceback.format_exception(result)))
+                        self.log.error("{filename}: Error in Graph\n{stacktrace}".format(
+                            filename=self.env.report, stacktrace=''.join(traceback.format_exception(result)))
                         )
 
             # only render the graph if we don't have a rendered graph already attached as a file (image)
