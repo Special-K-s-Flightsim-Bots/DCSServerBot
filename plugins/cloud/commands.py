@@ -326,9 +326,10 @@ class Cloud(Plugin[CloudListener]):
                 global_ban_ids = {x['discord_id'] for x in global_bans}
                 if not self.guild_bans:
                     self.guild_bans = [
-                        x async for x in self.bot.guilds[0].bans(limit=None) if x.reason and x.reason.startswith('DGSA:')
+                        x.user async for x in self.bot.guilds[0].bans(limit=None)
+                        if x.reason and x.reason.startswith('DGSA:')
                     ]
-                banned_users = {x.user.id for x in self.guild_bans}
+                banned_users = {x.id for x in self.guild_bans}
 
                 guild = self.bot.guilds[0]
                 # unban users that should not be banned anymore
