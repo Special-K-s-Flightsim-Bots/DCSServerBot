@@ -43,6 +43,10 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
         "SCENERY": {
             None: None,
             0: 'Scenery Object'
+        },
+        "CARGO": {
+            None: None,
+            0: 'Cargo'
         }
     }
 
