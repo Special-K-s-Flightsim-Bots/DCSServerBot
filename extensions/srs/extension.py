@@ -197,7 +197,6 @@ class SRS(Extension, FileSystemEventHandler):
         extension = self.server.extensions.get('LotAtc')
         if extension:
             self.config['lotatc'] = True
-            self.config['lotatc_export_port'] = self.config.get('lotatc_export_port', 10712)
             dirty |= self._maybe_update_config('General Settings','LOTATC_EXPORT_ENABLED','lotatc')
             dirty |= self._maybe_update_config('General Settings','LOTATC_EXPORT_IP','127.0.0.1')
             dirty |= self._maybe_update_config('General Settings','LOTATC_EXPORT_PORT',
