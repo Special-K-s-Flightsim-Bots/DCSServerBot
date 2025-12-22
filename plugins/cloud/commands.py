@@ -283,7 +283,10 @@ class Cloud(Plugin[CloudListener]):
                 banlist = None
             if self.config.get('dcs-ban', False):
                 dgsa_bans = {item['ucid']: item for item in await self.get('bans')}
-                local_bans = {item['ucid']: item for item in await self.bus.bans(expired=True) if item['banned_by'] == self.plugin_name}
+                local_bans = {
+                    item['ucid']: item for item in await self.bus.bans(expired=True)
+                    if item['banned_by'] == self.plugin_name
+                }
                 # filter bans by scope
                 to_ban: set = {
                     ucid for ucid, ban in dgsa_bans.items()
@@ -393,7 +396,6 @@ class Cloud(Plugin[CloudListener]):
     @cloud_sync.before_loop
     async def before_cloud_sync(self):
         await self.bot.wait_until_ready()
-
 
     @tasks.loop(hours=1)
     async def register(self):
