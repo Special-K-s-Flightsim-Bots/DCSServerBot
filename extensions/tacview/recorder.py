@@ -147,10 +147,10 @@ class TacviewRecorder:
                     chunk = await self.reader.read(65536)
                 except asyncio.IncompleteReadError:
                     # Remote closed connection
-                    self.log.warning("Connection closed by remote.")
+                    self.log.debug("Tacview connection closed by remote.")
                     break
                 if not chunk:
-                    self.log.warning("Connection closed by remote.")
+                    self.log.debug("Tacview connection closed by remote.")
                     break
                 await self._ingest(chunk)
         finally:

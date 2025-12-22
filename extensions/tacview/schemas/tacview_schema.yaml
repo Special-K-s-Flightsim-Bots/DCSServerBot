@@ -7,6 +7,7 @@ schema;node_tacview_schema:
     installation: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
     host: {type: str, nullable: false}
     show_passwords: {type: bool, nullable: false}
+    alternate_recording: {type: bool, nullable: false}
     tacviewExportPath: {type: str, nullable: false, range: {min: 1}}
     tacviewAutoDiscardFlights: {type: int, nullable: false}
     tacviewDebugMode: {type: int, nullable: false}
@@ -34,6 +35,7 @@ schema;instance_tacview_schema:
     host: {type: str, nullable: false}
     log: {type: str, nullable: false}
     show_passwords: {type: bool, nullable: false}
+    alternate_recording: {type: bool, nullable: false}
     tacviewExportPath: {type: str, nullable: false}
     tacviewAutoDiscardFlights: {type: int, nullable: false}
     tacviewDebugMode: {type: int, nullable: false}
