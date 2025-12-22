@@ -55,6 +55,6 @@ class ServerMaintenanceManager:
         if tasks:
             ret = await asyncio.gather(*tasks, return_exceptions=True)
             for idx in range(0, len(ret)):
-                server = self.in_maintenance[idx]
+                server = self.to_start[idx]
                 if isinstance(ret[idx], Exception):
                     self.node.log.error(f'Timeout while starting {server.display_name}, please check it manually!')
