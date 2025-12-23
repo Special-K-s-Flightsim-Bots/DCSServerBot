@@ -659,8 +659,29 @@ function dcsbot.force_player_slot(json)
     end
 end
 
+local function relative_date(ts)
+    local now   = os.time()     -- seconds since 1970‑01‑01 UTC
+    local diff  = ts - now      -- seconds left
+
+    local sign  = diff < 0 and "-" or ""
+    diff = math.abs(diff)
+
+    local days   = math.floor(diff / 86400)
+    diff = diff % 86400
+    local hours  = math.floor(diff / 3600)
+    diff = diff % 3600
+    local minutes = math.floor(diff / 60)
+
+    return string.format("%s%dd %02dh %02dm",
+        sign, days, hours, minutes)
+end
+
 local function single_ban(json)
     local banned_until = json.banned_until or 'never'
+    if tonumber(banned_until) ~= nil then
+        local ts = tonumber(json.banned_until)
+        banned_until = 'in ' .. relative_date(ts) .. ' at ' .. os.date("!%Y-%m-%d %H:%M (UTC)", ts)
+    end
     local reason = json.reason .. '.\nExpires ' .. banned_until
     dcsbot.banList[json.ucid] = reason
     local plist = net.get_player_list()

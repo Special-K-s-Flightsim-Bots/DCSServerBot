@@ -255,11 +255,11 @@ class MissionEventListener(EventListener["Mission"]):
         server.current_mission.update(data)
 
     async def _update_bans(self, server: Server):
-        def _get_until(until: datetime) -> str:
+        def get_until(until: datetime) -> str | int:
             if until.year == 9999:
                 return 'never'
             else:
-                return until.strftime('%Y-%m-%d %H:%M') + ' (UTC)'
+                return int(until.replace(tzinfo=timezone.utc).timestamp())
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -271,7 +271,7 @@ class MissionEventListener(EventListener["Mission"]):
                     batch.append({
                         "ucid": ban['ucid'],
                         "reason": ban['reason'],
-                        "banned_until": _get_until(ban['banned_until'])
+                        "banned_until": get_until(ban['banned_until'])
                     })
                     if len(batch) >= 25:
                         await server.send_to_dcs({
