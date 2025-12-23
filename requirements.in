@@ -27,7 +27,7 @@ discord.py==2.6.4
 eyeD3==0.9.9
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.125.0
+fastapi==0.127.0
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -81,9 +81,6 @@ psycopg-pool==3.3.0
 # PSUtil: Cross-platform library to access system details and process utilities
 psutil==7.1.3
 
-# PyArrow: Python library providing high-performance tools for doing analytics on Arrow-based columnar data
-# pyarrow==21.0.0
-
 # pyKwalify: A Python library for YAML/JSON schema validation
 pykwalify==1.8.0
 
@@ -130,7 +127,7 @@ upnpy==1.1.8 ; python_version >= "3.14"
 miniupnpc==2.3.3 ; python_version < "3.14"
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.38.0
+uvicorn==0.40.0
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==6.0.0

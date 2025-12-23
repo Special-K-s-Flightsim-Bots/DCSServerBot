@@ -341,11 +341,8 @@ def exception_to_dict(e: BaseException) -> dict[str, Any]:
     exc_dict = {
         'class': f'{e.__class__.__module__}.{e.__class__.__name__}',
         'message': str(e),
-        'traceback': traceback.format_exception_only(type(e), e),
+        'traceback': traceback.format_exception_only(type(e), e), 'args': [repr(a) for a in e.args]
     }
-
-    # Serialise args (convert each to a string / repr)
-    exc_dict['args'] = [repr(a) for a in e.args]
 
     # Pull out useful OSError / socket attributes
     # (only those that are JSON‑friendly)

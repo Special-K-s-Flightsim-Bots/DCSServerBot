@@ -24,9 +24,9 @@ function _handlePassword(json, settings, passwordKey, passwordHashKey)
     local password = json[passwordKey]
     if password then
         if password == '' then
-            settings['advanced'][passwordHashKey] = nil
+            settings.advanced[passwordHashKey] = nil
         else
-            settings['advanced'][passwordHashKey] = net.hash_password(password)
+            settings.advanced[passwordHashKey] = net.hash_password(password)
         end
     end
 end

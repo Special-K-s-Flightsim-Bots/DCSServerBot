@@ -6,7 +6,6 @@ import os
 import re
 import shutil
 import sys
-import tempfile
 
 from core import Extension, utils, ServiceRegistry, Server, get_translation, InstallException, DISCORD_FILE_SIZE_LIMIT, \
     Status, PortType, Port

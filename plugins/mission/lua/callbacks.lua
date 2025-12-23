@@ -95,13 +95,13 @@ local function isLocked(ucid)
     return dcsbot.locked[ucid] ~= nil
 end
 
-function mission.onPlayerTryConnect(addr, name, ucid, playerID)
+function mission.onPlayerTryConnect(addr, name, ucid, _playerID)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTryConnect()')
     if dcsbot.params == nil then
         -- don't block players, if the bot is not up
         return
     end
-    config = dcsbot.params['mission']
+    local config = dcsbot.params.mission
     -- check if the server is locked
     if dcsbot.server_locked then
         return false, config.messages.message_server_locked
@@ -118,7 +118,7 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
     -- check bans including the SMART ban system
     ipaddr = utils.getIP(addr)
     if isBanned(ucid) then
-        if config['smart_bans'] then
+        if config.smart_bans then
             -- add their IP to the smart ban system
             dcsbot.banList[ipaddr] = ucid
         else
@@ -132,7 +132,7 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
             reason = dcsbot.banList[ucid]
         }
         utils.sendBotTable(msg, config.channels.admin)
-        return false, string.gsub(config['messages']['message_ban'], "{}", dcsbot.banList[ucid])
+        return false, string.gsub(config.messages.message_ban, "{}", dcsbot.banList[ucid])
     elseif isBanned(ipaddr) and dcsbot.banList[dcsbot.banList[ipaddr]] then
         local old_ucid = dcsbot.banList[ipaddr]
         local msg = {
@@ -200,7 +200,7 @@ function mission.onMissionLoadEnd()
     local availableSlots = Sim.getAvailableSlots("red")
     dcsbot.red_slots = {}
     if availableSlots ~= nil then
-        for k,v in pairs(availableSlots) do
+        for _,v in pairs(availableSlots) do
             dcsbot.red_slots[v.unitId] = v
             num_slots_red = num_slots_red + 1
         end
@@ -210,7 +210,7 @@ function mission.onMissionLoadEnd()
     availableSlots = Sim.getAvailableSlots("blue")
     dcsbot.blue_slots = {}
     if availableSlots ~= nil then
-        for k,v in pairs(availableSlots) do
+        for _,v in pairs(availableSlots) do
             dcsbot.blue_slots[v.unitId] = v
             num_slots_blue = num_slots_blue + 1
         end
@@ -293,13 +293,13 @@ end
 function mission.onPlayerTryChangeSlot(id, side, slot)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTryChangeSlot()')
     local config = (dcsbot.params and dcsbot.params.mission) or {}
-    local slot_spamming = config['slot_spamming']
+    local slot_spamming = config.slot_spamming
 
     -- check, if seat is locked
-    ucid = net.get_player_info(id, 'ucid')
+    local ucid = net.get_player_info(id, 'ucid')
     if side > 0 and isLocked(ucid) then
         log.write('DCSServerBot', log.DEBUG, 'Mission: Player locked.')
-        net.send_chat_to(config['messages']['message_seat_locked'], id)
+        net.send_chat_to(config.messages.message_seat_locked, id)
         return false
     end
     -- check slot spamming
@@ -309,17 +309,17 @@ function mission.onPlayerTryChangeSlot(id, side, slot)
     if not slot_spamming or not tonumber(slot) or utils.isDynamic(slot) then
         return
     end
-	if mission.last_change_slot[id] and mission.last_change_slot[id] > (os.clock() - tonumber(slot_spamming['check_time'] or 5)) then
+	if mission.last_change_slot[id] and mission.last_change_slot[id] > (os.clock() - tonumber(slot_spamming.check_time or 5)) then
 		mission.num_change_slots[id] = mission.num_change_slots[id] + 1
-		if mission.num_change_slots[id] > tonumber(slot_spamming['slot_changes'] or 5) then
+		if mission.num_change_slots[id] > tonumber(slot_spamming.slot_changes or 5) then
             mission.num_change_slots[id] = -1
-			net.kick(id, slot_spamming['message'])
+			net.kick(id, slot_spamming.message)
             name = net.get_player_info(id, 'name')
             local msg = {
                 command = 'sendMessage',
                 message = 'Player ' .. name .. ' (ucid=' .. ucid .. ') kicked for slot spamming!'
             }
-            utils.sendBotTable(msg, config['channels']['admin'])
+            utils.sendBotTable(msg, config.channels.admin)
 			return false
         end
 	else
@@ -408,8 +408,8 @@ local eventHandlers = {
     takeoff = handleTakeoffLanding,
     landing = handleTakeoffLanding,
     friendly_fire = function(arg1, arg2, arg3)
-        unit_type, slot, sub_slot = utils.getMulticrewAllParameters(arg1)
-        display_name = Sim.getUnitTypeAttribute(Sim.getUnitType(slot), "DisplayName")
+        local _unit_type, slot, _sub_slot = utils.getMulticrewAllParameters(arg1)
+        local display_name = Sim.getUnitTypeAttribute(Sim.getUnitType(slot), "DisplayName")
         -- do we have collisions (weapon == unit name)
         if display_name == arg2 then
             -- ignore "spawn on top"
@@ -427,9 +427,9 @@ local eventHandlers = {
             end
         end
     end,
-    kill = function(arg1,arg2,arg3,arg4,arg5,arg6,arg7)
-        unit_type, slot, sub_slot = utils.getMulticrewAllParameters(arg1)
-        display_name = Sim.getUnitTypeAttribute(Sim.getUnitType(slot), "DisplayName")
+    kill = function(arg1, _arg2, arg3, _arg4, _arg5, _arg6, arg7)
+        local _unit_type, slot, _sub_slot = utils.getMulticrewAllParameters(arg1)
+        local display_name = Sim.getUnitTypeAttribute(Sim.getUnitType(slot), "DisplayName")
         -- do we have collision kill (weapon == unit name)
         if display_name == arg7 then
             -- ignore "spawn on top"
@@ -444,7 +444,7 @@ function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onGameEvent(' .. eventName .. ')')
     -- Call the appropriate handler based on the eventName
     if eventHandlers[eventName] then
-        result = eventHandlers[eventName](arg1,arg2,arg3,arg4,arg5,arg6,arg7)
+        local result = eventHandlers[eventName](arg1,arg2,arg3,arg4,arg5,arg6,arg7)
         if result == false then
             return
         end
@@ -473,8 +473,8 @@ function mission.onPlayerTrySendChat(from, message, to)
     if from == SERVER_USER_ID then
         return
     end
-    local config = dcsbot.params['mission']
-    if string.sub(message, 1, 1) == config['chat_command_prefix'] then
+    local config = dcsbot.params.mission
+    if string.sub(message, 1, 1) == config.chat_command_prefix then
         local elements = utils.split(message, ' ')
         local msg = {
             command = 'onChatCommand',
@@ -486,15 +486,15 @@ function mission.onPlayerTrySendChat(from, message, to)
         utils.sendBotTable(msg)
         return ''
     end
-    if config['profanity_filter'] then
-        new_msg = Censorship.censor(message)
+    if config.profanity_filter then
+        local new_msg = Censorship.censor(message)
         if new_msg ~= message then
             net.send_chat_to('Message was censored.', from)
             return new_msg
         end
     end
     -- Workaround DCS bug
-    side = net.get_player_info(from, 'side')
+    local side = net.get_player_info(from, 'side')
     if to == -2 and (side == 1 or side == 2) then
         mission.onChatMessage(message, from, to)
     end
@@ -509,7 +509,7 @@ function mission.onChatMessage(message, from, to)
             from = from,
             to = to
         }
-        utils.sendBotTable(msg, dcsbot.params['mission']['channels']['chat'])
+        utils.sendBotTable(msg, dcsbot.params.mission.channels.chat)
     end
 end
 
