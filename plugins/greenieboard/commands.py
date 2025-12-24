@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import aiofiles
 import asyncio
 import discord
@@ -14,6 +12,7 @@ from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, G
 from discord import SelectOption, app_commands
 from discord.app_commands import Range
 from matplotlib import pyplot as plt
+from pathlib import Path
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from typing import Literal

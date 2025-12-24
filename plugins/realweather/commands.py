@@ -10,6 +10,7 @@ from .listener import RealWeatherEventListener
 
 
 class RealWeather(Plugin[RealWeatherEventListener]):
+
     def __init__(self, bot: DCSServerBot, listener: Type[RealWeatherEventListener] = None):
         super().__init__(bot, listener)
         self.installation = self.node.locals.get('extensions', {}).get('RealWeather', {}).get('installation')

@@ -30,7 +30,7 @@ MyNode:
           tacviewRemoteControlPassword: ''      # default
           tacviewPlaybackDelay: 600             # default 0, should be 600 for performance reasons
           tacviewDataCaptureMode: 8             # As of v1.9.5: default 1, defines at which frame Tacview should update (1 = every frame, 10 = every 10th frame). 
-          target: '<id:112233445566778899>'     # optional: channel id or directory
+          target: '<id:112233445566778899>'     # Optional: channel id or directory 
 ```
 __Optional__ parameters (will change options.lua if necessary):</br>
 * **tacviewExportPath** Sets this as the Tacview export path.

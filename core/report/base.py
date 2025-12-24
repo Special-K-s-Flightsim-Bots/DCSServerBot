@@ -42,6 +42,7 @@ class Report:
         self.apool = bot.apool
         self.env = ReportEnv(bot)
         self.filename, self.report_def = self.load_report_def(plugin, filename)
+        self.env.report = self.filename
 
     def load_report_def(self, plugin: str, filename: str):
         default = f'./plugins/{plugin}/reports/{filename}'
@@ -188,12 +189,30 @@ class Report:
         return element_class, element_args
 
     @staticmethod
-    def _filter_args(args, method):
+    def _filter_args(args: dict, method):
         """
-        Filters arguments based on a method's signature, ensuring compatibility.
+        Return a dictionary of arguments that can safely be passed to *method*.
+
+        * If *method* declares a ``**kwargs`` parameter, **every** key in *args*
+          is passed through – the method is willing to accept arbitrary
+          keyword arguments.
+        * Otherwise only the names that appear in the method’s signature are
+          kept.  Everything else is discarded (or, if you prefer, you could
+          raise an exception instead of silently dropping it).
         """
-        signature = inspect.signature(method).parameters
-        return {name: value for name, value in args.items() if name in signature}
+        # Grab the signature once; we only need the mapping of names → Parameter.
+        sig = inspect.signature(method)
+        params = sig.parameters  # dict: name → Parameter
+
+        # Look for a VAR_KEYWORD (**kwargs) parameter.
+        has_kwargs = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
+
+        if has_kwargs:
+            # The function can swallow any keyword arguments.
+            return args
+
+        # No **kwargs – filter out anything not explicitly named.
+        return {k: v for k, v in args.items() if k in params}
 
 
 class Pagination(ABC):

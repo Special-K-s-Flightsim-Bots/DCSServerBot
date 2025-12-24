@@ -33,6 +33,7 @@ __all__ = [
 
 @ServiceRegistry.register(depends_on=[ServiceBus])
 class MonitoringService(Service):
+
     def __init__(self, node):
         super().__init__(node, name="Monitoring")
         self.bus = ServiceRegistry.get(ServiceBus)

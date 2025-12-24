@@ -544,15 +544,11 @@ class ServiceBus(Service):
                 f = self.listeners[data['channel']]
                 if not f.done():
                     if 'exception' in data:
-                        try:
-                            ex = utils.str_to_class(data['exception']['class'])(*data['exception']['args'],
-                                                                                **data['exception']['kwargs'])
-                        except Exception:
-                            ex = PermissionError(data['exception']['args'])
+                        ex = utils.rebuild_exception(data['exception'])
                         self.loop.call_soon_threadsafe(f.set_exception, ex)
                     else:
                         # TODO: change to data['return']
-                        self.loop.call_soon_threadsafe(f.set_result, data)
+                        self.loop.call_soon_threadsafe(utils.safe_set_result, f, data)
             return
         self.log.debug(f"RPC: {json.dumps(data)}")
         obj = None
@@ -599,11 +595,7 @@ class ServiceBus(Service):
                     "method": data['method'],
                     "channel": data['channel'],
                     "return": '',
-                    "exception": {
-                        "class": f"{ex.__class__.__module__}.{ex.__class__.__name__}",
-                        "args": ex.args,
-                        "kwargs": getattr(ex, 'kwargs', {})
-                    }
+                    "exception": utils.exception_to_dict(ex)
                 }, node=data.get('node'))
             else:
                 self.log.exception(ex)
@@ -632,7 +624,7 @@ class ServiceBus(Service):
                 return
             f = server.listeners.get(data['channel'])
             if f and not f.done():
-                self.loop.call_soon_threadsafe(f.set_result, data)
+                self.loop.call_soon_threadsafe(utils.safe_set_result, f, data)
             if data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
                 return
         self.udp_server.message_queue[server_name].put_nowait(data)
@@ -828,22 +820,25 @@ class ServiceBus(Service):
                     self.log.warning(f"Empty request received from {addr} - ignoring.")
                     return
 
-                # Check for the split header
-                parts = data.split(b"|", 4)
-                if len(parts) == 5:
-                    msg_id_b, port_b, total_b, seq_b, payload = parts
-                    try:
-                        msg_id = msg_id_b.decode("ascii")
-                        port = int(port_b)
-                        total = int(total_b)
-                        seq = int(seq_b)
-                    except Exception as e:
-                        self.log.debug("Invalid split header %s – treating as normal", parts)
-                    else:
-                        # 2️⃣  Store fragment and see if we are finished
-                        loop = asyncio.get_running_loop()
-                        loop.create_task(derived._process_fragment(msg_id, port, total, seq, payload))
-                        return  # early exit – we’ll process once all fragments are in
+                if data[0:1] == b'\x01':
+                    data = data[1:]
+
+                    # Check for the split header
+                    parts = data.split(b"|", 4)
+                    if len(parts) == 5:
+                        msg_id_b, port_b, total_b, seq_b, payload = parts
+                        try:
+                            msg_id = msg_id_b.decode("ascii")
+                            port = int(port_b)
+                            total = int(total_b)
+                            seq = int(seq_b)
+                        except Exception as e:
+                            self.log.debug("Malformed header after magic byte – dropping packet")
+                            return
+                        else:
+                            loop = asyncio.get_running_loop()
+                            loop.create_task(derived._process_fragment(msg_id, port, total, seq, payload))
+                            return  # early exit – we’ll process once all fragments are in
 
                 # Normal (unsplit) JSON packet
                 derived._handle_raw_payload(data)
@@ -869,7 +864,7 @@ class ServiceBus(Service):
                 try:
                     msg_data = json.loads(payload.decode("utf-8"))
                 except json.JSONDecodeError:
-                    self.log.warning(f"Invalid JSON from {derived.transport.get_extra_info('peername')}")
+                    self.log.warning(f"Invalid JSON {payload}")
                     return
 
                 server_name = msg_data.get('server_name')
@@ -893,7 +888,7 @@ class ServiceBus(Service):
                     if msg_data['channel'] in server.listeners:
                         f = server.listeners.get(msg_data['channel'])
                         if f and not f.done():
-                            self.loop.call_soon(f.set_result, msg_data)
+                            self.loop.call_soon(utils.safe_set_result, f, msg_data)
                     if msg_data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
                         return
 

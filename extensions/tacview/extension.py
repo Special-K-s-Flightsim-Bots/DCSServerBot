@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import aiofiles
 import asyncio
 import os
@@ -79,7 +81,13 @@ class Tacview(Extension):
     async def startup(self, *, quiet: bool = False) -> bool:
         self.stop_event.clear()
         self.stopped.clear()
-        if self.config.get('target'):
+        if self.config.get('alternate_recording', False):
+            asyncio.create_task(
+                self.start_recording("Tacview-{}-DCS-Host-{}.acmi".format(
+                    datetime.now().strftime("%Y%m%d-%H%M%S"), utils.slugify(self.server.current_mission.name))
+                )
+            )
+        elif self.config.get('target'):
             asyncio.create_task(self.check_log())
         return await super().startup()
 
@@ -89,7 +97,10 @@ class Tacview(Extension):
 
     @override
     def shutdown(self, *, quiet: bool = False) -> bool:
-        if self.config.get('target'):
+        if self.config.get('alternate_recording', False):
+            self.loop.create_task(self.stop_recording())
+            return True
+        elif self.config.get('target'):
             self.loop.create_task(self._shutdown())
             self.stop_event.set()
             return True

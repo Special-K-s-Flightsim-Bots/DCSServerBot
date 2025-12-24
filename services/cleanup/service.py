@@ -10,6 +10,7 @@ from services.cron.actions import purge_channel
 
 @ServiceRegistry.register()
 class CleanupService(Service):
+
     def __init__(self, node):
         super().__init__(node=node, name="Cleanup")
         self.bot = None

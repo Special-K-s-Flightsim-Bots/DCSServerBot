@@ -2,6 +2,7 @@ schema;action_map:
   type: map
   nullable: false
   mapping:
+    clear_maintenance: {type: bool, nullable: false}
     local_times: {type: any, func: deprecated, enum: ['Use "times" instead.']}
     utc_times: {type: any, func: deprecated, enum: ['Use "times" with timezone UTC instead.']}
     times:

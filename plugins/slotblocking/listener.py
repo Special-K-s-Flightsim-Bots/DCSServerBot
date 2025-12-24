@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 
 class SlotBlockingListener(EventListener["SlotBlocking"]):
+
     def __init__(self, plugin: "SlotBlocking"):
         super().__init__(plugin)
         self.lock = asyncio.Lock()

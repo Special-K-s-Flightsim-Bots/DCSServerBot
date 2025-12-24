@@ -123,6 +123,12 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, _: dict) -> None:
+        config = self.get_config(server)
+        if 'persistent_channel' in config:
+            self.bot.check_channel(int(config.get('persistent_channel')))
+        for squadron in config.get('squadrons', []):
+            if 'channel' in squadron:
+                self.bot.check_channel(squadron['channel'])
         asyncio.create_task(self.update_greenieboard(server))
 
     @event(name="onMissionLoadEnd")

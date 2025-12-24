@@ -34,6 +34,7 @@ end
 -- this is the DCS server name
 server_name = nil
 
+local MAGIC_BYTE = string.char(1)
 local MAX_CHUNK   = 65000          -- safe UDP payload size
 local HEADER_SEP  = '|'            -- separator in the header
 local HEADER_FMT = '%s'..HEADER_SEP..'%d'..HEADER_SEP..'%d'..HEADER_SEP..'%d'..HEADER_SEP
@@ -52,7 +53,8 @@ function sendBotTable(tbl, channel)
         return
     end
 
-    local msg_id      = tostring(math.floor(socket.gettime() * 1e6))
+    local ts          = math.floor(socket.gettime() * 1e6)
+    local msg_id      = string.format("%X", ts)
     local total_parts = math.ceil(#msg / MAX_CHUNK)
 
     for part = 1, total_parts do
@@ -61,7 +63,7 @@ function sendBotTable(tbl, channel)
         local payload   = msg:sub(start_idx, end_idx)
 
         local header = string.format(HEADER_FMT, msg_id, config.DCS_PORT, total_parts, part)
-        local packet = header .. payload
+        local packet = MAGIC_BYTE .. header .. payload
         socket.try(UDPSendSocket:sendto(packet, config.BOT_HOST, config.BOT_PORT))
     end
 end

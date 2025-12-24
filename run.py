@@ -207,7 +207,7 @@ def handle_exception(loop, context):
         log.error(f"Async error: {message}")
 
     # Write to async_errors.log with task information
-    with open(os.path.join('logs', 'async_errors.log'), 'a') as f:
+    with open(os.path.join('logs', 'async_errors.log'), 'a', encoding='utf-8') as f:
         f.write(f"\n{'=' * 50}\n{datetime.now().isoformat()}: {message}\n")
 
         # Dump all running tasks
@@ -285,6 +285,12 @@ if __name__ == "__main__":
     if sys.version_info < (3,10):
         print("ERROR: DCSServerBot requires Python >= 3.10.")
         sys.exit(-2)
+    elif sys.version_info < (3,11):
+        print(
+"""
+WARNING: DCSServerBot will drop support for Pyton 3.10 soon.
+         Please upgrade to Python 3.11+
+""")
 
     # Add certificates
     os.environ["SSL_CERT_FILE"] = certifi.where()

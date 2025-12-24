@@ -21,6 +21,7 @@ __all__ = ["BackupService"]
 
 @ServiceRegistry.register(plugin="backup", depends_on=[ServiceBus])
 class BackupService(Service):
+
     def __init__(self, node):
         super().__init__(node=node, name="Backup")
         if not self.locals:

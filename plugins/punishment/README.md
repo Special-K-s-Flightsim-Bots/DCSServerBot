@@ -13,6 +13,7 @@ opt_plugins:
 The plugin itself is configured with a file named config/plugins/punishment.yaml. You'll find a sample in ./samples:
 ```yaml
 DEFAULT:
+  channel: 1122334455667788 # Optional: Channel where to post who was punished for what (default: admin channel, disable: -1).
   penalties:                # These are the penalty points to use.
   - event: kill             # If you team-kill a human player, you get 30 points, 18 in the case of an AI.
     human: 30

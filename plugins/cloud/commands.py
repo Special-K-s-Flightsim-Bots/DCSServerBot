@@ -36,23 +36,10 @@ class Cloud(Plugin[CloudListener]):
         self.config = self.get_config()
         if not self.config:
             raise PluginConfigurationError(plugin=self.plugin_name, option=DEFAULT_TAG)
-        self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
+        self.base_url = None
         self._session = None
         self.client = None
-        if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
-            self.cloud_bans.add_exception_type(IndexError)
-            self.cloud_bans.add_exception_type(aiohttp.ClientError)
-            self.cloud_bans.add_exception_type(discord.Forbidden)
-            self.cloud_bans.add_exception_type(psycopg.DatabaseError)
-            self.cloud_bans.add_exception_type(DiscordServerError)
-            self.cloud_bans.start()
-        if 'token' in self.config:
-            self.cloud_sync.add_exception_type(IndexError)
-            self.cloud_sync.add_exception_type(aiohttp.ClientError)
-            self.cloud_sync.add_exception_type(psycopg.DatabaseError)
-            self.cloud_sync.start()
-        if self.config.get('register', True):
-            self.register.start()
+        self.guild_bans = []
 
     @property
     def session(self):
@@ -75,6 +62,23 @@ class Cloud(Plugin[CloudListener]):
 
     async def cog_load(self):
         await super().cog_load()
+        self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
+        self._session = None
+        self.client = None
+        if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
+            self.cloud_bans.add_exception_type(IndexError)
+            self.cloud_bans.add_exception_type(aiohttp.ClientError)
+            self.cloud_bans.add_exception_type(discord.Forbidden)
+            self.cloud_bans.add_exception_type(psycopg.DatabaseError)
+            self.cloud_bans.add_exception_type(DiscordServerError)
+            self.cloud_bans.start()
+        if 'token' in self.config:
+            self.cloud_sync.add_exception_type(IndexError)
+            self.cloud_sync.add_exception_type(aiohttp.ClientError)
+            self.cloud_sync.add_exception_type(psycopg.DatabaseError)
+            self.cloud_sync.start()
+        if self.config.get('register', True):
+            self.register.start()
         if self.config.get('upload_errors', True):
             cloud_logger = CloudLoggingHandler(node=self.node, url=self.base_url + '/errors/')
             self.log.root.addHandler(cloud_logger)
@@ -279,7 +283,10 @@ class Cloud(Plugin[CloudListener]):
                 banlist = None
             if self.config.get('dcs-ban', False):
                 dgsa_bans = {item['ucid']: item for item in await self.get('bans')}
-                local_bans = {item['ucid']: item for item in await self.bus.bans(expired=True) if item['banned_by'] == self.plugin_name}
+                local_bans = {
+                    item['ucid']: item for item in await self.bus.bans(expired=True)
+                    if item['banned_by'] == self.plugin_name
+                }
                 # filter bans by scope
                 to_ban: set = {
                     ucid for ucid, ban in dgsa_bans.items()
@@ -315,22 +322,34 @@ class Cloud(Plugin[CloudListener]):
                         for ucid in watches - to_ban:
                             await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (ucid,))
             if self.config.get('discord-ban', False):
-                bans: dict = await self.get('discord-bans')
-                users_to_ban = {user for ban in bans if (user := await self.bot.fetch_user(ban['discord_id'])) is not None}
+                global_bans: dict = await self.get('discord-bans')
+                global_ban_ids = {x['discord_id'] for x in global_bans}
+                if not self.guild_bans:
+                    self.guild_bans = [
+                        x.user async for x in self.bot.guilds[0].bans(limit=None)
+                        if x.reason and x.reason.startswith('DGSA:')
+                    ]
+                banned_users = {x.id for x in self.guild_bans}
+
                 guild = self.bot.guilds[0]
-                guild_bans = [entry async for entry in guild.bans()]
-                banned_users = {x.user for x in guild_bans if x.reason and x.reason.startswith('DGSA:')}
                 # unban users that should not be banned anymore
-                for user in banned_users - users_to_ban:
+                for user_id in banned_users - global_ban_ids:
+                    user = await self.bot.fetch_user(user_id)
                     await guild.unban(user, reason='DGSA: ban revoked.')
-                # ban users that were not banned yet (omit the owner)
-                for user in users_to_ban - banned_users - {self.bot.owner_id}:
-                    reason = next(x['reason'] for x in bans if x['discord_id'] == user.id)
+                    self.guild_bans.remove(user)
+
+                # ban users that were not banned yet (omit the owner, in case they are on the global banlist)
+                for user_id in global_ban_ids - banned_users - {self.bot.owner_id}:
+                    user = await self.bot.fetch_user(user_id)
+                    reason = next(x['reason'] for x in global_bans if x['discord_id'] == user.id)
                     await guild.ban(user, reason='DGSA: ' + reason)
+                    self.guild_bans.append(user)
         except aiohttp.ClientError:
             self.log.warning("Cloud service unavailable.")
         except discord.Forbidden:
             self.log.error('DCSServerBot needs the "Ban Members" permission.')
+        except Exception as ex:
+            self.log.exception(ex)
 
     @cloud_bans.before_loop
     async def before_cloud_bans(self):
@@ -378,7 +397,6 @@ class Cloud(Plugin[CloudListener]):
     @cloud_sync.before_loop
     async def before_cloud_sync(self):
         await self.bot.wait_until_ready()
-
 
     @tasks.loop(hours=1)
     async def register(self):

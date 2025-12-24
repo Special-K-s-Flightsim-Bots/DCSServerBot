@@ -112,27 +112,28 @@ class History(report.GraphElement):
 
         if df.empty:
             self.axes.set_xticks([])
-            self.axes.text(0.5, 0.5, 'No data available.', ha='center', va='center', rotation=45, size=15,
-                           transform=self.axes.transAxes)
+            self.axes.text(
+                0.5, 0.5, 'No data available.', ha='center', va='center',
+                rotation=45, size=15, transform=self.axes.transAxes
+            )
             return
 
-        sns.set_theme(style="whitegrid")
+        # enable the grid for this graph
+        self.axes.grid(True)
 
         # μ line
-        sns.lineplot(x='time', y='skill_mu',
-                     data=df,
-                     ax=self.axes,
-                     color='steelblue',
-                     marker='o',
-                     label='TrueSkill μ')
+        sns.lineplot(
+            x='time', y='skill_mu', data=df, ax=self.axes,
+            color='steelblue', marker='o', label='TrueSkill μ'
+        )
 
         # σ as shaded band
-        self.axes.fill_between(df['time'],
-                               df['skill_mu'] - df['skill_sigma'],
-                               df['skill_mu'] + df['skill_sigma'],
-                               color='steelblue',
-                               alpha=0.2,
-                               label='σ (confidence)')
+        self.axes.fill_between(
+            df['time'],
+            df['skill_mu'] - df['skill_sigma'],
+            df['skill_mu'] + df['skill_sigma'],
+            color='steelblue', alpha=0.2, label='σ (confidence)'
+        )
 
         # Formatting
         self.axes.set_title(f"TrueSkill evolution – {name}")

@@ -22,3 +22,4 @@ class ReportEnv:
     buffer: BytesIO = None
     params: dict = None
     mention: str = None
+    report: str = None

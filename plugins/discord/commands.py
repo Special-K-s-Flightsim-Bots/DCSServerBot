@@ -9,6 +9,7 @@ _ = get_translation(__name__.split('.')[1])
 
 
 class Discord(Plugin):
+
     @command(name='clear', description=_('Clear Discord messages'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')

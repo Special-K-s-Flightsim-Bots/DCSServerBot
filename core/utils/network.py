@@ -24,7 +24,7 @@ API_URLS = [
     'https://api4.ipify.org/',
     'https://ipinfo.io/ip',
     'https://www.trackip.net/ip',
-    'https://api4.my-ip.io/ip'  # they have an issue with their cert atm, hope they get it fixed
+    'https://api4.my-ip.io/v1/ip'  # they have an issue with their cert atm, hope they get it fixed
 ]
 
 
@@ -41,8 +41,7 @@ async def get_public_ip(node: "Node | None" = None):
                 async with session.get(url, proxy=node.proxy if node else None,
                                        proxy_auth=node.proxy_auth if node else None) as resp:
                     return ipaddress.ip_address(await resp.text()).compressed
-    else:
-        raise TimeoutError("Public IP could not be retrieved.")
+    raise TimeoutError("Public IP could not be retrieved.")
 
 
 if sys.version_info >= (3, 14):

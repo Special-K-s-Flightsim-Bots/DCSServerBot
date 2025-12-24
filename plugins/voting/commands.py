@@ -13,6 +13,7 @@ _ = get_translation(__name__.split('.')[1])
 
 
 class Voting(Plugin[VotingListener]):
+
     def __init__(self, bot: DCSServerBot, eventlistener: Type[VotingListener] = None):
         super().__init__(bot, eventlistener)
         if not self.locals:
@@ -130,13 +131,22 @@ class Voting(Plugin[VotingListener]):
 
         if not item.can_vote():
             await interaction.followup.send(_('This option is not available at the moment.'), ephemeral=True)
+            return
 
-        handler = VotingHandler(listener=self.eventlistener, item=item, server=_server, config=config)
-        self.eventlistener._all_votes[_server.name] = handler
-        handler.votes[vote] = 1
+        if _server.is_populated():
+            handler = VotingHandler(listener=self.eventlistener, item=item, server=_server, config=config)
+            self.eventlistener._all_votes[_server.name] = handler
+            handler.votes[vote] = 1
 
-        await interaction.followup.send(_('{} created. It is open for {}').format(
-            repr(item), utils.format_time(config.get('time', 300))))
+            await interaction.followup.send(_('{} created. It is open for {}').format(
+                repr(item), utils.format_time(config.get('time', 300))))
+            await self.bot.audit(f"created a vote for {what}",
+                                 user=interaction.user, server=_server)
+        else:
+            await item.execute(choices[vote-1])
+            await interaction.followup.send(_('Your wish was executed immediately as the server was not populated.\n'))
+            await self.bot.audit(f"created a vote for {what} which was executed already",
+                                 user=interaction.user, server=_server)
 
         if not is_admin and points:
             async with self.apool.connection() as conn:

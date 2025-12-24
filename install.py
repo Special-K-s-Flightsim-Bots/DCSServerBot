@@ -396,9 +396,14 @@ If you need any further assistance, please visit the support discord, listed in 
             ]) + 1 if nodes else 10042,
             "use_upnp": self.use_upnp
         }
-        public_ip = asyncio.run(utils.get_public_ip())
-        if Confirm.ask(_("Is {} a static IP-address for this node?").format(public_ip), default=False):
-            node['public_ip'] = public_ip
+        # read public IP, if possible
+        try:
+            public_ip = asyncio.run(utils.get_public_ip())
+            if Confirm.ask(_("Is {} a static IP-address for this node?").format(public_ip), default=False):
+                node['public_ip'] = public_ip
+        except TimeoutError:
+            pass
+
         if 'database' not in main:
             node["database"] = {
                 "url": database_url

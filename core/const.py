@@ -15,7 +15,10 @@ __all__ = [
     "MONTH",
     "TRAFFIC_LIGHTS",
     "SAVED_GAMES",
-    "DEFAULT_TAG"
+    "DEFAULT_TAG",
+    "SEND_ONLY_CHANNEL_PERMISSIONS",
+    "DEFAULT_CHANNEL_PERMISSIONS",
+    "FULL_MANAGE_CHANNEL_PERMISSIONS",
 ]
 
 METER_IN_FEET = 3.28084
@@ -67,3 +70,21 @@ if not os.path.exists(SAVED_GAMES) and sys.platform == 'win32':
     )[0]
 
 DEFAULT_TAG = 'DEFAULT'
+
+SEND_ONLY_CHANNEL_PERMISSIONS = {
+    "view_channel",
+    "send_messages",
+    "read_messages",
+    "read_message_history",
+    "add_reactions",
+}
+
+DEFAULT_CHANNEL_PERMISSIONS = SEND_ONLY_CHANNEL_PERMISSIONS | {
+    "attach_files",
+    "embed_links",
+    "manage_messages",
+}
+
+FULL_MANAGE_CHANNEL_PERMISSIONS = DEFAULT_CHANNEL_PERMISSIONS | {
+    "manage_channel",
+}

@@ -21,6 +21,7 @@ from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from time import time
+from typing import Type
 
 from .const import TOURNAMENT_PHASE
 from .listener import TournamentEventListener
@@ -280,6 +281,10 @@ async def tickets_autocomplete(interaction: discord.Interaction, current: str) -
 
 class Tournament(Plugin[TournamentEventListener]):
 
+    def __init__(self, bot: DCSServerBot, listener: Type[TournamentEventListener]):
+        super().__init__(bot, listener)
+        self._info_channel: discord.TextChannel | None = None
+
     async def cog_load(self) -> None:
         await super().cog_load()
         if self.get_config().get('autostart_matches', False):
@@ -290,6 +295,7 @@ class Tournament(Plugin[TournamentEventListener]):
     async def cog_unload(self) -> None:
         if self.get_config().get('autostart_matches', False):
             self.match_scheduler.cancel()
+        self._info_channel = None
         await super().cog_unload()
 
     def get_admin_channel(self):
@@ -323,11 +329,12 @@ class Tournament(Plugin[TournamentEventListener]):
                 return await cursor.fetchone()
 
     def get_info_channel(self) -> discord.TextChannel | None:
-        config = self.get_config()
-        channel_id = config.get('channels', {}).get('info')
-        if channel_id and self.bot.check_channel(channel_id):
-            return self.bot.get_channel(channel_id)
-        return None
+        if not self._info_channel:
+            config = self.get_config()
+            channel_id = config.get('channels', {}).get('info')
+            if channel_id and self.bot.check_channel(channel_id):
+                self._info_channel = self.bot.get_channel(channel_id)
+        return self._info_channel
 
     async def get_squadron_channel(self, match_id: int, side: str) -> TextChannel | None:
         async with self.apool.connection() as conn:

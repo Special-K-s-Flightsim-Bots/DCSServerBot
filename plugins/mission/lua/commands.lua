@@ -173,7 +173,7 @@ function dcsbot.getAirbases(json)
             if airdrome.display_name then
                 airbase.name = airdrome.display_name
             else
-                airbase.name = airdrome.names['en']
+                airbase.name = airdrome.names.en
             end
             airbase.id = airdrome.id
             airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(airdrome.reference_point.x, airdrome.reference_point.y)
@@ -400,7 +400,7 @@ function dcsbot.startNextMission(json)
 	if json.result == true then
         local mission_list = net.missionlist_get()
 		utils.saveSettings({
-			listStartIndex=mission_list["listStartIndex"]
+			listStartIndex=mission_list.listStartIndex
 		})
 	end
 	utils.sendBotTable(json, json.channel)
@@ -440,18 +440,18 @@ function dcsbot.addMission(json)
 	end
 	net.missionlist_append(path)
 	if json.index ~= nil and tonumber(json.index) > 0 then
-	    net.missionlist_move(#current_missions["missionList"], tonumber(json.index))
+	    net.missionlist_move(#current_missions.missionList, tonumber(json.index))
 	end
 	local current_missions = net.missionlist_get()
-	local listStartIndex = current_missions["listStartIndex"]
+	local listStartIndex = current_missions.listStartIndex
     if json.autostart == true then
-        listStartIndex = #current_missions['missionList']
+        listStartIndex = #current_missions.missionList
     -- workaround DCS bug
-    elseif #current_missions['missionList'] < listStartIndex then
+    elseif #current_missions.missionList < listStartIndex then
         listStartIndex = 1
     end
 	utils.saveSettings({
-        missionList = current_missions["missionList"],
+        missionList = current_missions.missionList,
 		listStartIndex = listStartIndex
     })
 	dcsbot.listMissions(json)
@@ -462,12 +462,12 @@ function dcsbot.deleteMission(json)
 	net.missionlist_delete(json.id)
 	local current_missions = net.missionlist_get()
     -- workaround DCS bug
-	local listStartIndex = current_missions["listStartIndex"]
-    if #current_missions['missionList'] < listStartIndex then
+	local listStartIndex = current_missions.listStartIndex
+    if #current_missions.missionList < listStartIndex then
         listStartIndex = 1
     end
 	utils.saveSettings({
-		missionList = current_missions["missionList"],
+		missionList = current_missions.missionList,
 		listStartIndex = listStartIndex
 	})
 	dcsbot.listMissions(json)
@@ -476,13 +476,13 @@ end
 function dcsbot.replaceMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: replaceMission()')
 	local current_missions = net.missionlist_get()
-	local listStartIndex = current_missions["listStartIndex"]
+	local listStartIndex = current_missions.listStartIndex
     net.missionlist_delete(tonumber(json.index))
     net.missionlist_append(json.path)
-    net.missionlist_move(#current_missions["missionList"], tonumber(json.index))
+    net.missionlist_move(#current_missions.missionList, tonumber(json.index))
 	current_missions = net.missionlist_get()
 	utils.saveSettings({
-		missionList = current_missions["missionList"],
+		missionList = current_missions.missionList,
 		listStartIndex = listStartIndex
     })
 	dcsbot.listMissions(json)
@@ -659,8 +659,29 @@ function dcsbot.force_player_slot(json)
     end
 end
 
+local function relative_date(ts)
+    local now   = os.time()     -- seconds since 1970‑01‑01 UTC
+    local diff  = ts - now      -- seconds left
+
+    local sign  = diff < 0 and "-" or ""
+    diff = math.abs(diff)
+
+    local days   = math.floor(diff / 86400)
+    diff = diff % 86400
+    local hours  = math.floor(diff / 3600)
+    diff = diff % 3600
+    local minutes = math.floor(diff / 60)
+
+    return string.format("%s%dd %02dh %02dm",
+        sign, days, hours, minutes)
+end
+
 local function single_ban(json)
     local banned_until = json.banned_until or 'never'
+    if tonumber(banned_until) ~= nil then
+        local ts = tonumber(json.banned_until)
+        banned_until = 'in ' .. relative_date(ts) .. ' at ' .. os.date("!%Y-%m-%d %H:%M (UTC)", ts)
+    end
     local reason = json.reason .. '.\nExpires ' .. banned_until
     dcsbot.banList[json.ucid] = reason
     local plist = net.get_player_list()
@@ -716,7 +737,7 @@ function dcsbot.unlock_server(_json)
 	dcsbot.server_locked = false
 
     -- reset the message to default
-    local m = dcsbot.params['mission']['messages']
+    local m = dcsbot.params.mission.messages
     m.message_server_locked = m.message_server_locked_old
 end
 

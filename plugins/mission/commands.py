@@ -1095,19 +1095,26 @@ class Mission(Plugin[MissionEventListener]):
             2: "blue"
         }
         report = Report(self.bot, self.plugin_name, 'airbase.json')
-        env = await report.render(coalition=colors[data['coalition']], airbase=airbase, data=data)
+        env = await report.render(
+            interaction=interaction,
+            server=_server,
+            coalition=colors[data['coalition']],
+            airbase=airbase,
+            data=data
+        )
         if utils.check_roles(set(self.bot.roles['DCS Admin'] + self.bot.roles['GameMaster']), interaction.user):
             view = AirbaseView(_server, airbase, data)
         else:
             view = discord.utils.MISSING
         msg = await interaction.followup.send(embed=env.embed, view=view)
-        try:
-            await view.wait()
-        finally:
+        if view:
             try:
-                await msg.delete()
-            except discord.NotFound:
-                pass
+                await view.wait()
+            finally:
+                try:
+                    await msg.delete()
+                except discord.NotFound:
+                    pass
 
     @airbase.command(description=_('Automatic Terminal Information Service (ATIS)'))
     @utils.app_has_role('DCS')
@@ -1252,6 +1259,17 @@ class Mission(Plugin[MissionEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         airbase = _server.current_mission.airbases[idx]
+        data = await _server.send_to_dcs_sync({
+            "command": "getAirbase",
+            "name": airbase['name']
+        }, timeout=60)
+
+        sides = utils.get_sides(interaction.client, interaction, _server)
+        if ((data['coalition'] == 2 and Coalition.BLUE not in sides) or
+                (data['coalition'] == 1 and Coalition.RED not in sides)):
+            await interaction.followup.send(
+                _("You are not allowed to view a warehouse item of the opposite coalition."))
+            return
 
         embed = discord.Embed(title=_("Warehouse information for {}").format(airbase['name']),
                               color=discord.Color.blue())
@@ -2427,7 +2445,7 @@ class Mission(Plugin[MissionEventListener]):
             return
         # check if upload is enabled
         if not config.get('enabled', True):
-            self.log.debug("Mission upload is disabled!")
+            self.log.warning("Mission upload is disabled!")
             return
 
         # check if we are in the correct channel

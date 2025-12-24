@@ -6,8 +6,10 @@ import re
 
 from core import report, utils, get_translation, GraphElement, ReportEnv, Plugin
 from matplotlib import cm, pyplot as plt
+from matplotlib.font_manager import FontProperties
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from matplotlib.patches import FancyBboxPatch
+from matplotlib.textpath import TextPath
 from plugins.userstats.filter import StatisticsFilter
 from psycopg.rows import dict_row
 from typing import cast
@@ -344,10 +346,33 @@ class GreenieBoard(GraphElement):
                     return
 
         # Calculate dynamic figure size based on rows and columns
-        pilot_column_width = max([len(item['name']) for item in rows]) * 0.20
+        max_name_width_points = 0
+        font_props = FontProperties(fname=font_name, size=text_size, weight='bold')
+
+        for item in rows:
+            member = self.bot.get_member_by_ucid(item['player_ucid'])
+            if member:
+                item['name'] = member.display_name
+
+            # TextPath calculates the bounding box from the font geometry itself
+            tp = TextPath((0, 0), item['name'], size=text_size, prop=font_props)
+            bbox = tp.get_extents()
+            width_points = bbox.width
+
+            if width_points > max_name_width_points:
+                max_name_width_points = width_points
+
+        # Check "Pilot" header too
+        tp_header = TextPath((0, 0), "Pilot", size=text_size, prop=font_props)
+        header_width_points = tp_header.get_extents().width
+
+        # 72 points = 1 inch. We add a 40% buffer (1.4x) for visual breathing room.
+        pilot_column_width = (max(header_width_points, max_name_width_points) / 72.0) * 1.4
+
         padding = 1.0  # Padding between columns
         fig_width = pilot_column_width + padding + (
-                    num_columns * column_width) + 2  # Additional padding on the sides
+                num_columns * column_width) + 2  # Additional padding on the sides
+
         legend_height = (5 if num_landings < 20 else 3) * (card_size + 0.2)
         fig_height = (num_rows * row_height) + 2 + legend_height  # Additional padding on the top and bottom
 
@@ -378,12 +403,7 @@ class GreenieBoard(GraphElement):
                 self.axes.add_patch(plt.Rectangle((-0.5, y_position - row_height / 2), fig_width, row_height,
                                                   color=odd_row_bg_color, zorder=1))
 
-            member = self.bot.get_member_by_ucid(row['player_ucid'])
-            if member:
-                name = member.display_name
-            else:
-                name = row['name']
-
+            name = row['name']
             self.axes.text(0, y_position, name, va='center', ha='left', fontsize=text_size, color=text_color,
                            fontweight='bold', fontname=font_name)
             self.axes.text(pilot_column_width + padding, y_position, f'{row["points"]:.1f}', va='center',

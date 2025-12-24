@@ -55,4 +55,5 @@ class DBExporter(Plugin):
 
 
 async def setup(bot: DCSServerBot):
+    bot.log.warning(_("The DBExporter plugin is deprecated. Please use Backup or RestAPI instead."))
     await bot.add_cog(DBExporter(bot))

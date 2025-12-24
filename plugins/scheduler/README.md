@@ -46,12 +46,13 @@ The instance-specific section consists out of three blocks:
 
 ```yaml
 DCS.dcs_serverrelease:                              
-  timezone: UTC     # Optional: timezone (default: local timezone)
-  schedule:         # Server "DCS.dcs_serverrelease" will run 24x7
+  timezone: UTC             # Optional: timezone (default: local timezone)
+  schedule:                 # Server "DCS.dcs_serverrelease" will run 24x7
     00-24: YYYYYYY
-  startup:          # Optional
-    mission_id: 3   # Load mission #3 from the mission list on startup (could be a list also / random pick)
-  action:           # At 04:00 and 08:00 UTC (timezone see above) ...
+  startup:                  # Optional
+    clear_maintenance: true # Clear any maintenance flag that might have been set prior to the bot startup.
+    mission_id: 3           # Load mission #3 from the mission list on startup (could be a list also / random pick)
+  action:                   # At 04:00 and 08:00 UTC (timezone see above) ...
     times:
     - 04:00
     - 08:00
