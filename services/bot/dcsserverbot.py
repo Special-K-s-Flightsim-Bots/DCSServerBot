@@ -3,7 +3,7 @@ import discord
 
 from aiohttp import ClientError
 from core import Channel, utils, Status, PluginError, Group, Node, DEFAULT_CHANNEL_PERMISSIONS, \
-    SEND_ONLY_CHANNEL_PERMISSIONS
+    SEND_ONLY_CHANNEL_PERMISSIONS, SEND_ONLY_WITH_EMBEDS_PERMISSIONS
 from core.data.node import FatalException
 from core.listener import EventListener
 from core.services.registry import ServiceRegistry
@@ -268,8 +268,12 @@ class DCSServerBot(commands.Bot):
                     roles |= set(self.roles[role])
                 self.check_roles(roles)
                 # check channels in bot.yaml
+                channels = {
+                    'audit': SEND_ONLY_WITH_EMBEDS_PERMISSIONS,
+                    'admin': DEFAULT_CHANNEL_PERMISSIONS
+                }
                 for name, channel in self.locals.get('channels', {}).items():
-                    self.check_channel(int(channel), DEFAULT_CHANNEL_PERMISSIONS)
+                    self.check_channel(int(channel), channels.get(name, DEFAULT_CHANNEL_PERMISSIONS))
                 # check channels in servers.yaml
                 for server in self.servers.values():
                     if server.locals.get('coalitions'):
