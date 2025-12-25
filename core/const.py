@@ -1,5 +1,6 @@
 import os
 import sys
+
 if sys.platform == 'win32':
     import winreg
 
@@ -17,6 +18,7 @@ __all__ = [
     "SAVED_GAMES",
     "DEFAULT_TAG",
     "SEND_ONLY_CHANNEL_PERMISSIONS",
+    "SEND_ONLY_WITH_EMBEDS_PERMISSIONS",
     "DEFAULT_CHANNEL_PERMISSIONS",
     "FULL_MANAGE_CHANNEL_PERMISSIONS",
 ]
@@ -79,9 +81,12 @@ SEND_ONLY_CHANNEL_PERMISSIONS = {
     "add_reactions",
 }
 
-DEFAULT_CHANNEL_PERMISSIONS = SEND_ONLY_CHANNEL_PERMISSIONS | {
+SEND_ONLY_WITH_EMBEDS_PERMISSIONS = SEND_ONLY_CHANNEL_PERMISSIONS | {
     "attach_files",
     "embed_links",
+}
+
+DEFAULT_CHANNEL_PERMISSIONS = SEND_ONLY_WITH_EMBEDS_PERMISSIONS | {
     "manage_messages",
 }
 
