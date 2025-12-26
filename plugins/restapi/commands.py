@@ -189,9 +189,9 @@ class RestAPI(Plugin):
             tags = ["Statistics"]
         )
         router.add_api_route(
-            "/modulestats", self.stats,
+            "/modulestats", self.modulestats,
             methods = ["POST"],
-            response_model = ModuleStats,
+            response_model = list[ModuleStats],
             description = "Get module statistics",
             summary = "Module Statistics",
             tags = ["Statistics"]
@@ -439,7 +439,99 @@ class RestAPI(Plugin):
                     for row in daily_data
                 ]
 
-        return stats
+                # Add top theatres (from TopTheatresPerServer)
+                await cursor.execute(f"""
+                    SELECT m.mission_theatre, 
+                           COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600), 0) AS playtime_hours 
+                    FROM missions m, statistics s
+                    WHERE m.id = s.mission_id
+                    AND s.hop_off IS NOT NULL
+                    {where_clause}
+                    GROUP BY 1
+                    ORDER BY 2 DESC
+                    LIMIT 5
+                """)
+                theatres_data = await cursor.fetchall()
+                stats["top_theatres"] = [
+                    {
+                        "theatre": row['mission_theatre'],
+                        "playtime_hours": int(row['playtime_hours'])
+                    }
+                    for row in theatres_data
+                ]
+
+                # Add top missions (from TopMissionPerServer)  
+                await cursor.execute(f"""
+                    SELECT trim(regexp_replace(m.mission_name, '{self.bot.filter['mission_name']}', ' ', 'g')) AS mission_name, 
+                           ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime_hours 
+                    FROM missions m, statistics s 
+                    WHERE m.id = s.mission_id 
+                    AND s.hop_off IS NOT NULL
+                    {where_clause}
+                    GROUP BY 1
+                    ORDER BY 2 DESC
+                    LIMIT 3
+                """)
+                missions_data = await cursor.fetchall()
+                stats["top_missions"] = [
+                    {
+                        "mission_name": row['mission_name'],
+                        "playtime_hours": int(row['playtime_hours'])
+                    }
+                    for row in missions_data
+                ]
+
+                # Add top modules (from TopModulesPerServer)
+                await cursor.execute(f"""
+                    SELECT s.slot, COUNT(s.slot) AS total_uses, 
+                           COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600),0) AS playtime_hours, 
+                           COUNT(DISTINCT s.player_ucid) AS unique_players 
+                    FROM missions m, statistics s 
+                    WHERE m.id = s.mission_id
+                    AND s.hop_off IS NOT NULL
+                    {where_clause}
+                    GROUP BY s.slot 
+                    ORDER BY 3 DESC 
+                    LIMIT 10
+                """)
+                modules_data = await cursor.fetchall()
+                stats["top_modules"] = [
+                    {
+                        "module": row['slot'],
+                        "playtime_hours": int(row['playtime_hours']),
+                        "unique_players": int(row['unique_players']),
+                        "total_uses": int(row['total_uses'])
+                    }
+                    for row in modules_data
+                ]
+
+                # Add additional server metrics from mv_serverstats
+                if resolved_server_name:
+                    mv_where_clause = "WHERE server_name = %(server_name)s"
+                    mv_params = {"server_name": resolved_server_name}
+                else:
+                    mv_where_clause = ""
+                    mv_params = {}
+                    
+                await cursor.execute(f"""
+                    SELECT SUM("totalSorties") AS total_sorties,
+                           SUM("totalKills") AS total_kills,
+                           SUM("totalDeaths") AS total_deaths,
+                           SUM("totalPvPKills") AS total_pvp_kills,
+                           SUM("totalPvPDeaths") AS total_pvp_deaths
+                    FROM mv_serverstats
+                    {mv_where_clause}
+                """, mv_params)
+                mv_row = await cursor.fetchone()
+                
+                if mv_row:
+                    stats["total_sorties"] = int(mv_row['total_sorties'] or 0)
+                    stats["total_kills"] = int(mv_row['total_kills'] or 0)
+                    stats["total_deaths"] = int(mv_row['total_deaths'] or 0)
+                    stats["total_pvp_kills"] = int(mv_row['total_pvp_kills'] or 0)
+                    stats["total_pvp_deaths"] = int(mv_row['total_pvp_deaths'] or 0)
+
+        return ServerAttendanceStats.model_validate(stats)
 
     def resolve_server_name(self, server_name: str | None) -> str | None:
         """Resolve server alias (instance name) to actual DCS server name"""

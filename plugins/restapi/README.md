@@ -34,7 +34,7 @@ The following commands are available through the API
 |-------------------|------------|-------------------------------------------------------|---------------------------------------------------------------------------------------|
 | /serverstats      | GET        |                                                       | A comprehensive statistic for your whole setup.                                       |
 | /servers          | GET        |                                                       | Status for each server, including weather information if enabled.                     |
-| /server_attendance| GET        | [server_name: string]                                 | Detailed server attendance statistics (24h, 7d, 30d) and daily trends.               |
+| /server_attendance| GET        | [server_name: string]                                 | Comprehensive server attendance statistics, top theatres/missions/modules, and daily trends. |
 | /getuser          | POST       | nick: string                                          | Return a list of players ordered by last seen that match this nick.                   |
 | /stats            | POST       | nick: string, date: date                              | Statistics of this player                                                             |
 | /highscore        | GET        | [server_name: string], [period: string], [limit: int] | Highscore output                                                                      |
@@ -75,7 +75,12 @@ The `/servers` endpoint now includes real-time weather data for running DCS serv
 ```
 
 ### Server Attendance Statistics
-The `/server_attendance` endpoint provides detailed server attendance analytics:
+The `/server_attendance` endpoint provides comprehensive server attendance analytics:
+
+- **Server attendance statistics**: Current active players, unique players, total playtime hours, and Discord member engagement for different time periods (24h, 7d, 30d)
+- **Top statistics**: Most popular theatres, missions, and modules by playtime and usage
+- **Daily trends**: Daily unique player counts for the last 7 days to analyze server activity patterns
+- **Combat statistics**: Total sorties, kills, deaths, and PvP statistics from mv_serverstats
 
 **Global statistics (no parameters):**
 ```bash

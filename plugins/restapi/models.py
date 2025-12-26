@@ -557,6 +557,20 @@ class LinkMeResponse(BaseModel):
     }
 
 
+class TopTheatre(BaseModel):
+    theatre: str
+    playtime_hours: int
+
+class TopMission(BaseModel):
+    mission_name: str
+    playtime_hours: int
+
+class TopModule(BaseModel):
+    module: str
+    playtime_hours: int
+    unique_players: int
+    total_uses: int
+
 class ServerAttendanceStats(BaseModel):
     """Server attendance statistics using monitoring plugin patterns"""
     current_players: int = Field(..., description="Current number of active players")
@@ -576,6 +590,18 @@ class ServerAttendanceStats(BaseModel):
     
     # Daily trend for the last week
     daily_trend: list[dict] = Field(default_factory=list, description="Daily unique player counts for trend analysis")
+    
+    # Enhanced statistics from Discord /serverstats command
+    top_theatres: list[TopTheatre] = Field(default_factory=list, description="Top theatres by playtime")
+    top_missions: list[TopMission] = Field(default_factory=list, description="Top missions by playtime") 
+    top_modules: list[TopModule] = Field(default_factory=list, description="Top modules by playtime and usage")
+    
+    # Additional server metrics from mv_serverstats
+    total_sorties: int | None = Field(None, description="Total sorties flown")
+    total_kills: int | None = Field(None, description="Total kills")
+    total_deaths: int | None = Field(None, description="Total deaths")
+    total_pvp_kills: int | None = Field(None, description="Total PvP kills")
+    total_pvp_deaths: int | None = Field(None, description="Total PvP deaths")
 
     model_config = {
         "json_schema_extra": {
@@ -593,7 +619,15 @@ class ServerAttendanceStats(BaseModel):
                 "daily_trend": [
                     {"date": "2025-12-24", "unique_players": 15},
                     {"date": "2025-12-25", "unique_players": 18}
-                ]
+                ],
+                "top_theatres": [{"theatre": "Caucasus", "playtime_hours": 2500}, {"theatre": "Syria", "playtime_hours": 347}],
+                "top_missions": [{"mission_name": "Training Map", "playtime_hours": 1200}, {"mission_name": "Combat Mission", "playtime_hours": 800}],
+                "top_modules": [{"module": "F/A-18C", "playtime_hours": 800, "unique_players": 45, "total_uses": 127}],
+                "total_sorties": 1245,
+                "total_kills": 892,
+                "total_deaths": 567,
+                "total_pvp_kills": 234,
+                "total_pvp_deaths": 189
             }
         }
     }

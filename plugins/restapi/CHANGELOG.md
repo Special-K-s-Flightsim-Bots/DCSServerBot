@@ -4,130 +4,122 @@ This document tracks all notable changes made to the REST API plugin.
 
 ## [Unreleased] - 2025-12-26
 
-### Changed
+### 🆕 Added
 
-#### Code Simplification
-- **Removed Complex Helper Method**: Eliminated `get_server_where_clause_and_params()` method that was overengineered
-- **Simplified SQL Construction**: Returned to straightforward conditional SQL patterns using `get_resolved_server()` directly
-- **Improved Readability**: SQL queries are now more transparent and easier to understand
-- **Maintained Functionality**: All server name resolution features preserved with cleaner implementation
+#### Weather Integration in `/servers` Endpoint
+- **Comprehensive weather data**: Temperature, wind speed/direction, pressure, visibility, cloud coverage
+- **Real-time DCS integration**: Weather extracted from active mission weather system  
+- **Configurable**: Control via `include_weather` setting (default: true)
 
-### Added
+#### New `/server_attendance` Endpoint
+- **Multi-period analytics**: 24h, 7d, 30d player statistics with Discord member engagement
+- **Enhanced server insights**: Top theatres, missions, and modules by playtime and usage
+- **Combat statistics**: Total sorties, kills, deaths, PvP metrics from mv_serverstats
+- **Daily trends**: 7-day player activity trends for graphing
+- **Inspired by Discord `/serverstats`**: Comprehensive data matching monitoring plugin functionality
 
-#### New Features
-- **Weather Information in /servers endpoint**: Added comprehensive weather data to server information responses
-  - Temperature, wind speed/direction, pressure, visibility, and cloud coverage
-  - Configurable via `include_weather` setting (default: true)
-  - Weather data extracted from DCS mission weather system
+#### Configuration Options
+- `include_weather: true/false` - Toggle weather in server responses
+- `server_attendance.enabled: true/false` - Enable attendance analytics endpoint
 
-- **Server Attendance Statistics endpoint**: New `/server_attendance` endpoint providing detailed server usage analytics
-  - Daily, weekly, and monthly player statistics
-  - Peak player counts and average session durations
-  - Configurable via `server_attendance.enabled` setting (default: true)
-  - Supports both server-specific and global statistics
+### 🔄 Changed  
 
-#### Configuration Schema Updates
-- Added `include_weather` boolean option for servers endpoint configuration
-- Added `server_attendance.enabled` boolean option for attendance statistics
-- Updated configuration validation schema to support new options
-
-### Changed
-
-#### Global Server Name Resolution
-- **Centralized server name handling**: Refactored all endpoints that accept `server_name` parameters to use unified resolution system
-- **Server alias support**: All endpoints now support both instance aliases (from nodes.yaml) and full DCS server names (from servers.yaml)
-- **Consistent behavior**: Standardized server name resolution across all endpoints for improved reliability
-
-#### Affected Endpoints
-The following endpoints have been enhanced with centralized server name resolution:
-- `/serverstats` - Server statistics endpoint
-- `/leaderboard` - Player leaderboard endpoint
-- `/topkills` - Top kills leaderboard
-- `/topkdr` - Top K/D ratio leaderboard  
-- `/trueskill` - TrueSkill rankings
-- `/highscore` - High score statistics
-- `/weaponpk` - Weapon accuracy statistics
-- `/stats` - Individual player statistics
-- `/modulestats` - Player module-specific statistics
-- `/traps` - Carrier trap statistics
-- `/server_attendance` - Server attendance analytics
+#### Centralized Server Name Resolution
+- **Unified server handling**: All endpoints now use centralized `get_resolved_server()` method
+- **Alias support**: Endpoints support both instance aliases (nodes.yaml) and full DCS server names (servers.yaml)  
+- **Affected endpoints**: `/serverstats`, `/leaderboard`, `/topkills`, `/topkdr`, `/trueskill`, `/highscore`, `/weaponpk`, `/stats`, `/modulestats`, `/traps`, `/server_attendance`
 
 #### Code Architecture Improvements
-- **Helper Methods**: Added centralized utility functions for consistent server resolution:
-  - `resolve_server_name()` - Resolves server aliases to actual DCS names
-  - `get_resolved_server()` - Returns both resolved name and server object
-- **Simplified SQL Construction**: Streamlined SQL query building by removing complex helper methods and using straightforward conditional logic
-- **Maintainable Code**: Returned to clear, readable SQL patterns while maintaining centralized server name resolution
-- **SQL Query Standardization**: Unified parameter passing and consistent conditional SQL construction patterns
-- **Error Handling**: Improved handling of invalid server names and missing servers
+- **Simplified SQL construction**: Removed overly complex `get_server_where_clause_and_params()` helper
+- **Readable patterns**: Straightforward conditional SQL with direct parameter passing
+- **Better maintainability**: Clear, transparent code structure while preserving functionality
 
-### Fixed
+### 🐛 Fixed
 
-#### Bug Fixes
-- **SQL Query Issues**: Fixed mixed f-string and parameter usage in database queries
-- **Server Stats Endpoint**: Corrected column selection in serverstats query (changed from "currentPlayers" to "totalPlayers")
-- **Weather Data Structure**: Fixed weather data extraction to match actual DCS mission weather format
-- **Parameter Consistency**: Resolved inconsistent parameter naming between endpoints
+#### Endpoint Corrections
+- **`/modulestats` endpoint**: Fixed incorrect method mapping (`self.stats` → `self.modulestats`) and response model (`ModuleStats` → `list[ModuleStats]`)
+- **SQL syntax errors**: Resolved parameter binding issues in database queries
+- **Weather data extraction**: Corrected data structure parsing from DCS mission weather
 
-#### Configuration Validation
-- **Schema Validation**: Fixed configuration schema validation errors for new weather and attendance options
-- **Default Values**: Ensured proper default value handling for new configuration options
+#### Data Model Validation  
+- **Response validation**: Fixed Pydantic model validation errors
+- **Type consistency**: Proper typing for all new data structures
 
-### Technical Details
+### 📊 Enhanced Data Models
 
-#### New Data Models
-- **WeatherInfo**: Pydantic model for weather data validation
-  ```python
-  class WeatherInfo(BaseModel):
-      temperature: float | None
-      wind_speed: float | None
-      wind_direction: int | None
-      pressure: float | None
-      visibility: float | None
-      cloud_coverage: str | None
-  ```
+#### New Pydantic Models
+```python
+# Weather information
+class WeatherInfo(BaseModel):
+    temperature: float | None
+    wind_speed: float | None  
+    wind_direction: int | None
+    pressure: float | None
+    visibility: float | None
+    cloud_coverage: str | None
 
-- **ServerAttendanceStats**: Pydantic model for attendance statistics
-  ```python
-  class ServerAttendanceStats(BaseModel):
-      period: str
-      unique_players: int
-      total_sessions: int
-      peak_players: int
-      average_session_duration: float
-      statistics: list[dict]
-  ```
+# Top statistics for server attendance
+class TopTheatre(BaseModel):
+    theatre: str
+    playtime_hours: int
+
+class TopMission(BaseModel):
+    mission_name: str
+    playtime_hours: int
+    
+class TopModule(BaseModel):
+    module: str
+    playtime_hours: int
+    unique_players: int
+    total_uses: int
+
+# Enhanced server attendance with comprehensive analytics
+class ServerAttendanceStats(BaseModel):
+    current_players: int
+    unique_players_24h: int
+    total_playtime_hours_24h: float
+    discord_members_24h: int
+    unique_players_7d: int  
+    total_playtime_hours_7d: float
+    discord_members_7d: int
+    unique_players_30d: int
+    total_playtime_hours_30d: float
+    discord_members_30d: int
+    daily_trend: list[dict]
+    top_theatres: list[TopTheatre]
+    top_missions: list[TopMission]  
+    top_modules: list[TopModule]
+    total_sorties: int | None
+    total_kills: int | None
+    total_deaths: int | None
+    total_pvp_kills: int | None
+    total_pvp_deaths: int | None
+```
+
+### 🚀 Performance & Technical Details
 
 #### Database Integration
-- **Monitoring Plugin Patterns**: Leveraged existing monitoring infrastructure for attendance statistics
-- **Materialized Views**: Utilized existing `mv_serverstats` and `mv_statistics` views
-- **Performance Optimization**: Efficient SQL queries with proper indexing considerations
+- **Monitoring plugin patterns**: Leverages existing monitoring infrastructure SQL queries
+- **Materialized views**: Efficient use of `mv_serverstats` for performance
+- **Optimized queries**: Following established DCS server integration patterns
 
-#### API Documentation
-- **README Updates**: Comprehensive documentation for all new features and configuration options
-- **Configuration Examples**: Updated sample configurations with new options
-- **Endpoint Documentation**: Detailed API endpoint descriptions and response examples
+#### Backward Compatibility
+- **Zero breaking changes**: All existing API consumers continue working unchanged
+- **Opt-in features**: New functionality enabled by default but configurable
+- **Migration-free**: No configuration changes required for existing setups
 
-### Dependencies
-- No new external dependencies required
-- Leverages existing FastAPI and Pydantic infrastructure
-- Uses established DCS server integration patterns
+### 📈 Impact
 
-### Breaking Changes
-- None. All changes are backward compatible with existing configurations and API consumers.
+#### For API Consumers
+- **Richer server data**: Weather and comprehensive attendance analytics
+- **Better server identification**: Flexible server name resolution (aliases + full names)
+- **Enhanced dashboards**: More detailed metrics for monitoring and visualization
 
-### Migration Guide
-No migration steps required. New features are opt-in via configuration:
-
-1. **Weather in /servers**: Enabled by default, can be disabled via `include_weather: false`
-2. **Server attendance**: Enabled by default, can be disabled via `server_attendance.enabled: false`
-3. **Server name resolution**: Automatic upgrade, no configuration changes needed
-
-### Performance Notes
-- Weather data extraction has minimal performance impact
-- Server attendance queries are optimized for large datasets
-- Centralized server resolution reduces code duplication and improves maintainability
+#### For Developers  
+- **Cleaner codebase**: Simplified, maintainable SQL construction patterns
+- **Consistent patterns**: Unified server resolution across all endpoints
+- **Better documentation**: Complete API models with examples and validation
 
 ---
 
-**Note**: This changelog covers significant enhancements to the REST API plugin, focusing on improved functionality, better code organization, and enhanced user experience while maintaining full backward compatibility.
+**Summary**: This release significantly enhances the REST API plugin with comprehensive server analytics, weather integration, and improved code architecture while maintaining full backward compatibility.
