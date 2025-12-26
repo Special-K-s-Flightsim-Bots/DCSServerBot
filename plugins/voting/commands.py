@@ -49,7 +49,8 @@ class Voting(Plugin[VotingListener]):
     @app_commands.rename(_server='server')
     @utils.app_has_role('DCS')
     async def create(self, interaction: discord.Interaction,
-                     _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                     _server: app_commands.Transform[Server, utils.ServerTransformer(
+                         status=[Status.RUNNING, Status.PAUSED])],
                      what: Literal['Restart', 'Mission Change', 'Weather Change']):
         config = self.get_config(_server)
         # Users with either the "creator" role or "DCS Admin" can use this command
