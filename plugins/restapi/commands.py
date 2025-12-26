@@ -20,7 +20,7 @@ from typing import Any, Literal, cast
 
 from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
-                     PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry)
+                     PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats)
 from ..srs.commands import SRS
 
 app: FastAPI | None = None
@@ -68,6 +68,8 @@ class RestAPI(Plugin):
 
     def register_routes(self):
         prefix = self.locals.get(DEFAULT_TAG, {}).get('prefix', '')
+        if prefix and not prefix.startswith('/'):
+            prefix = '/' + prefix
         api_key = self.locals.get(DEFAULT_TAG, {}).get('api_key')
 
         if api_key:
@@ -88,6 +90,14 @@ class RestAPI(Plugin):
             response_model = ServerStats,
             description = "List the statistics of a whole group",
             summary = "Server Statistics",
+            tags = ["Info"]
+        )
+        router.add_api_route(
+            "/server_attendance", self.server_attendance,
+            methods = ["GET"],
+            response_model = ServerAttendanceStats,
+            description = "Get detailed server attendance statistics",
+            summary = "Server Attendance Statistics", 
             tags = ["Info"]
         )
         router.add_api_route(
@@ -276,13 +286,21 @@ class RestAPI(Plugin):
 
     async def serverstats(self, server_name: str = Query(default=None)):
         self.log.debug(f'Calling /serverstats with server_name = {server_name}')
+        
+        # Resolve server name and get server object
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        
         serverstats = {}
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                if server_name:
-                    where = "WHERE server_name = %(server_name)s"
+                # For mv_serverstats, we can directly filter by server_name
+                if resolved_server_name:
+                    where_clause = "WHERE server_name = %(server_name)s"
+                    params = {"server_name": resolved_server_name}
                 else:
-                    where = ""
+                    where_clause = ""
+                    params = {}
+                    
                 await cursor.execute(f"""
                     SELECT SUM("totalPlayers") AS "totalPlayers", SUM("totalPlaytime") AS "totalPlaytime",
                            SUM("avgPlaytime") AS "avgPlaytime",
@@ -290,23 +308,28 @@ class RestAPI(Plugin):
                            SUM("totalDeaths") AS "totalDeaths", SUM("totalPvPKills") AS "totalPvPKills",
                            SUM("totalPvPDeaths") AS "totalPvPDeaths" 
                     FROM mv_serverstats
-                    {where}
-                """, {"server_name": server_name})
+                    {where_clause}
+                """, params)
                 serverstats = await cursor.fetchone()
 
-                if server_name:
-                    server = self.bot.servers.get(server_name)
+                # Get active players count
+                if server:
                     serverstats['activePlayers'] = len(server.get_active_players())
+                elif resolved_server_name:
+                    serverstats['activePlayers'] = 0  # Server not found but name was provided
                 else:
-                    active = 0
-                    for server in self.bot.servers.values():
-                        active += len(server.get_active_players())
+                    # Global stats - sum all servers
+                    active = sum(len(s.get_active_players()) for s in self.bot.servers.values())
                     serverstats['activePlayers'] = active
 
-                if server_name:
-                    join = f"JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
+                # Get daily players trend
+                if resolved_server_name:
+                    join_sql = "JOIN missions m ON s.mission_id = m.id"
+                    where_sql = "WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '7 days' AND m.server_name = %(server_name)s"
                 else:
-                    join = ""
+                    join_sql = ""
+                    where_sql = "WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '7 days'"
+                    
                 await cursor.execute(f"""
                     WITH date_series AS (
                         SELECT generate_series(
@@ -318,17 +341,174 @@ class RestAPI(Plugin):
                     player_counts AS (
                         SELECT DATE_TRUNC('day', s.hop_on) AS date, COUNT(DISTINCT player_ucid) as player_count
                         FROM statistics s 
-                        {join}
-                        WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '7 days'
+                        {join_sql}
+                        {where_sql}
                         GROUP BY 1
                     )
                     SELECT ds.date, COALESCE(pc.player_count, 0) as player_count
                     FROM date_series ds
                     LEFT JOIN player_counts pc ON ds.date = pc.date
                     ORDER BY ds.date
-                """, {"server_name": server_name})
+                """, {"server_name": resolved_server_name})
                 serverstats['daily_players'] = await cursor.fetchall()
         return ServerStats.model_validate(serverstats)
+
+    async def server_attendance(self, server_name: str = Query(default=None)):
+        """Get detailed server attendance statistics using monitoring infrastructure patterns"""
+        self.log.debug(f'Calling /server_attendance with server_name = {server_name}')
+        
+        # Resolve server name alias to actual name
+        resolved_server_name = self.resolve_server_name(server_name)
+        
+        # Get current players count
+        current_players = 0
+        if resolved_server_name:
+            server = self.bot.servers.get(resolved_server_name)
+            current_players = len(server.get_active_players()) if server else 0
+        else:
+            for server in self.bot.servers.values():
+                current_players += len(server.get_active_players())
+
+        # Use resolved name for database queries
+        where_clause = f"AND m.server_name = '{resolved_server_name}'" if resolved_server_name else ""
+        
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                # Get basic statistics for different periods using monitoring plugin pattern
+                periods = {
+                    '24h': "s.hop_on > (now() AT TIME ZONE 'utc') - interval '24 hours'",
+                    '7d': "s.hop_on > (now() AT TIME ZONE 'utc') - interval '7 days'",
+                    '30d': "s.hop_on > (now() AT TIME ZONE 'utc') - interval '30 days'"
+                }
+                
+                stats = {"current_players": current_players}
+                
+                for period_key, time_filter in periods.items():
+                    # Use same SQL structure as ServerUsage in monitoring plugin
+                    sql = f"""
+                        SELECT 
+                            COUNT(DISTINCT s.player_ucid) AS unique_players,
+                            COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600), 0) AS total_playtime_hours,
+                            COUNT(DISTINCT p.discord_id) AS discord_members
+                        FROM statistics s
+                        JOIN missions m ON m.id = s.mission_id 
+                        LEFT JOIN players p ON s.player_ucid = p.ucid
+                        WHERE s.hop_off IS NOT NULL
+                        AND {time_filter}
+                        {where_clause}
+                    """
+                    await cursor.execute(sql)
+                    row = await cursor.fetchone()
+                    
+                    if row:
+                        stats[f"unique_players_{period_key}"] = int(row['unique_players'] or 0)
+                        stats[f"total_playtime_hours_{period_key}"] = float(row['total_playtime_hours'] or 0.0)
+                        stats[f"discord_members_{period_key}"] = int(row['discord_members'] or 0)
+
+                # Get daily trend for last 7 days (simpler version)
+                await cursor.execute(f"""
+                    WITH date_series AS (
+                        SELECT generate_series(
+                            DATE_TRUNC('day', (now() AT TIME ZONE 'utc') - interval '7 days'),
+                            DATE_TRUNC('day', now() AT TIME ZONE 'utc'),
+                            interval '1 day'
+                        ) AS date
+                    ),
+                    daily_counts AS (
+                        SELECT 
+                            DATE_TRUNC('day', s.hop_on) as date,
+                            COUNT(DISTINCT s.player_ucid) as unique_players
+                        FROM statistics s 
+                        JOIN missions m ON m.id = s.mission_id
+                        WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '7 days'
+                        {where_clause}
+                        GROUP BY 1
+                    )
+                    SELECT ds.date, COALESCE(dc.unique_players, 0) as unique_players
+                    FROM date_series ds
+                    LEFT JOIN daily_counts dc ON ds.date = dc.date
+                    ORDER BY ds.date
+                """)
+                
+                daily_data = await cursor.fetchall()
+                stats["daily_trend"] = [
+                    {
+                        "date": row['date'].strftime("%Y-%m-%d"),
+                        "unique_players": int(row['unique_players'])
+                    }
+                    for row in daily_data
+                ]
+
+        return stats
+
+    def resolve_server_name(self, server_name: str | None) -> str | None:
+        """Resolve server alias (instance name) to actual DCS server name"""
+        if not server_name:
+            return None
+        
+        # Check if it's already a full DCS server name
+        if server_name in self.bot.servers:
+            return server_name
+            
+        # Check if it's an instance name (alias) - find by instance name
+        for instance_name, instance in self.bot.bus.node.instances.items():
+            if instance_name == server_name and instance.server:
+                return instance.server.name  # return full DCS name
+        
+        # Return original if not found
+        return server_name
+
+    def get_resolved_server(self, server_name: str | None) -> tuple[str | None, Server | None]:
+        """
+        Resolve server name and get server object.
+        Returns (resolved_name, server_object)
+        """
+        resolved_name = self.resolve_server_name(server_name)
+        server = self.bot.servers.get(resolved_name) if resolved_name else None
+        return resolved_name, server
+
+    async def get_weather_info(self, server: Server) -> WeatherInfo | None:
+        """Get current weather information from DCS server"""
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            return None
+            
+        # Check if we have weather data from the current mission
+        if not server.current_mission:
+            return None
+            
+        if not hasattr(server.current_mission, 'weather'):
+            return None
+            
+        if not server.current_mission.weather:
+            return None
+            
+        try:
+            weather_data = server.current_mission.weather
+            
+            # Extract wind data (use ground level wind by default)
+            wind_data = weather_data.get('wind', {}).get('atGround', {})
+            
+            # Extract clouds data (it's directly in weather_data, not separate)
+            clouds_data = weather_data.get('clouds', {})
+            
+            # Map DCS weather data to our model using actual structure
+            return WeatherInfo(
+                temperature=weather_data.get('season', {}).get('temperature'),
+                wind_speed=wind_data.get('speed'),
+                wind_direction=wind_data.get('dir'),
+                pressure=weather_data.get('qnh'),  # QNH pressure in mmHg
+                visibility=weather_data.get('visibility', {}).get('distance'),  # Extract distance from visibility dict
+                clouds_base=clouds_data.get('base'),
+                clouds_density=clouds_data.get('density'),
+                precipitation=clouds_data.get('iprecptns'),  # Precipitation is in clouds data
+                fog_enabled=weather_data.get('enable_fog', False),
+                fog_visibility=weather_data.get('fog', {}).get('visibility') if weather_data.get('fog', {}).get('visibility') else None,
+                dust_enabled=weather_data.get('enable_dust', False),
+                dust_visibility=weather_data.get('dust_density') if weather_data.get('enable_dust') else None
+            )
+        except Exception as ex:
+            self.log.warning(f"Failed to get weather info for server {server.name}: {ex}")
+            return None
 
     async def get_srs_channels(self, server_name: str, nick: str) -> list[int]:
         srs: SRS | None = cast(SRS, self.bot.cogs.get('SRS'))
@@ -402,6 +582,12 @@ class RestAPI(Plugin):
                 "radios": await self.get_srs_channels(server.name, player.name)
             }) for player in server.players.values()]
 
+            # add weather information
+            config = self.get_endpoint_config('servers')
+            include_weather = config.get('include_weather', True)
+            if include_weather:
+                data['weather'] = await self.get_weather_info(server)
+
             # validate the data against the schema and return it
             servers.append(ServerInfo.model_validate(data))
 
@@ -449,8 +635,11 @@ class RestAPI(Plugin):
         except KeyError:
             raise HTTPException(status_code=400, detail="Invalid ordering column supplied")
 
-        if server_name:
-            where = "WHERE s.server_name = %(server_name)s"
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+        
+        if resolved_server_name:
+            where = "AND s.server_name = %(server_name)s"
         else:
             where = ""
 
@@ -476,6 +665,7 @@ class RestAPI(Plugin):
                         JOIN players p ON s.player_ucid = p.ucid 
                         LEFT OUTER JOIN credits c ON c.player_ucid = s.player_ucid
                         LEFT OUTER JOIN campaigns ca ON ca.id = c.campaign_id AND NOW() AT TIME ZONE 'utc' BETWEEN ca.start AND COALESCE(ca.stop, NOW() AT TIME ZONE 'utc')
+                        WHERE 1=1
                         {where}
                         GROUP BY 1, 2 
                         ORDER BY {order_column} {order} 
@@ -484,7 +674,7 @@ class RestAPI(Plugin):
                     )
                     SELECT ROW_NUMBER() OVER (ORDER BY {order_column} {order}) as row_num, * 
                     FROM result_with_count
-                """, {"server_name": server_name, "query": f"%{query}%", "limit": limit, "offset": offset})
+                """, {"server_name": resolved_server_name, "query": f"%{query}%", "limit": limit, "offset": offset})
                 rows = await cursor.fetchall()
                 if not rows:
                     return {
@@ -517,10 +707,15 @@ class RestAPI(Plugin):
     async def trueskill(self, limit: int = Query(default=10), offset: int = Query(default=0),
                         server_name: str = Query(default=None)):
         self.log.debug(f'Calling /trueskill with limit={limit}, server_name={server_name}')
-        if server_name:
-            where = "WHERE s.server_name = %(server_name)s"
+        
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+        
+        if resolved_server_name:
+            where = "AND s.server_name = %(server_name)s"
         else:
             where = ""
+        
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(f"""
@@ -528,10 +723,11 @@ class RestAPI(Plugin):
                     SUM(pvp) AS "kills_pvp", SUM(deaths_pvp) AS "deaths_pvp", t.skill_mu AS "TrueSkill" 
                     FROM mv_statistics s JOIN players p ON s.player_ucid = p.ucid
                     JOIN trueskill t ON t.player_ucid = p.ucid
+                    WHERE 1=1
                     {where}
                     GROUP BY 1, 2, 5 ORDER BY 5 DESC 
                     LIMIT {limit} OFFSET {offset}
-                """, {"server_name": server_name})
+                """, {"server_name": resolved_server_name})
                 return [Trueskill.model_validate(result) for result in await cursor.fetchall()]
 
     async def highscore(self, server_name: str = Query(default=None), period: str = Query(default='all'),
@@ -539,6 +735,10 @@ class RestAPI(Plugin):
         self.log.debug(f'Calling /highscore with server_name="{server_name}", period="{period}", limit={limit}')
         highscore = {}
         flt = StatisticsFilter.detect(self.bot, period) or PeriodFilter(period)
+        
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+        
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 sql = """
@@ -550,11 +750,11 @@ class RestAPI(Plugin):
                       WHERE p.ucid = s.player_ucid
                         AND s.mission_id = m.id
                       """
-                if server_name:
+                if resolved_server_name:
                     sql += "AND m.server_name = %(server_name)s"
                 sql += ' AND ' + flt.filter(self.bot)
                 sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
-                await cursor.execute(sql, {"server_name": server_name})
+                await cursor.execute(sql, {"server_name": resolved_server_name})
                 highscore['playtime'] = await cursor.fetchall()
 
                 sql_parts = {
@@ -578,7 +778,7 @@ class RestAPI(Plugin):
                         FROM players p, statistics s, missions m 
                         WHERE s.player_ucid = p.ucid AND s.mission_id = m.id
                     """
-                    if server_name:
+                    if resolved_server_name:
                         sql += "AND m.server_name = %(server_name)s"
                     sql += ' AND ' + flt.filter(self.bot)
                     # only flighttimes of over an hour count for most efficient / wasteful
@@ -588,7 +788,7 @@ class RestAPI(Plugin):
                     sql += f' GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0'
                     sql += f' ORDER BY 3 DESC LIMIT {limit}'
 
-                    await cursor.execute(sql, {"server_name": server_name})
+                    await cursor.execute(sql, {"server_name": resolved_server_name})
                     highscore[kill_type] = await cursor.fetchall()
 
         return Highscore.model_validate(highscore)
@@ -615,10 +815,16 @@ class RestAPI(Plugin):
                        server_name: str | None = Form(None)):
         self.log.debug(f'Calling /weaponpk with nick="{nick}", date="{date}", server_name="{server_name}"')
         ucid = await self.get_ucid(nick, date)
-        if server_name:
-            join = "JOIN missions m ON ms.mission_id = m.id AND m.server_name = %(server_name)s"
+        
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+        
+        if resolved_server_name:
+            join = "JOIN missions m ON ms.mission_id = m.id"
+            where = "WHERE init_id = %(ucid)s AND weapon IS NOT NULL AND m.server_name = %(server_name)s"
         else:
             join = ""
+            where = "WHERE init_id = %(ucid)s AND weapon IS NOT NULL"
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(f"""
@@ -629,11 +835,11 @@ class RestAPI(Plugin):
                                SUM(CASE WHEN event='S_EVENT_HIT' THEN 1 ELSE 0 END) AS "hits" 
                         FROM missionstats ms
                         {join}
-                        WHERE init_id = %(ucid)s AND weapon IS NOT NULL
+                        {where}
                         GROUP BY weapon
                     ) x
                     ORDER BY 2 DESC
-                """, {"ucid": ucid, "server_name": server_name})
+                """, {"ucid": ucid, "server_name": resolved_server_name})
                 return [WeaponPK.model_validate(result) for result in await cursor.fetchall()]
 
     async def stats(self, nick: str = Form(...), date: str | None = Form(None),
@@ -642,8 +848,11 @@ class RestAPI(Plugin):
                        f'last_session="{last_session}"')
 
         ucid = await self.get_ucid(nick, date)
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+        
         if last_session:
-            if server_name:
+            if resolved_server_name:
                 where = "AND m.server_name = %(server_name)s"
             else:
                 where = ""
@@ -672,7 +881,7 @@ class RestAPI(Plugin):
                 WHERE s.player_ucid = %(ucid)s
                 {where}
             """
-            if server_name:
+            if resolved_server_name:
                 inner_query = f"AND m2.server_name = %(server_name)s"
             else:
                 inner_query = ""
@@ -686,7 +895,7 @@ class RestAPI(Plugin):
                 )
             """
         else:
-            if server_name:
+            if resolved_server_name:
                 where = "AND s.server_name = %(server_name)s"
             else:
                 where = ""
@@ -719,7 +928,7 @@ class RestAPI(Plugin):
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(query, {"ucid": ucid, "server_name": server_name})
+                await cursor.execute(query, {"ucid": ucid, "server_name": resolved_server_name})
                 data = await cursor.fetchone()
                 if data:
                     data['kdr'] = round(data['kills'] / data['deaths'] if data['deaths'] > 0 else data['kills'], 2)
@@ -754,7 +963,10 @@ class RestAPI(Plugin):
         self.log.debug(f'Calling /modulestats with nick="{nick}", date="{date}", server_name="{server_name}"')
 
         ucid = await self.get_ucid(nick, date)
-        if server_name:
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+        
+        if resolved_server_name:
             where = "AND s.server_name = %(server_name)s"
         else:
             where = ""
@@ -772,7 +984,7 @@ class RestAPI(Plugin):
         """
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(query, {"ucid": ucid, "server_name": server_name})
+                await cursor.execute(query, {"ucid": ucid, "server_name": resolved_server_name})
                 return [ModuleStats.model_validate(result) for result in await cursor.fetchall()]
 
     async def current_server(self, nick: str = Query(...), date: str | None = Query(None)) -> str | None:
@@ -845,10 +1057,16 @@ class RestAPI(Plugin):
                     limit: int | None = Form(10), offset: int | None = Form(0),
                     server_name: str | None = Form(None)):
         self.log.debug(f'Calling /traps with nick="{nick}", date="{date}", server_name="{server_name}"')
-        if server_name:
-            join = "JOIN missions m ON t.mission_id = m.id AND m.server_name = %(server_name)s"
+        
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+        
+        if resolved_server_name:
+            join = "JOIN missions m ON t.mission_id = m.id"
+            where = "WHERE t.player_ucid = %(ucid)s AND m.server_name = %(server_name)s"
         else:
             join = ""
+            where = "WHERE t.player_ucid = %(ucid)s"
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 ucid = await self.get_ucid(nick, date)
@@ -856,10 +1074,10 @@ class RestAPI(Plugin):
                     SELECT t.unit_type, t.grade, t.comment, t.place, t.trapcase, t.wire, t.night, t.points, t.time
                     FROM traps t
                     {join}
-                    WHERE t.player_ucid = %(ucid)s
+                    {where}
                     ORDER BY time DESC 
                     LIMIT {limit} OFFSET {offset}
-                """, {"ucid": ucid, "server_name": server_name})
+                """, {"ucid": ucid, "server_name": resolved_server_name})
                 return [TrapEntry.model_validate(result) for result in await cursor.fetchall()]
 
     async def squadron_members(self, name: str = Form(...)):

@@ -355,6 +355,38 @@ class PlayerStats(BaseModel):
         }
     }
 
+class WeatherInfo(BaseModel):
+    temperature: float | None = Field(None, description="Temperature in Celsius")
+    wind_speed: float | None = Field(None, description="Wind speed in m/s")
+    wind_direction: int | None = Field(None, description="Wind direction in degrees")
+    pressure: float | None = Field(None, description="Atmospheric pressure in mmHg")
+    visibility: int | None = Field(None, description="Visibility in meters")
+    clouds_base: int | None = Field(None, description="Cloud base altitude in feet")
+    clouds_density: int | None = Field(None, description="Cloud density (0-10)")
+    precipitation: int | None = Field(None, description="Precipitation type (0=none, 1=rain, 2=thunderstorm, 3=snow)")
+    fog_enabled: bool | None = Field(None, description="Fog enabled")
+    fog_visibility: int | None = Field(None, description="Fog visibility in meters")
+    dust_enabled: bool | None = Field(None, description="Dust storm enabled")
+    dust_visibility: int | None = Field(None, description="Dust storm visibility in meters")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "temperature": 15.5,
+                "wind_speed": 5.2,
+                "wind_direction": 270,
+                "pressure": 760.0,
+                "visibility": 9999,
+                "clouds_base": 8000,
+                "clouds_density": 4,
+                "precipitation": 0,
+                "fog_enabled": False,
+                "fog_visibility": None,
+                "dust_enabled": False,
+                "dust_visibility": None
+            }
+        }
+    }
 
 class PlayerEntry(BaseModel):
     nick: str = Field(..., description="Player name")
@@ -373,6 +405,7 @@ class ServerInfo(BaseModel):
     mission: MissionInfo | None = Field(None, description="Mission info")
     extensions: list[ExtensionInfo] = Field(default_factory=list)
     players: list[PlayerEntry] = Field(default_factory=list)
+    weather: WeatherInfo | None = Field(None, description="Current weather information")
 
     model_config = {
         "json_encoders": {
@@ -402,7 +435,19 @@ class ServerInfo(BaseModel):
                         "version": "1.9.0.0",
                         "value": "127.0.0.1:5002"
                     }
-                ]
+                ],
+                "weather": {
+                    "temperature": 15.5,
+                    "wind_speed": 5.2,
+                    "wind_direction": 270,
+                    "pressure": 760.0,
+                    "visibility": 9999,
+                    "clouds_base": 8000,
+                    "clouds_density": 4,
+                    "precipitation": 0,
+                    "fog_enabled": False,
+                    "dust_enabled": False
+                }
             }
         }
     }
@@ -507,6 +552,48 @@ class LinkMeResponse(BaseModel):
                 "token": "1234",
                 "timestamp": "2025-08-09T12:00:00+00:00",
                 "rc": 2  # BIT_LINK_IN_PROGRESS
+            }
+        }
+    }
+
+
+class ServerAttendanceStats(BaseModel):
+    """Server attendance statistics using monitoring plugin patterns"""
+    current_players: int = Field(..., description="Current number of active players")
+    
+    # Statistics for different periods (24h, 7d, 30d) following monitoring plugin patterns
+    unique_players_24h: int = Field(..., description="Unique players in last 24 hours")
+    total_playtime_hours_24h: float = Field(..., description="Total playtime hours in last 24 hours")
+    discord_members_24h: int = Field(..., description="Discord members who played in last 24 hours")
+    
+    unique_players_7d: int = Field(..., description="Unique players in last 7 days") 
+    total_playtime_hours_7d: float = Field(..., description="Total playtime hours in last 7 days")
+    discord_members_7d: int = Field(..., description="Discord members who played in last 7 days")
+    
+    unique_players_30d: int = Field(..., description="Unique players in last 30 days")
+    total_playtime_hours_30d: float = Field(..., description="Total playtime hours in last 30 days") 
+    discord_members_30d: int = Field(..., description="Discord members who played in last 30 days")
+    
+    # Daily trend for the last week
+    daily_trend: list[dict] = Field(default_factory=list, description="Daily unique player counts for trend analysis")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "current_players": 8,
+                "unique_players_24h": 15,
+                "total_playtime_hours_24h": 45.5,
+                "discord_members_24h": 12,
+                "unique_players_7d": 35,
+                "total_playtime_hours_7d": 180.2,
+                "discord_members_7d": 28,
+                "unique_players_30d": 85,
+                "total_playtime_hours_30d": 720.8,
+                "discord_members_30d": 65,
+                "daily_trend": [
+                    {"date": "2025-12-24", "unique_players": 15},
+                    {"date": "2025-12-25", "unique_players": 18}
+                ]
             }
         }
     }
