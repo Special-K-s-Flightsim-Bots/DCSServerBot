@@ -146,7 +146,7 @@ class FunkManEventListener(EventListener["FunkMan"]):
         config = self.get_config(server)
         for name in ['CHANNELID_MAIN', 'CHANNELID_RANGE', 'CHANNELID_AIRBOSS']:
             if name in config:
-                self.bot.check_channel(self.config[name])
+                self.bot.check_channel(int(self.config[name]))
 
     @event(name="moose_text")
     async def moose_text(self, server: Server, data: dict) -> None:

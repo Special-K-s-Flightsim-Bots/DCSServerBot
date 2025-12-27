@@ -128,7 +128,7 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
             self.bot.check_channel(int(config.get('persistent_channel')))
         for squadron in config.get('squadrons', []):
             if 'channel' in squadron:
-                self.bot.check_channel(squadron['channel'])
+                self.bot.check_channel(int(squadron['channel']))
         asyncio.create_task(self.update_greenieboard(server))
 
     @event(name="onMissionLoadEnd")

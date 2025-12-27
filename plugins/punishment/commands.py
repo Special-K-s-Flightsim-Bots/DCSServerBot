@@ -44,7 +44,7 @@ class Punishment(Plugin[PunishmentEventListener]):
         member = self.bot.get_member_by_ucid(ucid)
         channel_id = self.get_config(server).get('channel')
         if channel_id:
-            self.bot.check_channel(channel_id, SEND_ONLY_CHANNEL_PERMISSIONS)
+            self.bot.check_channel(int(channel_id), SEND_ONLY_CHANNEL_PERMISSIONS)
             channel = self.bot.get_channel(channel_id)
         else:
             channel = self.bot.get_admin_channel(server)

@@ -332,7 +332,7 @@ class Tournament(Plugin[TournamentEventListener]):
         if not self._info_channel:
             config = self.get_config()
             channel_id = config.get('channels', {}).get('info')
-            if channel_id and self.bot.check_channel(channel_id):
+            if channel_id and self.bot.check_channel(int(channel_id)):
                 self._info_channel = self.bot.get_channel(channel_id)
         return self._info_channel
 
