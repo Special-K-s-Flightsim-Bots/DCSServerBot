@@ -906,8 +906,9 @@ class RestAPI(Plugin):
             return SquadronCampaignCredit.model_validate({"campaign": row[1], "credits": squadron_obj.points})
 
     async def linkme(self,
-                     discord_id: str = Form(..., description="Discord user ID (snowflake)", example="123456789012345678"),
-                     force: bool = Form(False, description="Force the operation", example=True)):
+                     discord_id: str = Form(..., description="Discord user ID (snowflake)",
+                                            examples=["123456789012345678"]),
+                     force: bool = Form(False, description="Force the operation")):
 
         async def create_token() -> str:
             while True:

@@ -23,16 +23,13 @@ import time
 import traceback
 import unicodedata
 
-# for eval
-import random
-import math
-
 from collections.abc import Mapping
 from copy import deepcopy
 from croniter import croniter
 from datetime import datetime, timedelta, timezone, tzinfo
 from difflib import unified_diff
 from importlib import import_module
+from lupa.lua51 import LuaSyntaxError
 from pathlib import Path
 from typing import TYPE_CHECKING, Generator, Iterable, Callable, Any
 from urllib.parse import urlparse
@@ -797,16 +794,18 @@ class SettingsDict(dict):
         self.mtime = os.path.getmtime(self.path)
         data = None
         if self.path.lower().endswith('.lua'):
-            content = None
             try:
-                #data = luadata.read(self.path, encoding='utf-8')
-                with open(self.path, mode='r', encoding='utf-8') as infile:
-                    content = infile.read()
-                data = luadata.unserialize(content, encoding='utf-8')
+                ex = None
+                for i in range(0, 3):
+                    try:
+                        data = luadata.read(self.path, encoding='utf-8')
+                        break
+                    except LuaSyntaxError as ex:
+                        time.sleep(0.5)
+                else:
+                    raise ex
             except Exception as ex:
                 self.log.debug(f"Exception while reading {self.path}:\n{ex}")
-                if content:
-                    self.log.debug("Content:\n{}".format(content))
                 data = alternate_parse_settings(self.path)
                 if not data:
                     self.log.error("- Error while parsing {}:\n{}".format(os.path.basename(self.path), ex))
@@ -1080,6 +1079,9 @@ def evaluate(value: str | int | float | bool | list | dict, **kwargs) -> str | i
              If the input value is a string starting with '$', it will be evaluated with placeholders replaced by keyword arguments.
     """
     def _evaluate(value, **kwargs):
+        import random
+        import math
+
         if isinstance(value, (int, float, bool)) or not value.startswith('$'):
             return value
         value = format_string(value[1:], **kwargs)

@@ -2342,7 +2342,7 @@ class Mission(Plugin[MissionEventListener]):
                 # name changes of the status channel will only happen with the correct permission
                 if not channel.permissions_for(self.bot.member).manage_channels:
                     return
-                if channel.type == discord.ChannelType.forum:
+                if channel.type in [discord.ChannelType.forum, discord.ChannelType.public_thread]:
                     continue
 # TODO: Alternative implementation, if Discord decides to no longer use system messages for a thread rename
 #                    for thread in channel.threads:
