@@ -550,8 +550,8 @@ class Mission(Plugin[MissionEventListener]):
 
         path = os.path.normpath(os.path.join(await server.get_missions_dir(), path))
         new_mission_list = await server.addMission(path, autostart=autostart)
-        name = os.path.basename(path)
-        await interaction.followup.send(_('Mission "{}" added.').format(utils.escape_string(name)), ephemeral=ephemeral)
+        mission_name = utils.escape_string(os.path.basename(path))
+        await interaction.followup.send(_('Mission "{}" added.').format(mission_name), ephemeral=ephemeral)
         mission_id = new_mission_list.index(path)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED] or \
                 not await utils.yn_question(interaction, _('Do you want to load this mission?'),
@@ -579,17 +579,17 @@ class Mission(Plugin[MissionEventListener]):
                 filename == server.current_mission.filename:
             await interaction.followup.send(_("You can't delete the running mission."), ephemeral=True)
             return
-        name = filename[:-4]
+        mission_name = utils.escape_string(os.path.basename(filename[:-4]))
 
         if await utils.yn_question(interaction,
-                                   _('Delete mission "{}" from the mission list?').format(os.path.basename(name)),
+                                   _('Delete mission "{}" from the mission list?').format(mission_name),
                                    ephemeral=ephemeral):
             try:
                 await server.deleteMission(mission_id + 1)
-                await interaction.followup.send(_('Mission "{}" removed from list.').format(os.path.basename(name)),
+                await interaction.followup.send(_('Mission "{}" removed from list.').format(mission_name),
                                                 ephemeral=ephemeral)
                 if await utils.yn_question(interaction,
-                                           _('Delete "{}" also from disk?').format(os.path.basename(filename)),
+                                           _('Delete "{}" also from disk?').format(mission_name),
                                            ephemeral=ephemeral):
                     try:
                         await server.node.remove_file(filename)
@@ -601,13 +601,14 @@ class Mission(Plugin[MissionEventListener]):
                             secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
                             await server.node.remove_file(secondary)
                         await server.node.remove_file(secondary + '.orig')
-                        await interaction.followup.send(_('Mission "{}" deleted.').format(os.path.basename(filename)),
+                        await interaction.followup.send(_('Mission "{}" deleted.').format(mission_name),
                                                         ephemeral=ephemeral)
                     except FileNotFoundError:
                         await interaction.followup.send(
-                            _('Mission "{}" was already deleted.').format(os.path.basename(filename)),
+                            _('Mission "{}" was already deleted.').format(mission_name),
                             ephemeral=ephemeral)
-                await self.bot.audit(_("deleted mission {}").format(name), user=interaction.user)
+                await self.bot.audit(_("deleted mission {}").format(os.path.basename(filename[:-4])),
+                                     user=interaction.user)
             except (TimeoutError, asyncio.TimeoutError):
                 await interaction.followup.send(_("Timeout while deleting mission.\n"
                                                   "Please reconfirm that the deletion was successful."),

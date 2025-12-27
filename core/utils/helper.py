@@ -797,10 +797,16 @@ class SettingsDict(dict):
         self.mtime = os.path.getmtime(self.path)
         data = None
         if self.path.lower().endswith('.lua'):
+            content = None
             try:
-                data = luadata.read(self.path, encoding='utf-8')
+                #data = luadata.read(self.path, encoding='utf-8')
+                with open(self.path, mode='r', encoding='utf-8') as infile:
+                    content = infile.read()
+                data = luadata.unserialize(content, encoding='utf-8')
             except Exception as ex:
                 self.log.debug(f"Exception while reading {self.path}:\n{ex}")
+                if content:
+                    self.log.debug("Content:\n{}".format(content))
                 data = alternate_parse_settings(self.path)
                 if not data:
                     self.log.error("- Error while parsing {}:\n{}".format(os.path.basename(self.path), ex))
