@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 
 # ignore glyph warnings on MatPlotLib
 warnings.filterwarnings('ignore', category=UserWarning, module='matplotlib')
+warnings.filterwarnings('ignore', message='.*glyph.*missing from font.*')
 
 __all__ = [
     "df_to_table",
@@ -267,8 +268,10 @@ class Graph(ReportElement):
         plt.subplots_adjust(wspace=self.wspace, hspace=self.hspace)
 
         # ask the renderer for the tight bounding box (in pixels)
-        renderer = self.env.figure.canvas.get_renderer()
-        tight_bbox = self.env.figure.get_tightbbox(renderer)
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', message='.*glyph.*missing from font.*')
+            renderer = self.env.figure.canvas.get_renderer()
+            tight_bbox = self.env.figure.get_tightbbox(renderer)
 
         # convert that pixel‑bbox to inches and resize the figure
         fig_w, fig_h = tight_bbox.width, tight_bbox.height
@@ -291,8 +294,11 @@ class Graph(ReportElement):
         plt.rcParams['figure.facecolor'] = self.facecolor
         plt.rcParams['savefig.facecolor'] = self.facecolor
         fonts = get_supported_fonts()
+        font_list = []
         if fonts:
-            plt.rcParams['font.family'] = [f"Noto Sans {x}" for x in fonts] + ['sans-serif']
+            font_list.extend([f"Noto Sans {x}" for x in fonts])
+        font_list.extend(['Arial', 'sans-serif'])
+        plt.rcParams['font.family'] = font_list
         self.env.figure = plt.figure(figsize=(self.width, self.height), dpi=self.dpi)
         try:
             if self.facecolor:
