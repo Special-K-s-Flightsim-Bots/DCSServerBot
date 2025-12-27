@@ -1,10 +1,11 @@
-local base        = _G
-local Terrain     = base.require('terrain')
-dcsbot            = base.dcsbot
+local base          = _G
+local Terrain       = base.require('terrain')
+dcsbot              = base.dcsbot
 
-local _menuItems  = {}
-local _roles      = {}
-local _extensions = {}
+local _menuItems    = {}
+local _roles        = {}
+local _extensions   = {}
+local _discord_ids  = {}
 
 -- deprecated
 function dcsbot.sendPopupMessage(to, message, time)
@@ -245,6 +246,15 @@ end
 
 function dcsbot.getUserRoles(user)
     return _roles[user]
+end
+
+-- Don't call this function, it's for internal use only!
+function dcsbot._setDiscordID(user, discord_id)
+    _discord_ids[user] = discord_id
+end
+
+function dcsbot.getDiscordID(user)
+    return _discord_ids[user]
 end
 
 function dcsbot._clearExtensions()

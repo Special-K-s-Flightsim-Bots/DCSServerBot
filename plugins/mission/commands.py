@@ -2662,6 +2662,7 @@ class Mission(Plugin[MissionEventListener]):
                 await server.send_to_dcs({
                     'command': 'uploadUserRoles',
                     'ucid': player.ucid,
+                    'discord_id': player.member.id,
                     'roles': [x.id for x in after.roles]
                 })
 

@@ -52,16 +52,23 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                     if any(role in roles for role in member.roles):
                         batch.append({
                             'ucid': row[0],
+                            'discord_id': row[1],
                             'roles': [x.id for x in member.roles]
                         })
                     # upload the VIP-users in batches of 25
                     if len(batch) >= 25:
-                        await server.send_to_dcs({'command': 'uploadUserRoles', 'batch': batch})
+                        await server.send_to_dcs({
+                            'command': 'uploadUserRoles',
+                            'batch': batch
+                        })
                         batch = []
 
                 # Send remaining VIP-users, if any
                 if batch:
-                    await server.send_to_dcs({'command': 'uploadUserRoles', 'batch': batch})
+                    await server.send_to_dcs({
+                        'command': 'uploadUserRoles',
+                        'batch': batch
+                    })
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:

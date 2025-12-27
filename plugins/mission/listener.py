@@ -349,6 +349,7 @@ class MissionEventListener(EventListener["Mission"]):
         await server.send_to_dcs({
             'command': 'uploadUserRoles',
             'ucid': player.ucid,
+            'discord_id': player.member.id,
             'roles': roles
         })
 
