@@ -1686,7 +1686,7 @@ class NodeImpl(Node):
 
         node_dict = {
             "Node": self.node.name,
-            "Listen Port": self.node.listen_port,
+            "Listen Port": repr(self.node.listen_port),
             "Public IP": self.node.public_ip,
             "Bot Version": f"{self.node.bot_version}.{self.node.sub_version}",
             "DCS Branch": self.dcs_branch,
