@@ -1012,6 +1012,7 @@ class NodeImpl(Node):
             # check if suspect nodes came back again
             for node_name in {name: self.suspect[name] for name in active_nodes if name in self.suspect}:
                 node = self.suspect.pop(node_name)
+                self.all_nodes[node.name] = node
                 self.log.info(f"Node {node.name} is alive again, asking for registration ...")
                 await ServiceRegistry.get(ServiceBus).register_remote_servers(node)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from core import Server, Status, utils, Coalition
+from core.data.const import Port
 from core.utils.helper import async_cache, cache_with_expiration
 from core.data.node import UploadStatus
 from dataclasses import dataclass, field
@@ -424,7 +425,17 @@ class ServerProxy(Server):
             "server_name": self.name,
             "params": params
         }, timeout=timeout, node=self.node.name)
-        return data['return']
+
+        def _deserialize(v):
+            if isinstance(v, dict):
+                if v.get('_class') == 'Port':
+                    return Port.from_dict(v)
+                return {k: _deserialize(val) for k, val in v.items()}
+            elif isinstance(v, list):
+                return [_deserialize(val) for val in v]
+            return v
+
+        return _deserialize(data['return'])
 
     @override
     async def config_extension(self, name: str, config: dict) -> None:

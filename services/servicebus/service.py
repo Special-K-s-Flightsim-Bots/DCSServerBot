@@ -489,7 +489,7 @@ class ServiceBus(Service):
             node = node.name
         if self.master:
             if node and node != self.node.name:
-                self.log.debug('MASTER->{}: {}'.format(node, json.dumps(data)))
+                self.log.debug('MASTER->{}: {}'.format(node, json.dumps(data, default=default_serializer)))
                 if data.get('command', '') == 'rpc':
                     await self.intercom_channel.publish({
                         'guild_id': self.node.guild_id, 'node': node, 'data': Json(data)
@@ -503,7 +503,7 @@ class ServiceBus(Service):
                 if server_name not in self.udp_server.message_queue:
                     self.log.debug(f"Message received for unregistered server {server_name}, ignoring.")
                 else:
-                    self.log.debug('{}->HOST: {}'.format(server_name, json.dumps(data)))
+                    self.log.debug('{}->HOST: {}'.format(server_name, json.dumps(data, default=default_serializer)))
                     self.udp_server.message_queue[server_name].put_nowait(data)
             else:
                 await self.handle_rpc(data)
@@ -517,7 +517,7 @@ class ServiceBus(Service):
                 await self.broadcasts_channel.publish({
                     'guild_id': self.node.guild_id, 'node': 'Master', 'data': Json(data)
                 })
-            self.log.debug(f"{self.node.name}->MASTER: {json.dumps(data)}")
+            self.log.debug(f"{self.node.name}->MASTER: {json.dumps(data, default=default_serializer)}")
 
     async def send_to_node_sync(self, message: dict, timeout: int | None = 30.0, *,
                                 node: Node | str | None = None):
@@ -540,7 +540,10 @@ class ServiceBus(Service):
     async def handle_rpc(self, data: dict):
         # handle synchronous responses
         if data.get('channel', '').startswith('sync-') and 'return' in data:
-            self.log.debug(f"{data.get('node', 'MASTER')}->{self.node.name}: {json.dumps(data)}")
+            self.log.debug(
+                f"{data.get('node', 'MASTER')}->{self.node.name}: "
+                f"{json.dumps(data, default=default_serializer)}"
+            )
             if data['channel'] in self.listeners:
                 f = self.listeners[data['channel']]
                 if not f.done():
@@ -569,12 +572,20 @@ class ServiceBus(Service):
         try:
             rc = await self.rpc(obj, data)
             if data.get('channel', '').startswith('sync-'):
-                if isinstance(rc, Enum):
-                    rc = rc.value
-                elif isinstance(rc, (Node, Server, Instance)):
-                    rc = rc.name
-                elif isinstance(rc, Port):
-                    rc = repr(rc)
+                def _serialize(v):
+                    if hasattr(v, 'to_dict'):
+                        return {'_class': v.__class__.__name__} | v.to_dict()
+                    elif isinstance(v, Enum):
+                        return v.value
+                    elif isinstance(v, (Node, Server, Instance)):
+                        return v.name
+                    elif isinstance(v, dict):
+                        return {k: _serialize(val) for k, val in v.items()}
+                    elif isinstance(v, list):
+                        return [_serialize(val) for val in v]
+                    return v
+
+                rc = _serialize(rc)
                 await self.send_to_node({
                     "command": "rpc",
                     "method": data['method'],
@@ -611,9 +622,9 @@ class ServiceBus(Service):
 
     async def handle_master(self, data: dict):
         if 'node' not in data:
-            self.log.debug(f"Dropping stale event: {json.dumps(data)}")
+            self.log.debug(f"Dropping stale event: {json.dumps(data, default=default_serializer)}")
             return
-        self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
+        self.log.debug(f"{data['node']}->MASTER: {json.dumps(data, default=default_serializer)}")
         server_name = data['server_name']
         if server_name not in self.udp_server.message_queue:
             self.log.debug(f"Intercom: message ignored, server {server_name} not (yet) registered.")
@@ -633,7 +644,7 @@ class ServiceBus(Service):
         self.udp_server.message_queue[server_name].put_nowait(data)
 
     async def handle_agent(self, data: dict):
-        self.log.debug(f"MASTER->{self.node.name}: {json.dumps(data)}")
+        self.log.debug(f"MASTER->{self.node.name}: {json.dumps(data, default=default_serializer)}")
         server_name = data['server_name']
         if server_name not in self.servers:
             self.log.warning(
@@ -875,7 +886,7 @@ class ServiceBus(Service):
                     self.log.warning("Message without server_name received: %s", msg_data)
                     return
 
-                self.log.debug(f"{server_name}->HOST: {json.dumps(msg_data)}")
+                self.log.debug(f"{server_name}->HOST: {json.dumps(msg_data, default=default_serializer)}")
 
                 server = self.servers.get(server_name)
                 if not server:

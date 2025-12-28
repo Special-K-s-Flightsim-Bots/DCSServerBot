@@ -25,6 +25,7 @@ import unicodedata
 
 from collections.abc import Mapping
 from copy import deepcopy
+from core.data.const import Port
 from croniter import croniter
 from datetime import datetime, timedelta, timezone, tzinfo
 from difflib import unified_diff
@@ -41,7 +42,7 @@ from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
 
 if TYPE_CHECKING:
-    from core import ServerProxy, DataObject, Node, Port
+    from core import ServerProxy, DataObject, Node
     from services.servicebus import ServiceBus
 
 __all__ = [
@@ -81,6 +82,7 @@ __all__ = [
     "for_each",
     "YAMLError",
     "DictWrapper",
+    "default_serializer",
     "format_dict_pretty",
     "show_dict_diff",
     "to_valid_pyfunc_name",
