@@ -41,7 +41,7 @@ from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
 
 if TYPE_CHECKING:
-    from core import ServerProxy, DataObject, Node
+    from core import ServerProxy, DataObject, Node, Port
     from services.servicebus import ServiceBus
 
 __all__ = [
@@ -1296,11 +1296,14 @@ class DictWrapper:
         return DictWrapper(deepcopy(self.to_dict()))
 
 
+def default_serializer(obj):
+    if isinstance(obj, Port):
+        return repr(obj)
+    return str(obj)
+
+
 def format_dict_pretty(d: dict) -> str:
     """Convert dictionary to pretty-printed JSON string with indentation."""
-
-    def default_serializer(obj):
-        return str(obj)
 
     # Convert to string keys and sort manually
     items = sorted(d.items(), key=lambda x: str(x[0]))

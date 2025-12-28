@@ -19,6 +19,7 @@ from core.pubsub import PubSub
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from core.utils import ThreadSafeDict
+from core.utils.helper import default_serializer
 from core.utils.performance import PerformanceLog
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -550,7 +551,7 @@ class ServiceBus(Service):
                         # TODO: change to data['return']
                         self.loop.call_soon_threadsafe(utils.safe_set_result, f, data)
             return
-        self.log.debug(f"RPC: {json.dumps(data)}")
+        self.log.debug(f"RPC: {json.dumps(data, default=default_serializer)}")
         obj = None
         if data.get('object') == 'Server':
             obj = self.servers.get(data.get('server_name', data.get('server')))
