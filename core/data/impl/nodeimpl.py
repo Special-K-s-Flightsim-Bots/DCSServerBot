@@ -1705,6 +1705,6 @@ class NodeImpl(Node):
             if not service:
                 continue
             for key, value in service.get_ports().items():
-                node_dict[key] = value
+                node_dict[key] = repr(value)
 
         return node_dict
