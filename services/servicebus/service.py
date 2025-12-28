@@ -572,6 +572,8 @@ class ServiceBus(Service):
                     rc = rc.value
                 elif isinstance(rc, (Node, Server, Instance)):
                     rc = rc.name
+                elif isinstance(rc, Port):
+                    rc = repr(rc)
                 await self.send_to_node({
                     "command": "rpc",
                     "method": data['method'],
