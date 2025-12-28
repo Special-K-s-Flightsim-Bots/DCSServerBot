@@ -17,17 +17,17 @@ mapping:
             mapping:
               filter:
                 type: seq
-                nullable: true
+                nullable: false
                 func: is_server
                 sequence:
                   - type: str
                     nullable: false
                     unique: true
-              include_weather: {type: bool, nullable: true, default: true}
+              include_weather: {type: bool, nullable: false, default: true}
           server_attendance:
             type: map
             nullable: true
             mapping:
-              enabled: {type: bool, nullable: true, default: true}
+              enabled: {type: bool, nullable: false, default: true}
           regex;(.+):
             type: any
