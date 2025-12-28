@@ -605,7 +605,10 @@ local function setUserRoles(json)
         end
     end
     if name then
-        local script = 'dcsbot._setDiscordID(' .. utils.basicSerialize(name) .. ', "' .. json.discord_id .. '")\n'
+        local script = ''
+        if json.discord_id then
+            script = script .. 'dcsbot._setDiscordID(' .. utils.basicSerialize(name) .. ', "' .. json.discord_id .. '")\n'
+        end
         script = script .. 'dcsbot._setUserRoles(' .. utils.basicSerialize(name) .. ', ' .. utils.basicSerialize(net.lua2json(json.roles)) .. ')'
         net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
     end
