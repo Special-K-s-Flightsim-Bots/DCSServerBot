@@ -121,7 +121,7 @@ class NodeProxy(Node):
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
-            "method": "update",
+            "method": "dcs_update",
             "params": {
                 "warn_times": warn_times,
                 "branch": branch or "",
