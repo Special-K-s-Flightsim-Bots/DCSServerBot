@@ -101,10 +101,6 @@ class MissionEventListener(EventListener["Mission"]):
         self.update_mission_embed.cancel()
 
     async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
-        # linkme is only available, if the player is not linked and if a Discord bot is available
-        if command.name == 'linkme':
-            if player.verified or isinstance(self.bot, DummyBot):
-                return False
         if command.name == '911' and not self.bot.get_admin_channel(server):
             return False
         return await super().can_run(command, server, player)
