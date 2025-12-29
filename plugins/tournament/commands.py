@@ -633,7 +633,7 @@ class Tournament(Plugin[TournamentEventListener]):
             await interaction.followup.send(modal.error, ephemeral=ephemeral)
             return
 
-        campaign_details = await utils.get_campaign(self, campaign)
+        campaign_details = await utils.get_campaign(self.node, campaign)
         if campaign_details['stop']:
             await interaction.followup.send(_("Error: This campaign is already stopped!"), ephemeral=True)
             return

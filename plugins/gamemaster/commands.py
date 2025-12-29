@@ -336,7 +336,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
     @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
     async def info(self, interaction: discord.Interaction, campaign: str):
         report = Report(self.bot, self.plugin_name, 'campaign.json')
-        env = await report.render(campaign=await utils.get_campaign(self, campaign), title=_('Campaign Overview'))
+        env = await report.render(campaign=await utils.get_campaign(self.node, campaign), title=_('Campaign Overview'))
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 

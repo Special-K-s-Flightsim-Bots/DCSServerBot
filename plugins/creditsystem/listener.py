@@ -167,6 +167,9 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             return
 
         campaign_id, _ = utils.get_running_campaign(self.node, server)
+        # if no campaign is running - we can't do any achievements
+        if not campaign_id:
+            return
         # only members can get roles
         member = player.member
         playtime = (await self.get_flighttime(player.ucid, campaign_id)) / 3600.0

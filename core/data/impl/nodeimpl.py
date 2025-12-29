@@ -420,14 +420,32 @@ class NodeImpl(Node):
                     DELETE FROM instances WHERE node = %s
                 """, (self.name,))
         # initialize the nodes
+        config_file = os.path.join(self.config_dir, 'nodes.yaml')
+        with open(config_file, mode='r', encoding='utf-8') as infile:
+            config = yaml.load(infile)
+        dirty = False
+
         for _name, _element in self.locals.pop('instances', {}).items():
             try:
-                self.instances[_name] = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
+                instance = self.instances[_name] = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
+                # make sure the necessary config is in the nodes.yaml
+                instance_config = config[self.name]['instances'][_name]
+                if 'dcs_port' not in instance_config:
+                    instance_config['dcs_port'] = int(instance.dcs_port)
+                    dirty = True
+                if 'webgui_port' not in instance_config:
+                    instance_config['webgui_port'] = int(instance.webgui_port)
+                    dirty = True
             except UniqueViolation:
                 self.log.error(f"Instance \"{_name}\" can't be added."
                                f"There is an instance already with the same server name or bot port.")
             except Exception as ex:
-                self.log.error(f"Instance \"{_name}\" can't be added.")
+                self.log.error(f"Instance \"{_name}\" can't be added.", exc_info=True)
+
+        if dirty:
+            # save the new config
+            with open(config_file, mode='w', encoding='utf-8') as outfile:
+                yaml.dump(config, outfile)
 
     async def update_db(self):
         rc = 0
@@ -1366,14 +1384,32 @@ class NodeImpl(Node):
     async def add_instance(self, name: str, *, template: str = "") -> "Instance":
         from services.servicebus import ServiceBus
 
+        config_file = os.path.join(self.config_dir, 'nodes.yaml')
+        with open(config_file, mode='r', encoding='utf-8') as infile:
+            config = yaml.load(infile)
+
         max_bot_port = max_dcs_port = max_webgui_port = -1
-        for instance in self.instances.values():
-            if int(instance.bot_port) > max_bot_port:
-                max_bot_port = int(instance.bot_port)
-            if int(instance.dcs_port) > max_dcs_port:
-                max_dcs_port = int(instance.dcs_port)
-            if int(instance.webgui_port) > max_webgui_port:
-                max_webgui_port = int(instance.webgui_port)
+        for node_name, node in self.all_nodes.items():
+            if node:
+                # the node is active
+                for instance in node.instances.values():
+                    if int(instance.bot_port) > max_bot_port:
+                        max_bot_port = int(instance.bot_port)
+                    if int(instance.dcs_port) > max_dcs_port:
+                        max_dcs_port = int(instance.dcs_port)
+                    if int(instance.webgui_port) > max_webgui_port:
+                        max_webgui_port = int(instance.webgui_port)
+            else:
+                # the node is not active
+                node = config.get(node_name)
+                for instance in node.get('instances', {}).values():
+                    if int(instance['bot_port']) > max_bot_port:
+                        max_bot_port = int(instance['bot_port'])
+                    if 'dcs_port' in instance and int(instance['dcs_port']) > max_dcs_port:
+                        max_dcs_port = int(instance.dcs_port)
+                    if 'webgui_port' in instance and int(instance['webgui_port']) > max_webgui_port:
+                        max_webgui_port = int(instance['webgui_port'])
+
         os.makedirs(os.path.join(SAVED_GAMES, name), exist_ok=True)
         instance = DataObjectFactory().new(InstanceImpl, node=self, name=name, locals={
             "bot_port": max_bot_port + 1 if max_bot_port != -1 else 6666,
@@ -1419,17 +1455,18 @@ class NodeImpl(Node):
                 "use_upnp": False
             }
             autoexec.net = net
-        config_file = os.path.join(self.config_dir, 'nodes.yaml')
-        with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = yaml.load(infile)
+
         if 'instances' not in config[self.name]:
             config[self.name]['instances'] = {}
         config[self.name]['instances'][instance.name] = {
             "home": instance.home,
             "bot_port": int(instance.bot_port)
         }
+
+        # save the new config
         with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
+
         bus = ServiceRegistry.get(ServiceBus)
         server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name='n/a', bus=bus)
         instance.server = server
