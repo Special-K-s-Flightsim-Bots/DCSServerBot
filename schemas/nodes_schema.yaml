@@ -80,13 +80,13 @@ mapping:
             type: map
             nullable: false
             mapping:
+              bot_port: {type: int, nullable: false, func: unique_port, required: true}
+              webgui_port: {type: int, nullable: false, func: unique_port, required: true}
+              dcs_port: {type: int, nullable: false, func: unique_port, required: true}
               home: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
               missions_dir: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
               mission_rewrite: {type: bool, nullable: false}
               autoscan: {type: bool, nullable: false}
-              bot_port: {type: int, required: true, nullable: false, func: unique_port}
-              webgui_port: {type: int, nullable: false, func: unique_port}
-              dcs_port: {type: int, nullable: false, func: unique_port}
               server_user: {type: str, nullable: false, range: {min: 1}}
               max_hung_minutes: {type: int, range: {min: 0}, nullable: false}
               affinity: {type: any, nullable: false, func: int_csv_or_list}
