@@ -430,10 +430,10 @@ class NodeImpl(Node):
                 instance = self.instances[_name] = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
                 # make sure the necessary config is in the nodes.yaml
                 instance_config = config[self.name]['instances'][_name]
-                if 'dcs_port' not in instance_config:
+                if 'dcs_port' not in instance_config or instance_config['dcs_port'] != int(instance.dcs_port):
                     instance_config['dcs_port'] = int(instance.dcs_port)
                     dirty = True
-                if 'webgui_port' not in instance_config:
+                if 'webgui_port' not in instance_config or instance_config['webgui_port'] != int(instance.webgui_port):
                     instance_config['webgui_port'] = int(instance.webgui_port)
                     dirty = True
             except UniqueViolation:
