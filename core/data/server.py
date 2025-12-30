@@ -312,8 +312,8 @@ class Server(DataObject, ABC):
                 await self.send_to_dcs(message)
                 return await asyncio.wait_for(future, timeout)
             finally:
-                if self.listeners.get(token) is future:
-                    self.listeners.pop(token, None)
+                # noinspection PyAsyncCall
+                self.listeners.pop(token, None)
 
     async def sendChatMessage(self, coalition: Coalition, message: str, sender: str = None):
         if coalition == Coalition.ALL:

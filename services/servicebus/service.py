@@ -36,6 +36,9 @@ if TYPE_CHECKING:
     from core import EventListener
     from ..bot.dcsserverbot import DCSServerBot
 
+# these synchronous commands will be passed through to the event handler in any case
+PASS_THROUGH_COMMANDS = ['registerDCSServer', 'getMissionUpdate']
+
 
 @ServiceRegistry.register()
 class ServiceBus(Service):
@@ -324,16 +327,16 @@ class ServiceBus(Service):
                 continue
             dcs_port = int(s.settings.get('port', 10308))
             if dcs_port in dcs_ports:
-                self.log.error(f'Server "{s.name}" shares its DCS port with server '
-                               f'"{dcs_ports[dcs_port]}"! Registration aborted.')
+                self.log.error(f'Server "{s.name}" shares its DCS port with server "{dcs_ports[dcs_port]}"!\n'
+                               f'Registration aborted. Change it in your nodes.yaml!')
                 return False
             else:
                 dcs_ports[dcs_port] = s.name
             autoexec = Autoexec(cast(InstanceImpl, s.instance))
             webgui_port = autoexec.webgui_port or 8088
             if webgui_port in webgui_ports:
-                self.log.error(f'Server "{s.name}" shares its webgui_port with server '
-                               f'"{webgui_ports[webgui_port]}"! Registration aborted.')
+                self.log.error(f'Server "{s.name}" shares its webgui_port with server "{webgui_ports[webgui_port]}"!\n'
+                               f'Registration aborted. Change it in your nodes.yaml!')
                 return False
             else:
                 webgui_ports[webgui_port] = s.name
@@ -535,25 +538,53 @@ class ServiceBus(Service):
                 await self.send_to_node(message, node=node)
                 return await asyncio.wait_for(future, timeout)
             finally:
-                del self.listeners[token]
+                # noinspection PyAsyncCall
+                self.listeners.pop(token, None)
+
+    def _serialize(self, obj: Any) -> Any:
+        if hasattr(obj, 'to_dict'):
+            return {'_class': f"{obj.__class__.__module__}.{obj.__class__.__name__}"} | obj.to_dict()
+        elif isinstance(obj, Enum):
+            return obj.value
+        elif isinstance(obj, (Node, Server, Instance)):
+            return obj.name
+        elif isinstance(obj, dict):
+            return {k: self._serialize(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._serialize(v) for v in obj]
+        return obj
+
+    def _deserialize(self, obj: Any) -> Any:
+        if isinstance(obj, dict):
+            if '_class' in obj:
+                cls_name = obj.pop('_class')
+                cls = utils.str_to_class(cls_name)
+                if cls:
+                    if hasattr(cls, 'from_dict'):
+                        return cls.from_dict(obj)
+                    return cls(**obj)
+            return {k: self._deserialize(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._deserialize(v) for v in obj]
+        return obj
 
     async def handle_rpc(self, data: dict):
         # handle synchronous responses
-        if data.get('channel', '').startswith('sync-') and 'return' in data:
+        if 'return' in data and 'channel' in data and str(data['channel']).startswith('sync-'):
             self.log.debug(
                 f"{data.get('node', 'MASTER')}->{self.node.name}: "
                 f"{json.dumps(data, default=default_serializer)}"
             )
-            if data['channel'] in self.listeners:
-                f = self.listeners[data['channel']]
-                if not f.done():
-                    if 'exception' in data:
-                        ex = utils.rebuild_exception(data['exception'])
-                        self.loop.call_soon_threadsafe(f.set_exception, ex)
-                    else:
-                        # TODO: change to data['return']
-                        self.loop.call_soon_threadsafe(utils.safe_set_result, f, data)
+            f = self.listeners.get(data['channel'])
+            if f and not f.done():
+                if 'exception' in data:
+                    ex = utils.rebuild_exception(data['exception'])
+                    self.loop.call_soon_threadsafe(f.set_exception, ex)
+                elif 'return' in data:
+                    res = self._deserialize(data['return'])
+                    self.loop.call_soon_threadsafe(utils.safe_set_result, f, res)
             return
+
         self.log.debug(f"RPC: {json.dumps(data, default=default_serializer)}")
         obj = None
         if data.get('object') == 'Server':
@@ -572,43 +603,24 @@ class ServiceBus(Service):
         try:
             rc = await self.rpc(obj, data)
             if data.get('channel', '').startswith('sync-'):
-                def _serialize(v):
-                    if hasattr(v, 'to_dict'):
-                        return {'_class': v.__class__.__name__} | v.to_dict()
-                    elif isinstance(v, Enum):
-                        return v.value
-                    elif isinstance(v, (Node, Server, Instance)):
-                        return v.name
-                    elif isinstance(v, dict):
-                        return {k: _serialize(val) for k, val in v.items()}
-                    elif isinstance(v, list):
-                        return [_serialize(val) for val in v]
-                    return v
-
-                rc = _serialize(rc)
                 await self.send_to_node({
                     "command": "rpc",
                     "method": data['method'],
                     "channel": data['channel'],
-                    "return": rc if rc is not None else ''
+                    "return": self._serialize(rc)
                 }, node=data.get('node'))
         except Exception as ex:
-            if isinstance(ex, TimeoutError) or isinstance(ex, asyncio.TimeoutError):
-                self.log.warning(f"Timeout error during an RPC call: {data['method']}!", exc_info=True)
-            elif not isinstance(ex, (
-                    FileNotFoundError,
-                    ValueError,
-                    AttributeError,
-                    IndexError,
-                    discord.app_commands.CheckFailure
-            )):
+            if not isinstance(ex, (TimeoutError, asyncio.TimeoutError, FileNotFoundError, ValueError,
+                                   AttributeError, IndexError, discord.app_commands.CheckFailure)):
                 self.log.exception(ex)
+            elif isinstance(ex, (TimeoutError, asyncio.TimeoutError)):
+                self.log.warning(f"Timeout error during an RPC call: {data['method']}!", exc_info=True)
             if data.get('channel', '').startswith('sync-'):
                 await self.send_to_node({
                     "command": "rpc",
                     "method": data['method'],
                     "channel": data['channel'],
-                    "return": '',
+                    "return": None,
                     "exception": utils.exception_to_dict(ex)
                 }, node=data.get('node'))
             else:
@@ -627,31 +639,36 @@ class ServiceBus(Service):
         self.log.debug(f"{data['node']}->MASTER: {json.dumps(data, default=default_serializer)}")
         server_name = data['server_name']
         if server_name not in self.udp_server.message_queue:
-            self.log.debug(f"Intercom: message ignored, server {server_name} not (yet) registered.")
+            self.log.debug(f"Broadcast: message ignored, server {server_name} not (yet) registered.")
             return
-        # support sync responses though intercom
-        if 'channel' in data and data['channel'].startswith('sync-'):
+
+        # support sync responses though broadcast
+        if 'channel' in data and str(data['channel']).startswith('sync-'):
             server: Server = self.servers.get(server_name)
             if not server:
                 # we should never be here
                 self.log.warning(f'Message received for unregistered server {server_name}, ignoring.')
                 return
+
             f = server.listeners.get(data['channel'])
             if f and not f.done():
                 self.loop.call_soon_threadsafe(utils.safe_set_result, f, data)
-            if data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
+
+            if data['command'] not in PASS_THROUGH_COMMANDS:
                 return
+
         self.udp_server.message_queue[server_name].put_nowait(data)
 
     async def handle_agent(self, data: dict):
         self.log.debug(f"MASTER->{self.node.name}: {json.dumps(data, default=default_serializer)}")
         server_name = data['server_name']
-        if server_name not in self.servers:
+        server = self.servers.get(server_name)
+        if not server:
             self.log.warning(
                 f"Command {data['command']} for unknown server {server_name} received, ignoring")
-        else:
-            server: Server = self.servers[server_name]
-            await server.send_to_dcs(data)
+            return
+
+        await server.send_to_dcs(data)
 
     async def rpc(self, obj: object, data: dict) -> dict | None:
         if 'method' in data:
@@ -899,11 +916,11 @@ class ServiceBus(Service):
 
                 # Handle sync channels
                 if 'channel' in msg_data and str(msg_data['channel']).startswith('sync-'):
-                    if msg_data['channel'] in server.listeners:
-                        f = server.listeners.get(msg_data['channel'])
-                        if f and not f.done():
-                            self.loop.call_soon(utils.safe_set_result, f, msg_data)
-                    if msg_data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
+                    f = server.listeners.get(msg_data['channel'])
+                    if f and not f.done():
+                        self.loop.call_soon(utils.safe_set_result, f, msg_data)
+
+                    if msg_data['command'] not in PASS_THROUGH_COMMANDS:
                         return
 
                 # Create a queue if it doesn't exist and schedule processing
