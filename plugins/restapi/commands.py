@@ -64,7 +64,11 @@ class RestAPI(Plugin):
             return
         self.log.debug(f"   - {self.__cog_name__}: WebService is running")
         self.app = self.web_service.app
-        self.register_routes()
+        if self.app:
+            self.register_routes()
+        else:
+            self.log.error(f"  - {self.__cog_name__}: WebService is not available, aborted.")
+            return
 
     def register_routes(self):
         prefix = self.locals.get(DEFAULT_TAG, {}).get('prefix', '')

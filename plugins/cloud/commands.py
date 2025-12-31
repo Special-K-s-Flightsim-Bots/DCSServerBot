@@ -43,7 +43,7 @@ class Cloud(Plugin[CloudListener]):
 
     @property
     def session(self):
-        if not self._session:
+        if not self._session or self._session.closed:
             headers = {
                 "Content-type": "application/json"
             }
@@ -108,15 +108,36 @@ class Cloud(Plugin[CloudListener]):
 
     async def get(self, request: str) -> Any:
         url = f"{self.base_url}/{request}"
-        async with self.session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
-            return await response.json()
+        try:
+            async with self.session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                return await response.json()
+        except (aiohttp.ClientError, asyncio.TimeoutError):
+            # If the session is closed, stale, or timed out, reset it
+            if self._session and not self._session.closed:
+                await self._session.close()
+            self._session = None
+
+            # Retry once with a fresh session (re-initialized via the property)
+            async with self.session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                return await response.json()
 
     async def post(self, request: str, data: Any) -> Any:
         async def send(element: dict):
             url = f"{self.base_url}/{request}/"
-            async with self.session.post(
-                    url, json=element, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
-                return await response.json()
+            try:
+                async with self.session.post(
+                        url, json=element, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                    return await response.json()
+            except (aiohttp.ClientError, asyncio.TimeoutError):
+                # Reset the session if it's broken
+                if self._session and not self._session.closed:
+                    await self._session.close()
+                self._session = None
+
+                # Retry the POST once with a fresh session
+                async with self.session.post(
+                        url, json=element, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                    return await response.json()
 
         if isinstance(data, list):
             for line in data:
