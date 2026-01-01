@@ -32,6 +32,7 @@ class WebService(Service):
                 cfg = self.get_config()
 
         self.task = None
+        self.server = None
         if cfg:
             self.app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
             self.config = Config(
@@ -45,7 +46,7 @@ class WebService(Service):
                 lifespan="off"
             )
             self.config.extra_kwargs = {"backlog": 2048}
-            self.server: uvicorn.Server = uvicorn.Server(config=self.config)
+            self.server = uvicorn.Server(config=self.config)
 
             # add debug endpoints
             if cfg.get('debug', False):
