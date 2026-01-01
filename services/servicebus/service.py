@@ -266,7 +266,7 @@ class ServiceBus(Service):
         self.log.info(f"- Registering remote node {name} ...")
         node = NodeProxy(self.node, name, public_ip, dcs_version)
         self.node.all_nodes[node.name] = node
-        while not self.bot:
+        while not self.bot or not ServiceRegistry.get(BotService):
             await asyncio.sleep(1)
             self.bot = ServiceRegistry.get(BotService).bot
         await self.bot.wait_until_ready()
@@ -448,8 +448,8 @@ class ServiceBus(Service):
                                  webgui_port: int, maintenance: bool) -> None:
         from core import InstanceProxy
 
-        # init event for an unregistered remote node received, ignoring
-        if not node:
+        # init event for an unregistered remote node received or a race condition due to master switches, ignoring
+        if not node or node == self.node:
             return
         try:
             server: ServerProxy = cast(ServerProxy, self.servers.get(server_name))

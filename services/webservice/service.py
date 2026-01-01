@@ -1,9 +1,9 @@
 import asyncio
 import logging
 import os
-import socket
 import uvicorn
 
+from contextlib import suppress
 from core import Service, ServiceRegistry, NodeImpl, DEFAULT_TAG, Port, PortType
 from fastapi import FastAPI
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
@@ -41,8 +41,10 @@ class WebService(Service):
                 workers=1,
                 log_level=logging.WARNING,
                 log_config=None,
-                use_colors=False
+                use_colors=False,
+                lifespan="off"
             )
+            self.config.extra_kwargs = {"backlog": 2048}
             self.server: uvicorn.Server = uvicorn.Server(config=self.config)
 
             # add debug endpoints
@@ -112,26 +114,39 @@ class WebService(Service):
 
     @override
     async def start(self):
-        if not self.app or not self.server:
+        if not self.server:
             return
 
         await super().start()
 
-        # port availability pre-check to avoid SystemExit from uvicorn.serve()
-        host = self.config.host or "127.0.0.1"
-        port = int(self.config.port)
-        with socket.create_server((host, port), reuse_port=False) as s:
-            pass
+        if not self.app:
+            self.app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+            self.config.app = self.app
+
+            if self.get_config().get('debug', False):
+                self.add_debug_routes()
 
         # run server in the background but guard against SystemExit
         async def run_server():
-            try:
-                await self.server.serve()
-            except SystemExit as ex:
-                # uvicorn may call sys.exit(1) on bind errors or fatal init issues
-                self.log.error(f"{self.name}: Uvicorn terminated with SystemExit({ex.code})")
-            except Exception as ex:
-                self.log.exception(f"{self.name}: Uvicorn crashed: {ex}")
+            for i in range(5):
+                try:
+                    await self.server.serve()
+                    break
+                except (SystemExit, OSError) as ex:
+                    if ((isinstance(ex, OSError) and ex.errno in [10013, 10048]) or
+                            (isinstance(ex, SystemExit) and ex.code == 1)):
+                        if i < 4:
+                            await asyncio.sleep(1)
+                            continue
+                        self.log.error(f"{self.name}: Could not bind to port {self.config.port} after retries. {ex}")
+                    else:
+                        self.log.exception(f"{self.name}: Uvicorn crashed: {ex}")
+                    break
+                except asyncio.CancelledError:
+                    break
+                except Exception as ex:
+                    self.log.exception(f"{self.name}: Uvicorn crashed: {ex}")
+                    break
 
         self.task = asyncio.create_task(run_server())
 
@@ -139,7 +154,26 @@ class WebService(Service):
     async def stop(self):
         if self.task:
             self.server.should_exit = True
-            await self.task
+            # Explicitly trigger the shutdown of the uvicorn server
+            if hasattr(self.server, 'force_exit'):
+                self.server.force_exit = True
+
+            # Give uvicorn a moment to shut down gracefully, then cancel if it hangs
+            try:
+                await asyncio.wait_for(self.task, timeout=5.0)
+            except asyncio.TimeoutError:
+                self.log.warning(f"{self.name}: Uvicorn did not stop gracefully, cancelling task.")
+                self.task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await self.task
+            finally:
+                # Ensure sockets are closed to free the port
+                if self.server.started:
+                    for server in self.server.servers:
+                        server.close()
+                self.server = uvicorn.Server(config=self.config)
+                self.task = None
+                self.app = None
         await super().stop()
 
     @override

@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
+from psycopg.errors import UndefinedTable
 from typing import TYPE_CHECKING, Any
 from typing_extensions import override
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
@@ -314,17 +315,22 @@ class ServerImpl(Server):
         else:
             data = {}
         lock_time = self.locals['coalitions'].get('lock_time', '1 day')
-        with self.pool.connection() as conn:
-            for row in conn.execute(f"""
-                SELECT player_ucid, coalition, coalition_join FROM coalitions 
-                WHERE server_name = %s
-                AND coalition_join > (NOW() AT TIME ZONE 'UTC' - interval '{lock_time}')
-            """, (self.name, )):
-                if row[0] not in data:
-                    data[row[0]] = {
-                        "side": 1 if row[1] == 'red' else 2,
-                        "joinTime": int(row[2].replace(tzinfo=timezone.utc).astimezone().timestamp())
-                    }
+        try:
+            with self.pool.connection() as conn:
+                for row in conn.execute(f"""
+                    SELECT player_ucid, coalition, coalition_join FROM coalitions 
+                    WHERE server_name = %s
+                    AND coalition_join > (NOW() AT TIME ZONE 'UTC' - interval '{lock_time}')
+                """, (self.name, )):
+                    if row[0] not in data:
+                        data[row[0]] = {
+                            "side": 1 if row[1] == 'red' else 2,
+                            "joinTime": int(row[2].replace(tzinfo=timezone.utc).astimezone().timestamp())
+                        }
+        except UndefinedTable:
+            # Can happen on fresh bot installations
+            self.log.debug("Coalitions table not there yet. Ignoring.")
+            pass
         with filename.open('w', encoding='utf-8') as outfile:
             outfile.write("usersTable = " + luadata.serialize(data, 'utf-8', indent='\t', indent_level=0))
 

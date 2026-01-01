@@ -16,6 +16,7 @@ import sqlparse
 import ssl
 import subprocess
 import sys
+import zlib
 
 from collections import defaultdict
 from contextlib import closing
@@ -108,6 +109,7 @@ class NodeImpl(Node):
         self.pool: ConnectionPool | None = None
         self.apool: AsyncConnectionPool | None = None
         self.cpool: AsyncConnectionPool | None = None
+        self._heartbeat_conn: psycopg.AsyncConnection | None = None
         self._master = None
 
     def _check_branch_version(self):
@@ -143,12 +145,11 @@ class NodeImpl(Node):
         if 'DCS' in self.locals:
             await self.get_dcs_branch_and_version()
         await self.init_db()
-        try:
-            self._master = await self.heartbeat()
-            self.log.info("- Starting as {} ...".format("Single / Master" if self._master else "Agent"))
-        except (UndefinedTable, InFailedSqlTransaction):
-            # some master tables have changed, do the update first
-            self._master = True
+        self.heartbeat.start()
+        # Wait for the heartbeat to work
+        while self._master is None:
+            await asyncio.sleep(0.1)
+        self.log.info("- Starting as {} ...".format("Single / Master" if self._master else "Agent"))
         if self._master:
             try:
                 await self.update_db()
@@ -180,6 +181,7 @@ class NodeImpl(Node):
         return self
 
     async def __aexit__(self, type, value, traceback):
+        self.heartbeat.cancel()
         await self.close_db()
 
     @override
@@ -390,6 +392,11 @@ class NodeImpl(Node):
         self.log.debug("- Database pools initialized.")
 
     async def close_db(self):
+        if self._heartbeat_conn and not self._heartbeat_conn.closed:
+            try:
+                await self._heartbeat_conn.close()
+            except Exception as ex:
+                self.log.exception(ex)
         if self.pool and not self.pool.closed:
             try:
                 self.pool.close()
@@ -964,7 +971,19 @@ class NodeImpl(Node):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 self.autoupdate.cancel()
 
-    async def heartbeat(self) -> bool:
+    @tasks.loop(seconds=5.0)
+    async def heartbeat(self) -> None:
+        lock_key = zlib.crc32(f"DCSSB:{self.guild_id}".encode("utf-8"))
+
+        async def get_master_conn():
+            # If we don't have a sticky connection or if it's closed, get a new one
+            if not self._heartbeat_conn or self._heartbeat_conn.closed:
+                self._heartbeat_conn = await psycopg.AsyncConnection.connect(
+                    self.cpool.conninfo,
+                    autocommit=True
+                )
+            return self._heartbeat_conn
+
         async def handle_upgrade(master: str) -> bool:
             if master == self.name:
                 self.log.debug("Upgrade: Master => trigger agent upgrades")
@@ -996,9 +1015,10 @@ class NodeImpl(Node):
 
         async def get_master() -> tuple[str | None, str, bool]:
             cursor = await conn.execute("""
-                SELECT master, version, update_pending 
-                FROM cluster WHERE guild_id = %s FOR UPDATE
-            """, (self.guild_id,))
+                SELECT master, version, update_pending
+                FROM cluster
+                WHERE guild_id = %s
+                """, (self.guild_id,))
             row = await cursor.fetchone()
             if row is None:
                 return None, __version__, False
@@ -1014,12 +1034,28 @@ class NodeImpl(Node):
             cursor = await conn.execute(query, (self.guild_id, node))
             return (await cursor.fetchone())[0] == 1
 
-        async def take_over():
-            await conn.execute("""
+        async def take_over(block: bool = True):
+            # 1. Update the table FIRST to signal intent.
+            # This tells the current master to see a different name in
+            # the table and call pg_advisory_unlock().
+            await lock_conn.execute("""
                 INSERT INTO cluster (guild_id, master, version) VALUES (%s, %s, %s)
                 ON CONFLICT (guild_id) DO UPDATE 
                 SET master = excluded.master, version = excluded.version
             """, (self.guild_id, self.name, __version__))
+            # 2. Now wait for the physical lock to be released.
+            # If another node is stepping down, this will block until they are done.
+            # Try to grab the lock on the sticky connection
+            if block:
+                # If the master is dead, we can afford to block.
+                await lock_conn.execute("SELECT pg_advisory_lock(%s)", (lock_key,))
+                return True
+            else:
+                # If master is alive (Preferred Takeover), do NOT block.
+                # We try to grab the lock. If we fail, we'll try again next heartbeat.
+                # This keeps our loop running so we stay 'Alive' in the nodes table.
+                cursor = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key,))
+                return (await cursor.fetchone())[0]
 
         async def check_nodes():
             from services.servicebus import ServiceBus
@@ -1050,20 +1086,33 @@ class NodeImpl(Node):
         try:
             # do not do any checks if we are supposed to shut down
             if self.node.is_shutdown.is_set():
-                return self.master
+                return
 
             config = self.locals.get('cluster', {})
+            lock_conn = await get_master_conn()
+
+            # Check if this specific sticky session still holds the lock
+            cursor = await lock_conn.execute("""
+                SELECT granted FROM pg_locks
+                WHERE locktype = 'advisory'
+                  AND objid = %s
+                  AND pid = pg_backend_pid()
+            """, (lock_key, ))
+            row = await cursor.fetchone()
+            holds_lock = row[0] if row else False
+
             async with self.cpool.connection() as conn:
                 async with conn.transaction():
                     try:
                         master, version, update_pending = await get_master()
                         # upgrade is pending
                         if update_pending:
-                            return await handle_upgrade(master)
+                            self._master = await handle_upgrade(master)
+                            return
                         elif parse(version) > parse(__version__):
                             # avoid update loops if we are the master
                             if master == self.name:
-                                self.master = True
+                                self._master = True
                                 self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
                                                  "Rolling back the cluser version to my version.")
                             await self._upgrade(conn)
@@ -1071,30 +1120,52 @@ class NodeImpl(Node):
                             if master != self.name:
                                 raise FatalException(f"This node uses DCSServerBot version {__version__} "
                                                      f"where the master uses version {version}!")
-                            self.master = True
+                            self._master = True
                             await self._upgrade(conn)
 
                         # We don't want to be a master
                         if config.get('no_master', False):
                             if not await is_node_alive(master, config.get('heartbeat', 30)):
                                 raise FatalException(f"Master node {master} is not alive, exiting.")
-                            return False
+                            self._master = False
+                            return
+
                         # I am the master
                         elif master == self.name:
+                            if not holds_lock:
+                                # Try to grab the lock on the sticky connection
+                                cursor = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key, ))
+                                if not (await cursor.fetchone())[0]:
+                                    self.log.error("Conflict! Another node holds the master lock.")
+                                    self._master = False
+                                    return
+
                             await check_nodes()
-                            return True
-                        # The master is not alive, take over
-                        elif not master or not await is_node_alive(master, config.get('heartbeat', 30)):
-                            if master is not None:
-                                self.log.warning(f"The master node {master} is not alive, taking over ...")
-                            await take_over()
-                            return True
-                        # Master is alive, but we are the preferred one
-                        elif config.get('preferred_master', False):
-                            await take_over()
-                            return True
+                            self._master = True
+                            return
+
                         # Someone else is the master
-                        return False
+                        elif master:
+                            if holds_lock:
+                                # We have the lock, but the table says someone else is master
+                                await lock_conn.execute("SELECT pg_advisory_unlock(%s)", (lock_key, ))
+                                self._master = False
+                                return
+
+                            if config.get('preferred_master', False):
+                                await take_over(block=False)
+                                self._master = True
+                                return
+
+                            if await is_node_alive(master, config.get('heartbeat', 30)):
+                                self._master = False
+                                return
+
+                        # No master or master is dead
+                        self.log.info("No master found, taking over ...")
+                        await take_over()
+                        self._master = True
+
                     finally:
                         await conn.execute("""
                             INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
@@ -1110,7 +1181,7 @@ class NodeImpl(Node):
             exit(SHUTDOWN)
         except InFailedSqlTransaction:
             # we should only be here when the CLUSTER table does not exist yet
-            raise
+            self._master = True
         except Exception as ex:
             self.log.exception(ex)
             raise

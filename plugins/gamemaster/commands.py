@@ -2,13 +2,14 @@ import asyncio
 import discord
 import os
 import psycopg
-from psycopg.rows import dict_row
 
 from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, get_translation, PlayerType, \
     Player
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
+from discord.utils import MISSING
+from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from typing import Literal
 
@@ -540,28 +541,14 @@ class GameMaster(Plugin[GameMasterEventListener]):
     async def _list(self, interaction: discord.Interaction):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                sender = []
-                receiver = []
-                time = []
-                async for row in await cursor.execute("""
-                    SELECT m.sender, p.name, p.ucid, m.message, m.ack, m.time 
-                    FROM messages m JOIN players p ON m.player_ucid = p.ucid 
-                    ORDER BY id DESC
-                """):
-                    sender.append(row['sender'])
-                    receiver.append(f"{row['name']} ({row['ucid']})")
-                    time.append(row['time'].strftime('%Y-%m-%d %H:%M:%S'))
-        if not sender:
-            await interaction.followup.send(_("There are no active messages."), ephemeral=True)
-            return
-
-        embed = discord.Embed(title=_("List of active messages"))
-        embed.add_field(name=_("Sender"), value="\n".join(sender), inline=True)
-        embed.add_field(name=_("Receiver"), value="\n".join(receiver), inline=True)
-        embed.add_field(name=_("Time"), value="\n".join(time), inline=True)
-        await interaction.followup.send(embed=embed, ephemeral=utils.get_ephemeral(interaction))
+        report = Report(self.bot, self.plugin_name, 'messages.json')
+        env = await report.render()
+        try:
+            file = discord.File(fp=env.buffer, filename=env.filename) if env.buffer else MISSING
+            await interaction.followup.send(embed=env.embed, file=file, ephemeral=True)
+        finally:
+            if env.buffer:
+                env.buffer.close()
 
     @message.command(description=_('Edit or delete a user-message'))
     @app_commands.guild_only()

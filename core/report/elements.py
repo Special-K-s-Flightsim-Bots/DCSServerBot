@@ -48,6 +48,7 @@ __all__ = [
     "Graph",
     "SQLField",
     "SQLTable",
+    "SQLRenderedTable",
     "BarChart",
     "SQLBarChart",
     "PieChart",
@@ -75,7 +76,9 @@ def get_supported_fonts() -> set[str]:
 def df_to_table(ax: Axes, df: pd.DataFrame, *, col_labels: list[str] = None, fontsize: int | None = 10) -> Axes:
     df = df.copy()
     for col in df.select_dtypes(include='timedelta64[ns]').columns:
-        df[col] = df[col].dt.total_seconds().apply(utils.convert_time)
+        df[col] = df[col].dt.total_seconds().apply(
+            lambda sec: utils.convert_time(sec) if not pd.isna(sec) else sec
+        )
 
     ax.axis('off')
     ax.set_frame_on(False)
@@ -388,44 +391,124 @@ class SQLField(EmbedElement):
 
 
 class SQLTable(EmbedElement):
-    async def render(self, sql: str, inline: bool | None = True, no_data: str | dict | None = None,
-                     ansi_colors: bool | None = False, on_error: dict | None = None):
+    """
+    Render the result of an SQL query as a Discord embed.
+    Internally the data is first collected into a pandas DataFrame.
+    """
+    async def render(
+        self,
+        sql: str,
+        inline: bool | None = True,
+        no_data: str | dict | None = None,
+        ansi_colors: bool | None = False,
+        on_error: dict | None = None,
+    ):
+        """
+        Parameters
+        ----------
+        sql : str
+            The SQL statement to execute.
+        inline : bool | None, default=True
+            Whether the embed fields should be rendered inline.
+        no_data : str | dict | None
+            Message to display if the query returns 0 rows.
+        ansi_colors : bool | None, default=False
+            Wrap values in `````ansi … ```` if ``True``.
+        on_error : dict | None
+            Custom error‑handling messages; each key/value pair is rendered
+            as a field when an exception occurs.
+        """
         try:
             async with self.apool.connection() as conn:
                 async with conn.cursor(row_factory=dict_row) as cursor:
-                    await cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
-                    if cursor.rowcount == 0:
-                        if no_data:
-                            _display_no_data(self, no_data, False)
-                        return
-                    header = None
-                    cols = []
-                    elements = 0
-                    async for row in cursor:
-                        elements = len(row)
-                        if not header:
-                            header = list(row.keys())
-                        values = list(row.values())
-                        for i in range(0, elements):
-                            if isinstance(values[i], datetime):
-                                value = values[i].strftime('%Y-%m-%d %H:%M')
-                            else:
-                                value = str(values[i])
-                            if len(cols) <= i:
-                                cols.append(('```ansi\n' if ansi_colors else '') + value + '\n')
-                            else:
-                                cols[i] += value + '\n'
-                    for i in range(0, elements):
-                        self.add_field(name=header[i], value=cols[i] + ('```' if ansi_colors else ''), inline=inline)
-                    if elements % 3 and inline:
-                        for i in range(0, 3 - elements % 3):
-                            self.add_field(name='_ _', value='_ _')
+                    await cursor.execute(
+                        utils.format_string(sql, **self.env.params),
+                        self.env.params
+                    )
+                    rows = await cursor.fetchall()
+
+            df = pd.DataFrame(rows)  # rows may be [] → empty DataFrame
+            if df.empty:
+                if no_data:
+                    _display_no_data(self, no_data, False)
+                return
+
+            # Helper: format a single value
+            def fmt_val(v):
+                if isinstance(v, datetime):
+                    return v.strftime('%Y-%m-%d %H:%M')
+                return str(v)
+
+            # Apply formatting; keep the original dtype for later use
+            formatted = df.map(fmt_val)
+
+            for col in formatted.columns:
+                # Join rows with a trailing newline (matches the old behavior)
+                col_text = '\n'.join(formatted[col]) + '\n'
+
+                # Wrap with ANSI markers if requested
+                if ansi_colors:
+                    col_text = f'```ansi\n{col_text}```'
+
+                self.add_field(name=col, value=col_text, inline=inline)
+
+            if df.shape[1] % 3 and inline:     # df.shape[1] == number of columns
+                missing = 3 - (df.shape[1] % 3)
+                for _ in range(missing):
+                    self.add_field(name='_ _', value='_ _')
+
         except Exception as ex:
             if on_error:
-                for key, value in on_error.items():
-                    self.add_field(name=key, value=utils.format_string(value, ex=ex), inline=inline)
+                for key, tmpl in on_error.items():
+                    self.add_field(
+                        name=key,
+                        value=utils.format_string(tmpl, ex=ex),
+                        inline=inline,
+                    )
             else:
                 raise
+
+
+class SQLRenderedTable(GraphElement):
+
+    async def render(self, sql: str):
+        # ----------------------------------------------------------------
+        # 1. Execute the query and fetch *all* rows as a list of dicts
+        # ----------------------------------------------------------------
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(
+                    utils.format_string(sql, **self.env.params),
+                    self.env.params
+                )
+                rows = await cursor.fetchall()
+
+        # ----------------------------------------------------------------
+        # 2. Convert to a DataFrame (empty if no rows)
+        # ----------------------------------------------------------------
+        df = pd.DataFrame(rows)  # rows may be [] → empty DataFrame
+
+        # ----------------------------------------------------------------
+        # 3. Handle the “no data” case early
+        # ----------------------------------------------------------------
+        if df.empty:
+            self.axes.set_xticks([])
+            self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
+            return
+
+        # ----------------------------------------------------------------
+        # 4. Prepare each column for the embed
+        # ----------------------------------------------------------------
+        # Helper: format a single value
+        def fmt_val(v):
+            if isinstance(v, datetime):
+                return v.strftime('%Y-%m-%d %H:%M')
+            return str(v)
+
+        # Apply formatting; keep the original dtype for later use
+        formatted = df.map(fmt_val)
+        # render the table
+        self.axes = df_to_table(self.axes, formatted)
 
 
 class BarChart(GraphElement):

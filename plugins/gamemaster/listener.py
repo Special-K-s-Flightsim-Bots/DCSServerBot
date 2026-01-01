@@ -37,9 +37,6 @@ class GameMasterEventListener(EventListener["GameMaster"]):
         # disable -password and -coalition if people have not joined a coalition yet
         if command.name == 'password' and not coalition:
             return False
-        # disable -ack if people do not have a message to acknowledge
-        elif command.name == 'ack' and player.ucid not in self.tasks:
-            return False
         return await super().can_run(command, server, player)
 
     @event(name="registerDCSServer")
@@ -425,13 +422,20 @@ class GameMasterEventListener(EventListener["GameMaster"]):
     async def ack(self, server: Server, player: Player, params: list[str]):
         async with self.apool.connection() as conn:
             async with conn.transaction():
-                await conn.execute("""
-                    DELETE FROM messages m WHERE m.player_ucid = %s 
+                cursor = await conn.execute("""
+                    DELETE FROM messages m WHERE m.player_ucid = %s RETURNING id
                 """, (player.ucid, ))
+                if cursor.rowcount == 0:
+                    await player.sendChatMessage(_("No message found."))
+                    return
         task = self.tasks.pop(player.ucid, None)
         if task:
             task.cancel()
-        await player.sendChatMessage(_("Message(s) acknowledged."))
+        await player.sendChatMessage(_("Message{} acknowledged.").format('s' if cursor.rowcount > 1 else ''))
+        admin = self.bot.get_admin_channel(server)
+        if admin:
+            await admin.send("```" + _("Player {} ({}) acknowledged their message{}.").format(
+                player.display_name, player.ucid, 's' if cursor.rowcount > 1 else '') + "```")
 
     @chat_command(name="popup", help=_("send a popup message"), roles=['DCS Admin', 'GameMaster'])
     async def popup(self, server: Server, player: Player, params: list[str]):
