@@ -31,7 +31,7 @@ from migrate import migrate
 from packaging.version import parse
 from pathlib import Path
 from psycopg import sql
-from psycopg.errors import UndefinedTable, InFailedSqlTransaction, ConnectionTimeout, UniqueViolation
+from psycopg.errors import InFailedSqlTransaction, ConnectionTimeout, UniqueViolation
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
 from typing import Awaitable, Callable, Any
@@ -145,11 +145,13 @@ class NodeImpl(Node):
         if 'DCS' in self.locals:
             await self.get_dcs_branch_and_version()
         await self.init_db()
-        self.heartbeat.start()
-        # Wait for the heartbeat to work
-        while self._master is None:
-            await asyncio.sleep(0.1)
-        self.log.info("- Starting as {} ...".format("Single / Master" if self._master else "Agent"))
+        # Do we have a cluster?
+        if len(self.all_nodes) > 1:
+            self._master = await self.heartbeat()
+            self.heartbeat_loop.start()
+            self.log.info("- Starting as {} ...".format("Single / Master" if self._master else "Agent"))
+        else:
+            self._master = True
         if self._master:
             try:
                 await self.update_db()
@@ -181,7 +183,8 @@ class NodeImpl(Node):
         return self
 
     async def __aexit__(self, type, value, traceback):
-        self.heartbeat.cancel()
+        if self.heartbeat_loop.is_running():
+            self.heartbeat_loop.cancel()
         await self.close_db()
 
     @override
@@ -650,6 +653,9 @@ class NodeImpl(Node):
 
             def run_subprocess() -> int:
                 try:
+                    # we delete the downloads dir, as we do not want to click anything
+                    utils.safe_rmtree(os.path.join(self.installation, '_downloads'))
+                    # then do the update
                     cmd = [os.path.join(self.installation, 'bin', 'dcs_updater.exe'), '--quiet', 'update']
                     if version:
                         cmd.append(f"{version}@{branch}")
@@ -663,6 +669,31 @@ class NodeImpl(Node):
                 except Exception as ex:
                     self.log.exception(ex)
                     return -1
+
+# TODO: optional version which uses the update wrapper (and can click the Delete button)
+#
+#            def run_subprocess() -> int:
+#                if sys.platform != 'win32':
+#                    raise NotImplementedError("DCS update is not yet supported on Linux")
+#
+#                if utils.is_uac_enabled():
+#                    raise PermissionError("You need to disable UAC to run a DCS update.")
+#
+#                args = [
+#                    "core/utils/updater_wrapper.py",
+#                    "-d", os.path.normpath(self.installation),
+#                    "update"
+#                ]
+#                if branch:
+#                    args.extend(["-b", branch])
+#                if version:
+#                    args.extend(["-v", version])
+#                cmdline = subprocess.list2cmdline(args)
+#                return utils.run_elevated(
+#                    sys.executable,
+#                    os.getcwd(),
+#                    cmdline
+#                )
 
             # check if there is an update running already
             proc = next(utils.find_process("DCS_updater.exe"), None)
@@ -746,6 +777,7 @@ class NodeImpl(Node):
                 args = [
                     "core/utils/updater_wrapper.py",
                     "-d", os.path.normpath(self.installation),
+                    "repair"
                 ]
                 if slow:
                     args.append("-s")
@@ -971,8 +1003,7 @@ class NodeImpl(Node):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 self.autoupdate.cancel()
 
-    @tasks.loop(seconds=5.0)
-    async def heartbeat(self) -> None:
+    async def heartbeat(self) -> bool:
         lock_key = zlib.crc32(f"DCSSB:{self.guild_id}".encode("utf-8"))
 
         async def get_master_conn():
@@ -1086,7 +1117,7 @@ class NodeImpl(Node):
         try:
             # do not do any checks if we are supposed to shut down
             if self.node.is_shutdown.is_set():
-                return
+                return self._master
 
             config = self.locals.get('cluster', {})
             lock_conn = await get_master_conn()
@@ -1107,8 +1138,7 @@ class NodeImpl(Node):
                         master, version, update_pending = await get_master()
                         # upgrade is pending
                         if update_pending:
-                            self._master = await handle_upgrade(master)
-                            return
+                            return await handle_upgrade(master)
                         elif parse(version) > parse(__version__):
                             # avoid update loops if we are the master
                             if master == self.name:
@@ -1120,15 +1150,13 @@ class NodeImpl(Node):
                             if master != self.name:
                                 raise FatalException(f"This node uses DCSServerBot version {__version__} "
                                                      f"where the master uses version {version}!")
-                            self._master = True
                             await self._upgrade(conn)
 
                         # We don't want to be a master
                         if config.get('no_master', False):
                             if not await is_node_alive(master, config.get('heartbeat', 30)):
                                 raise FatalException(f"Master node {master} is not alive, exiting.")
-                            self._master = False
-                            return
+                            return False
 
                         # I am the master
                         elif master == self.name:
@@ -1137,34 +1165,29 @@ class NodeImpl(Node):
                                 cursor = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key, ))
                                 if not (await cursor.fetchone())[0]:
                                     self.log.error("Conflict! Another node holds the master lock.")
-                                    self._master = False
-                                    return
+                                    return False
 
                             await check_nodes()
-                            self._master = True
-                            return
+                            return True
 
                         # Someone else is the master
                         elif master:
                             if holds_lock:
                                 # We have the lock, but the table says someone else is master
                                 await lock_conn.execute("SELECT pg_advisory_unlock(%s)", (lock_key, ))
-                                self._master = False
-                                return
+                                return False
 
                             if config.get('preferred_master', False):
                                 await take_over(block=False)
-                                self._master = True
-                                return
+                                return True
 
                             if await is_node_alive(master, config.get('heartbeat', 30)):
-                                self._master = False
-                                return
+                                return False
 
                         # No master or master is dead
                         self.log.info("No master found, taking over ...")
                         await take_over()
-                        self._master = True
+                        return True
 
                     finally:
                         await conn.execute("""
@@ -1181,10 +1204,14 @@ class NodeImpl(Node):
             exit(SHUTDOWN)
         except InFailedSqlTransaction:
             # we should only be here when the CLUSTER table does not exist yet
-            self._master = True
+            return True
         except Exception as ex:
             self.log.exception(ex)
             raise
+
+    @tasks.loop(seconds=5.0)
+    async def heartbeat_loop(self):
+        self._master = await self.heartbeat()
 
     async def get_active_nodes(self) -> list[str]:
         async with self.cpool.connection() as conn:
