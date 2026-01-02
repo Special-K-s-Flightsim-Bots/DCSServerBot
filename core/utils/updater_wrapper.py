@@ -28,6 +28,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 OK_MESSAGE = 'OK'
+DELETE_MESSAGE = 'Delete'
 CLEANUP_MESSAGE = 'Cleanup has found some extra files not belonging to the vanilla install:'
 
 
@@ -132,7 +133,7 @@ def click_no_mouse(ctrl):
         raise
 
 
-def do_update(installation: str, slow: bool | None = False, check_extra_files: bool | None = False):
+def do_repair(installation: str, slow: bool | None = False, check_extra_files: bool | None = False):
     app = None
     try:
         cmd = os.path.join(installation, 'bin', 'dcs_updater.exe')
@@ -212,6 +213,56 @@ def do_update(installation: str, slow: bool | None = False, check_extra_files: b
         return -1
 
 
+def do_update(installation: str, version: str | None = None, branch: str | None = None):
+    app = None
+    try:
+        cmd = os.path.join(installation, 'bin', 'dcs_updater.exe')
+        options = ""
+        if version:
+            options = version
+        if branch:
+            options += f"@{branch}"
+        app = Application(backend="win32").start(f'"{cmd}" --quiet update {options}')
+        pid = app.process
+        process = psutil.Process(pid)
+
+        try:
+            window = _find_updater_window(process)
+
+            dlg = app.window(handle=window.handle)
+            dlg.wait('ready', timeout=15)
+
+            def uia_wrapper_from_handle(handle):
+                """Return a UIA WindowSpecification for the given HWND."""
+                return Desktop(backend='uia').window(handle=handle)
+
+            delete_btn = None
+            for child in dlg.children():
+                uia_child = uia_wrapper_from_handle(child.handle)
+                if uia_child.element_info.name == DELETE_MESSAGE:
+                    delete_btn = uia_wrapper_from_handle(child.handle)
+
+            ensure_foreground(dlg)
+            # if there are files to be deleted, we need to invoke the Delete button
+            if delete_btn:
+                delete_btn.invoke()
+
+        except TimeoutError:
+            pass
+
+        p = psutil.Process(app.process)
+        return p.wait()
+    except RuntimeError as ex:
+        logger.exception(ex)
+        if app:
+            p = psutil.Process(app.process)
+            terminate_process(p)
+        return -2
+    except Exception as ex:
+        logger.exception(ex)
+        return -1
+
+
 def close_autoupdate_templog():
     try:
         app = Application(backend="uia").connect(
@@ -225,16 +276,88 @@ def close_autoupdate_templog():
         return False
 
 
+def get_parser() -> argparse.ArgumentParser:
+    """
+    Builds the top‑level parser and two sub‑parsers.
+    """
+    ap = argparse.ArgumentParser(
+        description="DCS Updater wrapper for unattended updates / repairs"
+    )
+    ap.add_argument(
+        "-d",
+        "--dcs_home",
+        default=r"C:\Program Files\Eagle Dynamics\DCS World",
+        help="DCS home directory",
+    )
+
+    subparsers = ap.add_subparsers(
+        dest="command",
+        required=True,
+        help="sub‑command to execute",
+    )
+
+    # ---------- repair ----------
+    repair_parser = subparsers.add_parser(
+        "repair",
+        help="Run a repair of the DCS installation",
+    )
+    repair_parser.add_argument(
+        "-s",
+        "--slow",
+        action="store_true",
+        default=False,
+        help="Run a slow repair (or update)",
+    )
+    repair_parser.add_argument(
+        "-c",
+        "--check_extra_files",
+        action="store_true",
+        default=False,
+        help="Check for extra files",
+    )
+
+    # ---------- update ----------
+    update_parser = subparsers.add_parser(
+        "update",
+        help="Run an unattended update of the DCS installation",
+    )
+    update_parser.add_argument(
+        "-v",
+        "--version",
+        default="",
+        help="Specific version to update to (default: %(default)s)",
+    )
+    update_parser.add_argument(
+        "-b",
+        "--branch",
+        default="release",
+        help="Branch to update (default: %(default)s)",
+    )
+    # update_parser inherits the global arguments
+
+    return ap
+
+
 if __name__ == '__main__':
-    ap = argparse.ArgumentParser(description="DCS Updater wrapper for unattended updates")
-    ap.add_argument("-d", "--dcs_home", default=r"C:\Program Files\Eagle Dynamics\DCS World", help="DCS home directory")
-    ap.add_argument("-s", "--slow", action='store_true', default=False, help="Run a slow repair")
-    ap.add_argument("-c", "--check_extra_files", action='store_true', default=False, help="Check for extra files")
-    args = ap.parse_args()
+    parser = get_parser()
+    args = parser.parse_args()
+
     try:
-        rc = do_update(args.dcs_home, args.slow, args.check_extra_files)
-        if rc == 1:
-            close_autoupdate_templog()
+        if args.command == "repair":
+            rc = do_repair(
+                installation=args.dcs_home,
+                slow=args.slow,
+                check_extra_files=args.check_extra_files,
+            )
+            if rc == 1:
+                close_autoupdate_templog()
+        else:  # args.command == "update"
+            rc = do_update(
+                installation=args.dcs_home,
+                branch=args.branch,
+                version=args.version,
+            )
+
         sys.exit(rc)
     except Exception as ex:
         logger.exception(ex)

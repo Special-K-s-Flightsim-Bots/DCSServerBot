@@ -482,6 +482,7 @@ class AirbaseView(View):
         radio_toggle = self.children[2]
         radio_toggle.style = discord.ButtonStyle.primary if not self.data['radio_silent'] else discord.ButtonStyle.secondary
         radio_toggle.label = _('ATC On') if self.data['radio_silent'] else _('ATC Off')
+        # noinspection PyUnresolvedReferences
         self.children[3].disabled = all(x is True for x in self.data['unlimited'].values())
 
     # noinspection PyTypeChecker

@@ -381,7 +381,7 @@ def validate(source_file: str, schema_files: list[str], *, raise_exception: bool
         if raise_exception:
             raise
         if isinstance(ex, SchemaError):
-            logger.warning(f'Error while parsing {source_file}:\n{ex}')
+            logger.warning(ex.msg)
         elif isinstance(ex, UnknownError):
             logger.error(f'Error while parsing {ex.path}:\n{ex.error_key}')
         else:
