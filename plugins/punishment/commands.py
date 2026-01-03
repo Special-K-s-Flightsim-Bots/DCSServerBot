@@ -364,12 +364,7 @@ class Punishment(Plugin[PunishmentEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
         report = Report(self.bot, self.plugin_name, 'events.json')
         env = await report.render(ucid=ucid, limit=limit)
-        try:
-            file = discord.File(fp=env.buffer, filename=env.filename)
-            await interaction.followup.send(embed=env.embed, file=file, ephemeral=True)
-        finally:
-            if env.buffer:
-                env.buffer.close()
+        await interaction.followup.send(embed=env.embed, ephemeral=ephemeral)
 
 
 async def setup(bot: DCSServerBot):
