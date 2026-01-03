@@ -80,6 +80,12 @@ class SkyEye(Extension):
             main_config = self.config.copy()
             main_config.pop('instances')
             for instance in self.config['instances']:
+                recognizer = instance.get('recognizer')
+                if not recognizer:
+                    instance['recognizer'] = main_config.get('recognizer', 'openai-whisper-local')
+                elif recognizer == 'openai-whisper-local' and 'openai-api-key' in instance:
+                    self.log.error("Misconfiguation in your nodes.yaml: "
+                                   "openai-whisper-local is configured but an API key was provided!")
                 cfg = data.copy()
                 cfg |= main_config
                 cfg_file = self.get_config_path(cfg | instance)
@@ -157,6 +163,7 @@ class SkyEye(Extension):
 
         # make sure we have a local model, unless configured otherwise
         if cfg.get('recognizer', 'openai-whisper-local') == 'openai-whisper-local':
+            dirty |= (cfg.pop('openai-api-key', None) is not None)
             dirty |= self._maybe_update_config(cfg, 'recognizer', 'openai-whisper-local')
             dirty |= self._maybe_update_config(cfg,'recognizer-lock-path',
                                                os.path.join(os.path.dirname(self.get_exe_path()), 'recognizer.lck'))
