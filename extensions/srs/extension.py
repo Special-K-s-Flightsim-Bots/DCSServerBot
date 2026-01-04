@@ -106,10 +106,11 @@ class SRS(Extension, FileSystemEventHandler):
                                    os.path.join('Scripts', 'Hooks', 'DCS-SRS-AutoConnectGameGUI.lua'))
         host = self.config.get('host', self.node.public_ip)
         port = self.config.get('port', self.locals['Server Settings']['SERVER_PORT'])
+        original = os.path.join(self.get_inst_path(), 'Scripts', 'DCS-SRS-AutoConnectGameGUI.lua')
         if os.path.exists(autoconnect):
             shutil.copy2(autoconnect, autoconnect + '.bak')
-        else:
-            shutil.copy2(os.path.join(self.get_inst_path(), 'Scripts', 'DCS-SRS-AutoConnectGameGUI.lua'), autoconnect)
+        if not os.path.exists(autoconnect) or os.path.getmtime(autoconnect) < os.path.getmtime(original):
+            shutil.copy2(original, autoconnect)
 
         tempfile_name = ""
         try:
