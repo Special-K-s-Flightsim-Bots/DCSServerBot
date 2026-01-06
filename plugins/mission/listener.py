@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from discord import ButtonStyle
 from discord.ext import tasks
 from discord.ui import View, Button
+from functools import partial
 from pathlib import Path
 from psycopg.rows import dict_row
 from services.servicebus import ServiceBus
@@ -480,6 +481,11 @@ class MissionEventListener(EventListener["Mission"]):
     @event(name="onMissionLoadBegin")
     async def onMissionLoadBegin(self, server: Server, data: dict) -> None:
         server.status = Status.LOADING
+        lock_on_load = server.locals.get('lock_on_load', 0)
+        if lock_on_load:
+            self.log.info("  => Locking server on mission start for {}".format(utils.format_time(lock_on_load)))
+            asyncio.create_task(server.lock(_('A new mission is being set up. Try again in a bit.')))
+            self.loop.call_later(delay=lock_on_load, callback=partial(asyncio.create_task, server.unlock()))
         self._update_mission(server, data)
         if server.settings:
             self.display_mission_embed(server)
@@ -533,10 +539,13 @@ class MissionEventListener(EventListener["Mission"]):
         self.display_mission_embed(server)
 
     @event(name="onSimulationStop")
-    async def onSimulationStop(self, server: Server, _: dict) -> None:
+    async def onSimulationStop(self, server: Server, data: dict) -> None:
         server.status = Status.STOPPED
         for p in server.get_active_players():
-            p.side = Side.NEUTRAL
+            if server.locals.get('lock_on_load'):
+                asyncio.create_task(server.kick(p, reason=_("The server will be locked for a mission restart.")))
+            else:
+                p.side = Side.NEUTRAL
         self.alert_fired.pop(server.name, None)
         self.display_mission_embed(server)
         self.display_player_embed(server)
