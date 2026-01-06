@@ -43,6 +43,7 @@ schema;single_nudge:
   mapping:
     delay: {type: int, nullable: false}
     message: {type: str, nullable: false, range: {min: 1}}
+    random: {type: bool, nullable: false}
     messages:
       include: 'message_list'
     recipients: {type: str, nullable: false, range: {min: 1}}
