@@ -435,6 +435,11 @@ def app_has_role(role: str):
     :return: True if the user has the role, False otherwise.
     """
     def predicate(interaction: Interaction) -> bool:
+        # The owner can run any command, independently of the role
+        if (not interaction.client.node.locals.get('restrict_owner', False) and
+                interaction.user.id == interaction.client.owner_id):
+            return True
+
         return check_roles(interaction.client.roles[role], interaction.user)
 
     predicate.role = role
@@ -528,6 +533,11 @@ def app_has_roles(roles: list[str]):
     :return: A decorated function that can be used as a check for membership of the specified roles.
     """
     def predicate(interaction: Interaction) -> bool:
+        # The owner can run any command, independently of the role
+        if (not interaction.client.node.locals.get('restrict_owner', False) and
+                interaction.user.id == interaction.client.owner_id):
+            return True
+
         valid_roles = set()
         for role in roles:
             valid_roles |= set(interaction.client.roles[role])

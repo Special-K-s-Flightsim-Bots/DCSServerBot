@@ -644,6 +644,9 @@ You can map your Discord roles to these internal roles as described in the examp
 variant, you add your UCIDs as a list below each group.<br>
 Non-Discord installations usually only need the "Admin" and "DCS Admin" roles.
 
+> [!NOTE]
+> The owner of the bot (owner_id in bot.yaml) can run _any_ command, independently of the role.
+
 | Role            | Description                                                                                                                                          |
 |:----------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|
 | Admin           | People with this role are allowed to manage the server, start it up, shut it down, update it, change the password and gather the server statistics.  |
