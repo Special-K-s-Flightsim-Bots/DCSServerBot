@@ -305,6 +305,13 @@ class Competitive(Plugin[CompetitiveListener]):
         if not await utils.yn_question(interaction, question=message, message=_("This can take a while.")):
             await interaction.followup.send(_("Aborted."), ephemeral=True)
             return
+
+        if isinstance(user, discord.Member):
+            user = await self.bot.get_ucid_by_member(user)
+            if not user:
+                await interaction.followup.send(_("Member is not linked to a player."), ephemeral=True)
+                return
+
         ephemeral = utils.get_ephemeral(interaction)
         async with self.apool.connection() as conn:
             async with conn.transaction():
