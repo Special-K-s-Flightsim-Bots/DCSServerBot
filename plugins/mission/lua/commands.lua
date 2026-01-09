@@ -400,7 +400,8 @@ function dcsbot.startNextMission(json)
 	if json.result == true then
         local mission_list = net.missionlist_get()
 		utils.saveSettings({
-			listStartIndex=mission_list.listStartIndex
+			listStartIndex = mission_list.listStartIndex,
+			current = mission_list.listStartIndex
 		})
 	end
 	utils.sendBotTable(json, json.channel)
@@ -425,8 +426,7 @@ end
 function dcsbot.setStartIndex(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: setStartIndex()')
 	utils.saveSettings({
-		listStartIndex = json.id,
-		current = json.id
+		listStartIndex = json.id
     })
 end
 

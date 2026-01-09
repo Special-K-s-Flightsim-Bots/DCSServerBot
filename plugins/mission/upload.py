@@ -21,7 +21,7 @@ class MissionUploadHandler(ServerUploadHandler):
 
     async def handle_attachment(self, directory: str, att: discord.Attachment) -> UploadStatus:
         ctx = await self.bot.get_context(self.message)
-        rc = await self.server.uploadMission(att.filename, att.url, force=False, missions_dir=directory)
+        rc = await self.server.uploadMission(att.filename, att.url, force=self.overwrite, missions_dir=directory)
         if rc in [UploadStatus.FILE_IN_USE, UploadStatus.WRITE_ERROR]:
             if self.server.is_populated():
                 what = await utils.populated_question(ctx, _('This mission is currently active.\n'

@@ -937,6 +937,10 @@ class Scheduler(Plugin[SchedulerListener]):
             embed.description += f"\n- Maintenance flag set."
 
         try:
+            if server.on_empty:
+                server.on_empty.clear()
+                embed.description += "\n- Deleted pending on-empty trigger."
+
             if force:
                 embed.description += "\n- Killing the DCS server, please wait ..."
                 embed.set_thumbnail(url=TRAFFIC_LIGHTS['green'])
@@ -1095,7 +1099,7 @@ class Scheduler(Plugin[SchedulerListener]):
             if delay > 0:
                 message = _("!!! Server will restart in {} !!!").format(utils.format_time(delay))
                 await server.sendPopupMessage(Coalition.ALL, message)
-                embed.description += '- Restart is delayed for {}. Waiting ...'.format(utils.format_time(delay))
+                embed.description += '\n- Restart is delayed for {}. Waiting ...'.format(utils.format_time(delay))
                 await msg.edit(embed=embed)
                 await asyncio.sleep(delay)
             else:
