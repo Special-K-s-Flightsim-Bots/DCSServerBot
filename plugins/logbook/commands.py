@@ -1,7 +1,8 @@
 import discord
 import io
+import logging
 
-from core import Plugin, utils, get_translation
+from core import Plugin, PluginRequiredError, utils, get_translation
 from datetime import datetime, timedelta, timezone
 from discord import app_commands
 from psycopg.rows import dict_row
@@ -13,6 +14,7 @@ from .listener import LogbookEventListener
 from .utils.ribbon import create_ribbon_rack, HAS_IMAGING
 
 _ = get_translation(__name__.split('.')[1])
+log = logging.getLogger(__name__)
 
 
 # Autocomplete functions
@@ -28,7 +30,8 @@ async def logbook_squadron_autocomplete(interaction: discord.Interaction, curren
                 app_commands.Choice(name=row[1], value=row[0])
                 async for row in cursor
             ]
-    except Exception:
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
         return []
 
 
@@ -54,7 +57,8 @@ async def logbook_squadron_admin_autocomplete(interaction: discord.Interaction, 
                 app_commands.Choice(name=row[1], value=row[0])
                 async for row in cursor
             ]
-    except Exception:
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
         return []
 
 
@@ -76,7 +80,8 @@ async def squadron_member_autocomplete(interaction: discord.Interaction, current
                 app_commands.Choice(name=row[0], value=row[1])
                 async for row in cursor
             ]
-    except Exception:
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
         return []
 
 
@@ -95,7 +100,8 @@ async def unassigned_player_autocomplete(interaction: discord.Interaction, curre
                 app_commands.Choice(name=row[0], value=row[1])
                 async for row in cursor
             ]
-    except Exception:
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
         return []
 
 
@@ -111,7 +117,8 @@ async def qualification_autocomplete(interaction: discord.Interaction, current: 
                 app_commands.Choice(name=row[1], value=row[0])
                 async for row in cursor
             ]
-    except Exception:
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
         return []
 
 
@@ -137,7 +144,8 @@ async def pilot_qualification_autocomplete(interaction: discord.Interaction, cur
                 app_commands.Choice(name=row[1], value=row[0])
                 async for row in cursor
             ]
-    except Exception:
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
         return []
 
 
@@ -154,7 +162,8 @@ async def player_autocomplete(interaction: discord.Interaction, current: str) ->
                 app_commands.Choice(name=row[0], value=row[1])
                 async for row in cursor
             ]
-    except Exception:
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
         return []
 
 
@@ -170,7 +179,8 @@ async def award_autocomplete(interaction: discord.Interaction, current: str) -> 
                 app_commands.Choice(name=row[1], value=row[0])
                 async for row in cursor
             ]
-    except Exception:
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
         return []
 
 
@@ -195,7 +205,8 @@ async def pilot_award_autocomplete(interaction: discord.Interaction, current: st
                 app_commands.Choice(name=row[1], value=row[0])
                 async for row in cursor
             ]
-    except Exception:
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
         return []
 
 
@@ -220,7 +231,8 @@ async def flightplan_autocomplete(interaction: discord.Interaction, current: str
                 )
                 async for row in cursor
             ]
-    except Exception:
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
         return []
 
 
@@ -242,7 +254,8 @@ async def stores_request_autocomplete(interaction: discord.Interaction, current:
                 )
                 async for row in cursor
             ]
-    except Exception:
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
         return []
 
 
@@ -266,7 +279,8 @@ async def pending_stores_request_autocomplete(interaction: discord.Interaction, 
                 )
                 async for row in cursor
             ]
-    except Exception:
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
         return []
 
 
@@ -283,8 +297,8 @@ class Logbook(Plugin[LogbookEventListener]):
     # Command group "/logbook"
     logbook = app_commands.Group(name="logbook", description=_("Commands to display pilot logbook statistics"))
 
-    # Command group "/squadron"
-    squadron = app_commands.Group(name="squadron", description=_("Commands to manage squadrons"))
+    # Subgroup "/logbook squadron" - avoids conflict with userstats /squadron
+    squadron = app_commands.Group(name="squadron", description=_("Commands to manage logbook squadrons"), parent=logbook)
 
     # Command group "/qualification"
     qualification = app_commands.Group(name="qualification", description=_("Commands to manage pilot qualifications"))
@@ -1347,17 +1361,24 @@ class Logbook(Plugin[LogbookEventListener]):
                            image_url: Optional[str] = None):
         ephemeral = utils.get_ephemeral(interaction)
 
-        # Parse ribbon colors if provided
+        # Parse and validate ribbon colors if provided
         colors_json = None
         if ribbon_colors:
             try:
                 colors_json = json.loads(ribbon_colors)
                 if not isinstance(colors_json, list):
                     raise ValueError("Must be a JSON array")
+                if len(colors_json) > 20:
+                    raise ValueError("Maximum 20 colors allowed")
+                for color in colors_json:
+                    if not isinstance(color, str):
+                        raise ValueError("Each color must be a string")
+                    if len(color) > 50:
+                        raise ValueError("Color strings must be under 50 characters")
             except (json.JSONDecodeError, ValueError) as e:
                 # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(
-                    _('Invalid ribbon_colors format. Must be a JSON array of color strings. Error: {}').format(str(e)),
+                    _('Invalid ribbon_colors format. Must be a JSON array of color strings (max 20). Error: {}').format(str(e)),
                     ephemeral=True
                 )
                 return
@@ -2155,15 +2176,24 @@ class Logbook(Plugin[LogbookEventListener]):
             )
             return
 
-        # Parse items JSON
+        # Parse and validate items JSON
         try:
             items_json = json.loads(items)
             if not isinstance(items_json, list):
                 raise ValueError("Must be a JSON array")
+            if len(items_json) > 100:
+                raise ValueError("Maximum 100 items allowed")
+            if len(items_json) == 0:
+                raise ValueError("At least one item required")
+            for item in items_json:
+                if not isinstance(item, str):
+                    raise ValueError("Each item must be a string")
+                if len(item) > 200:
+                    raise ValueError("Item descriptions must be under 200 characters")
         except (json.JSONDecodeError, ValueError) as e:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _('Invalid items format. Must be a JSON array of strings. Error: {}').format(str(e)),
+                _('Invalid items format. Must be a JSON array of strings (max 100 items). Error: {}').format(str(e)),
                 ephemeral=True
             )
             return
@@ -2485,4 +2515,7 @@ class Logbook(Plugin[LogbookEventListener]):
 
 
 async def setup(bot: DCSServerBot):
+    # Logbook depends on userstats for the statistics table used by pilot_logbook_stats view
+    if 'userstats' not in bot.plugins:
+        raise PluginRequiredError('userstats')
     await bot.add_cog(Logbook(bot, LogbookEventListener))

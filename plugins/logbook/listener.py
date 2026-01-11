@@ -46,18 +46,18 @@ class LogbookEventListener(EventListener["Logbook"]):
                     return []
 
                 # Get additional stats that might be needed for qualifications
-                # Carrier landings from greenieboard if available
+                # Carrier landings from traps table (greenieboard plugin) if available
                 carrier_landings = 0
                 try:
                     await cursor.execute("""
-                        SELECT COUNT(*) as count FROM greenieboard
+                        SELECT COUNT(*) as count FROM traps
                         WHERE player_ucid = %s AND grade IS NOT NULL
                     """, (player_ucid,))
                     row = await cursor.fetchone()
                     if row:
                         carrier_landings = row['count']
                 except Exception:
-                    pass  # Greenieboard table might not exist
+                    pass  # traps table might not exist (greenieboard plugin not installed)
 
                 # Build stats dictionary for requirement checking
                 player_stats = {
