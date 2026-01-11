@@ -635,3 +635,39 @@ class ServerAttendanceStats(BaseModel):
 
 class ErrorResponse(BaseModel):
     error: str = Field(..., description="Error message")
+
+class AirbaseWarehouseResponse(BaseModel):
+    warehouse: dict = Field(..., description="Warehouse data")
+    unlimited: dict = Field(..., description="Unlimited flags")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "warehouse": {
+                    "liquids": {
+                        "0": 324730.28125,
+                        "1": 500000,
+                        "2": 500000,
+                        "3": 500000
+                    },
+                    "weapon": {
+                        "weapons.missiles.AGM_154": 100,
+                        "weapons.nurs.HYDRA_70_M151_M433": 100,
+                        "weapons.bombs.GBU_38": 100,
+                        "weapons.containers.F-15E_AXQ-14_DATALINK": 100,
+                        "weapons.droptanks.FuelTank_350L": 100
+                    },
+                    "aircraft": {
+                        "F-16C_50": 1,
+                        "A6E": 100,
+                        "AH-64D_BLK_II": 5
+                    }
+                },
+                "unlimited": {
+                    "weapon": False,
+                    "liquids": True,
+                    "aircraft": False
+                }
+            }
+        }
+    }

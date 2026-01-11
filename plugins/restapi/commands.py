@@ -20,7 +20,7 @@ from typing import Any, Literal, cast
 
 from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
-                     PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats)
+                     PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats, AirbaseWarehouseResponse)
 from ..srs.commands import SRS
 
 app: FastAPI | None = None
@@ -88,6 +88,14 @@ class RestAPI(Plugin):
             dependencies = None
 
         router = APIRouter(prefix=prefix, dependencies=dependencies)
+        router.add_api_route(
+            "/airbase_warehouse", self.airbase_warehouse,
+            methods=["GET"],
+            response_model=AirbaseWarehouseResponse,
+            description="Get warehouse information for a given server and airbase.",
+            summary="Airbase Warehouse",
+            tags=["Info"]
+        )
         router.add_api_route(
             "/serverstats", self.serverstats,
             methods = ["GET"],
@@ -262,6 +270,24 @@ class RestAPI(Plugin):
         return self.get_config().get('endpoints', {}).get(endpoint, {})
 
     @async_cache
+    async def airbase_warehouse(self, server_name: str = Query(...), airbase_name: str = Query(...)):
+        """Return warehouse information for a given airbase on a server."""
+        # Resolve server
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        # Get airbase info using the same logic as mission/commands.py get_airbase
+        airbase_data = await server.send_to_dcs_sync({"command": "getAirbase", "name": airbase_name}, timeout=60)
+        if not airbase_data or 'warehouse' not in airbase_data:
+            raise HTTPException(status_code=404, detail=f"Airbase '{airbase_name}' not found or has no warehouse data.")
+
+        # Return only the warehouse info (and unlimited flags for completeness)
+        return {
+            "warehouse": airbase_data.get("warehouse", {}),
+            "unlimited": airbase_data.get("unlimited", {}),
+        }
+
     async def get_ucid(self, nick: str, date: str | datetime | None = None) -> str:
         if date and isinstance(date, str):
             try:
