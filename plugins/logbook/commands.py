@@ -224,6 +224,52 @@ async def flightplan_autocomplete(interaction: discord.Interaction, current: str
         return []
 
 
+async def stores_request_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    """Autocomplete for stores requests."""
+    try:
+        async with interaction.client.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT sr.id, s.name, sr.status
+                FROM logbook_stores_requests sr
+                JOIN logbook_squadrons s ON sr.squadron_id = s.id
+                WHERE CAST(sr.id AS TEXT) LIKE %s OR s.name ILIKE %s
+                ORDER BY sr.requested_at DESC LIMIT 25
+            """, ('%' + current + '%', '%' + current + '%'))
+            return [
+                app_commands.Choice(
+                    name=f"#{row[0]} - {row[1]} ({row[2]})",
+                    value=row[0]
+                )
+                async for row in cursor
+            ]
+    except Exception:
+        return []
+
+
+async def pending_stores_request_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    """Autocomplete for pending stores requests (for approve/deny)."""
+    try:
+        async with interaction.client.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT sr.id, s.name, p.name as requester_name
+                FROM logbook_stores_requests sr
+                JOIN logbook_squadrons s ON sr.squadron_id = s.id
+                JOIN players p ON sr.requested_by = p.ucid
+                WHERE sr.status = 'pending'
+                AND (CAST(sr.id AS TEXT) LIKE %s OR s.name ILIKE %s OR p.name ILIKE %s)
+                ORDER BY sr.requested_at DESC LIMIT 25
+            """, ('%' + current + '%', '%' + current + '%', '%' + current + '%'))
+            return [
+                app_commands.Choice(
+                    name=f"#{row[0]} - {row[1]} (by {row[2]})",
+                    value=row[0]
+                )
+                async for row in cursor
+            ]
+    except Exception:
+        return []
+
+
 def format_hours(seconds: float) -> str:
     """Format seconds as hours with 1 decimal place."""
     if seconds is None:
@@ -248,6 +294,9 @@ class Logbook(Plugin[LogbookEventListener]):
 
     # Command group "/flightplan"
     flightplan = app_commands.Group(name="flightplan", description=_("Commands to manage flight plans"))
+
+    # Command group "/stores"
+    stores = app_commands.Group(name="stores", description=_("Commands to manage stores requests"))
 
     # ==================== LOGBOOK COMMANDS ====================
 
@@ -2081,6 +2130,358 @@ class Logbook(Plugin[LogbookEventListener]):
 
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+
+    # ==================== STORES COMMANDS ====================
+
+    @stores.command(name='request', description=_('Submit a stores request for a squadron'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.autocomplete(squadron=logbook_squadron_autocomplete)
+    @app_commands.describe(
+        squadron=_('Squadron to request stores for'),
+        items=_('Items to request as JSON array (e.g., ["AIM-120C x4", "GBU-12 x8"])')
+    )
+    async def stores_request(self, interaction: discord.Interaction,
+                             squadron: int,
+                             items: str):
+        ephemeral = utils.get_ephemeral(interaction)
+
+        ucid = await self.bot.get_ucid_by_member(interaction.user)
+        if not ucid:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _('You are not linked to DCS!'),
+                ephemeral=True
+            )
+            return
+
+        # Parse items JSON
+        try:
+            items_json = json.loads(items)
+            if not isinstance(items_json, list):
+                raise ValueError("Must be a JSON array")
+        except (json.JSONDecodeError, ValueError) as e:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _('Invalid items format. Must be a JSON array of strings. Error: {}').format(str(e)),
+                ephemeral=True
+            )
+            return
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                # Verify squadron exists
+                await cursor.execute("SELECT name FROM logbook_squadrons WHERE id = %s", (squadron,))
+                squadron_row = await cursor.fetchone()
+
+                if not squadron_row:
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(_('Squadron not found!'), ephemeral=True)
+                    return
+
+                # Create the stores request
+                cursor = await conn.execute("""
+                    INSERT INTO logbook_stores_requests (squadron_id, requested_by, items)
+                    VALUES (%s, %s, %s)
+                    RETURNING id
+                """, (squadron, ucid, json.dumps(items_json)))
+                result = await cursor.fetchone()
+                request_id = result[0]
+
+        embed = discord.Embed(
+            title=_('Stores Request Submitted'),
+            description=_('Request #{} has been submitted for {}.').format(request_id, squadron_row['name']),
+            color=discord.Color.blue()
+        )
+
+        items_display = '\n'.join([f"- {item}" for item in items_json[:10]])
+        if len(items_json) > 10:
+            items_display += f"\n... and {len(items_json) - 10} more items"
+        embed.add_field(name=_('Items Requested'), value=items_display or _('None'), inline=False)
+        embed.add_field(name=_('Status'), value=_('Pending'), inline=True)
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+
+    @stores.command(name='list', description=_('List stores requests'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.autocomplete(squadron=logbook_squadron_autocomplete)
+    @app_commands.describe(
+        squadron=_('Filter by squadron (leave empty for all)'),
+        status=_('Filter by status (leave empty for all)')
+    )
+    @app_commands.choices(status=[
+        app_commands.Choice(name='Pending', value='pending'),
+        app_commands.Choice(name='Approved', value='approved'),
+        app_commands.Choice(name='Denied', value='denied'),
+        app_commands.Choice(name='All', value='all'),
+    ])
+    async def stores_list(self, interaction: discord.Interaction,
+                          squadron: Optional[int] = None,
+                          status: Optional[str] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                query_parts = ["""
+                    SELECT sr.id, sr.status, sr.requested_at, sr.items,
+                           s.name as squadron_name,
+                           p.name as requester_name,
+                           ap.name as approver_name,
+                           sr.approved_at
+                    FROM logbook_stores_requests sr
+                    JOIN logbook_squadrons s ON sr.squadron_id = s.id
+                    JOIN players p ON sr.requested_by = p.ucid
+                    LEFT JOIN players ap ON sr.approved_by = ap.ucid
+                """]
+                conditions = []
+                params = []
+
+                if squadron:
+                    conditions.append("sr.squadron_id = %s")
+                    params.append(squadron)
+
+                if status and status != 'all':
+                    conditions.append("sr.status = %s")
+                    params.append(status)
+
+                if conditions:
+                    query_parts.append("WHERE " + " AND ".join(conditions))
+
+                query_parts.append("ORDER BY sr.requested_at DESC LIMIT 20")
+                query = " ".join(query_parts)
+
+                await cursor.execute(query, tuple(params))
+                requests = await cursor.fetchall()
+
+        if not requests:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _('No stores requests found.'),
+                ephemeral=ephemeral
+            )
+            return
+
+        embed = discord.Embed(
+            title=_('Stores Requests'),
+            color=discord.Color.blue()
+        )
+
+        for req in requests[:10]:
+            status_emoji = {
+                'pending': '⏳',
+                'approved': '✅',
+                'denied': '❌'
+            }.get(req['status'], '❓')
+
+            # Parse items count
+            items_count = 0
+            if req.get('items'):
+                try:
+                    items_list = json.loads(req['items']) if isinstance(req['items'], str) else req['items']
+                    items_count = len(items_list)
+                except Exception:
+                    pass
+
+            value = _('By: {}\nItems: {}\nDate: {}').format(
+                req['requester_name'],
+                items_count,
+                req['requested_at'].strftime('%Y-%m-%d')
+            )
+            if req['status'] != 'pending' and req.get('approver_name'):
+                action = _('Approved') if req['status'] == 'approved' else _('Denied')
+                value += f"\n{action} by: {req['approver_name']}"
+
+            embed.add_field(
+                name=f"{status_emoji} #{req['id']} - {req['squadron_name']}",
+                value=value,
+                inline=False
+            )
+
+        if len(requests) > 10:
+            embed.set_footer(text=_("Showing 10 of {} requests").format(len(requests)))
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+
+    @stores.command(name='view', description=_('View stores request details'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.autocomplete(request_id=stores_request_autocomplete)
+    @app_commands.describe(request_id=_('Request ID to view'))
+    async def stores_view(self, interaction: discord.Interaction, request_id: int):
+        ephemeral = utils.get_ephemeral(interaction)
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT sr.*, s.name as squadron_name,
+                           p.name as requester_name,
+                           ap.name as approver_name
+                    FROM logbook_stores_requests sr
+                    JOIN logbook_squadrons s ON sr.squadron_id = s.id
+                    JOIN players p ON sr.requested_by = p.ucid
+                    LEFT JOIN players ap ON sr.approved_by = ap.ucid
+                    WHERE sr.id = %s
+                """, (request_id,))
+                req = await cursor.fetchone()
+
+        if not req:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_('Stores request not found!'), ephemeral=True)
+            return
+
+        status_colors = {
+            'pending': discord.Color.blue(),
+            'approved': discord.Color.green(),
+            'denied': discord.Color.red()
+        }
+
+        embed = discord.Embed(
+            title=_('Stores Request #{}').format(request_id),
+            description=_('Request for {}').format(req['squadron_name']),
+            color=status_colors.get(req['status'], discord.Color.blue())
+        )
+
+        embed.add_field(name=_('Status'), value=req['status'].upper(), inline=True)
+        embed.add_field(name=_('Requested By'), value=req['requester_name'], inline=True)
+        embed.add_field(name=_('Requested At'), value=req['requested_at'].strftime('%Y-%m-%d %H:%M UTC'), inline=True)
+
+        if req['status'] != 'pending':
+            if req.get('approver_name'):
+                action = _('Approved By') if req['status'] == 'approved' else _('Denied By')
+                embed.add_field(name=action, value=req['approver_name'], inline=True)
+            if req.get('approved_at'):
+                embed.add_field(name=_('Action At'), value=req['approved_at'].strftime('%Y-%m-%d %H:%M UTC'), inline=True)
+
+        # Display items
+        if req.get('items'):
+            try:
+                items_list = json.loads(req['items']) if isinstance(req['items'], str) else req['items']
+                items_display = '\n'.join([f"- {item}" for item in items_list[:15]])
+                if len(items_list) > 15:
+                    items_display += f"\n... and {len(items_list) - 15} more items"
+                embed.add_field(name=_('Items Requested'), value=items_display or _('None'), inline=False)
+            except Exception:
+                embed.add_field(name=_('Items Requested'), value=_('Unable to parse items'), inline=False)
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+
+    @stores.command(name='approve', description=_('Approve a pending stores request'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(request_id=pending_stores_request_autocomplete)
+    @app_commands.describe(request_id=_('Request ID to approve'))
+    async def stores_approve(self, interaction: discord.Interaction, request_id: int):
+        ephemeral = utils.get_ephemeral(interaction)
+
+        approver_ucid = await self.bot.get_ucid_by_member(interaction.user)
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                # Get request details
+                await cursor.execute("""
+                    SELECT sr.*, s.name as squadron_name, p.name as requester_name
+                    FROM logbook_stores_requests sr
+                    JOIN logbook_squadrons s ON sr.squadron_id = s.id
+                    JOIN players p ON sr.requested_by = p.ucid
+                    WHERE sr.id = %s
+                """, (request_id,))
+                req = await cursor.fetchone()
+
+                if not req:
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(_('Stores request not found!'), ephemeral=True)
+                    return
+
+                if req['status'] != 'pending':
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(
+                        _('Request #{} is not pending. Current status: {}').format(request_id, req['status']),
+                        ephemeral=True
+                    )
+                    return
+
+                # Approve the request
+                await conn.execute("""
+                    UPDATE logbook_stores_requests
+                    SET status = 'approved', approved_by = %s, approved_at = NOW() AT TIME ZONE 'utc'
+                    WHERE id = %s
+                """, (approver_ucid, request_id))
+
+        embed = discord.Embed(
+            title=_('Stores Request Approved'),
+            description=_('Request #{} has been approved.').format(request_id),
+            color=discord.Color.green()
+        )
+        embed.add_field(name=_('Squadron'), value=req['squadron_name'], inline=True)
+        embed.add_field(name=_('Requested By'), value=req['requester_name'], inline=True)
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+        await self.bot.audit(
+            f'approved stores request #{request_id} for squadron {req["squadron_name"]}',
+            user=interaction.user
+        )
+
+    @stores.command(name='deny', description=_('Deny a pending stores request'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(request_id=pending_stores_request_autocomplete)
+    @app_commands.describe(request_id=_('Request ID to deny'))
+    async def stores_deny(self, interaction: discord.Interaction, request_id: int):
+        ephemeral = utils.get_ephemeral(interaction)
+
+        denier_ucid = await self.bot.get_ucid_by_member(interaction.user)
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                # Get request details
+                await cursor.execute("""
+                    SELECT sr.*, s.name as squadron_name, p.name as requester_name
+                    FROM logbook_stores_requests sr
+                    JOIN logbook_squadrons s ON sr.squadron_id = s.id
+                    JOIN players p ON sr.requested_by = p.ucid
+                    WHERE sr.id = %s
+                """, (request_id,))
+                req = await cursor.fetchone()
+
+                if not req:
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(_('Stores request not found!'), ephemeral=True)
+                    return
+
+                if req['status'] != 'pending':
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(
+                        _('Request #{} is not pending. Current status: {}').format(request_id, req['status']),
+                        ephemeral=True
+                    )
+                    return
+
+                # Deny the request
+                await conn.execute("""
+                    UPDATE logbook_stores_requests
+                    SET status = 'denied', approved_by = %s, approved_at = NOW() AT TIME ZONE 'utc'
+                    WHERE id = %s
+                """, (denier_ucid, request_id))
+
+        embed = discord.Embed(
+            title=_('Stores Request Denied'),
+            description=_('Request #{} has been denied.').format(request_id),
+            color=discord.Color.red()
+        )
+        embed.add_field(name=_('Squadron'), value=req['squadron_name'], inline=True)
+        embed.add_field(name=_('Requested By'), value=req['requester_name'], inline=True)
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+        await self.bot.audit(
+            f'denied stores request #{request_id} for squadron {req["squadron_name"]}',
+            user=interaction.user
+        )
 
 
 async def setup(bot: DCSServerBot):
