@@ -18,38 +18,44 @@ _ = get_translation(__name__.split('.')[1])
 # Autocomplete functions
 async def logbook_squadron_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     """Autocomplete for logbook squadrons."""
-    async with interaction.client.apool.connection() as conn:
-        cursor = await conn.execute(
-            "SELECT id, name FROM logbook_squadrons WHERE name ILIKE %s ORDER BY name LIMIT 25",
-            ('%' + current + '%',)
-        )
-        return [
-            app_commands.Choice(name=row[1], value=row[0])
-            async for row in cursor
-        ]
-
-
-async def logbook_squadron_admin_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    """Autocomplete for squadrons user can administer (CO/XO or DCS Admin)."""
-    async with interaction.client.apool.connection() as conn:
-        if not utils.check_roles(interaction.client.roles.get("DCS Admin", []), interaction.user):
-            ucid = await interaction.client.get_ucid_by_member(interaction.user)
-            if not ucid:
-                return []
-            cursor = await conn.execute("""
-                SELECT id, name FROM logbook_squadrons
-                WHERE (co_ucid = %s OR xo_ucid = %s) AND name ILIKE %s
-                ORDER BY name LIMIT 25
-            """, (ucid, ucid, '%' + current + '%'))
-        else:
+    try:
+        async with interaction.client.apool.connection() as conn:
             cursor = await conn.execute(
                 "SELECT id, name FROM logbook_squadrons WHERE name ILIKE %s ORDER BY name LIMIT 25",
                 ('%' + current + '%',)
             )
-        return [
-            app_commands.Choice(name=row[1], value=row[0])
-            async for row in cursor
-        ]
+            return [
+                app_commands.Choice(name=row[1], value=row[0])
+                async for row in cursor
+            ]
+    except Exception:
+        return []
+
+
+async def logbook_squadron_admin_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    """Autocomplete for squadrons user can administer (CO/XO or DCS Admin)."""
+    try:
+        async with interaction.client.apool.connection() as conn:
+            if not utils.check_roles(interaction.client.roles.get("DCS Admin", []), interaction.user):
+                ucid = await interaction.client.get_ucid_by_member(interaction.user)
+                if not ucid:
+                    return []
+                cursor = await conn.execute("""
+                    SELECT id, name FROM logbook_squadrons
+                    WHERE (co_ucid = %s OR xo_ucid = %s) AND name ILIKE %s
+                    ORDER BY name LIMIT 25
+                """, (ucid, ucid, '%' + current + '%'))
+            else:
+                cursor = await conn.execute(
+                    "SELECT id, name FROM logbook_squadrons WHERE name ILIKE %s ORDER BY name LIMIT 25",
+                    ('%' + current + '%',)
+                )
+            return [
+                app_commands.Choice(name=row[1], value=row[0])
+                async for row in cursor
+            ]
+    except Exception:
+        return []
 
 
 async def squadron_member_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -76,31 +82,37 @@ async def squadron_member_autocomplete(interaction: discord.Interaction, current
 
 async def unassigned_player_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     """Autocomplete for players not in any logbook squadron."""
-    async with interaction.client.apool.connection() as conn:
-        cursor = await conn.execute("""
-            SELECT p.name, p.ucid
-            FROM players p
-            WHERE p.ucid NOT IN (SELECT player_ucid FROM logbook_squadron_members)
-            AND p.name ILIKE %s
-            ORDER BY p.name LIMIT 25
-        """, ('%' + current + '%',))
-        return [
-            app_commands.Choice(name=row[0], value=row[1])
-            async for row in cursor
-        ]
+    try:
+        async with interaction.client.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT p.name, p.ucid
+                FROM players p
+                WHERE p.ucid NOT IN (SELECT player_ucid FROM logbook_squadron_members)
+                AND p.name ILIKE %s
+                ORDER BY p.name LIMIT 25
+            """, ('%' + current + '%',))
+            return [
+                app_commands.Choice(name=row[0], value=row[1])
+                async for row in cursor
+            ]
+    except Exception:
+        return []
 
 
 async def qualification_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     """Autocomplete for qualifications."""
-    async with interaction.client.apool.connection() as conn:
-        cursor = await conn.execute(
-            "SELECT id, name FROM logbook_qualifications WHERE name ILIKE %s ORDER BY name LIMIT 25",
-            ('%' + current + '%',)
-        )
-        return [
-            app_commands.Choice(name=row[1], value=row[0])
-            async for row in cursor
-        ]
+    try:
+        async with interaction.client.apool.connection() as conn:
+            cursor = await conn.execute(
+                "SELECT id, name FROM logbook_qualifications WHERE name ILIKE %s ORDER BY name LIMIT 25",
+                ('%' + current + '%',)
+            )
+            return [
+                app_commands.Choice(name=row[1], value=row[0])
+                async for row in cursor
+            ]
+    except Exception:
+        return []
 
 
 async def pilot_qualification_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -131,29 +143,35 @@ async def pilot_qualification_autocomplete(interaction: discord.Interaction, cur
 
 async def player_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     """Autocomplete for all players."""
-    async with interaction.client.apool.connection() as conn:
-        cursor = await conn.execute("""
-            SELECT name, ucid FROM players
-            WHERE name ILIKE %s
-            ORDER BY name LIMIT 25
-        """, ('%' + current + '%',))
-        return [
-            app_commands.Choice(name=row[0], value=row[1])
-            async for row in cursor
-        ]
+    try:
+        async with interaction.client.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT name, ucid FROM players
+                WHERE name ILIKE %s
+                ORDER BY name LIMIT 25
+            """, ('%' + current + '%',))
+            return [
+                app_commands.Choice(name=row[0], value=row[1])
+                async for row in cursor
+            ]
+    except Exception:
+        return []
 
 
 async def award_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     """Autocomplete for awards."""
-    async with interaction.client.apool.connection() as conn:
-        cursor = await conn.execute(
-            "SELECT id, name FROM logbook_awards WHERE name ILIKE %s ORDER BY name LIMIT 25",
-            ('%' + current + '%',)
-        )
-        return [
-            app_commands.Choice(name=row[1], value=row[0])
-            async for row in cursor
-        ]
+    try:
+        async with interaction.client.apool.connection() as conn:
+            cursor = await conn.execute(
+                "SELECT id, name FROM logbook_awards WHERE name ILIKE %s ORDER BY name LIMIT 25",
+                ('%' + current + '%',)
+            )
+            return [
+                app_commands.Choice(name=row[1], value=row[0])
+                async for row in cursor
+            ]
+    except Exception:
+        return []
 
 
 async def pilot_award_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -183,24 +201,27 @@ async def pilot_award_autocomplete(interaction: discord.Interaction, current: st
 
 async def flightplan_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     """Autocomplete for flight plans (user's own active plans)."""
-    ucid = await interaction.client.get_ucid_by_member(interaction.user)
-    if not ucid:
+    try:
+        ucid = await interaction.client.get_ucid_by_member(interaction.user)
+        if not ucid:
+            return []
+        async with interaction.client.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT id, callsign, departure, destination
+                FROM logbook_flight_plans
+                WHERE player_ucid = %s AND status IN ('filed', 'active')
+                AND (callsign ILIKE %s OR departure ILIKE %s OR destination ILIKE %s)
+                ORDER BY filed_at DESC LIMIT 25
+            """, (ucid, '%' + current + '%', '%' + current + '%', '%' + current + '%'))
+            return [
+                app_commands.Choice(
+                    name=f"{row[1] or 'N/A'}: {row[2] or '?'} -> {row[3] or '?'}",
+                    value=row[0]
+                )
+                async for row in cursor
+            ]
+    except Exception:
         return []
-    async with interaction.client.apool.connection() as conn:
-        cursor = await conn.execute("""
-            SELECT id, callsign, departure, destination
-            FROM logbook_flight_plans
-            WHERE player_ucid = %s AND status IN ('filed', 'active')
-            AND (callsign ILIKE %s OR departure ILIKE %s OR destination ILIKE %s)
-            ORDER BY filed_at DESC LIMIT 25
-        """, (ucid, '%' + current + '%', '%' + current + '%', '%' + current + '%'))
-        return [
-            app_commands.Choice(
-                name=f"{row[1] or 'N/A'}: {row[2] or '?'} -> {row[3] or '?'}",
-                value=row[0]
-            )
-            async for row in cursor
-        ]
 
 
 def format_hours(seconds: float) -> str:
@@ -301,27 +322,24 @@ class Logbook(Plugin[LogbookEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Check if squadron already exists
-                cursor = await conn.execute(
-                    "SELECT id FROM logbook_squadrons WHERE name = %s", (name,)
-                )
-                if await cursor.fetchone():
-                    # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(
-                        _('Squadron "{}" already exists!').format(name),
-                        ephemeral=True
-                    )
-                    return
+            # Use INSERT ... ON CONFLICT to avoid race condition
+            cursor = await conn.execute("""
+                INSERT INTO logbook_squadrons (name, abbreviation, description)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (name) DO NOTHING
+                RETURNING id
+            """, (name, abbreviation, description))
+            result = await cursor.fetchone()
 
-                # Create the squadron
-                cursor = await conn.execute("""
-                    INSERT INTO logbook_squadrons (name, abbreviation, description)
-                    VALUES (%s, %s, %s)
-                    RETURNING id
-                """, (name, abbreviation, description))
-                result = await cursor.fetchone()
-                squadron_id = result[0]
+            if not result:
+                # Squadron already exists
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(
+                    _('Squadron "{}" already exists!').format(name),
+                    ephemeral=True
+                )
+                return
+            squadron_id = result[0]
 
         embed = discord.Embed(
             title=_('Squadron Created'),
@@ -743,15 +761,17 @@ class Logbook(Plugin[LogbookEventListener]):
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("SELECT name FROM logbook_squadrons WHERE id = %s", (squadron,))
+                # Use DELETE ... RETURNING to atomically delete and get the name
+                await cursor.execute(
+                    "DELETE FROM logbook_squadrons WHERE id = %s RETURNING name",
+                    (squadron,)
+                )
                 squadron_row = await cursor.fetchone()
 
                 if not squadron_row:
                     # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(_('Squadron not found!'), ephemeral=True)
                     return
-
-                await conn.execute("DELETE FROM logbook_squadrons WHERE id = %s", (squadron,))
 
         embed = discord.Embed(
             title=_('Squadron Deleted'),
@@ -782,27 +802,24 @@ class Logbook(Plugin[LogbookEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Check if qualification already exists
-                cursor = await conn.execute(
-                    "SELECT id FROM logbook_qualifications WHERE name = %s", (name,)
-                )
-                if await cursor.fetchone():
-                    # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(
-                        _('Qualification "{}" already exists!').format(name),
-                        ephemeral=True
-                    )
-                    return
+            # Use INSERT ... ON CONFLICT to avoid race condition
+            cursor = await conn.execute("""
+                INSERT INTO logbook_qualifications (name, description, aircraft_type, valid_days)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (name) DO NOTHING
+                RETURNING id
+            """, (name, description, aircraft_type, valid_days))
+            result = await cursor.fetchone()
 
-                # Create the qualification
-                cursor = await conn.execute("""
-                    INSERT INTO logbook_qualifications (name, description, aircraft_type, valid_days)
-                    VALUES (%s, %s, %s, %s)
-                    RETURNING id
-                """, (name, description, aircraft_type, valid_days))
-                result = await cursor.fetchone()
-                qual_id = result[0]
+            if not result:
+                # Qualification already exists
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(
+                    _('Qualification "{}" already exists!').format(name),
+                    ephemeral=True
+                )
+                return
+            qual_id = result[0]
 
         embed = discord.Embed(
             title=_('Qualification Created'),
@@ -1241,15 +1258,17 @@ class Logbook(Plugin[LogbookEventListener]):
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("SELECT name FROM logbook_qualifications WHERE id = %s", (qualification,))
+                # Use DELETE ... RETURNING to atomically delete and get the name
+                await cursor.execute(
+                    "DELETE FROM logbook_qualifications WHERE id = %s RETURNING name",
+                    (qualification,)
+                )
                 qual_row = await cursor.fetchone()
 
                 if not qual_row:
                     # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(_('Qualification not found!'), ephemeral=True)
                     return
-
-                await conn.execute("DELETE FROM logbook_qualifications WHERE id = %s", (qualification,))
 
         embed = discord.Embed(
             title=_('Qualification Deleted'),
@@ -1295,27 +1314,24 @@ class Logbook(Plugin[LogbookEventListener]):
                 return
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Check if award already exists
-                cursor = await conn.execute(
-                    "SELECT id FROM logbook_awards WHERE name = %s", (name,)
-                )
-                if await cursor.fetchone():
-                    # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(
-                        _('Award "{}" already exists!').format(name),
-                        ephemeral=True
-                    )
-                    return
+            # Use INSERT ... ON CONFLICT to avoid race condition
+            cursor = await conn.execute("""
+                INSERT INTO logbook_awards (name, description, image_url, ribbon_colors)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (name) DO NOTHING
+                RETURNING id
+            """, (name, description, image_url, json.dumps(colors_json) if colors_json else None))
+            result = await cursor.fetchone()
 
-                # Create the award
-                cursor = await conn.execute("""
-                    INSERT INTO logbook_awards (name, description, image_url, ribbon_colors)
-                    VALUES (%s, %s, %s, %s)
-                    RETURNING id
-                """, (name, description, image_url, json.dumps(colors_json) if colors_json else None))
-                result = await cursor.fetchone()
-                award_id = result[0]
+            if not result:
+                # Award already exists
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(
+                    _('Award "{}" already exists!').format(name),
+                    ephemeral=True
+                )
+                return
+            award_id = result[0]
 
         embed = discord.Embed(
             title=_('Award Created'),
@@ -1617,15 +1633,17 @@ class Logbook(Plugin[LogbookEventListener]):
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("SELECT name FROM logbook_awards WHERE id = %s", (award,))
+                # Use DELETE ... RETURNING to atomically delete and get the name
+                await cursor.execute(
+                    "DELETE FROM logbook_awards WHERE id = %s RETURNING name",
+                    (award,)
+                )
                 award_row = await cursor.fetchone()
 
                 if not award_row:
                     # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(_('Award not found!'), ephemeral=True)
                     return
-
-                await conn.execute("DELETE FROM logbook_awards WHERE id = %s", (award,))
 
         embed = discord.Embed(
             title=_('Award Deleted'),
