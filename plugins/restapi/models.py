@@ -645,7 +645,7 @@ class AirbaseWarehouseResponse(BaseModel):
             "example": {
                 "warehouse": {
                     "liquids": {
-                        "0": 324730.28125,
+                        "0": 500000,
                         "1": 500000,
                         "2": 500000,
                         "3": 500000
