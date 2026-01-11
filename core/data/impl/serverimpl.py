@@ -1030,6 +1030,7 @@ class ServerImpl(Server):
 
         # we should not reload the running mission
         if no_reload and mission == current_mission:
+            self.log.debug("Skipping loadMission(current_mission) as no_reload is True.")
             return None
 
         if modify_mission:
@@ -1057,16 +1058,19 @@ class ServerImpl(Server):
             try:
                 idx = mission_list.index(filename) + 1
                 if idx == current_index:
+                    self.log.debug(f"loadMission(): {idx} == current_index, startMission({filename})")
                     rc = await self.send_to_dcs_sync({
                         "command": "startMission",
                         "filename": filename
                     }, timeout=timeout)
                 else:
+                    self.log.debug(f"loadMission(): startMission({idx})")
                     rc = await self.send_to_dcs_sync({
                         "command": "startMission",
                         "id": idx
                     }, timeout=timeout)
             except ValueError:
+                self.log.debug(f"loadMission(): Can't find index, startMission({filename})")
                 rc = await self.send_to_dcs_sync({
                     "command": "startMission",
                     "filename": filename
