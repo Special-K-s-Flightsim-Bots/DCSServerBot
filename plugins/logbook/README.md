@@ -9,6 +9,12 @@ A comprehensive pilot logbook and squadron management plugin for DCSServerBot. P
 - **Qualifications**: Define qualifications with optional expiration, auto-grant based on requirements
 - **Awards**: Create awards with custom ribbon colors, generate ribbon rack images
 - **Flight Plans**: File, track, and manage flight plans with status workflow
+- **Stores Requests**: Submit and track logistics/stores requests with approval workflow
+
+## Requirements
+
+- **userstats plugin** must be enabled (provides the `statistics` table used for pilot stats)
+- **greenieboard plugin** (optional) - enables carrier landing counts for auto-grant qualifications
 
 ## Installation
 
@@ -38,20 +44,20 @@ DEFAULT:
 |---------|-------------|------|
 | `/logbook stats [user]` | Show pilot flight statistics | DCS |
 
-### Squadron Commands (`/squadron`)
+### Squadron Commands (`/logbook squadron`)
 
 | Command | Description | Role |
 |---------|-------------|------|
-| `/squadron list` | List all squadrons | DCS |
-| `/squadron info <squadron>` | Show squadron details | DCS |
-| `/squadron roster <squadron>` | Show squadron roster with stats | DCS |
-| `/squadron create <name> [abbreviation] [description]` | Create a new squadron | DCS Admin |
-| `/squadron delete <squadron>` | Delete a squadron | DCS Admin |
-| `/squadron assign <squadron> <user> [rank] [position]` | Assign pilot to squadron | DCS Admin |
-| `/squadron remove <squadron> <member>` | Remove pilot from squadron | DCS Admin |
-| `/squadron promote <squadron> <member> <rank>` | Update member's rank | DCS Admin |
-| `/squadron setco <squadron> <member>` | Set Commanding Officer | DCS Admin |
-| `/squadron setxo <squadron> <member>` | Set Executive Officer | DCS Admin |
+| `/logbook squadron list` | List all squadrons | DCS |
+| `/logbook squadron info <squadron>` | Show squadron details | DCS |
+| `/logbook squadron roster <squadron>` | Show squadron roster with stats | DCS |
+| `/logbook squadron create <name> [abbreviation] [description]` | Create a new squadron | DCS Admin |
+| `/logbook squadron delete <squadron>` | Delete a squadron | DCS Admin |
+| `/logbook squadron assign <squadron> <user> [rank] [position]` | Assign pilot to squadron | DCS Admin |
+| `/logbook squadron remove <squadron> <member>` | Remove pilot from squadron | DCS Admin |
+| `/logbook squadron promote <squadron> <member> <rank>` | Update member's rank | DCS Admin |
+| `/logbook squadron setco <squadron> <member>` | Set Commanding Officer | DCS Admin |
+| `/logbook squadron setxo <squadron> <member>` | Set Executive Officer | DCS Admin |
 
 ### Qualification Commands (`/qualification`)
 
@@ -88,6 +94,16 @@ DEFAULT:
 | `/flightplan activate <plan>` | Activate a filed plan | DCS |
 | `/flightplan complete <plan>` | Mark plan as completed | DCS |
 | `/flightplan cancel <plan>` | Cancel a flight plan | DCS |
+
+### Stores Request Commands (`/stores`)
+
+| Command | Description | Role |
+|---------|-------------|------|
+| `/stores request <items>` | Submit a stores/logistics request | DCS |
+| `/stores list [status] [user]` | List stores requests | DCS |
+| `/stores view <request>` | View request details | DCS |
+| `/stores approve <request>` | Approve a stores request | DCS Admin |
+| `/stores deny <request> [reason]` | Deny a stores request | DCS Admin |
 
 ## Auto-Grant Qualifications
 
