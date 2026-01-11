@@ -11,7 +11,7 @@ import stat
 import subprocess
 import sys
 
-from core import Extension, utils, Server, get_translation, PortType, Port
+from core import Extension, utils, Server, get_translation, PortType, Port, ProcessManager
 from threading import Thread
 from typing import cast
 from typing_extensions import override
@@ -72,6 +72,13 @@ class Olympus(Extension):
             self.process: psutil.Process | None = next(utils.find_process(os.path.basename(self.nodejs),
                                                                           self.server.instance.name), None)
             if self.process:
+                ProcessManager().assign_process(
+                    self.process,
+                    min_cores=self.config.get('auto_affinity', {}).get('min_cores', 1),
+                    max_cores=self.config.get('auto_affinity', {}).get('max_cores', 1),
+                    quality=self.config.get('auto_affinity', {}).get('quality', 1),
+                    instance=server.instance.name
+                )
                 self.log.debug("- Running Olympus process found.")
 
         if self.version == '1.0.3.0':
@@ -262,7 +269,7 @@ class Olympus(Extension):
                 self.log.log(level, "{name}: {message}".format(
                     name=self.name, message=ANSI_ESCAPE_RE.sub('', line.rstrip())))
 
-        def run_subprocess():
+        def run_subprocess() -> psutil.Process | None:
             out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
             err = subprocess.PIPE if self.config.get('debug', False) else subprocess.STDOUT
             path = os.path.expandvars(
@@ -272,20 +279,23 @@ class Olympus(Extension):
             else:
                 frontend_exe = os.path.join(path, 'bin', 'www')
             if not os.path.exists(frontend_exe):
-                self.log.error(f"Path {frontend_exe} does not exist, can't launch Olympus!")
-                return False
+                raise AttributeError(f"Path {frontend_exe} does not exist, can't launch Olympus!")
             args = [self.nodejs, frontend_exe]
             if self.version != '1.0.3.0':
                 args.append('--config')
                 args.append(self.config_path)
             self.log.debug("Launching {}".format(' '.join(args)))
-            proc = subprocess.Popen(
+            proc = ProcessManager().launch_process(
                 args,
                 cwd=path,
                 stdout=out,
                 stderr=err,
                 close_fds=True,
-                universal_newlines=True
+                universal_newlines=True,
+                min_cores=self.config.get('auto_affinity', {}).get('min_cores', 1),
+                max_cores=self.config.get('auto_affinity', {}).get('max_cores', 1),
+                quality=self.config.get('auto_affinity', {}).get('quality', 1),
+                instance=self.server.instance.name
             )
             if self.config.get('debug', False):
                 Thread(target=log_output, args=(proc.stdout,logging.DEBUG), daemon=True).start()
@@ -296,9 +306,8 @@ class Olympus(Extension):
             async with self.lock:
                 if self.is_running():
                     return True
-                p = await asyncio.to_thread(run_subprocess)
                 try:
-                    self.process = psutil.Process(p.pid)
+                    self.process = await asyncio.to_thread(run_subprocess)
                 except (AttributeError, psutil.NoSuchProcess):
                     self.log.error(f"Failed to start Olympus server, enable debug in the extension.")
                     return False

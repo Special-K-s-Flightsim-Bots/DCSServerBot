@@ -225,7 +225,7 @@ function fillCoalitionsData(color)
                 coalitionColor.units[category] = {}
             end
             for _, unit in pairs(Group.getUnits(group)) do
-                if unit:isActive() and unit:isExist() then
+                if unit:isExist() and unit:isActive() then
                     table.insert(coalitionColor.units[category], unit:getName())
                 end
             end

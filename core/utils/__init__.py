@@ -1,7 +1,3 @@
-import sys
-if sys.platform == 'win32':
-    from core.utils.cpu import *
-
 from core.utils.campaigns import *
 from core.utils.coalitions import *
 from core.utils.dcs import *

@@ -436,12 +436,15 @@ class NodeProxy(Node):
 
     @override
     @async_cache
-    async def get_cpu_info(self) -> bytes | int:
+    async def get_cpu_info(self, used: bool = True) -> bytes | int:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
-            "method": "get_cpu_info"
+            "method": "get_cpu_info",
+            "params": {
+                "used": used
+            }
         }, timeout=timeout, node=self.name)
         async with self.apool.connection() as conn:
             async with conn.transaction():

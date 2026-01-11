@@ -31,6 +31,10 @@ MyNode:
   extensions:
     Olympus:
       nodejs: '%ProgramFiles%\nodejs'
+      auto_affinity:                    # Optional: affinity settings
+        min_cores: 1                    # Min cores to be used by node.js (default: 1)
+        max_cores: 1                    # Max cores to be used by node.js (default: 1)
+        quality: 1                      # Core quality (0 = low (E-cores), 1 = normal, 2 = high, default: 1)
   # [...]
   instances:
     DCS.dcs_serverrelease:
@@ -41,7 +45,7 @@ MyNode:
           show_passwords: true            # show passwords in your server status embed (default: false)
           url: http://myfancyurl:3000/    # optional: your own URL, if available
           backend:
-            port: 3001                    # server port for DCS Olympus internal communication (needs to be unique)                   
+            port: 4512                    # server port for DCS Olympus internal communication (needs to be unique)                   
           authentication:
             gameMasterPassword: secret    # Game Master password
             blueCommanderPassword: blue   # Blue Tactical Commander password

@@ -7,6 +7,7 @@ import discord
 import faulthandler
 import logging
 import os
+import psutil
 import psycopg
 import sys
 import time
@@ -21,8 +22,8 @@ from typing import Any, Coroutine
 try:
     from core import (
         NodeImpl, ServiceRegistry, ServiceInstallationError, utils, YAMLError, FatalException, COMMAND_LINE_ARGS,
-        CloudRotatingFileHandler, wait_for_internet
-)
+        CloudRotatingFileHandler, wait_for_internet, ProcessManager
+    )
     from pid import PidFile, PidFileError
     from rich import print
     from rich.console import Console
@@ -156,6 +157,17 @@ class Main:
             self.log.warning(
                 "New update for DCSServerBot available!\nUse /node upgrade or enable autoupdate to apply it.")
 
+        me = psutil.Process(os.getpid())
+        ProcessManager(
+            auto_affinity=self.node.locals.get('auto_affinity', {}).get('enabled', False),
+            excluded_cores=self.node.locals.get('auto_affinity', {}).get('excluded_cores', [])
+        ).assign_process(
+            me,
+            min_cores=self.node.locals.get('auto_affinity', {}).get('min_cores', 1),
+            max_cores=self.node.locals.get('auto_affinity', {}).get('max_cores', 2),
+            quality=self.node.locals.get('auto_affinity', {}).get('quality', 1),
+            instance='DCSServerBot'
+        )
         await self.node.register()
         db_available = True
         async with ServiceRegistry(node=self.node) as registry:

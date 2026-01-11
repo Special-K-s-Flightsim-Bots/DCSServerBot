@@ -7,7 +7,6 @@ import luadata
 import os
 import psutil
 import shutil
-import subprocess
 import sys
 import tempfile
 import traceback
@@ -23,9 +22,10 @@ from core import utils, Server
 from core.const import MAX_SAFE_INTEGER
 from core.data.dataobject import DataObjectFactory
 from core.data.const import Status, Channel, Coalition
+from core.data.node import UploadStatus
 from core.extension import Extension, InstallException, UninstallException
 from core.mizfile import MizFile
-from core.data.node import UploadStatus
+from core.process import ProcessManager
 from core.utils.performance import performance_log
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -548,21 +548,27 @@ class ServerImpl(Server):
             self.log.warning('Removed non-existent missions from serverSettings.lua')
         self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.instance.name))
         try:
-            p = subprocess.Popen(
-                [exe, '--server', '--norender', '-w', self.instance.name], executable=path, close_fds=True
+            # Old affinity (now deprecated)
+            affinity = self.locals.get('affinity')
+            if isinstance(affinity, str):
+                affinity = [int(x.strip()) for x in affinity.split(',')]
+            elif isinstance(affinity, int):
+                affinity = [affinity]
+
+            # Launch the process
+            self.process = ProcessManager().launch_process(
+                [exe, '--server', '--norender', '-w', self.instance.name],
+                executable=path,
+                close_fds=True,
+                affinity=affinity,
+                min_cores=self.locals.get('auto_affinity', {}).get('min_cores', 1),
+                max_cores=self.locals.get('auto_affinity', {}).get('max_cores', 2),
+                quality=self.locals.get('auto_affinity', {}).get('quality', 3),
+                instance=self.instance.name
             )
-            self.process = psutil.Process(p.pid)
             if 'priority' in self.locals:
                 self.set_priority(self.locals.get('priority'))
-            if 'affinity' in self.locals:
-                self.set_affinity(self.locals.get('affinity'))
-            else:
-                # make sure that we only use P-cores for DCS servers
-                e_core_affinity = utils.get_e_core_affinity()
-                if e_core_affinity:
-                    self.log.info(f"  => P/E-Core CPU detected.")
-                    self.set_affinity(utils.get_cpus_from_affinity(utils.get_p_core_affinity()))
-            self.log.info(f"  => DCS server starting up with PID {p.pid}")
+            self.log.info(f"  => DCS server starting up with PID {self.process.pid}")
         except Exception:
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
             self.process = None
@@ -648,14 +654,6 @@ class ServerImpl(Server):
             p = psutil.NORMAL_PRIORITY_CLASS
         self.process.nice(p)
 
-    def set_affinity(self, affinity: list[int] | str):
-        if isinstance(affinity, str):
-            affinity = [int(x.strip()) for x in affinity.split(',')]
-        elif isinstance(affinity, int):
-            affinity = [affinity]
-        self.log.info("  => Setting process affinity to {}".format(','.join(map(str, affinity))))
-        self.process.cpu_affinity(affinity)
-
     @override
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
         if not utils.is_desanitized(self.node):
@@ -738,6 +736,13 @@ class ServerImpl(Server):
             if not self.process or not self.process.is_running():
                 self.process = await asyncio.to_thread(
                     lambda: next(utils.find_process("DCS_server.exe|DCS.exe", self.instance.name), None)
+                )
+                ProcessManager().assign_process(
+                    self.process,
+                    min_cores=self.locals.get('affinity', {}).get('min_cores', 1),
+                    max_cores=self.locals.get('affinity', {}).get('max_cores', 2),
+                    quality=self.locals.get('affinity', {}).get('quality', 3),
+                    instance=self.instance.name
                 )
             return self.process is not None
 

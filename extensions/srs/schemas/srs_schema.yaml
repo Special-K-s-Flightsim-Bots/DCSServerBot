@@ -6,6 +6,13 @@ schema;node_srs_schema:
     installation: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
     autoupdate: {type: bool, nullable: false}
     use_upnp: {type: bool, nullable: false}
+    auto_affinity:
+      type: map
+      nullable: false
+      mapping:
+        min_cores: {type: int, nullable: false, range: {min: 1, max: 1}}
+        max_cores: {type: int, nullable: false, range: {min: 1, max: 1}}
+        quality: {type: int, nullable: false, range: {min: 0, max: 1}}
     announce:
       type: map
       nullable: false
@@ -46,6 +53,13 @@ schema;instance_srs_schema:
     config: {type: str, required: true, nullable: false}
     host: {type: str, nullable: false, range: {min: 1}}
     port: {type: int, nullable: false, func: unique_port}
+    auto_affinity:
+      type: map
+      nullable: false
+      mapping:
+        min_cores: {type: int, nullable: false, range: {min: 1, max: 1}}
+        max_cores: {type: int, nullable: false, range: {min: 1, max: 1}}
+        quality: {type: int, nullable: false, range: {min: 0, max: 1}}
     gui_server: {type: bool, nullable: false}
     minimized: {type: bool, nullable: false}
     debug: {type: bool, nullable: false}

@@ -371,6 +371,12 @@ NODENAME:                       # this will usually be your hostname
     no_master: false            # Cluster only: this node should never be a master node (default: false)
     heartbeat: 30               # Cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
     cloud_drive: true           # Cluster only: set this to false if you do not have the bot installed on a cloud drive (default and recommended: true) 
+  auto_affinity:                # Optional / Experimental: auto-affinity settings
+    enabled: true               # Enabled auto-affinity **for the whole node** (default = false)
+    excluded_cores: [0, 1]      # Optional: exclude cores from auto-affinity.
+    min_cores: 1                # Min number of cores to be used for the bot itself (default: 1)
+    max_cores: 2                # Max number of cores to be used for the bot itself (default: 2)
+    quality: 1                  # Quality of the requested CPU cores (0 = low, 1 = medium, 2 = high, default: 1)
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.
@@ -412,7 +418,11 @@ NODENAME:                       # this will usually be your hostname
       webgui_port: 8088         # The port of the WebGUI (default: 8088)
       dcs_port: 10308           # The DCS port of this instance (default: 10308)
       max_hung_minutes: 3       # Let DCSServerBot kill your server if it is unresponsive for more than x minutes. Default is 3. Disable it with 0.
-      affinity: 2,3             # Optional: set the CPU-affinity for the DCS_Server.exe.
+      affinity: 2,3             # Deprecated: set the CPU-affinity for the DCS_Server.exe (use auto_affinity instead)
+      auto_affinity:            # Optional: configure CPU affinity
+        min_cores: 1            # Min. number of cores to be used (default: 1)
+        max_cores: 2            # Max. number of cores to be used (default: 2)
+        quality: 3              # Core quality (1 = normal, 2 = high, 3 = reserved for DCS only, default: 3)
       priority: normal          # Optional: set the process priority (low, normal, high, realtime) for the DCS_Server.exe
       extensions:               # See the extension documentation for more detailed information on what to set here.
         SRS:

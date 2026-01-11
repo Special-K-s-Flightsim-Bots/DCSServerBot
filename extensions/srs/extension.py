@@ -18,7 +18,7 @@ import zipfile
 from configparser import RawConfigParser
 from contextlib import suppress
 from core import (Extension, utils, ServiceRegistry, Autoexec, get_translation, InstallException, Server,
-                  ServerMaintenanceManager, PortType, Port)
+                  ServerMaintenanceManager, PortType, Port, ProcessManager)
 from discord.ext import tasks
 from io import BytesIO
 from packaging.version import parse
@@ -264,7 +264,7 @@ class SRS(Extension, FileSystemEventHandler):
                     # Log the decoded line
                     self.log.log(level, f"{self.name}: {line}")
 
-            def run_subprocess():
+            def run_subprocess() -> psutil.Process:
                 if sys.platform == 'win32' and self.config.get('minimized', True):
                     import win32process
                     import win32con
@@ -279,12 +279,20 @@ class SRS(Extension, FileSystemEventHandler):
                 # we want the SRS logfile in our normal logs folder
                 cwd = os.path.join(self.server.instance.home, 'Logs')
 
-                proc = subprocess.Popen(
+                proc = ProcessManager().launch_process(
                     [
                         self.get_exe_path(),
                         f"-cfg={self.get_config_path()}"
                     ],
-                    cwd=cwd, startupinfo=info, stdout=out, stderr=err, close_fds=True
+                    cwd=cwd,
+                    startupinfo=info,
+                    stdout=out,
+                    stderr=err,
+                    close_fds=True,
+                    min_cores=self.config.get('auto_affinity', {}).get('min_cores', 1),
+                    max_cores=self.config.get('auto_affinity', {}).get('max_cores', 1),
+                    quality=self.config.get('auto_affinity', {}).get('quality', 0),
+                    instance=self.server.instance.name
                 )
 
                 if self.config.get('debug', False):
@@ -297,8 +305,7 @@ class SRS(Extension, FileSystemEventHandler):
                 async with type(self)._lock:
                     if self.is_running():
                         return True
-                    p = await asyncio.to_thread(run_subprocess)
-                    self.process = psutil.Process(p.pid)
+                    self.process = await asyncio.to_thread(run_subprocess)
                     if not self.observer:
                         self.start_observer()
             except psutil.NoSuchProcess:
@@ -417,6 +424,14 @@ class SRS(Extension, FileSystemEventHandler):
             running = self.process is not None and self.process.is_running()
             if not running:
                 self.log.debug("SRS: is NOT running (process)")
+            else:
+                ProcessManager().assign_process(
+                    self.process,
+                    min_cores=self.config.get('auto_affinity', {}).get('min_cores', 1),
+                    max_cores=self.config.get('auto_affinity', {}).get('max_cores', 1),
+                    quality=self.config.get('auto_affinity', {}).get('quality', 0),
+                    instance=self.server.instance.name
+                )
         else:
             server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
             if server_ip == '0.0.0.0':
@@ -542,9 +557,17 @@ class SRS(Extension, FileSystemEventHandler):
                     with zipfile.ZipFile(BytesIO(await response.content.read())) as z:
                         # stop any existing SRS process
                         if parse(self.version) >= parse('2.2.0.0'):
-                            srs_exes = ['SR-ClientRadio.exe', 'SRS-Server.exe', 'SRS-Server-Commandline.exe']
+                            srs_exes = [
+                                'SR-ClientRadio.exe',
+                                'SRS-Server.exe',
+                                'SRS-Server-Commandline.exe',
+                                'DCS-SR-ExternalAudio.exe'
+                            ]
                         else:
-                            srs_exes = ['SR-Server.exe']
+                            srs_exes = [
+                                'SR-Server.exe',
+                                'DCS-SR-ExternalAudio.exe'
+                            ]
                         for exe in srs_exes:
                             for process in utils.find_process(os.path.basename(exe)):
                                 if process and process.is_running():

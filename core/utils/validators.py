@@ -148,8 +148,10 @@ def deprecated(value, rule_obj, path):
     message = f'Parameter "{os.path.basename(path)}" is deprecated.'
     enum = rule_obj.schema_str.get('enum', [])
     if enum:
-        message += ' ' + enum[0]
-    raise SchemaError(msg=message, path=path)
+        message += ' ' + ' '.join(enum)
+    message += f' Path "{path}"'
+    logger.warning(message)
+    return True
 
 def obsolete(value, rule_obj, path):
     if _is_valid(path):

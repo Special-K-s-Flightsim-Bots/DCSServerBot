@@ -1230,9 +1230,6 @@ class NodeImpl(Node):
             proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             return proc.communicate(timeout=timeout)
 
-        if self.locals.get('restrict_commands', False):
-            raise discord.app_commands.CheckFailure("Shell commands are restricted on this node!")
-
         self.log.debug('Running shell-command: ' + cmd)
         try:
             stdout, stderr = await asyncio.to_thread(run_subprocess)
@@ -1792,20 +1789,26 @@ class NodeImpl(Node):
         return True
 
     @override
-    async def get_cpu_info(self) -> bytes | int:
-        def create_image() -> bytes:
-            p_core_affinity_mask = utils.get_p_core_affinity()
-            e_core_affinity_mask = utils.get_e_core_affinity()
-            buffer = utils.create_cpu_topology_visualization(utils.get_cpus_from_affinity(p_core_affinity_mask),
-                                                             utils.get_cpus_from_affinity(e_core_affinity_mask),
-                                                             utils.get_cache_info())
-            try:
-                return buffer.getvalue()
-            finally:
-                buffer.close()
+    async def get_cpu_info(self, used: bool = True) -> bytes | int:
+        from core.process import (ProcessManager, create_cpu_topology_visualization, get_cpus_from_affinity,
+                                  get_cache_info, get_p_core_affinity, get_e_core_affinity)
+
+        def create_image(used: bool) -> bytes:
+            if used:
+                return ProcessManager().visualize_usage()
+            else:
+                p_core_affinity_mask = get_p_core_affinity()
+                e_core_affinity_mask = get_e_core_affinity()
+                buffer = create_cpu_topology_visualization(get_cpus_from_affinity(p_core_affinity_mask),
+                                                           get_cpus_from_affinity(e_core_affinity_mask),
+                                                           get_cache_info())
+                try:
+                    return buffer.getvalue()
+                finally:
+                    buffer.close()
 
         if self.node.master:
-            return create_image()
+            return create_image(used)
         else:
             async with self.apool.connection() as conn:
                 async with conn.transaction():
@@ -1813,7 +1816,7 @@ class NodeImpl(Node):
                         INSERT INTO files (guild_id, name, data) 
                         VALUES (%s, %s, %s)
                         RETURNING id
-                    """, (self.guild_id, 'cpuinfo', psycopg.Binary(create_image())))
+                    """, (self.guild_id, 'cpuinfo', psycopg.Binary(create_image(used))))
                     return (await cursor.fetchone())[0]
 
     @override
