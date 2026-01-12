@@ -1,5 +1,6 @@
 import discord
 import io
+import json
 import logging
 
 from core import Plugin, PluginRequiredError, utils, get_translation
@@ -8,7 +9,6 @@ from discord import app_commands
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from typing import Optional
-import json
 
 from .listener import LogbookEventListener
 from .utils.ribbon import create_ribbon_rack, HAS_IMAGING

@@ -181,9 +181,11 @@ class ModManager(Plugin):
                             update += latest + '\n'
                         else:
                             update += '_ _\n'
-                    derived.embed.add_field(name=_('Mod'), value=packages)
-                    derived.embed.add_field(name=_('Version'), value=versions)
-                    derived.embed.add_field(name=_('Update'), value=update)
+                    derived.embed.add_field(name=_('Mod'), value=packages[:1024])
+                    derived.embed.add_field(name=_('Version'), value=versions[:1024])
+                    derived.embed.add_field(name=_('Update'), value=update[:1024])
+                    if len(packages) > 1024 or len(versions) > 1024 or len(update) > 1024:
+                        derived.embed.set_footer(text=_("List was truncated."))
                 else:
                     derived.embed.add_field(name='_ _', value=_('There are no mods installed.'), inline=False)
 

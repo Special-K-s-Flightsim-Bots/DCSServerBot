@@ -737,13 +737,6 @@ class ServerImpl(Server):
                 self.process = await asyncio.to_thread(
                     lambda: next(utils.find_process("DCS_server.exe|DCS.exe", self.instance.name), None)
                 )
-                ProcessManager().assign_process(
-                    self.process,
-                    min_cores=self.locals.get('affinity', {}).get('min_cores', 1),
-                    max_cores=self.locals.get('affinity', {}).get('max_cores', 2),
-                    quality=self.locals.get('affinity', {}).get('quality', 3),
-                    instance=self.instance.name
-                )
             return self.process is not None
 
     async def _terminate(self) -> None:

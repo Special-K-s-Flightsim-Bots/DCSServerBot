@@ -40,70 +40,70 @@ DEFAULT:
 
 ### Logbook Commands (`/logbook`)
 
-| Command | Description | Role |
-|---------|-------------|------|
-| `/logbook stats [user]` | Show pilot flight statistics | DCS |
+| Command                 | Description                  | Role   |
+|-------------------------|------------------------------|--------|
+| `/logbook stats [user]` | Show pilot flight statistics | DCS    |
 
 ### Squadron Commands (`/logbook squadron`)
 
-| Command | Description | Role |
-|---------|-------------|------|
-| `/logbook squadron list` | List all squadrons | DCS |
-| `/logbook squadron info <squadron>` | Show squadron details | DCS |
-| `/logbook squadron roster <squadron>` | Show squadron roster with stats | DCS |
-| `/logbook squadron create <name> [abbreviation] [description]` | Create a new squadron | DCS Admin |
-| `/logbook squadron delete <squadron>` | Delete a squadron | DCS Admin |
-| `/logbook squadron assign <squadron> <user> [rank] [position]` | Assign pilot to squadron | DCS Admin |
-| `/logbook squadron remove <squadron> <member>` | Remove pilot from squadron | DCS Admin |
-| `/logbook squadron promote <squadron> <member> <rank>` | Update member's rank | DCS Admin |
-| `/logbook squadron setco <squadron> <member>` | Set Commanding Officer | DCS Admin |
-| `/logbook squadron setxo <squadron> <member>` | Set Executive Officer | DCS Admin |
+| Command                                                        | Description                     | Role      |
+|----------------------------------------------------------------|---------------------------------|-----------|
+| `/logbook squadron list`                                       | List all squadrons              | DCS       |
+| `/logbook squadron info <squadron>`                            | Show squadron details           | DCS       |
+| `/logbook squadron roster <squadron>`                          | Show squadron roster with stats | DCS       |
+| `/logbook squadron create <name> [abbreviation] [description]` | Create a new squadron           | DCS Admin |
+| `/logbook squadron delete <squadron>`                          | Delete a squadron               | DCS Admin |
+| `/logbook squadron assign <squadron> <user> [rank] [position]` | Assign pilot to squadron        | DCS Admin |
+| `/logbook squadron remove <squadron> <member>`                 | Remove pilot from squadron      | DCS Admin |
+| `/logbook squadron promote <squadron> <member> <rank>`         | Update member's rank            | DCS Admin |
+| `/logbook squadron setco <squadron> <member>`                  | Set Commanding Officer          | DCS Admin |
+| `/logbook squadron setxo <squadron> <member>`                  | Set Executive Officer           | DCS Admin |
 
 ### Qualification Commands (`/qualification`)
 
-| Command | Description | Role |
-|---------|-------------|------|
-| `/qualification list [user]` | List qualifications or pilot's qualifications | DCS |
-| `/qualification info <qualification>` | Show qualification details | DCS |
-| `/qualification create <name> [description] [aircraft_type] [valid_days]` | Create qualification | DCS Admin |
-| `/qualification delete <qualification>` | Delete qualification | DCS Admin |
-| `/qualification grant <user> <qualification>` | Grant qualification to pilot | DCS Admin |
-| `/qualification revoke <user> <qualification>` | Revoke qualification from pilot | DCS Admin |
-| `/qualification refresh <user> <qualification>` | Refresh expiration date | DCS Admin |
-| `/qualification expiring [days]` | List qualifications expiring soon | DCS Admin |
+| Command                                                                   | Description                                   | Role      |
+|---------------------------------------------------------------------------|-----------------------------------------------|-----------|
+| `/qualification list [user]`                                              | List qualifications or pilot's qualifications | DCS       |
+| `/qualification info <qualification>`                                     | Show qualification details                    | DCS       |
+| `/qualification create <name> [description] [aircraft_type] [valid_days]` | Create qualification                          | DCS Admin |
+| `/qualification delete <qualification>`                                   | Delete qualification                          | DCS Admin |
+| `/qualification grant <user> <qualification>`                             | Grant qualification to pilot                  | DCS Admin |
+| `/qualification revoke <user> <qualification>`                            | Revoke qualification from pilot               | DCS Admin |
+| `/qualification refresh <user> <qualification>`                           | Refresh expiration date                       | DCS Admin |
+| `/qualification expiring [days]`                                          | List qualifications expiring soon             | DCS Admin |
 
 ### Award Commands (`/award`)
 
-| Command | Description | Role |
-|---------|-------------|------|
-| `/award list [user]` | List awards or pilot's awards | DCS |
-| `/award info <award>` | Show award details | DCS |
-| `/award ribbon [user]` | Generate ribbon rack image | DCS |
-| `/award create <name> [description] [ribbon_colors] [image_url]` | Create award | DCS Admin |
-| `/award delete <award>` | Delete award | DCS Admin |
-| `/award grant <user> <award> [citation]` | Grant award to pilot | DCS Admin |
-| `/award revoke <user> <award>` | Revoke award from pilot | DCS Admin |
+| Command                                                          | Description                   | Role      |
+|------------------------------------------------------------------|-------------------------------|-----------|
+| `/award list [user]`                                             | List awards or pilot's awards | DCS       |
+| `/award info <award>`                                            | Show award details            | DCS       |
+| `/award ribbon [user]`                                           | Generate ribbon rack image    | DCS       |
+| `/award create <name> [description] [ribbon_colors] [image_url]` | Create award                  | DCS Admin |
+| `/award delete <award>`                                          | Delete award                  | DCS Admin |
+| `/award grant <user> <award> [citation]`                         | Grant award to pilot          | DCS Admin |
+| `/award revoke <user> <award>`                                   | Revoke award from pilot       | DCS Admin |
 
 ### Flight Plan Commands (`/flightplan`)
 
-| Command | Description | Role |
-|---------|-------------|------|
-| `/flightplan file <callsign> <aircraft_type> <departure> <destination> [alternate] [route] [remarks]` | File a flight plan | DCS |
-| `/flightplan view <plan>` | View flight plan details | DCS |
-| `/flightplan list [status] [user]` | List flight plans | DCS |
-| `/flightplan activate <plan>` | Activate a filed plan | DCS |
-| `/flightplan complete <plan>` | Mark plan as completed | DCS |
-| `/flightplan cancel <plan>` | Cancel a flight plan | DCS |
+| Command                                                                                               | Description              | Role  |
+|-------------------------------------------------------------------------------------------------------|--------------------------|-------|
+| `/flightplan file <callsign> <aircraft_type> <departure> <destination> [alternate] [route] [remarks]` | File a flight plan       | DCS   |
+| `/flightplan view <plan>`                                                                             | View flight plan details | DCS   |
+| `/flightplan list [status] [user]`                                                                    | List flight plans        | DCS   |
+| `/flightplan activate <plan>`                                                                         | Activate a filed plan    | DCS   |
+| `/flightplan complete <plan>`                                                                         | Mark plan as completed   | DCS   |
+| `/flightplan cancel <plan>`                                                                           | Cancel a flight plan     | DCS   |
 
 ### Stores Request Commands (`/stores`)
 
-| Command | Description | Role |
-|---------|-------------|------|
-| `/stores request <items>` | Submit a stores/logistics request | DCS |
-| `/stores list [status] [user]` | List stores requests | DCS |
-| `/stores view <request>` | View request details | DCS |
-| `/stores approve <request>` | Approve a stores request | DCS Admin |
-| `/stores deny <request> [reason]` | Deny a stores request | DCS Admin |
+| Command                           | Description                       | Role      |
+|-----------------------------------|-----------------------------------|-----------|
+| `/stores request <items>`         | Submit a stores/logistics request | DCS       |
+| `/stores list [status] [user]`    | List stores requests              | DCS       |
+| `/stores view <request>`          | View request details              | DCS       |
+| `/stores approve <request>`       | Approve a stores request          | DCS Admin |
+| `/stores deny <request> [reason]` | Deny a stores request             | DCS Admin |
 
 ## Auto-Grant Qualifications
 
