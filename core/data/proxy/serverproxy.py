@@ -274,6 +274,16 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
 
     @override
+    async def getStartIndex(self) -> int:
+        timeout = 60 if not self.node.slow_system else 120
+        return await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "getStartIndex",
+            "server_name": self.name
+        }, timeout=timeout, node=self.node.name)
+
+    @override
     async def setStartIndex(self, mission_id: int) -> None:
         timeout = 60 if not self.node.slow_system else 120
         await self.bus.send_to_node_sync({

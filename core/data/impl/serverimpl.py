@@ -918,6 +918,10 @@ class ServerImpl(Server):
         await self.loadMission(self._get_current_mission_file(), modify_mission=modify_mission, use_orig=use_orig)
 
     @override
+    async def getStartIndex(self) -> int:
+        return self.settings.get('listStartIndex', 1)
+
+    @override
     async def setStartIndex(self, mission_id: int) -> None:
         if mission_id > len(self.settings['missionList']):
             mission_id = 1
