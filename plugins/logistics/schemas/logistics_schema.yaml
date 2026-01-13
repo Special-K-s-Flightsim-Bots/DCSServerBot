@@ -1,0 +1,39 @@
+schema;element_schema:
+  type: map
+  func: is_element
+  nullable: false
+  mapping:
+    enabled: {type: bool, nullable: false}
+    delivery:
+      type: map
+      nullable: true
+      mapping:
+        proximity_threshold: {type: int, nullable: true}
+        require_landing: {type: bool, nullable: true}
+        check_interval: {type: int, nullable: true}
+    markers:
+      type: map
+      nullable: true
+      mapping:
+        enabled: {type: bool, nullable: true}
+        show_deadline: {type: bool, nullable: true}
+    tasks:
+      type: map
+      nullable: true
+      mapping:
+        auto_approve: {type: bool, nullable: true}
+        timeout_hours: {type: int, nullable: true}
+        max_per_player: {type: int, nullable: true}
+
+type: map
+func: check_main_structure
+nullable: false
+mapping:
+  DEFAULT:
+    include: 'element_schema'
+  commands:
+    include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
+  regex;(.+):
+    include: 'element_schema'
