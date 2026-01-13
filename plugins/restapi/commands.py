@@ -20,7 +20,7 @@ from typing import Any, Literal, cast
 
 from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
-                     PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats)
+                     PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats, AirbasesResponse, AirbaseInfoResponse, AirbaseWarehouseResponse)
 from ..srs.commands import SRS
 
 app: FastAPI | None = None
@@ -88,6 +88,32 @@ class RestAPI(Plugin):
             dependencies = None
 
         router = APIRouter(prefix=prefix, dependencies=dependencies)
+        ## Airbase Routes
+        router.add_api_route(
+            "/airbases", self.airbases,
+            methods=["GET"],
+            response_model = AirbasesResponse,
+            description="Get a listing of all airbases on a given server.",
+            summary="Airbases Listing",
+            tags=["Airbase"]
+        )
+        router.add_api_route(
+            "/airbase", self.airbase_info,
+            methods=["GET"],
+            response_model = AirbaseInfoResponse,
+            description="Get information for a given airbase on a given server.",
+            summary="Airbase Information",
+            tags=["Airbase"]
+        )
+        router.add_api_route(
+            "/airbase/warehouse", self.airbase_warehouse,
+            methods=["GET"],
+            response_model = AirbaseWarehouseResponse,
+            description="Get warehouse information for an airbase on a given server.",
+            summary="Airbase Warehouse",
+            tags=["Airbase"]
+        )
+        ## Info Routes
         router.add_api_route(
             "/serverstats", self.serverstats,
             methods = ["GET"],
@@ -144,6 +170,7 @@ class RestAPI(Plugin):
             summary="Link Discord to DCS",
             tags=["Info"]
         )
+        ##Statistics Routes
         router.add_api_route(
             "/leaderboard", self.leaderboard,
             methods = ["GET"],
@@ -262,6 +289,54 @@ class RestAPI(Plugin):
         return self.get_config().get('endpoints', {}).get(endpoint, {})
 
     @async_cache
+    async def airbases(self, server_name: str = Query(...)):
+        """Return all airbases for a given server."""
+        # Resolve server
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        # Get airbase info using the same logic as mission/commands.py get_airbase
+        airbases = await server.send_to_dcs_sync({"command": "getAirbases"}, timeout=60)
+
+        # Return all information on the airbase
+        return {
+            "airbases": airbases
+        }
+
+    async def airbase_info(self, server_name: str = Query(...), airbase_name: str = Query(...)):
+        """Return all information for a given airbase on a server."""
+        # Resolve server
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        # Get airbase info using the same logic as mission/commands.py get_airbase
+        airbase_data = await server.send_to_dcs_sync({"command": "getAirbase", "name": airbase_name}, timeout=60)
+
+        # Return all information on the airbase
+        return {
+            "airbase": airbase_data,
+        }
+
+    async def airbase_warehouse(self, server_name: str = Query(...), airbase_name: str = Query(...)):
+        """Return warehouse information for a given airbase on a server."""
+        # Resolve server
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        # Get airbase info using the same logic as mission/commands.py get_airbase
+        airbase_data = await server.send_to_dcs_sync({"command": "getAirbase", "name": airbase_name}, timeout=60)
+        if not airbase_data or 'warehouse' not in airbase_data:
+            raise HTTPException(status_code=404, detail=f"Airbase '{airbase_name}' not found or has no warehouse data.")
+
+        # Return only the warehouse info (and unlimited flags for completeness)
+        return {
+            "warehouse": airbase_data.get("warehouse", {}),
+            "unlimited": airbase_data.get("unlimited", {}),
+        }
+
     async def get_ucid(self, nick: str, date: str | datetime | None = None) -> str:
         if date and isinstance(date, str):
             try:
@@ -704,12 +779,13 @@ class RestAPI(Plugin):
                     {sql_part}
                 """):
                     members = await self.squadron_members(row['name'])
+                    role_obj = self.bot.get_role(row['role']) if row['role'] else None
                     squadrons.append(SquadronInfo.model_validate({
                         "name": row['name'],
                         "description": row['description'],
                         "image_url": row['image_url'],
                         "locked": row['locked'],
-                        "role": self.bot.get_role(row['role']).name if row['role'] else None,
+                        "role": role_obj.name if role_obj else None,
                         "members": members
                     }))
         return squadrons
