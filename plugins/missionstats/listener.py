@@ -163,6 +163,18 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             except Exception as ex:
                 self.log.warning(str(ex) + ' / ignoring event')
 
+    @event(name="onPlayerConnect")
+    async def onPlayerConnect(self, server: Server, data: dict) -> None:
+        config = self.plugin.get_config(server)
+        if not config or data['id'] == 1:
+            return
+
+        if config.get('persistence', True) and 'S_EVENT_CONNECT' not in config.get('event_filter', []):
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("INSERT INTO missionstats (mission_id, event, init_id) VALUES (%s, %s, %s)",
+                                       (server.mission_id, 'S_EVENT_CONNECT', data['ucid']))
+
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
@@ -307,6 +319,17 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
     async def onGameEvent(self, server: Server, data: dict) -> None:
         if data['eventName'] == 'mission_end':
             asyncio.create_task(self._process_event(server))
+        elif data['eventName'] == 'disconnect':
+            config = self.plugin.get_config(server)
+            if not config:
+                return
+
+            player = server.get_player(id=data['arg1'])
+            if config.get('persistence', True) and 'S_EVENT_DISCONNECT' not in config.get('event_filter', []):
+                async with self.apool.connection() as conn:
+                    async with conn.transaction():
+                        await conn.execute("INSERT INTO missionstats (mission_id, event, init_id) VALUES (%s, %s, %s)",
+                                           (server.mission_id, 'S_EVENT_DISCONNECT', player.ucid))
 
     @tasks.loop(minutes=1)
     async def do_update(self):

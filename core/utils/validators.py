@@ -151,6 +151,7 @@ def deprecated(value, rule_obj, path):
         message += ' ' + ' '.join(enum)
     message += f' Path "{path}"'
     logger.warning(message)
+    rule_obj.enum = None
     return True
 
 def obsolete(value, rule_obj, path):

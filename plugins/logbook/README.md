@@ -1,6 +1,7 @@
 # Logbook Plugin
 
-A comprehensive pilot logbook and squadron management plugin for DCSServerBot. Provides military-style record keeping for virtual squadrons including flight statistics, qualifications, awards, and flight plans.
+A comprehensive pilot logbook and squadron management plugin for DCSServerBot. Provides military-style record keeping 
+for virtual squadrons including flight statistics, qualifications, awards, and flight plans.
 
 ## Features
 

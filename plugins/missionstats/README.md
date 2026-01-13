@@ -32,6 +32,11 @@ DCS.dcs_serverrelease:
 > creating a new filter starts fresh - it won't automatically include the default excluded events. If you want to keep
 > those default exclusions, you'll need to add them explicitly to your custom filter.
 
+> [!NOTE]
+> DCSServerBot creates some custom event types that are not part of DCS standard.
+> You can also filter these events, if you do not like them.
+> - S_EVENT_CONNECT
+> - S_EVENT_DISCONNECT
 
 ## How to disable Missionstats inside missions
 To disable mission statistics for a specific mission, you can use the following piece of code somewhere in your mission 

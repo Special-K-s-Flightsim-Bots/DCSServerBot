@@ -28,6 +28,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         self.active_servers: set[str] = set()
         self.pending_forgiveness: dict[tuple[str, str], list[asyncio.Task]] = {}
         self.pending_kill: dict[str, tuple[int, str | None, str | None]] = ThreadSafeDict()
+        self.disconnected: dict[str, tuple[int, str | None, str | None]] = {}
 
     async def shutdown(self) -> None:
         for tasks in self.pending_forgiveness.values():
@@ -211,11 +212,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     asyncio.create_task(self._check_punishment(event))
                     asyncio.create_task(self._give_kill(server, shooter_id, initiator.ucid, weapon))
                 else:
-                    admin = self.bot.get_admin_channel(server)
-                    if admin:
-                        await admin.send(
-                            "```" + _("Player {} ({}) disconnected after being shot at by {} {} seconds ago.").format(
-                                initiator.name, initiator.ucid, shooter.name, delta_time) + "```")
+                    self.disconnected[initiator.ucid] = (int(time.time()), shooter_id, weapon)
 
     async def _send_player_points(self, player: Player):
         points = await self._get_punishment_points(player)
@@ -254,7 +251,40 @@ class PunishmentEventListener(EventListener["Punishment"]):
             weapon or "the reslot-hammer"
         )
         mission.eventlistener.send_dcs_event(server, side, message)
+        message = "{} {} in {} killed {} {} in {} with {}.".format(
+            side.name,
+            ('player ' + initiator.name) if initiator is not None else 'AI',
+            initiator.unit_type if initiator else 'unknown',
+            victim.side.name,
+            'player ' + victim.name,
+            victim.unit_type,
+            weapon or "the reslot-hammer"
+        )
         await server.sendChatMessage(Coalition.ALL, message)
+
+    @event(name="onPlayerConnect")
+    async def onPlayerConnect(self, server: Server, data: dict) -> None:
+        if data['ucid'] in self.disconnected:
+            _time, shooter_id, weapon = self.disconnected[data['ucid']]
+            # we do not punish if the disconnect was longer than 60 seconds ago
+            delta_time = int(time.time()) - _time
+            if delta_time > 60:
+                del self.disconnected[data['ucid']]
+                return
+
+            player = server.get_player(ucid=data['ucid'])
+            evt = {
+                "eventName": "reslot",
+                "server_name": server.name,
+                "initiator": player
+            }
+            asyncio.create_task(self._check_punishment(evt))
+            asyncio.create_task(self._give_kill(server, shooter_id, player.ucid, weapon))
+            admin = self.bot.get_admin_channel(server)
+            if admin:
+                await admin.send(
+                    "```" + _("Player {} ({}) disconnected and reconnected {} seconds after being shot at.").format(
+                        player.name, player.ucid, delta_time) + "```")
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
