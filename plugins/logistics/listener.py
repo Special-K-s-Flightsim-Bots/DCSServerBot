@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 
 from core import EventListener, Server, event, chat_command, Player
@@ -52,12 +53,52 @@ class LogisticsEventListener(EventListener["Logistics"]):
             if task:
                 await self._notify_player_of_task(player, task)
 
-    @event(name="logisticsMarkersCreated")
-    async def logisticsMarkersCreated(self, server: Server, data: dict) -> None:
+    @event(name="createLogisticsMarkers")
+    async def onCreateLogisticsMarkers(self, server: Server, data: dict) -> None:
         """Store marker IDs from Lua for cleanup tracking."""
         task_id = data.get('task_id')
         marker_ids = data.get('marker_ids', [])
+        log.debug(f"Logistics: Markers created for task {task_id}: {len(marker_ids)} markers")
         await self._store_marker_ids(server.name, task_id, marker_ids)
+
+    @event(name="removeLogisticsMarkers")
+    async def onRemoveLogisticsMarkers(self, server: Server, data: dict) -> None:
+        """Handle marker removal confirmation from Lua."""
+        task_id = data.get('task_id')
+        removed_count = data.get('removed_count', 0)
+        log.debug(f"Logistics: Removed {removed_count} markers for task {task_id}")
+
+    @event(name="logisticsSimulationStart")
+    async def onLogisticsSimulationStart(self, server: Server, data: dict) -> None:
+        """Handle mission start - recreate all markers."""
+        log.info(f"Logistics: Simulation started on {server.name}, recreating markers")
+        await self._recreate_all_markers(server)
+
+    @event(name="checkDeliveryProximity")
+    async def onCheckDeliveryProximity(self, server: Server, data: dict) -> None:
+        """Handle proximity check result from DCS."""
+        if not data.get('found') or not data.get('within_threshold'):
+            return
+
+        task_id = data.get('task_id')
+        # Find the player who owns this task
+        async with self.pool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT assigned_ucid FROM logistics_tasks WHERE id = %s
+            """, (task_id,))
+            row = await cursor.fetchone()
+            if not row:
+                return
+
+            player = server.get_player(ucid=row[0])
+            if not player:
+                return
+
+            log.info(f"Logistics: Proximity check passed for task {task_id}, completing")
+            result = await self._complete_task(server, player, task_id)
+            if result['success']:
+                await player.sendChatMessage(f"Delivery confirmed! Task #{task_id} completed.")
+                await player.sendPopupMessage("DELIVERY COMPLETE\n\nTask logged to your record.", 10)
 
     # ==================== CHAT COMMANDS ====================
 
@@ -449,23 +490,35 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     async def _create_markers_for_task(self, server: Server, task: dict):
         """Send command to DCS to create markers for a task."""
-        if not task.get('source_position') or not task.get('destination_position'):
+        source_pos = task.get('source_position')
+        dest_pos = task.get('destination_position')
+
+        if not source_pos or not dest_pos:
             log.debug(f"Skipping markers for task {task['id']} - missing position data")
             return
 
-        deadline_str = task['deadline'].strftime('%H:%MZ') if task.get('deadline') else None
+        # Handle JSONB position data - could be dict or already parsed
+        if isinstance(source_pos, str):
+            source_pos = json.loads(source_pos)
+        if isinstance(dest_pos, str):
+            dest_pos = json.loads(dest_pos)
+
+        deadline_str = task['deadline'].strftime('%H:%MZ') if task.get('deadline') else ""
 
         await server.send_to_dcs({
             "command": "createLogisticsMarkers",
             "task_id": task['id'],
-            "cargo_type": task['cargo_type'],
-            "source_name": task['source_name'],
-            "source_position": task['source_position'],
-            "destination_name": task['destination_name'],
-            "destination_position": task['destination_position'],
             "coalition": task['coalition'],
+            "source_name": task['source_name'],
+            "source_x": source_pos.get('x', 0),
+            "source_z": source_pos.get('z', 0),
+            "dest_name": task['destination_name'],
+            "dest_x": dest_pos.get('x', 0),
+            "dest_z": dest_pos.get('z', 0),
+            "cargo_type": task['cargo_type'],
+            "pilot_name": task.get('assigned_name') or "",
             "deadline": deadline_str,
-            "assigned_pilot": task.get('assigned_name')
+            "waypoints": "[]"  # TODO: Add waypoint support
         })
 
     async def _remove_task_markers(self, server: Server, task_id: int):
@@ -505,14 +558,22 @@ class LogisticsEventListener(EventListener["Logistics"]):
                     'assigned_name': pilot_name
                 })
 
-    async def _store_marker_ids(self, server_name: str, task_id: int, marker_ids: list[int]):
+    async def _store_marker_ids(self, server_name: str, task_id: int, marker_ids: list[dict]):
         """Store marker IDs for cleanup."""
         async with self.pool.connection() as conn:
-            for marker_id in marker_ids:
+            # Clear old markers first
+            await conn.execute("""
+                DELETE FROM logistics_markers WHERE server_name = %s AND task_id = %s
+            """, (server_name, task_id))
+
+            # Store new markers
+            for marker in marker_ids:
+                marker_id = marker.get('id') if isinstance(marker, dict) else marker
+                marker_type = marker.get('type', 'unknown') if isinstance(marker, dict) else 'unknown'
                 await conn.execute("""
                     INSERT INTO logistics_markers (server_name, task_id, marker_id, marker_type)
-                    VALUES (%s, %s, %s, 'route')
-                """, (server_name, task_id, marker_id))
+                    VALUES (%s, %s, %s, %s)
+                """, (server_name, task_id, marker_id, marker_type))
 
     async def _notify_player_of_task(self, player: Player, task: dict):
         """Notify player of their assigned task on spawn."""
@@ -529,7 +590,13 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     async def _check_delivery_on_landing(self, server: Server, data: dict):
         """Check if a landing event completes a logistics task."""
-        player = server.get_player(id=data.get('initiator', {}).get('id'))
+        # Get player from initiator
+        initiator = data.get('initiator', {})
+        player_name = initiator.get('name')
+        if not player_name:
+            return
+
+        player = server.get_player(name=player_name)
         if not player:
             return
 
@@ -537,31 +604,50 @@ class LogisticsEventListener(EventListener["Logistics"]):
         if not task:
             return
 
-        # Get destination position
+        # Get destination info
         async with self.pool.connection() as conn:
             cursor = await conn.execute("""
-                SELECT destination_position FROM logistics_tasks WHERE id = %s
+                SELECT destination_name, destination_position FROM logistics_tasks WHERE id = %s
             """, (task['id'],))
             row = await cursor.fetchone()
-            if not row or not row[0]:
+            if not row:
                 return
 
-        dest_pos = row[0]
+        dest_name = row[0]
+        dest_pos = row[1]
 
-        # Get landing position from event
-        landing_pos = data.get('initiator', {}).get('position', {})
-        if not landing_pos:
-            return
+        # Check if landed at named destination (preferred - from event.place)
+        place = data.get('place', {})
+        place_name = place.get('name', '')
 
-        # Check proximity (3000m default)
-        threshold = 3000
-        dx = landing_pos.get('x', 0) - dest_pos.get('x', 0)
-        dz = landing_pos.get('z', 0) - dest_pos.get('z', 0)
-        distance = (dx**2 + dz**2) ** 0.5
+        if place_name and dest_name:
+            # Normalize names for comparison
+            if place_name.lower() == dest_name.lower() or dest_name.lower() in place_name.lower():
+                log.info(f"Logistics: Auto-completing task {task['id']} for {player.name} at {place_name}")
+                result = await self._complete_task(server, player, task['id'])
+                if result['success']:
+                    await player.sendChatMessage(f"Delivery confirmed at {place_name}! Task #{task['id']} completed.")
+                    await player.sendPopupMessage("DELIVERY COMPLETE\n\nTask logged to your record.", 10)
+                return
 
-        if distance <= threshold:
-            log.info(f"Logistics: Auto-completing task {task['id']} for {player.name}")
-            result = await self._complete_task(server, player, task['id'])
-            if result['success']:
-                await player.sendChatMessage(f"Delivery confirmed! Task #{task['id']} completed.")
-                await player.sendPopupMessage("DELIVERY COMPLETE\n\nTask logged to your record.", 10)
+        # Fallback: check proximity if we have position data
+        if dest_pos:
+            if isinstance(dest_pos, str):
+                dest_pos = json.loads(dest_pos)
+
+            # Get unit position - use the unit_name to query position
+            unit_name = initiator.get('unit_name')
+            if unit_name:
+                # Request position check from DCS
+                await self._request_proximity_check(server, task['id'], unit_name, dest_pos)
+
+    async def _request_proximity_check(self, server: Server, task_id: int, unit_name: str, dest_pos: dict):
+        """Request proximity check from DCS."""
+        await server.send_to_dcs({
+            "command": "checkDeliveryProximity",
+            "task_id": task_id,
+            "unit_name": unit_name,
+            "dest_x": dest_pos.get('x', 0),
+            "dest_z": dest_pos.get('z', 0),
+            "threshold": 3000  # 3km default
+        })
