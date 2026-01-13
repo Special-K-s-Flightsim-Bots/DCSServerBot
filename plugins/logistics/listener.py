@@ -46,12 +46,15 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
-        """Show player their assigned task when they spawn."""
+        """Show player their assigned task when they spawn and create F10 menu."""
         player = server.get_player(ucid=data.get('ucid'))
-        if player:
+        if player and player.side > 0:  # Only for players in a slot
             task = await self._get_assigned_task(player.ucid, server.name)
             if task:
                 await self._notify_player_of_task(player, task)
+
+            # Create F10 menu for the player
+            await self._create_logistics_menu(server, player)
 
     @event(name="createLogisticsMarkers")
     async def onCreateLogisticsMarkers(self, server: Server, data: dict) -> None:
@@ -99,6 +102,37 @@ class LogisticsEventListener(EventListener["Logistics"]):
             if result['success']:
                 await player.sendChatMessage(f"Delivery confirmed! Task #{task_id} completed.")
                 await player.sendPopupMessage("DELIVERY COMPLETE\n\nTask logged to your record.", 10)
+
+    @event(name="callback")
+    async def onCallback(self, server: Server, data: dict) -> None:
+        """Handle F10 menu callbacks."""
+        if data.get('subcommand') != 'logistics':
+            return
+
+        player_id = data.get('from')
+        player = server.get_player(id=player_id)
+        if not player:
+            return
+
+        params = data.get('params', {})
+        action = params.get('action')
+
+        if action == 'view_tasks':
+            await self._menu_view_tasks(server, player)
+        elif action == 'my_task':
+            await self._menu_my_task(server, player)
+        elif action == 'accept':
+            task_id = params.get('task_id')
+            if task_id:
+                await self._menu_accept_task(server, player, task_id)
+        elif action == 'deliver':
+            await self._menu_deliver(server, player)
+        elif action == 'abandon':
+            await self._menu_abandon(server, player)
+        elif action == 'task_details':
+            task_id = params.get('task_id')
+            if task_id:
+                await self._menu_task_details(server, player, task_id)
 
     # ==================== CHAT COMMANDS ====================
 
@@ -651,3 +685,185 @@ class LogisticsEventListener(EventListener["Logistics"]):
             "dest_z": dest_pos.get('z', 0),
             "threshold": 3000  # 3km default
         })
+
+    # ==================== F10 MENU METHODS ====================
+
+    async def _create_logistics_menu(self, server: Server, player: Player):
+        """Create F10 menu for logistics operations."""
+        # Build dynamic menu based on available tasks
+        tasks = await self._get_available_tasks(server.name, player.coalition)
+        assigned_task = await self._get_assigned_task(player.ucid, server.name)
+
+        # Build menu structure
+        menu = [{
+            "Logistics": [
+                {
+                    "View Available Tasks": {
+                        "command": "logistics",
+                        "params": {"action": "view_tasks"}
+                    }
+                },
+                {
+                    "My Current Task": {
+                        "command": "logistics",
+                        "params": {"action": "my_task"}
+                    }
+                }
+            ]
+        }]
+
+        # Add accept task submenu if tasks available and player has no task
+        if tasks and not assigned_task:
+            accept_menu = []
+            for task in tasks[:5]:  # Limit to 5 tasks in menu
+                priority_marker = "!" if task['priority'] == 'urgent' else ""
+                label = f"#{task['id']}{priority_marker}: {task['cargo_type'][:20]}"
+                accept_menu.append({
+                    label: {
+                        "command": "logistics",
+                        "params": {"action": "accept", "task_id": task['id']}
+                    }
+                })
+            menu[0]["Logistics"].append({"Accept Task": accept_menu})
+
+        # Add task actions if player has an assigned task
+        if assigned_task:
+            menu[0]["Logistics"].append({
+                "Mark Delivered": {
+                    "command": "logistics",
+                    "params": {"action": "deliver"}
+                }
+            })
+            menu[0]["Logistics"].append({
+                "Abandon Task": {
+                    "command": "logistics",
+                    "params": {"action": "abandon"}
+                }
+            })
+
+        # Send menu to DCS
+        group_id = player.group_id
+        if group_id:
+            await server.send_to_dcs({
+                "command": "createMenu",
+                "playerID": player.id,
+                "groupID": group_id,
+                "menu": menu
+            })
+
+    async def _menu_view_tasks(self, server: Server, player: Player):
+        """Handle 'View Available Tasks' menu option."""
+        tasks = await self._get_available_tasks(server.name, player.coalition)
+        if not tasks:
+            await player.sendPopupMessage("No logistics tasks available.", 10)
+            return
+
+        msg = "AVAILABLE LOGISTICS TASKS\n\n"
+        for task in tasks[:5]:
+            priority_marker = "[!] " if task['priority'] == 'urgent' else ""
+            deadline_str = task['deadline'].strftime('%H:%MZ') if task['deadline'] else "None"
+            msg += f"{priority_marker}#{task['id']}: {task['cargo_type']}\n"
+            msg += f"    {task['source_name']} -> {task['destination_name']}\n"
+            msg += f"    Deadline: {deadline_str}\n\n"
+
+        if len(tasks) > 5:
+            msg += f"... and {len(tasks) - 5} more tasks"
+
+        await player.sendPopupMessage(msg, 20)
+
+    async def _menu_my_task(self, server: Server, player: Player):
+        """Handle 'My Current Task' menu option."""
+        task = await self._get_assigned_task(player.ucid, server.name)
+        if not task:
+            await player.sendPopupMessage("You have no active logistics task.", 10)
+            return
+
+        deadline_str = task['deadline'].strftime('%H:%MZ') if task['deadline'] else "None"
+        msg = (
+            f"YOUR CURRENT TASK\n\n"
+            f"Task #{task['id']}\n"
+            f"Status: {task['status'].upper()}\n"
+            f"Cargo: {task['cargo_type']}\n"
+            f"From: {task['source_name']}\n"
+            f"To: {task['destination_name']}\n"
+            f"Deadline: {deadline_str}"
+        )
+        await player.sendPopupMessage(msg, 15)
+
+    async def _menu_accept_task(self, server: Server, player: Player, task_id: int):
+        """Handle 'Accept Task' menu option."""
+        result = await self._assign_task(server, player, task_id)
+        if result['success']:
+            await player.sendPopupMessage(
+                f"TASK #{task_id} ACCEPTED!\n\n"
+                f"Cargo: {result['cargo']}\n"
+                f"Pickup: {result['source']}\n"
+                f"Deliver to: {result['destination']}\n"
+                f"Deadline: {result['deadline'] or 'None'}\n\n"
+                f"Check your F10 map for route markers.",
+                20
+            )
+            # Refresh menu to show task actions
+            await self._create_logistics_menu(server, player)
+        else:
+            await player.sendPopupMessage(f"Cannot accept task:\n{result['error']}", 10)
+
+    async def _menu_deliver(self, server: Server, player: Player):
+        """Handle 'Mark Delivered' menu option."""
+        task = await self._get_assigned_task(player.ucid, server.name)
+        if not task:
+            await player.sendPopupMessage("You have no active task.", 10)
+            return
+
+        result = await self._complete_task(server, player, task['id'])
+        if result['success']:
+            await player.sendPopupMessage(
+                f"DELIVERY COMPLETE!\n\n"
+                f"Task #{task['id']} completed.\n"
+                f"Logged to your pilot record.",
+                15
+            )
+            # Refresh menu
+            await self._create_logistics_menu(server, player)
+        else:
+            await player.sendPopupMessage(f"Cannot complete task:\n{result['error']}", 10)
+
+    async def _menu_abandon(self, server: Server, player: Player):
+        """Handle 'Abandon Task' menu option."""
+        task = await self._get_assigned_task(player.ucid, server.name)
+        if not task:
+            await player.sendPopupMessage("You have no active task.", 10)
+            return
+
+        result = await self._abandon_task(server, player, task['id'])
+        if result['success']:
+            await player.sendPopupMessage(
+                f"Task #{task['id']} abandoned.\n\n"
+                f"Task is now available for others.",
+                10
+            )
+            # Refresh menu
+            await self._create_logistics_menu(server, player)
+        else:
+            await player.sendPopupMessage(f"Cannot abandon task:\n{result['error']}", 10)
+
+    async def _menu_task_details(self, server: Server, player: Player, task_id: int):
+        """Handle 'Task Details' menu option."""
+        task = await self._get_task_by_id(task_id, server.name, player.coalition)
+        if not task:
+            await player.sendPopupMessage("Task not found.", 10)
+            return
+
+        deadline_str = task['deadline'].strftime('%H:%MZ') if task['deadline'] else "None"
+        assigned = task.get('assigned_name') or "Unassigned"
+        msg = (
+            f"TASK DETAILS\n\n"
+            f"Task #{task['id']} ({task['status'].upper()})\n"
+            f"Priority: {task['priority'].upper()}\n"
+            f"Cargo: {task['cargo_type']}\n"
+            f"From: {task['source_name']}\n"
+            f"To: {task['destination_name']}\n"
+            f"Deadline: {deadline_str}\n"
+            f"Assigned: {assigned}"
+        )
+        await player.sendPopupMessage(msg, 15)
