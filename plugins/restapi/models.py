@@ -643,7 +643,6 @@ class AirbasesResponse(BaseModel):
     model_config = {
         "json_schema_extra": {
             "example": {
-                "airbases": {
                     "command": "getAirbases",
                     "channel": "sync-****",
                     "server_name": "Server Name",
@@ -689,7 +688,7 @@ class AirbasesResponse(BaseModel):
                             ]
                         },
                     ]
-                }
+
             }
         }
     }

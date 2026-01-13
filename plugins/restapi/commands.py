@@ -301,7 +301,7 @@ class RestAPI(Plugin):
 
         # Return all information on the airbase
         return {
-            "airbases": airbases,
+            "airbases": airbases
         }
 
     async def airbase_info(self, server_name: str = Query(...), airbase_name: str = Query(...)):
