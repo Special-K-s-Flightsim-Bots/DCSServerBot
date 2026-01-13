@@ -4,7 +4,7 @@ import os
 import psutil
 import subprocess
 
-from core import Extension, Server, utils, get_translation, PortType, Port, ThreadSafeDict
+from core import Extension, Server, utils, get_translation, PortType, Port, ThreadSafeDict, ProcessManager
 from discord.ext import tasks
 from threading import Thread
 from typing_extensions import override
@@ -55,6 +55,16 @@ class Lardoon(Extension):
                 return None
             p = next(utils.find_process(os.path.basename(cmd), self.config['bind']), None)
             if p:
+                if self.config.get('use_single_process', True):
+                    instance = None
+                else:
+                    instance = self.server.instance.name
+                ProcessManager().assign_process(
+                    p,
+                    min_cores=self.config.get('auto_affinity', {}).get('min_cores', 1),
+                    max_cores=self.config.get('auto_affinity', {}).get('max_cores', 1),
+                    quality=self.config.get('auto_affinity', {}).get('quality', 1),
+                    instance=instance)
                 self.log.debug("- Running Lardoon process found.")
             return p
         else:
@@ -86,22 +96,30 @@ class Lardoon(Extension):
                 def run_subprocess():
                     if self.config.get('use_single_process', True):
                         cwd = None
+                        instance = None
                     else:
-                        cwd = os.path.join(self.server.instance.home, 'Config')
+                        instance = self.server.instance.name
+                        cwd = os.path.join(instance, 'Config')
                     out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
                     cmd = os.path.basename(self.config['cmd'])
                     self.log.debug(f"Launching Lardoon server with {cmd} serve --bind {self.config['bind']}")
-                    proc = subprocess.Popen([cmd, "serve", "--bind", self.config['bind']],
-                                            executable=os.path.expandvars(self.config['cmd']), cwd=cwd,
-                                            stdout=out, stderr=subprocess.PIPE)
+                    proc = ProcessManager().launch_process(
+                        [cmd, "serve", "--bind", self.config['bind']],
+                        executable=os.path.expandvars(self.config['cmd']),
+                        cwd=cwd,
+                        min_cores=self.config.get('auto_affinity', {}).get('min_cores', 1),
+                        max_cores=self.config.get('auto_affinity', {}).get('max_cores', 1),
+                        quality=self.config.get('auto_affinity', {}).get('quality', 1),
+                        instance=instance,
+                        stdout=out, stderr=subprocess.PIPE
+                    )
                     if self.config.get('debug', False):
                         Thread(target=log_stream, args=(proc, 'stdout'), daemon=True).start()
                     Thread(target=log_stream, args=(proc, 'stderr'), daemon=True).start()
                     return proc
 
-                p = await asyncio.to_thread(run_subprocess)
                 try:
-                    self.process = psutil.Process(p.pid)
+                    self.process = await asyncio.to_thread(run_subprocess)
                     atexit.register(self.terminate)
                 except psutil.NoSuchProcess:
                     self.log.error(f"Error during launch of {self.config['cmd']}!")

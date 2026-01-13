@@ -325,7 +325,11 @@ class Competitive(Plugin[CompetitiveListener]):
                                         ephemeral=ephemeral)
         channel = interaction.channel
         await self.init_trueskill(user)
-        await channel.send(_("TrueSkill:tm: ratings regenerated."))
+        if user:
+            await interaction.followup.send(_("TrueSkill:tm: ratings regenerated."), ephemeral=ephemeral)
+        else:
+            # The generation of complete new ratings can take a while so that the interaction might have vanished.
+            await channel.send(_("TrueSkill:tm: ratings regenerated."))
 
 
 async def setup(bot: DCSServerBot):

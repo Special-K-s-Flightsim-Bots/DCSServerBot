@@ -9,7 +9,7 @@ import uuid
 
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
-from core import Server, Mission, Node, Status, utils, Instance, FatalException, Port, PortType
+from core import Server, Mission, Node, Status, utils, Instance, FatalException, Port, PortType, ProcessManager
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
 from core.data.impl.instanceimpl import InstanceImpl
@@ -307,6 +307,13 @@ class ServiceBus(Service):
             if not server.process:
                 self.log.warning("Could not find active DCS process. Please check, if you have started DCS with -w!")
             else:
+                ProcessManager().assign_process(
+                    server.process,
+                    min_cores=server.locals.get('auto_affinity', {}).get('min_cores', 1),
+                    max_cores=server.locals.get('auto_affinity', {}).get('max_cores', 2),
+                    quality=server.locals.get('auto_affinity', {}).get('quality', 3),
+                    instance=server.instance.name
+                )
                 self.log.debug(f'  => Process of {server_name} found.')
 
         # if we are an agent, initialize the server

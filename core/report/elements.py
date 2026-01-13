@@ -85,14 +85,22 @@ def df_to_table(ax: Axes, df: pd.DataFrame, *, col_labels: list[str] = None, fon
     table = ax.table(
         cellText=df.values,
         colLabels=df.columns if col_labels is None else col_labels,
-        cellLoc='center',
-        loc='upper left',
+        cellLoc='left',
+        loc='bottom',
     )
     table.auto_set_font_size(False)
+    if fontsize is None:
+        # fall back to the figure’s default
+        fontsize = plt.rcParams["font.size"]
     table.set_fontsize(fontsize)
+
     for i in range(len(df.columns)):
         table.auto_set_column_width(i)
-    table.scale(1, 1.5)
+
+    baseline_fontsize = 10
+    scale_factor = fontsize / baseline_fontsize
+    table.scale(scale_factor, scale_factor * 1.5)
+
     for (row, col), cell in table.get_celld().items():
         if row == 0:  # header row
             cell.set_facecolor('#4c9f44')  # dark green
@@ -101,7 +109,21 @@ def df_to_table(ax: Axes, df: pd.DataFrame, *, col_labels: list[str] = None, fon
             # alternate row colors for readability
             bg = '#e8f5e9' if row % 2 else '#ffffff'
             cell.set_facecolor(bg)
-            cell.set_text_props(color='black')
+            # Determine alignment
+            val = df.iloc[row - 1, col]
+            if isinstance(val, (int, float, np.number)):
+                alignment = 'right'
+            elif isinstance(val, (datetime, pd.Timestamp, timedelta)):
+                alignment = 'center'
+            else:
+                # Check if the string looks like a date/time (e.g. from SQL TO_CHAR)
+                str_val = str(val)
+                if re.match(r'^\d{2}-\d{2}-\d{2}', str_val) or re.match(r'^\d{4}-\d{2}-\d{2}', str_val):
+                    alignment = 'center'
+                else:
+                    alignment = 'left'
+            cell.set_text_props(color='black', ha=alignment)
+
     return ax
 
 
@@ -287,6 +309,7 @@ class Graph(ReportElement):
             self.env.buffer,
             format='png',
             bbox_inches='tight',
+            facecolor=self.facecolor,
             dpi=self.dpi
         )
         self.env.buffer.seek(0)
@@ -302,6 +325,13 @@ class Graph(ReportElement):
             font_list.extend([f"Noto Sans {x}" for x in fonts])
         font_list.extend(['Arial', 'sans-serif'])
         plt.rcParams['font.family'] = font_list
+        if isinstance(self.width, str):
+            self.width = float(utils.evaluate(self.width, **kwargs))
+        if isinstance(self.height, str):
+            self.height = float(utils.evaluate(self.height, **kwargs))
+        if isinstance(self.dpi, str):
+            self.dpi = float(utils.evaluate(self.dpi, **kwargs))
+        # Initialize the figure
         self.env.figure = plt.figure(figsize=(self.width, self.height), dpi=self.dpi)
         try:
             if self.facecolor:
@@ -324,8 +354,14 @@ class Graph(ReportElement):
                     element_class = element_class(self.env, self.rows, self.cols, **class_args)
                     if isinstance(element_class, (GraphElement, MultiGraphElement)):
                         # remove the parameters that are not in the render methods signature
-                        signature = inspect.signature(element_class.render).parameters.keys()
-                        render_args = {name: value for name, value in element_args.items() if name in signature}
+                        signature = inspect.signature(element_class.render).parameters
+                        has_kwargs = any(p.kind == p.VAR_KEYWORD for p in signature.values())
+                        if not has_kwargs:
+                            render_args = {
+                                name: value for name, value in element_args.items() if name in signature.keys()
+                            }
+                        else:
+                            render_args = element_args
                         tasks.append(asyncio.create_task(element_class.render(**render_args)))
                     else:
                         raise UnknownGraphElement(element['class'])
@@ -470,8 +506,16 @@ class SQLTable(EmbedElement):
 
 
 class SQLRenderedTable(GraphElement):
+    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: int | None = 1,
+                 rowspan: int | None = 1, title: str | None = '', color: str | None = None,
+                 fontsize: int = 12, show_no_data: bool | None = True):
+        super().__init__(env, rows, cols, row, col, colspan, rowspan)
+        self.title = title
+        self.color = color
+        self.fontsize = fontsize
+        self.show_no_data = show_no_data
 
-    async def render(self, sql: str):
+    async def render(self, sql: str, no_data: str = None, **kwargs):
         # ----------------------------------------------------------------
         # 1. Execute the query and fetch *all* rows as a list of dicts
         # ----------------------------------------------------------------
@@ -491,24 +535,38 @@ class SQLRenderedTable(GraphElement):
         # ----------------------------------------------------------------
         # 3. Handle the “no data” case early
         # ----------------------------------------------------------------
-        if df.empty:
-            self.axes.set_xticks([])
-            self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
-            return
+        if not df.empty or self.show_no_data:
 
-        # ----------------------------------------------------------------
-        # 4. Prepare each column for the embed
-        # ----------------------------------------------------------------
-        # Helper: format a single value
-        def fmt_val(v):
-            if isinstance(v, datetime):
-                return v.strftime('%Y-%m-%d %H:%M')
-            return str(v)
+            if df.empty:
+                self.axes.set_axis_off()  # hide spines, ticks, grid, and background
 
-        # Apply formatting; keep the original dtype for later use
-        formatted = df.map(fmt_val)
-        # render the table
-        self.axes = df_to_table(self.axes, formatted)
+                self.axes.text(0.5, 0.5, no_data or 'No data available.',
+                               ha='center', va='center',
+                               rotation=45, fontsize=self.fontsize,
+                               transform=self.axes.transAxes)
+                return
+
+            # ----------------------------------------------------------------
+            # 4. Prepare each column for the embed
+            # ----------------------------------------------------------------
+            # Helper: format a single value
+            def fmt_val(v):
+                if isinstance(v, datetime):
+                    return v.strftime('%Y-%m-%d %H:%M')
+                return v
+
+            # Apply formatting; keep the original dtype for later use
+            formatted = df.map(fmt_val)
+            # render the table
+            try:
+                if self.title:
+                    self.axes.set_title(utils.format_string(self.title, **kwargs), color='white',
+                                        fontsize=self.fontsize * 1.5)
+                self.axes = df_to_table(self.axes, formatted, fontsize=self.fontsize)
+            except Exception as ex:
+                self.log.exception(ex)
+        else:
+            self.axes.set_visible(False)
 
 
 class BarChart(GraphElement):
@@ -527,7 +585,7 @@ class BarChart(GraphElement):
         self.width = width
         self.show_no_data = show_no_data
 
-    async def render(self, values: dict[str, float]):
+    async def render(self, values: dict[str, float], **kwargs):
         if len(values) or self.show_no_data:
             labels = list(values.keys())
             values = list(values.values())
@@ -537,7 +595,7 @@ class BarChart(GraphElement):
                 self.axes.barh(labels, values, height=self.width, color=self.color)
             else:
                 raise UnknownValue('orientation', self.orientation)
-            self.axes.set_title(self.title, color='white', fontsize=25)
+            self.axes.set_title(utils.format_string(self.title, **kwargs), color='white', fontsize=16)
             if self.rotate_labels > 0:
                 for label in self.axes.get_xticklabels():
                     label.set_rotation(self.rotate_labels)
@@ -589,7 +647,7 @@ class PieChart(GraphElement):
         else:
             return '{:.1f}%\n({:d})'.format(pct, absolute)
 
-    async def render(self, values: dict[str, Any]):
+    async def render(self, values: dict[str, Any], **kwargs):
         values = {k: v for k, v in values.copy().items() if v}
         if len(values) or self.show_no_data:
             labels = values.keys()
@@ -599,7 +657,7 @@ class PieChart(GraphElement):
                 wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True
             )
             plt.setp(pcts, color=self.textcolor, fontweight='bold')
-            self.axes.set_title(self.title, color='white', fontsize=25)
+            self.axes.set_title(utils.format_string(self.title, **kwargs), color='white', fontsize=16)
             self.axes.axis('equal')
             if len(values) == 0:
                 self.axes.set_xticks([])

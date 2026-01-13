@@ -14,7 +14,7 @@ import tempfile
 import zipfile
 
 from contextlib import suppress
-from core import Extension, utils, ServiceRegistry, get_translation
+from core import Extension, utils, ServiceRegistry, get_translation, ProcessManager
 from logging.handlers import RotatingFileHandler
 from io import BytesIO
 from packaging.version import parse
@@ -55,8 +55,15 @@ class SkyEye(Extension):
         self.processes = []
         self.loggers = []
         if self.enabled:
-            for process in utils.find_process(self.get_exe_path(), self.server.instance.name):
+            for process in utils.find_process(self.get_exe_path(), server.instance.name):
                 self.processes.append(process)
+                ProcessManager().assign_process(
+                    process,
+                    min_cores=self.config.get('auto_affinity', {}).get('min_cores', 2),
+                    max_cores=self.config.get('auto_affinity', {}).get('max_cores'),
+                    quality=self.config.get('auto_affinity', {}).get('quality', 2),
+                    instance=server.instance.name
+                )
             if self.processes:
                 self.log.info(f"  => {self.name}: Running SkyEye server(s) detected.")
         # register shutdown handler
@@ -103,14 +110,6 @@ class SkyEye(Extension):
                 self._prepare_config(self.config)
             self.configs = [data | self.config]
         return data
-
-    def set_affinity(self, process: psutil.Process, affinity: list[int] | str):
-        if isinstance(affinity, str):
-            affinity = [int(x.strip()) for x in affinity.split(',')]
-        elif isinstance(affinity, int):
-            affinity = [affinity]
-        self.log.debug("  => Setting process affinity to {}".format(','.join(map(str, affinity))))
-        process.cpu_affinity(affinity)
 
     async def download_whisper_file(self, name: str):
         async with self.lock:
@@ -248,6 +247,7 @@ class SkyEye(Extension):
                 out.pop('debug', None)
                 out.pop('config', None)
                 out.pop('affinity', None)
+                out.pop('auto_affinity', None)
                 yaml.dump(out, outfile)
 
     async def _autoupdate(self):
@@ -286,7 +286,7 @@ class SkyEye(Extension):
 
     @override
     async def startup(self, *, quiet: bool = False) -> bool:
-        def run_subprocess(cfg: dict):
+        def run_subprocess(cfg: dict) -> psutil.Process:
             debug = cfg.get('debug', False)
             log_file = utils.format_string(cfg.get('log'),
                                            server=self.server,
@@ -319,14 +319,26 @@ class SkyEye(Extension):
 
             self.log.debug("Launching {}".format(' '.join(args)))
 
+            # old affinity (now deprecated)
+            affinity = cfg.get('affinity', None)
+            if isinstance(affinity, str):
+                affinity = [int(x.strip()) for x in affinity.split(',')]
+            elif isinstance(affinity, int):
+                affinity = [affinity]
+
             # Launch the subprocess and capture stdout/stderr
-            proc = subprocess.Popen(
+            proc = ProcessManager().launch_process(
                 args,
                 cwd=os.path.dirname(self.get_exe_path()),
                 stdout=subprocess.PIPE if log_file else subprocess.DEVNULL,
                 stderr=subprocess.PIPE if log_file else subprocess.DEVNULL,
                 close_fds=True,
-                universal_newlines=True  # Ensure text mode for captured output
+                universal_newlines=True,  # Ensure text mode for captured output,
+                affinity=affinity,
+                min_cores=self.config.get('auto_affinity', {}).get('min_cores', 2),
+                max_cores=self.config.get('auto_affinity', {}).get('max_cores'),
+                quality=self.config.get('auto_affinity', {}).get('quality', 2),
+                instance=f"{self.server.instance.name}-{cfg.get('coalition')}"
             )
 
             def log_output(pipe, logger):
@@ -367,7 +379,7 @@ class SkyEye(Extension):
                     # waiting for SRS to be started
                     self.log.debug(f"{self.name}: Waiting for SRS to start ...")
                     ip, port = cfg.get('srs-server-address').split(':')
-                    # Give the SRS server 10s to start
+                    # Give the SRS server 10 seconds to start
                     for _ in range(0, 10):
                         if utils.is_open(ip, port):
                             break
@@ -377,18 +389,8 @@ class SkyEye(Extension):
                         return False
                     self.log.debug(f"{self.name}: SRS is running, launching SkyEye ...")
 
-                    p = await asyncio.to_thread(run_subprocess, cfg)
                     try:
-                        process = psutil.Process(p.pid)
-                        if cfg.get('affinity'):
-                            self.set_affinity(process, cfg['affinity'])
-                        else:
-                            p_core_affinity = utils.get_p_core_affinity()
-                            if p_core_affinity:
-                                self.log.warning("No core-affinity set for SkyEye server, using all available P-cores!")
-                                self.set_affinity(process, utils.get_cpus_from_affinity(p_core_affinity))
-                            else:
-                                self.log.warning("No core-affinity set for SkyEye server, using all available cores!")
+                        process = await asyncio.to_thread(run_subprocess, cfg)
                         self.processes.append(process)
                     except (AttributeError, psutil.NoSuchProcess):
                         self.log.error(f"Failed to start SkyEye server, enable debug in the extension.")

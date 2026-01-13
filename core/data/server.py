@@ -378,6 +378,10 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    async def getStartIndex(self) -> int:
+        raise NotImplementedError()
+
+    @abstractmethod
     async def setStartIndex(self, mission_id: int) -> None:
         raise NotImplementedError()
 

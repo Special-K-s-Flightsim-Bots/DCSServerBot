@@ -6,6 +6,13 @@ schema;node_skyeye_schema:
     installation: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
     autoupdate: {type: bool, nullable: false}
     debug: {type: bool, nullable: false}
+    auto_affinity:
+      type: map
+      nullable: false
+      mapping:
+        min_cores: { type: int, nullable: false, range: { min: 2, max: 4 } }
+        max_cores: { type: int, nullable: false, range: { min: 2 } }
+        quality: { type: int, nullable: false, range: { min: 0, max: 2 } }
 
 schema;skyeye_config:
   type: map
@@ -15,7 +22,7 @@ schema;skyeye_config:
     name: {type: str, nullable: false, range: {min: 1}}
     debug: {type: bool, nullable: false}
     log: {type: str, nullable: false, range: {min: 1}}
-    affinity: {type: any, nullable: false, func: int_csv_or_list}
+    affinity: { type: any, func: deprecated, enum: ['Use "auto_affinity" instead.'] }
     config: {type: str, nullable: false, range: {min: 1}}
     coalition: {type: str, enum: ['blue', 'red'], nullable: false}
     recognizer: {type: str, enum: ['openai-whisper-local', 'openai-whisper-api'], nullable: false}

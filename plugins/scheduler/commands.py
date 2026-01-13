@@ -468,11 +468,15 @@ class Scheduler(Plugin[SchedulerListener]):
                                    f"Mission {rconf['mission_file']} cannot be loaded on server {server.name}!")
                     return
         else:
-            new_mission = int(server.settings.get('listStartIndex', 1))
+            new_mission = int(await server.getStartIndex())
             if method == 'rotate':
                 new_mission += 1
                 if new_mission > len(mission_list):
                     new_mission = 1
+
+                # set the new start index if the server is shut down
+                if server.status == Status.SHUTDOWN:
+                    await server.setStartIndex(new_mission)
 
         # do we change the running mission?
         if server.status in [Status.RUNNING, Status.PAUSED] and server.current_mission:
@@ -480,10 +484,6 @@ class Scheduler(Plugin[SchedulerListener]):
             is_running_mission = (new_mission_file == server.current_mission.filename)
         else:
             is_running_mission = False
-
-        # set the new start index if the server is shut down
-        if server.status == Status.SHUTDOWN:
-            await server.setStartIndex(new_mission)
 
         # apply presets if configured
         if rconf.get('settings'):
