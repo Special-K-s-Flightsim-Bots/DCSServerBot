@@ -20,3 +20,4 @@ Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 /config/
 /.emmyrc.json
 .copilot-docs/*
+reference/
