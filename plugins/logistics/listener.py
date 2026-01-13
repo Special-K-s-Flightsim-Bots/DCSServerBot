@@ -1,0 +1,567 @@
+import asyncio
+import logging
+
+from core import EventListener, Server, event, chat_command, Player
+from datetime import datetime, timezone
+from discord.ext import tasks
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import Logistics
+
+log = logging.getLogger(__name__)
+
+
+class LogisticsEventListener(EventListener["Logistics"]):
+    """
+    Event listener for logistics plugin.
+    Handles in-game chat commands, DCS events, and map marker management.
+    """
+
+    def __init__(self, plugin: "Logistics"):
+        super().__init__(plugin)
+        self._delivery_check_task = None
+
+    async def shutdown(self):
+        if self._delivery_check_task:
+            self._delivery_check_task.cancel()
+
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
+        """Initialize logistics state when server registers."""
+        log.debug(f"Logistics: Server {server.name} registered")
+
+    @event(name="onSimulationStart")
+    async def onSimulationStart(self, server: Server, data: dict) -> None:
+        """Recreate markers when mission starts."""
+        log.info(f"Logistics: Mission started on {server.name}, recreating markers")
+        await self._recreate_all_markers(server)
+
+    @event(name="onMissionEvent")
+    async def onMissionEvent(self, server: Server, data: dict) -> None:
+        """Handle mission events for delivery detection."""
+        if data.get('eventName') == 'S_EVENT_LAND':
+            await self._check_delivery_on_landing(server, data)
+
+    @event(name="onPlayerStart")
+    async def onPlayerStart(self, server: Server, data: dict) -> None:
+        """Show player their assigned task when they spawn."""
+        player = server.get_player(ucid=data.get('ucid'))
+        if player:
+            task = await self._get_assigned_task(player.ucid, server.name)
+            if task:
+                await self._notify_player_of_task(player, task)
+
+    @event(name="logisticsMarkersCreated")
+    async def logisticsMarkersCreated(self, server: Server, data: dict) -> None:
+        """Store marker IDs from Lua for cleanup tracking."""
+        task_id = data.get('task_id')
+        marker_ids = data.get('marker_ids', [])
+        await self._store_marker_ids(server.name, task_id, marker_ids)
+
+    # ==================== CHAT COMMANDS ====================
+
+    @chat_command(name="tasks", help="List available logistics tasks")
+    async def tasks_cmd(self, server: Server, player: Player, params: list[str]):
+        """Show available tasks for player's coalition."""
+        tasks = await self._get_available_tasks(server.name, player.coalition)
+        if not tasks:
+            await player.sendChatMessage("No logistics tasks available.")
+            return
+
+        msg = "Available Logistics Tasks:\n"
+        for task in tasks[:5]:  # Limit to 5 in chat
+            priority_marker = "!" if task['priority'] == 'urgent' else ""
+            msg += f"  #{task['id']}{priority_marker}: {task['cargo_type']} -> {task['destination_name']}\n"
+
+        if len(tasks) > 5:
+            msg += f"  ... and {len(tasks) - 5} more. Use -taskinfo <id> for details."
+
+        await player.sendChatMessage(msg)
+
+    @chat_command(name="accept", usage="<task_id>", help="Accept a logistics task")
+    async def accept_cmd(self, server: Server, player: Player, params: list[str]):
+        """Accept/claim a logistics task."""
+        if not params:
+            await player.sendChatMessage("Usage: -accept <task_id>")
+            return
+
+        try:
+            task_id = int(params[0])
+        except ValueError:
+            await player.sendChatMessage("Invalid task ID. Use -tasks to see available tasks.")
+            return
+
+        result = await self._assign_task(server, player, task_id)
+        if result['success']:
+            await player.sendChatMessage(f"Task #{task_id} accepted! Pickup at {result['source']}.")
+            await player.sendPopupMessage(
+                f"LOGISTICS TASK ASSIGNED\n\n"
+                f"Cargo: {result['cargo']}\n"
+                f"Pickup: {result['source']}\n"
+                f"Deliver to: {result['destination']}\n"
+                f"Deadline: {result['deadline'] or 'None'}",
+                20
+            )
+        else:
+            await player.sendChatMessage(f"Cannot accept task: {result['error']}")
+
+    @chat_command(name="mytask", help="Show your current logistics task")
+    async def mytask_cmd(self, server: Server, player: Player, params: list[str]):
+        """Show the player's currently assigned task."""
+        task = await self._get_assigned_task(player.ucid, server.name)
+        if not task:
+            await player.sendChatMessage("You have no active logistics task.")
+            return
+
+        deadline_str = task['deadline'].strftime('%H:%MZ') if task['deadline'] else "None"
+        msg = (
+            f"Your Task #{task['id']}:\n"
+            f"  Cargo: {task['cargo_type']}\n"
+            f"  From: {task['source_name']}\n"
+            f"  To: {task['destination_name']}\n"
+            f"  Deadline: {deadline_str}\n"
+            f"  Status: {task['status']}"
+        )
+        await player.sendChatMessage(msg)
+
+    @chat_command(name="taskinfo", usage="<task_id>", help="View details of a task")
+    async def taskinfo_cmd(self, server: Server, player: Player, params: list[str]):
+        """View details of any visible task."""
+        if not params:
+            await player.sendChatMessage("Usage: -taskinfo <task_id>")
+            return
+
+        try:
+            task_id = int(params[0])
+        except ValueError:
+            await player.sendChatMessage("Invalid task ID.")
+            return
+
+        task = await self._get_task_by_id(task_id, server.name, player.coalition)
+        if not task:
+            await player.sendChatMessage(f"Task #{task_id} not found or not visible to your coalition.")
+            return
+
+        deadline_str = task['deadline'].strftime('%H:%MZ') if task['deadline'] else "None"
+        assigned = task.get('assigned_name') or "Unassigned"
+        msg = (
+            f"Task #{task['id']} ({task['status']}):\n"
+            f"  Cargo: {task['cargo_type']}\n"
+            f"  From: {task['source_name']}\n"
+            f"  To: {task['destination_name']}\n"
+            f"  Priority: {task['priority']}\n"
+            f"  Deadline: {deadline_str}\n"
+            f"  Assigned: {assigned}"
+        )
+        await player.sendChatMessage(msg)
+
+    @chat_command(name="deliver", help="Mark current task as delivered")
+    async def deliver_cmd(self, server: Server, player: Player, params: list[str]):
+        """Manual completion option - for when auto-detect fails."""
+        task = await self._get_assigned_task(player.ucid, server.name)
+        if not task:
+            await player.sendChatMessage("You have no active logistics task.")
+            return
+
+        result = await self._complete_task(server, player, task['id'])
+        if result['success']:
+            await player.sendChatMessage(f"Task #{task['id']} marked as delivered! Well done.")
+            await player.sendPopupMessage("DELIVERY COMPLETE\n\nTask logged to your record.", 10)
+        else:
+            await player.sendChatMessage(f"Cannot complete task: {result['error']}")
+
+    @chat_command(name="abandon", help="Abandon your current logistics task")
+    async def abandon_cmd(self, server: Server, player: Player, params: list[str]):
+        """Release the task back to available pool."""
+        task = await self._get_assigned_task(player.ucid, server.name)
+        if not task:
+            await player.sendChatMessage("You have no active logistics task.")
+            return
+
+        result = await self._abandon_task(server, player, task['id'])
+        if result['success']:
+            await player.sendChatMessage(f"Task #{task['id']} abandoned. It is now available for others.")
+        else:
+            await player.sendChatMessage(f"Cannot abandon task: {result['error']}")
+
+    @chat_command(name="request", usage="<destination> <cargo_description>", help="Request a logistics delivery")
+    async def request_cmd(self, server: Server, player: Player, params: list[str]):
+        """Player-initiated logistics request."""
+        if len(params) < 2:
+            await player.sendChatMessage("Usage: -request <destination> <cargo description>")
+            return
+
+        destination = params[0]
+        cargo = ' '.join(params[1:])
+
+        result = await self._create_request(server, player, destination, cargo)
+        if result['success']:
+            await player.sendChatMessage(f"Logistics request #{result['task_id']} submitted for approval.")
+        else:
+            await player.sendChatMessage(f"Cannot submit request: {result['error']}")
+
+    # ==================== HELPER METHODS ====================
+
+    async def _get_available_tasks(self, server_name: str, coalition: int) -> list[dict]:
+        """Get tasks available for a coalition."""
+        async with self.pool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT id, cargo_type, source_name, destination_name, priority, deadline
+                FROM logistics_tasks
+                WHERE server_name = %s AND coalition = %s
+                AND status = 'approved'
+                ORDER BY
+                    CASE priority
+                        WHEN 'urgent' THEN 1
+                        WHEN 'high' THEN 2
+                        WHEN 'normal' THEN 3
+                        WHEN 'low' THEN 4
+                    END,
+                    created_at ASC
+            """, (server_name, coalition))
+            rows = await cursor.fetchall()
+            return [
+                {
+                    'id': row[0],
+                    'cargo_type': row[1],
+                    'source_name': row[2],
+                    'destination_name': row[3],
+                    'priority': row[4],
+                    'deadline': row[5]
+                }
+                for row in rows
+            ]
+
+    async def _get_assigned_task(self, ucid: str, server_name: str) -> dict | None:
+        """Get task assigned to a player."""
+        async with self.pool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT id, cargo_type, source_name, destination_name, deadline, status, priority
+                FROM logistics_tasks
+                WHERE assigned_ucid = %s AND server_name = %s
+                AND status IN ('assigned', 'in_progress')
+            """, (ucid, server_name))
+            row = await cursor.fetchone()
+            if row:
+                return {
+                    'id': row[0],
+                    'cargo_type': row[1],
+                    'source_name': row[2],
+                    'destination_name': row[3],
+                    'deadline': row[4],
+                    'status': row[5],
+                    'priority': row[6]
+                }
+            return None
+
+    async def _get_task_by_id(self, task_id: int, server_name: str, coalition: int) -> dict | None:
+        """Get task by ID if visible to coalition."""
+        async with self.pool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT t.id, t.cargo_type, t.source_name, t.destination_name,
+                       t.deadline, t.status, t.priority, p.name as assigned_name
+                FROM logistics_tasks t
+                LEFT JOIN players p ON t.assigned_ucid = p.ucid
+                WHERE t.id = %s AND t.server_name = %s AND t.coalition = %s
+            """, (task_id, server_name, coalition))
+            row = await cursor.fetchone()
+            if row:
+                return {
+                    'id': row[0],
+                    'cargo_type': row[1],
+                    'source_name': row[2],
+                    'destination_name': row[3],
+                    'deadline': row[4],
+                    'status': row[5],
+                    'priority': row[6],
+                    'assigned_name': row[7]
+                }
+            return None
+
+    async def _assign_task(self, server: Server, player: Player, task_id: int) -> dict:
+        """Assign a task to a player."""
+        async with self.pool.connection() as conn:
+            # Check if task is available
+            cursor = await conn.execute("""
+                SELECT id, cargo_type, source_name, destination_name, deadline, coalition
+                FROM logistics_tasks
+                WHERE id = %s AND server_name = %s AND status = 'approved'
+            """, (task_id, server.name))
+            task = await cursor.fetchone()
+
+            if not task:
+                return {'success': False, 'error': 'Task not found or not available'}
+
+            if task[5] != player.coalition:
+                return {'success': False, 'error': 'Task is for a different coalition'}
+
+            # Check if player already has a task
+            existing = await self._get_assigned_task(player.ucid, server.name)
+            if existing:
+                return {'success': False, 'error': f'You already have task #{existing["id"]} assigned'}
+
+            # Assign the task
+            now = datetime.now(timezone.utc)
+            await conn.execute("""
+                UPDATE logistics_tasks
+                SET assigned_ucid = %s, assigned_at = %s, status = 'assigned', updated_at = %s
+                WHERE id = %s
+            """, (player.ucid, now, now, task_id))
+
+            # Record history
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_ucid, details)
+                VALUES (%s, 'assigned', %s, %s)
+            """, (task_id, player.ucid, '{"action": "player_accepted"}'))
+
+            # Update markers with pilot name
+            await self._update_markers_with_pilot(server, task_id, player.name)
+
+            return {
+                'success': True,
+                'cargo': task[1],
+                'source': task[2],
+                'destination': task[3],
+                'deadline': task[4].strftime('%H:%MZ') if task[4] else None
+            }
+
+    async def _complete_task(self, server: Server, player: Player, task_id: int) -> dict:
+        """Complete a logistics task."""
+        async with self.pool.connection() as conn:
+            # Get task details
+            cursor = await conn.execute("""
+                SELECT cargo_type, source_name, destination_name
+                FROM logistics_tasks
+                WHERE id = %s AND assigned_ucid = %s AND status IN ('assigned', 'in_progress')
+            """, (task_id, player.ucid))
+            task = await cursor.fetchone()
+
+            if not task:
+                return {'success': False, 'error': 'Task not found or not assigned to you'}
+
+            now = datetime.now(timezone.utc)
+
+            # Update task status
+            await conn.execute("""
+                UPDATE logistics_tasks
+                SET status = 'completed', completed_at = %s, updated_at = %s
+                WHERE id = %s
+            """, (now, now, task_id))
+
+            # Record history
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_ucid, details)
+                VALUES (%s, 'completed', %s, %s)
+            """, (task_id, player.ucid, '{"action": "delivery_confirmed"}'))
+
+            # Credit to logbook
+            await conn.execute("""
+                INSERT INTO logbook_logistics_completions
+                (player_ucid, task_id, cargo_type, source_name, destination_name, completed_at)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (player.ucid, task_id, task[0], task[1], task[2], now))
+
+            # Remove markers
+            await self._remove_task_markers(server, task_id)
+
+            return {'success': True}
+
+    async def _abandon_task(self, server: Server, player: Player, task_id: int) -> dict:
+        """Abandon a logistics task."""
+        async with self.pool.connection() as conn:
+            now = datetime.now(timezone.utc)
+
+            # Update task - return to approved status
+            result = await conn.execute("""
+                UPDATE logistics_tasks
+                SET assigned_ucid = NULL, assigned_at = NULL, status = 'approved', updated_at = %s
+                WHERE id = %s AND assigned_ucid = %s AND status IN ('assigned', 'in_progress')
+            """, (now, task_id, player.ucid))
+
+            if result.rowcount == 0:
+                return {'success': False, 'error': 'Task not found or not assigned to you'}
+
+            # Record history
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_ucid, details)
+                VALUES (%s, 'abandoned', %s, %s)
+            """, (task_id, player.ucid, '{"action": "player_abandoned"}'))
+
+            # Update markers to remove pilot name
+            await self._update_markers_with_pilot(server, task_id, None)
+
+            return {'success': True}
+
+    async def _create_request(self, server: Server, player: Player, destination: str, cargo: str) -> dict:
+        """Create a player-initiated logistics request."""
+        async with self.pool.connection() as conn:
+            now = datetime.now(timezone.utc)
+
+            cursor = await conn.execute("""
+                INSERT INTO logistics_tasks
+                (server_name, created_by_ucid, status, cargo_type, source_name, destination_name, coalition, created_at, updated_at)
+                VALUES (%s, %s, 'pending', %s, 'TBD', %s, %s, %s, %s)
+                RETURNING id
+            """, (server.name, player.ucid, cargo, destination, player.coalition, now, now))
+            row = await cursor.fetchone()
+            task_id = row[0]
+
+            # Record history
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_ucid, details)
+                VALUES (%s, 'created', %s, %s)
+            """, (task_id, player.ucid, '{"source": "in_game_request"}'))
+
+            return {'success': True, 'task_id': task_id}
+
+    async def _recreate_all_markers(self, server: Server):
+        """Recreate markers for all active tasks on mission start."""
+        async with self.pool.connection() as conn:
+            # Clear old marker records
+            await conn.execute("""
+                DELETE FROM logistics_markers WHERE server_name = %s
+            """, (server.name,))
+
+            # Get active tasks
+            cursor = await conn.execute("""
+                SELECT t.id, t.cargo_type, t.source_name, t.source_position,
+                       t.destination_name, t.destination_position, t.coalition,
+                       t.deadline, p.name as assigned_name
+                FROM logistics_tasks t
+                LEFT JOIN players p ON t.assigned_ucid = p.ucid
+                WHERE t.server_name = %s AND t.status IN ('approved', 'assigned', 'in_progress')
+            """, (server.name,))
+            tasks = await cursor.fetchall()
+
+            for task in tasks:
+                await self._create_markers_for_task(server, {
+                    'id': task[0],
+                    'cargo_type': task[1],
+                    'source_name': task[2],
+                    'source_position': task[3],
+                    'destination_name': task[4],
+                    'destination_position': task[5],
+                    'coalition': task[6],
+                    'deadline': task[7],
+                    'assigned_name': task[8]
+                })
+
+    async def _create_markers_for_task(self, server: Server, task: dict):
+        """Send command to DCS to create markers for a task."""
+        if not task.get('source_position') or not task.get('destination_position'):
+            log.debug(f"Skipping markers for task {task['id']} - missing position data")
+            return
+
+        deadline_str = task['deadline'].strftime('%H:%MZ') if task.get('deadline') else None
+
+        await server.send_to_dcs({
+            "command": "createLogisticsMarkers",
+            "task_id": task['id'],
+            "cargo_type": task['cargo_type'],
+            "source_name": task['source_name'],
+            "source_position": task['source_position'],
+            "destination_name": task['destination_name'],
+            "destination_position": task['destination_position'],
+            "coalition": task['coalition'],
+            "deadline": deadline_str,
+            "assigned_pilot": task.get('assigned_name')
+        })
+
+    async def _remove_task_markers(self, server: Server, task_id: int):
+        """Remove markers for a task."""
+        await server.send_to_dcs({
+            "command": "removeLogisticsMarkers",
+            "task_id": task_id
+        })
+
+        async with self.pool.connection() as conn:
+            await conn.execute("""
+                DELETE FROM logistics_markers WHERE task_id = %s AND server_name = %s
+            """, (task_id, server.name))
+
+    async def _update_markers_with_pilot(self, server: Server, task_id: int, pilot_name: str | None):
+        """Update markers with pilot assignment."""
+        # For now, just recreate the markers
+        # A more efficient implementation would send an update command to DCS
+        async with self.pool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT id, cargo_type, source_name, source_position,
+                       destination_name, destination_position, coalition, deadline
+                FROM logistics_tasks WHERE id = %s
+            """, (task_id,))
+            row = await cursor.fetchone()
+            if row:
+                await self._remove_task_markers(server, task_id)
+                await self._create_markers_for_task(server, {
+                    'id': row[0],
+                    'cargo_type': row[1],
+                    'source_name': row[2],
+                    'source_position': row[3],
+                    'destination_name': row[4],
+                    'destination_position': row[5],
+                    'coalition': row[6],
+                    'deadline': row[7],
+                    'assigned_name': pilot_name
+                })
+
+    async def _store_marker_ids(self, server_name: str, task_id: int, marker_ids: list[int]):
+        """Store marker IDs for cleanup."""
+        async with self.pool.connection() as conn:
+            for marker_id in marker_ids:
+                await conn.execute("""
+                    INSERT INTO logistics_markers (server_name, task_id, marker_id, marker_type)
+                    VALUES (%s, %s, %s, 'route')
+                """, (server_name, task_id, marker_id))
+
+    async def _notify_player_of_task(self, player: Player, task: dict):
+        """Notify player of their assigned task on spawn."""
+        deadline_str = task['deadline'].strftime('%H:%MZ') if task.get('deadline') else "None"
+        await player.sendPopupMessage(
+            f"ACTIVE LOGISTICS TASK\n\n"
+            f"Task #{task['id']}\n"
+            f"Cargo: {task['cargo_type']}\n"
+            f"From: {task['source_name']}\n"
+            f"To: {task['destination_name']}\n"
+            f"Deadline: {deadline_str}",
+            15
+        )
+
+    async def _check_delivery_on_landing(self, server: Server, data: dict):
+        """Check if a landing event completes a logistics task."""
+        player = server.get_player(id=data.get('initiator', {}).get('id'))
+        if not player:
+            return
+
+        task = await self._get_assigned_task(player.ucid, server.name)
+        if not task:
+            return
+
+        # Get destination position
+        async with self.pool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT destination_position FROM logistics_tasks WHERE id = %s
+            """, (task['id'],))
+            row = await cursor.fetchone()
+            if not row or not row[0]:
+                return
+
+        dest_pos = row[0]
+
+        # Get landing position from event
+        landing_pos = data.get('initiator', {}).get('position', {})
+        if not landing_pos:
+            return
+
+        # Check proximity (3000m default)
+        threshold = 3000
+        dx = landing_pos.get('x', 0) - dest_pos.get('x', 0)
+        dz = landing_pos.get('z', 0) - dest_pos.get('z', 0)
+        distance = (dx**2 + dz**2) ** 0.5
+
+        if distance <= threshold:
+            log.info(f"Logistics: Auto-completing task {task['id']} for {player.name}")
+            result = await self._complete_task(server, player, task['id'])
+            if result['success']:
+                await player.sendChatMessage(f"Delivery confirmed! Task #{task['id']} completed.")
+                await player.sendPopupMessage("DELIVERY COMPLETE\n\nTask logged to your record.", 10)

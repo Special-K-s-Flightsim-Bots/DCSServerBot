@@ -9,7 +9,6 @@ A comprehensive pilot logbook and squadron management plugin for DCSServerBot. P
 - **Qualifications**: Define qualifications with optional expiration, auto-grant based on requirements
 - **Awards**: Create awards with custom ribbon colors, generate ribbon rack images
 - **Flight Plans**: File, track, and manage flight plans with status workflow
-- **Stores Requests**: Submit and track logistics/stores requests with approval workflow
 
 ## Requirements
 
@@ -95,15 +94,7 @@ DEFAULT:
 | `/flightplan complete <plan>`                                                                         | Mark plan as completed   | DCS   |
 | `/flightplan cancel <plan>`                                                                           | Cancel a flight plan     | DCS   |
 
-### Stores Request Commands (`/stores`)
-
-| Command                           | Description                       | Role      |
-|-----------------------------------|-----------------------------------|-----------|
-| `/stores request <items>`         | Submit a stores/logistics request | DCS       |
-| `/stores list [status] [user]`    | List stores requests              | DCS       |
-| `/stores view <request>`          | View request details              | DCS       |
-| `/stores approve <request>`       | Approve a stores request          | DCS Admin |
-| `/stores deny <request> [reason]` | Deny a stores request             | DCS Admin |
+> **Note:** Stores/logistics commands have been moved to the separate `logistics` plugin for enhanced in-game integration.
 
 ## Auto-Grant Qualifications
 
