@@ -730,12 +730,13 @@ class RestAPI(Plugin):
                     {sql_part}
                 """):
                     members = await self.squadron_members(row['name'])
+                    role_obj = self.bot.get_role(row['role']) if row['role'] else None
                     squadrons.append(SquadronInfo.model_validate({
                         "name": row['name'],
                         "description": row['description'],
                         "image_url": row['image_url'],
                         "locked": row['locked'],
-                        "role": self.bot.get_role(row['role']).name if row['role'] else None,
+                        "role": role_obj.name if role_obj else None,
                         "members": members
                     }))
         return squadrons
