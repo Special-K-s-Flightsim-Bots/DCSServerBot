@@ -645,7 +645,7 @@ class AirbasesResponse(BaseModel):
             "example": {
                 "airbases": {
                     "command": "getAirbases",
-                    "channel": "sync-50cef24b-faa2-4ddc-b46b-2a92da16abdc",
+                    "channel": "sync-****",
                     "server_name": "Server Name",
                     "airbases": [
                         {
