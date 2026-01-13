@@ -636,6 +636,145 @@ class ServerAttendanceStats(BaseModel):
 class ErrorResponse(BaseModel):
     error: str = Field(..., description="Error message")
 
+
+class AirbasesResponse(BaseModel):
+    airbases: dict = Field(..., description="Airbases data")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "airbases": {
+                    "command": "getAirbases",
+                    "channel": "sync-50cef24b-faa2-4ddc-b46b-2a92da16abdc",
+                    "server_name": "Server Name",
+                    "airbases": [
+                        {
+                            "alt": 250.00025,
+                            "code": "ICAO",
+                            "id": "Airbase_Name",
+                            "lat": 35.732306452624,
+                            "rwy_heading": 274,
+                            "lng": 37.104127964423,
+                            "name": "Airbase Name",
+                            "position": {
+                            "y": 250.00025,
+                            "x": 76048.957031,
+                            "z": 111344.925781
+                            },
+                            "frequencyList": [
+                            [
+                                38950000,
+                                0
+                            ],
+                            [
+                                122200000,
+                                0
+                            ],
+                            [
+                                250500000,
+                                0
+                            ],
+                            [
+                                4025000,
+                                0
+                            ]
+                            ],
+                            "dynamic": {
+                            "dynamicSpawnAvailable": True,
+                            "allowHotSpawn": False
+                            },
+                            "runwayList": [
+                            "09",
+                            "27"
+                            ]
+                        },
+                    ]
+                }
+            }
+        }
+    }
+
+
+class AirbaseInfoResponse(BaseModel):
+    airbase: dict = Field(..., description="Airbase data")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "airbase": {
+                    "alt": 69.475785112923,
+                    "channel": "...",
+                    "server_name": "Server Name",
+                    "auto_capture": True,
+                    "lat": 36.371269972814,
+                    "unlimited": {
+                    "weapon": False,
+                    "liquids": True,
+                    "aircraft": False
+                    },
+                    "parking": [
+                        {
+                            "Term_Index": 9,
+                            "vTerminalPos": {
+                            "y": 69.475784301758,
+                            "x": 147715.125,
+                            "z": 38939.109375
+                            },
+                            "TO_AC": False,
+                            "Term_Index_0": -1,
+                            "Term_Type": 104,
+                            "fDistToRW": 1641.8400878906
+                        }
+                    ],
+                    "coalition": 2,
+                    "lng": 36.298090184913,
+                    "name": "Airbase Name",
+                    "position": {
+                    "y": 69.475784301758,
+                    "x": 148653.765625,
+                    "z": 40403.9453125
+                    },
+                    "command": "getAirbase",
+                    "warehouse": {
+                    "liquids": {
+                        "0": 324730.28125,
+                        "1": 500000,
+                        "2": 500000,
+                        "3": 500000
+                    },
+                    "weapon": {
+                        "weapons.missiles.AGM_154": 50,
+                        "weapons.nurs.HYDRA_70_M151_M433": 100,
+                        "weapons.bombs.BEER_BOMB": 50,
+                        "weapons.containers.LANTIRN": 1000,
+                        "weapons.droptanks.Spitfire_tank_1": 1000
+                    },
+                    "aircraft": {
+                        "OH58D": 1,
+                        "CH-47Fbl1": 1,
+                        "A-10C_2": 1,
+                        "F-14B": 1
+                    }
+                    },
+                    "runways": [
+                        {
+                            "course": 2.3682391643524,
+                            "Name": 22,
+                            "position": {
+                            "y": 69.475784301758,
+                            "x": 147687.484375,
+                            "z": 39418.7421875
+                            },
+                            "length": 2759.2866210938,
+                            "width": 60
+                        }
+                    ],
+                    "radio_silent": True
+                }
+            }
+        }
+    }
+
 class AirbaseWarehouseResponse(BaseModel):
     warehouse: dict = Field(..., description="Warehouse data")
     unlimited: dict = Field(..., description="Unlimited flags")
