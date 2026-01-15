@@ -1,4 +1,5 @@
 import discord
+import json
 import logging
 
 from core import Plugin, utils, Server, Status
@@ -129,8 +130,9 @@ class Logistics(Plugin[LogisticsEventListener]):
 
         source = source_airbase['name']
         destination = dest_airbase['name']
-        source_position = source_airbase.get('position')
-        dest_position = dest_airbase.get('position')
+        # Serialize positions to JSON for JSONB columns
+        source_position = json.dumps(source_airbase.get('position')) if source_airbase.get('position') else None
+        dest_position = json.dumps(dest_airbase.get('position')) if dest_airbase.get('position') else None
 
         coalition_id = 1 if coalition == 'red' else 2
 
