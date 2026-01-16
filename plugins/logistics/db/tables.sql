@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS logistics_tasks (
     id SERIAL PRIMARY KEY,
     server_name TEXT NOT NULL,
-    created_by_ucid TEXT NOT NULL,
+    created_by_ucid TEXT,                      -- NULL for admin-created tasks
     status TEXT NOT NULL DEFAULT 'pending',  -- pending, approved, assigned, in_progress, completed, failed, cancelled
     priority TEXT NOT NULL DEFAULT 'normal', -- low, normal, high, urgent
     cargo_type TEXT NOT NULL,                -- Human-readable cargo description

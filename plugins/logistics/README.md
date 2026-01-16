@@ -52,33 +52,33 @@ DEFAULT:
 
 ### Task Management (`/logistics`)
 
-| Command | Description | Role |
-|---------|-------------|------|
+| Command                                                                                       | Description             | Role      |
+|-----------------------------------------------------------------------------------------------|-------------------------|-----------|
 | `/logistics create <server> <cargo> <source> <destination> [coalition] [priority] [deadline]` | Create a logistics task | DCS Admin |
-| `/logistics list [server] [status] [coalition]` | List tasks with filters | DCS |
-| `/logistics view <task>` | View task details | DCS |
-| `/logistics approve <task>` | Approve pending task | DCS Admin |
-| `/logistics deny <task> [reason]` | Deny pending task | DCS Admin |
-| `/logistics cancel <task>` | Cancel any task | DCS Admin |
+| `/logistics list [server] [status] [coalition]`                                               | List tasks with filters | DCS       |
+| `/logistics view <task>`                                                                      | View task details       | DCS       |
+| `/logistics approve <task>`                                                                   | Approve pending task    | DCS Admin |
+| `/logistics deny <task> [reason]`                                                             | Deny pending task       | DCS Admin |
+| `/logistics cancel <task>`                                                                    | Cancel any task         | DCS Admin |
 
 ### Warehouse Commands (`/warehouse`)
 
-| Command | Description | Role |
-|---------|-------------|------|
-| `/warehouse status <server> <airbase>` | Query inventory at location | DCS |
-| `/warehouse compare <server> <source> <destination>` | Compare two locations | DCS |
+| Command                                              | Description                 | Role  |
+|------------------------------------------------------|-----------------------------|-------|
+| `/warehouse status <server> <airbase>`               | Query inventory at location | DCS   |
+| `/warehouse compare <server> <source> <destination>` | Compare two locations       | DCS   |
 
 ## In-Game Chat Commands
 
-| Command | Description |
-|---------|-------------|
-| `-tasks` | List available logistics tasks for your coalition |
-| `-accept <id>` | Accept/claim a logistics task |
-| `-mytask` | Show your current assigned task |
-| `-taskinfo <id>` | View details of any visible task |
-| `-deliver` | Mark current task as delivered (manual) |
-| `-abandon` | Release task back to available pool |
-| `-request <dest> <cargo>` | Player-initiated logistics request |
+| Command                   | Description                                       |
+|---------------------------|---------------------------------------------------|
+| `-tasks`                  | List available logistics tasks for your coalition |
+| `-accept <id>`            | Accept/claim a logistics task                     |
+| `-mytask`                 | Show your current assigned task                   |
+| `-taskinfo <id>`          | View details of any visible task                  |
+| `-deliver`                | Mark current task as delivered (manual)           |
+| `-abandon`                | Release task back to available pool               |
+| `-request <dest> <cargo>` | Player-initiated logistics request                |
 
 ## F10 Menu Structure
 
@@ -144,14 +144,14 @@ Tasks are automatically completed when:
 
 When a logistics task is completed, the pilot receives credit in the `logbook_logistics_completions` table:
 
-| Field | Description |
-|-------|-------------|
-| player_ucid | Pilot's unique ID |
-| task_id | Completed task reference |
-| cargo_type | What was delivered |
-| source_name | Pickup location |
-| destination_name | Delivery location |
-| completed_at | Completion timestamp |
+| Field            | Description              |
+|------------------|--------------------------|
+| player_ucid      | Pilot's unique ID        |
+| task_id          | Completed task reference |
+| cargo_type       | What was delivered       |
+| source_name      | Pickup location          |
+| destination_name | Delivery location        |
+| completed_at     | Completion timestamp     |
 
 This data can be used for:
 - Displaying logistics stats in `/logbook stats`

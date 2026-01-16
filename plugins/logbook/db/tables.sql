@@ -129,7 +129,7 @@ SELECT
     p.discord_id,
     GREATEST(
         COALESCE(h.total_hours, 0),
-        COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'utc') - s.hop_on))) / 3600.0, 2), 0)
+        ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'utc') - s.hop_on))) / 3600.0, 0)::DECIMAL, 2)
     ) AS total_hours,
     COALESCE(SUM(s.kills), 0) AS total_kills,
     COALESCE(SUM(s.deaths), 0) AS total_deaths,

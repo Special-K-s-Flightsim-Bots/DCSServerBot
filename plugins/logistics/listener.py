@@ -85,7 +85,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
         task_id = data.get('task_id')
         # Find the player who owns this task
-        async with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT assigned_ucid FROM logistics_tasks WHERE id = %s
             """, (task_id,))
@@ -280,7 +280,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     async def _get_available_tasks(self, server_name: str, coalition: int) -> list[dict]:
         """Get tasks available for a coalition."""
-        async with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT id, cargo_type, source_name, destination_name, priority, deadline
                 FROM logistics_tasks
@@ -310,7 +310,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     async def _get_assigned_task(self, ucid: str, server_name: str) -> dict | None:
         """Get task assigned to a player."""
-        async with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT id, cargo_type, source_name, destination_name, deadline, status, priority
                 FROM logistics_tasks
@@ -332,7 +332,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     async def _get_task_by_id(self, task_id: int, server_name: str, coalition: int) -> dict | None:
         """Get task by ID if visible to coalition."""
-        async with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT t.id, t.cargo_type, t.source_name, t.destination_name,
                        t.deadline, t.status, t.priority, p.name as assigned_name
@@ -356,7 +356,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     async def _assign_task(self, server: Server, player: Player, task_id: int) -> dict:
         """Assign a task to a player."""
-        async with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             # Check if task is available
             cursor = await conn.execute("""
                 SELECT id, cargo_type, source_name, destination_name, deadline, coalition
@@ -403,7 +403,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     async def _complete_task(self, server: Server, player: Player, task_id: int) -> dict:
         """Complete a logistics task."""
-        async with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             # Get task details
             cursor = await conn.execute("""
                 SELECT cargo_type, source_name, destination_name
@@ -444,7 +444,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     async def _abandon_task(self, server: Server, player: Player, task_id: int) -> dict:
         """Abandon a logistics task."""
-        async with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             now = datetime.now(timezone.utc)
 
             # Update task - return to approved status
@@ -470,7 +470,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     async def _create_request(self, server: Server, player: Player, destination: str, cargo: str) -> dict:
         """Create a player-initiated logistics request."""
-        async with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             now = datetime.now(timezone.utc)
 
             cursor = await conn.execute("""
@@ -492,7 +492,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     async def _recreate_all_markers(self, server: Server):
         """Recreate markers for all active tasks on mission start."""
-        async with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             # Clear old marker records
             await conn.execute("""
                 DELETE FROM logistics_markers WHERE server_name = %s
@@ -562,7 +562,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
             "task_id": task_id
         })
 
-        async with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             await conn.execute("""
                 DELETE FROM logistics_markers WHERE task_id = %s AND server_name = %s
             """, (task_id, server.name))
@@ -571,7 +571,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
         """Update markers with pilot assignment."""
         # For now, just recreate the markers
         # A more efficient implementation would send an update command to DCS
-        async with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT id, cargo_type, source_name, source_position,
                        destination_name, destination_position, coalition, deadline
@@ -594,7 +594,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     async def _store_marker_ids(self, server_name: str, task_id: int, marker_ids: list[dict]):
         """Store marker IDs for cleanup."""
-        async with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             # Clear old markers first
             await conn.execute("""
                 DELETE FROM logistics_markers WHERE server_name = %s AND task_id = %s
@@ -639,7 +639,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
             return
 
         # Get destination info
-        async with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT destination_name, destination_position FROM logistics_tasks WHERE id = %s
             """, (task['id'],))
