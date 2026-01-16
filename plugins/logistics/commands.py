@@ -86,7 +86,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     @logistics.command(description='Create a new logistics task')
     @app_commands.guild_only()
-    @utils.app_has_roles(['DCS Admin', 'Logistics Officer'])
+    @utils.app_has_role('DCS')
     @app_commands.rename(source_idx='source', dest_idx='destination')
     @app_commands.describe(source_idx='Pickup location (airbase/FARP/carrier)')
     @app_commands.describe(dest_idx='Delivery location')
@@ -163,7 +163,7 @@ class Logistics(Plugin[LogisticsEventListener]):
                 RETURNING id
             """, (
                 server.name,
-                'ADMIN',  # Created by admin, not player UCID
+                None,  # NULL for admin-created tasks (no player UCID)
                 priority,
                 cargo,
                 source,
@@ -369,7 +369,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     @logistics.command(description='Approve a pending logistics request')
     @app_commands.guild_only()
-    @utils.app_has_roles(['DCS Admin', 'Logistics Officer'])
+    @utils.app_has_role('DCS')
     @app_commands.autocomplete(task_id=pending_task_autocomplete)
     async def approve(self, interaction: discord.Interaction,
                       task_id: int,
@@ -468,7 +468,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     @logistics.command(description='Deny a pending logistics request')
     @app_commands.guild_only()
-    @utils.app_has_roles(['DCS Admin', 'Logistics Officer'])
+    @utils.app_has_role('DCS')
     @app_commands.autocomplete(task_id=pending_task_autocomplete)
     async def deny(self, interaction: discord.Interaction,
                    task_id: int,
@@ -507,7 +507,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     @logistics.command(description='Cancel an active logistics task')
     @app_commands.guild_only()
-    @utils.app_has_roles(['DCS Admin'])
+    @utils.app_has_role('DCS')
     @app_commands.autocomplete(task_id=logistics_task_autocomplete)
     async def cancel(self, interaction: discord.Interaction,
                      task_id: int,
