@@ -449,7 +449,7 @@ class NodeImpl(Node):
             except UniqueViolation:
                 self.log.error(f"Instance \"{_name}\" can't be added."
                                f"There is an instance already with the same server name or bot port.")
-            except Exception as ex:
+            except Exception:
                 self.log.error(f"Instance \"{_name}\" can't be added.", exc_info=True)
 
         if dirty:

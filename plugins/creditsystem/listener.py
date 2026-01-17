@@ -244,7 +244,7 @@ class CreditSystemListener(EventListener["CreditSystem"]):
                 asyncio.create_task(self.process_achievements(server, player))
 
     @event(name="onCampaignReset")
-    async def onCampaignReset(self, server: Server, data: dict) -> None:
+    async def onCampaignReset(self, server: Server, _data: dict) -> None:
         if server.status != Status.RUNNING:
             return
         config = self.plugin.get_config(server)
@@ -256,7 +256,7 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             player.squadron = squadron
 
     @chat_command(name="credits", help=_("Shows your current credits"))
-    async def credits(self, server: Server, player: CreditPlayer, params: list[str]):
+    async def credits(self, _server: Server, player: CreditPlayer, _params: list[str]):
         message = _("You currently have {} credit points").format(player.points)
         if player.deposit > 0:
             message += f", {player.deposit} on deposit"

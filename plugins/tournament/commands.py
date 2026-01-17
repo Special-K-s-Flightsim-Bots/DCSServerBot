@@ -120,7 +120,7 @@ async def valid_squadron_autocomplete(interaction: discord.Interaction, current:
     return await squadron_autocomplete(interaction, current, 'accepted')
 
 
-async def stage_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+async def stage_autocomplete(interaction: discord.Interaction, _current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     tournament_id = interaction.namespace.tournament
@@ -209,7 +209,7 @@ async def active_matches_autocomplete(interaction: discord.Interaction, current:
         return choices[:25]
 
 
-async def match_squadrons_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+async def match_squadrons_autocomplete(interaction: discord.Interaction, _current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     match_id = interaction.namespace.match
@@ -240,7 +240,7 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
     return []
 
 
-async def date_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+async def date_autocomplete(_interaction: discord.Interaction, _current: str) -> list[app_commands.Choice[str]]:
     now = int(time())
     day_start = now - (now % 86400)
     return [
@@ -252,7 +252,7 @@ async def date_autocomplete(interaction: discord.Interaction, current: str) -> l
     ]
 
 
-async def time_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+async def time_autocomplete(interaction: discord.Interaction, _current: str) -> list[app_commands.Choice[int]]:
     tournament_id = interaction.namespace.tournament
     async with interaction.client.apool.connection() as conn:
         choices: list[app_commands.Choice[int]] = [
@@ -1185,7 +1185,7 @@ class Tournament(Plugin[TournamentEventListener]):
 
         return create_group_matches(groups)
 
-    async def generate_elimination_stage(self, interaction: discord.Interaction, tournament_id: int,
+    async def generate_elimination_stage(self, _interaction: discord.Interaction, tournament_id: int,
                                          level: int) -> list[tuple[int, int]]:
         async with self.apool.connection() as conn:
             cursor = await conn.execute("SELECT COUNT(DISTINCT(group_number)) FROM tm_squadrons WHERE tournament_id = %s",

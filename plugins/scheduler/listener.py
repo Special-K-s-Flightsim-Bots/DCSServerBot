@@ -255,7 +255,7 @@ class SchedulerListener(EventListener["Scheduler"]):
             await player.sendChatMessage("Maintenance mode wasn't enabled.")
 
     @chat_command(name="timeleft", help="Time to the next restart")
-    async def timeleft(self, server: Server, player: Player, params: list[str]):
+    async def timeleft(self, server: Server, player: Player, _params: list[str]):
         action = self.get_config(server).get('action')
         if not action:
             await player.sendChatMessage("No action configured for this server.")

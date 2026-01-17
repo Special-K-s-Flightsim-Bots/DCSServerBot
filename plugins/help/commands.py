@@ -460,7 +460,7 @@ _ _
         await interaction.followup.send(file=discord.File(fp=output, filename='ServerInfo.xlsx'), ephemeral=True)
         output.close()
 
-    async def generate_firewall_rules(self, interaction: discord.Interaction, node: Node) -> str:
+    async def generate_firewall_rules(self, node: Node) -> str:
         ports: list[Port] = []
         for server in self.bot.servers.values():
             ports.append(server.instance.dcs_port)
@@ -515,7 +515,7 @@ _ _
                                        if x is not None
                                    ])
             if idx:
-                rules = await self.generate_firewall_rules(interaction, all_nodes[int(idx)])
+                rules = await self.generate_firewall_rules(all_nodes[int(idx)])
                 file = discord.File(fp=BytesIO(rules.encode('utf-8')), filename='firewall_rules.ps1')
                 # noinspection PyUnresolvedReferences
                 if not interaction.response.is_done():

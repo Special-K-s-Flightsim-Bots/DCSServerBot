@@ -561,7 +561,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                 self.calculate_rating(await self.get_rating(player))))
 
     @chat_command(name="skill", help=_("Display your rating"))
-    async def skill(self, server: Server, player: Player, params: list[str]):
+    async def skill(self, _server: Server, player: Player, _params: list[str]):
         asyncio.create_task(self._print_trueskill(player))
 
     @tasks.loop(seconds=5)

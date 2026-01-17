@@ -144,7 +144,7 @@ def dir_exists(value, _, path):
             raise SchemaError(msg=f'Directory "{value}" does not exist or is no directory', path=path)
     return True
 
-def deprecated(value, rule_obj, path):
+def deprecated(_value, rule_obj, path):
     message = f'Parameter "{os.path.basename(path)}" is deprecated.'
     enum = rule_obj.schema_str.get('enum', [])
     if enum:
@@ -154,7 +154,7 @@ def deprecated(value, rule_obj, path):
     rule_obj.enum = None
     return True
 
-def obsolete(value, rule_obj, path):
+def obsolete(_value, _rule_obj, path):
     if _is_valid(path):
         logger.warning(f'"{os.path.basename(path)}" is obsolete and will be set by the bot: Path "{path}"')
     return True
@@ -316,7 +316,7 @@ def str_csv_or_list(value, rule_obj, path):
     rule_obj.pattern = r"^\[?[a-zA-Z0-9]+(,[a-zA-Z0-9]+)*\]?$"
     return _csv_or_list(str, value, rule_obj, path)
 
-def is_node(value, rule_obj, path):
+def is_node(value, _rule_obj, _path):
     node_data = get_node_data()
     for instance in value.keys():
         if instance not in node_data.all_instances:
@@ -339,7 +339,7 @@ def is_server(value, rule_obj, path):
     except re.error as ex:
         raise SchemaError(f'Invalid regular expression: "{ex.pattern}"', path=path)
 
-def is_element(value, rule_obj, path):
+def is_element(value, _rule_obj, path):
     if path == '/DEFAULT':
         return True
     node_data = get_node_data()
@@ -348,7 +348,7 @@ def is_element(value, rule_obj, path):
             return False
     return True
 
-def check_main_structure(value, rule_obj, path):
+def check_main_structure(value, _rule_obj, path):
     node_data = get_node_data()
     for element in value.keys():
         if element == 'DEFAULT':

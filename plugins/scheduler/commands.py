@@ -621,7 +621,7 @@ class Scheduler(Plugin[SchedulerListener]):
     # Individual rule handlers – each returns `restart_in` or `None`
     # ------------------------------------------------------------------ #
     @staticmethod
-    def _handle_times(server: Server, config: dict, rconf: dict, warn_time: int) -> int | None:
+    def _handle_times(_server: Server, config: dict, rconf: dict, warn_time: int) -> int | None:
         """
         *times* – the mission has to restart when the *restart_time*
         falls into any of the supplied time intervals.
@@ -646,7 +646,7 @@ class Scheduler(Plugin[SchedulerListener]):
         return None
 
     @staticmethod
-    def _handle_mission_time(server: Server, config: dict, rconf: dict, warn_time: int) -> int | None:
+    def _handle_mission_time(server: Server, _config: dict, rconf: dict, warn_time: int) -> int | None:
         """
         *mission_time* – check the maximum duration a mission is allowed
         to run.  If the current mission would exceed that duration,
@@ -671,7 +671,7 @@ class Scheduler(Plugin[SchedulerListener]):
         return None
 
     @staticmethod
-    def _handle_real_time(server: Server, config: dict, rconf: dict, warn_time: int) -> int | None:
+    def _handle_real_time(server: Server, _config: dict, rconf: dict, warn_time: int) -> int | None:
         """
         *real_time* – similar to *mission_time* but uses the mission’s
         real‑time counter instead of the internal mission timer.
@@ -689,7 +689,7 @@ class Scheduler(Plugin[SchedulerListener]):
         return None
 
     @staticmethod
-    def _handle_idle_time(server: Server, config: dict, rconf: dict) -> int | None:
+    def _handle_idle_time(server: Server, _config: dict, rconf: dict) -> int | None:
         """
         *idle_time* – if the server has been idle longer than the
         configured threshold, trigger a 0‑second restart.
@@ -700,7 +700,7 @@ class Scheduler(Plugin[SchedulerListener]):
         return None
 
     @staticmethod
-    def _handle_cron(server: Server, config: dict, rconf: dict, warn_time: int) -> int | None:
+    def _handle_cron(_server: Server, config: dict, rconf: dict, warn_time: int) -> int | None:
         """
         *cron* – evaluate the cron expression at the *restart_time* that would occur after *warn_time* seconds.
         """
@@ -1044,7 +1044,7 @@ class Scheduler(Plugin[SchedulerListener]):
         try:
             await self._shutdown(interaction, embed=embed, server=server, maintenance=maintenance, force=force,
                                  ephemeral=ephemeral)
-        except TimeoutError as ex:
+        except TimeoutError:
             self.log.error(f"Timeout while shutting down server {server.name}.")
         except Exception as ex:
             self.log.error(ex)
@@ -1110,7 +1110,7 @@ class Scheduler(Plugin[SchedulerListener]):
             await self._shutdown(interaction, embed=embed, server=server, msg=msg, maintenance=None, force=force)
             await self._startup(interaction, embed=embed, server=server, msg=msg, maintenance=None,
                                 run_extensions=run_extensions, use_orig=use_orig, mission_id=mission_id)
-        except TimeoutError as ex:
+        except TimeoutError:
             self.log.error(f"Timeout while restarting server {server.name}.")
         except Exception as ex:
             self.log.error(ex)

@@ -288,7 +288,6 @@ class GameMasterEventListener(EventListener["GameMaster"]):
             asyncio.create_task(player.add_role(roles[player.coalition]))
 
     async def reset_coalition(self, server: Server, player: Player):
-        guild = self.bot.guilds[0]
         roles = {
             "red": self.bot.get_role(server.locals['coalitions']['red_role']),
             "blue": self.bot.get_role(server.locals['coalitions']['blue_role'])
@@ -376,7 +375,7 @@ class GameMasterEventListener(EventListener["GameMaster"]):
             await player.sendChatMessage(message)
 
     @chat_command(name="coalition", help=_("displays your current coalition"))
-    async def coalition(self, server: Server, player: Player, params: list[str]):
+    async def coalition(self, server: Server, player: Player, _params: list[str]):
         asyncio.create_task(self._coalition(server, player))
 
     async def _password(self, server: Server, player: Player, init: bool | None = False):
@@ -395,7 +394,7 @@ class GameMasterEventListener(EventListener["GameMaster"]):
             await player.sendChatMessage(_("There is no password set for your coalition."))
 
     @chat_command(name="password", aliases=["passwd"], help=_("displays the coalition password"))
-    async def password(self, server: Server, player: Player, params: list[str]):
+    async def password(self, server: Server, player: Player, _params: list[str]):
         asyncio.create_task(self._password(server, player, False))
 
     @chat_command(name="flag", roles=['DCS Admin', 'GameMaster'], usage=_("<flag> [value]"),
@@ -419,7 +418,7 @@ class GameMasterEventListener(EventListener["GameMaster"]):
             await player.sendChatMessage(_("Flag {flag} has value {value}.").format(flag=flag, value=response['value']))
 
     @chat_command(name="ack", help=_("acknowledge a user message"))
-    async def ack(self, server: Server, player: Player, params: list[str]):
+    async def ack(self, server: Server, player: Player, _params: list[str]):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 cursor = await conn.execute("""

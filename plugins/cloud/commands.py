@@ -248,7 +248,7 @@ class Cloud(Plugin[CloudListener]):
     @utils.app_has_role('DCS Admin') # TODO: change that to DCS
     async def serverlist(self, interaction: discord.Interaction, search: str | None = None):
 
-        def format_servers(servers: list[dict], marker, marker_emoji) -> discord.Embed:
+        def format_servers(servers: list[dict], _marker, _marker_emoji) -> discord.Embed:
             embed = discord.Embed(title=_('DCS Servers'), color=discord.Color.blue())
             for idx, server in enumerate(servers):
                 name = chr(0x31 + idx) + '\u20E3' + f" {utils.escape_string(server['server_name'])} [{server['num_players']}/{server['max_players']}]"

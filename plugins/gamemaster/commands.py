@@ -61,7 +61,7 @@ async def recipient_autocomplete(interaction: discord.Interaction, current: str)
         return []
 
 
-async def campaign_servers_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+async def campaign_servers_autocomplete(interaction: discord.Interaction, _current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     try:

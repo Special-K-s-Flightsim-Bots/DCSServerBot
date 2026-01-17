@@ -18,7 +18,7 @@ class MonitoringListener(EventListener["Monitoring"]):
         self.warning_sent = {}
 
     @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
+    async def registerDCSServer(self, server: Server, _data: dict) -> None:
         self.warning_sent[server.name] = False
 
     @event(name="perfmon")
