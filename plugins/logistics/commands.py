@@ -2,7 +2,7 @@ import discord
 import json
 import logging
 
-from core import Plugin, utils, Server, Status
+from core import Plugin, utils, Server, Status, Group
 from datetime import datetime, timezone
 from discord import app_commands
 from psycopg.rows import dict_row
@@ -77,10 +77,10 @@ class Logistics(Plugin[LogisticsEventListener]):
     """
 
     # Command group "/logistics"
-    logistics = app_commands.Group(name="logistics", description="Logistics mission management")
+    logistics = Group(name="logistics", description="Logistics mission management")
 
     # Command group "/warehouse"
-    warehouse = app_commands.Group(name="warehouse", description="Warehouse inventory commands")
+    warehouse = Group(name="warehouse", description="Warehouse inventory commands")
 
     # ==================== LOGISTICS COMMANDS ====================
 
