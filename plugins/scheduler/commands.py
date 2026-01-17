@@ -491,6 +491,10 @@ class Scheduler(Plugin[SchedulerListener]):
         else:
             await self._run_without_presets(server, rconf, new_mission)
 
+        # change password if configured
+        if 'password' in rconf:
+            await server.setPassword(rconf.get('password'))
+
         mission_name = server.current_mission.display_name if server.current_mission else ""
         await self.bot.audit(
             f"{self.__cog_name__} {method.rstrip('e')}ed mission {mission_name}",
