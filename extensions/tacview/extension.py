@@ -165,7 +165,7 @@ class Tacview(Extension):
         if parse(self.version) < parse('1.9.5') and options['Tacview'].get('tacviewPlaybackDelay', 0) == 0:
             self.log.warning(
                 f'  => {self.server.name}: tacviewPlaybackDelay is not set, you might see performance issues!')
-        elif int(options['Tacview'].get('tacviewDataCaptureMode', 1)) == 1:
+        elif int(options['Tacview'].get('tacviewDataCaptureMode', 8)) == 1:
             self.log.warning(
                 f'  => {self.server.name}: tacviewDataCaptureMode is set to 1, you might see performance issues!')
 
