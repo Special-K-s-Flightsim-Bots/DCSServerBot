@@ -18,10 +18,15 @@ _ = get_translation(__name__.split('.')[1])
 async def get_commands(interaction: discord.Interaction) -> dict[str, app_commands.Command]:
     cmds: dict[str, app_commands.Command] = dict()
     for cmd in interaction.client.tree.get_commands(guild=interaction.guild):
-        if isinstance(cmd, app_commands.Group):
-            for inner in cmd.commands:
-                if await inner._check_can_run(interaction):
+        async def _process_group(group: app_commands.Group):
+            for inner in group.commands:
+                if isinstance(inner, app_commands.Group):
+                    await _process_group(inner)
+                elif await inner._check_can_run(interaction):
                     cmds[inner.qualified_name] = inner
+
+        if isinstance(cmd, app_commands.Group):
+            await _process_group(cmd)
         elif await cmd._check_can_run(interaction):
             cmds[cmd.name] = cmd
     ctx = await interaction.client.get_context(interaction)
