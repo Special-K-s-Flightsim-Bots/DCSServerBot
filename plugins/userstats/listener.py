@@ -343,7 +343,7 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
                 asyncio.create_task(self.plugin.render_highscore(config['highscore'], server=server, mission_end=True))
 
     @event(name="onMemberLinked")
-    async def onMemberLinked(self, server: Server, data: dict) -> None:
+    async def onMemberLinked(self, _server: Server, data: dict) -> None:
         member = self.bot.guilds[0].get_member(data['discord_id'])
         roles = [x.id for x in member.roles]
         try:
@@ -363,7 +363,7 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
             self.log.exception(ex)
 
     @event(name="onMemberUnlinked")
-    async def onMemberUnlinked(self, server: Server, data: dict) -> None:
+    async def onMemberUnlinked(self, _server: Server, data: dict) -> None:
         try:
             async with self.apool.connection() as conn:
                 async with conn.transaction():

@@ -453,7 +453,7 @@ class ModManager(Plugin):
                 embed.add_field(name=_("Mod"), value='\n'.join([x[0] for x in installed[folder]]))
                 embed.add_field(name=_("Version"), value='\n'.join([x[1] for x in installed[folder]]))
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     @mods.command(description=_('Download a mod'))
     @app_commands.guild_only()

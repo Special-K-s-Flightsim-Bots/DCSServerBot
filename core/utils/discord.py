@@ -1144,7 +1144,7 @@ async def group_autocomplete(interaction: discord.Interaction, current: str) -> 
     ][:25]
 
 
-async def date_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+async def date_autocomplete(_interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     def get_date_range(date: str):
         try:
             end_date = datetime.strptime(date, '%Y-%m-%d')
@@ -1248,7 +1248,7 @@ class PlayerTransformer(app_commands.Transformer):
             return []
 
 
-def _server_filter(server: Server) -> bool:
+def _server_filter(_server: Server) -> bool:
     return True
 
 
@@ -1475,14 +1475,14 @@ class DirectoryPicker(discord.ui.View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(label="Upload", style=ButtonStyle.green, row=2)
-    async def on_upload(self, interaction: discord.Interaction, button: Button):
+    async def on_upload(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
     # noinspection PyTypeChecker
     @discord.ui.button(label="Up", style=ButtonStyle.secondary)
-    async def on_up(self, interaction: discord.Interaction, button: Button):
+    async def on_up(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if self.dir:
@@ -1491,7 +1491,7 @@ class DirectoryPicker(discord.ui.View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(label="Create", style=ButtonStyle.primary)
-    async def on_create(self, interaction: discord.Interaction, button: Button):
+    async def on_create(self, interaction: discord.Interaction, _button: Button):
         class TextModal(Modal, title="Create Directory"):
             name = TextInput(label="Name", max_length=80, required=True)
 
@@ -1514,7 +1514,7 @@ class DirectoryPicker(discord.ui.View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(label="Cancel", style=ButtonStyle.red, row=2)
-    async def on_cancel(self, interaction: discord.Interaction, button: Button):
+    async def on_cancel(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.base_dir = self.dir = None

@@ -134,7 +134,7 @@ class MessageView(View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(emoji='🚮', style=ButtonStyle.primary)
-    async def on_delete(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def on_delete(self, interaction: discord.Interaction, _button: discord.ui.Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         async with interaction.client.apool.connection() as conn:

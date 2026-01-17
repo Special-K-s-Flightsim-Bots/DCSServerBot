@@ -28,7 +28,7 @@ class MusicEventListener(EventListener["Music"]):
         asyncio.create_task(self._init_radios(server, data))
 
     @event(name="onPlayerStart")
-    async def onPlayerStart(self, server: Server, data: dict) -> None:
+    async def onPlayerStart(self, server: Server, _data: dict) -> None:
         if self.plugin.get_config().get('pause_without_players', True) and len(server.get_active_players()) == 1:
             asyncio.create_task(self.service.start_radios(server))
 

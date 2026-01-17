@@ -870,7 +870,7 @@ class ServiceBus(Service):
                             port = int(port_b)
                             total = int(total_b)
                             seq = int(seq_b)
-                        except Exception as e:
+                        except Exception:
                             self.log.debug("Malformed header after magic byte – dropping packet")
                             return
                         else:

@@ -44,7 +44,7 @@ APP_COMMAND_TYPE_MAP: Mapping[str, AppCommandOptionType] = {
 }
 
 
-async def process_autocomplete(interaction: discord.Interaction, current: int) -> list[app_commands.Choice[int]]:
+async def process_autocomplete(interaction: discord.Interaction, _current: int) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     plugin = ServiceRegistry.get(BotService).bot.cogs['Commands']

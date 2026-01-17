@@ -52,7 +52,7 @@ class FunkManEventListener(EventListener["FunkMan"]):
         missiontime = self._GetVal(result, "mitime", "?")
         missiondate = self._GetVal(result, "midate", "?")
         theatre = self._GetVal(result, "theatre", "Unknown Map")
-        theta = self._GetVal(result, "carrierrwy", -9)
+        _theta = self._GetVal(result, "carrierrwy", -9)
 
         color = 0x00ff00
         urlIm = "https://i.imgur.com/1bWgcV7.png"
@@ -142,7 +142,7 @@ class FunkManEventListener(EventListener["FunkMan"]):
             self.log.exception(ex)
 
     @event(name='registerDCSServer')
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
+    async def registerDCSServer(self, server: Server, _data: dict) -> None:
         config = self.get_config(server)
         for name in ['CHANNELID_MAIN', 'CHANNELID_RANGE', 'CHANNELID_AIRBOSS']:
             if name in config:

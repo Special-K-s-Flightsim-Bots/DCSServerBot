@@ -539,7 +539,7 @@ class MissionEventListener(EventListener["Mission"]):
         self.display_mission_embed(server)
 
     @event(name="onSimulationStop")
-    async def onSimulationStop(self, server: Server, data: dict) -> None:
+    async def onSimulationStop(self, server: Server, _data: dict) -> None:
         server.status = Status.STOPPED
         for p in server.get_active_players():
             if server.locals.get('lock_on_load'):
@@ -1000,7 +1000,7 @@ class MissionEventListener(EventListener["Mission"]):
         asyncio.create_task(self.do_change_mission(server, player, params))
 
     @chat_command(name='pause', help='pause the mission', roles=['DCS Admin', 'GameMaster'])
-    async def pause(self, server: Server, player: Player, params: list[str]):
+    async def pause(self, server: Server, player: Player, _params: list[str]):
         if server.status == Status.PAUSED:
             await player.sendChatMessage("Mission is paused already.")
         else:
@@ -1008,7 +1008,7 @@ class MissionEventListener(EventListener["Mission"]):
             await player.sendChatMessage("Mission paused.")
 
     @chat_command(name='unpause', help='unpause the mission', roles=['DCS Admin', 'GameMaster'])
-    async def unpause(self, server: Server, player: Player, params: list[str]):
+    async def unpause(self, server: Server, player: Player, _params: list[str]):
         if server.status == Status.RUNNING:
             await player.sendChatMessage("Mission is running already.")
         else:
