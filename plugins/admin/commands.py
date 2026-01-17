@@ -90,7 +90,7 @@ async def label_autocomplete(interaction: discord.Interaction, current: str) -> 
             if (
                     (not current or current.casefold() in x['label'].casefold()) and
                     (not x.get('discord') or utils.check_roles(x['discord'], interaction.user)) and
-                    (not x.get('restricted', False) or not server.node.locals.get('restrict_commands', False))
+                    not utils.is_restricted(interaction)
             )
         ]
         return choices[:25]
@@ -135,7 +135,7 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
         # check if we are allowed to display the list
         if (
                 (config.get('discord') and not utils.check_roles(config['discord'], interaction.user)) or
-                (config.get('restricted', False) and server.node.locals.get('restrict_commands', False))
+                utils.is_restricted(interaction)
         ):
             return []
 
@@ -156,8 +156,8 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
     if not await interaction.command._check_can_run(interaction):
         return []
     return [
-        app_commands.Choice(name=x.capitalize(), value=x.lower())
-        for x in sorted(interaction.client.cogs)
+        app_commands.Choice(name=x, value=x.lower())
+        for x in sorted(interaction.client.cogs.keys())
         if not current or current.casefold() in x.casefold()
     ]
 
@@ -586,7 +586,7 @@ class Admin(Plugin[AdminEventListener]):
         # double-check if that user can really download these files
         if (
                 (config.get('discord') and not utils.check_roles(config['discord'], interaction.user)) or
-                (config.get('restricted', False) and server.node.locals.get('restrict_commands', False))
+                utils.is_restricted(interaction)
         ):
             raise app_commands.CheckFailure()
         if what == 'Missions':
@@ -1138,10 +1138,11 @@ Please make sure you forward the following ports:
     @app_commands.check(lambda interaction: sys.platform == 'win32')
     @utils.app_has_role('Admin')
     async def cpuinfo(self, interaction: discord.Interaction,
-                      node: app_commands.Transform[Node, utils.NodeTransformer]):
+                      node: app_commands.Transform[Node, utils.NodeTransformer],
+                      used: bool = True):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
-        image = await node.get_cpu_info()
+        image = await node.get_cpu_info(used)
         await interaction.followup.send(file=discord.File(fp=BytesIO(image), filename='cpuinfo.png'))
 
     plug = Group(name="plugin", description=_("Commands to manage your DCSServerBot plugins"))
@@ -1207,6 +1208,48 @@ Please make sure you forward the following ports:
         # for server in self.bot.servers.values():
         #    if server.status == Status.STOPPED:
         #        await server.send_to_dcs({"command": "reloadScripts"})
+
+    @plug.command(description=_('Stop Plugin'))
+    @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
+    @utils.app_has_role('Admin')
+    @app_commands.autocomplete(plugin=uninstallable_plugins)
+    async def stop(self, interaction: discord.Interaction, plugin: str | None):
+        ephemeral = utils.get_ephemeral(interaction)
+        if plugin not in [x.lower() for x in self.bot.cogs.keys()]:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_('Plugin {} is not running.').format(plugin), ephemeral=True)
+            return
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        if await self.bot.unload_plugin(plugin):
+            await interaction.followup.send(_('Plugin {} stopped.').format(plugin), ephemeral=ephemeral)
+        else:
+            await interaction.followup.send(
+                _('Plugin {} could not be stopped, check the log for details.').format(plugin),
+                ephemeral=ephemeral)
+
+    @plug.command(description=_('Start Plugin'))
+    @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
+    @utils.app_has_role('Admin')
+    @app_commands.autocomplete(plugin=uninstallable_plugins)
+    async def start(self, interaction: discord.Interaction, plugin: str | None):
+        ephemeral = utils.get_ephemeral(interaction)
+        if plugin in [x.lower() for x in self.bot.cogs.keys()]:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_('Plugin {} is already started.').format(plugin), ephemeral=True)
+            return
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        if await self.bot.load_plugin(plugin):
+            await interaction.followup.send(_('Plugin {} started.').format(plugin), ephemeral=ephemeral)
+        else:
+            await interaction.followup.send(
+                _('Plugin {} could not be started, check the log for details.').format(plugin),
+                ephemeral=ephemeral)
 
     ext = Group(name="extension", description=_("Commands to manage your DCSServerBot extensions"))
 
@@ -1314,7 +1357,11 @@ Please make sure you forward the following ports:
         # read the default config if there is any
         config = self.get_config().get('uploads', {})
         # check if upload is enabled
-        if not config.get('enabled', True) or self.node.locals.get('restrict_commands'):
+        if not config.get('enabled', True) or (
+                self.node.locals.get('restrict_commands', False) and (
+                    self.node.locals.get('restrict_owner', False) or message.author.id != self.bot.owner_id#
+                )
+        ):
             return
         # check if the user has the correct role to upload, defaults to Admin
         if not utils.check_roles(config.get('discord', self.bot.roles['Admin']), message.author):
