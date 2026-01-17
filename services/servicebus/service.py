@@ -9,12 +9,13 @@ import uuid
 
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
-from core import Server, Mission, Node, Status, utils, Instance, FatalException, Port, PortType, ProcessManager
+from core import Server, Mission, Node, Status, utils, Instance, FatalException, Port, PortType
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
 from core.data.impl.instanceimpl import InstanceImpl
 from core.data.impl.serverimpl import ServerImpl
 from core.data.proxy.serverproxy import ServerProxy
+from core.process import ProcessManager
 from core.pubsub import PubSub
 from core.services.base import Service
 from core.services.registry import ServiceRegistry

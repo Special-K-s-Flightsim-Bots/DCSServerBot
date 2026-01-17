@@ -239,7 +239,7 @@ class GameMasterEventListener(EventListener["GameMaster"]):
         else:
             name = INTERNAL_CAMPAIGN
         await self.campaign('start', servers=[server], name=name)
-        await self.bot.bus.send_to_node({
+        await self.bus.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
             "method": "propagate_event",
