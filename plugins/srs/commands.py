@@ -148,7 +148,6 @@ class SRS(Plugin[SRSEventListener]):
     async def repair(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.LOADING, Status.STOPPED, Status.RUNNING, Status.PAUSED])]):
-        ephemeral = utils.get_ephemeral(interaction)
         try:
             data = await server.run_on_extension(extension='SRS', method='render')
         except ValueError:
