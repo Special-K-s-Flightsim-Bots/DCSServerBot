@@ -940,6 +940,15 @@ class ServerTransformer(app_commands.Transformer):
         self.status: list[Status] = status
         self.maintenance = maintenance
 
+    @staticmethod
+    def is_admin(interaction: discord.Interaction) -> bool:
+        with (suppress(Exception)):
+            if getattr(interaction.command.checks[0], 'role', False) and interaction.command.checks[0].role == 'DCS Admin':
+                return True
+            elif getattr(interaction.command.checks[0], 'roles', False) and 'DCS Admin' in interaction.command.checks[0].roles:
+                return True
+        return False
+
     async def transform(self, interaction: discord.Interaction, value: str | None) -> Server:
         """
         Converts a server name into a Server object.
@@ -956,8 +965,12 @@ class ServerTransformer(app_commands.Transformer):
         """
         if value:
             server = interaction.client.servers.get(value)
+            is_admin = self.is_admin(interaction)
+
             if not server or (
-                    server.locals.get('managed_by') and not utils.check_roles(server.locals.get('managed_by'), interaction.user)
+                is_admin and
+                server.locals.get('managed_by') and
+                not utils.check_roles(server.locals.get('managed_by'), interaction.user)
             ):
                 raise app_commands.TransformerError(value, self.type, self)
         else:
@@ -982,6 +995,8 @@ class ServerTransformer(app_commands.Transformer):
             return []
         try:
             server: Server | None = interaction.client.get_server(interaction)
+            is_admin = self.is_admin(interaction)
+
             if (not current and server and server.status != Status.UNREGISTERED and
                     (not self.status or server.status in self.status)):
                 return [app_commands.Choice(name=server.name, value=server.name)]
@@ -991,7 +1006,7 @@ class ServerTransformer(app_commands.Transformer):
                 if (value.status != Status.UNREGISTERED and
                     (not self.status or value.status in self.status) and
                     (not self.maintenance or value.maintenance == self.maintenance) and
-                    (not value.locals.get('managed_by') or utils.check_roles(value.locals.get('managed_by'), interaction.user)) and
+                    (not is_admin or not value.locals.get('managed_by') or utils.check_roles(value.locals.get('managed_by'), interaction.user)) and
                     (not current or current.casefold() in name.casefold())
                 )
             ]
