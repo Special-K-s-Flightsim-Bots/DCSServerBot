@@ -3,7 +3,7 @@ import io
 import json
 import logging
 
-from core import Plugin, PluginRequiredError, utils, get_translation
+from core import Plugin, PluginRequiredError, utils, get_translation, Group
 from datetime import datetime, timedelta, timezone
 from discord import app_commands
 from psycopg.rows import dict_row
@@ -247,19 +247,19 @@ def format_hours(seconds: float) -> str:
 class Logbook(Plugin[LogbookEventListener]):
 
     # Command group "/logbook"
-    logbook = app_commands.Group(name="logbook", description=_("Commands to display pilot logbook statistics"))
+    logbook = Group(name="logbook", description=_("Commands to display pilot logbook statistics"))
 
     # Subgroup "/logbook squadron" - avoids conflict with userstats /squadron
-    squadron = app_commands.Group(name="squadron", description=_("Commands to manage logbook squadrons"), parent=logbook)
+    squadron = Group(name="squadron", description=_("Commands to manage logbook squadrons"), parent=logbook)
 
     # Command group "/qualification"
-    qualification = app_commands.Group(name="qualification", description=_("Commands to manage pilot qualifications"))
+    qualification = Group(name="qualification", description=_("Commands to manage pilot qualifications"))
 
     # Command group "/award"
-    award = app_commands.Group(name="award", description=_("Commands to manage pilot awards"))
+    award = Group(name="award", description=_("Commands to manage pilot awards"))
 
     # Command group "/flightplan"
-    flightplan = app_commands.Group(name="flightplan", description=_("Commands to manage flight plans"))
+    flightplan = Group(name="flightplan", description=_("Commands to manage flight plans"))
 
     # NOTE: /stores commands have been moved to the logistics plugin
 
