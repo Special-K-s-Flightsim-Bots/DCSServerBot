@@ -592,7 +592,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                     message += f"- {player.name}: {self.calculate_rating(await self.get_rating(player))}\n"
                 asyncio.create_task(self.inform_players(server, match, message, 60))
 
-                asyncio.create_task(self.bot.bus.send_to_node({
+                asyncio.create_task(self.bus.send_to_node({
                     "command": "onMatchFinished",
                     "server_name": server.name
                 } | match.to_dict()))

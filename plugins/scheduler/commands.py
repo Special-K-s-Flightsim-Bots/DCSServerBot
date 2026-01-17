@@ -318,7 +318,7 @@ class Scheduler(Plugin[SchedulerListener]):
             await asyncio.sleep(min(restart_in, min(warn_times)))
 
     async def teardown_dcs(self, server: Server, member: discord.Member | None = None):
-        await self.bot.bus.send_to_node({"command": "onShutdown", "server_name": server.name})
+        await self.bus.send_to_node({"command": "onShutdown", "server_name": server.name})
         await asyncio.sleep(1)
         await server.shutdown()
         if not member:

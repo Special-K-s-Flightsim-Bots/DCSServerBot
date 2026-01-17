@@ -6,7 +6,7 @@ import shlex
 
 from copy import deepcopy
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Player, Coalition, \
-    Channel, DataObjectFactory, event, chat_command, ServiceRegistry, ChatCommand, get_translation
+    Channel, DataObjectFactory, event, chat_command, ChatCommand, get_translation
 from datetime import datetime, timezone
 from discord import ButtonStyle
 from discord.ext import tasks
@@ -14,7 +14,6 @@ from discord.ui import View, Button
 from functools import partial
 from pathlib import Path
 from psycopg.rows import dict_row
-from services.servicebus import ServiceBus
 from services.bot.dummy import DummyBot
 from typing import TYPE_CHECKING, Callable, Coroutine
 
@@ -432,9 +431,19 @@ class MissionEventListener(EventListener["Mission"]):
             asyncio.create_task(self._upload_user_roles(server, player))
             if Side(p['side']) == Side.NEUTRAL:
                 server.afk[player.ucid] = datetime.now(timezone.utc)
-        # cleanup inactive players
-        for player_id in [p.id for p in server.players.values() if not p.active and p.id != 1]:
-            del server.players[player_id]
+        # clean up inactive players
+        for player in [p for p in server.players.values() if not p.active and p.id != 1]:
+            await asyncio.create_task(self.bus.send_to_node(
+                {
+                    "command": "onMissionEvent",
+                    "eventName": "S_EVENT_DISCONNECT",
+                    "initiator": {
+                        "name": player.name
+                    },
+                    "server_name": server.name
+                }
+            ))
+
         # check if we are idle
         if not server.is_populated():
             server.idle_since = datetime.now(tz=timezone.utc)
@@ -564,6 +573,18 @@ class MissionEventListener(EventListener["Mission"]):
     async def onPlayerConnect(self, server: Server, data: dict) -> None:
         if data['id'] == 1:
             return
+
+        # create the pseudo-event "S_EVENT_CONNECT"
+        await asyncio.create_task(self.bus.send_to_node(
+            {
+                "command": "onMissionEvent",
+                "eventName": "S_EVENT_CONNECT",
+                "initiator": {
+                    "name": data['name']
+                },
+                "server_name": server.name
+            }
+        ))
         if 'connect' not in self.get_config(server).get('event_filter', []):
             self.send_dcs_event(server, Side.NEUTRAL, self.EVENT_TEXTS[Side.NEUTRAL]['connect'].format(
                 data['name'], server.name))
@@ -723,7 +744,7 @@ class MissionEventListener(EventListener["Mission"]):
         # if the last player left, the server is considered idle
         if not server.is_populated():
             server.idle_since = datetime.now(tz=timezone.utc)
-            await self.bot.bus.send_to_node({"command": "onServerEmpty", "server_name": server.name})
+            await self.bus.send_to_node({"command": "onServerEmpty", "server_name": server.name})
         if player.member:
             autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
             if autorole:
@@ -752,6 +773,17 @@ class MissionEventListener(EventListener["Mission"]):
         if not player or not player.active:
             return
         try:
+            # create the pseudo-event "S_EVENT_DISCONNECT"
+            await self.bus.send_to_node(
+                {
+                    "command": "onMissionEvent",
+                    "eventName": "S_EVENT_DISCONNECT",
+                    "initiator": {
+                        "name": player.name
+                    },
+                    "server_name": server.name
+                }
+            )
             if 'disconnect' not in self.get_config(server).get('event_filter', []):
                 self.send_dcs_event(server, player.side,
                                     self.EVENT_TEXTS[player.side]['disconnect'].format(player.name, server.name))
@@ -1085,7 +1117,7 @@ class MissionEventListener(EventListener["Mission"]):
     @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 3 days")
     async def ban(self, server: Server, player: Player, params: list[str]):
         await self._handle_command(server, player, params, self.ban.name, lambda delinquent, reason: (
-            ServiceRegistry.get(ServiceBus).ban(delinquent.ucid, player.name, reason, 3),
+            self.bus.ban(delinquent.ucid, player.name, reason, 3),
             f'User {delinquent.display_name} banned for 3 days'))
 
     @chat_command(name="kick", roles=['DCS Admin'], usage="<name> [reason]", help="kick a user")
@@ -1167,7 +1199,7 @@ class MissionEventListener(EventListener["Mission"]):
                                          user=player.member)
                     await player.sendChatMessage('Your account has been updated.')
                     # unlink the member from the old ucid
-                    await self.bot.bus.send_to_node({
+                    await self.bus.send_to_node({
                         "command": "rpc",
                         "service": "ServiceBus",
                         "method": "propagate_event",
@@ -1185,7 +1217,7 @@ class MissionEventListener(EventListener["Mission"]):
                                          user=player.member)
                     await player.sendChatMessage('Your account has been linked.')
 
-        await self.bot.bus.send_to_node({
+        await self.bus.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
             "method": "propagate_event",

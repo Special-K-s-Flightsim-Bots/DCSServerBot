@@ -628,9 +628,9 @@ class RestAPI(Plugin):
             return server_name
             
         # Check if it's an instance name (alias) - find by instance name
-        for instance_name, instance in self.bot.bus.node.instances.items():
+        for instance_name, instance in self.bus.node.instances.items():
             if instance_name == server_name and instance.server:
-                return instance.server.name  # return full DCS name
+                return instance.server.name  # return the full DCS name
         
         # Return original if not found
         return server_name

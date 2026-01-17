@@ -151,14 +151,14 @@ class SchedulerListener(EventListener["Scheduler"]):
     async def onGameEvent(self, server: Server, data: dict) -> None:
         if data['eventName'] == 'mission_end':
             if data['arg1'] != 'TODO':
-                asyncio.create_task(self.bot.bus.send_to_node({
+                asyncio.create_task(self.bus.send_to_node({
                     "command": "onMissionEnd",
                     "arg1": data['arg1'],
                     "arg2": data['arg2'],
                     "server_name": server.name
                 }))
             else:
-                asyncio.create_task(self.bot.bus.send_to_node({
+                asyncio.create_task(self.bus.send_to_node({
                     "command": "onServerStop",
                     "server_name": server.name
                 }))

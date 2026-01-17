@@ -7,12 +7,11 @@ import re
 import shlex
 import subprocess
 
-from core import Plugin, utils, Server, Status, Report, Command, Instance, Node, DEFAULT_TAG, Group, get_translation, \
-    ServiceRegistry
+from core import Plugin, utils, Server, Status, Report, Command, Instance, Node, DEFAULT_TAG, Group, get_translation
 from discord import app_commands, AppCommandOptionType
 from discord.utils import MISSING
 from pathlib import Path
-from services.bot import DCSServerBot, BotService
+from services.bot import DCSServerBot
 from typing import Any, Mapping
 
 # ruamel YAML support
@@ -47,7 +46,7 @@ APP_COMMAND_TYPE_MAP: Mapping[str, AppCommandOptionType] = {
 async def process_autocomplete(interaction: discord.Interaction, _current: int) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    plugin = ServiceRegistry.get(BotService).bot.cogs['Commands']
+    plugin = interaction.client.cogs['Commands']
     return [app_commands.Choice(name=f"{name} ({p.pid})", value=p.pid) for p, name in plugin.processes.items()]
 
 

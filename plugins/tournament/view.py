@@ -112,14 +112,14 @@ class SignupView(View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(label=_("Signup"), style=ButtonStyle.green)
-    async def signup(self, interaction: discord.Interaction, button: Button):
+    async def signup(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
     # noinspection PyTypeChecker
     @discord.ui.button(label=_("Cancel"), style=ButtonStyle.red)
-    async def cancel(self, interaction: discord.Interaction, button: Button):
+    async def cancel(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.times = self.terrains = None
@@ -380,7 +380,7 @@ class ApplicationView(View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(label=_("Accept"), style=ButtonStyle.green)
-    async def on_accept(self, interaction: discord.Interaction, button: Button):
+    async def on_accept(self, interaction: discord.Interaction, _button: Button):
         tournament = await self.plugin.get_tournament(self.tournament_id)
         embed = discord.Embed(color=discord.Color.green(), title=_("Your Squadron has been accepted!"))
         embed.description = _("Congratulations, you will be part of our upcoming tournament!")
@@ -432,7 +432,7 @@ class ApplicationView(View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(label=_("Reject"), style=ButtonStyle.red)
-    async def on_reject(self, interaction: discord.Interaction, button: Button):
+    async def on_reject(self, interaction: discord.Interaction, _button: Button):
         async with self.plugin.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
@@ -474,7 +474,7 @@ class ApplicationView(View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(label=_("Cancel"), style=ButtonStyle.secondary)
-    async def on_cancel(self, interaction: discord.Interaction, button: Button):
+    async def on_cancel(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
