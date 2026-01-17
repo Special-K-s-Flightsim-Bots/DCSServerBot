@@ -304,8 +304,12 @@ class Cloud(Plugin[CloudListener]):
                 banlist = None
             if self.config.get('dcs-ban', False):
                 dgsa_bans = {item['ucid']: item for item in await self.get('bans')}
-                local_bans = {
+                all_local_bans = {
                     item['ucid']: item for item in await self.bus.bans(expired=True)
+                    if item['banned_by'] == self.plugin_name
+                }
+                active_local_bans = {
+                    item['ucid']: item for item in await self.bus.bans()
                     if item['banned_by'] == self.plugin_name
                 }
                 # filter bans by scope
@@ -313,12 +317,12 @@ class Cloud(Plugin[CloudListener]):
                     ucid for ucid, ban in dgsa_bans.items()
                     if (ban['scope'] == 'Both' or not banlist or ban['scope'].lower() == banlist)
                 }
-                # find UCIDs to ban (in DGsA bans but not in local bans)
-                for ucid in to_ban - local_bans.keys():
+                # find UCIDs to ban (in DGSA bans but not in local bans incl the ones we unbanned)
+                for ucid in to_ban - all_local_bans.keys():
                     reason = dgsa_bans[ucid]['reason']
                     await self.bus.ban(ucid=ucid, reason='DGSA: ' + reason, banned_by=self.plugin_name)
-                # find UCIDs to unban (in local bans but not in DGSA bans)
-                for ucid in local_bans.keys() - to_ban:
+                # find UCIDs to unban (in local bans but not in DGSA bans excluding the ones we unbanned already)
+                for ucid in active_local_bans.keys() - to_ban:
                     await self.bus.unban(ucid)
             elif self.config.get('watchlist_only', False):
                 dgsa_bans = {item['ucid']: item for item in await self.get('bans')}
