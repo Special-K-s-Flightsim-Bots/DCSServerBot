@@ -41,6 +41,7 @@ class RestAPI(Plugin):
 
         self.web_service: WebService | None = None
         self.app: FastAPI | None = None
+        self.router: APIRouter | None = None
 
     async def cog_load(self) -> None:
         await super().cog_load()
@@ -50,6 +51,11 @@ class RestAPI(Plugin):
 
     async def cog_unload(self) -> None:
         self.refresh_views.cancel()
+        if self.app and self.router:
+            # Remove our routes from the main app to prevent duplicates on reload
+            for route in self.router.routes:
+                self.app.routes.remove(route)
+
         await super().cog_unload()
 
     async def init_webservice(self):
@@ -87,9 +93,9 @@ class RestAPI(Plugin):
         else:
             dependencies = None
 
-        router = APIRouter(prefix=prefix, dependencies=dependencies)
+        self.router = APIRouter(prefix=prefix, dependencies=dependencies)
         ## Airbase Routes
-        router.add_api_route(
+        self.router.add_api_route(
             "/airbases", self.airbases,
             methods=["GET"],
             response_model = AirbasesResponse,
@@ -97,7 +103,7 @@ class RestAPI(Plugin):
             summary="Airbases Listing",
             tags=["Airbase"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/airbase", self.airbase_info,
             methods=["GET"],
             response_model = AirbaseInfoResponse,
@@ -105,7 +111,7 @@ class RestAPI(Plugin):
             summary="Airbase Information",
             tags=["Airbase"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/airbase/warehouse", self.airbase_warehouse,
             methods=["GET"],
             response_model = AirbaseWarehouseResponse,
@@ -114,7 +120,7 @@ class RestAPI(Plugin):
             tags=["Airbase"]
         )
         ## Info Routes
-        router.add_api_route(
+        self.router.add_api_route(
             "/serverstats", self.serverstats,
             methods = ["GET"],
             response_model = ServerStats,
@@ -122,7 +128,7 @@ class RestAPI(Plugin):
             summary = "Server Statistics",
             tags = ["Info"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/server_attendance", self.server_attendance,
             methods = ["GET"],
             response_model = ServerAttendanceStats,
@@ -130,7 +136,7 @@ class RestAPI(Plugin):
             summary = "Server Attendance Statistics", 
             tags = ["Info"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/servers", self.servers,
             methods = ["GET"],
             response_model = list[ServerInfo],
@@ -138,7 +144,7 @@ class RestAPI(Plugin):
             summary = "Server list",
             tags = ["Info"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/squadrons", self.squadrons,
             methods = ["GET"],
             response_model = list[SquadronInfo],
@@ -146,7 +152,7 @@ class RestAPI(Plugin):
             summary = "Squadron list",
             tags = ["Info"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/squadron_members", self.squadron_members,
             methods = ["POST"],
             response_model = list[UserEntry],
@@ -154,7 +160,7 @@ class RestAPI(Plugin):
             summary = "Squadron Members",
             tags = ["Info"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/getuser", self.getuser,
             methods = ["POST"],
             response_model = list[UserEntry],
@@ -162,7 +168,7 @@ class RestAPI(Plugin):
             summary = "User list",
             tags = ["Info"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/linkme", self.linkme,
             methods=["POST"],
             response_model=LinkMeResponse,
@@ -171,7 +177,7 @@ class RestAPI(Plugin):
             tags=["Info"]
         )
         ##Statistics Routes
-        router.add_api_route(
+        self.router.add_api_route(
             "/leaderboard", self.leaderboard,
             methods = ["GET"],
             response_model = LeaderBoard,
@@ -179,7 +185,7 @@ class RestAPI(Plugin):
             summary = "Leaderboard",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/topkills", self.topkills,
             methods = ["GET"],
             response_model = list[TopKill],
@@ -187,7 +193,7 @@ class RestAPI(Plugin):
             summary = "Top Kills",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/topkdr", self.topkdr,
             methods = ["GET"],
             response_model = list[TopKill],
@@ -195,7 +201,7 @@ class RestAPI(Plugin):
             summary = "Top KDR",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/trueskill", self.trueskill,
             methods = ["GET"],
             response_model = list[Trueskill],
@@ -203,7 +209,7 @@ class RestAPI(Plugin):
             summary = "TrueSkill:tm:",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/weaponpk", self.weaponpk,
             methods = ["POST"],
             response_model = list[WeaponPK],
@@ -211,7 +217,7 @@ class RestAPI(Plugin):
             summary = "Weapon PK",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/stats", self.stats,
             methods = ["POST"],
             response_model = PlayerStats,
@@ -219,7 +225,7 @@ class RestAPI(Plugin):
             summary = "Player Statistics",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/modulestats", self.modulestats,
             methods = ["POST"],
             response_model = list[ModuleStats],
@@ -227,7 +233,7 @@ class RestAPI(Plugin):
             summary = "Module Statistics",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/current_server", self.current_server,
             methods = ["GET"],
             response_model = str | None,
@@ -235,7 +241,7 @@ class RestAPI(Plugin):
             summary = "Current Server",
             tags = ["Info"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/player_info", self.player_info,
             methods = ["POST"],
             response_model = PlayerInfo,
@@ -243,7 +249,7 @@ class RestAPI(Plugin):
             summary = "Player Information",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/highscore", self.highscore,
             methods = ["GET"],
             response_model = Highscore,
@@ -251,7 +257,7 @@ class RestAPI(Plugin):
             summary = "Highscore",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/traps", self.traps,
             methods = ["POST"],
             response_model = list[TrapEntry],
@@ -259,7 +265,7 @@ class RestAPI(Plugin):
             summary = "Carrier Traps",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/credits", self.credits,
             methods = ["POST"],
             response_model = CampaignCredits,
@@ -267,7 +273,7 @@ class RestAPI(Plugin):
             summary = "Campaign Credits",
             tags = ["Credits"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/squadron_credits", self.squadron_credits,
             methods = ["POST"],
             response_model = SquadronCampaignCredit,
@@ -275,7 +281,7 @@ class RestAPI(Plugin):
             summary = "Squadron Credits",
             tags = ["Credits"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/player_squadrons", self.player_squadrons,
             methods = ["POST"],
             response_model = list[PlayerSquadron],
@@ -283,7 +289,7 @@ class RestAPI(Plugin):
             summary = "Player Squadrons",
             tags = ["Info"]
         )
-        self.app.include_router(router)
+        self.app.include_router(self.router)
 
     def get_endpoint_config(self, endpoint: str):
         return self.get_config().get('endpoints', {}).get(endpoint, {})
