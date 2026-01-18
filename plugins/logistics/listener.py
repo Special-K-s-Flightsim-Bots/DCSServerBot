@@ -73,9 +73,9 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     @event(name="logisticsSimulationStart")
     async def onLogisticsSimulationStart(self, server: Server, data: dict) -> None:
-        """Handle mission start - recreate all markers."""
-        log.info(f"Logistics: Simulation started on {server.name}, recreating markers")
-        await self._recreate_all_markers(server)
+        """Handle mission start - recreate markers for assigned tasks."""
+        log.info(f"Logistics: Simulation started on {server.name}, recreating assigned task markers")
+        await self._recreate_assigned_task_markers(server)
 
     @event(name="checkDeliveryProximity")
     async def onCheckDeliveryProximity(self, server: Server, data: dict) -> None:
