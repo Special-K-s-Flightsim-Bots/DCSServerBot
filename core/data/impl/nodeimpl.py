@@ -537,7 +537,13 @@ class NodeImpl(Node):
                 current_hash = repo.head.commit.hexsha
                 origin = repo.remotes.origin
                 origin.fetch()
-                new_hash = origin.refs[repo.active_branch.name].object.hexsha
+                try:
+                    branch_name = repo.active_branch.name
+                except TypeError:
+                    # Detached HEAD state - skip update check
+                    self.log.info('- Detached HEAD detected, skipping branch-based update check.')
+                    return False
+                new_hash = origin.refs[branch_name].object.hexsha
                 if new_hash != current_hash:
                     return True
         except git.InvalidGitRepositoryError:
