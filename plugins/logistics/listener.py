@@ -111,7 +111,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
     @event(name="callback")
     async def onCallback(self, server: Server, data: dict) -> None:
         """Handle F10 menu callbacks."""
-        if data.get('subcommand') != 'logistics':
+        # Menu callbacks come in as 'command', not 'subcommand'
+        if data.get('command') != 'logistics':
             return
 
         player_id = data.get('from')
