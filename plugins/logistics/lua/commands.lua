@@ -10,6 +10,7 @@ local utils     = base.require("DCSServerBotUtils")
 function dcsbot.createLogisticsMarkers(json)
     log.write('DCSServerBot', log.DEBUG, 'Logistics: createLogisticsMarkers()')
     local channel = json.channel or "-1"
+    local timeout = json.timeout or 0
     local script = 'dcsbot.createLogisticsMarkers(' ..
         json.task_id .. ', ' ..
         json.coalition .. ', ' ..
@@ -21,7 +22,8 @@ function dcsbot.createLogisticsMarkers(json)
         utils.basicSerialize(json.pilot_name or '') .. ', ' ..
         utils.basicSerialize(json.deadline or '') .. ', ' ..
         utils.basicSerialize(json.waypoints or '[]') .. ', ' ..
-        '"' .. channel .. '")'
+        '"' .. channel .. '", ' ..
+        timeout .. ')'
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
 end
 

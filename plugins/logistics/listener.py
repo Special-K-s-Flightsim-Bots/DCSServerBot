@@ -276,20 +276,42 @@ class LogisticsEventListener(EventListener["Logistics"]):
         else:
             await player.sendChatMessage(f"Cannot submit request: {result['error']}")
 
-    @chat_command(name="plot", help="Plot all available logistics tasks on the F10 map")
+    @chat_command(name="plot", usage="<all|task_id>", help="Plot logistics tasks on the F10 map")
     async def plot_cmd(self, server: Server, player: Player, params: list[str]):
-        """Plot all available tasks on the F10 map for the player's coalition."""
-        tasks = await self._get_available_tasks_with_positions(server.name, player.side.value)
-        if not tasks:
-            await player.sendChatMessage("No logistics tasks available to plot.")
+        """Plot tasks on the F10 map. Use 'all' for all tasks or a task ID for a specific one."""
+        if not params:
+            await player.sendChatMessage("Usage: -plot all  OR  -plot <task_id>")
             return
 
-        count = 0
-        for task in tasks:
-            await self._create_markers_for_task(server, task)
-            count += 1
+        arg = params[0].lower()
 
-        await player.sendChatMessage(f"Plotted {count} logistics task(s) on F10 map.")
+        if arg == "all":
+            tasks = await self._get_available_tasks_with_positions(server.name, player.side.value)
+            if not tasks:
+                await player.sendChatMessage("No logistics tasks available to plot.")
+                return
+
+            count = 0
+            for task in tasks:
+                await self._create_markers_for_task(server, task, timeout=30)
+                count += 1
+
+            await player.sendChatMessage(f"Plotted {count} task(s) on F10 map for 30 seconds.")
+        else:
+            # Plot specific task by ID
+            try:
+                task_id = int(arg)
+            except ValueError:
+                await player.sendChatMessage("Invalid task ID. Use -plot all or -plot <number>")
+                return
+
+            task = await self._get_task_with_position(task_id, server.name, player.side.value)
+            if not task:
+                await player.sendChatMessage(f"Task #{task_id} not found or not visible to your coalition.")
+                return
+
+            await self._create_markers_for_task(server, task, timeout=30)
+            await player.sendChatMessage(f"Plotted task #{task_id} on F10 map for 30 seconds.")
 
     # ==================== HELPER METHODS ====================
 
@@ -350,6 +372,33 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 }
                 for row in rows
             ]
+
+    async def _get_task_with_position(self, task_id: int, server_name: str, coalition: int) -> dict | None:
+        """Get a specific task with position data for plotting."""
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT t.id, t.cargo_type, t.source_name, t.source_position,
+                       t.destination_name, t.destination_position, t.coalition,
+                       t.deadline, p.name as assigned_name
+                FROM logistics_tasks t
+                LEFT JOIN players p ON t.assigned_ucid = p.ucid
+                WHERE t.id = %s AND t.server_name = %s AND t.coalition = %s
+                AND t.status IN ('approved', 'assigned', 'in_progress')
+            """, (task_id, server_name, coalition))
+            row = await cursor.fetchone()
+            if row:
+                return {
+                    'id': row[0],
+                    'cargo_type': row[1],
+                    'source_name': row[2],
+                    'source_position': row[3],
+                    'destination_name': row[4],
+                    'destination_position': row[5],
+                    'coalition': row[6],
+                    'deadline': row[7],
+                    'assigned_name': row[8]
+                }
+            return None
 
     async def _get_assigned_task(self, ucid: str, server_name: str) -> dict | None:
         """Get task assigned to a player."""
@@ -584,8 +633,14 @@ class LogisticsEventListener(EventListener["Logistics"]):
                     'assigned_name': task[8]
                 })
 
-    async def _create_markers_for_task(self, server: Server, task: dict):
-        """Send command to DCS to create markers for a task."""
+    async def _create_markers_for_task(self, server: Server, task: dict, timeout: int = 0):
+        """Send command to DCS to create markers for a task.
+
+        Args:
+            server: The DCS server
+            task: Task data dict with position info
+            timeout: Seconds until markers auto-remove (0 = permanent)
+        """
         source_pos = task.get('source_position')
         dest_pos = task.get('destination_position')
 
@@ -614,7 +669,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
             "cargo_type": task['cargo_type'],
             "pilot_name": task.get('assigned_name') or "",
             "deadline": deadline_str,
-            "waypoints": "[]"  # TODO: Add waypoint support
+            "waypoints": "[]",  # TODO: Add waypoint support
+            "timeout": timeout
         })
 
     async def _remove_task_markers(self, server: Server, task_id: int):

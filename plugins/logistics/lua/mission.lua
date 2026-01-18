@@ -48,7 +48,8 @@ end
 --   deadline: deadline string (empty if none)
 --   waypoints_json: JSON array of waypoints
 --   channel: response channel
-function dcsbot.createLogisticsMarkers(task_id, coalitionNum, source_name, source_pos, dest_name, dest_pos, cargo_type, pilot_name, deadline, waypoints_json, channel)
+--   timeout: seconds until markers auto-remove (0 = permanent)
+function dcsbot.createLogisticsMarkers(task_id, coalitionNum, source_name, source_pos, dest_name, dest_pos, cargo_type, pilot_name, deadline, waypoints_json, channel, timeout)
     env.info('DCSServerBot - Logistics: createLogisticsMarkers(' .. task_id .. ')')
 
     -- Remove any existing markers for this task first
@@ -125,6 +126,15 @@ function dcsbot.createLogisticsMarkers(task_id, coalitionNum, source_name, sourc
         dest_text_base = "[DELIVERY] " .. dest_name .. "\nCargo: " .. cargo_type,
         deadline = deadline
     }
+
+    -- Schedule auto-removal if timeout is set
+    if timeout and timeout > 0 then
+        timer.scheduleFunction(function()
+            dcsbot.removeLogisticsMarkersInternal(task_id)
+            env.info('DCSServerBot - Logistics: Auto-removed markers for task ' .. task_id .. ' after timeout')
+            return nil
+        end, nil, timer.getTime() + timeout)
+    end
 
     -- Send confirmation back to bot (only if channel is valid)
     if channel and channel ~= "-1" then
