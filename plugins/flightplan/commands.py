@@ -1,6 +1,7 @@
 import discord
 import json
 import logging
+import re
 
 from core import Plugin, utils, Server, Status, Group, get_translation
 from datetime import datetime, timedelta, timezone
@@ -14,6 +15,66 @@ from .utils import parse_waypoint_input, WaypointType
 
 _ = get_translation(__name__.split('.')[1])
 log = logging.getLogger(__name__)
+
+
+def parse_altitude(value: str) -> Optional[int]:
+    """
+    Parse altitude from various formats.
+
+    Accepts:
+    - Flight levels: "FL300", "FL 300", "fl300"
+    - Feet: "30000", "30,000", "30000ft"
+
+    Returns altitude in feet, or None if invalid.
+    """
+    if not value:
+        return None
+
+    value = value.strip().upper().replace(',', '').replace(' ', '')
+
+    # Flight level format: FL300 -> 30000 feet
+    fl_match = re.match(r'^FL(\d+)$', value)
+    if fl_match:
+        return int(fl_match.group(1)) * 100
+
+    # Plain number or with ft suffix
+    ft_match = re.match(r'^(\d+)(?:FT)?$', value)
+    if ft_match:
+        return int(ft_match.group(1))
+
+    return None
+
+
+def parse_etd(value: str) -> Optional[datetime]:
+    """
+    Parse ETD time from various formats.
+
+    Accepts:
+    - With colon: "14:30", "14:30Z", "1430Z"
+    - Without colon: "1430", "0930"
+
+    Returns datetime for today (or tomorrow if time has passed), or None if invalid.
+    """
+    if not value:
+        return None
+
+    value = value.strip().upper().replace('Z', '').replace(' ', '')
+
+    # Try with colon first
+    for fmt in ['%H:%M', '%H%M']:
+        try:
+            now = datetime.now(timezone.utc)
+            parsed = datetime.strptime(value, fmt).replace(
+                year=now.year, month=now.month, day=now.day, tzinfo=timezone.utc
+            )
+            # If time has passed today, assume tomorrow
+            if parsed < now:
+                parsed += timedelta(days=1)
+            return parsed
+        except ValueError:
+            continue
+
+    return None
 
 
 # ==================== AUTOCOMPLETE FUNCTIONS ====================
@@ -207,30 +268,32 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
     @flightplan.command(name='file', description=_('File a flight plan'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
+    @app_commands.rename(departure_idx='departure', destination_idx='destination', alternate_idx='alternate')
     @app_commands.describe(
         server=_('Server for this flight plan'),
         callsign=_('Your callsign for this flight'),
         aircraft_type=_('Aircraft type (e.g., F-16C, F/A-18C)'),
-        departure=_('Departure airfield or coordinates'),
-        destination=_('Destination airfield or coordinates'),
-        alternate=_('Alternate airfield (optional)'),
+        departure_idx=_('Departure airfield, FARP, or ship'),
+        destination_idx=_('Destination airfield, FARP, or ship'),
+        alternate_idx=_('Alternate airfield (optional)'),
         waypoints=_('Comma-separated waypoints (e.g., "PANTHER,38TLN123,@MYPOINT")'),
-        cruise_altitude=_('Cruise altitude in feet (e.g., 25000)'),
+        cruise_altitude=_('Cruise altitude (e.g., FL300 or 30000)'),
         cruise_speed=_('Cruise speed in knots (e.g., 450)'),
         etd=_('Estimated departure time in HH:MM UTC'),
         remarks=_('Additional remarks (optional)')
     )
+    @app_commands.autocomplete(departure_idx=utils.airbase_autocomplete, destination_idx=utils.airbase_autocomplete, alternate_idx=utils.airbase_autocomplete)
     async def flightplan_file(
         self,
         interaction: discord.Interaction,
         server: app_commands.Transform[Server, utils.ServerTransformer],
         callsign: str,
         aircraft_type: str,
-        departure: str,
-        destination: str,
-        alternate: Optional[str] = None,
+        departure_idx: int,
+        destination_idx: int,
+        alternate_idx: Optional[int] = None,
         waypoints: Optional[str] = None,
-        cruise_altitude: Optional[int] = None,
+        cruise_altitude: Optional[str] = None,
         cruise_speed: Optional[int] = None,
         etd: Optional[str] = None,
         remarks: Optional[str] = None
@@ -244,23 +307,41 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
             await interaction.followup.send(_('You are not linked to DCS!'), ephemeral=True)
             return
 
+        # Get airbases from server
+        if not server.current_mission or not server.current_mission.airbases:
+            await interaction.followup.send(_('Server has no mission loaded or no airbases available.'), ephemeral=True)
+            return
+
+        try:
+            dep_airbase = server.current_mission.airbases[departure_idx]
+            dest_airbase = server.current_mission.airbases[destination_idx]
+        except IndexError:
+            await interaction.followup.send(_('Invalid airbase selection.'), ephemeral=True)
+            return
+
+        # Get departure position
+        departure = dep_airbase['name']
+        dep_position = dep_airbase.get('position')
+
+        # Get destination position
+        destination = dest_airbase['name']
+        dest_position = dest_airbase.get('position')
+
+        # Get alternate position
+        alternate = None
+        alt_position = None
+        if alternate_idx is not None:
+            try:
+                alt_airbase = server.current_mission.airbases[alternate_idx]
+                alternate = alt_airbase['name']
+                alt_position = alt_airbase.get('position')
+            except IndexError:
+                pass
+
         # Get theater from server
         theater = server.current_mission.map if server.current_mission else None
 
         async with self.apool.connection() as conn:
-            # Parse departure
-            dep_wp = await parse_waypoint_input(departure, server, conn, theater)
-            dep_position = dep_wp.to_dict() if dep_wp.waypoint_type != WaypointType.UNKNOWN else None
-
-            # Parse destination
-            dest_wp = await parse_waypoint_input(destination, server, conn, theater)
-            dest_position = dest_wp.to_dict() if dest_wp.waypoint_type != WaypointType.UNKNOWN else None
-
-            # Parse alternate
-            alt_position = None
-            if alternate:
-                alt_wp = await parse_waypoint_input(alternate, server, conn, theater)
-                alt_position = alt_wp.to_dict() if alt_wp.waypoint_type != WaypointType.UNKNOWN else None
 
             # Parse waypoints
             parsed_waypoints = []
@@ -269,19 +350,24 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
                 wp_list = await parse_waypoint_list(waypoints, server, conn, theater)
                 parsed_waypoints = [wp.to_dict() for wp in wp_list]
 
-            # Parse ETD
+            # Parse cruise altitude (accepts FL300 or 30000)
+            cruise_alt_feet = None
+            if cruise_altitude:
+                cruise_alt_feet = parse_altitude(cruise_altitude)
+                if cruise_alt_feet is None:
+                    await interaction.followup.send(
+                        _('Invalid altitude format. Use FL300 or 30000.'),
+                        ephemeral=True
+                    )
+                    return
+
+            # Parse ETD (accepts 14:30 or 1430)
             etd_dt = None
             if etd:
-                try:
-                    now = datetime.now(timezone.utc)
-                    etd_dt = datetime.strptime(etd, '%H:%M').replace(
-                        year=now.year, month=now.month, day=now.day, tzinfo=timezone.utc
-                    )
-                    if etd_dt < now:
-                        etd_dt += timedelta(days=1)
-                except ValueError:
+                etd_dt = parse_etd(etd)
+                if etd_dt is None:
                     await interaction.followup.send(
-                        _('Invalid ETD format. Use HH:MM (UTC).'),
+                        _('Invalid ETD format. Use HH:MM or HHMM (UTC).'),
                         ephemeral=True
                     )
                     return
@@ -300,13 +386,13 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
-                ucid, server.name, callsign, aircraft_type, dep_wp.name, dest_wp.name,
-                alt_wp.name if alternate else None, None, remarks,
+                ucid, server.name, callsign, aircraft_type, departure, destination,
+                alternate, None, remarks,
                 json.dumps(parsed_waypoints) if parsed_waypoints else None,
                 json.dumps(dep_position) if dep_position else None,
                 json.dumps(dest_position) if dest_position else None,
                 json.dumps(alt_position) if alt_position else None,
-                cruise_altitude, cruise_speed, etd_dt, stale_at
+                cruise_alt_feet, cruise_speed, etd_dt, stale_at
             ))
             result = await cursor.fetchone()
             plan_id = result[0]
@@ -318,11 +404,11 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
         )
         embed.add_field(name=_('Callsign'), value=callsign, inline=True)
         embed.add_field(name=_('Aircraft'), value=aircraft_type, inline=True)
-        embed.add_field(name=_('Route'), value=f"{dep_wp.name} → {dest_wp.name}", inline=True)
+        embed.add_field(name=_('Route'), value=f"{departure} → {destination}", inline=True)
         if alternate:
-            embed.add_field(name=_('Alternate'), value=alt_wp.name if alt_wp else alternate, inline=True)
-        if cruise_altitude:
-            embed.add_field(name=_('Cruise'), value=f"FL{cruise_altitude // 100:03d}", inline=True)
+            embed.add_field(name=_('Alternate'), value=alternate, inline=True)
+        if cruise_alt_feet:
+            embed.add_field(name=_('Cruise'), value=f"FL{cruise_alt_feet // 100:03d}", inline=True)
         if etd_dt:
             embed.add_field(name=_('ETD'), value=etd_dt.strftime('%H:%M UTC'), inline=True)
         if parsed_waypoints:
