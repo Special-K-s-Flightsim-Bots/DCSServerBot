@@ -501,10 +501,12 @@ class Logbook(Plugin[LogbookEventListener]):
     @app_commands.describe(
         name=_('Squadron name (e.g., "801 NAS")'),
         abbreviation=_('Short abbreviation (e.g., "801")'),
+        service=_('Parent service (e.g., "RN", "RAF", "AAC")'),
         description=_('Squadron motto or description')
     )
     async def squadron_create(self, interaction: discord.Interaction,
                               name: str,
+                              service: str,
                               abbreviation: Optional[str] = None,
                               description: Optional[str] = None):
         ephemeral = utils.get_ephemeral(interaction)
@@ -512,11 +514,11 @@ class Logbook(Plugin[LogbookEventListener]):
         async with self.apool.connection() as conn:
             # Use INSERT ... ON CONFLICT to avoid race condition
             cursor = await conn.execute("""
-                INSERT INTO logbook_squadrons (name, abbreviation, description)
-                VALUES (%s, %s, %s)
+                INSERT INTO logbook_squadrons (name, abbreviation, service, description)
+                VALUES (%s, %s, %s, %s)
                 ON CONFLICT (name) DO NOTHING
                 RETURNING id
-            """, (name, abbreviation, description))
+            """, (name, abbreviation, service.upper(), description))
             result = await cursor.fetchone()
 
             if not result:
@@ -535,6 +537,7 @@ class Logbook(Plugin[LogbookEventListener]):
             color=discord.Color.green()
         )
         embed.add_field(name=_('ID'), value=str(squadron_id), inline=True)
+        embed.add_field(name=_('Service'), value=service.upper(), inline=True)
         if abbreviation:
             embed.add_field(name=_('Abbreviation'), value=abbreviation, inline=True)
         if description:
@@ -542,7 +545,7 @@ class Logbook(Plugin[LogbookEventListener]):
 
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
-        await self.bot.audit(f'created squadron {name}', user=interaction.user)
+        await self.bot.audit(f'created squadron {name} ({service.upper()})', user=interaction.user)
 
     @squadron.command(name='info', description=_('Show squadron information'))
     @app_commands.guild_only()
@@ -664,13 +667,11 @@ class Logbook(Plugin[LogbookEventListener]):
     @app_commands.describe(
         squadron=_('Squadron to assign to'),
         user=_('Discord user to assign'),
-        rank=_('Military rank (e.g., "Lt", "Cdr", "Wg Cdr")'),
         position=_('Position in squadron (e.g., "Pilot", "WSO")')
     )
     async def squadron_assign(self, interaction: discord.Interaction,
                               squadron: int,
                               user: discord.Member,
-                              rank: Optional[str] = None,
                               position: Optional[str] = None):
         ephemeral = utils.get_ephemeral(interaction)
 
@@ -693,33 +694,32 @@ class Logbook(Plugin[LogbookEventListener]):
                     await interaction.response.send_message(_('Squadron not found!'), ephemeral=True)
                     return
 
-                # Check if already assigned
+                # Check if already assigned to this squadron
                 await cursor.execute("""
-                    SELECT squadron_id FROM logbook_squadron_members WHERE player_ucid = %s
-                """, (ucid,))
+                    SELECT squadron_id FROM logbook_squadron_members
+                    WHERE player_ucid = %s AND squadron_id = %s
+                """, (ucid, squadron))
                 existing = await cursor.fetchone()
 
-                async with conn.transaction():
-                    if existing:
-                        # Remove from old squadron
-                        await conn.execute(
-                            "DELETE FROM logbook_squadron_members WHERE player_ucid = %s",
-                            (ucid,)
-                        )
+                if existing:
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(
+                        _('{} is already assigned to {}!').format(user.display_name, squadron_row['name']),
+                        ephemeral=True
+                    )
+                    return
 
-                    # Add to new squadron
-                    await conn.execute("""
-                        INSERT INTO logbook_squadron_members (squadron_id, player_ucid, rank, position)
-                        VALUES (%s, %s, %s, %s)
-                    """, (squadron, ucid, rank, position))
+                # Add to squadron (pilots can be in multiple squadrons)
+                await conn.execute("""
+                    INSERT INTO logbook_squadron_members (squadron_id, player_ucid, position)
+                    VALUES (%s, %s, %s)
+                """, (squadron, ucid, position))
 
         embed = discord.Embed(
             title=_('Member Assigned'),
             description=_('{} has been assigned to {}.').format(user.display_name, squadron_row['name']),
             color=discord.Color.green()
         )
-        if rank:
-            embed.add_field(name=_('Rank'), value=rank, inline=True)
         if position:
             embed.add_field(name=_('Position'), value=position, inline=True)
 
@@ -727,6 +727,52 @@ class Logbook(Plugin[LogbookEventListener]):
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
         await self.bot.audit(
             f'assigned {user.display_name} to squadron {squadron_row["name"]}',
+            user=interaction.user
+        )
+
+    @logbook.command(name='setpilot', description=_('Set or update pilot service and rank'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.describe(
+        user=_('Discord user'),
+        service=_('Military service (e.g., "RN", "RAF", "AAC")'),
+        rank=_('Military rank (e.g., "Lt", "Cdr", "Wg Cdr")')
+    )
+    async def logbook_setpilot(self, interaction: discord.Interaction,
+                               user: discord.Member,
+                               service: str,
+                               rank: str):
+        ephemeral = utils.get_ephemeral(interaction)
+
+        ucid = await self.bot.get_ucid_by_member(user)
+        if not ucid:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _('User {} is not linked to DCS!').format(user.display_name),
+                ephemeral=True
+            )
+            return
+
+        async with self.apool.connection() as conn:
+            # Upsert into logbook_pilots
+            await conn.execute("""
+                INSERT INTO logbook_pilots (player_ucid, service, rank)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (player_ucid) DO UPDATE SET service = %s, rank = %s
+            """, (ucid, service.upper(), rank, service.upper(), rank))
+
+        embed = discord.Embed(
+            title=_('Pilot Updated'),
+            description=_('Pilot info for {} has been set.').format(user.display_name),
+            color=discord.Color.green()
+        )
+        embed.add_field(name=_('Service'), value=service.upper(), inline=True)
+        embed.add_field(name=_('Rank'), value=rank, inline=True)
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+        await self.bot.audit(
+            f'set pilot info for {user.display_name}: {service.upper()} {rank}',
             user=interaction.user
         )
 

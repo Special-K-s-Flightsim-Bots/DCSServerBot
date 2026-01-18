@@ -37,3 +37,6 @@ WHERE lp.service IS NULL;
 
 -- Drop rank column from squadron_members (no longer needed there)
 ALTER TABLE logbook_squadron_members DROP COLUMN IF EXISTS rank;
+
+-- Grant permissions to dcsserverbot user
+GRANT ALL PRIVILEGES ON TABLE logbook_pilots TO dcsserverbot;
