@@ -186,19 +186,7 @@ class Logistics(Plugin[LogisticsEventListener]):
                 VALUES (%s, 'created', %s, %s)
             """, (task_id, interaction.user.id, '{"source": "discord_admin", "auto_approved": true}'))
 
-        # Create markers
-        if source_position and dest_position:
-            await self.eventlistener._create_markers_for_task(server, {
-                'id': task_id,
-                'cargo_type': cargo,
-                'source_name': source,
-                'source_position': source_position,
-                'destination_name': destination,
-                'destination_position': dest_position,
-                'coalition': coalition_id,
-                'deadline': deadline_dt,
-                'assigned_name': None
-            })
+        # Markers are created when a player accepts the task or uses -plot command
 
         embed = discord.Embed(
             title="Logistics Task Created",

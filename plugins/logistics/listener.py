@@ -276,6 +276,21 @@ class LogisticsEventListener(EventListener["Logistics"]):
         else:
             await player.sendChatMessage(f"Cannot submit request: {result['error']}")
 
+    @chat_command(name="plot", help="Plot all available logistics tasks on the F10 map")
+    async def plot_cmd(self, server: Server, player: Player, params: list[str]):
+        """Plot all available tasks on the F10 map for the player's coalition."""
+        tasks = await self._get_available_tasks_with_positions(server.name, player.side.value)
+        if not tasks:
+            await player.sendChatMessage("No logistics tasks available to plot.")
+            return
+
+        count = 0
+        for task in tasks:
+            await self._create_markers_for_task(server, task)
+            count += 1
+
+        await player.sendChatMessage(f"Plotted {count} logistics task(s) on F10 map.")
+
     # ==================== HELPER METHODS ====================
 
     async def _get_available_tasks(self, server_name: str, coalition: int) -> list[dict]:
@@ -304,6 +319,34 @@ class LogisticsEventListener(EventListener["Logistics"]):
                     'destination_name': row[3],
                     'priority': row[4],
                     'deadline': row[5]
+                }
+                for row in rows
+            ]
+
+    async def _get_available_tasks_with_positions(self, server_name: str, coalition: int) -> list[dict]:
+        """Get tasks available for a coalition with position data for plotting."""
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT t.id, t.cargo_type, t.source_name, t.source_position,
+                       t.destination_name, t.destination_position, t.coalition,
+                       t.deadline, p.name as assigned_name
+                FROM logistics_tasks t
+                LEFT JOIN players p ON t.assigned_ucid = p.ucid
+                WHERE t.server_name = %s AND t.coalition = %s
+                AND t.status IN ('approved', 'assigned', 'in_progress')
+            """, (server_name, coalition))
+            rows = await cursor.fetchall()
+            return [
+                {
+                    'id': row[0],
+                    'cargo_type': row[1],
+                    'source_name': row[2],
+                    'source_position': row[3],
+                    'destination_name': row[4],
+                    'destination_position': row[5],
+                    'coalition': row[6],
+                    'deadline': row[7],
+                    'assigned_name': row[8]
                 }
                 for row in rows
             ]
@@ -390,8 +433,27 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 VALUES (%s, 'assigned', %s, %s)
             """, (task_id, player.ucid, '{"action": "player_accepted"}'))
 
-            # Update markers with pilot name
-            await self._update_markers_with_pilot(server, task_id, player.name)
+            # Get full task data for marker creation
+            cursor = await conn.execute("""
+                SELECT id, cargo_type, source_name, source_position,
+                       destination_name, destination_position, coalition, deadline
+                FROM logistics_tasks WHERE id = %s
+            """, (task_id,))
+            full_task = await cursor.fetchone()
+
+            # Create markers for the accepted task
+            if full_task:
+                await self._create_markers_for_task(server, {
+                    'id': full_task[0],
+                    'cargo_type': full_task[1],
+                    'source_name': full_task[2],
+                    'source_position': full_task[3],
+                    'destination_name': full_task[4],
+                    'destination_position': full_task[5],
+                    'coalition': full_task[6],
+                    'deadline': full_task[7],
+                    'assigned_name': player.name
+                })
 
             return {
                 'success': True,
