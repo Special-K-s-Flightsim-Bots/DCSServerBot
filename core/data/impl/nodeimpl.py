@@ -118,8 +118,13 @@ class NodeImpl(Node):
 
             try:
                 with closing(git.Repo('.')) as repo:
-                    if repo.active_branch.name == 'development':
-                        self.log.info(f'- Development version detected.')
+                    try:
+                        branch_name = repo.active_branch.name
+                        if branch_name == 'development':
+                            self.log.info(f'- Development version detected.')
+                    except TypeError:
+                        # Detached HEAD state (e.g., deployed from a fork)
+                        self.log.info(f'- Detached HEAD detected, skipping branch check.')
             except git.InvalidGitRepositoryError:
                 if os.path.isdir('.git'):
                     self.log.warning(f'- Your installation is corrupt. Run repair.cmd.')
