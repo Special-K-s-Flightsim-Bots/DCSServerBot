@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import json
 import logging
@@ -310,6 +311,49 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         if plan_id:
             self.log.debug(f"Removed {data.get('removed_count', 0)} markers for plan {plan_id}")
 
+    @event(name="onPlayerChangeSlot")
+    async def on_player_change_slot(self, server: Server, data: dict) -> None:
+        """Create F10 menu when player takes a slot."""
+        # Only handle when player takes a coalition slot (has 'side' in data)
+        if 'side' not in data or data.get('side') == 0:
+            return
+
+        player = server.get_player(ucid=data.get('ucid'), active=True)
+        if not player:
+            return
+
+        # Create F10 menu for the player
+        await self._create_flightplan_menu(server, player)
+
+    @event(name="flightplan")
+    async def on_flightplan_callback(self, server: Server, data: dict) -> None:
+        """Handle F10 menu callbacks for flight plans."""
+        player_id = data.get('from')
+        player = server.get_player(id=player_id)
+        if not player:
+            return
+
+        params = data.get('params', {})
+        action = params.get('action')
+
+        if action == 'view_plans':
+            await self._menu_view_plans(server, player)
+        elif action == 'my_plan':
+            await self._menu_my_plan(server, player)
+        elif action == 'plot_all':
+            await self._menu_plot_all(server, player)
+        elif action == 'plot_plan':
+            plan_id = params.get('plan_id')
+            if plan_id:
+                await self._menu_plot_plan(server, player, plan_id)
+        elif action == 'activate':
+            plan_id = params.get('plan_id')
+            await self._menu_activate(server, player, plan_id)
+        elif action == 'complete':
+            await self._menu_complete(server, player)
+        elif action == 'cancel':
+            await self._menu_cancel(server, player)
+
     # ==================== CHAT COMMANDS ====================
 
     @chat_command(name="flightplan", aliases=["fp"], help=_("Show your active flight plan"))
@@ -552,3 +596,374 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         await self.publish_flight_plan(fp, 'cancelled')
 
         await player.sendChatMessage(_("Flight plan #{} cancelled.").format(fp['id']))
+
+    # ==================== F10 MENU METHODS ====================
+
+    async def _get_visible_plans(self, server_name: str, coalition: int = None) -> list[dict]:
+        """Get flight plans visible to a coalition (filed or active)."""
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                if coalition:
+                    await cursor.execute("""
+                        SELECT fp.*, p.name as pilot_name
+                        FROM flightplan_plans fp
+                        LEFT JOIN players p ON fp.player_ucid = p.ucid
+                        WHERE fp.server_name = %s
+                        AND fp.status IN ('filed', 'active')
+                        AND (fp.coalition = %s OR fp.coalition = 0)
+                        ORDER BY fp.filed_at DESC
+                        LIMIT 10
+                    """, (server_name, coalition))
+                else:
+                    await cursor.execute("""
+                        SELECT fp.*, p.name as pilot_name
+                        FROM flightplan_plans fp
+                        LEFT JOIN players p ON fp.player_ucid = p.ucid
+                        WHERE fp.server_name = %s
+                        AND fp.status IN ('filed', 'active')
+                        ORDER BY fp.filed_at DESC
+                        LIMIT 10
+                    """, (server_name,))
+                return await cursor.fetchall()
+
+    async def _create_flightplan_menu(self, server: Server, player: Player):
+        """Create F10 menu for flight plan operations."""
+        # Get player's plans and visible plans
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                # Player's own plans
+                await cursor.execute("""
+                    SELECT * FROM flightplan_plans
+                    WHERE player_ucid = %s AND server_name = %s
+                    AND status IN ('filed', 'active')
+                    ORDER BY filed_at DESC LIMIT 5
+                """, (player.ucid, server.name))
+                my_plans = await cursor.fetchall()
+
+        # Get all visible plans for plotting
+        visible_plans = await self._get_visible_plans(server.name, player.side.value if player.side else None)
+
+        # Build menu structure
+        menu = [{
+            "Flight Plan": [
+                {
+                    "View Active Plans": {
+                        "command": "flightplan",
+                        "params": {"action": "view_plans"}
+                    }
+                },
+                {
+                    "My Flight Plan": {
+                        "command": "flightplan",
+                        "params": {"action": "my_plan"}
+                    }
+                }
+            ]
+        }]
+
+        # Add plot options
+        if visible_plans:
+            # Plot All option
+            menu[0]["Flight Plan"].append({
+                "Plot All Plans (30s)": {
+                    "command": "flightplan",
+                    "params": {"action": "plot_all"}
+                }
+            })
+
+            # Plot by ID submenu
+            plot_menu = []
+            for plan in visible_plans[:5]:
+                callsign = plan.get('callsign', 'Unknown')
+                route = f"{plan.get('departure', '?')} -> {plan.get('destination', '?')}"
+                label = f"#{plan['id']}: {callsign[:15]}"
+                plot_menu.append({
+                    label: {
+                        "command": "flightplan",
+                        "params": {"action": "plot_plan", "plan_id": plan['id']}
+                    }
+                })
+            if plot_menu:
+                menu[0]["Flight Plan"].append({"Plot Plan": plot_menu})
+
+        # Add activate option for player's filed plans
+        filed_plans = [p for p in my_plans if p['status'] == 'filed']
+        if filed_plans:
+            activate_menu = []
+            for plan in filed_plans[:5]:
+                route = f"{plan.get('departure', '?')} -> {plan.get('destination', '?')}"
+                label = f"#{plan['id']}: {route[:25]}"
+                activate_menu.append({
+                    label: {
+                        "command": "flightplan",
+                        "params": {"action": "activate", "plan_id": plan['id']}
+                    }
+                })
+            if activate_menu:
+                menu[0]["Flight Plan"].append({"Activate Plan": activate_menu})
+
+        # Add complete/cancel options if player has active plan
+        active_plans = [p for p in my_plans if p['status'] == 'active']
+        if active_plans:
+            menu[0]["Flight Plan"].append({
+                "Complete Flight": {
+                    "command": "flightplan",
+                    "params": {"action": "complete"}
+                }
+            })
+            menu[0]["Flight Plan"].append({
+                "Cancel Flight": {
+                    "command": "flightplan",
+                    "params": {"action": "cancel"}
+                }
+            })
+
+        # Send menu to DCS
+        group_id = player.group_id
+        if group_id:
+            await server.send_to_dcs({
+                "command": "createMenu",
+                "playerID": player.id,
+                "groupID": group_id,
+                "menu": menu
+            })
+
+    async def _menu_view_plans(self, server: Server, player: Player):
+        """Handle 'View Active Plans' menu option."""
+        plans = await self._get_visible_plans(server.name, player.side.value if player.side else None)
+
+        if not plans:
+            await player.sendPopupMessage(_("No active flight plans."), 10)
+            return
+
+        msg = "ACTIVE FLIGHT PLANS\n\n"
+        for plan in plans[:5]:
+            status_marker = "[ACTIVE] " if plan['status'] == 'active' else ""
+            callsign = plan.get('callsign', 'Unknown')
+            pilot = plan.get('pilot_name', 'Unknown')
+            route = f"{plan.get('departure', '?')} -> {plan.get('destination', '?')}"
+            msg += f"{status_marker}#{plan['id']}: {callsign}\n"
+            msg += f"    Pilot: {pilot}\n"
+            msg += f"    Route: {route}\n"
+            if plan.get('cruise_altitude'):
+                msg += f"    FL{plan['cruise_altitude'] // 100:03d}\n"
+            msg += "\n"
+
+        if len(plans) > 5:
+            msg += f"... and {len(plans) - 5} more plans"
+
+        await player.sendPopupMessage(msg, 20)
+
+    async def _menu_my_plan(self, server: Server, player: Player):
+        """Handle 'My Flight Plan' menu option."""
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT * FROM flightplan_plans
+                    WHERE player_ucid = %s AND status IN ('filed', 'active')
+                    ORDER BY filed_at DESC LIMIT 1
+                """, (player.ucid,))
+                fp = await cursor.fetchone()
+
+        if not fp:
+            await player.sendPopupMessage(_("You have no active flight plan."), 10)
+            return
+
+        status = fp['status'].upper()
+        route = f"{fp.get('departure', '?')} -> {fp.get('destination', '?')}"
+
+        msg = f"YOUR FLIGHT PLAN\n\n"
+        msg += f"Plan #{fp['id']} ({status})\n"
+        msg += f"Callsign: {fp.get('callsign', 'N/A')}\n"
+        if fp.get('aircraft_type'):
+            msg += f"Aircraft: {fp['aircraft_type']}\n"
+        msg += f"Route: {route}\n"
+
+        if fp.get('alternate'):
+            msg += f"Alternate: {fp['alternate']}\n"
+
+        if fp.get('cruise_altitude'):
+            msg += f"Cruise: FL{fp['cruise_altitude'] // 100:03d}\n"
+
+        if fp.get('etd'):
+            etd = fp['etd']
+            if isinstance(etd, datetime):
+                msg += f"ETD: {etd.strftime('%H:%M UTC')}\n"
+
+        if fp.get('waypoints'):
+            waypoints = fp['waypoints']
+            if isinstance(waypoints, str):
+                waypoints = json.loads(waypoints)
+            if waypoints:
+                wp_names = [wp.get('name', '?') for wp in waypoints[:5]]
+                msg += f"Via: {' -> '.join(wp_names)}\n"
+
+        await player.sendPopupMessage(msg, 20)
+
+    async def _menu_plot_all(self, server: Server, player: Player):
+        """Handle 'Plot All Plans' menu option."""
+        plans = await self._get_visible_plans(server.name, player.side.value if player.side else None)
+
+        if not plans:
+            await player.sendPopupMessage(_("No flight plans to plot."), 10)
+            return
+
+        config = self.get_config(server)
+        timeout = config.get('marker_timeout', 30)
+
+        plotted = 0
+        plan_ids = []
+        for plan in plans:
+            if await self.create_flight_plan_markers(server, plan, timeout=timeout):
+                plotted += 1
+                plan_ids.append(plan['id'])
+
+        await player.sendPopupMessage(
+            _("Plotted {} flight plan(s) on F10 map.\nMarkers will disappear in {} seconds.").format(plotted, timeout),
+            10
+        )
+
+    async def _menu_plot_plan(self, server: Server, player: Player, plan_id: int):
+        """Handle 'Plot Plan' menu option for a specific plan."""
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(
+                    "SELECT * FROM flightplan_plans WHERE id = %s",
+                    (plan_id,)
+                )
+                fp = await cursor.fetchone()
+
+        if not fp:
+            await player.sendPopupMessage(_("Flight plan not found."), 10)
+            return
+
+        config = self.get_config(server)
+        timeout = config.get('marker_timeout', 30)
+
+        if await self.create_flight_plan_markers(server, fp, timeout=timeout):
+            await player.sendPopupMessage(
+                _("Flight plan #{} plotted on F10 map for {} seconds.").format(plan_id, timeout),
+                10
+            )
+        else:
+            await player.sendPopupMessage(_("Could not plot flight plan. Missing position data."), 10)
+
+    async def _menu_activate(self, server: Server, player: Player, plan_id: int = None):
+        """Handle 'Activate Plan' menu option."""
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                if plan_id:
+                    await cursor.execute(
+                        "SELECT * FROM flightplan_plans WHERE id = %s AND player_ucid = %s",
+                        (plan_id, player.ucid)
+                    )
+                else:
+                    await cursor.execute("""
+                        SELECT * FROM flightplan_plans
+                        WHERE player_ucid = %s AND status = 'filed'
+                        ORDER BY filed_at DESC LIMIT 1
+                    """, (player.ucid,))
+
+                fp = await cursor.fetchone()
+
+                if not fp:
+                    await player.sendPopupMessage(_("No filed flight plan found."), 10)
+                    return
+
+                if fp['status'] != 'filed':
+                    await player.sendPopupMessage(
+                        _("Flight plan #{} is already {}.").format(fp['id'], fp['status']),
+                        10
+                    )
+                    return
+
+                now = datetime.now(timezone.utc)
+                await conn.execute(
+                    "UPDATE flightplan_plans SET status = 'active', activated_at = %s WHERE id = %s",
+                    (now, fp['id'])
+                )
+
+        # Create markers
+        await self.create_flight_plan_markers(server, fp, timeout=0)
+
+        # Publish to Discord
+        config = self.get_config(server)
+        if config.get('publish_on_activate', True):
+            await self.publish_flight_plan(fp, 'activated')
+
+        await player.sendPopupMessage(
+            _("FLIGHT PLAN ACTIVATED\n\nPlan #{} is now active.\nRoute plotted on F10 map.").format(fp['id']),
+            15
+        )
+
+        # Refresh menu
+        await self._create_flightplan_menu(server, player)
+
+    async def _menu_complete(self, server: Server, player: Player):
+        """Handle 'Complete Flight' menu option."""
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT * FROM flightplan_plans
+                    WHERE player_ucid = %s AND status = 'active'
+                    ORDER BY activated_at DESC LIMIT 1
+                """, (player.ucid,))
+                fp = await cursor.fetchone()
+
+                if not fp:
+                    await player.sendPopupMessage(_("No active flight plan found."), 10)
+                    return
+
+                now = datetime.now(timezone.utc)
+                await conn.execute(
+                    "UPDATE flightplan_plans SET status = 'completed', completed_at = %s WHERE id = %s",
+                    (now, fp['id'])
+                )
+
+        # Remove markers
+        await self.remove_flight_plan_markers(server, fp['id'])
+
+        # Update Discord
+        await self.publish_flight_plan(fp, 'completed')
+
+        await player.sendPopupMessage(
+            _("FLIGHT COMPLETE\n\nPlan #{} completed.\nLogged to your record.").format(fp['id']),
+            15
+        )
+
+        # Refresh menu
+        await self._create_flightplan_menu(server, player)
+
+    async def _menu_cancel(self, server: Server, player: Player):
+        """Handle 'Cancel Flight' menu option."""
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT * FROM flightplan_plans
+                    WHERE player_ucid = %s AND status IN ('filed', 'active')
+                    ORDER BY filed_at DESC LIMIT 1
+                """, (player.ucid,))
+                fp = await cursor.fetchone()
+
+                if not fp:
+                    await player.sendPopupMessage(_("No active flight plan found."), 10)
+                    return
+
+                await conn.execute(
+                    "UPDATE flightplan_plans SET status = 'cancelled' WHERE id = %s",
+                    (fp['id'],)
+                )
+
+        # Remove markers
+        await self.remove_flight_plan_markers(server, fp['id'])
+
+        # Update Discord
+        await self.publish_flight_plan(fp, 'cancelled')
+
+        await player.sendPopupMessage(
+            _("FLIGHT CANCELLED\n\nPlan #{} cancelled.").format(fp['id']),
+            10
+        )
+
+        # Refresh menu
+        await self._create_flightplan_menu(server, player)
