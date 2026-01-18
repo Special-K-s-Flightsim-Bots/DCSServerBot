@@ -60,13 +60,13 @@ function dcsbot.createLogisticsMarkers(task_id, coalitionNum, source_name, sourc
 
     -- Source marker (pickup point)
     local sourceMarkerId = getNextMarkerId()
-    local sourceText = "[PICKUP] " .. source_name
+    local sourceText = "[PICKUP #" .. task_id .. "] " .. source_name
     trigger.action.markToCoalition(sourceMarkerId, sourceText, source_pos, coal, true)
     table.insert(markers, {id = sourceMarkerId, type = "source_marker"})
 
     -- Destination marker with cargo, pilot, and deadline info
     local destMarkerId = getNextMarkerId()
-    local destText = "[DELIVERY] " .. dest_name .. "\n"
+    local destText = "[DELIVERY #" .. task_id .. "] " .. dest_name .. "\n"
     destText = destText .. "Cargo: " .. cargo_type
     if pilot_name and pilot_name ~= "" then
         destText = destText .. "\nPilot: " .. pilot_name
@@ -129,11 +129,12 @@ function dcsbot.createLogisticsMarkers(task_id, coalitionNum, source_name, sourc
 
     -- Schedule auto-removal if timeout is set
     if timeout and timeout > 0 then
-        timer.scheduleFunction(function()
-            dcsbot.removeLogisticsMarkersInternal(task_id)
-            env.info('DCSServerBot - Logistics: Auto-removed markers for task ' .. task_id .. ' after timeout')
+        local tid = task_id  -- capture for closure
+        timer.scheduleFunction(function(args, time)
+            dcsbot.removeLogisticsMarkersInternal(tid)
+            env.info('DCSServerBot - Logistics: Auto-removed markers for task ' .. tid .. ' after timeout')
             return nil
-        end, nil, timer.getTime() + timeout)
+        end, {}, timer.getTime() + timeout)
     end
 
     -- Send confirmation back to bot (only if channel is valid)

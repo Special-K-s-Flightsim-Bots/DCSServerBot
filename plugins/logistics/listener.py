@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 
-from core import EventListener, Server, event, chat_command, Player
+from core import EventListener, Server, event, chat_command, Player, Side
 from datetime import datetime, timezone
 from discord.ext import tasks
 from typing import TYPE_CHECKING
@@ -48,7 +48,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         """Show player their assigned task when they spawn and create F10 menu."""
         player = server.get_player(ucid=data.get('ucid'))
-        if player and player.side > 0:  # Only for players in a slot
+        if player and player.side not in (Side.UNKNOWN, Side.NEUTRAL):  # Only for players in a slot
             task = await self._get_assigned_task(player.ucid, server.name)
             if task:
                 await self._notify_player_of_task(player, task)
