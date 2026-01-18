@@ -108,12 +108,9 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 await player.sendChatMessage(f"Delivery confirmed! Task #{task_id} completed.")
                 await player.sendPopupMessage("DELIVERY COMPLETE\n\nTask logged to your record.", 10)
 
-    @event(name="callback")
-    async def onCallback(self, server: Server, data: dict) -> None:
-        """Handle F10 menu callbacks."""
-        # Menu callbacks come in as 'command', not 'subcommand'
-        if data.get('command') != 'logistics':
-            return
+    @event(name="logistics")
+    async def onLogisticsCallback(self, server: Server, data: dict) -> None:
+        """Handle F10 menu callbacks for logistics."""
 
         player_id = data.get('from')
         player = server.get_player(id=player_id)
