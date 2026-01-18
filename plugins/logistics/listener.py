@@ -22,8 +22,6 @@ class LogisticsEventListener(EventListener["Logistics"]):
     def __init__(self, plugin: "Logistics"):
         super().__init__(plugin)
         self._delivery_check_task = None
-        # State tracking for interactive request flow: {ucid: {'step': str, 'source': str, 'dest': str, ...}}
-        self._request_state: dict[str, dict] = {}
 
     async def shutdown(self):
         if self._delivery_check_task:
@@ -132,6 +130,12 @@ class LogisticsEventListener(EventListener["Logistics"]):
             task_id = params.get('task_id')
             if task_id:
                 await self._menu_accept_task(server, player, task_id)
+        elif action == 'plot_all':
+            await self._menu_plot_all(server, player)
+        elif action == 'plot_task':
+            task_id = params.get('task_id')
+            if task_id:
+                await self._menu_plot_task(server, player, task_id)
         elif action == 'deliver':
             await self._menu_deliver(server, player)
         elif action == 'abandon':
@@ -267,105 +271,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
         else:
             await player.sendChatMessage(f"Cannot abandon task: {result['error']}")
 
-    @chat_command(name="request", usage="[source|dest|cargo|cancel] [value]", help="Request a logistics delivery (interactive)")
-    async def request_cmd(self, server: Server, player: Player, params: list[str]):
-        """
-        Interactive logistics request flow:
-        -request           -> Start new request, show source options
-        -request source N  -> Select source by number
-        -request dest N    -> Select destination by number
-        -request cargo X   -> Set cargo description
-        -request cancel    -> Cancel current request
-        """
-        ucid = player.ucid
-
-        # Get available airbases for this mission
-        airbases = await self._get_airbase_list(server, player.side.value)
-        if not airbases:
-            await player.sendChatMessage("No airbases available in current mission.")
-            return
-
-        # No params - start new request or show current state
-        if not params:
-            # Start a new request flow
-            self._request_state[ucid] = {'step': 'source', 'server': server.name}
-            await self._show_airbase_selection(player, airbases, "SOURCE (pickup)")
-            return
-
-        action = params[0].lower()
-
-        # Cancel
-        if action == 'cancel':
-            if ucid in self._request_state:
-                del self._request_state[ucid]
-            await player.sendChatMessage("Request cancelled.")
-            return
-
-        # Check if player has an active request flow
-        state = self._request_state.get(ucid)
-        if not state:
-            await player.sendChatMessage("No active request. Type -request to start.")
-            return
-
-        # Handle source selection
-        if action == 'source' or (state['step'] == 'source' and params[0].isdigit()):
-            idx_str = params[1] if action == 'source' and len(params) > 1 else params[0]
-            try:
-                idx = int(idx_str) - 1  # Convert to 0-indexed
-                if 0 <= idx < len(airbases):
-                    state['source'] = airbases[idx]['name']
-                    state['source_position'] = airbases[idx].get('position')
-                    state['step'] = 'dest'
-                    await player.sendChatMessage(f"Source: {state['source']}")
-                    await self._show_airbase_selection(player, airbases, "DESTINATION (delivery)")
-                else:
-                    await player.sendChatMessage(f"Invalid selection. Enter 1-{len(airbases)}.")
-            except ValueError:
-                await player.sendChatMessage("Enter a number for the airbase selection.")
-            return
-
-        # Handle destination selection
-        if action == 'dest' or (state['step'] == 'dest' and params[0].isdigit()):
-            idx_str = params[1] if action == 'dest' and len(params) > 1 else params[0]
-            try:
-                idx = int(idx_str) - 1
-                if 0 <= idx < len(airbases):
-                    state['dest'] = airbases[idx]['name']
-                    state['dest_position'] = airbases[idx].get('position')
-                    state['step'] = 'cargo'
-                    await player.sendChatMessage(f"Destination: {state['dest']}")
-                    await player.sendChatMessage("Enter cargo: -request cargo <description>")
-                    await player.sendChatMessage("Example: -request cargo 10x Mk-82 bombs")
-                else:
-                    await player.sendChatMessage(f"Invalid selection. Enter 1-{len(airbases)}.")
-            except ValueError:
-                await player.sendChatMessage("Enter a number for the airbase selection.")
-            return
-
-        # Handle cargo entry
-        if action == 'cargo':
-            if len(params) < 2:
-                await player.sendChatMessage("Usage: -request cargo <description>")
-                return
-
-            state['cargo'] = ' '.join(params[1:])
-            state['step'] = 'complete'
-
-            # Create the request
-            result = await self._create_request(server, player, state)
-            del self._request_state[ucid]
-
-            if result['success']:
-                status_msg = "approved and ready" if result.get('auto_approved') else "submitted for approval"
-                await player.sendChatMessage(f"Request #{result['task_id']} {status_msg}!")
-                if result.get('auto_approved'):
-                    await player.sendChatMessage(f"Use -accept {result['task_id']} to claim it.")
-            else:
-                await player.sendChatMessage(f"Cannot create request: {result['error']}")
-            return
-
-        # Unknown action or state mismatch
-        await player.sendChatMessage(f"Current step: {state['step']}. Type -request cancel to start over.")
+    # -request command removed - use Discord /logistics create instead
+    # The interactive flow was too cumbersome for in-game chat
 
     @chat_command(name="plot", usage="<all|task_id>", help="Plot logistics tasks on the F10 map")
     async def plot_cmd(self, server: Server, player: Player, params: list[str]):
@@ -676,43 +583,6 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
             return {'success': True}
 
-    async def _create_request(self, server: Server, player: Player, state: dict) -> dict:
-        """Create a player-initiated logistics request with full location data."""
-        # Check config for auto-approval of in-game requests (default: True)
-        config = self.get_config(server) or {}
-        tasks_config = config.get('tasks', {})
-        auto_approve = tasks_config.get('auto_approve_requests', True)
-
-        initial_status = 'approved' if auto_approve else 'pending'
-
-        async with self.apool.connection() as conn:
-            now = datetime.now(timezone.utc)
-
-            source_pos_json = json.dumps(state.get('source_position')) if state.get('source_position') else None
-            dest_pos_json = json.dumps(state.get('dest_position')) if state.get('dest_position') else None
-
-            cursor = await conn.execute("""
-                INSERT INTO logistics_tasks
-                (server_name, created_by_ucid, status, cargo_type, source_name, source_position,
-                 destination_name, destination_position, coalition, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, (server.name, player.ucid, initial_status, state['cargo'],
-                  state['source'], source_pos_json,
-                  state['dest'], dest_pos_json,
-                  player.side.value, now, now))
-            row = await cursor.fetchone()
-            task_id = row[0]
-
-            # Record history
-            event_type = 'created_and_approved' if auto_approve else 'created'
-            await conn.execute("""
-                INSERT INTO logistics_tasks_history (task_id, event, actor_ucid, details)
-                VALUES (%s, %s, %s, %s)
-            """, (task_id, event_type, player.ucid, '{"source": "in_game_request"}'))
-
-            return {'success': True, 'task_id': task_id, 'auto_approved': auto_approve}
-
     async def _recreate_assigned_task_markers(self, server: Server):
         """Recreate markers only for assigned/in-progress tasks on mission start."""
         async with self.apool.connection() as conn:
@@ -928,6 +798,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
         """Create F10 menu for logistics operations."""
         # Build dynamic menu based on available tasks
         tasks = await self._get_available_tasks(server.name, player.side.value)
+        tasks_with_pos = await self._get_available_tasks_with_positions(server.name, player.side.value)
         assigned_task = await self._get_assigned_task(player.ucid, server.name)
 
         # Build menu structure
@@ -961,6 +832,29 @@ class LogisticsEventListener(EventListener["Logistics"]):
                     }
                 })
             menu[0]["Logistics"].append({"Accept Task": accept_menu})
+
+        # Add plot options if there are tasks with positions
+        if tasks_with_pos:
+            # Plot All option
+            menu[0]["Logistics"].append({
+                "Plot All Tasks (30s)": {
+                    "command": "logistics",
+                    "params": {"action": "plot_all"}
+                }
+            })
+
+            # Plot by ID submenu
+            plot_menu = []
+            for task in tasks_with_pos[:5]:  # Limit to 5 tasks in menu
+                priority_marker = "!" if task.get('priority') == 'urgent' else ""
+                label = f"#{task['id']}{priority_marker}: {task['cargo_type'][:20]}"
+                plot_menu.append({
+                    label: {
+                        "command": "logistics",
+                        "params": {"action": "plot_task", "task_id": task['id']}
+                    }
+                })
+            menu[0]["Logistics"].append({"Plot Task": plot_menu})
 
         # Add task actions if player has an assigned task
         if assigned_task:
@@ -1044,6 +938,36 @@ class LogisticsEventListener(EventListener["Logistics"]):
         else:
             await player.sendPopupMessage(f"Cannot accept task:\n{result['error']}", 10)
 
+    async def _menu_plot_all(self, server: Server, player: Player):
+        """Handle 'Plot All Tasks' menu option."""
+        tasks = await self._get_available_tasks_with_positions(server.name, player.side.value)
+        if not tasks:
+            await player.sendPopupMessage("No tasks available to plot.", 10)
+            return
+
+        task_ids = []
+        for task in tasks:
+            await self._create_markers_for_task(server, task)
+            task_ids.append(task['id'])
+
+        await player.sendPopupMessage(f"Plotted {len(task_ids)} task(s) on F10 map.\nMarkers will disappear in 30 seconds.", 10)
+
+        # Schedule removal after 30 seconds
+        asyncio.create_task(self._remove_markers_after_delay(server, task_ids, 30))
+
+    async def _menu_plot_task(self, server: Server, player: Player, task_id: int):
+        """Handle 'Plot Task' menu option for a specific task."""
+        task = await self._get_task_with_position(task_id, server.name, player.side.value)
+        if not task:
+            await player.sendPopupMessage(f"Task #{task_id} not found or not visible.", 10)
+            return
+
+        await self._create_markers_for_task(server, task)
+        await player.sendPopupMessage(f"Plotted task #{task_id} on F10 map.\nMarkers will disappear in 30 seconds.", 10)
+
+        # Schedule removal after 30 seconds
+        asyncio.create_task(self._remove_markers_after_delay(server, [task_id], 30))
+
     async def _menu_deliver(self, server: Server, player: Player):
         """Handle 'Mark Delivered' menu option."""
         task = await self._get_assigned_task(player.ucid, server.name)
@@ -1103,38 +1027,6 @@ class LogisticsEventListener(EventListener["Logistics"]):
             f"Assigned: {assigned}"
         )
         await player.sendPopupMessage(msg, 15)
-
-    # ==================== REQUEST FLOW HELPERS ====================
-
-    async def _get_airbase_list(self, server: Server, coalition: int) -> list[dict]:
-        """Get list of airbases available for the player's coalition."""
-        if not server.current_mission or not server.current_mission.airbases:
-            return []
-
-        # Filter airbases by coalition (0=neutral accessible by all, 1=red, 2=blue)
-        airbases = []
-        for ab in server.current_mission.airbases:
-            ab_coalition = ab.get('coalition', 0)
-            # Neutral airbases (0) accessible by all, otherwise match coalition
-            if ab_coalition == 0 or ab_coalition == coalition:
-                airbases.append({
-                    'name': ab.get('name', 'Unknown'),
-                    'position': ab.get('position')
-                })
-
-        return sorted(airbases, key=lambda x: x['name'])
-
-    async def _show_airbase_selection(self, player: Player, airbases: list[dict], step_label: str):
-        """Show numbered list of airbases for selection."""
-        msg = f"Select {step_label}:\n"
-        for i, ab in enumerate(airbases[:15], 1):  # Limit to 15 to fit in chat
-            msg += f"  {i}. {ab['name']}\n"
-
-        if len(airbases) > 15:
-            msg += f"  ... and {len(airbases) - 15} more\n"
-
-        msg += f"\nType the number (e.g., -request 1)"
-        await player.sendChatMessage(msg)
 
     async def _cancel_stale_tasks(self, server: Server):
         """Cancel tasks that have been pending/approved for too long."""

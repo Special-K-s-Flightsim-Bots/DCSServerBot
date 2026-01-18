@@ -44,7 +44,6 @@ DEFAULT:
     show_deadline: true
   tasks:
     auto_approve: false        # Auto-approve Discord-created tasks
-    auto_approve_requests: true  # Auto-approve in-game -request tasks (default: true)
     timeout_hours: 24          # Task expiration
     stale_days: 7              # Auto-cancel pending/approved tasks after N days (0 to disable)
     max_per_player: 1          # Max concurrent tasks per player
@@ -82,8 +81,6 @@ DEFAULT:
 | `-taskinfo <id>`          | View details of any visible task                     |
 | `-deliver`                | Mark current task as delivered (manual)              |
 | `-abandon`                | Release task back to available pool                  |
-| `-request`                | Start interactive logistics request (guided flow)    |
-| `-request cancel`         | Cancel current request in progress                   |
 
 ## F10 Menu Structure
 
