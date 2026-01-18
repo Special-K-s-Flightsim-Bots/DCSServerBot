@@ -1,3 +1,4 @@
+import aiohttp
 import discord
 import json
 import logging
@@ -12,6 +13,22 @@ from typing import Literal, Optional
 
 from .listener import FlightPlanEventListener
 from .utils import parse_waypoint_input, WaypointType
+
+
+# Theater bounding boxes for OpenAIP queries (minLon, minLat, maxLon, maxLat)
+THEATER_BOUNDING_BOXES = {
+    'Caucasus': (38.0, 41.0, 47.0, 45.0),      # Georgia, South Russia
+    'Syria': (32.0, 32.0, 42.0, 37.5),          # Syria, Lebanon, Cyprus, parts of Turkey
+    'PersianGulf': (48.0, 22.0, 60.0, 30.0),    # UAE, Iran, Oman, Strait of Hormuz
+    'Nevada': (-120.0, 34.0, -114.0, 40.0),     # Nevada, California
+    'Normandy': (-3.0, 48.0, 2.0, 51.0),        # Normandy, Northern France
+    'TheChannel': (-2.0, 49.0, 3.0, 52.0),      # English Channel region
+    'MarianaIslands': (144.0, 13.0, 146.5, 15.5),  # Guam, Mariana Islands
+    'SouthAtlantic': (-65.0, -55.0, -55.0, -50.0),  # Falkland Islands
+    'Sinai': (32.0, 27.0, 36.0, 32.0),          # Sinai Peninsula, Egypt
+    'Afghanistan': (60.0, 29.0, 71.5, 38.5),    # Afghanistan and surrounding areas
+    'Kola': (25.0, 66.0, 42.0, 72.0),           # Kola Peninsula, Northern Russia/Norway
+}
 
 _ = get_translation(__name__.split('.')[1])
 log = logging.getLogger(__name__)
@@ -1265,6 +1282,282 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
             description=_('Fix {} has been deleted from {}.').format(identifier.upper(), theater),
             color=discord.Color.orange()
         )
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+
+    @fix.command(name='sync', description=_('Sync navigation fixes from OpenAIP for a theater'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.describe(theater=_('Map theater to sync fixes for'))
+    @app_commands.choices(theater=[
+        app_commands.Choice(name='Afghanistan', value='Afghanistan'),
+        app_commands.Choice(name='Caucasus', value='Caucasus'),
+        app_commands.Choice(name='Kola', value='Kola'),
+        app_commands.Choice(name='Mariana Islands', value='MarianaIslands'),
+        app_commands.Choice(name='Nevada', value='Nevada'),
+        app_commands.Choice(name='Normandy', value='Normandy'),
+        app_commands.Choice(name='Persian Gulf', value='PersianGulf'),
+        app_commands.Choice(name='Sinai', value='Sinai'),
+        app_commands.Choice(name='South Atlantic', value='SouthAtlantic'),
+        app_commands.Choice(name='Syria', value='Syria'),
+        app_commands.Choice(name='The Channel', value='TheChannel'),
+    ])
+    async def fix_sync(self, interaction: discord.Interaction, theater: str):
+        """Sync navigation fixes from OpenAIP API for a specific theater."""
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        # Get API key from config
+        config = self.get_config()
+        openaip_config = config.get('openaip', {})
+        api_key = openaip_config.get('api_key')
+
+        if not api_key:
+            await interaction.followup.send(
+                _('OpenAIP API key not configured. Add `openaip.api_key` to flightplan plugin config.'),
+                ephemeral=True
+            )
+            return
+
+        # Get bounding box for theater
+        bbox = THEATER_BOUNDING_BOXES.get(theater)
+        if not bbox:
+            await interaction.followup.send(
+                _('Unknown theater: {}. Available: {}').format(theater, ', '.join(THEATER_BOUNDING_BOXES.keys())),
+                ephemeral=True
+            )
+            return
+
+        min_lon, min_lat, max_lon, max_lat = bbox
+
+        try:
+            # Query OpenAIP API for navaids in this bounding box
+            headers = {
+                'x-openaip-api-key': api_key,
+                'Accept': 'application/json'
+            }
+
+            # OpenAIP uses bbox format: minx,miny,maxx,maxy (lon,lat,lon,lat)
+            bbox_str = f"{min_lon},{min_lat},{max_lon},{max_lat}"
+
+            async with aiohttp.ClientSession() as session:
+                # Fetch navaids (VOR, NDB, TACAN, DME)
+                url = f"https://api.core.openaip.net/api/navaids?bbox={bbox_str}&limit=500"
+                log.info(f"Fetching navaids from OpenAIP: {url}")
+
+                async with session.get(url, headers=headers) as resp:
+                    if resp.status == 401:
+                        await interaction.followup.send(
+                            _('OpenAIP API authentication failed. Check your API key.'),
+                            ephemeral=True
+                        )
+                        return
+                    elif resp.status != 200:
+                        await interaction.followup.send(
+                            _('OpenAIP API error: {} {}').format(resp.status, await resp.text()),
+                            ephemeral=True
+                        )
+                        return
+
+                    data = await resp.json()
+
+            # Parse and insert navaids
+            navaids = data.get('items', [])
+            log.info(f"Received {len(navaids)} navaids from OpenAIP for {theater}")
+
+            inserted = 0
+            updated = 0
+
+            async with self.apool.connection() as conn:
+                for navaid in navaids:
+                    try:
+                        # Extract data from OpenAIP format
+                        identifier = navaid.get('identifier', '').upper()
+                        if not identifier or len(identifier) > 10:
+                            continue
+
+                        name = navaid.get('name', '')
+                        navaid_type = navaid.get('type', 0)
+
+                        # Map OpenAIP type codes to our fix types
+                        # OpenAIP types: 0=UNKNOWN, 1=DME, 2=NDB, 3=TACAN, 4=VOR, 5=VORDME, 6=VORTAC, 7=NDB_DME
+                        type_map = {
+                            1: 'DME',
+                            2: 'NDB',
+                            3: 'TACAN',
+                            4: 'VOR',
+                            5: 'VORDME',
+                            6: 'VORTAC',
+                            7: 'NDB',
+                        }
+                        fix_type = type_map.get(navaid_type, 'WYP')
+
+                        # Get coordinates from geometry
+                        geometry = navaid.get('geometry', {})
+                        coords = geometry.get('coordinates', [])
+                        if len(coords) < 2:
+                            continue
+
+                        longitude = coords[0]
+                        latitude = coords[1]
+
+                        # Get frequency if available
+                        frequency = navaid.get('frequency')
+                        if frequency:
+                            # Format frequency nicely
+                            freq_val = frequency.get('value')
+                            freq_unit = frequency.get('unit', '')
+                            if freq_val:
+                                if freq_unit == 'kHz':
+                                    frequency_str = f"{freq_val}"
+                                else:
+                                    frequency_str = f"{freq_val:.2f}"
+                            else:
+                                frequency_str = None
+                        else:
+                            frequency_str = None
+
+                        # Upsert into database
+                        result = await conn.execute("""
+                            INSERT INTO flightplan_navigation_fixes
+                            (identifier, name, fix_type, latitude, longitude, map_theater, frequency, source)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, 'openaip')
+                            ON CONFLICT (identifier, map_theater) DO UPDATE SET
+                                name = EXCLUDED.name,
+                                fix_type = EXCLUDED.fix_type,
+                                latitude = EXCLUDED.latitude,
+                                longitude = EXCLUDED.longitude,
+                                frequency = EXCLUDED.frequency,
+                                source = 'openaip'
+                            RETURNING (xmax = 0) as inserted
+                        """, (identifier, name, fix_type, latitude, longitude, theater, frequency_str))
+
+                        row = await result.fetchone()
+                        if row and row[0]:
+                            inserted += 1
+                        else:
+                            updated += 1
+
+                    except Exception as e:
+                        log.warning(f"Error processing navaid {navaid.get('identifier', '?')}: {e}")
+                        continue
+
+                # Also try to fetch reporting points / waypoints
+                try:
+                    rp_url = f"https://api.core.openaip.net/api/reporting-points?bbox={bbox_str}&limit=500"
+                    log.info(f"Fetching reporting points from OpenAIP: {rp_url}")
+
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(rp_url, headers=headers) as resp:
+                            if resp.status == 200:
+                                rp_data = await resp.json()
+                                reporting_points = rp_data.get('items', [])
+                                log.info(f"Received {len(reporting_points)} reporting points from OpenAIP for {theater}")
+
+                                for rp in reporting_points:
+                                    try:
+                                        identifier = rp.get('identifier', '').upper()
+                                        if not identifier or len(identifier) > 10:
+                                            continue
+
+                                        name = rp.get('name', '')
+
+                                        geometry = rp.get('geometry', {})
+                                        coords = geometry.get('coordinates', [])
+                                        if len(coords) < 2:
+                                            continue
+
+                                        longitude = coords[0]
+                                        latitude = coords[1]
+
+                                        result = await conn.execute("""
+                                            INSERT INTO flightplan_navigation_fixes
+                                            (identifier, name, fix_type, latitude, longitude, map_theater, source)
+                                            VALUES (%s, %s, 'WYP', %s, %s, %s, 'openaip')
+                                            ON CONFLICT (identifier, map_theater) DO UPDATE SET
+                                                name = EXCLUDED.name,
+                                                latitude = EXCLUDED.latitude,
+                                                longitude = EXCLUDED.longitude,
+                                                source = 'openaip'
+                                            RETURNING (xmax = 0) as inserted
+                                        """, (identifier, name, latitude, longitude, theater))
+
+                                        row = await result.fetchone()
+                                        if row and row[0]:
+                                            inserted += 1
+                                        else:
+                                            updated += 1
+
+                                    except Exception as e:
+                                        log.warning(f"Error processing reporting point {rp.get('identifier', '?')}: {e}")
+                                        continue
+                except Exception as e:
+                    log.warning(f"Error fetching reporting points: {e}")
+
+            embed = discord.Embed(
+                title=_('Navigation Fixes Synced'),
+                description=_('Synced navigation fixes from OpenAIP for {}.').format(theater),
+                color=discord.Color.green()
+            )
+            embed.add_field(name=_('Inserted'), value=str(inserted), inline=True)
+            embed.add_field(name=_('Updated'), value=str(updated), inline=True)
+            embed.add_field(name=_('Total Navaids'), value=str(len(navaids)), inline=True)
+
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+        except aiohttp.ClientError as e:
+            log.error(f"OpenAIP API request failed: {e}")
+            await interaction.followup.send(
+                _('Failed to connect to OpenAIP API: {}').format(str(e)),
+                ephemeral=True
+            )
+        except Exception as e:
+            log.error(f"Error syncing fixes: {e}")
+            await interaction.followup.send(
+                _('Error syncing fixes: {}').format(str(e)),
+                ephemeral=True
+            )
+
+    @fix.command(name='count', description=_('Count navigation fixes by theater'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def fix_count(self, interaction: discord.Interaction):
+        """Show count of navigation fixes per theater."""
+        ephemeral = utils.get_ephemeral(interaction)
+
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT map_theater, fix_type, COUNT(*)
+                FROM flightplan_navigation_fixes
+                GROUP BY map_theater, fix_type
+                ORDER BY map_theater, fix_type
+            """)
+            rows = await cursor.fetchall()
+
+        if not rows:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_('No navigation fixes in database.'), ephemeral=ephemeral)
+            return
+
+        # Organize by theater
+        theaters = {}
+        for theater, fix_type, count in rows:
+            if theater not in theaters:
+                theaters[theater] = {}
+            theaters[theater][fix_type] = count
+
+        embed = discord.Embed(title=_('Navigation Fix Counts'), color=discord.Color.blue())
+
+        for theater, types in sorted(theaters.items()):
+            total = sum(types.values())
+            type_str = ', '.join(f"{t}: {c}" for t, c in sorted(types.items()))
+            embed.add_field(
+                name=f"{theater} ({total} total)",
+                value=type_str,
+                inline=False
+            )
 
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)

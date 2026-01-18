@@ -122,3 +122,65 @@ ON CONFLICT (identifier, map_theater) DO UPDATE SET
     longitude = EXCLUDED.longitude,
     frequency = EXCLUDED.frequency,
     source = EXCLUDED.source;
+
+-- Afghanistan Theater - Common Fixes
+-- Based on real-world Afghan airways and navaids
+INSERT INTO flightplan_navigation_fixes (identifier, name, fix_type, latitude, longitude, map_theater, frequency, source)
+VALUES
+    -- Major Afghan VORs/NDBs
+    ('KDH', 'Kandahar VOR', 'VOR', 31.5058, 65.8478, 'Afghanistan', '116.00', 'airnav'),
+    ('KBL', 'Kabul VOR', 'VOR', 34.5658, 69.2125, 'Afghanistan', '112.10', 'airnav'),
+    ('HRT', 'Herat VOR', 'VOR', 34.2100, 62.2283, 'Afghanistan', '114.50', 'airnav'),
+    ('MZR', 'Mazar-i-Sharif VOR', 'VOR', 36.7069, 67.2097, 'Afghanistan', '113.30', 'airnav'),
+    ('JBD', 'Jalalabad NDB', 'NDB', 34.3997, 70.4986, 'Afghanistan', '355', 'airnav'),
+    ('BGM', 'Bagram NDB', 'NDB', 34.9461, 69.2650, 'Afghanistan', '290', 'airnav'),
+    ('SGA', 'Shindand NDB', 'NDB', 33.3913, 62.2610, 'Afghanistan', '386', 'airnav'),
+
+    -- Pakistan Border Region
+    ('ISB', 'Islamabad VOR', 'VOR', 33.6167, 73.0992, 'Afghanistan', '115.10', 'airnav'),
+    ('LHE', 'Lahore VOR', 'VOR', 31.5216, 74.4036, 'Afghanistan', '113.80', 'airnav'),
+    ('MUX', 'Multan VOR', 'VOR', 30.2033, 71.4192, 'Afghanistan', '114.10', 'airnav'),
+    ('PSN', 'Peshawar NDB', 'NDB', 33.9939, 71.5147, 'Afghanistan', '365', 'airnav'),
+
+    -- Airway G202 Waypoints (Kandahar to Kabul route)
+    ('NABID', 'Nabid', 'WYP', 32.0000, 66.5000, 'Afghanistan', NULL, 'airnav'),
+    ('DOLAN', 'Dolan', 'WYP', 32.5000, 67.0000, 'Afghanistan', NULL, 'airnav'),
+    ('GURMA', 'Gurma', 'WYP', 33.0000, 67.5000, 'Afghanistan', NULL, 'airnav'),
+    ('TAKAM', 'Takam', 'WYP', 33.5000, 68.0000, 'Afghanistan', NULL, 'airnav'),
+    ('LURAN', 'Luran', 'WYP', 34.0000, 68.5000, 'Afghanistan', NULL, 'airnav'),
+
+    -- Airway A466 Waypoints
+    ('PASAB', 'Pasab', 'WYP', 31.6667, 65.2500, 'Afghanistan', NULL, 'airnav'),
+    ('TUGAB', 'Tugab', 'WYP', 32.1667, 64.5000, 'Afghanistan', NULL, 'airnav'),
+    ('DALBA', 'Dalba', 'WYP', 32.5000, 64.0000, 'Afghanistan', NULL, 'airnav'),
+
+    -- Airway B466 Waypoints (to Bagram)
+    ('OQBAN', 'Oqban', 'WYP', 34.7500, 69.3000, 'Afghanistan', NULL, 'airnav'),
+    ('SOKMA', 'Sokma', 'WYP', 35.0000, 68.8000, 'Afghanistan', NULL, 'airnav'),
+
+    -- Camp Bastion / Helmand Region
+    ('BASTN', 'Bastion', 'WYP', 31.8631, 64.2244, 'Afghanistan', NULL, 'user'),
+    ('GERSH', 'Gereshk', 'WYP', 31.8167, 64.5667, 'Afghanistan', NULL, 'user'),
+    ('LASHR', 'Lashkar Gah', 'WYP', 31.5939, 64.3700, 'Afghanistan', NULL, 'user'),
+
+    -- Approach Fixes
+    ('OAKN', 'Kandahar Intl', 'WYP', 31.5058, 65.8478, 'Afghanistan', NULL, 'user'),
+    ('OAZI', 'Camp Bastion', 'WYP', 31.8631, 64.2244, 'Afghanistan', NULL, 'user'),
+    ('OAIX', 'Bagram AB', 'WYP', 34.9461, 69.2650, 'Afghanistan', NULL, 'user'),
+    ('OAKB', 'Kabul Intl', 'WYP', 34.5658, 69.2125, 'Afghanistan', NULL, 'user'),
+    ('OASD', 'Shindand AB', 'WYP', 33.3913, 62.2610, 'Afghanistan', NULL, 'user'),
+    ('OAHR', 'Herat Intl', 'WYP', 34.2100, 62.2283, 'Afghanistan', NULL, 'user'),
+    ('OAMS', 'Mazar-i-Sharif', 'WYP', 36.7069, 67.2097, 'Afghanistan', NULL, 'user'),
+
+    -- Entry/Exit Points
+    ('SARAN', 'Saran Pass', 'WYP', 35.3167, 69.0167, 'Afghanistan', NULL, 'user'),
+    ('KHYBR', 'Khyber Pass', 'WYP', 34.0831, 71.0942, 'Afghanistan', NULL, 'user'),
+    ('SPINB', 'Spin Boldak', 'WYP', 31.0014, 66.3972, 'Afghanistan', NULL, 'user')
+
+ON CONFLICT (identifier, map_theater) DO UPDATE SET
+    name = EXCLUDED.name,
+    fix_type = EXCLUDED.fix_type,
+    latitude = EXCLUDED.latitude,
+    longitude = EXCLUDED.longitude,
+    frequency = EXCLUDED.frequency,
+    source = EXCLUDED.source;
