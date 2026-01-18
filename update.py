@@ -47,7 +47,13 @@ def do_update_git() -> int:
             current_hash = repo.head.commit.hexsha
             origin = repo.remotes.origin
             origin.fetch()
-            new_hash = origin.refs[repo.active_branch.name].object.hexsha
+            try:
+                branch_name = repo.active_branch.name
+            except TypeError:
+                # Detached HEAD state - can't do branch-based updates
+                print('- Detached HEAD detected. Skipping git-based update.')
+                return 0
+            new_hash = origin.refs[branch_name].object.hexsha
             if new_hash != current_hash:
                 modules = False
                 print('- Updating myself...')
@@ -56,7 +62,7 @@ def do_update_git() -> int:
                     if d.b_path == 'requirements.txt':
                         modules = True
                 try:
-                    repo.remote().pull(repo.active_branch)
+                    repo.remote().pull(branch_name)
                     print('  => DCSServerBot updated to the latest version.')
                     if modules:
                         print('  => requirements.txt has changed. Installing missing modules...')
