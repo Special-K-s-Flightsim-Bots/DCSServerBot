@@ -34,9 +34,9 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     @event(name="onSimulationStart")
     async def onSimulationStart(self, server: Server, data: dict) -> None:
-        """Recreate markers when mission starts."""
-        log.info(f"Logistics: Mission started on {server.name}, recreating markers")
-        await self._recreate_all_markers(server)
+        """Recreate markers for assigned tasks when mission starts."""
+        log.info(f"Logistics: Mission started on {server.name}, recreating markers for assigned tasks")
+        await self._recreate_assigned_task_markers(server)
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
@@ -601,22 +601,22 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
             return {'success': True, 'task_id': task_id}
 
-    async def _recreate_all_markers(self, server: Server):
-        """Recreate markers for all active tasks on mission start."""
+    async def _recreate_assigned_task_markers(self, server: Server):
+        """Recreate markers only for assigned/in-progress tasks on mission start."""
         async with self.apool.connection() as conn:
             # Clear old marker records
             await conn.execute("""
                 DELETE FROM logistics_markers WHERE server_name = %s
             """, (server.name,))
 
-            # Get active tasks
+            # Only get tasks that are assigned or in_progress (not approved/pending)
             cursor = await conn.execute("""
                 SELECT t.id, t.cargo_type, t.source_name, t.source_position,
                        t.destination_name, t.destination_position, t.coalition,
                        t.deadline, p.name as assigned_name
                 FROM logistics_tasks t
                 LEFT JOIN players p ON t.assigned_ucid = p.ucid
-                WHERE t.server_name = %s AND t.status IN ('approved', 'assigned', 'in_progress')
+                WHERE t.server_name = %s AND t.status IN ('assigned', 'in_progress')
             """, (server.name,))
             tasks = await cursor.fetchall()
 
