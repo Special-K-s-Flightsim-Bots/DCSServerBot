@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS logbook_awards (
     description TEXT,
     image_url TEXT,
     ribbon_colors JSONB,
+    ribbon_image BYTEA,
     auto_grant BOOLEAN NOT NULL DEFAULT FALSE,
     requirements JSONB
 );

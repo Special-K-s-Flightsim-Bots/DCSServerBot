@@ -1474,14 +1474,19 @@ class Logbook(Plugin[LogbookEventListener]):
                 )
                 return
 
+        # Generate ribbon image
+        ribbon_bytes = None
+        if HAS_IMAGING:
+            ribbon_bytes = create_ribbon_rack([(name, colors_json, 1)], scale=2.0)
+
         async with self.apool.connection() as conn:
             # Use INSERT ... ON CONFLICT to avoid race condition
             cursor = await conn.execute("""
-                INSERT INTO logbook_awards (name, description, image_url, ribbon_colors)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO logbook_awards (name, description, image_url, ribbon_colors, ribbon_image)
+                VALUES (%s, %s, %s, %s, %s)
                 ON CONFLICT (name) DO NOTHING
                 RETURNING id
-            """, (name, description, image_url, json.dumps(colors_json) if colors_json else None))
+            """, (name, description, image_url, json.dumps(colors_json) if colors_json else None, ribbon_bytes))
             result = await cursor.fetchone()
 
             if not result:
@@ -1502,15 +1507,21 @@ class Logbook(Plugin[LogbookEventListener]):
         embed.add_field(name=_('ID'), value=str(award_id), inline=True)
         if description:
             embed.add_field(name=_('Description'), value=description, inline=False)
-        if colors_json:
-            # Show color preview
-            color_display = ' '.join([f"`{c}`" for c in colors_json[:5]])
-            embed.add_field(name=_('Ribbon Colors'), value=color_display, inline=False)
+
+        # Attach ribbon image if generated
+        file = None
+        if ribbon_bytes:
+            file = discord.File(io.BytesIO(ribbon_bytes), filename='ribbon.png')
+            embed.set_image(url='attachment://ribbon.png')
+
         if image_url:
             embed.set_thumbnail(url=image_url)
 
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+        if file:
+            await interaction.response.send_message(embed=embed, file=file, ephemeral=ephemeral)
+        else:
+            await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
         await self.bot.audit(f'created award {name}', user=interaction.user)
 
     @award.command(name='info', description=_('Show award details'))
@@ -1545,20 +1556,15 @@ class Logbook(Plugin[LogbookEventListener]):
         if row.get('auto_grant'):
             embed.add_field(name=_('Auto-Grant'), value=_('Yes'), inline=True)
 
-        # Generate ribbon image
+        # Use stored ribbon image if available
         file = None
-        if HAS_IMAGING:
-            colors = None
-            if row.get('ribbon_colors'):
-                try:
-                    colors = json.loads(row['ribbon_colors']) if isinstance(row['ribbon_colors'], str) else row['ribbon_colors']
-                except Exception:
-                    pass
-            # Generate single ribbon using create_ribbon_rack with count=1
-            ribbon_bytes = create_ribbon_rack([(row['name'], colors, 1)], scale=2.0)
-            if ribbon_bytes:
-                file = discord.File(io.BytesIO(ribbon_bytes), filename='ribbon.png')
-                embed.set_image(url='attachment://ribbon.png')
+        ribbon_bytes = row.get('ribbon_image')
+        if ribbon_bytes:
+            # ribbon_image is stored as memoryview/bytes from database
+            if isinstance(ribbon_bytes, memoryview):
+                ribbon_bytes = bytes(ribbon_bytes)
+            file = discord.File(io.BytesIO(ribbon_bytes), filename='ribbon.png')
+            embed.set_image(url='attachment://ribbon.png')
 
         if row.get('image_url'):
             embed.set_thumbnail(url=row['image_url'])
