@@ -152,6 +152,13 @@ def migrate_squadrons(mayfly_data: dict, target_conn, dry_run: bool) -> dict:
 
         if not dry_run:
             with target_conn.cursor() as cur:
+                # CO must exist in players table for foreign key - set to NULL if not
+                if co_ucid:
+                    cur.execute("SELECT 1 FROM players WHERE ucid = %s", (co_ucid,))
+                    if not cur.fetchone():
+                        print(f"    WARNING: CO {co_ucid} not in players table, setting to NULL")
+                        co_ucid = None
+
                 cur.execute("""
                     INSERT INTO logbook_squadrons (name, abbreviation, description, co_ucid)
                     VALUES (%s, %s, %s, %s)
@@ -220,6 +227,7 @@ def migrate_awards(mayfly_data: dict, target_conn, dry_run: bool):
 
     # Get award name -> id mapping from target database
     award_id_map = {}
+    missing_awards = set()
     if not dry_run:
         with target_conn.cursor(row_factory=dict_row) as cur:
             cur.execute("SELECT id, name FROM logbook_awards")
@@ -245,12 +253,21 @@ def migrate_awards(mayfly_data: dict, target_conn, dry_run: bool):
         if not dry_run:
             new_award_id = award_id_map.get(award_name)
             if not new_award_id:
-                print(f"  WARNING: Award '{award_name}' not found in target database")
+                if award_name not in missing_awards:
+                    print(f"  WARNING: Award '{award_name}' not found in target database")
+                    missing_awards.add(award_name)
                 skipped += 1
                 continue
 
             with target_conn.cursor() as cur:
                 try:
+                    # Ensure pilot exists in players table first
+                    cur.execute("""
+                        INSERT INTO players (ucid, name)
+                        VALUES (%s, %s)
+                        ON CONFLICT (ucid) DO NOTHING
+                    """, (pilot_ucid, f"Player_{pilot_ucid[:8]}"))
+
                     cur.execute("""
                         INSERT INTO logbook_pilot_awards (player_ucid, award_id, granted_at)
                         VALUES (%s, %s, %s)
@@ -273,6 +290,7 @@ def migrate_qualifications(mayfly_data: dict, target_conn, dry_run: bool):
 
     # Get qualification name -> id mapping from target database
     qual_id_map = {}
+    missing_quals = set()
     if not dry_run:
         with target_conn.cursor(row_factory=dict_row) as cur:
             cur.execute("SELECT id, name FROM logbook_qualifications")
@@ -299,12 +317,21 @@ def migrate_qualifications(mayfly_data: dict, target_conn, dry_run: bool):
         if not dry_run:
             new_qual_id = qual_id_map.get(qual_name)
             if not new_qual_id:
-                print(f"  WARNING: Qualification '{qual_name}' not found in target database")
+                if qual_name not in missing_quals:
+                    print(f"  WARNING: Qualification '{qual_name}' not found in target database")
+                    missing_quals.add(qual_name)
                 skipped += 1
                 continue
 
             with target_conn.cursor() as cur:
                 try:
+                    # Ensure pilot exists in players table first
+                    cur.execute("""
+                        INSERT INTO players (ucid, name)
+                        VALUES (%s, %s)
+                        ON CONFLICT (ucid) DO NOTHING
+                    """, (pilot_ucid, f"Player_{pilot_ucid[:8]}"))
+
                     cur.execute("""
                         INSERT INTO logbook_pilot_qualifications (player_ucid, qualification_id, granted_at, expires_at)
                         VALUES (%s, %s, %s, %s)
