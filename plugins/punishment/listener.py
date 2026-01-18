@@ -337,11 +337,13 @@ class PunishmentEventListener(EventListener["Punishment"]):
             shot_time, shooter_id, weapon = self.pending_kill.pop(player.ucid, (-1, None, None))
             delta_time = int(time.time()) - shot_time
             # no shot event registered or too old already
-            if shot_time == -1 or delta_time >= config.get('reslot_window', 60):
+            if shot_time == -1:
                 return
 
-            # give the kill to the opponent
-            asyncio.create_task(self._give_kill(server, shooter_id, player.ucid, weapon))
+            # give the kill to the opponent if we were hit earlier or if the shot was shortly before
+            if ((weapon and delta_time < config.get('survival_window', 300)) or
+                    delta_time < config.get('reslot_window', 60)):
+                asyncio.create_task(self._give_kill(server, shooter_id, player.ucid, weapon))
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:

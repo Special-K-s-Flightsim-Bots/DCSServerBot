@@ -1,7 +1,7 @@
 # Plugin Punishment
 The DCSServerBot auto-ban, auto-kick, auto-move-back-to-spectators module, based on the player's behavior and the 
 configuration described in here.<br>
-The ideas of this plugin are based on [Slmod](https://github.com/mrSkortch/DCS-SLmod). Thanks to Speed for his awesome solution!
+Some ideas of this plugin are based on [Slmod](https://github.com/mrSkortch/DCS-SLmod). Thanks to Speed for his awesome solution!
 
 ## Configuration
 As Punishment is an optional plugin, you need to activate it in main.yaml first like so:
@@ -13,9 +13,11 @@ opt_plugins:
 The plugin itself is configured with a file named config/plugins/punishment.yaml. You'll find a sample in ./samples:
 ```yaml
 DEFAULT:
-  channel: 1122334455667788 # Optional: Channel where to post who was punished for what (default: admin channel, disable: -1).
-  penalties:                # These are the penalty points to use.
-  - event: kill             # If you team-kill a human player, you get 30 points, 18 in the case of an AI.
+  reslot_window: 60           # If you reslot or reconnect in-between this time in seconds (default: 60) after being shot at, a reslot event will be triggered.
+  survival_window: 300        # If you survived this time in seconds (default: 300) after being shot at, the opponent will not get a kill.
+  channel: 1122334455667788   # Optional: Channel where to post who was punished for what (default: admin channel, disable: -1).
+  penalties:                  # These are the penalty points to use.
+  - event: kill               # If you team-kill a human player, you get 30 points, 18 in the case of an AI.
     human: 30
     AI: 18
     action: move_to_spec
@@ -83,7 +85,7 @@ If you incorporate the inline "action"-element, you can immediately initiate act
 when friendly fire occurs or a team member is killed.
 > [!NOTE]
 > Multiple events that happen in-between a minute are calculated as a single event. 
-> This is on purpose, to avoid too many punishments when a user dropped a CBU or strafed multiple targets in one run.
+> This is on purpose to avoid too many punishments when a user dropped a CBU or strafed multiple targets in one run.
 
 ### Punishments
 Each point level can trigger a specific action. When the user hits this limit by gathering penalties, the specific 
@@ -118,9 +120,19 @@ Decay can only be configured once, so there is no need for a server-specific con
 > ```
 > After that, every new punishment will decay, according to your new decay function.
 
+## Crash Handling
+A common issue of DCS World PvP is that players do not get kills if others crash or eject after being shot at.
+DCSServerBot fixes this. If you got shot at and crash or eject in `reslot_window` seconds afterwards, 
+the opponent will get the kill. If you got hit and crash or eject later, the opponent will get the kill also.
+
 ## Reslot Handling
 When a player reslots or disconnects in the middle of an engagement (they got shot at or even hit), the plugin will
-treat these incidents according to the probability of kill.
+treat these incidents according to the probability of kill.<br>
+The current implementation is like so:
+- If you reslot in-between 60 seconds after being shot at or even hit, you get punished with a `reslot` event. 
+  The opponent will get the kill.
+- If you disconnect and reconnect in-between 60 seconds after being shot at, you get punished with a reslot event and  
+  the opponent will get the kill.
 
 | Condition                                                                         | Decision                                                                                                                                    |
 |-----------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
