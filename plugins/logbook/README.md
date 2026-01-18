@@ -1,15 +1,18 @@
 # Logbook Plugin
 
-A comprehensive pilot logbook and squadron management plugin for DCSServerBot. Provides military-style record keeping 
+A comprehensive pilot logbook and squadron management plugin for DCSServerBot. Provides military-style record keeping
 for virtual squadrons including flight statistics, qualifications, awards, and flight plans.
 
 ## Features
 
-- **Pilot Statistics**: View flight hours, kills, deaths, takeoffs, landings from existing DCSServerBot data
-- **Squadron Management**: Create squadrons with CO/XO hierarchy, assign members with ranks and positions
+- **Pilot Information**: Unified pilot view showing service, rank, squadrons, hours, qualifications, and awards
+- **Pilot Management**: Track pilot service branch (RN, RAF, AAC) and rank separately from squadron assignments
+- **Squadron Management**: Create squadrons with service affiliation, CO/XO hierarchy, and member assignments
+- **Multi-Squadron Support**: Pilots can be assigned to multiple squadrons across different services
 - **Qualifications**: Define qualifications with optional expiration, auto-grant based on requirements
 - **Awards**: Create awards with custom ribbon colors, generate ribbon rack images
 - **Flight Plans**: File, track, and manage flight plans with status workflow
+- **Historical Hours**: Import and preserve flight hours from legacy systems
 
 ## Requirements
 
@@ -40,24 +43,27 @@ DEFAULT:
 
 ### Logbook Commands (`/logbook`)
 
-| Command                 | Description                  | Role   |
-|-------------------------|------------------------------|--------|
-| `/logbook stats [user]` | Show pilot flight statistics | DCS    |
+| Command                                      | Description                                        | Role      |
+|----------------------------------------------|----------------------------------------------------|-----------|
+| `/logbook stats [user]`                      | Show pilot flight statistics                       | DCS       |
+| `/logbook pilot [user]`                      | Show unified pilot info (service, rank, squadrons, qualifications, awards, ribbon rack) | DCS |
+| `/logbook setpilot <user> <service> <rank>`  | Set or update pilot service and rank               | DCS Admin |
 
 ### Squadron Commands (`/logbook squadron`)
 
-| Command                                                        | Description                     | Role      |
-|----------------------------------------------------------------|---------------------------------|-----------|
-| `/logbook squadron list`                                       | List all squadrons              | DCS       |
-| `/logbook squadron info <squadron>`                            | Show squadron details           | DCS       |
-| `/logbook squadron roster <squadron>`                          | Show squadron roster with stats | DCS       |
-| `/logbook squadron create <name> [abbreviation] [description]` | Create a new squadron           | DCS Admin |
-| `/logbook squadron delete <squadron>`                          | Delete a squadron               | DCS Admin |
-| `/logbook squadron assign <squadron> <user> [rank] [position]` | Assign pilot to squadron        | DCS Admin |
-| `/logbook squadron remove <squadron> <member>`                 | Remove pilot from squadron      | DCS Admin |
-| `/logbook squadron promote <squadron> <member> <rank>`         | Update member's rank            | DCS Admin |
-| `/logbook squadron setco <squadron> <member>`                  | Set Commanding Officer          | DCS Admin |
-| `/logbook squadron setxo <squadron> <member>`                  | Set Executive Officer           | DCS Admin |
+| Command                                                                 | Description                     | Role      |
+|-------------------------------------------------------------------------|---------------------------------|-----------|
+| `/logbook squadron list`                                                | List all squadrons              | DCS       |
+| `/logbook squadron info <squadron>`                                     | Show squadron details           | DCS       |
+| `/logbook squadron roster <squadron>`                                   | Show squadron roster with stats | DCS       |
+| `/logbook squadron create <name> <service> [abbreviation] [description]`| Create a new squadron           | DCS Admin |
+| `/logbook squadron delete <squadron>`                                   | Delete a squadron               | DCS Admin |
+| `/logbook squadron assign <squadron> <user> [position]`                 | Assign pilot to squadron        | DCS Admin |
+| `/logbook squadron remove <squadron> <member>`                          | Remove pilot from squadron      | DCS Admin |
+| `/logbook squadron setco <squadron> <member>`                           | Set Commanding Officer          | DCS Admin |
+| `/logbook squadron setxo <squadron> <member>`                           | Set Executive Officer           | DCS Admin |
+
+> **Note:** Pilots can be assigned to multiple squadrons. Service and rank are properties of the pilot (set via `/logbook setpilot`), not the squadron assignment.
 
 ### Qualification Commands (`/qualification`)
 
@@ -149,15 +155,31 @@ The migration preserves all historical flight hours using a `GREATEST()` functio
 ## Database Schema
 
 The plugin creates the following tables:
-- `logbook_squadrons` - Squadron definitions
-- `logbook_squadron_members` - Pilot-squadron assignments
+- `logbook_pilots` - Pilot service branch and rank
+- `logbook_squadrons` - Squadron definitions with service affiliation
+- `logbook_squadron_members` - Pilot-squadron assignments (many-to-many)
 - `logbook_qualifications` - Qualification definitions
 - `logbook_pilot_qualifications` - Granted qualifications
-- `logbook_awards` - Award definitions
+- `logbook_awards` - Award definitions with ribbon images
 - `logbook_pilot_awards` - Granted awards
 - `logbook_flight_plans` - Filed flight plans
-- `logbook_stores_requests` - Stores/logistics requests
 - `logbook_historical_hours` - Imported historical flight time
 
 And one view:
 - `pilot_logbook_stats` - Aggregated pilot statistics
+
+## Data Model
+
+```
+Player (from DCSServerBot core)
+  └── logbook_pilots (1:1) - service, rank
+  └── logbook_squadron_members (1:many) - squadron assignments
+  └── logbook_pilot_qualifications (1:many)
+  └── logbook_pilot_awards (1:many)
+  └── logbook_historical_hours (1:many)
+
+Squadron
+  └── service (RN, RAF, AAC, etc.)
+  └── members (many pilots)
+  └── CO/XO references
+```
