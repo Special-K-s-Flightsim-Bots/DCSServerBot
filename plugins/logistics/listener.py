@@ -3,7 +3,7 @@ import json
 import logging
 
 from core import EventListener, Server, event, chat_command, Player, Side
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from discord.ext import tasks
 from typing import TYPE_CHECKING
 
@@ -22,6 +22,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
     def __init__(self, plugin: "Logistics"):
         super().__init__(plugin)
         self._delivery_check_task = None
+        # State tracking for interactive request flow: {ucid: {'step': str, 'source': str, 'dest': str, ...}}
+        self._request_state: dict[str, dict] = {}
 
     async def shutdown(self):
         if self._delivery_check_task:
@@ -34,8 +36,13 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     @event(name="onSimulationStart")
     async def onSimulationStart(self, server: Server, data: dict) -> None:
-        """Recreate markers for assigned tasks when mission starts."""
-        log.info(f"Logistics: Mission started on {server.name}, recreating markers for assigned tasks")
+        """Recreate markers for assigned tasks and clean up stale tasks when mission starts."""
+        log.info(f"Logistics: Mission started on {server.name}")
+
+        # Clean up stale tasks
+        await self._cancel_stale_tasks(server)
+
+        # Recreate markers for assigned tasks
         await self._recreate_assigned_task_markers(server)
 
     @event(name="onMissionEvent")
@@ -260,21 +267,105 @@ class LogisticsEventListener(EventListener["Logistics"]):
         else:
             await player.sendChatMessage(f"Cannot abandon task: {result['error']}")
 
-    @chat_command(name="request", usage="<destination> <cargo_description>", help="Request a logistics delivery")
+    @chat_command(name="request", usage="[source|dest|cargo|cancel] [value]", help="Request a logistics delivery (interactive)")
     async def request_cmd(self, server: Server, player: Player, params: list[str]):
-        """Player-initiated logistics request."""
-        if len(params) < 2:
-            await player.sendChatMessage("Usage: -request <destination> <cargo description>")
+        """
+        Interactive logistics request flow:
+        -request           -> Start new request, show source options
+        -request source N  -> Select source by number
+        -request dest N    -> Select destination by number
+        -request cargo X   -> Set cargo description
+        -request cancel    -> Cancel current request
+        """
+        ucid = player.ucid
+
+        # Get available airbases for this mission
+        airbases = await self._get_airbase_list(server, player.side.value)
+        if not airbases:
+            await player.sendChatMessage("No airbases available in current mission.")
             return
 
-        destination = params[0]
-        cargo = ' '.join(params[1:])
+        # No params - start new request or show current state
+        if not params:
+            # Start a new request flow
+            self._request_state[ucid] = {'step': 'source', 'server': server.name}
+            await self._show_airbase_selection(player, airbases, "SOURCE (pickup)")
+            return
 
-        result = await self._create_request(server, player, destination, cargo)
-        if result['success']:
-            await player.sendChatMessage(f"Logistics request #{result['task_id']} submitted for approval.")
-        else:
-            await player.sendChatMessage(f"Cannot submit request: {result['error']}")
+        action = params[0].lower()
+
+        # Cancel
+        if action == 'cancel':
+            if ucid in self._request_state:
+                del self._request_state[ucid]
+            await player.sendChatMessage("Request cancelled.")
+            return
+
+        # Check if player has an active request flow
+        state = self._request_state.get(ucid)
+        if not state:
+            await player.sendChatMessage("No active request. Type -request to start.")
+            return
+
+        # Handle source selection
+        if action == 'source' or (state['step'] == 'source' and params[0].isdigit()):
+            idx_str = params[1] if action == 'source' and len(params) > 1 else params[0]
+            try:
+                idx = int(idx_str) - 1  # Convert to 0-indexed
+                if 0 <= idx < len(airbases):
+                    state['source'] = airbases[idx]['name']
+                    state['source_position'] = airbases[idx].get('position')
+                    state['step'] = 'dest'
+                    await player.sendChatMessage(f"Source: {state['source']}")
+                    await self._show_airbase_selection(player, airbases, "DESTINATION (delivery)")
+                else:
+                    await player.sendChatMessage(f"Invalid selection. Enter 1-{len(airbases)}.")
+            except ValueError:
+                await player.sendChatMessage("Enter a number for the airbase selection.")
+            return
+
+        # Handle destination selection
+        if action == 'dest' or (state['step'] == 'dest' and params[0].isdigit()):
+            idx_str = params[1] if action == 'dest' and len(params) > 1 else params[0]
+            try:
+                idx = int(idx_str) - 1
+                if 0 <= idx < len(airbases):
+                    state['dest'] = airbases[idx]['name']
+                    state['dest_position'] = airbases[idx].get('position')
+                    state['step'] = 'cargo'
+                    await player.sendChatMessage(f"Destination: {state['dest']}")
+                    await player.sendChatMessage("Enter cargo: -request cargo <description>")
+                    await player.sendChatMessage("Example: -request cargo 10x Mk-82 bombs")
+                else:
+                    await player.sendChatMessage(f"Invalid selection. Enter 1-{len(airbases)}.")
+            except ValueError:
+                await player.sendChatMessage("Enter a number for the airbase selection.")
+            return
+
+        # Handle cargo entry
+        if action == 'cargo':
+            if len(params) < 2:
+                await player.sendChatMessage("Usage: -request cargo <description>")
+                return
+
+            state['cargo'] = ' '.join(params[1:])
+            state['step'] = 'complete'
+
+            # Create the request
+            result = await self._create_request(server, player, state)
+            del self._request_state[ucid]
+
+            if result['success']:
+                status_msg = "approved and ready" if result.get('auto_approved') else "submitted for approval"
+                await player.sendChatMessage(f"Request #{result['task_id']} {status_msg}!")
+                if result.get('auto_approved'):
+                    await player.sendChatMessage(f"Use -accept {result['task_id']} to claim it.")
+            else:
+                await player.sendChatMessage(f"Cannot create request: {result['error']}")
+            return
+
+        # Unknown action or state mismatch
+        await player.sendChatMessage(f"Current step: {state['step']}. Type -request cancel to start over.")
 
     @chat_command(name="plot", usage="<all|task_id>", help="Plot logistics tasks on the F10 map")
     async def plot_cmd(self, server: Server, player: Player, params: list[str]):
@@ -585,27 +676,42 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
             return {'success': True}
 
-    async def _create_request(self, server: Server, player: Player, destination: str, cargo: str) -> dict:
-        """Create a player-initiated logistics request."""
+    async def _create_request(self, server: Server, player: Player, state: dict) -> dict:
+        """Create a player-initiated logistics request with full location data."""
+        # Check config for auto-approval of in-game requests (default: True)
+        config = self.get_config(server) or {}
+        tasks_config = config.get('tasks', {})
+        auto_approve = tasks_config.get('auto_approve_requests', True)
+
+        initial_status = 'approved' if auto_approve else 'pending'
+
         async with self.apool.connection() as conn:
             now = datetime.now(timezone.utc)
 
+            source_pos_json = json.dumps(state.get('source_position')) if state.get('source_position') else None
+            dest_pos_json = json.dumps(state.get('dest_position')) if state.get('dest_position') else None
+
             cursor = await conn.execute("""
                 INSERT INTO logistics_tasks
-                (server_name, created_by_ucid, status, cargo_type, source_name, destination_name, coalition, created_at, updated_at)
-                VALUES (%s, %s, 'pending', %s, 'TBD', %s, %s, %s, %s)
+                (server_name, created_by_ucid, status, cargo_type, source_name, source_position,
+                 destination_name, destination_position, coalition, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
-            """, (server.name, player.ucid, cargo, destination, player.side.value, now, now))
+            """, (server.name, player.ucid, initial_status, state['cargo'],
+                  state['source'], source_pos_json,
+                  state['dest'], dest_pos_json,
+                  player.side.value, now, now))
             row = await cursor.fetchone()
             task_id = row[0]
 
             # Record history
+            event_type = 'created_and_approved' if auto_approve else 'created'
             await conn.execute("""
                 INSERT INTO logistics_tasks_history (task_id, event, actor_ucid, details)
-                VALUES (%s, 'created', %s, %s)
-            """, (task_id, player.ucid, '{"source": "in_game_request"}'))
+                VALUES (%s, %s, %s, %s)
+            """, (task_id, event_type, player.ucid, '{"source": "in_game_request"}'))
 
-            return {'success': True, 'task_id': task_id}
+            return {'success': True, 'task_id': task_id, 'auto_approved': auto_approve}
 
     async def _recreate_assigned_task_markers(self, server: Server):
         """Recreate markers only for assigned/in-progress tasks on mission start."""
@@ -997,3 +1103,76 @@ class LogisticsEventListener(EventListener["Logistics"]):
             f"Assigned: {assigned}"
         )
         await player.sendPopupMessage(msg, 15)
+
+    # ==================== REQUEST FLOW HELPERS ====================
+
+    async def _get_airbase_list(self, server: Server, coalition: int) -> list[dict]:
+        """Get list of airbases available for the player's coalition."""
+        if not server.current_mission or not server.current_mission.airbases:
+            return []
+
+        # Filter airbases by coalition (0=neutral accessible by all, 1=red, 2=blue)
+        airbases = []
+        for ab in server.current_mission.airbases:
+            ab_coalition = ab.get('coalition', 0)
+            # Neutral airbases (0) accessible by all, otherwise match coalition
+            if ab_coalition == 0 or ab_coalition == coalition:
+                airbases.append({
+                    'name': ab.get('name', 'Unknown'),
+                    'position': ab.get('position')
+                })
+
+        return sorted(airbases, key=lambda x: x['name'])
+
+    async def _show_airbase_selection(self, player: Player, airbases: list[dict], step_label: str):
+        """Show numbered list of airbases for selection."""
+        msg = f"Select {step_label}:\n"
+        for i, ab in enumerate(airbases[:15], 1):  # Limit to 15 to fit in chat
+            msg += f"  {i}. {ab['name']}\n"
+
+        if len(airbases) > 15:
+            msg += f"  ... and {len(airbases) - 15} more\n"
+
+        msg += f"\nType the number (e.g., -request 1)"
+        await player.sendChatMessage(msg)
+
+    async def _cancel_stale_tasks(self, server: Server):
+        """Cancel tasks that have been pending/approved for too long."""
+        config = self.get_config(server) or {}
+        tasks_config = config.get('tasks', {})
+        stale_days = tasks_config.get('stale_days', 7)  # Default 7 days
+
+        if stale_days <= 0:
+            return  # Disabled
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=stale_days)
+
+        async with self.apool.connection() as conn:
+            # Find stale tasks
+            cursor = await conn.execute("""
+                SELECT id FROM logistics_tasks
+                WHERE server_name = %s
+                AND status IN ('pending', 'approved')
+                AND created_at < %s
+            """, (server.name, cutoff))
+            stale_tasks = await cursor.fetchall()
+
+            if not stale_tasks:
+                return
+
+            task_ids = [row[0] for row in stale_tasks]
+            log.info(f"Logistics: Cancelling {len(task_ids)} stale tasks on {server.name}: {task_ids}")
+
+            # Cancel the tasks
+            await conn.execute("""
+                UPDATE logistics_tasks
+                SET status = 'cancelled', updated_at = %s
+                WHERE id = ANY(%s)
+            """, (datetime.now(timezone.utc), task_ids))
+
+            # Record history
+            for task_id in task_ids:
+                await conn.execute("""
+                    INSERT INTO logistics_tasks_history (task_id, event, details)
+                    VALUES (%s, 'cancelled', %s)
+                """, (task_id, json.dumps({'reason': f'stale_after_{stale_days}_days', 'auto': True})))

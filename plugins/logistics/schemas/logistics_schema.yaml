@@ -22,7 +22,9 @@ schema;element_schema:
       nullable: true
       mapping:
         auto_approve: {type: bool, nullable: true}
+        auto_approve_requests: {type: bool, nullable: true}
         timeout_hours: {type: int, nullable: true}
+        stale_days: {type: int, nullable: true}
         max_per_player: {type: int, nullable: true}
 
 type: map
