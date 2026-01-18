@@ -9,6 +9,7 @@ local utils     = base.require("DCSServerBotUtils")
 -- Create/update markers for a logistics task
 function dcsbot.createLogisticsMarkers(json)
     log.write('DCSServerBot', log.DEBUG, 'Logistics: createLogisticsMarkers()')
+    local channel = json.channel or "-1"
     local script = 'dcsbot.createLogisticsMarkers(' ..
         json.task_id .. ', ' ..
         json.coalition .. ', ' ..
@@ -20,14 +21,15 @@ function dcsbot.createLogisticsMarkers(json)
         utils.basicSerialize(json.pilot_name or '') .. ', ' ..
         utils.basicSerialize(json.deadline or '') .. ', ' ..
         utils.basicSerialize(json.waypoints or '[]') .. ', ' ..
-        '"' .. json.channel .. '")'
+        '"' .. channel .. '")'
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
 end
 
 -- Remove markers for a logistics task
 function dcsbot.removeLogisticsMarkers(json)
     log.write('DCSServerBot', log.DEBUG, 'Logistics: removeLogisticsMarkers()')
-    local script = 'dcsbot.removeLogisticsMarkers(' .. json.task_id .. ', "' .. json.channel .. '")'
+    local channel = json.channel or "-1"
+    local script = 'dcsbot.removeLogisticsMarkers(' .. json.task_id .. ', "' .. channel .. '")'
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
 end
 

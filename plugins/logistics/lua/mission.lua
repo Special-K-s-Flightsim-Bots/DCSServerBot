@@ -126,17 +126,19 @@ function dcsbot.createLogisticsMarkers(task_id, coalitionNum, source_name, sourc
         deadline = deadline
     }
 
-    -- Send confirmation back to bot
-    local msg = {
-        command = "createLogisticsMarkers",
-        task_id = task_id,
-        marker_count = #markers,
-        marker_ids = {}
-    }
-    for _, m in ipairs(markers) do
-        table.insert(msg.marker_ids, {id = m.id, type = m.type})
+    -- Send confirmation back to bot (only if channel is valid)
+    if channel and channel ~= "-1" then
+        local msg = {
+            command = "createLogisticsMarkers",
+            task_id = task_id,
+            marker_count = #markers,
+            marker_ids = {}
+        }
+        for _, m in ipairs(markers) do
+            table.insert(msg.marker_ids, {id = m.id, type = m.type})
+        end
+        dcsbot.sendBotTable(msg, channel)
     end
-    dcsbot.sendBotTable(msg, channel)
 end
 
 -- Internal function to remove markers without sending response
@@ -166,13 +168,15 @@ function dcsbot.removeLogisticsMarkers(task_id, channel)
 
     dcsbot.removeLogisticsMarkersInternal(task_id)
 
-    -- Send confirmation back to bot
-    local msg = {
-        command = "removeLogisticsMarkers",
-        task_id = task_id,
-        removed_count = count
-    }
-    dcsbot.sendBotTable(msg, channel)
+    -- Send confirmation back to bot (only if channel is valid)
+    if channel and channel ~= "-1" then
+        local msg = {
+            command = "removeLogisticsMarkers",
+            task_id = task_id,
+            removed_count = count
+        }
+        dcsbot.sendBotTable(msg, channel)
+    end
 end
 
 -- Update marker with pilot name when task is assigned
