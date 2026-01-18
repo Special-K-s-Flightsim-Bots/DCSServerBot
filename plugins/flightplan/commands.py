@@ -79,6 +79,161 @@ def parse_etd(value: str) -> Optional[datetime]:
 
 # ==================== AUTOCOMPLETE FUNCTIONS ====================
 
+def _point_to_line_distance_latlon(lat: float, lon: float, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """
+    Calculate approximate distance from point (lat, lon) to line segment (lat1,lon1)-(lat2,lon2).
+    Returns distance in nautical miles (approximate, using simple equirectangular projection).
+    """
+    import math
+
+    # Convert to approximate x/y using equirectangular projection
+    # Use average latitude for scaling
+    avg_lat = (lat1 + lat2) / 2
+    cos_lat = math.cos(math.radians(avg_lat))
+
+    # Scale longitude by cos(lat) to approximate equal distances
+    px = lon * cos_lat
+    pz = lat
+    x1 = lon1 * cos_lat
+    z1 = lat1
+    x2 = lon2 * cos_lat
+    z2 = lat2
+
+    # Vector from start to end
+    dx = x2 - x1
+    dz = z2 - z1
+
+    # Length squared of the line segment
+    len_sq = dx * dx + dz * dz
+    if len_sq == 0:
+        # Line segment is a point
+        dist_deg = math.sqrt((px - x1) ** 2 + (pz - z1) ** 2)
+    else:
+        # Parameter t for projection onto line
+        t = max(0, min(1, ((px - x1) * dx + (pz - z1) * dz) / len_sq))
+
+        # Closest point on line segment
+        proj_x = x1 + t * dx
+        proj_z = z1 + t * dz
+
+        # Distance from point to projection (in degrees)
+        dist_deg = math.sqrt((px - proj_x) ** 2 + (pz - proj_z) ** 2)
+
+    # Convert degrees to nautical miles (1 degree latitude ~ 60nm)
+    return dist_deg * 60
+
+
+async def waypoints_corridor_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    """
+    Autocomplete for waypoints along the route corridor.
+    Shows navigation fixes within 50nm of the direct route between departure and destination.
+    """
+    try:
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
+        if not server or not server.current_mission:
+            return []
+
+        # Get departure and destination indices from namespace
+        dep_idx = getattr(interaction.namespace, 'departure', None)
+        dest_idx = getattr(interaction.namespace, 'destination', None)
+
+        if dep_idx is None or dest_idx is None:
+            # Fall back to showing all fixes for the theater
+            return await _fallback_fixes_autocomplete(interaction, current, server)
+
+        # Get airbase positions
+        try:
+            dep_airbase = server.current_mission.airbases[dep_idx]
+            dest_airbase = server.current_mission.airbases[dest_idx]
+        except (IndexError, TypeError):
+            return await _fallback_fixes_autocomplete(interaction, current, server)
+
+        dep_pos = dep_airbase.get('position', {})
+        dest_pos = dest_airbase.get('position', {})
+
+        # Need lat/lon for corridor calculation
+        if not dep_pos.get('lat') or not dest_pos.get('lat'):
+            return await _fallback_fixes_autocomplete(interaction, current, server)
+
+        # Corridor width: 50nm on each side
+        corridor_width_nm = 50
+
+        theater = server.current_mission.map
+
+        async with interaction.client.apool.connection() as conn:
+            # Get all fixes for this theater that have lat/lon
+            cursor = await conn.execute("""
+                SELECT identifier, name, fix_type, latitude, longitude, frequency
+                FROM flightplan_navigation_fixes
+                WHERE map_theater = %s
+                AND latitude IS NOT NULL AND longitude IS NOT NULL
+                AND (identifier ILIKE %s OR name ILIKE %s)
+            """, (theater, '%' + current + '%', '%' + current + '%'))
+
+            choices = []
+            async for row in cursor:
+                fix_id, fix_name, fix_type, fix_lat, fix_lon, freq = row
+
+                # Calculate distance from fix to route line (in nm)
+                dist_nm = _point_to_line_distance_latlon(
+                    fix_lat, fix_lon,
+                    dep_pos['lat'], dep_pos['lon'],
+                    dest_pos['lat'], dest_pos['lon']
+                )
+
+                if dist_nm <= corridor_width_nm:
+                    # Format display name
+                    display = fix_id
+                    if fix_name and fix_name != fix_id:
+                        display = f"{fix_id} ({fix_name})"
+                    if fix_type in ('VOR', 'NDB', 'TACAN') and freq:
+                        display = f"{display} - {freq}"
+
+                    # Store distance for sorting
+                    choices.append((dist_nm, fix_id, display))
+
+            # Sort by distance from route centerline, closest first
+            choices.sort(key=lambda x: x[0])
+
+            return [
+                app_commands.Choice(name=c[2][:100], value=c[1])
+                for c in choices[:25]
+            ]
+
+    except Exception as e:
+        log.warning(f"Waypoints corridor autocomplete error: {e}")
+        return []
+
+
+async def _fallback_fixes_autocomplete(interaction: discord.Interaction, current: str, server: Server) -> list[app_commands.Choice[str]]:
+    """Fallback autocomplete when departure/destination not yet selected."""
+    try:
+        theater = server.current_mission.map if server.current_mission else None
+        if not theater:
+            return []
+
+        async with interaction.client.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT identifier, name, fix_type, frequency
+                FROM flightplan_navigation_fixes
+                WHERE map_theater = %s
+                AND (identifier ILIKE %s OR name ILIKE %s)
+                ORDER BY identifier
+                LIMIT 25
+            """, (theater, '%' + current + '%', '%' + current + '%'))
+
+            return [
+                app_commands.Choice(
+                    name=f"{row[0]} - {row[1] or row[2]}" + (f" ({row[3]})" if row[3] else ""),
+                    value=row[0]
+                )
+                async for row in cursor
+            ]
+    except Exception as e:
+        log.warning(f"Fallback fixes autocomplete error: {e}")
+        return []
+
+
 async def flightplan_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     """Autocomplete for flight plans (user's own active plans)."""
     try:
@@ -282,7 +437,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
         etd=_('Estimated departure time in HH:MM UTC'),
         remarks=_('Additional remarks (optional)')
     )
-    @app_commands.autocomplete(departure_idx=utils.airbase_autocomplete, destination_idx=utils.airbase_autocomplete, alternate_idx=utils.airbase_autocomplete)
+    @app_commands.autocomplete(departure_idx=utils.airbase_autocomplete, destination_idx=utils.airbase_autocomplete, alternate_idx=utils.airbase_autocomplete, waypoints=waypoints_corridor_autocomplete)
     async def flightplan_file(
         self,
         interaction: discord.Interaction,
