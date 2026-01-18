@@ -1730,26 +1730,39 @@ class Logbook(Plugin[LogbookEventListener]):
                         )
                         return
 
-                    embed = discord.Embed(
+                    # Group awards by name and build embeds with pagination
+                    embeds = []
+                    current_embed = discord.Embed(
                         title=_('Awards for {}').format(user.display_name),
                         color=discord.Color.gold()
                     )
-
-                    # Group awards by name and show count
+                    field_count = 0
                     seen_awards = {}
+
                     for award in awards:
                         name = award['name']
                         if name not in seen_awards:
+                            if field_count >= 25:
+                                embeds.append(current_embed)
+                                current_embed = discord.Embed(
+                                    title=_('Awards for {} (continued)').format(user.display_name),
+                                    color=discord.Color.gold()
+                                )
+                                field_count = 0
+
                             count_str = f" x{award['count']}" if award['count'] > 1 else ""
                             value = award.get('description') or _('No description')
                             if award.get('citation'):
                                 value += f"\n*\"{award['citation']}\"*"
-                            embed.add_field(
+                            current_embed.add_field(
                                 name=f"{name}{count_str}",
                                 value=value,
                                 inline=False
                             )
+                            field_count += 1
                             seen_awards[name] = True
+
+                    embeds.append(current_embed)
 
                 else:
                     # Show all award definitions
@@ -1769,21 +1782,35 @@ class Logbook(Plugin[LogbookEventListener]):
                         )
                         return
 
-                    embed = discord.Embed(
+                    # Discord embeds have a max of 25 fields, so paginate if needed
+                    embeds = []
+                    current_embed = discord.Embed(
                         title=_('Awards'),
-                        description=_('All defined awards'),
+                        description=_('All defined awards ({} total)').format(len(awards)),
                         color=discord.Color.gold()
                     )
+                    field_count = 0
 
                     for award in awards:
-                        embed.add_field(
+                        if field_count >= 25:
+                            embeds.append(current_embed)
+                            current_embed = discord.Embed(
+                                title=_('Awards (continued)'),
+                                color=discord.Color.gold()
+                            )
+                            field_count = 0
+
+                        current_embed.add_field(
                             name=award['name'],
                             value=_("{} recipients").format(award['recipient_count']),
                             inline=True
                         )
+                        field_count += 1
+
+                    embeds.append(current_embed)
 
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+        await interaction.response.send_message(embeds=embeds, ephemeral=ephemeral)
 
     @award.command(name='delete', description=_('Delete an award'))
     @app_commands.guild_only()
