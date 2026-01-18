@@ -139,7 +139,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
     @chat_command(name="tasks", help="List available logistics tasks")
     async def tasks_cmd(self, server: Server, player: Player, params: list[str]):
         """Show available tasks for player's coalition."""
-        tasks = await self._get_available_tasks(server.name, player.coalition)
+        tasks = await self._get_available_tasks(server.name, player.side.value)
         if not tasks:
             await player.sendChatMessage("No logistics tasks available.")
             return
@@ -213,7 +213,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
             await player.sendChatMessage("Invalid task ID.")
             return
 
-        task = await self._get_task_by_id(task_id, server.name, player.coalition)
+        task = await self._get_task_by_id(task_id, server.name, player.side.value)
         if not task:
             await player.sendChatMessage(f"Task #{task_id} not found or not visible to your coalition.")
             return
@@ -368,7 +368,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
             if not task:
                 return {'success': False, 'error': 'Task not found or not available'}
 
-            if task[5] != player.coalition:
+            if task[5] != player.side.value:
                 return {'success': False, 'error': 'Task is for a different coalition'}
 
             # Check if player already has a task
@@ -478,7 +478,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 (server_name, created_by_ucid, status, cargo_type, source_name, destination_name, coalition, created_at, updated_at)
                 VALUES (%s, %s, 'pending', %s, 'TBD', %s, %s, %s, %s)
                 RETURNING id
-            """, (server.name, player.ucid, cargo, destination, player.coalition, now, now))
+            """, (server.name, player.ucid, cargo, destination, player.side.value, now, now))
             row = await cursor.fetchone()
             task_id = row[0]
 
@@ -691,7 +691,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
     async def _create_logistics_menu(self, server: Server, player: Player):
         """Create F10 menu for logistics operations."""
         # Build dynamic menu based on available tasks
-        tasks = await self._get_available_tasks(server.name, player.coalition)
+        tasks = await self._get_available_tasks(server.name, player.side.value)
         assigned_task = await self._get_assigned_task(player.ucid, server.name)
 
         # Build menu structure
@@ -753,7 +753,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     async def _menu_view_tasks(self, server: Server, player: Player):
         """Handle 'View Available Tasks' menu option."""
-        tasks = await self._get_available_tasks(server.name, player.coalition)
+        tasks = await self._get_available_tasks(server.name, player.side.value)
         if not tasks:
             await player.sendPopupMessage("No logistics tasks available.", 10)
             return
@@ -849,7 +849,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     async def _menu_task_details(self, server: Server, player: Player, task_id: int):
         """Handle 'Task Details' menu option."""
-        task = await self._get_task_by_id(task_id, server.name, player.coalition)
+        task = await self._get_task_by_id(task_id, server.name, player.side.value)
         if not task:
             await player.sendPopupMessage("Task not found.", 10)
             return
