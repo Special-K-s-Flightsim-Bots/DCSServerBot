@@ -61,7 +61,7 @@ function dcsbot.createLogisticsMarkers(task_id, coalitionNum, source_name, sourc
     -- Source marker (pickup point)
     local sourceMarkerId = getNextMarkerId()
     local sourceText = "[PICKUP #" .. task_id .. "] " .. source_name
-    trigger.action.markToCoalition(sourceMarkerId, sourceText, source_pos, coal, true)
+    trigger.action.markToCoalition(sourceMarkerId, sourceText, source_pos, coal, false)
     table.insert(markers, {id = sourceMarkerId, type = "source_marker"})
 
     -- Destination marker with cargo, pilot, and deadline info
@@ -76,7 +76,7 @@ function dcsbot.createLogisticsMarkers(task_id, coalitionNum, source_name, sourc
     if deadline and deadline ~= "" then
         destText = destText .. "\nDeadline: " .. deadline
     end
-    trigger.action.markToCoalition(destMarkerId, destText, dest_pos, coal, true)
+    trigger.action.markToCoalition(destMarkerId, destText, dest_pos, coal, false)
     table.insert(markers, {id = destMarkerId, type = "dest_marker"})
 
     -- Parse and create waypoint markers
@@ -89,7 +89,7 @@ function dcsbot.createLogisticsMarkers(task_id, coalitionNum, source_name, sourc
         local wpMarkerId = getNextMarkerId()
         local wpPos = {x = wp.x, y = 0, z = wp.z}
         local wpText = "[VIA " .. i .. "] " .. (wp.name or "Waypoint " .. i)
-        trigger.action.markToCoalition(wpMarkerId, wpText, wpPos, coal, true)
+        trigger.action.markToCoalition(wpMarkerId, wpText, wpPos, coal, false)
         table.insert(markers, {id = wpMarkerId, type = "waypoint_marker"})
     end
 
@@ -99,6 +99,28 @@ function dcsbot.createLogisticsMarkers(task_id, coalitionNum, source_name, sourc
     local firstPoint = #waypoints > 0 and {x = waypoints[1].x, y = 0, z = waypoints[1].z} or dest_pos
     trigger.action.lineToAll(coal, routeLineId, source_pos, firstPoint, {1, 1, 0, 0.8}, 2)
     table.insert(markers, {id = routeLineId, type = "route_line"})
+
+    -- Add text box at midpoint of first line segment with task info
+    local midPoint = {
+        x = (source_pos.x + firstPoint.x) / 2,
+        y = 0,
+        z = (source_pos.z + firstPoint.z) / 2
+    }
+    local infoText = "TASK #" .. task_id .. "\n"
+    infoText = infoText .. "From: " .. source_name .. "\n"
+    infoText = infoText .. "To: " .. dest_name .. "\n"
+    infoText = infoText .. "Cargo: " .. cargo_type
+    if pilot_name and pilot_name ~= "" then
+        infoText = infoText .. "\nPilot: " .. pilot_name
+    else
+        infoText = infoText .. "\nPilot: UNASSIGNED"
+    end
+    if deadline and deadline ~= "" then
+        infoText = infoText .. "\nDeadline: " .. deadline
+    end
+    local textMarkerId = getNextMarkerId()
+    trigger.action.textToAll(coal, textMarkerId, midPoint, {1, 1, 0, 1}, {0, 0, 0, 0.5}, 12, false, infoText)
+    table.insert(markers, {id = textMarkerId, type = "info_text"})
 
     -- Between waypoints
     for i = 1, #waypoints - 1 do
