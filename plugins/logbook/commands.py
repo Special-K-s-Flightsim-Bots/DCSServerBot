@@ -410,27 +410,49 @@ class Logbook(Plugin[LogbookEventListener]):
             last_joined_str = '-'
         embed.add_field(name=_('Last Joined'), value=last_joined_str, inline=True)
 
-        # Qualifications
+        # Qualifications (with 1024 char limit handling)
         if qualifications:
             qual_lines = []
             for q in qualifications:
                 issued = q['granted_at'].strftime('%d %b %y') if q['granted_at'] else '-'
                 if q.get('expires_at'):
                     expires = q['expires_at'].strftime('%d %b %y')
-                    qual_lines.append(f"**{q['name']}** (Issued: {issued}, Expires: {expires})")
+                    qual_lines.append(f"**{q['name']}** ({issued} - {expires})")
                 else:
-                    qual_lines.append(f"**{q['name']}** (Issued: {issued})")
-            embed.add_field(name=_('Qualifications'), value='\n'.join(qual_lines), inline=False)
+                    qual_lines.append(f"**{q['name']}** ({issued})")
+            # Build value respecting 1024 char limit
+            qual_value = ""
+            shown = 0
+            for line in qual_lines:
+                test_value = qual_value + ("\n" if qual_value else "") + line
+                if len(test_value) > 1000:  # Leave room for "and X more"
+                    remaining = len(qual_lines) - shown
+                    qual_value += f"\n*...and {remaining} more*"
+                    break
+                qual_value = test_value
+                shown += 1
+            embed.add_field(name=_('Qualifications ({})').format(len(qualifications)), value=qual_value, inline=False)
         else:
             embed.add_field(name=_('Qualifications'), value=_('None'), inline=False)
 
-        # Awards
+        # Awards (with 1024 char limit handling)
         if awards:
             award_lines = []
             for a in awards:
                 issued = a['granted_at'].strftime('%d %b %y') if a['granted_at'] else '-'
-                award_lines.append(f"**{a['name']}** (Issued: {issued})")
-            embed.add_field(name=_('Awards'), value='\n'.join(award_lines), inline=False)
+                award_lines.append(f"**{a['name']}** ({issued})")
+            # Build value respecting 1024 char limit
+            award_value = ""
+            shown = 0
+            for line in award_lines:
+                test_value = award_value + ("\n" if award_value else "") + line
+                if len(test_value) > 1000:  # Leave room for "and X more"
+                    remaining = len(award_lines) - shown
+                    award_value += f"\n*...and {remaining} more*"
+                    break
+                award_value = test_value
+                shown += 1
+            embed.add_field(name=_('Awards ({})').format(len(awards)), value=award_value, inline=False)
         else:
             embed.add_field(name=_('Awards'), value=_('None'), inline=False)
 
