@@ -319,6 +319,146 @@ class Logbook(Plugin[LogbookEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
+    @logbook.command(description=_('Show unified pilot information'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def pilot(self, interaction: discord.Interaction, user: Optional[discord.Member] = None):
+        """Display comprehensive pilot info: service, rank, hours, qualifications, awards, and ribbon rack."""
+        ephemeral = utils.get_ephemeral(interaction)
+        if not user:
+            ucid = await self.bot.get_ucid_by_member(interaction.user)
+            name = interaction.user.display_name
+        else:
+            ucid = await self.bot.get_ucid_by_member(user)
+            name = user.display_name
+
+        if not ucid:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_('User is not linked!'), ephemeral=True)
+            return
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                # Get basic stats from pilot_logbook_stats view
+                await cursor.execute("""
+                    SELECT total_hours FROM pilot_logbook_stats WHERE ucid = %s
+                """, (ucid,))
+                stats_row = await cursor.fetchone()
+                total_hours = stats_row['total_hours'] if stats_row else 0
+
+                # Get last_seen from players table
+                await cursor.execute("""
+                    SELECT last_seen FROM players WHERE ucid = %s
+                """, (ucid,))
+                player_row = await cursor.fetchone()
+                last_seen = player_row['last_seen'] if player_row else None
+
+                # Get squadron membership (service and rank)
+                await cursor.execute("""
+                    SELECT s.abbreviation, s.name as squadron_name, m.rank, m.position
+                    FROM logbook_squadron_members m
+                    JOIN logbook_squadrons s ON m.squadron_id = s.id
+                    WHERE m.player_ucid = %s
+                    ORDER BY m.joined_at DESC
+                    LIMIT 1
+                """, (ucid,))
+                squadron_row = await cursor.fetchone()
+
+                # Get qualifications
+                await cursor.execute("""
+                    SELECT q.name, pq.granted_at, pq.expires_at
+                    FROM logbook_pilot_qualifications pq
+                    JOIN logbook_qualifications q ON pq.qualification_id = q.id
+                    WHERE pq.player_ucid = %s
+                    ORDER BY pq.granted_at DESC
+                """, (ucid,))
+                qualifications = await cursor.fetchall()
+
+                # Get awards (with ribbon colors for image generation)
+                await cursor.execute("""
+                    SELECT a.name, a.ribbon_colors, pa.granted_at
+                    FROM logbook_pilot_awards pa
+                    JOIN logbook_awards a ON pa.award_id = a.id
+                    WHERE pa.player_ucid = %s
+                    ORDER BY pa.granted_at DESC
+                """, (ucid,))
+                awards = await cursor.fetchall()
+
+        # Build embed
+        embed = discord.Embed(
+            title=_('Pilot Information: {}').format(utils.escape_string(name)),
+            color=discord.Color.blue()
+        )
+
+        # Service (squadron abbreviation) and Rank
+        service = squadron_row['abbreviation'] if squadron_row and squadron_row.get('abbreviation') else '-'
+        rank = squadron_row['rank'] if squadron_row and squadron_row.get('rank') else '-'
+        embed.add_field(name=_('Service'), value=service, inline=True)
+        embed.add_field(name=_('Rank'), value=rank, inline=True)
+
+        # Total Hours
+        hours_str = f"{float(total_hours):.1f}" if total_hours else "0.0"
+        embed.add_field(name=_('Total Hours'), value=hours_str, inline=True)
+
+        # Last Joined (last_seen)
+        if last_seen:
+            last_joined_str = last_seen.strftime('%Y-%m-%d')
+        else:
+            last_joined_str = '-'
+        embed.add_field(name=_('Last Joined'), value=last_joined_str, inline=True)
+
+        # Qualifications
+        if qualifications:
+            qual_lines = []
+            for q in qualifications:
+                issued = q['granted_at'].strftime('%d %b %y') if q['granted_at'] else '-'
+                if q.get('expires_at'):
+                    expires = q['expires_at'].strftime('%d %b %y')
+                    qual_lines.append(f"**{q['name']}** (Issued: {issued}, Expires: {expires})")
+                else:
+                    qual_lines.append(f"**{q['name']}** (Issued: {issued})")
+            embed.add_field(name=_('Qualifications'), value='\n'.join(qual_lines), inline=False)
+        else:
+            embed.add_field(name=_('Qualifications'), value=_('None'), inline=False)
+
+        # Awards
+        if awards:
+            award_lines = []
+            for a in awards:
+                issued = a['granted_at'].strftime('%d %b %y') if a['granted_at'] else '-'
+                award_lines.append(f"**{a['name']}** (Issued: {issued})")
+            embed.add_field(name=_('Awards'), value='\n'.join(award_lines), inline=False)
+        else:
+            embed.add_field(name=_('Awards'), value=_('None'), inline=False)
+
+        # Generate ribbon rack image if there are awards
+        file = None
+        if awards and HAS_IMAGING:
+            # Build awards list for ribbon rack: (name, colors, count)
+            ribbon_awards = []
+            for a in awards:
+                colors = a.get('ribbon_colors')
+                if isinstance(colors, str):
+                    import json as json_module
+                    try:
+                        colors = json_module.loads(colors)
+                    except (json_module.JSONDecodeError, TypeError):
+                        colors = None
+                ribbon_awards.append((a['name'], colors, 1))
+
+            ribbon_bytes = create_ribbon_rack(ribbon_awards)
+            if ribbon_bytes:
+                file = discord.File(io.BytesIO(ribbon_bytes), filename='ribbons.png')
+                embed.set_image(url='attachment://ribbons.png')
+
+        if file:
+            await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+        else:
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
     # ==================== SQUADRON COMMANDS ====================
 
     @squadron.command(name='create', description=_('Create a new squadron'))
