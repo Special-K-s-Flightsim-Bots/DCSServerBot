@@ -1542,20 +1542,32 @@ class Logbook(Plugin[LogbookEventListener]):
         )
 
         embed.add_field(name=_('Recipients'), value=str(row['recipient_count']), inline=True)
+        if row.get('auto_grant'):
+            embed.add_field(name=_('Auto-Grant'), value=_('Yes'), inline=True)
 
-        if row.get('ribbon_colors'):
-            try:
-                colors = json.loads(row['ribbon_colors']) if isinstance(row['ribbon_colors'], str) else row['ribbon_colors']
-                color_display = ' '.join([f"`{c}`" for c in colors[:5]])
-                embed.add_field(name=_('Ribbon Colors'), value=color_display, inline=False)
-            except Exception:
-                pass
+        # Generate ribbon image
+        file = None
+        if HAS_IMAGING:
+            colors = None
+            if row.get('ribbon_colors'):
+                try:
+                    colors = json.loads(row['ribbon_colors']) if isinstance(row['ribbon_colors'], str) else row['ribbon_colors']
+                except Exception:
+                    pass
+            # Generate single ribbon using create_ribbon_rack with count=1
+            ribbon_bytes = create_ribbon_rack([(row['name'], colors, 1)], scale=2.0)
+            if ribbon_bytes:
+                file = discord.File(io.BytesIO(ribbon_bytes), filename='ribbon.png')
+                embed.set_image(url='attachment://ribbon.png')
 
         if row.get('image_url'):
             embed.set_thumbnail(url=row['image_url'])
 
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+        if file:
+            await interaction.response.send_message(embed=embed, file=file, ephemeral=ephemeral)
+        else:
+            await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     @award.command(name='grant', description=_('Grant an award to a pilot'))
     @app_commands.guild_only()
