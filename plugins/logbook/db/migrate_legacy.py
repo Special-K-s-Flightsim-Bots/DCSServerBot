@@ -168,7 +168,13 @@ def migrate_squadrons(mayfly_data: dict, target_conn, dry_run: bool) -> dict:
                     RETURNING id
                 """, (name, abbreviation, description, co_ucid))
                 result = cur.fetchone()
-                squadron_map[name] = result[0]
+                if result:
+                    squadron_map[name] = result[0]
+                else:
+                    # Get existing ID if upsert didn't return
+                    cur.execute("SELECT id FROM logbook_squadrons WHERE name = %s", (name,))
+                    result = cur.fetchone()
+                    squadron_map[name] = result[0]
         else:
             squadron_map[name] = f"<new-id-for-{name}>"
 
