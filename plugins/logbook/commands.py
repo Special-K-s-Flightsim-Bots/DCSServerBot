@@ -356,16 +356,21 @@ class Logbook(Plugin[LogbookEventListener]):
                 player_row = await cursor.fetchone()
                 last_seen = player_row['last_seen'] if player_row else None
 
-                # Get squadron membership (service and rank)
+                # Get pilot service and rank from logbook_pilots
                 await cursor.execute("""
-                    SELECT s.abbreviation, s.name as squadron_name, m.rank, m.position
+                    SELECT service, rank FROM logbook_pilots WHERE player_ucid = %s
+                """, (ucid,))
+                pilot_row = await cursor.fetchone()
+
+                # Get all squadron memberships
+                await cursor.execute("""
+                    SELECT s.name as squadron_name
                     FROM logbook_squadron_members m
                     JOIN logbook_squadrons s ON m.squadron_id = s.id
                     WHERE m.player_ucid = %s
-                    ORDER BY m.joined_at DESC
-                    LIMIT 1
+                    ORDER BY m.joined_at ASC
                 """, (ucid,))
-                squadron_row = await cursor.fetchone()
+                squadrons = await cursor.fetchall()
 
                 # Get qualifications
                 await cursor.execute("""
@@ -393,11 +398,18 @@ class Logbook(Plugin[LogbookEventListener]):
             color=discord.Color.blue()
         )
 
-        # Service (squadron abbreviation) and Rank
-        service = squadron_row['abbreviation'] if squadron_row and squadron_row.get('abbreviation') else '-'
-        rank = squadron_row['rank'] if squadron_row and squadron_row.get('rank') else '-'
+        # Service and Rank (from logbook_pilots)
+        service = pilot_row['service'] if pilot_row and pilot_row.get('service') else '-'
+        rank = pilot_row['rank'] if pilot_row and pilot_row.get('rank') else '-'
         embed.add_field(name=_('Service'), value=service, inline=True)
         embed.add_field(name=_('Rank'), value=rank, inline=True)
+
+        # Squadrons (all assignments)
+        if squadrons:
+            squadron_names = ', '.join(s['squadron_name'] for s in squadrons)
+            embed.add_field(name=_('Squadron(s)'), value=squadron_names, inline=True)
+        else:
+            embed.add_field(name=_('Squadron(s)'), value='-', inline=True)
 
         # Total Hours
         hours_str = f"{float(total_hours):.1f}" if total_hours else "0.0"

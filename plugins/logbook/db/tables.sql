@@ -1,7 +1,15 @@
+CREATE TABLE IF NOT EXISTS logbook_pilots (
+    player_ucid TEXT PRIMARY KEY,
+    service TEXT,
+    rank TEXT,
+    FOREIGN KEY (player_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS logbook_squadrons (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     abbreviation TEXT,
+    service TEXT,
     description TEXT,
     logo_url TEXT,
     co_ucid TEXT,
@@ -17,7 +25,6 @@ CREATE INDEX IF NOT EXISTS idx_logbook_squadrons_xo_ucid ON logbook_squadrons (x
 CREATE TABLE IF NOT EXISTS logbook_squadron_members (
     squadron_id INTEGER NOT NULL,
     player_ucid TEXT NOT NULL,
-    rank TEXT,
     position TEXT,
     joined_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
     PRIMARY KEY (squadron_id, player_ucid),
