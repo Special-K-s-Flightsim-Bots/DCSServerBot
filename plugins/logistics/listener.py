@@ -291,12 +291,15 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 await player.sendChatMessage("No logistics tasks available to plot.")
                 return
 
-            count = 0
+            task_ids = []
             for task in tasks:
-                await self._create_markers_for_task(server, task, timeout=30)
-                count += 1
+                await self._create_markers_for_task(server, task)
+                task_ids.append(task['id'])
 
-            await player.sendChatMessage(f"Plotted {count} task(s) on F10 map for 30 seconds.")
+            await player.sendChatMessage(f"Plotted {len(task_ids)} task(s) on F10 map for 30 seconds.")
+
+            # Schedule removal after 30 seconds
+            asyncio.create_task(self._remove_markers_after_delay(server, task_ids, 30))
         else:
             # Plot specific task by ID
             try:
@@ -310,8 +313,11 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 await player.sendChatMessage(f"Task #{task_id} not found or not visible to your coalition.")
                 return
 
-            await self._create_markers_for_task(server, task, timeout=30)
+            await self._create_markers_for_task(server, task)
             await player.sendChatMessage(f"Plotted task #{task_id} on F10 map for 30 seconds.")
+
+            # Schedule removal after 30 seconds
+            asyncio.create_task(self._remove_markers_after_delay(server, [task_id], 30))
 
     # ==================== HELPER METHODS ====================
 
@@ -633,14 +639,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
                     'assigned_name': task[8]
                 })
 
-    async def _create_markers_for_task(self, server: Server, task: dict, timeout: int = 0):
-        """Send command to DCS to create markers for a task.
-
-        Args:
-            server: The DCS server
-            task: Task data dict with position info
-            timeout: Seconds until markers auto-remove (0 = permanent)
-        """
+    async def _create_markers_for_task(self, server: Server, task: dict):
+        """Send command to DCS to create markers for a task."""
         source_pos = task.get('source_position')
         dest_pos = task.get('destination_position')
 
@@ -669,8 +669,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
             "cargo_type": task['cargo_type'],
             "pilot_name": task.get('assigned_name') or "",
             "deadline": deadline_str,
-            "waypoints": "[]",  # TODO: Add waypoint support
-            "timeout": timeout
+            "waypoints": "[]"  # TODO: Add waypoint support
         })
 
     async def _remove_task_markers(self, server: Server, task_id: int):
@@ -684,6 +683,19 @@ class LogisticsEventListener(EventListener["Logistics"]):
             await conn.execute("""
                 DELETE FROM logistics_markers WHERE task_id = %s AND server_name = %s
             """, (task_id, server.name))
+
+    async def _remove_markers_after_delay(self, server: Server, task_ids: list[int], delay: int):
+        """Remove markers after a delay (for temporary plot markers)."""
+        await asyncio.sleep(delay)
+        for task_id in task_ids:
+            try:
+                await server.send_to_dcs({
+                    "command": "removeLogisticsMarkers",
+                    "task_id": task_id
+                })
+                log.debug(f"Logistics: Auto-removed markers for task {task_id} after {delay}s")
+            except Exception as e:
+                log.warning(f"Logistics: Failed to remove markers for task {task_id}: {e}")
 
     async def _update_markers_with_pilot(self, server: Server, task_id: int, pilot_name: str | None):
         """Update markers with pilot assignment."""
