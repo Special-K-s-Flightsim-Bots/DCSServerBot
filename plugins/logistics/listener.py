@@ -49,17 +49,23 @@ class LogisticsEventListener(EventListener["Logistics"]):
         if data.get('eventName') == 'S_EVENT_LAND':
             await self._check_delivery_on_landing(server, data)
 
-    @event(name="onPlayerStart")
-    async def onPlayerStart(self, server: Server, data: dict) -> None:
+    @event(name="onPlayerChangeSlot")
+    async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
         """Show player their assigned task when they spawn and create F10 menu."""
-        player = server.get_player(ucid=data.get('ucid'))
-        if player and player.side not in (Side.UNKNOWN, Side.NEUTRAL):  # Only for players in a slot
-            task = await self._get_assigned_task(player.ucid, server.name)
-            if task:
-                await self._notify_player_of_task(player, task)
+        # Only handle when player takes a coalition slot (has 'side' in data)
+        if 'side' not in data or data.get('side') == 0:
+            return
 
-            # Create F10 menu for the player
-            await self._create_logistics_menu(server, player)
+        player = server.get_player(ucid=data.get('ucid'), active=True)
+        if not player:
+            return
+
+        task = await self._get_assigned_task(player.ucid, server.name)
+        if task:
+            await self._notify_player_of_task(player, task)
+
+        # Create F10 menu for the player
+        await self._create_logistics_menu(server, player)
 
     @event(name="createLogisticsMarkers")
     async def onCreateLogisticsMarkers(self, server: Server, data: dict) -> None:
