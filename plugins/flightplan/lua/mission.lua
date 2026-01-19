@@ -18,13 +18,14 @@ local function getNextMarkerId()
 end
 
 -- Get coalition constant from number
+-- For markToCoalition: -1 = all, 1 = red, 2 = blue
 local function getCoalition(num)
     if num == 1 then
-        return coalition.side.RED
+        return coalition.side.RED  -- 1
     elseif num == 2 then
-        return coalition.side.BLUE
+        return coalition.side.BLUE  -- 2
     else
-        return coalition.side.ALL
+        return -1  -- All coalitions (markToCoalition uses -1, not coalition.side.ALL)
     end
 end
 
