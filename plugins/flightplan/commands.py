@@ -1618,6 +1618,59 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
+    @fix.command(name='seed', description=_('Load seed navigation fixes from bundled data'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def fix_seed(self, interaction: discord.Interaction):
+        """Load navigation fixes from the bundled seed SQL file."""
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        # Find the seed SQL file
+        import os
+        plugin_dir = os.path.dirname(os.path.abspath(__file__))
+        seed_file = os.path.join(plugin_dir, 'db', 'seed_navigation_fixes.sql')
+
+        if not os.path.exists(seed_file):
+            await interaction.followup.send(
+                _('Seed file not found: {}').format(seed_file),
+                ephemeral=True
+            )
+            return
+
+        try:
+            with open(seed_file, 'r', encoding='utf-8') as f:
+                seed_sql = f.read()
+
+            async with self.apool.connection() as conn:
+                await conn.execute(seed_sql)
+
+                # Count what we loaded
+                cursor = await conn.execute("""
+                    SELECT map_theater, COUNT(*) FROM flightplan_navigation_fixes
+                    GROUP BY map_theater ORDER BY map_theater
+                """)
+                rows = await cursor.fetchall()
+
+            embed = discord.Embed(
+                title=_('Seed Data Loaded'),
+                description=_('Navigation fixes loaded from seed file.'),
+                color=discord.Color.green()
+            )
+
+            for theater, count in rows:
+                embed.add_field(name=theater, value=str(count), inline=True)
+
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+        except Exception as e:
+            log.error(f"Error loading seed data: {e}")
+            await interaction.followup.send(
+                _('Error loading seed data: {}').format(str(e)),
+                ephemeral=True
+            )
+
 
 async def setup(bot: DCSServerBot):
     await bot.add_cog(FlightPlan(bot, FlightPlanEventListener))
