@@ -175,33 +175,45 @@ async def waypoints_corridor_autocomplete(interaction: discord.Interaction, curr
     """
     Autocomplete for waypoints along the route corridor.
     Shows navigation fixes within 50nm of the direct route between departure and destination.
+    Supports multiple waypoints - type comma to add more (e.g., "KBL,KDH,BASTN").
     """
     try:
         server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server or not server.current_mission:
             return []
 
+        # Handle multiple waypoints - split by comma and work with the last one
+        existing_waypoints = []
+        search_term = current
+        if ',' in current:
+            parts = current.split(',')
+            existing_waypoints = [p.strip() for p in parts[:-1] if p.strip()]
+            search_term = parts[-1].strip()
+
+        # Prefix to prepend to results (existing waypoints + comma)
+        prefix = ','.join(existing_waypoints) + ',' if existing_waypoints else ''
+
         # Get departure and destination indices from namespace
-        dep_idx = getattr(interaction.namespace, 'departure', None)
-        dest_idx = getattr(interaction.namespace, 'destination', None)
+        dep_idx = getattr(interaction.namespace, 'departure_idx', None)
+        dest_idx = getattr(interaction.namespace, 'destination_idx', None)
 
         if dep_idx is None or dest_idx is None:
             # Fall back to showing all fixes for the theater
-            return await _fallback_fixes_autocomplete(interaction, current, server)
+            return await _fallback_fixes_autocomplete(interaction, search_term, server, prefix, existing_waypoints)
 
         # Get airbase positions
         try:
             dep_airbase = server.current_mission.airbases[dep_idx]
             dest_airbase = server.current_mission.airbases[dest_idx]
         except (IndexError, TypeError):
-            return await _fallback_fixes_autocomplete(interaction, current, server)
+            return await _fallback_fixes_autocomplete(interaction, search_term, server, prefix, existing_waypoints)
 
         dep_pos = dep_airbase.get('position', {})
         dest_pos = dest_airbase.get('position', {})
 
         # Need lat/lon for corridor calculation
         if not dep_pos.get('lat') or not dest_pos.get('lat'):
-            return await _fallback_fixes_autocomplete(interaction, current, server)
+            return await _fallback_fixes_autocomplete(interaction, search_term, server, prefix, existing_waypoints)
 
         # Corridor width: 50nm on each side
         corridor_width_nm = 50
@@ -216,11 +228,15 @@ async def waypoints_corridor_autocomplete(interaction: discord.Interaction, curr
                 WHERE map_theater = %s
                 AND latitude IS NOT NULL AND longitude IS NOT NULL
                 AND (identifier ILIKE %s OR name ILIKE %s)
-            """, (theater, '%' + current + '%', '%' + current + '%'))
+            """, (theater, '%' + search_term + '%', '%' + search_term + '%'))
 
             choices = []
             async for row in cursor:
                 fix_id, fix_name, fix_type, fix_lat, fix_lon, freq = row
+
+                # Skip if already in the list
+                if fix_id in existing_waypoints:
+                    continue
 
                 # Calculate distance from fix to route line (in nm)
                 dist_nm = _point_to_line_distance_latlon(
@@ -243,8 +259,12 @@ async def waypoints_corridor_autocomplete(interaction: discord.Interaction, curr
             # Sort by distance from route centerline, closest first
             choices.sort(key=lambda x: x[0])
 
+            # Build choices with prefix for existing waypoints
             return [
-                app_commands.Choice(name=c[2][:100], value=c[1])
+                app_commands.Choice(
+                    name=f"{prefix}{c[1]}" if not prefix else f"... {c[2][:80]}",
+                    value=f"{prefix}{c[1]}"
+                )
                 for c in choices[:25]
             ]
 
@@ -253,8 +273,17 @@ async def waypoints_corridor_autocomplete(interaction: discord.Interaction, curr
         return []
 
 
-async def _fallback_fixes_autocomplete(interaction: discord.Interaction, current: str, server: Server) -> list[app_commands.Choice[str]]:
+async def _fallback_fixes_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+    server: Server,
+    prefix: str = '',
+    existing_waypoints: list = None
+) -> list[app_commands.Choice[str]]:
     """Fallback autocomplete when departure/destination not yet selected."""
+    if existing_waypoints is None:
+        existing_waypoints = []
+
     try:
         dcs_map = server.current_mission.map if server.current_mission else None
         if not dcs_map:
@@ -268,15 +297,25 @@ async def _fallback_fixes_autocomplete(interaction: discord.Interaction, current
                 WHERE map_theater = %s
                 AND (identifier ILIKE %s OR name ILIKE %s)
                 ORDER BY identifier
-                LIMIT 25
+                LIMIT 50
             """, (theater, '%' + current + '%', '%' + current + '%'))
+
+            choices = []
+            async for row in cursor:
+                fix_id = row[0]
+                # Skip if already in the list
+                if fix_id in existing_waypoints:
+                    continue
+
+                display = f"{fix_id} - {row[1] or row[2]}" + (f" ({row[3]})" if row[3] else "")
+                choices.append((fix_id, display))
 
             return [
                 app_commands.Choice(
-                    name=f"{row[0]} - {row[1] or row[2]}" + (f" ({row[3]})" if row[3] else ""),
-                    value=row[0]
+                    name=f"{prefix}{c[0]}" if not prefix else f"... {c[1][:80]}",
+                    value=f"{prefix}{c[0]}"
                 )
-                async for row in cursor
+                for c in choices[:25]
             ]
     except Exception as e:
         log.warning(f"Fallback fixes autocomplete error: {e}")
