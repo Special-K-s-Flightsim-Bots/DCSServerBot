@@ -1,11 +1,12 @@
 import asyncio
+import discord
 import json
 import logging
 
 from core import EventListener, Server, event, chat_command, Player, Side
 from datetime import datetime, timezone, timedelta
 from discord.ext import tasks
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from .commands import Logistics
@@ -323,6 +324,145 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     # ==================== HELPER METHODS ====================
 
+    async def publish_logistics_task(self, task: dict, status: str) -> Optional[int]:
+        """
+        Publish or update a logistics task embed in Discord status channel.
+
+        Posts a new message when task is created/approved, then edits the same message
+        for subsequent status changes (assigned, completed, cancelled, etc.).
+
+        Returns the message ID if successful.
+        """
+        config = self.plugin.get_config()
+        # Support both 'status_channel' and legacy 'publish_channel'
+        channel_id = config.get('status_channel') or config.get('publish_channel')
+
+        if not channel_id:
+            return None
+
+        try:
+            channel = self.bot.get_channel(int(channel_id))
+            if not channel:
+                log.warning(f"Logistics status channel {channel_id} not found")
+                return None
+
+            # Get assigned pilot name if applicable
+            assigned_name = task.get('assigned_name')
+            if not assigned_name and task.get('assigned_ucid'):
+                async with self.apool.connection() as conn:
+                    cursor = await conn.execute(
+                        "SELECT name FROM players WHERE ucid = %s",
+                        (task['assigned_ucid'],)
+                    )
+                    row = await cursor.fetchone()
+                    assigned_name = row[0] if row else None
+
+            # Status colors and emoji
+            status_config = {
+                'pending': {'color': discord.Color.yellow(), 'emoji': '⏳'},
+                'approved': {'color': discord.Color.blue(), 'emoji': '📦'},
+                'assigned': {'color': discord.Color.purple(), 'emoji': '🚁'},
+                'in_progress': {'color': discord.Color.orange(), 'emoji': '🚁'},
+                'completed': {'color': discord.Color.green(), 'emoji': '✅'},
+                'cancelled': {'color': discord.Color.red(), 'emoji': '❌'},
+                'failed': {'color': discord.Color.dark_red(), 'emoji': '💥'},
+            }
+            status_info = status_config.get(status, {'color': discord.Color.blue(), 'emoji': '📋'})
+
+            # Priority emoji
+            priority_emoji = {
+                'urgent': '🔴',
+                'high': '🟠',
+                'normal': '🟢',
+                'low': '⚪',
+            }.get(task.get('priority', 'normal'), '🟢')
+
+            embed = discord.Embed(
+                title=f"📦 Logistics Task #{task['id']} - {task.get('cargo_type', 'N/A')[:50]}",
+                color=status_info['color']
+            )
+
+            # Status with emoji
+            status_display = f"{status_info['emoji']} {status.upper()}"
+            embed.add_field(name='Status', value=status_display, inline=True)
+            embed.add_field(name='Priority', value=f"{priority_emoji} {task.get('priority', 'normal').upper()}", inline=True)
+
+            # Coalition
+            coalition = task.get('coalition', 2)
+            coalition_str = '🔴 RED' if coalition == 1 else '🔵 BLUE'
+            embed.add_field(name='Coalition', value=coalition_str, inline=True)
+
+            route_str = f"{task.get('source_name', '?')} → {task.get('destination_name', '?')}"
+            embed.add_field(name='Route', value=route_str, inline=False)
+
+            if assigned_name:
+                embed.add_field(name='Assigned To', value=assigned_name, inline=True)
+            else:
+                embed.add_field(name='Assigned To', value='Unassigned', inline=True)
+
+            if task.get('deadline'):
+                deadline = task['deadline']
+                if isinstance(deadline, datetime):
+                    deadline_str = deadline.strftime('%H:%M UTC')
+                else:
+                    deadline_str = str(deadline)
+                embed.add_field(name='Deadline', value=deadline_str, inline=True)
+
+            if task.get('notes'):
+                embed.add_field(name='Notes', value=task['notes'][:200], inline=False)
+
+            # Timestamps section
+            timestamps = []
+            if task.get('created_at'):
+                created = task['created_at']
+                if isinstance(created, datetime):
+                    timestamps.append(f"Created: {created.strftime('%H:%M UTC')}")
+            if task.get('assigned_at'):
+                assigned = task['assigned_at']
+                if isinstance(assigned, datetime):
+                    timestamps.append(f"Assigned: {assigned.strftime('%H:%M UTC')}")
+            if task.get('completed_at'):
+                completed = task['completed_at']
+                if isinstance(completed, datetime):
+                    timestamps.append(f"Completed: {completed.strftime('%H:%M UTC')}")
+            if timestamps:
+                embed.add_field(name='Timeline', value=' | '.join(timestamps), inline=False)
+
+            # Footer with server and update time
+            footer_parts = []
+            if task.get('server_name'):
+                footer_parts.append(f"Server: {task['server_name']}")
+            footer_parts.append(f"Updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
+            embed.set_footer(text=' | '.join(footer_parts))
+
+            # Check if we should update an existing message
+            existing_msg_id = task.get('discord_message_id')
+            if existing_msg_id:
+                try:
+                    msg = await channel.fetch_message(int(existing_msg_id))
+                    await msg.edit(embed=embed)
+                    return existing_msg_id
+                except discord.NotFound:
+                    log.debug(f"Original message {existing_msg_id} not found, posting new message")
+                except discord.Forbidden:
+                    log.warning(f"Cannot edit message {existing_msg_id} - permission denied")
+
+            # Send new message
+            msg = await channel.send(embed=embed)
+
+            # Store message ID in database
+            async with self.apool.connection() as conn:
+                await conn.execute(
+                    "UPDATE logistics_tasks SET discord_message_id = %s WHERE id = %s",
+                    (msg.id, task['id'])
+                )
+
+            return msg.id
+
+        except Exception as e:
+            log.error(f"Error publishing logistics task: {e}")
+            return None
+
     async def _get_available_tasks(self, server_name: str, coalition: int) -> list[dict]:
         """Get tasks available for a coalition."""
         async with self.apool.connection() as conn:
@@ -500,7 +640,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
             # Create markers for the accepted task
             if full_task:
-                await self._create_markers_for_task(server, {
+                task_data = {
                     'id': full_task[0],
                     'cargo_type': full_task[1],
                     'source_name': full_task[2],
@@ -510,7 +650,33 @@ class LogisticsEventListener(EventListener["Logistics"]):
                     'coalition': full_task[6],
                     'deadline': full_task[7],
                     'assigned_name': player.name
-                })
+                }
+                await self._create_markers_for_task(server, task_data)
+
+            # Publish to status channel
+            config = self.get_config(server) or {}
+            if config.get('publish_on_assign', True):
+                # Fetch full task with discord_message_id
+                cursor = await conn.execute("""
+                    SELECT id, cargo_type, source_name, destination_name, priority,
+                           coalition, deadline, assigned_at, server_name, discord_message_id
+                    FROM logistics_tasks WHERE id = %s
+                """, (task_id,))
+                pub_task = await cursor.fetchone()
+                if pub_task:
+                    await self.publish_logistics_task({
+                        'id': pub_task[0],
+                        'cargo_type': pub_task[1],
+                        'source_name': pub_task[2],
+                        'destination_name': pub_task[3],
+                        'priority': pub_task[4],
+                        'coalition': pub_task[5],
+                        'deadline': pub_task[6],
+                        'assigned_at': pub_task[7],
+                        'assigned_name': player.name,
+                        'server_name': pub_task[8],
+                        'discord_message_id': pub_task[9]
+                    }, 'assigned')
 
             return {
                 'success': True,
@@ -559,6 +725,31 @@ class LogisticsEventListener(EventListener["Logistics"]):
             # Remove markers
             await self._remove_task_markers(server, task_id)
 
+            # Publish completion to status channel
+            config = self.get_config(server) or {}
+            if config.get('publish_on_complete', True):
+                cursor = await conn.execute("""
+                    SELECT id, cargo_type, source_name, destination_name, priority,
+                           coalition, deadline, assigned_at, completed_at, server_name, discord_message_id
+                    FROM logistics_tasks WHERE id = %s
+                """, (task_id,))
+                pub_task = await cursor.fetchone()
+                if pub_task:
+                    await self.publish_logistics_task({
+                        'id': pub_task[0],
+                        'cargo_type': pub_task[1],
+                        'source_name': pub_task[2],
+                        'destination_name': pub_task[3],
+                        'priority': pub_task[4],
+                        'coalition': pub_task[5],
+                        'deadline': pub_task[6],
+                        'assigned_at': pub_task[7],
+                        'completed_at': pub_task[8],
+                        'assigned_name': player.name,
+                        'server_name': pub_task[9],
+                        'discord_message_id': pub_task[10]
+                    }, 'completed')
+
             return {'success': True}
 
     async def _abandon_task(self, server: Server, player: Player, task_id: int) -> dict:
@@ -584,6 +775,30 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
             # Update markers to remove pilot name
             await self._update_markers_with_pilot(server, task_id, None)
+
+            # Publish abandonment to status channel (back to approved status)
+            config = self.get_config(server) or {}
+            if config.get('publish_on_abandon', True):
+                cursor = await conn.execute("""
+                    SELECT id, cargo_type, source_name, destination_name, priority,
+                           coalition, deadline, created_at, server_name, discord_message_id
+                    FROM logistics_tasks WHERE id = %s
+                """, (task_id,))
+                pub_task = await cursor.fetchone()
+                if pub_task:
+                    await self.publish_logistics_task({
+                        'id': pub_task[0],
+                        'cargo_type': pub_task[1],
+                        'source_name': pub_task[2],
+                        'destination_name': pub_task[3],
+                        'priority': pub_task[4],
+                        'coalition': pub_task[5],
+                        'deadline': pub_task[6],
+                        'created_at': pub_task[7],
+                        'assigned_name': None,
+                        'server_name': pub_task[8],
+                        'discord_message_id': pub_task[9]
+                    }, 'approved')  # Back to approved status
 
             return {'success': True}
 

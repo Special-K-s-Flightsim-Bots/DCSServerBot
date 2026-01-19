@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS logistics_tasks (
     updated_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
     approved_by TEXT,                        -- Discord user ID who approved
     approved_at TIMESTAMP,
+    discord_message_id BIGINT,               -- Discord message ID for status board posts
     FOREIGN KEY (server_name) REFERENCES servers (server_name) ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY (created_by_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE SET NULL,
     FOREIGN KEY (assigned_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE SET NULL

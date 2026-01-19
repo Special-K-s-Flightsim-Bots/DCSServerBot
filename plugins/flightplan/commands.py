@@ -30,6 +30,37 @@ THEATER_BOUNDING_BOXES = {
     'Kola': (25.0, 66.0, 42.0, 72.0),           # Kola Peninsula, Northern Russia/Norway
 }
 
+# Map DCS internal map names to our standard theater names
+# DCS reports maps with internal names that may differ from display names
+DCS_MAP_TO_THEATER = {
+    # Standard names (match database)
+    'Caucasus': 'Caucasus',
+    'Syria': 'Syria',
+    'PersianGulf': 'PersianGulf',
+    'Nevada': 'Nevada',
+    'Normandy': 'Normandy',
+    'TheChannel': 'TheChannel',
+    'MarianaIslands': 'MarianaIslands',
+    'SouthAtlantic': 'SouthAtlantic',
+    'Sinai': 'Sinai',
+    'Afghanistan': 'Afghanistan',
+    'Kola': 'Kola',
+    'Iraq': 'Iraq',
+    'GermanyCW': 'GermanyCW',
+    # Alternate DCS internal names
+    'Falklands': 'SouthAtlantic',
+    'Mariana': 'MarianaIslands',
+    'SinaiMap': 'Sinai',
+}
+
+
+def get_theater_name(dcs_map_name: str) -> str:
+    """Convert DCS internal map name to our standard theater name."""
+    theater = DCS_MAP_TO_THEATER.get(dcs_map_name, dcs_map_name)
+    if dcs_map_name != theater:
+        log.debug(f"Mapped DCS map '{dcs_map_name}' to theater '{theater}'")
+    return theater
+
 _ = get_translation(__name__.split('.')[1])
 log = logging.getLogger(__name__)
 
@@ -175,7 +206,7 @@ async def waypoints_corridor_autocomplete(interaction: discord.Interaction, curr
         # Corridor width: 50nm on each side
         corridor_width_nm = 50
 
-        theater = server.current_mission.map
+        theater = get_theater_name(server.current_mission.map)
 
         async with interaction.client.apool.connection() as conn:
             # Get all fixes for this theater that have lat/lon
@@ -225,9 +256,10 @@ async def waypoints_corridor_autocomplete(interaction: discord.Interaction, curr
 async def _fallback_fixes_autocomplete(interaction: discord.Interaction, current: str, server: Server) -> list[app_commands.Choice[str]]:
     """Fallback autocomplete when departure/destination not yet selected."""
     try:
-        theater = server.current_mission.map if server.current_mission else None
-        if not theater:
+        dcs_map = server.current_mission.map if server.current_mission else None
+        if not dcs_map:
             return []
+        theater = get_theater_name(dcs_map)
 
         async with interaction.client.apool.connection() as conn:
             cursor = await conn.execute("""
@@ -511,7 +543,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
                 pass
 
         # Get theater from server
-        theater = server.current_mission.map if server.current_mission else None
+        theater = get_theater_name(server.current_mission.map) if server.current_mission else None
 
         async with self.apool.connection() as conn:
 
@@ -568,6 +600,30 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
             ))
             result = await cursor.fetchone()
             plan_id = result[0]
+
+            # Publish to status channel if configured
+            config = self.get_config(server)
+            if config.get('publish_on_file', True):
+                # Build flight plan dict for publishing
+                fp_data = {
+                    'id': plan_id,
+                    'player_ucid': ucid,
+                    'server_name': server.name,
+                    'callsign': callsign,
+                    'aircraft_type': aircraft_type,
+                    'departure': departure,
+                    'destination': destination,
+                    'alternate': alternate,
+                    'waypoints': parsed_waypoints,
+                    'cruise_altitude': cruise_alt_feet,
+                    'cruise_speed': cruise_speed,
+                    'etd': etd_dt,
+                    'remarks': remarks,
+                    'status': 'filed',
+                    'filed_at': filed_at,
+                    'discord_message_id': None
+                }
+                await self.listener.publish_flight_plan(fp_data, 'filed')
 
         embed = discord.Embed(
             title=_('Flight Plan Filed'),

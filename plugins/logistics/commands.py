@@ -186,6 +186,24 @@ class Logistics(Plugin[LogisticsEventListener]):
                 VALUES (%s, 'created', %s, %s)
             """, (task_id, interaction.user.id, '{"source": "discord_admin", "auto_approved": true}'))
 
+            # Publish to status channel if configured
+            config = self.get_config(server)
+            if config.get('publish_on_create', True):
+                task_data = {
+                    'id': task_id,
+                    'server_name': server.name,
+                    'cargo_type': cargo,
+                    'source_name': source,
+                    'destination_name': destination,
+                    'priority': priority,
+                    'coalition': coalition_id,
+                    'deadline': deadline_dt,
+                    'status': 'approved',
+                    'created_at': now,
+                    'discord_message_id': None
+                }
+                await self.listener.publish_logistics_task(task_data, 'approved')
+
         # Markers are created when a player accepts the task or uses -plot command
 
         embed = discord.Embed(
@@ -432,7 +450,7 @@ class Logistics(Plugin[LogisticsEventListener]):
                     break
 
             if dest_pos:
-                await self.eventlistener._create_markers_for_task(server, {
+                await self.listener._create_markers_for_task(server, {
                     'id': task_id,
                     'cargo_type': task[5],
                     'source_name': final_source,
@@ -513,9 +531,11 @@ class Logistics(Plugin[LogisticsEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
 
         async with self.apool.connection() as conn:
-            # Get task for server info
+            # Get task for server info and publishing
             cursor = await conn.execute("""
-                SELECT server_name FROM logistics_tasks WHERE id = %s AND status != 'completed'
+                SELECT server_name, cargo_type, source_name, destination_name, priority,
+                       coalition, deadline, created_at, discord_message_id
+                FROM logistics_tasks WHERE id = %s AND status != 'completed'
             """, (task_id,))
             task = await cursor.fetchone()
 
@@ -539,7 +559,24 @@ class Logistics(Plugin[LogisticsEventListener]):
         # Remove markers
         server = self.bot.servers.get(task[0])
         if server:
-            await self.eventlistener._remove_task_markers(server, task_id)
+            await self.listener._remove_task_markers(server, task_id)
+
+            # Publish cancellation to status channel
+            config = self.get_config(server)
+            if config.get('publish_on_cancel', True):
+                await self.listener.publish_logistics_task({
+                    'id': task_id,
+                    'cargo_type': task[1],
+                    'source_name': task[2],
+                    'destination_name': task[3],
+                    'priority': task[4],
+                    'coalition': task[5],
+                    'deadline': task[6],
+                    'created_at': task[7],
+                    'notes': f"Cancelled: {reason or 'No reason given'}",
+                    'server_name': task[0],
+                    'discord_message_id': task[8]
+                }, 'cancelled')
 
         await interaction.followup.send(f"Task #{task_id} has been cancelled.", ephemeral=ephemeral)
 

@@ -122,12 +122,16 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
 
     async def publish_flight_plan(self, fp: dict, status: str) -> Optional[int]:
         """
-        Publish or update a flight plan embed in Discord.
+        Publish or update a flight plan embed in Discord status channel.
+
+        Posts a new message when plan is filed, then edits the same message
+        for subsequent status changes (activated, completed, cancelled).
 
         Returns the message ID if successful.
         """
         config = self.plugin.get_config()
-        channel_id = config.get('publish_channel')
+        # Support both 'status_channel' and legacy 'publish_channel'
+        channel_id = config.get('status_channel') or config.get('publish_channel')
 
         if not channel_id:
             return None
@@ -135,7 +139,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         try:
             channel = self.bot.get_channel(int(channel_id))
             if not channel:
-                self.log.warning(f"Publish channel {channel_id} not found")
+                self.log.warning(f"Flight plan status channel {channel_id} not found")
                 return None
 
             # Get pilot name
@@ -147,27 +151,31 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 row = await cursor.fetchone()
                 pilot_name = row[0] if row else 'Unknown'
 
-            # Create embed
-            status_colors = {
-                'filed': discord.Color.blue(),
-                'active': discord.Color.green(),
-                'activated': discord.Color.green(),
-                'completed': discord.Color.dark_green(),
-                'cancelled': discord.Color.red()
+            # Status colors and emoji
+            status_config = {
+                'filed': {'color': discord.Color.blue(), 'emoji': '📝'},
+                'active': {'color': discord.Color.green(), 'emoji': '✈️'},
+                'activated': {'color': discord.Color.green(), 'emoji': '✈️'},
+                'completed': {'color': discord.Color.dark_green(), 'emoji': '✅'},
+                'cancelled': {'color': discord.Color.red(), 'emoji': '❌'},
+                'expired': {'color': discord.Color.dark_grey(), 'emoji': '⏰'},
             }
+            status_info = status_config.get(status, {'color': discord.Color.blue(), 'emoji': '📋'})
 
             embed = discord.Embed(
-                title=_('Flight Plan #{} - {}').format(fp['id'], fp.get('callsign', 'N/A')),
-                color=status_colors.get(status, discord.Color.blue())
+                title=_('✈️ Flight Plan #{} - {}').format(fp['id'], fp.get('callsign', 'N/A')),
+                color=status_info['color']
             )
 
-            embed.add_field(name=_('Status'), value=status.upper(), inline=True)
+            # Status with emoji
+            status_display = f"{status_info['emoji']} {status.upper()}"
+            embed.add_field(name=_('Status'), value=status_display, inline=True)
             embed.add_field(name=_('Pilot'), value=pilot_name, inline=True)
             if fp.get('aircraft_type'):
                 embed.add_field(name=_('Aircraft'), value=fp['aircraft_type'], inline=True)
 
             route_str = f"{fp.get('departure', '?')} → {fp.get('destination', '?')}"
-            embed.add_field(name=_('Route'), value=route_str, inline=True)
+            embed.add_field(name=_('Route'), value=route_str, inline=False)
 
             if fp.get('alternate'):
                 embed.add_field(name=_('Alternate'), value=fp['alternate'], inline=True)
@@ -175,6 +183,9 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
             if fp.get('cruise_altitude'):
                 fl = fp['cruise_altitude'] // 100
                 embed.add_field(name=_('Cruise'), value=f"FL{fl:03d}", inline=True)
+
+            if fp.get('cruise_speed'):
+                embed.add_field(name=_('Speed'), value=f"{fp['cruise_speed']} kts", inline=True)
 
             if fp.get('etd'):
                 etd = fp['etd']
@@ -194,13 +205,34 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                     wp_str = ' → '.join(wp_names)
                     if len(waypoints) > 5:
                         wp_str += f" (+{len(waypoints) - 5})"
-                    embed.add_field(name=_('Waypoints'), value=wp_str, inline=False)
+                    embed.add_field(name=_('Via'), value=wp_str, inline=False)
 
             if fp.get('remarks'):
                 embed.add_field(name=_('Remarks'), value=fp['remarks'][:200], inline=False)
 
+            # Timestamps section
+            timestamps = []
+            if fp.get('filed_at'):
+                filed = fp['filed_at']
+                if isinstance(filed, datetime):
+                    timestamps.append(f"Filed: {filed.strftime('%H:%M UTC')}")
+            if fp.get('activated_at'):
+                activated = fp['activated_at']
+                if isinstance(activated, datetime):
+                    timestamps.append(f"Activated: {activated.strftime('%H:%M UTC')}")
+            if fp.get('completed_at'):
+                completed = fp['completed_at']
+                if isinstance(completed, datetime):
+                    timestamps.append(f"Completed: {completed.strftime('%H:%M UTC')}")
+            if timestamps:
+                embed.add_field(name=_('Timeline'), value=' | '.join(timestamps), inline=False)
+
+            # Footer with server and update time
+            footer_parts = []
             if fp.get('server_name'):
-                embed.set_footer(text=f"Server: {fp['server_name']}")
+                footer_parts.append(f"Server: {fp['server_name']}")
+            footer_parts.append(f"Updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
+            embed.set_footer(text=' | '.join(footer_parts))
 
             # Check if we should update an existing message
             existing_msg_id = fp.get('discord_message_id')
@@ -210,12 +242,14 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                     await msg.edit(embed=embed)
                     return existing_msg_id
                 except discord.NotFound:
-                    pass
+                    self.log.debug(f"Original message {existing_msg_id} not found, posting new message")
+                except discord.Forbidden:
+                    self.log.warning(f"Cannot edit message {existing_msg_id} - permission denied")
 
             # Send new message
             msg = await channel.send(embed=embed)
 
-            # Store message ID
+            # Store message ID in database
             async with self.apool.connection() as conn:
                 await conn.execute(
                     "UPDATE flightplan_plans SET discord_message_id = %s WHERE id = %s",
@@ -477,6 +511,22 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
             ))
             result = await cursor.fetchone()
             plan_id = result[0]
+
+            # Publish to status channel if configured
+            if config.get('publish_on_file', True):
+                fp_data = {
+                    'id': plan_id,
+                    'player_ucid': player.ucid,
+                    'server_name': server.name,
+                    'callsign': callsign,
+                    'aircraft_type': aircraft,
+                    'departure': dep_wp.name,
+                    'destination': dest_wp.name,
+                    'status': 'filed',
+                    'filed_at': filed_at,
+                    'discord_message_id': None
+                }
+                await self.publish_flight_plan(fp_data, 'filed')
 
         await player.sendChatMessage(
             _("Flight plan #{} filed: {} -> {} ({})").format(
