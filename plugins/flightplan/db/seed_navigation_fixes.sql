@@ -189,6 +189,11 @@ VALUES
     ('VACUK', 'Vacuk', 'WYP', 30.712356, 63.855283, 'Afghanistan', NULL, 'opennav'),
     ('VUSIP', 'Vusip', 'WYP', 31.432222, 66.872222, 'Afghanistan', NULL, 'opennav'),
 
+    -- A453 Airway (Kandahar to Kabul)
+    ('BURTA', 'Burta', 'WYP', 32.625000, 64.441667, 'Afghanistan', NULL, 'skyvector'),
+    ('PATOX', 'Patox', 'WYP', 33.548333, 68.420000, 'Afghanistan', NULL, 'opennav'),
+    ('NOLEX', 'Nolex', 'WYP', 33.867833, 68.660167, 'Afghanistan', NULL, 'skyvector'),
+
     -- Camp Bastion / Helmand Region
     ('BASTN', 'Bastion', 'WYP', 31.8631, 64.2244, 'Afghanistan', NULL, 'user'),
     ('GERSH', 'Gereshk', 'WYP', 31.8167, 64.5667, 'Afghanistan', NULL, 'user'),
