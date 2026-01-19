@@ -20,7 +20,8 @@ from typing import Any, Literal, cast
 
 from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
-                     PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats, AirbasesResponse, AirbaseInfoResponse, AirbaseWarehouseResponse)
+                     PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats, 
+                     AirbasesResponse, AirbaseInfoResponse, AirbaseWarehouseResponse, AirbaseSetWarehouseItemResponse)
 from ..srs.commands import SRS
 
 app: FastAPI | None = None
@@ -119,6 +120,16 @@ class RestAPI(Plugin):
             summary="Airbase Warehouse",
             tags=["Airbase"]
         )
+        
+        self.router.add_api_route(
+            "/airbase/warehouse/item", self.set_warehouse_item,
+            methods=["POST"],
+            response_model=AirbaseSetWarehouseItemResponse,
+            description="Set warehouse item quantity for an airbase on a given server.",
+            summary="Set Quantity of an Airbase Warehouse Item",
+            tags=["Airbase"]
+        )
+        
         ## Info Routes
         self.router.add_api_route(
             "/serverstats", self.serverstats,
@@ -342,6 +353,23 @@ class RestAPI(Plugin):
             "warehouse": airbase_data.get("warehouse", {}),
             "unlimited": airbase_data.get("unlimited", {}),
         }
+    
+    async def set_warehouse_item(self, server_name: str = Query(...), airbase_name: str = Query(...), item: str = Query(...), value: int = Query(...)) -> AirbaseSetWarehouseItemResponse:
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+        await server.send_to_dcs_sync({
+            "command": "setWarehouseItem",
+            "name": airbase_name,
+            "item": item,
+            "value": value
+        }, timeout=60)
+        
+        return AirbaseSetWarehouseItemResponse(
+            item=item,
+            server_name=server_name,
+            value=value
+        )
 
     async def get_ucid(self, nick: str, date: str | datetime | None = None) -> str:
         if date and isinstance(date, str):
