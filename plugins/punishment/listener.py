@@ -23,7 +23,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         self.lock = asyncio.Lock()
         self.active_servers: set[str] = set()
         self.pending_forgiveness: dict[tuple[str, str], list[asyncio.Task]] = {}
-        self.pending_kill: dict[str, tuple[int, str | None, str | None]] = ThreadSafeDict()
+        self.pending_kill: dict[str, tuple[int, str | None, str | None, str | None]] = ThreadSafeDict()
         self.disconnected: dict[str, tuple[int, str | None, str | None]] = {}
 
     async def shutdown(self) -> None:
@@ -56,7 +56,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     if player['id'] == 1:
                         continue
                     if int(player['slot']) > 0:
-                        self.pending_kill[player['ucid']] = (-1, None, None)
+                        self.pending_kill[player['ucid']] = (-1, None, None, None)
         else:
             self.active_servers.discard(server.name)
 
@@ -199,15 +199,21 @@ class PunishmentEventListener(EventListener["Punishment"]):
             asyncio.create_task(self._check_punishment(evt))
 
         elif data['eventName'] == 'disconnect':
-            shot_time, shooter_id, weapon = self.pending_kill.pop(initiator.ucid, (-1, None, None))
+            shot_time, shooter_id, weapon, s_event = self.pending_kill.pop(initiator.ucid, (-1, None, None, None))
+            if not shot_time or shot_time == -1:
+                return
+
             delta_time = int(time.time()) - shot_time
-            if shot_time != -1 and delta_time < config.get('reslot_window', 60):
-                if weapon:
-                    evt['eventName'] = 'reslot'
-                    asyncio.create_task(self._check_punishment(evt))
-                    asyncio.create_task(self._give_kill(server, shooter_id, initiator.ucid, weapon))
-                else:
-                    self.disconnected[initiator.ucid] = (int(time.time()), shooter_id, weapon)
+            if delta_time < config.get('reslot_window', 60):
+                # the kill will be given to the opponent
+                asyncio.create_task(self._give_kill(server, shooter_id, initiator.ucid, weapon))
+            elif s_event == 'S_EVENT_HIT' and delta_time < config.get('survival_window', 300):
+                # reslotting of a damaged plane will be treated as a kill
+                asyncio.create_task(self._give_kill(server, shooter_id, initiator.ucid, weapon))
+            else:
+                return
+            # mark the event for a potential penalty
+            self.disconnected[initiator.ucid] = (int(time.time()), shooter_id, weapon)
 
     async def _send_player_points(self, player: Player):
         points = await self._get_punishment_points(player)
@@ -259,27 +265,28 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
     @event(name="onPlayerConnect")
     async def onPlayerConnect(self, server: Server, data: dict) -> None:
-        if data['ucid'] in self.disconnected:
-            config = self.get_config(server)
-            _time, shooter_id, weapon = self.disconnected.pop(data['ucid'])
-            # we do not punish if the disconnect was longer than reslot_window seconds ago
-            delta_time = int(time.time()) - _time
-            if delta_time > config.get('reslot_window', 60):
-                return
+        if data['ucid'] not in self.disconnected:
+            return
 
-            player = server.get_player(ucid=data['ucid'])
-            evt = {
-                "eventName": "reslot",
-                "server_name": server.name,
-                "initiator": player
-            }
-            asyncio.create_task(self._check_punishment(evt))
-            asyncio.create_task(self._give_kill(server, shooter_id, player.ucid, weapon))
-            admin = self.bot.get_admin_channel(server)
-            if admin:
-                await admin.send(
-                    "```" + _("Player {} ({}) disconnected and reconnected {} seconds after being shot at.").format(
-                        player.name, player.ucid, delta_time) + "```")
+        config = self.get_config(server)
+        _time, shooter_id, weapon = self.disconnected.pop(data['ucid'])
+        # we do not punish if the disconnect was longer than reslot_window seconds ago
+        delta_time = int(time.time()) - _time
+        if delta_time > config.get('reslot_window', 60):
+            return
+
+        player = server.get_player(ucid=data['ucid'])
+        evt = {
+            "eventName": "reslot",
+            "server_name": server.name,
+            "initiator": player
+        }
+        asyncio.create_task(self._check_punishment(evt))
+        admin = self.bot.get_admin_channel(server)
+        if admin:
+            await admin.send(
+                "```" + _("Player {} ({}) disconnected and reconnected {} seconds after being shot at.").format(
+                    player.name, player.ucid, delta_time) + "```")
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
@@ -299,7 +306,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         if (data['eventName'] == 'S_EVENT_BIRTH' and not data.get('place')) or data['eventName'] == 'S_EVENT_TAKEOFF':
             player = server.get_player(name=data.get('initiator', {}).get('name'))
             if player:
-                self.pending_kill[player.ucid] = (-1, None, None)
+                self.pending_kill[player.ucid] = (-1, None, None, None)
 
         elif data['eventName'] in ['S_EVENT_SHOT', 'S_EVENT_HIT']:
             initiator = server.get_player(name=data.get('initiator', {}).get('name'))
@@ -315,7 +322,8 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 self.pending_kill[victim.ucid] = (
                     int(time.time()),
                     initiator.ucid if initiator else None,
-                    data.get('weapon', {}).get('name', 'Gun') if data['eventName'] == 'S_EVENT_HIT' else None
+                    data.get('weapon', {}).get('name', 'Gun'),
+                    data['eventName']
                 )
 
         elif data['eventName'] == 'S_EVENT_LAND':
@@ -334,15 +342,15 @@ class PunishmentEventListener(EventListener["Punishment"]):
             if not player or player.sub_slot > 0:
                 return
 
-            shot_time, shooter_id, weapon = self.pending_kill.pop(player.ucid, (-1, None, None))
+            shot_time, shooter_id, weapon, s_event = self.pending_kill.pop(player.ucid, (-1, None, None, None))
             delta_time = int(time.time()) - shot_time
             # no shot event registered or too old already
             if shot_time == -1:
                 return
 
             # give the kill to the opponent if we were hit earlier or if the shot was shortly before
-            if ((weapon and delta_time < config.get('survival_window', 300)) or
-                    delta_time < config.get('reslot_window', 60)):
+            if ((s_event == 'S_EVENT_SHOT' and delta_time < config.get('reslot_window', 60)) or
+                    (s_event == 'S_EVENT_HIT' and delta_time < config.get('survival_window', 300))):
                 asyncio.create_task(self._give_kill(server, shooter_id, player.ucid, weapon))
 
     @event(name="onPlayerChangeSlot")
@@ -355,26 +363,24 @@ class PunishmentEventListener(EventListener["Punishment"]):
         if not player or player.slot > 0:
             return
 
-        shot_time, shooter_id, weapon = self.pending_kill.pop(player.ucid, (None, None, None))
-        if shot_time is None:
-            # no event registered
+        shot_time, shooter_id, weapon, s_event = self.pending_kill.pop(player.ucid, (None, None, None, None))
+        if shot_time is None or shot_time == -1:
             return
 
         delta_time = int(time.time()) - shot_time
-        if shot_time > 0 and delta_time < config.get('reslot_window', 60):
+        if delta_time < config.get('reslot_window', 60):
             evt = {
                 "eventName": "reslot",
                 "server_name": server.name,
                 "initiator": player
             }
+            # reslotting will be punished
             asyncio.create_task(self._check_punishment(evt))
+            # and the kill will be given to the opponent
             asyncio.create_task(self._give_kill(server, shooter_id, player.ucid, weapon))
-        else:
-            # we will not punish reslotting before landing for now but report them
-            channel_id = server.channels[Channel.EVENTS]
-            channel = self.bot.get_channel(channel_id)
-            if channel:
-                await channel.send("```" + _("Player {} reslotted before landing.").format(player.name) + "```")
+        elif s_event == 'S_EVENT_HIT' and delta_time < config.get('survival_window', 300):
+            # reslotting of a damaged plane will be treated as a kill
+            asyncio.create_task(self._give_kill(server, shooter_id, player.ucid, weapon))
 
     @chat_command(name="forgive", help=_("forgive another user for their infraction"))
     async def forgive(self, server: Server, player: Player, _params: list[str]):

@@ -120,19 +120,24 @@ Decay can only be configured once, so there is no need for a server-specific con
 > ```
 > After that, every new punishment will decay, according to your new decay function.
 
-## Crash Handling
+## Crash / Ejection Handling
 A common issue of DCS World PvP is that players do not get kills if others crash or eject after being shot at.
 DCSServerBot fixes this. If you got shot at and crash or eject in `reslot_window` seconds afterwards, 
-the opponent will get the kill. If you got hit and crash or eject later, the opponent will get the kill also.
+the opponent will get the kill. 
+If you got hit and crash or eject in-between `survival_window` seconds, the opponent will get the kill also.
 
-## Reslot Handling
+## Reslot / Disconnect Handling
 When a player reslots or disconnects in the middle of an engagement (they got shot at or even hit), the plugin will
 treat these incidents according to the probability of kill.<br>
 The current implementation is like so:
-- If you reslot in-between 60 seconds after being shot at or even hit, you get punished with a `reslot` event. 
-  The opponent will get the kill.
-- If you disconnect and reconnect in-between 60 seconds after being shot at, you get punished with a reslot event and  
-  the opponent will get the kill.
+- If you reslot in-between `reslot_window` seconds after being shot at or hit, you get punished with a `reslot` event. 
+  The kill will be given to the opponent.
+- If you reslot in-between `survival_window` seconds after being hit, you will not get punished but the opponent will
+  get the kill.
+- If you disconnect in-between `reslot_window` seconds after being shot at or in-between `survival_window` seconds 
+  after being hit, the opponent will get the kill.
+- If you then re-connect again in-between `reslot_window` seconds after diconnecting, you get also punished with a 
+  reslot event.
 
 | Condition                                                                         | Decision                                                                                                                                    |
 |-----------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
