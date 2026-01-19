@@ -6,11 +6,14 @@ local base      = _G
 local dcsbot    = base.dcsbot
 local utils     = base.require("DCSServerBotUtils")
 
-local flightplan = {}
+log.write('DCSServerBot', log.INFO, 'FlightPlan: callbacks.lua loading...')
+
+local flightplan = flightplan or {}
 
 -- Called on mission load to register our mission.lua
 function flightplan.onMissionLoadEnd()
-    log.write('DCSServerBot', log.DEBUG, 'FlightPlan: onMissionLoadEnd()')
+    log.write('DCSServerBot', log.INFO, 'FlightPlan: onMissionLoadEnd() called')
+    utils.loadScript('DCSServerBot.lua')
     utils.loadScript('flightplan/mission.lua')
 end
 
