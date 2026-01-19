@@ -809,3 +809,19 @@ class AirbaseWarehouseResponse(BaseModel):
             }
         }
     }
+    
+class AirbaseSetWarehouseItemResponse(BaseModel):
+        
+    item: str = Field(..., description="Warehouse item name")
+    server_name: str = Field(..., description="Server name")
+    value: int = Field(..., description="Quantity value")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "item": "weapons.bombs.GBU_38",
+                "value": 50,
+                "server_name": "Server Name"
+            }
+        }
+    }
