@@ -623,7 +623,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
                     'filed_at': filed_at,
                     'discord_message_id': None
                 }
-                await self.listener.publish_flight_plan(fp_data, 'filed')
+                await self.eventlistener.publish_flight_plan(fp_data, 'filed')
 
         embed = discord.Embed(
             title=_('Flight Plan Filed'),
@@ -795,12 +795,12 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
         if server_name:
             server = self.bot.servers.get(server_name)
             if server and server.status == Status.RUNNING:
-                await self.listener.create_flight_plan_markers(server, fp)
+                await self.eventlistener.create_flight_plan_markers(server, fp)
 
         # Publish to Discord if configured
         config = self.get_config()
         if config.get('publish_on_activate', True):
-            await self.listener.publish_flight_plan(fp, 'activated')
+            await self.eventlistener.publish_flight_plan(fp, 'activated')
 
         embed = discord.Embed(
             title=_('Flight Plan Activated'),
@@ -854,10 +854,10 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
         if server_name:
             server = self.bot.servers.get(server_name)
             if server and server.status == Status.RUNNING:
-                await self.listener.remove_flight_plan_markers(server, plan)
+                await self.eventlistener.remove_flight_plan_markers(server, plan)
 
         # Update Discord message if published
-        await self.listener.publish_flight_plan(fp, 'completed')
+        await self.eventlistener.publish_flight_plan(fp, 'completed')
 
         embed = discord.Embed(
             title=_('Flight Plan Completed'),
@@ -910,10 +910,10 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
         if server_name:
             server = self.bot.servers.get(server_name)
             if server and server.status == Status.RUNNING:
-                await self.listener.remove_flight_plan_markers(server, plan)
+                await self.eventlistener.remove_flight_plan_markers(server, plan)
 
         # Update Discord message if published
-        await self.listener.publish_flight_plan(fp, 'cancelled')
+        await self.eventlistener.publish_flight_plan(fp, 'cancelled')
 
         embed = discord.Embed(
             title=_('Flight Plan Cancelled'),
@@ -960,7 +960,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
             await interaction.followup.send(_('Server is not running!'), ephemeral=True)
             return
 
-        await self.listener.create_flight_plan_markers(server, fp, timeout=duration)
+        await self.eventlistener.create_flight_plan_markers(server, fp, timeout=duration)
 
         if duration > 0:
             msg = _('Flight plan #{} plotted on F10 map for {} seconds.').format(plan, duration)
@@ -1001,7 +1001,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
             )
             return
 
-        await self.listener.publish_flight_plan(fp, fp['status'])
+        await self.eventlistener.publish_flight_plan(fp, fp['status'])
 
         embed = discord.Embed(
             title=_('Flight Plan Published'),
@@ -1037,7 +1037,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
             if server_name:
                 server = self.bot.servers.get(server_name)
                 if server and server.status == Status.RUNNING:
-                    await self.listener.remove_flight_plan_markers(server, plan_id)
+                    await self.eventlistener.remove_flight_plan_markers(server, plan_id)
 
         embed = discord.Embed(
             title=_('Stale Plans Cancelled'),

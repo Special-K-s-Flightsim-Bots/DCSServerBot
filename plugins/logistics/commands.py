@@ -202,7 +202,7 @@ class Logistics(Plugin[LogisticsEventListener]):
                     'created_at': now,
                     'discord_message_id': None
                 }
-                await self.listener.publish_logistics_task(task_data, 'approved')
+                await self.eventlistener.publish_logistics_task(task_data, 'approved')
 
         # Markers are created when a player accepts the task or uses -plot command
 
@@ -450,7 +450,7 @@ class Logistics(Plugin[LogisticsEventListener]):
                     break
 
             if dest_pos:
-                await self.listener._create_markers_for_task(server, {
+                await self.eventlistener._create_markers_for_task(server, {
                     'id': task_id,
                     'cargo_type': task[5],
                     'source_name': final_source,
@@ -559,12 +559,12 @@ class Logistics(Plugin[LogisticsEventListener]):
         # Remove markers
         server = self.bot.servers.get(task[0])
         if server:
-            await self.listener._remove_task_markers(server, task_id)
+            await self.eventlistener._remove_task_markers(server, task_id)
 
             # Publish cancellation to status channel
             config = self.get_config(server)
             if config.get('publish_on_cancel', True):
-                await self.listener.publish_logistics_task({
+                await self.eventlistener.publish_logistics_task({
                     'id': task_id,
                     'cargo_type': task[1],
                     'source_name': task[2],
