@@ -1,5 +1,5 @@
 -- Comprehensive Navigation Fixes Seed Data for Flight Plan Plugin
--- Sources: OpenNav, SkyVector, user-provided coordinates
+-- Sources: OpenNav, SkyVector, OpenAIP API, user-provided coordinates
 -- Last updated: 2026-01-19
 
 -- ============================================================================
@@ -19,6 +19,13 @@ VALUES
     ('TB', 'Tbilisi NDB', 'NDB', 41.6697, 44.9536, 'Caucasus', '342', 'furia'),
     ('SN', 'Senaki NDB', 'NDB', 42.2397, 42.0475, 'Caucasus', '335', 'furia'),
     ('SO', 'Sochi NDB', 'NDB', 43.4500, 39.9500, 'Caucasus', '289', 'furia'),
+
+    -- Additional VORs/NDBs from OpenAIP API
+    ('BKU', 'Bakuriani VOR', 'VOR', 43.54, 41.69, 'Caucasus', '110.60', 'openaip'),
+    ('GUD', 'Gudauri NDB', 'NDB', 44.50, 42.49, 'Caucasus', '110.80', 'openaip'),
+    ('GRM', 'Gyumri VOR', 'VOR', 43.85, 40.73, 'Caucasus', '113.40', 'openaip'),
+    ('GNV', 'Gelendzhik VOR', 'VOR', 38.01, 44.57, 'Caucasus', '114.30', 'openaip'),
+    ('KND', 'Krasnodar VOR', 'VOR', 39.16, 45.02, 'Caucasus', '115.80', 'openaip'),
 
     -- Georgia Waypoints (from OpenNav)
     ('AKAKI', 'Akaki', 'WYP', 41.7578, 41.3714, 'Caucasus', NULL, 'opennav'),
@@ -104,6 +111,13 @@ VALUES
     ('PHA', 'Paphos VOR', 'VOR', 34.7178, 32.4856, 'Syria', '113.70', 'openaip'),
     ('NIC', 'Nicosia VOR', 'VOR', 35.1500, 33.2833, 'Syria', '116.50', 'openaip'),
     ('BEY', 'Beirut VOR', 'VOR', 33.8208, 35.4883, 'Syria', '112.60', 'openaip'),
+
+    -- Turkey VORs/NDBs from OpenAIP API (relevant to Syria theater)
+    ('ADA', 'Adana VOR/DME', 'VOR', 35.2103, 36.9406, 'Syria', '112.70', 'openaip'),
+    ('ADN', 'Adana NDB', 'NDB', 35.2617, 36.9708, 'Syria', '395', 'openaip'),
+    ('CKR', 'Cukurova VOR/DME', 'VOR', 35.0683, 36.8842, 'Syria', '113.70', 'openaip'),
+    ('HTY', 'Hatay VOR/DME', 'VOR', 36.2903, 36.3631, 'Syria', '112.05', 'openaip'),
+    ('GAZ', 'Gaziantep VOR/DME', 'VOR', 37.4731, 36.9514, 'Syria', '116.70', 'openaip'),
 
     -- Syria Waypoints (from OpenNav)
     ('ABBAS', 'Abbas', 'WYP', 33.4333, 37.7250, 'Syria', NULL, 'opennav'),
@@ -237,6 +251,21 @@ VALUES
     ('BND', 'Bandar Abbas VOR', 'VOR', 27.2183, 56.3778, 'PersianGulf', '115.50', 'openaip'),
     ('KIS', 'Kish VOR', 'VOR', 26.5269, 53.9803, 'PersianGulf', '112.00', 'openaip'),
     ('MCT', 'Muscat VOR', 'VOR', 23.5933, 58.2844, 'PersianGulf', '113.10', 'openaip'),
+
+    -- Additional VORs/NDBs from OpenAIP API
+    ('ADV', 'Abu Dhabi VOR/DME', 'VOR', 24.4190, 54.6733, 'PersianGulf', '114.25', 'openaip'),
+    ('ABM', 'Abumusa Island VOR', 'VOR', 25.8780, 55.0228, 'PersianGulf', '115.40', 'openaip'),
+    ('ALA', 'Al Ain VOR/DME', 'VOR', 24.2820, 55.6148, 'PersianGulf', '115.90', 'openaip'),
+    ('ALB', 'Al Bateen VOR', 'VOR', 24.4387, 54.4463, 'PersianGulf', '114.00', 'openaip'),
+    ('ALD', 'Al Udaid VOR', 'VOR', 25.0928, 51.3259, 'PersianGulf', '115.20', 'openaip'),
+    ('BAM', 'Bam VOR', 'VOR', 29.0775, 58.4583, 'PersianGulf', '114.90', 'openaip'),
+    ('LEN', 'Bandar Lengeh VOR', 'VOR', 26.5361, 54.8512, 'PersianGulf', '114.80', 'openaip'),
+    ('BAT', 'Batha VOR/DME', 'VOR', 24.2158, 51.4519, 'PersianGulf', '113.40', 'openaip'),
+    ('DIA', 'Doha VOR/DME', 'VOR', 25.2340, 51.5770, 'PersianGulf', '112.40', 'openaip'),
+    ('DOH', 'Doha/Hamad VOR/DME', 'VOR', 25.2499, 51.6097, 'PersianGulf', '114.40', 'openaip'),
+    ('FJV', 'Fujairah VOR/DME', 'VOR', 25.1007, 56.3546, 'PersianGulf', '113.80', 'openaip'),
+    ('KHM', 'Gheshm Island VOR', 'VOR', 26.7631, 55.9077, 'PersianGulf', '117.10', 'openaip'),
+    ('SIR', 'Sirri Island VOR/DME', 'VOR', 25.9146, 54.5351, 'PersianGulf', '113.75', 'openaip'),
 
     -- UAE Waypoints (from OpenNav) - key ones for the region
     ('ALPEK', 'Alpek', 'WYP', 22.7800, 53.9950, 'PersianGulf', NULL, 'opennav'),
@@ -531,6 +560,8 @@ VALUES
     ('JBD', 'Jalalabad NDB', 'NDB', 34.3997, 70.4986, 'Afghanistan', '355', 'airnav'),
     ('BGM', 'Bagram NDB', 'NDB', 34.9461, 69.2650, 'Afghanistan', '290', 'airnav'),
     ('SGA', 'Shindand NDB', 'NDB', 33.3913, 62.2610, 'Afghanistan', '386', 'airnav'),
+    ('ASD', 'Shindand VOR', 'VOR', 33.3906, 62.2628, 'Afghanistan', '111.10', 'openaip'),
+    ('AHR', 'Herat VOR/DME', 'VOR', 34.2069, 62.2328, 'Afghanistan', '116.20', 'openaip'),
 
     -- Pakistan Border Region
     ('ISB', 'Islamabad VOR', 'VOR', 33.6167, 73.0992, 'Afghanistan', '115.10', 'airnav'),
