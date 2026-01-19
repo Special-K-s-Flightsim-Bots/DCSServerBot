@@ -4,6 +4,13 @@ schema;element_schema:
   nullable: false
   mapping:
     enabled: {type: bool, nullable: false}
+    status_channel: {type: any, nullable: true}
+    publish_on_create: {type: bool, nullable: true}
+    publish_on_assign: {type: bool, nullable: true}
+    publish_on_complete: {type: bool, nullable: true}
+    publish_on_abandon: {type: bool, nullable: true}
+    publish_on_cancel: {type: bool, nullable: true}
+    marker_timeout: {type: int, nullable: true}
     delivery:
       type: map
       nullable: true
