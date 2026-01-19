@@ -124,7 +124,7 @@ ON CONFLICT (identifier, map_theater) DO UPDATE SET
     source = EXCLUDED.source;
 
 -- Afghanistan Theater - Common Fixes
--- Based on real-world Afghan airways and navaids
+-- Based on real-world Afghan airways and navaids from OpenNav database
 INSERT INTO flightplan_navigation_fixes (identifier, name, fix_type, latitude, longitude, map_theater, frequency, source)
 VALUES
     -- Major Afghan VORs/NDBs
@@ -142,28 +142,59 @@ VALUES
     ('MUX', 'Multan VOR', 'VOR', 30.2033, 71.4192, 'Afghanistan', '114.10', 'airnav'),
     ('PSN', 'Peshawar NDB', 'NDB', 33.9939, 71.5147, 'Afghanistan', '365', 'airnav'),
 
-    -- Airway G202 Waypoints (Kandahar to Kabul route)
-    ('NABID', 'Nabid', 'WYP', 32.0000, 66.5000, 'Afghanistan', NULL, 'airnav'),
-    ('DOLAN', 'Dolan', 'WYP', 32.5000, 67.0000, 'Afghanistan', NULL, 'airnav'),
-    ('GURMA', 'Gurma', 'WYP', 33.0000, 67.5000, 'Afghanistan', NULL, 'airnav'),
-    ('TAKAM', 'Takam', 'WYP', 33.5000, 68.0000, 'Afghanistan', NULL, 'airnav'),
-    ('LURAN', 'Luran', 'WYP', 34.0000, 68.5000, 'Afghanistan', NULL, 'airnav'),
-
-    -- Airway A466 Waypoints
-    ('PASAB', 'Pasab', 'WYP', 31.6667, 65.2500, 'Afghanistan', NULL, 'airnav'),
-    ('TUGAB', 'Tugab', 'WYP', 32.1667, 64.5000, 'Afghanistan', NULL, 'airnav'),
-    ('DALBA', 'Dalba', 'WYP', 32.5000, 64.0000, 'Afghanistan', NULL, 'airnav'),
-
-    -- Airway B466 Waypoints (to Bagram)
-    ('OQBAN', 'Oqban', 'WYP', 34.7500, 69.3000, 'Afghanistan', NULL, 'airnav'),
-    ('SOKMA', 'Sokma', 'WYP', 35.0000, 68.8000, 'Afghanistan', NULL, 'airnav'),
+    -- Kandahar/Helmand Region RNAV Waypoints (from OpenNav)
+    ('AKOGE', 'Akoge', 'WYP', 31.520442, 65.872261, 'Afghanistan', NULL, 'opennav'),
+    ('ASLUM', 'Aslum', 'WYP', 31.016667, 66.616667, 'Afghanistan', NULL, 'opennav'),
+    ('BAGNI', 'Bagni', 'WYP', 32.625000, 64.441667, 'Afghanistan', NULL, 'opennav'),
+    ('BENUL', 'Benul', 'WYP', 31.564589, 65.943292, 'Afghanistan', NULL, 'opennav'),
+    ('CANUP', 'Canup', 'WYP', 31.725094, 66.217125, 'Afghanistan', NULL, 'opennav'),
+    ('CEGAT', 'Cegat', 'WYP', 31.452764, 65.750556, 'Afghanistan', NULL, 'opennav'),
+    ('CEKAS', 'Cekas', 'WYP', 31.571181, 65.957819, 'Afghanistan', NULL, 'opennav'),
+    ('CODIX', 'Codix', 'WYP', 31.440472, 65.737697, 'Afghanistan', NULL, 'opennav'),
+    ('DANOD', 'Danod', 'WYP', 32.407936, 62.010908, 'Afghanistan', NULL, 'opennav'),
+    ('DARUS', 'Darus', 'WYP', 32.295556, 66.126944, 'Afghanistan', NULL, 'opennav'),
+    ('DILAM', 'Dilam', 'WYP', 32.175000, 63.400000, 'Afghanistan', NULL, 'opennav'),
+    ('DIRT', 'Dirt', 'WYP', 31.090333, 65.170833, 'Afghanistan', NULL, 'opennav'),
+    ('DOLAN', 'Dolan', 'WYP', 31.841667, 64.650000, 'Afghanistan', NULL, 'opennav'),
+    ('DOVKE', 'Dovke', 'WYP', 31.627956, 66.054303, 'Afghanistan', NULL, 'opennav'),
+    ('DUPUG', 'Dupug', 'WYP', 31.295931, 65.473381, 'Afghanistan', NULL, 'opennav'),
+    ('ELEKO', 'Eleko', 'WYP', 30.334733, 66.145833, 'Afghanistan', NULL, 'opennav'),
+    ('EMAVO', 'Emavo', 'WYP', 31.492069, 65.824078, 'Afghanistan', NULL, 'opennav'),
+    ('EMEKU', 'Emeku', 'WYP', 31.347661, 65.992350, 'Afghanistan', NULL, 'opennav'),
+    ('EMERO', 'Emero', 'WYP', 30.239967, 65.105139, 'Afghanistan', NULL, 'opennav'),
+    ('FALOD', 'Falod', 'WYP', 31.383203, 65.641894, 'Afghanistan', NULL, 'opennav'),
+    ('FARAH', 'Farah', 'WYP', 32.366667, 62.158333, 'Afghanistan', NULL, 'opennav'),
+    ('HAKER', 'Haker', 'WYP', 31.731006, 66.212233, 'Afghanistan', NULL, 'opennav'),
+    ('HHOOT', 'Hhoot', 'WYP', 31.561503, 65.941444, 'Afghanistan', NULL, 'opennav'),
+    ('HIWY2', 'Hiwy2', 'WYP', 31.900000, 65.485278, 'Afghanistan', NULL, 'opennav'),
+    ('IMENO', 'Imeno', 'WYP', 31.623389, 66.038103, 'Afghanistan', NULL, 'opennav'),
+    ('JATON', 'Jaton', 'WYP', 31.396400, 65.652625, 'Afghanistan', NULL, 'opennav'),
+    ('KIRAT', 'Kirat', 'WYP', 30.665000, 64.910278, 'Afghanistan', NULL, 'opennav'),
+    ('KUNAN', 'Kunan', 'WYP', 32.059444, 66.607500, 'Afghanistan', NULL, 'opennav'),
+    ('LABUS', 'Labus', 'WYP', 33.386667, 62.250000, 'Afghanistan', NULL, 'opennav'),
+    ('LOVIT', 'Lovit', 'WYP', 31.151111, 65.007222, 'Afghanistan', NULL, 'opennav'),
+    ('MAXIN', 'Maxin', 'WYP', 32.775000, 67.450000, 'Afghanistan', NULL, 'opennav'),
+    ('NABID', 'Nabid', 'WYP', 31.747778, 64.974167, 'Afghanistan', NULL, 'opennav'),
+    ('NABKA', 'Nabka', 'WYP', 31.483267, 62.851922, 'Afghanistan', NULL, 'opennav'),
+    ('OYLER', 'Oyler', 'WYP', 31.618550, 66.037703, 'Afghanistan', NULL, 'opennav'),
+    ('PAROD', 'Parod', 'WYP', 31.483333, 65.900000, 'Afghanistan', NULL, 'opennav'),
+    ('PRKWY', 'Prkwy', 'WYP', 31.524667, 66.448500, 'Afghanistan', NULL, 'opennav'),
+    ('R1264', 'R1264', 'WYP', 31.497642, 65.833969, 'Afghanistan', NULL, 'opennav'),
+    ('R1266', 'R1266', 'WYP', 31.514108, 65.861631, 'Afghanistan', NULL, 'opennav'),
+    ('RIKAD', 'Rikad', 'WYP', 33.461667, 66.458333, 'Afghanistan', NULL, 'opennav'),
+    ('SIGSI', 'Sigsi', 'WYP', 31.091667, 61.883333, 'Afghanistan', NULL, 'opennav'),
+    ('SODAS', 'Sodas', 'WYP', 30.660556, 66.067222, 'Afghanistan', NULL, 'opennav'),
+    ('TOTSI', 'Totsi', 'WYP', 32.038889, 65.170278, 'Afghanistan', NULL, 'opennav'),
+    ('ULOSA', 'Ulosa', 'WYP', 30.752500, 65.429722, 'Afghanistan', NULL, 'opennav'),
+    ('VACUK', 'Vacuk', 'WYP', 30.712356, 63.855283, 'Afghanistan', NULL, 'opennav'),
+    ('VUSIP', 'Vusip', 'WYP', 31.432222, 66.872222, 'Afghanistan', NULL, 'opennav'),
 
     -- Camp Bastion / Helmand Region
     ('BASTN', 'Bastion', 'WYP', 31.8631, 64.2244, 'Afghanistan', NULL, 'user'),
     ('GERSH', 'Gereshk', 'WYP', 31.8167, 64.5667, 'Afghanistan', NULL, 'user'),
     ('LASHR', 'Lashkar Gah', 'WYP', 31.5939, 64.3700, 'Afghanistan', NULL, 'user'),
 
-    -- Approach Fixes
+    -- Approach Fixes / Airport Identifiers
     ('OAKN', 'Kandahar Intl', 'WYP', 31.5058, 65.8478, 'Afghanistan', NULL, 'user'),
     ('OAZI', 'Camp Bastion', 'WYP', 31.8631, 64.2244, 'Afghanistan', NULL, 'user'),
     ('OAIX', 'Bagram AB', 'WYP', 34.9461, 69.2650, 'Afghanistan', NULL, 'user'),
