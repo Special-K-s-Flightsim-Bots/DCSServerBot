@@ -44,6 +44,7 @@ class Player(DataObject):
     _watchlist: bool = field(compare=False, default=False)
     _vip: bool = field(compare=False, default=False)
     bot: DCSServerBot = field(compare=False, init=False)
+    pending: bool = field(compare=False, default=False)
 
     @override
     def __post_init__(self):
@@ -203,8 +204,10 @@ class Player(DataObject):
                     self.unit_id = data['unit_id']
                 if 'unit_name' in data:
                     self.unit_name = data['unit_name']
-                if 'unit_type' in data:
+                if 'unit_type' in data and data['unit_type'] != self.unit_type:
                     self.unit_type = data['unit_type']
+                    # we changed the slot in the slot menu, but we are not in the plane yet
+                    self.pending = True
                 if 'group_name' in data:
                     self.group_name = data['group_name']
                 if 'group_id' in data:

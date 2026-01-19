@@ -242,7 +242,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                                        (server.mission_id, target_id))
 
         # inform players
-        side = Side.RED if victim.side == Side.BLUE else Side.RED
+        side = Side.RED if initiator.side == Side.BLUE else Side.RED
         message = MissionEventListener.EVENT_TEXTS[side]['kill'].format(
             ('player ' + initiator.name) if initiator is not None else 'AI',
             initiator.unit_type if initiator else 'unknown',

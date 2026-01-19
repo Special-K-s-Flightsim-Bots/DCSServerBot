@@ -930,6 +930,9 @@ class MissionEventListener(EventListener["Mission"]):
             if not player:
                 return
 
+            # remove pending
+            player.pending = False
+
             # Send ATIS information (if configured)
             place = data.get('place', {}).get('name')
             if place and server.locals.get('show_atis', False):
