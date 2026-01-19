@@ -21,3 +21,4 @@ Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 /.emmyrc.json
 .copilot-docs/*
 reference/
+CLAUDE.md
