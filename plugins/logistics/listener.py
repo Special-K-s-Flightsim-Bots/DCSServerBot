@@ -355,51 +355,74 @@ class LogisticsEventListener(EventListener["Logistics"]):
             return None
 
     async def _assign_task(self, server: Server, player: Player, task_id: int) -> dict:
-        """Assign a task to a player."""
-        async with self.apool.connection() as conn:
-            # Check if task is available
-            cursor = await conn.execute("""
-                SELECT id, cargo_type, source_name, destination_name, deadline, coalition
-                FROM logistics_tasks
-                WHERE id = %s AND server_name = %s AND status = 'approved'
-            """, (task_id, server.name))
-            task = await cursor.fetchone()
+        """Assign a task to a player.
 
-            if not task:
-                return {'success': False, 'error': 'Task not found or not available'}
+        Uses SELECT FOR UPDATE to prevent TOCTOU race conditions where two players
+        could potentially be assigned the same task simultaneously.
+        """
+        from psycopg.errors import LockNotAvailable
 
-            if task[5] != player.coalition:
-                return {'success': False, 'error': 'Task is for a different coalition'}
+        try:
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    # Lock the task row and verify it's still available
+                    # FOR UPDATE NOWAIT will raise an error if another transaction has the lock
+                    cursor = await conn.execute("""
+                        SELECT id, cargo_type, source_name, destination_name, deadline, coalition
+                        FROM logistics_tasks
+                        WHERE id = %s AND server_name = %s AND status = 'approved'
+                        FOR UPDATE NOWAIT
+                    """, (task_id, server.name))
+                    task = await cursor.fetchone()
 
-            # Check if player already has a task
-            existing = await self._get_assigned_task(player.ucid, server.name)
-            if existing:
-                return {'success': False, 'error': f'You already have task #{existing["id"]} assigned'}
+                    if not task:
+                        return {'success': False, 'error': 'Task not found or not available'}
 
-            # Assign the task
-            now = datetime.now(timezone.utc)
-            await conn.execute("""
-                UPDATE logistics_tasks
-                SET assigned_ucid = %s, assigned_at = %s, status = 'assigned', updated_at = %s
-                WHERE id = %s
-            """, (player.ucid, now, now, task_id))
+                    if task[5] != player.coalition:
+                        return {'success': False, 'error': 'Task is for a different coalition'}
 
-            # Record history
-            await conn.execute("""
-                INSERT INTO logistics_tasks_history (task_id, event, actor_ucid, details)
-                VALUES (%s, 'assigned', %s, %s)
-            """, (task_id, player.ucid, '{"action": "player_accepted"}'))
+                    # Check if player already has a task (also lock to prevent race)
+                    cursor = await conn.execute("""
+                        SELECT id FROM logistics_tasks
+                        WHERE assigned_ucid = %s AND server_name = %s
+                        AND status IN ('assigned', 'in_progress')
+                        FOR UPDATE NOWAIT
+                    """, (player.ucid, server.name))
+                    existing = await cursor.fetchone()
+                    if existing:
+                        return {'success': False, 'error': f'You already have task #{existing[0]} assigned'}
 
-            # Update markers with pilot name
+                    # Now safe to assign the task - within the same transaction
+                    now = datetime.now(timezone.utc)
+                    await conn.execute("""
+                        UPDATE logistics_tasks
+                        SET assigned_ucid = %s, assigned_at = %s, status = 'assigned', updated_at = %s
+                        WHERE id = %s
+                    """, (player.ucid, now, now, task_id))
+
+                    # Record history
+                    await conn.execute("""
+                        INSERT INTO logistics_tasks_history (task_id, event, actor_ucid, details)
+                        VALUES (%s, 'assigned', %s, %s)
+                    """, (task_id, player.ucid, '{"action": "player_accepted"}'))
+
+                    # Store task info for return before exiting transaction
+                    task_info = {
+                        'success': True,
+                        'cargo': task[1],
+                        'source': task[2],
+                        'destination': task[3],
+                        'deadline': task[4].strftime('%H:%MZ') if task[4] else None
+                    }
+
+            # Update markers outside the transaction (non-critical operation)
             await self._update_markers_with_pilot(server, task_id, player.name)
 
-            return {
-                'success': True,
-                'cargo': task[1],
-                'source': task[2],
-                'destination': task[3],
-                'deadline': task[4].strftime('%H:%MZ') if task[4] else None
-            }
+            return task_info
+
+        except LockNotAvailable:
+            # Another transaction is currently assigning this task
+            return {'success': False, 'error': 'Task is currently being assigned to another player, please try again'}
 
     async def _complete_task(self, server: Server, player: Player, task_id: int) -> dict:
         """Complete a logistics task."""
