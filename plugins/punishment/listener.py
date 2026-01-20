@@ -240,42 +240,45 @@ class PunishmentEventListener(EventListener["Punishment"]):
         victim = server.get_player(ucid=target_id)
 
         # update the database
-        self.log.debug("### _give_kill() - update database")
-        mission = cast(Mission, self.bot.cogs.get('Mission'))
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                if initiator:
-                    # give PvP kill
-                    await conn.execute(UserStatisticsEventListener.SQL_EVENT_UPDATES['pvp_planes'],
-                                       (server.mission_id, init_id))
-                if victim:
-                    # count deaths
-                    await conn.execute(UserStatisticsEventListener.SQL_EVENT_UPDATES['deaths_pvp_planes'],
-                                       (server.mission_id, target_id))
-        self.log.debug("### _give_kill() - database updated, inform players")
+        try:
+            self.log.debug("### _give_kill() - update database")
+            mission = cast(Mission, self.bot.cogs.get('Mission'))
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    if initiator:
+                        # give PvP kill
+                        await conn.execute(UserStatisticsEventListener.SQL_EVENT_UPDATES['pvp_planes'],
+                                           (server.mission_id, init_id))
+                    if victim:
+                        # count deaths
+                        await conn.execute(UserStatisticsEventListener.SQL_EVENT_UPDATES['deaths_pvp_planes'],
+                                           (server.mission_id, target_id))
+            self.log.debug("### _give_kill() - database updated, inform players")
 
-        # inform players
-        message = MissionEventListener.EVENT_TEXTS[initiator.side]['kill'].format(
-            ('player ' + initiator.name) if initiator is not None else 'AI',
-            initiator.unit_type if initiator else 'unknown',
-            victim.side.name,
-            'player ' + victim.name,
-            victim.unit_type,
-            weapon or "the reslot-hammer"
-        )
-        mission.eventlistener.send_dcs_event(server, initiator.side, message)
-        self.log.debug("### _give_kill() - message to event channel sent")
-        message = "{} {} in {} killed {} {} in {} with {}.".format(
-            initiator.side.name,
-            ('player ' + initiator.name) if initiator is not None else 'AI',
-            initiator.unit_type if initiator else 'unknown',
-            victim.side.name,
-            'player ' + victim.name,
-            victim.unit_type,
-            weapon or "the reslot-hammer"
-        )
-        asyncio.create_task(server.sendChatMessage(Coalition.ALL, message))
-        self.log.debug("### _give_kill() - chat message sent")
+            # inform players
+            message = MissionEventListener.EVENT_TEXTS[initiator.side]['kill'].format(
+                ('player ' + initiator.name) if initiator is not None else 'AI',
+                initiator.unit_type if initiator else 'unknown',
+                victim.side.name,
+                'player ' + victim.name,
+                victim.unit_type,
+                weapon or "the reslot-hammer"
+            )
+            mission.eventlistener.send_dcs_event(server, initiator.side, message)
+            self.log.debug("### _give_kill() - message to event channel sent")
+            message = "{} {} in {} killed {} {} in {} with {}.".format(
+                initiator.side.name,
+                ('player ' + initiator.name) if initiator is not None else 'AI',
+                initiator.unit_type if initiator else 'unknown',
+                victim.side.name,
+                'player ' + victim.name,
+                victim.unit_type,
+                weapon or "the reslot-hammer"
+            )
+            asyncio.create_task(server.sendChatMessage(Coalition.ALL, message))
+            self.log.debug("### _give_kill() - chat message sent")
+        except Exception as ex:
+            self.log.exception(ex)
 
     @event(name="onPlayerConnect")
     async def onPlayerConnect(self, server: Server, data: dict) -> None:
