@@ -10,7 +10,7 @@ schema;element_schema:
   func: is_element
   nullable: false
   mapping:
-    enabled: {type: bool, nullable: false}
+    enabled: {type: bool, nullable: true}
     status_channel: {type: any, nullable: true}
     publish_on_file: {type: bool, nullable: true}
     publish_on_activate: {type: bool, nullable: true}
