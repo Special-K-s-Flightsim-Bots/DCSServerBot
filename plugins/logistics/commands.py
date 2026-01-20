@@ -86,13 +86,13 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     @logistics.command(description='Create a new logistics task')
     @app_commands.guild_only()
-    @utils.app_has_roles(['DCS Admin', 'Logistics Officer'])
+    @utils.app_has_role('DCS')
     @app_commands.rename(source_idx='source', dest_idx='destination')
     @app_commands.describe(source_idx='Pickup location (airbase/FARP/carrier)')
     @app_commands.describe(dest_idx='Delivery location')
     @app_commands.autocomplete(source_idx=utils.airbase_autocomplete, dest_idx=utils.airbase_autocomplete)
     async def create(self, interaction: discord.Interaction,
-                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                     server: app_commands.Transform[Server, utils.ServerTransformer],
                      source_idx: int,
                      dest_idx: int,
                      cargo: str,
@@ -163,7 +163,7 @@ class Logistics(Plugin[LogisticsEventListener]):
                 RETURNING id
             """, (
                 server.name,
-                'ADMIN',  # Created by admin, not player UCID
+                None,  # NULL for admin-created tasks (no player UCID)
                 priority,
                 cargo,
                 source,
@@ -186,19 +186,25 @@ class Logistics(Plugin[LogisticsEventListener]):
                 VALUES (%s, 'created', %s, %s)
             """, (task_id, interaction.user.id, '{"source": "discord_admin", "auto_approved": true}'))
 
-        # Create markers
-        if source_position and dest_position:
-            await self.eventlistener._create_markers_for_task(server, {
-                'id': task_id,
-                'cargo_type': cargo,
-                'source_name': source,
-                'source_position': source_position,
-                'destination_name': destination,
-                'destination_position': dest_position,
-                'coalition': coalition_id,
-                'deadline': deadline_dt,
-                'assigned_name': None
-            })
+            # Publish to status channel if configured
+            config = self.get_config(server)
+            if config.get('publish_on_create', True):
+                task_data = {
+                    'id': task_id,
+                    'server_name': server.name,
+                    'cargo_type': cargo,
+                    'source_name': source,
+                    'destination_name': destination,
+                    'priority': priority,
+                    'coalition': coalition_id,
+                    'deadline': deadline_dt,
+                    'status': 'approved',
+                    'created_at': now,
+                    'discord_message_id': None
+                }
+                await self.eventlistener.publish_logistics_task(task_data, 'approved')
+
+        # Markers are created when a player accepts the task or uses -plot command
 
         embed = discord.Embed(
             title="Logistics Task Created",
@@ -369,7 +375,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     @logistics.command(description='Approve a pending logistics request')
     @app_commands.guild_only()
-    @utils.app_has_roles(['DCS Admin', 'Logistics Officer'])
+    @utils.app_has_role('DCS')
     @app_commands.autocomplete(task_id=pending_task_autocomplete)
     async def approve(self, interaction: discord.Interaction,
                       task_id: int,
@@ -468,7 +474,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     @logistics.command(description='Deny a pending logistics request')
     @app_commands.guild_only()
-    @utils.app_has_roles(['DCS Admin', 'Logistics Officer'])
+    @utils.app_has_role('DCS')
     @app_commands.autocomplete(task_id=pending_task_autocomplete)
     async def deny(self, interaction: discord.Interaction,
                    task_id: int,
@@ -507,7 +513,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     @logistics.command(description='Cancel an active logistics task')
     @app_commands.guild_only()
-    @utils.app_has_roles(['DCS Admin'])
+    @utils.app_has_role('DCS')
     @app_commands.autocomplete(task_id=logistics_task_autocomplete)
     async def cancel(self, interaction: discord.Interaction,
                      task_id: int,
@@ -525,9 +531,11 @@ class Logistics(Plugin[LogisticsEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
 
         async with self.apool.connection() as conn:
-            # Get task for server info
+            # Get task for server info and publishing
             cursor = await conn.execute("""
-                SELECT server_name FROM logistics_tasks WHERE id = %s AND status != 'completed'
+                SELECT server_name, cargo_type, source_name, destination_name, priority,
+                       coalition, deadline, created_at, discord_message_id
+                FROM logistics_tasks WHERE id = %s AND status != 'completed'
             """, (task_id,))
             task = await cursor.fetchone()
 
@@ -552,6 +560,23 @@ class Logistics(Plugin[LogisticsEventListener]):
         server = self.bot.servers.get(task[0])
         if server:
             await self.eventlistener._remove_task_markers(server, task_id)
+
+            # Publish cancellation to status channel
+            config = self.get_config(server)
+            if config.get('publish_on_cancel', True):
+                await self.eventlistener.publish_logistics_task({
+                    'id': task_id,
+                    'cargo_type': task[1],
+                    'source_name': task[2],
+                    'destination_name': task[3],
+                    'priority': task[4],
+                    'coalition': task[5],
+                    'deadline': task[6],
+                    'created_at': task[7],
+                    'notes': f"Cancelled: {reason or 'No reason given'}",
+                    'server_name': task[0],
+                    'discord_message_id': task[8]
+                }, 'cancelled')
 
         await interaction.followup.send(f"Task #{task_id} has been cancelled.", ephemeral=ephemeral)
 

@@ -43,8 +43,9 @@ DEFAULT:
     enabled: true
     show_deadline: true
   tasks:
-    auto_approve: false        # Auto-approve player requests
+    auto_approve: false        # Auto-approve Discord-created tasks
     timeout_hours: 24          # Task expiration
+    stale_days: 7              # Auto-cancel pending/approved tasks after N days (0 to disable)
     max_per_player: 1          # Max concurrent tasks per player
 ```
 
@@ -70,15 +71,16 @@ DEFAULT:
 
 ## In-Game Chat Commands
 
-| Command                   | Description                                       |
-|---------------------------|---------------------------------------------------|
-| `-tasks`                  | List available logistics tasks for your coalition |
-| `-accept <id>`            | Accept/claim a logistics task                     |
-| `-mytask`                 | Show your current assigned task                   |
-| `-taskinfo <id>`          | View details of any visible task                  |
-| `-deliver`                | Mark current task as delivered (manual)           |
-| `-abandon`                | Release task back to available pool               |
-| `-request <dest> <cargo>` | Player-initiated logistics request                |
+| Command                   | Description                                          |
+|---------------------------|------------------------------------------------------|
+| `-tasks`                  | List available logistics tasks for your coalition    |
+| `-accept <id>`            | Accept/claim a logistics task (creates map markers)  |
+| `-plot all`               | Plot all available tasks on F10 map (30s timeout)    |
+| `-plot <id>`              | Plot specific task on F10 map (30s timeout)          |
+| `-mytask`                 | Show your current assigned task                      |
+| `-taskinfo <id>`          | View details of any visible task                     |
+| `-deliver`                | Mark current task as delivered (manual)              |
+| `-abandon`                | Release task back to available pool                  |
 
 ## F10 Menu Structure
 
@@ -96,18 +98,32 @@ Logistics/
 
 ## F10 Map Markers
 
-When a task is approved, coalition-specific markers appear on the F10 map:
+When a task is accepted (`-accept`) or plotted (`-plot`), coalition-specific markers appear on the F10 map:
 
-- **Source Marker** (Green): `[PICKUP] Airbase Name`
-- **Destination Marker** (Yellow):
+- **Source Marker**: `[PICKUP #1] Airbase Name`
+- **Destination Marker**:
   ```
-  [DELIVERY] Airbase Name
+  [DELIVERY #1] Airbase Name
   Cargo: 10x Mk-82
   Pilot: Maverick (or UNASSIGNED)
   Deadline: 14:30Z
   ```
-- **Waypoint Markers** (Yellow): `[VIA 1] Waypoint Name`
-- **Route Lines** (Yellow): Connecting source -> waypoints -> destination
+- **Waypoint Markers**: `[VIA 1] Waypoint Name`
+- **Route Lines**: Yellow lines connecting source -> waypoints -> destination
+- **Info Text Box**: Displayed at the midpoint of the first route segment with full task details:
+  ```
+  TASK #1
+  From: Batumi
+  To: Kutaisi
+  Cargo: 10x Mk-82
+  Pilot: UNASSIGNED
+  Deadline: 14:30Z
+  ```
+
+**Marker Behavior:**
+- `-accept <id>`: Creates permanent markers until task is completed/cancelled
+- `-plot all`: Creates temporary markers for all available tasks (auto-remove after 30 seconds)
+- `-plot <id>`: Creates temporary marker for specific task (auto-remove after 30 seconds)
 
 ## Delivery Detection
 

@@ -1,0 +1,31 @@
+##############################################################
+# Configuration for the Logistics plugin.                    #
+##############################################################
+# The Logistics plugin provides comprehensive logistics      #
+# task management with in-game integration:                  #
+# - Create and manage logistics delivery tasks               #
+# - In-game chat commands for pilots to accept/complete tasks#
+# - F10 map markers showing routes                           #
+# - Discord status channel for task visibility               #
+##############################################################
+DEFAULT: # valid for all servers
+  # OPTIONAL: Discord channel ID for task status board
+  # Tasks are posted here when created, and the same message is edited on status changes
+  status_channel: 112233445566778899
+
+  # OPTIONAL: Publish task embeds on various events
+  publish_on_create: true    # Post when task is created (default: true)
+  publish_on_assign: true    # Update when pilot accepts task (default: true)
+  publish_on_complete: true  # Update when task is completed (default: true)
+  publish_on_abandon: true   # Update when pilot abandons task (default: true)
+  publish_on_cancel: true    # Update when task is cancelled (default: true)
+
+  # OPTIONAL: F10 marker settings
+  marker_timeout: 30  # Seconds before temporary markers disappear (default: 30)
+
+  # OPTIONAL: Task completion settings
+  delivery_threshold: 500  # Distance in meters to count as "at destination" (default: 500)
+  auto_complete: false     # Auto-complete tasks when pilot lands at destination (default: false)
+
+DCS.release_server: # valid for a specific server
+  status_channel: 1462892657524211797
