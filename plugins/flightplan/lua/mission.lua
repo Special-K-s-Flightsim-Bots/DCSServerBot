@@ -100,28 +100,49 @@ function dcsbot.createFlightPlanMarkers(plan_id, coalitionNum, callsign, departu
         waypoints = net.json2lua(waypoints_json) or {}
     end
 
-    -- Create waypoint markers
+    -- Convert waypoints to DCS coordinates if needed
+    local converted_waypoints = {}
     for i, wp in ipairs(waypoints) do
-        if wp.x and wp.z then
-            local wpMarkerId = getNextMarkerId()
-            local wpPos = {x = wp.x, y = 0, z = wp.z}
-            local wpAlt = ""
-            if wp.altitude and wp.altitude > 0 then
-                wpAlt = " @ " .. wp.altitude .. "ft"
+        local x = wp.x
+        local z = wp.z
+
+        -- Convert from lat/lon if no DCS coordinates
+        if (not x or not z) and wp.lat and wp.lon then
+            local converted = coord.LLtoLO(wp.lat, wp.lon, 0)
+            if converted then
+                x = converted.x
+                z = converted.z
             end
-            local wpText = "[WP" .. i .. "] " .. (wp.name or "Waypoint " .. i) .. wpAlt
-            trigger.action.markToCoalition(wpMarkerId, wpText, wpPos, coal, false)
-            table.insert(markers, {id = wpMarkerId, type = "waypoint_marker"})
         end
+
+        if x and z then
+            table.insert(converted_waypoints, {
+                name = wp.name,
+                x = x,
+                z = z,
+                altitude = wp.altitude
+            })
+        end
+    end
+
+    -- Create waypoint markers
+    for i, wp in ipairs(converted_waypoints) do
+        local wpMarkerId = getNextMarkerId()
+        local wpPos = {x = wp.x, y = 0, z = wp.z}
+        local wpAlt = ""
+        if wp.altitude and wp.altitude > 0 then
+            wpAlt = " @ " .. wp.altitude .. "ft"
+        end
+        local wpText = "[WP" .. i .. "] " .. (wp.name or "Waypoint " .. i) .. wpAlt
+        trigger.action.markToCoalition(wpMarkerId, wpText, wpPos, coal, false)
+        table.insert(markers, {id = wpMarkerId, type = "waypoint_marker"})
     end
 
     -- Build route points for lines
     local routePoints = {}
     table.insert(routePoints, departure_pos)
-    for _, wp in ipairs(waypoints) do
-        if wp.x and wp.z then
-            table.insert(routePoints, {x = wp.x, y = 0, z = wp.z})
-        end
+    for _, wp in ipairs(converted_waypoints) do
+        table.insert(routePoints, {x = wp.x, y = 0, z = wp.z})
     end
     table.insert(routePoints, destination_pos)
 
