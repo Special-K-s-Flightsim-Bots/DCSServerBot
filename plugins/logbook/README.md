@@ -90,18 +90,7 @@ DEFAULT:
 | `/award grant <user> <award> [citation]`                         | Grant award to pilot          | DCS Admin |
 | `/award revoke <user> <award>`                                   | Revoke award from pilot       | DCS Admin |
 
-### Flight Plan Commands (`/flightplan`)
-
-| Command                                                                                               | Description              | Role  |
-|-------------------------------------------------------------------------------------------------------|--------------------------|-------|
-| `/flightplan file <callsign> <aircraft_type> <departure> <destination> [alternate] [route] [remarks]` | File a flight plan       | DCS   |
-| `/flightplan view <plan>`                                                                             | View flight plan details | DCS   |
-| `/flightplan list [status] [user]`                                                                    | List flight plans        | DCS   |
-| `/flightplan activate <plan>`                                                                         | Activate a filed plan    | DCS   |
-| `/flightplan complete <plan>`                                                                         | Mark plan as completed   | DCS   |
-| `/flightplan cancel <plan>`                                                                           | Cancel a flight plan     | DCS   |
-
-> **Note:** Stores/logistics commands have been moved to the separate `logistics` plugin for enhanced in-game integration.
+> **Note:** Flight plan commands have been moved to the separate `flightplan` plugin with enhanced IFR-style features, F10 map visualization, and OpenAIP integration. Stores/logistics commands are in the `logistics` plugin.
 
 ## Auto-Grant Qualifications
 

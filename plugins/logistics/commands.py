@@ -2,7 +2,7 @@ import discord
 import json
 import logging
 
-from core import Plugin, utils, Server, Status, Group
+from core import Plugin, utils, Server, Status, Group, get_translation
 from datetime import datetime, timezone
 from discord import app_commands
 from psycopg.rows import dict_row
@@ -12,6 +12,7 @@ from typing import Literal, Optional
 from .listener import LogisticsEventListener
 
 log = logging.getLogger(__name__)
+_ = get_translation(__name__.split('.')[1])
 
 
 # ==================== AUTOCOMPLETE FUNCTIONS ====================
@@ -119,14 +120,14 @@ class Logistics(Plugin[LogisticsEventListener]):
     """
 
     # Command group "/logistics"
-    logistics = Group(name="logistics", description="Logistics mission management")
+    logistics = Group(name="logistics", description=_("Logistics mission management"))
 
     # Command group "/warehouse"
-    warehouse = Group(name="warehouse", description="Warehouse inventory commands")
+    warehouse = Group(name="warehouse", description=_("Warehouse inventory commands"))
 
     # ==================== LOGISTICS COMMANDS ====================
 
-    @logistics.command(description='Create a new logistics task')
+    @logistics.command(description=_('Create a new logistics task'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     @app_commands.rename(source_idx='source', dest_idx='destination')
@@ -263,7 +264,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
-    @logistics.command(description='List logistics tasks')
+    @logistics.command(description=_('List logistics tasks'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def list(self, interaction: discord.Interaction,
@@ -339,7 +340,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
-    @logistics.command(description='View details of a logistics task')
+    @logistics.command(description=_('View details of a logistics task'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     @app_commands.autocomplete(task_id=logistics_task_autocomplete)
@@ -415,7 +416,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
-    @logistics.command(description='Approve a pending logistics request')
+    @logistics.command(description=_('Approve a pending logistics request'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     @app_commands.autocomplete(task_id=pending_task_autocomplete)
@@ -514,7 +515,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
-    @logistics.command(description='Deny a pending logistics request')
+    @logistics.command(description=_('Deny a pending logistics request'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     @app_commands.autocomplete(task_id=pending_task_autocomplete)
@@ -553,7 +554,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
         await interaction.followup.send(f"Task #{task_id} has been denied.", ephemeral=ephemeral)
 
-    @logistics.command(description='Cancel an active logistics task')
+    @logistics.command(description=_('Cancel an active logistics task'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     @app_commands.autocomplete(task_id=logistics_task_autocomplete)
@@ -622,7 +623,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
         await interaction.followup.send(f"Task #{task_id} has been cancelled.", ephemeral=ephemeral)
 
-    @logistics.command(description='Assign a logistics task to a pilot')
+    @logistics.command(description=_('Assign a logistics task to a pilot'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(task_id=approved_task_autocomplete, player_ucid=player_autocomplete)
@@ -754,7 +755,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     # ==================== WAREHOUSE COMMANDS ====================
 
-    @warehouse.command(description='Query warehouse inventory at a location')
+    @warehouse.command(description=_('Query warehouse inventory at a location'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     @app_commands.rename(airbase_idx='airbase')
@@ -858,7 +859,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
-    @warehouse.command(description='Compare inventory between two locations')
+    @warehouse.command(description=_('Compare inventory between two locations'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     @app_commands.rename(source_idx='source', dest_idx='destination')
