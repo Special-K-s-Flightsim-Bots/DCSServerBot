@@ -666,17 +666,17 @@ class Dynamic(BaseModel):
 
 class Airbase(BaseModel):
     alt: float
-    code: str
-    id: str
+    code: str | None = None
+    id: str | None = None
     lat: float
-    rwy_heading: int
+    rwy_heading: int | None = None
     lng: float
     name: str
     position: Position
-    frequencyList: list[list[int]] | list[tuple[int, int]] | None = None
+    frequencyList: list[list[int]] | list[tuple[int, int]] | dict | None = None
     dynamic: Dynamic
-    runwayList: list[str] | None = None
-    coalition: int | None = None
+    runwayList: list[str] | dict | None = None
+    coalition: str | int | None = None
 
 
 class AirbasesResponse(BaseModel):
