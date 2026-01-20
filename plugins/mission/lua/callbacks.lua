@@ -476,15 +476,30 @@ function mission.onPlayerTrySendChat(from, message, to)
     local config = dcsbot.params.mission
     if string.sub(message, 1, 1) == config.chat_command_prefix then
         local elements = utils.split(message, ' ')
-        local msg = {
-            command = 'onChatCommand',
-            subcommand = string.sub(elements[1], 2),
-            params = { unpack(elements, 2) },
-            from = net.get_player_info(from, 'id'),
-            to = to
-        }
-        utils.sendBotTable(msg)
-        return ''
+        local subcommand
+        local params
+        -- Handle case where user types "- fp" instead of "-fp"
+        if elements[1] == config.chat_command_prefix and elements[2] then
+            -- First element is just the prefix, command is in second element
+            subcommand = elements[2]
+            params = { unpack(elements, 3) }
+        else
+            -- Normal case: "-fp arg1 arg2"
+            subcommand = string.sub(elements[1], 2)
+            params = { unpack(elements, 2) }
+        end
+        -- Only send if we have a valid subcommand
+        if subcommand and subcommand ~= "" then
+            local msg = {
+                command = 'onChatCommand',
+                subcommand = subcommand,
+                params = params,
+                from = net.get_player_info(from, 'id'),
+                to = to
+            }
+            utils.sendBotTable(msg)
+            return ''
+        end
     end
     if config.profanity_filter then
         local new_msg = Censorship.censor(message)

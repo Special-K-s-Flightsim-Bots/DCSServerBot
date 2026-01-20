@@ -62,6 +62,48 @@ async def pending_task_autocomplete(interaction: discord.Interaction, current: s
         return []
 
 
+async def approved_task_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    """Autocomplete for approved (unassigned) logistics tasks."""
+    try:
+        async with interaction.client.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT t.id, t.cargo_type, t.source_name, t.destination_name
+                FROM logistics_tasks t
+                WHERE t.status = 'approved' AND t.assigned_ucid IS NULL
+                AND (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
+                ORDER BY t.created_at DESC LIMIT 25
+            """, ('%' + current + '%', '%' + current + '%', '%' + current + '%'))
+            return [
+                app_commands.Choice(
+                    name=f"#{row[0]} - {row[1][:20]} ({row[2]} -> {row[3]})",
+                    value=row[0]
+                )
+                async for row in cursor
+            ]
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
+        return []
+
+
+async def player_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    """Autocomplete for players."""
+    try:
+        async with interaction.client.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT name, ucid FROM players
+                WHERE name ILIKE %s
+                ORDER BY last_seen DESC NULLS LAST, name
+                LIMIT 25
+            """, ('%' + current + '%',))
+            return [
+                app_commands.Choice(name=row[0], value=row[1])
+                async for row in cursor
+            ]
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
+        return []
+
+
 
 
 class Logistics(Plugin[LogisticsEventListener]):
@@ -86,13 +128,13 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     @logistics.command(description='Create a new logistics task')
     @app_commands.guild_only()
-    @utils.app_has_roles(['DCS Admin', 'Logistics Officer'])
+    @utils.app_has_role('DCS')
     @app_commands.rename(source_idx='source', dest_idx='destination')
     @app_commands.describe(source_idx='Pickup location (airbase/FARP/carrier)')
     @app_commands.describe(dest_idx='Delivery location')
     @app_commands.autocomplete(source_idx=utils.airbase_autocomplete, dest_idx=utils.airbase_autocomplete)
     async def create(self, interaction: discord.Interaction,
-                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                     server: app_commands.Transform[Server, utils.ServerTransformer],
                      source_idx: int,
                      dest_idx: int,
                      cargo: str,
@@ -163,7 +205,7 @@ class Logistics(Plugin[LogisticsEventListener]):
                 RETURNING id
             """, (
                 server.name,
-                'ADMIN',  # Created by admin, not player UCID
+                None,  # NULL for admin-created tasks (no player UCID)
                 priority,
                 cargo,
                 source,
@@ -186,19 +228,25 @@ class Logistics(Plugin[LogisticsEventListener]):
                 VALUES (%s, 'created', %s, %s)
             """, (task_id, interaction.user.id, '{"source": "discord_admin", "auto_approved": true}'))
 
-        # Create markers
-        if source_position and dest_position:
-            await self.eventlistener._create_markers_for_task(server, {
-                'id': task_id,
-                'cargo_type': cargo,
-                'source_name': source,
-                'source_position': source_position,
-                'destination_name': destination,
-                'destination_position': dest_position,
-                'coalition': coalition_id,
-                'deadline': deadline_dt,
-                'assigned_name': None
-            })
+            # Publish to status channel if configured
+            config = self.get_config(server)
+            if config.get('publish_on_create', True):
+                task_data = {
+                    'id': task_id,
+                    'server_name': server.name,
+                    'cargo_type': cargo,
+                    'source_name': source,
+                    'destination_name': destination,
+                    'priority': priority,
+                    'coalition': coalition_id,
+                    'deadline': deadline_dt,
+                    'status': 'approved',
+                    'created_at': now,
+                    'discord_message_id': None
+                }
+                await self.eventlistener.publish_logistics_task(task_data, 'approved')
+
+        # Markers are created when a player accepts the task or uses -plot command
 
         embed = discord.Embed(
             title="Logistics Task Created",
@@ -369,7 +417,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     @logistics.command(description='Approve a pending logistics request')
     @app_commands.guild_only()
-    @utils.app_has_roles(['DCS Admin', 'Logistics Officer'])
+    @utils.app_has_role('DCS')
     @app_commands.autocomplete(task_id=pending_task_autocomplete)
     async def approve(self, interaction: discord.Interaction,
                       task_id: int,
@@ -468,7 +516,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     @logistics.command(description='Deny a pending logistics request')
     @app_commands.guild_only()
-    @utils.app_has_roles(['DCS Admin', 'Logistics Officer'])
+    @utils.app_has_role('DCS')
     @app_commands.autocomplete(task_id=pending_task_autocomplete)
     async def deny(self, interaction: discord.Interaction,
                    task_id: int,
@@ -507,7 +555,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     @logistics.command(description='Cancel an active logistics task')
     @app_commands.guild_only()
-    @utils.app_has_roles(['DCS Admin'])
+    @utils.app_has_role('DCS')
     @app_commands.autocomplete(task_id=logistics_task_autocomplete)
     async def cancel(self, interaction: discord.Interaction,
                      task_id: int,
@@ -525,9 +573,11 @@ class Logistics(Plugin[LogisticsEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
 
         async with self.apool.connection() as conn:
-            # Get task for server info
+            # Get task for server info and publishing
             cursor = await conn.execute("""
-                SELECT server_name FROM logistics_tasks WHERE id = %s AND status != 'completed'
+                SELECT server_name, cargo_type, source_name, destination_name, priority,
+                       coalition, deadline, created_at, discord_message_id
+                FROM logistics_tasks WHERE id = %s AND status != 'completed'
             """, (task_id,))
             task = await cursor.fetchone()
 
@@ -553,7 +603,154 @@ class Logistics(Plugin[LogisticsEventListener]):
         if server:
             await self.eventlistener._remove_task_markers(server, task_id)
 
+            # Publish cancellation to status channel
+            config = self.get_config(server)
+            if config.get('publish_on_cancel', True):
+                await self.eventlistener.publish_logistics_task({
+                    'id': task_id,
+                    'cargo_type': task[1],
+                    'source_name': task[2],
+                    'destination_name': task[3],
+                    'priority': task[4],
+                    'coalition': task[5],
+                    'deadline': task[6],
+                    'created_at': task[7],
+                    'notes': f"Cancelled: {reason or 'No reason given'}",
+                    'server_name': task[0],
+                    'discord_message_id': task[8]
+                }, 'cancelled')
+
         await interaction.followup.send(f"Task #{task_id} has been cancelled.", ephemeral=ephemeral)
+
+    @logistics.command(description='Assign a logistics task to a pilot')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(task_id=approved_task_autocomplete, player_ucid=player_autocomplete)
+    async def assign(self, interaction: discord.Interaction,
+                     task_id: int,
+                     player_ucid: str):
+        """
+        Assign an approved task to a specific pilot.
+
+        Parameters
+        ----------
+        task_id: The task to assign
+        player_ucid: The pilot to assign the task to
+        """
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        async with self.apool.connection() as conn:
+            # Verify task is approved and unassigned
+            cursor = await conn.execute("""
+                SELECT t.server_name, t.cargo_type, t.source_name, t.destination_name,
+                       t.priority, t.coalition, t.deadline, t.created_at, t.discord_message_id,
+                       t.source_position, t.destination_position, t.status, t.assigned_ucid
+                FROM logistics_tasks t
+                WHERE t.id = %s
+            """, (task_id,))
+            task = await cursor.fetchone()
+
+            if not task:
+                await interaction.followup.send(f"Task #{task_id} not found.", ephemeral=True)
+                return
+
+            if task[11] != 'approved':
+                await interaction.followup.send(
+                    f"Task #{task_id} is not approved (status: {task[11]}). Only approved tasks can be assigned.",
+                    ephemeral=True
+                )
+                return
+
+            if task[12]:
+                await interaction.followup.send(
+                    f"Task #{task_id} is already assigned to another pilot.",
+                    ephemeral=True
+                )
+                return
+
+            # Get player name for feedback
+            cursor = await conn.execute("SELECT name FROM players WHERE ucid = %s", (player_ucid,))
+            player_row = await cursor.fetchone()
+            if not player_row:
+                await interaction.followup.send(f"Player not found.", ephemeral=True)
+                return
+            player_name = player_row[0]
+
+            # Assign the task
+            now = datetime.now(timezone.utc)
+            await conn.execute("""
+                UPDATE logistics_tasks
+                SET status = 'assigned', assigned_ucid = %s, assigned_at = %s, updated_at = %s
+                WHERE id = %s
+            """, (player_ucid, now, now, task_id))
+
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
+                VALUES (%s, 'assigned', %s, %s)
+            """, (task_id, interaction.user.id, f'{{"assigned_to": "{player_ucid}", "assigned_by": "discord"}}'))
+
+        # Create F10 markers if player is online
+        server = self.bot.servers.get(task[0])
+        if server:
+            player = server.get_player(ucid=player_ucid, active=True)
+            if player and player.side:
+                # Create markers for the assigned task
+                source_pos = json.loads(task[9]) if task[9] else None
+                dest_pos = json.loads(task[10]) if task[10] else None
+
+                if source_pos and dest_pos:
+                    await server.send_to_dcs({
+                        'command': 'createLogisticsMarkers',
+                        'task_id': task_id,
+                        'player_ucid': player_ucid,
+                        'coalition': player.side.value,
+                        'cargo_type': task[1],
+                        'source_name': task[2],
+                        'source_x': source_pos.get('x'),
+                        'source_z': source_pos.get('z'),
+                        'destination_name': task[3],
+                        'destination_x': dest_pos.get('x'),
+                        'destination_z': dest_pos.get('z'),
+                        'deadline': task[6].isoformat() if task[6] else None,
+                        'priority': task[4]
+                    })
+
+                # Notify player in-game
+                await player.sendPopupMessage(
+                    f"LOGISTICS TASK ASSIGNED\n\n"
+                    f"Task #{task_id}: {task[1]}\n"
+                    f"From: {task[2]}\n"
+                    f"To: {task[3]}\n"
+                    f"Deadline: {task[6].strftime('%H:%MZ') if task[6] else 'None'}\n\n"
+                    f"Check your F10 map for route markers.",
+                    20
+                )
+
+            # Publish to status channel
+            config = self.get_config(server)
+            if config.get('publish_on_assign', True):
+                await self.eventlistener.publish_logistics_task({
+                    'id': task_id,
+                    'cargo_type': task[1],
+                    'source_name': task[2],
+                    'destination_name': task[3],
+                    'priority': task[4],
+                    'coalition': task[5],
+                    'deadline': task[6],
+                    'created_at': task[7],
+                    'assigned_ucid': player_ucid,
+                    'assigned_name': player_name,
+                    'assigned_at': now,
+                    'server_name': task[0],
+                    'discord_message_id': task[8]
+                }, 'assigned')
+
+        await interaction.followup.send(
+            f"Task #{task_id} has been assigned to **{player_name}**.",
+            ephemeral=ephemeral
+        )
 
     # ==================== WAREHOUSE COMMANDS ====================
 

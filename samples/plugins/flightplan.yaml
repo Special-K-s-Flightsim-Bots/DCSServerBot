@@ -34,3 +34,5 @@ DEFAULT: # valid for all servers
 # DCS.release_server:
 #   status_channel: 1462892734468722872
 #   stale_hours: 12
+#   openaip:
+#     api_key: YOUR_API_KEY_HERE

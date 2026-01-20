@@ -210,12 +210,17 @@ local function buildMenu(playerID, groupID, menuTable, parentMenu)
 end
 
 function dcsbot.createMenu(playerID, groupID, data)
+    -- Initialize _menuItems for this group if needed
     if not _menuItems[groupID] then
-        parsedData = net.json2lua(data)
         _menuItems[groupID] = {}
+    end
 
-        for _, rootMenuEntry in ipairs(parsedData) do
-            for rootMenuName, rootMenuData in pairs(rootMenuEntry) do
+    local parsedData = net.json2lua(data)
+
+    for _, rootMenuEntry in ipairs(parsedData) do
+        for rootMenuName, rootMenuData in pairs(rootMenuEntry) do
+            -- Only create this root menu if it doesn't already exist
+            if not _menuItems[groupID][rootMenuName] then
                 -- Create the root menu
                 local rootMenu = missionCommands.addSubMenuForGroup(groupID, rootMenuName)
                 -- Add the root menu to _menuItems[groupID] list
