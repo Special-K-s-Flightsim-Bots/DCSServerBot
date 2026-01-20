@@ -1,0 +1,36 @@
+##############################################################
+# Configuration for the Flight Plan plugin.                  #
+##############################################################
+# The Flight Plan plugin provides IFR-style flight planning  #
+# with in-game integration:                                  #
+# - File flight plans with waypoints, altitude, timing       #
+# - F10 map visualization (cyan markers)                     #
+# - Discord status channel for flight visibility             #
+# - OpenAIP integration for navigation fixes                 #
+# - Auto-cancel stale flight plans                           #
+##############################################################
+DEFAULT: # valid for all servers
+  # OPTIONAL: Discord channel ID for flight plan status board
+  # Plans are posted here when filed, and the same message is edited on status changes
+  # status_channel: 112233445566778899
+
+  # OPTIONAL: Publish flight plan embeds on various events
+  publish_on_file: true      # Post when plan is filed (default: true)
+  publish_on_activate: true  # Update when plan is activated (default: true)
+
+  # OPTIONAL: Stale plan handling
+  stale_hours: 24            # Hours before a filed plan becomes stale (default: 24)
+  auto_cancel_stale: true    # Auto-cancel stale plans on mission start (default: true)
+
+  # OPTIONAL: F10 marker settings
+  marker_timeout: 30  # Seconds before temporary markers disappear (default: 30)
+
+  # OPTIONAL: OpenAIP API for navigation fix data
+  # openaip:
+  #   api_key: YOUR_API_KEY_HERE  # Free registration at openaip.net
+  #   cache_hours: 168            # Hours to cache API results (default: 168 = 7 days)
+
+# Server-specific overrides (optional)
+# DCS.release_server:
+#   status_channel: 1462892734468722872
+#   stale_hours: 12
