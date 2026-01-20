@@ -1,15 +1,16 @@
 # Logbook Plugin
 
-A comprehensive pilot logbook and squadron management plugin for DCSServerBot. Provides military-style record keeping 
-for virtual squadrons including flight statistics, qualifications, awards, and flight plans.
+A comprehensive pilot logbook and squadron management plugin for DCSServerBot. Provides military-style record keeping
+for virtual squadrons including flight statistics, qualifications, awards, and squadron management.
 
 ## Features
 
 - **Pilot Statistics**: View flight hours, kills, deaths, takeoffs, landings from existing DCSServerBot data
 - **Squadron Management**: Create squadrons with CO/XO hierarchy, assign members with ranks and positions
 - **Qualifications**: Define qualifications with optional expiration, auto-grant based on requirements
-- **Awards**: Create awards with custom ribbon colors, generate ribbon rack images
-- **Flight Plans**: File, track, and manage flight plans with status workflow
+- **Awards**: Create awards with custom ribbon colors, generate ribbon rack images, auto-grant based on requirements
+
+> **Note:** Flight plan functionality has been moved to the dedicated `flightplan` plugin.
 
 ## Requirements
 
@@ -55,9 +56,17 @@ DEFAULT:
 | `/logbook squadron delete <squadron>`                          | Delete a squadron               | DCS Admin |
 | `/logbook squadron assign <squadron> <user> [rank] [position]` | Assign pilot to squadron        | DCS Admin |
 | `/logbook squadron remove <squadron> <member>`                 | Remove pilot from squadron      | DCS Admin |
-| `/logbook squadron promote <squadron> <member> <rank>`         | Update member's rank            | DCS Admin |
+| `/logbook squadron promote <squadron> <member> <rank>`         | Update a member's rank          | DCS Admin |
 | `/logbook squadron setco <squadron> <member>`                  | Set Commanding Officer          | DCS Admin |
 | `/logbook squadron setxo <squadron> <member>`                  | Set Executive Officer           | DCS Admin |
+
+#### CO/XO Self-Administration
+
+Squadron Commanding Officers (CO) and Executive Officers (XO) can manage their own squadrons without requiring the DCS Admin role. This includes:
+- Assigning, removing, and promoting members
+- Setting positions within the squadron
+
+The CO/XO permissions are automatically detected based on the squadron's `co_ucid` and `xo_ucid` fields.
 
 ### Qualification Commands (`/qualification`)
 
@@ -84,19 +93,6 @@ DEFAULT:
 | `/award grant <user> <award> [citation]`                         | Grant award to pilot          | DCS Admin |
 | `/award revoke <user> <award>`                                   | Revoke award from pilot       | DCS Admin |
 
-### Flight Plan Commands (`/flightplan`)
-
-| Command                                                                                               | Description              | Role  |
-|-------------------------------------------------------------------------------------------------------|--------------------------|-------|
-| `/flightplan file <callsign> <aircraft_type> <departure> <destination> [alternate] [route] [remarks]` | File a flight plan       | DCS   |
-| `/flightplan view <plan>`                                                                             | View flight plan details | DCS   |
-| `/flightplan list [status] [user]`                                                                    | List flight plans        | DCS   |
-| `/flightplan activate <plan>`                                                                         | Activate a filed plan    | DCS   |
-| `/flightplan complete <plan>`                                                                         | Mark plan as completed   | DCS   |
-| `/flightplan cancel <plan>`                                                                           | Cancel a flight plan     | DCS   |
-
-> **Note:** Stores/logistics commands have been moved to the separate `logistics` plugin for enhanced in-game integration.
-
 ## Auto-Grant Qualifications
 
 Qualifications can be automatically granted when pilots meet specified requirements. Define requirements as JSON when creating a qualification:
@@ -110,13 +106,59 @@ Then set requirements in the database `logbook_qualifications.requirements` colu
 {"flight_hours": 50, "carrier_landings": 10}
 ```
 
-Supported requirement keys:
-- `flight_hours` - Total flight hours
-- `total_kills` - Total kills
-- `deaths` - Total deaths (use `deaths_max` for maximum)
-- `takeoffs` - Total takeoffs
-- `landings` - Total landings
-- `carrier_landings` - Carrier landings (requires greenieboard plugin)
+### Supported Requirement Keys
+
+| Key               | Description                                    |
+|-------------------|------------------------------------------------|
+| `flight_hours`    | Total flight hours                             |
+| `total_kills`     | Total kills                                    |
+| `pvp_kills`       | PvP kills                                      |
+| `deaths`          | Total deaths (use `deaths_max` for maximum)    |
+| `ejections`       | Total ejections                                |
+| `crashes`         | Total crashes                                  |
+| `takeoffs`        | Total takeoffs                                 |
+| `landings`        | Total landings                                 |
+| `carrier_landings`| Carrier landings (requires greenieboard plugin)|
+
+### Requirement Modifiers
+
+Use the `_min` or `_max` suffix to specify minimum or maximum constraints:
+- `flight_hours_min: 50` - Requires at least 50 flight hours
+- `deaths_max: 10` - Requires 10 or fewer deaths
+- Without a suffix, the key defaults to a minimum requirement (e.g., `flight_hours: 50` is equivalent to `flight_hours_min: 50`)
+
+### Example Requirements
+
+```json
+{
+  "flight_hours_min": 100,
+  "carrier_landings": 25,
+  "deaths_max": 5,
+  "ejections": 0
+}
+```
+
+## Auto-Grant Awards
+
+Awards also support automatic granting based on requirements. The database table `logbook_awards` includes:
+- `auto_grant` (boolean) - Set to `true` to enable automatic granting
+- `requirements` (JSONB) - Same format as qualification requirements
+
+Example award setup in the database:
+```sql
+UPDATE logbook_awards
+SET auto_grant = true,
+    requirements = '{"flight_hours": 500, "total_kills": 100}'
+WHERE name = 'Distinguished Flying Cross';
+```
+
+## In-Game Notifications
+
+When a player connects and the `auto_qualifications` feature grants them a new qualification, they receive an in-game chat message:
+
+> "Congratulations! You've earned qualification(s): Carrier Qualified, Night Vision Certified"
+
+This notification is sent via `player.sendChatMessage()` immediately after the qualifications are granted.
 
 ## Ribbon Generation
 
@@ -153,9 +195,9 @@ The plugin creates the following tables:
 - `logbook_squadron_members` - Pilot-squadron assignments
 - `logbook_qualifications` - Qualification definitions
 - `logbook_pilot_qualifications` - Granted qualifications
-- `logbook_awards` - Award definitions
+- `logbook_awards` - Award definitions (includes `auto_grant` and `requirements` fields)
 - `logbook_pilot_awards` - Granted awards
-- `logbook_flight_plans` - Filed flight plans
+- `logbook_flight_plans` - Filed flight plans (legacy, see `flightplan` plugin)
 - `logbook_stores_requests` - Stores/logistics requests
 - `logbook_historical_hours` - Imported historical flight time
 
