@@ -231,9 +231,9 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 name=player.name, points=points)))
 
     async def _give_kill(self, server: Server, init_id: str | None, target_id: str, weapon: str) -> None:
-        self.log.debug("### _give_kill()")
+        return
+
         if init_id is None or target_id is None:
-            self.log.debug("### _give_kill() - init_id or target_id is None, exiting")
             return
 
         initiator = server.get_player(ucid=init_id)
@@ -241,7 +241,6 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         # update the database
         try:
-            self.log.debug("### _give_kill() - update database")
             mission = cast(Mission, self.bot.cogs.get('Mission'))
             async with self.apool.connection() as conn:
                 async with conn.transaction():
@@ -253,7 +252,6 @@ class PunishmentEventListener(EventListener["Punishment"]):
                         # count deaths
                         await conn.execute(UserStatisticsEventListener.SQL_EVENT_UPDATES['deaths_pvp_planes'],
                                            (server.mission_id, target_id))
-            self.log.debug("### _give_kill() - database updated, inform players")
 
             # inform players
             message = MissionEventListener.EVENT_TEXTS[initiator.side]['kill'].format(
@@ -265,7 +263,6 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 weapon or "the reslot-hammer"
             )
             mission.eventlistener.send_dcs_event(server, initiator.side, message)
-            self.log.debug("### _give_kill() - message to event channel sent")
             message = "{} {} in {} killed {} {} in {} with {}.".format(
                 initiator.side.name,
                 ('player ' + initiator.name) if initiator is not None else 'AI',
@@ -276,7 +273,6 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 weapon or "the reslot-hammer"
             )
             asyncio.create_task(server.sendChatMessage(Coalition.ALL, message))
-            self.log.debug("### _give_kill() - chat message sent")
         except Exception as ex:
             self.log.exception(ex)
 
