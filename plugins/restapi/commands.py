@@ -305,7 +305,6 @@ class RestAPI(Plugin):
     def get_endpoint_config(self, endpoint: str):
         return self.get_config().get('endpoints', {}).get(endpoint, {})
 
-    @async_cache
     async def airbases(self, server_name: str = Query(...)):
         """Return all airbases for a given server."""
         # Resolve server
@@ -313,12 +312,9 @@ class RestAPI(Plugin):
         if not server:
             raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
 
-        # Get airbase info using the same logic as mission/commands.py get_airbase
-        airbases = await server.send_to_dcs_sync({"command": "getAirbases"}, timeout=60)
-
-        # Return all information on the airbase
+        # Return all airbases
         return {
-            "airbases": airbases
+            "airbases": server.current_mission.airbases if server.current_mission else []
         }
 
     async def airbase_info(self, server_name: str = Query(...), airbase_name: str = Query(...)):
@@ -354,7 +350,7 @@ class RestAPI(Plugin):
             "unlimited": airbase_data.get("unlimited", {}),
         }
     
-    async def set_warehouse_item(self, server_name: str = Query(...), airbase_name: str = Query(...), item: str = Query(...), value: int = Query(...)) -> AirbaseSetWarehouseItemResponse:
+    async def set_warehouse_item(self, server_name: str = Form(...), airbase_name: str = Form(...), item: str = Form(...), value: int = Form(...)) -> AirbaseSetWarehouseItemResponse:
         resolved_server_name, server = self.get_resolved_server(server_name)
         if not server:
             raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
@@ -371,6 +367,7 @@ class RestAPI(Plugin):
             value=value
         )
 
+    @async_cache
     async def get_ucid(self, nick: str, date: str | datetime | None = None) -> str:
         if date and isinstance(date, str):
             try:

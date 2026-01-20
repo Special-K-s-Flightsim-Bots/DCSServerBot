@@ -1,8 +1,9 @@
 import asyncio
 import time
 
+from contextlib import suppress
 from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel, \
-    ThreadSafeDict, Side, Coalition
+    ThreadSafeDict, Coalition
 from plugins.competitive.commands import Competitive
 from typing import TYPE_CHECKING, cast
 
@@ -24,13 +25,14 @@ class PunishmentEventListener(EventListener["Punishment"]):
         self.active_servers: set[str] = set()
         self.pending_forgiveness: dict[tuple[str, str], list[asyncio.Task]] = {}
         self.pending_kill: dict[str, tuple[int, str | None, str | None, str | None]] = ThreadSafeDict()
-        self.disconnected: dict[str, tuple[int, str | None, str | None]] = {}
+        self.disconnected: dict[str, tuple[int, str | None, str | None]] = ThreadSafeDict()
 
     async def shutdown(self) -> None:
         for tasks in self.pending_forgiveness.values():
             for task in tasks:
                 task.cancel()
-                await task
+                with suppress(asyncio.CancelledError):
+                    await task
 
     async def processEvent(self, name: str, server: Server, data: dict) -> None:
         try:
@@ -84,20 +86,19 @@ class PunishmentEventListener(EventListener["Punishment"]):
             # it did not happen -> fulfill the punishment
             asyncio.create_task(self._punish(data))
         except asyncio.CancelledError:
-            # if did happen -> do nothing
+            # it did happen -> do nothing
             pass
 
     async def _punish(self, data: dict):
         initiator = data['initiator']
         target = data.get('target')
-        async with self.lock:
-            async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("""
-                        INSERT INTO pu_events (init_id, target_id, server_name, event, points) 
-                        VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING
-                    """, (initiator.ucid, target.ucid if target else None, data['server_name'], data['eventName'],
-                          data['points']))
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    INSERT INTO pu_events (init_id, target_id, server_name, event, points) 
+                    VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING
+                """, (initiator.ucid, target.ucid if target else None, data['server_name'], data['eventName'],
+                      data['points']))
 
     async def _check_punishment(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
@@ -131,19 +132,27 @@ class PunishmentEventListener(EventListener["Punishment"]):
         if 'action' in penalty or points > 0:
             target = data.get('target')
             data['points'] = points
+
             if target and 'forgive' in config:
+                window = config['forgive']
+                key = (initiator.ucid, target.ucid)
+                inform_victim = False
+
                 async with self.lock:
-                    window = config['forgive']
-                    tasks = self.pending_forgiveness.get((initiator.ucid, target.ucid))
+                    tasks = self.pending_forgiveness.get(key)
                     if not tasks:
-                        await target.sendUserMessage(
-                            _("{victim}, you are a victim of a friendly-fire event by player {offender}.\n"
-                              "If you send {prefix}forgive in chat within the next {time} seconds, "
-                              "you can pardon the other player.").format(
-                                victim=target.name, event=data['eventName'], offender=initiator.name,
-                                prefix=self.prefix, time=window))
-                        tasks = self.pending_forgiveness[(initiator.ucid, target.ucid)] = []
+                        inform_victim = True
+                        tasks = self.pending_forgiveness[key] = []
                     tasks.append(asyncio.create_task(self._provide_forgiveness_window(data, window)))
+
+                if inform_victim:
+                    asyncio.create_task(target.sendUserMessage(
+                        _("{victim}, you are a victim of a friendly-fire event by player {offender}.\n"
+                          "If you send {prefix}forgive in chat within the next {time} seconds, "
+                          "you can pardon the other player.").format(
+                            victim=target.name, event=data['eventName'], offender=initiator.name,
+                            prefix=self.prefix, time=window)))
+
             else:
                 asyncio.create_task(self._punish(data))
 
@@ -218,75 +227,88 @@ class PunishmentEventListener(EventListener["Punishment"]):
     async def _send_player_points(self, player: Player):
         points = await self._get_punishment_points(player)
         if points > 0:
-            await player.sendChatMessage(_("{name}, you have {points} punishment points.").format(
-                name=player.name, points=points))
+            asyncio.create_task(player.sendChatMessage(_("{name}, you have {points} punishment points.").format(
+                name=player.name, points=points)))
 
     async def _give_kill(self, server: Server, init_id: str | None, target_id: str, weapon: str) -> None:
+        self.log.debug("### _give_kill()")
         if init_id is None or target_id is None:
+            self.log.debug("### _give_kill() - init_id or target_id is None, exiting")
             return
 
         initiator = server.get_player(ucid=init_id)
         victim = server.get_player(ucid=target_id)
 
         # update the database
-        mission = cast(Mission, self.bot.cogs.get('Mission'))
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                if initiator:
-                    # give PvP kill
-                    await conn.execute(UserStatisticsEventListener.SQL_EVENT_UPDATES['pvp_planes'],
-                                       (server.mission_id, init_id))
-                if victim:
-                    # count deaths
-                    await conn.execute(UserStatisticsEventListener.SQL_EVENT_UPDATES['deaths_pvp_planes'],
-                                       (server.mission_id, target_id))
+        try:
+            self.log.debug("### _give_kill() - update database")
+            mission = cast(Mission, self.bot.cogs.get('Mission'))
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    if initiator:
+                        # give PvP kill
+                        await conn.execute(UserStatisticsEventListener.SQL_EVENT_UPDATES['pvp_planes'],
+                                           (server.mission_id, init_id))
+                    if victim:
+                        # count deaths
+                        await conn.execute(UserStatisticsEventListener.SQL_EVENT_UPDATES['deaths_pvp_planes'],
+                                           (server.mission_id, target_id))
+            self.log.debug("### _give_kill() - database updated, inform players")
 
-        # inform players
-        side = Side.RED if initiator.side == Side.BLUE else Side.RED
-        message = MissionEventListener.EVENT_TEXTS[side]['kill'].format(
-            ('player ' + initiator.name) if initiator is not None else 'AI',
-            initiator.unit_type if initiator else 'unknown',
-            victim.side.name,
-            'player ' + victim.name,
-            victim.unit_type,
-            weapon or "the reslot-hammer"
-        )
-        mission.eventlistener.send_dcs_event(server, side, message)
-        message = "{} {} in {} killed {} {} in {} with {}.".format(
-            side.name,
-            ('player ' + initiator.name) if initiator is not None else 'AI',
-            initiator.unit_type if initiator else 'unknown',
-            victim.side.name,
-            'player ' + victim.name,
-            victim.unit_type,
-            weapon or "the reslot-hammer"
-        )
-        await server.sendChatMessage(Coalition.ALL, message)
+            # inform players
+            message = MissionEventListener.EVENT_TEXTS[initiator.side]['kill'].format(
+                ('player ' + initiator.name) if initiator is not None else 'AI',
+                initiator.unit_type if initiator else 'unknown',
+                victim.side.name,
+                'player ' + victim.name,
+                victim.unit_type,
+                weapon or "the reslot-hammer"
+            )
+            mission.eventlistener.send_dcs_event(server, initiator.side, message)
+            self.log.debug("### _give_kill() - message to event channel sent")
+            message = "{} {} in {} killed {} {} in {} with {}.".format(
+                initiator.side.name,
+                ('player ' + initiator.name) if initiator is not None else 'AI',
+                initiator.unit_type if initiator else 'unknown',
+                victim.side.name,
+                'player ' + victim.name,
+                victim.unit_type,
+                weapon or "the reslot-hammer"
+            )
+            asyncio.create_task(server.sendChatMessage(Coalition.ALL, message))
+            self.log.debug("### _give_kill() - chat message sent")
+        except Exception as ex:
+            self.log.exception(ex)
 
     @event(name="onPlayerConnect")
     async def onPlayerConnect(self, server: Server, data: dict) -> None:
         if data['ucid'] not in self.disconnected:
             return
 
+        self.log.debug("### onPlayerConnect() - disconnected set")
         config = self.get_config(server)
         _time, shooter_id, weapon = self.disconnected.pop(data['ucid'])
         # we do not punish if the disconnect was longer than reslot_window seconds ago
         delta_time = int(time.time()) - _time
         if delta_time > config.get('reslot_window', 60):
+            self.log.debug("### onPlayerConnect() - after window, ok")
             return
 
+        self.log.debug("### onPlayerConnect() - inside window, not ok")
         player = server.get_player(ucid=data['ucid'])
         evt = {
             "eventName": "reslot",
             "server_name": server.name,
             "initiator": player
         }
+        self.log.debug("### onPlayerConnect() - send punish event")
         asyncio.create_task(self._check_punishment(evt))
         admin = self.bot.get_admin_channel(server)
         if admin:
-            await admin.send(
+            self.log.debug("### onPlayerConnect() - inform admins")
+            asyncio.create_task(admin.send(
                 "```" + _("Player {} ({}) disconnected and reconnected {} seconds after being shot at.").format(
-                    player.name, player.ucid, delta_time) + "```")
+                    player.name, player.ucid, delta_time) + "```"))
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
@@ -337,17 +359,21 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 self.pending_kill.pop(player.ucid, None)
 
         elif data['eventName'] in ['S_EVENT_CRASH', 'S_EVENT_EJECTION']:
+            self.log.debug(f"### onMissionEvent() - {data['eventName']} received")
             config = self.get_config(server)
             player = server.get_player(name=data.get('initiator', {}).get('name'))
             if not player or player.sub_slot > 0:
+                self.log.debug(f"### onMissionEvent() - no player, ignore")
                 return
 
             shot_time, shooter_id, weapon, s_event = self.pending_kill.pop(player.ucid, (-1, None, None, None))
             delta_time = int(time.time()) - shot_time
             # no shot event registered or too old already
-            if shot_time == -1:
+            if shot_time is None or shot_time == -1:
+                self.log.debug(f"### onMissionEvent() - no shot or hit event detected, ignore")
                 return
 
+            self.log.debug(f"### onMissionEvent() - give kill")
             # give the kill to the opponent if we were hit earlier or if the shot was shortly before
             if ((s_event == 'S_EVENT_SHOT' and delta_time < config.get('reslot_window', 60)) or
                     (s_event == 'S_EVENT_HIT' and delta_time < config.get('survival_window', 300))):
@@ -388,34 +414,37 @@ class PunishmentEventListener(EventListener["Punishment"]):
             initiators = []
             all_tasks = []
             # search the initiators and tasks
-            for (initiator, target), tasks in self.pending_forgiveness.items():
-                if target != player.ucid:
-                    continue
-                all_tasks.extend(tasks)
-                initiators.append(initiator)
-            if not initiators:
-                await player.sendChatMessage(_('There is nothing to forgive (maybe too late?)'))
-                return
-            # wait for all tasks to be finished
-            for task in all_tasks:
-                task.cancel()
+            for (initiator, target) in list(self.pending_forgiveness.keys()):
+                if target == player.ucid:
+                    tasks = self.pending_forgiveness.pop((initiator, target))
+                    all_tasks.extend(tasks)
+                    initiators.append(initiator)
+
+        if not initiators:
+            asyncio.create_task(player.sendChatMessage(_('There is nothing to forgive (maybe too late?)')))
+            return
+
+        # wait for all tasks to be finished
+        for task in all_tasks:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
                 await task
-            for initiator in initiators:
-                self.pending_forgiveness.pop((initiator, player.ucid), None)
-                offender = server.get_player(ucid=initiator)
-                if offender:
-                    await offender.sendUserMessage(
-                        _("{offender}, You have been forgiven by {victim} and you will not be punished for your "
-                          "recent actions.").format(offender=offender.name, victim=player.name))
-                    await player.sendChatMessage(_('You have chosen to forgive {offender} for their actions.').format(
-                        offender=offender.name))
-                    events_channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
-                    if events_channel:
-                        await events_channel.send(
-                            "```" + _("Player {victim} forgave player {offender} for their actions").format(
-                                victim=player.display_name, offender=offender.display_name) + "```"
-                        )
+
+        for initiator in initiators:
+            offender = server.get_player(ucid=initiator)
+            if offender:
+                asyncio.create_task(offender.sendUserMessage(
+                    _("{offender}, You have been forgiven by {victim} and you will not be punished for your "
+                      "recent actions.").format(offender=offender.name, victim=player.name)))
+                asyncio.create_task(player.sendChatMessage(_('You have chosen to forgive {offender} for their actions.').format(
+                    offender=offender.name)))
+                events_channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
+                if events_channel:
+                    asyncio.create_task(events_channel.send(
+                        "```" + _("Player {victim} forgave player {offender} for their actions").format(
+                            victim=player.display_name, offender=offender.display_name) + "```"
+                    ))
 
     @chat_command(name="penalty", help=_("displays your penalty points"))
     async def penalty(self, _server: Server, player: Player, _params: list[str]):
-        await self._send_player_points(player)
+        asyncio.create_task(self._send_player_points(player))

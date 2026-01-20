@@ -127,37 +127,36 @@ class Punishment(Plugin[PunishmentEventListener]):
     # TODO: change to pubsub
     @tasks.loop(minutes=1.0)
     async def check_punishments(self):
-        async with self.eventlistener.lock:
-            async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    async with conn.cursor(row_factory=dict_row) as cursor:
-                        for server_name, server in self.bot.servers.items():
-                            config = self.get_config(server)
-                            # we are not initialized correctly yet
-                            if not config:
-                                continue
-                            await cursor.execute("""
-                                SELECT * FROM pu_events_sdw WHERE server_name = %s
-                            """, (server_name,))
-                            rows = await cursor.fetchall()
-                            for row in rows:
-                                try:
-                                    for punishment in config.get('punishments', {}):
-                                        if row['points'] < punishment['points']:
-                                            continue
-                                        reason = None
-                                        for penalty in config.get('penalties', []):
-                                            if penalty['event'] == row['event']:
-                                                reason = penalty['reason'] if 'reason' in penalty else row['event']
-                                                break
-                                        if not reason:
-                                            self.log.warning(
-                                                f"No penalty or reason configured for event {row['event']}.")
-                                            reason = row['event']
-                                        await self.punish(server, row['init_id'], punishment, reason, row['points'])
-                                        break
-                                finally:
-                                    await cursor.execute('DELETE FROM pu_events_sdw WHERE id = %s', (row['id'], ))
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                async with conn.cursor(row_factory=dict_row) as cursor:
+                    for server_name, server in self.bot.servers.items():
+                        config = self.get_config(server)
+                        # we are not initialized correctly yet
+                        if not config:
+                            continue
+                        await cursor.execute("""
+                            SELECT * FROM pu_events_sdw WHERE server_name = %s
+                        """, (server_name,))
+                        rows = await cursor.fetchall()
+                        for row in rows:
+                            try:
+                                for punishment in config.get('punishments', {}):
+                                    if row['points'] < punishment['points']:
+                                        continue
+                                    reason = None
+                                    for penalty in config.get('penalties', []):
+                                        if penalty['event'] == row['event']:
+                                            reason = penalty['reason'] if 'reason' in penalty else row['event']
+                                            break
+                                    if not reason:
+                                        self.log.warning(
+                                            f"No penalty or reason configured for event {row['event']}.")
+                                        reason = row['event']
+                                    await self.punish(server, row['init_id'], punishment, reason, row['points'])
+                                    break
+                            finally:
+                                await cursor.execute('DELETE FROM pu_events_sdw WHERE id = %s', (row['id'], ))
 
     @check_punishments.before_loop
     async def before_check(self):

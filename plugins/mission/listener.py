@@ -15,9 +15,10 @@ from functools import partial
 from pathlib import Path
 from psycopg.rows import dict_row
 from services.bot.dummy import DummyBot
-from typing import TYPE_CHECKING, Callable, Coroutine
+from typing import TYPE_CHECKING, Callable, Coroutine, cast
 
 from .menu import read_menu_config, filter_menu
+from ..missionstats.commands import MissionStatistics
 
 if TYPE_CHECKING:
     from core import Server
@@ -433,7 +434,7 @@ class MissionEventListener(EventListener["Mission"]):
                 server.afk[player.ucid] = datetime.now(timezone.utc)
         # clean up inactive players
         for player in [p for p in server.players.values() if not p.active and p.id != 1]:
-            await asyncio.create_task(self.bus.send_to_node(
+            asyncio.create_task(self.bus.send_to_node(
                 {
                     "command": "onMissionEvent",
                     "eventName": "S_EVENT_DISCONNECT",
@@ -478,6 +479,24 @@ class MissionEventListener(EventListener["Mission"]):
             self.log.warning("getAirbases received without running mission.")
             return
         server.current_mission.airbases = data.get('airbases')
+
+        # if missionstats is enabled ...
+        mstats: MissionStatistics = cast(MissionStatistics, self.bot.cogs.get('MissionStatistics'))
+        if not mstats:
+            return
+
+        # ... set the coalitions
+        _data = mstats.eventlistener.mission_stats.get(server.name, {})
+        if not _data:
+            return
+
+        for airbase in server.current_mission.airbases:
+            for coalition in [Side.BLUE, Side.RED]:
+                if airbase['name'] in _data.get('coalitions', {}).get(coalition.name, {}).get('airbases', []):
+                    airbase['coalition'] = coalition.value
+                    break
+            else:
+                airbase['coalition'] = Side.NEUTRAL.value
 
     @event(name="getWarehouseResources")
     async def getWarehouseResources(self, server: Server, data: dict):
@@ -575,7 +594,7 @@ class MissionEventListener(EventListener["Mission"]):
             return
 
         # create the pseudo-event "S_EVENT_CONNECT"
-        await asyncio.create_task(self.bus.send_to_node(
+        asyncio.create_task(self.bus.send_to_node(
             {
                 "command": "onMissionEvent",
                 "eventName": "S_EVENT_CONNECT",

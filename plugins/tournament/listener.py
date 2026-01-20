@@ -527,7 +527,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             time += 1
 
     async def next_round(self, server: Server, match: dict):
-        await asyncio.create_task(server.sendPopupMessage(
+        asyncio.create_task(server.sendPopupMessage(
             Coalition.ALL, _("You will be moved back to spectators in 60 seconds ...")))
         await asyncio.sleep(60)
         # move all players back to spectators
@@ -545,7 +545,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             squadron = await self.plugin.get_squadron(tournament_id, match[f'squadron_{side}'])
             coalition = Coalition.RED if side == 'red' else Coalition.BLUE
             if squadron.points >= min_costs:
-                await asyncio.create_task(server.sendPopupMessage(
+                asyncio.create_task(server.sendPopupMessage(
                     coalition, _("Squadron admins, you can now choose your weapons for the next round!")))
                 channel = self.bot.get_channel(match[f'squadron_{side}_channel'])
                 if channel:
