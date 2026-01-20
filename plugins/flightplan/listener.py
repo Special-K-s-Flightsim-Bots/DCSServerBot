@@ -356,8 +356,13 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         if not player:
             return
 
+        # Use group_id from event data since player object may not be updated yet
+        group_id = data.get('group_id')
+        if not group_id:
+            return
+
         # Create F10 menu for the player
-        await self._create_flightplan_menu(server, player)
+        await self._create_flightplan_menu(server, player, group_id=group_id)
 
     @event(name="flightplan")
     async def on_flightplan_callback(self, server: Server, data: dict) -> None:
@@ -676,8 +681,14 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                     """, (server_name,))
                 return await cursor.fetchall()
 
-    async def _create_flightplan_menu(self, server: Server, player: Player):
+    async def _create_flightplan_menu(self, server: Server, player: Player, group_id: int = None):
         """Create F10 menu for flight plan operations."""
+        # Use provided group_id or fall back to player object
+        if group_id is None:
+            group_id = player.group_id
+        if not group_id:
+            return
+
         # Get player's plans and visible plans
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -768,15 +779,13 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 }
             })
 
-        # Send menu to DCS
-        group_id = player.group_id
-        if group_id:
-            await server.send_to_dcs({
-                "command": "createMenu",
-                "playerID": player.id,
-                "groupID": group_id,
-                "menu": menu
-            })
+        # Send menu to DCS (group_id already validated at start of function)
+        await server.send_to_dcs({
+            "command": "createMenu",
+            "playerID": player.id,
+            "groupID": group_id,
+            "menu": menu
+        })
 
     async def _menu_view_plans(self, server: Server, player: Player):
         """Handle 'View Active Plans' menu option."""

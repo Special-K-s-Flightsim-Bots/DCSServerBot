@@ -61,12 +61,17 @@ class LogisticsEventListener(EventListener["Logistics"]):
         if not player:
             return
 
+        # Use group_id from event data since player object may not be updated yet
+        group_id = data.get('group_id')
+        if not group_id:
+            return
+
         task = await self._get_assigned_task(player.ucid, server.name)
         if task:
             await self._notify_player_of_task(player, task)
 
         # Create F10 menu for the player
-        await self._create_logistics_menu(server, player)
+        await self._create_logistics_menu(server, player, group_id=group_id)
 
     @event(name="createLogisticsMarkers")
     async def onCreateLogisticsMarkers(self, server: Server, data: dict) -> None:
@@ -1013,8 +1018,14 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     # ==================== F10 MENU METHODS ====================
 
-    async def _create_logistics_menu(self, server: Server, player: Player):
+    async def _create_logistics_menu(self, server: Server, player: Player, group_id: int = None):
         """Create F10 menu for logistics operations."""
+        # Use provided group_id or fall back to player object
+        if group_id is None:
+            group_id = player.group_id
+        if not group_id:
+            return
+
         # Build dynamic menu based on available tasks
         tasks = await self._get_available_tasks(server.name, player.side.value)
         tasks_with_pos = await self._get_available_tasks_with_positions(server.name, player.side.value)
@@ -1090,15 +1101,13 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 }
             })
 
-        # Send menu to DCS
-        group_id = player.group_id
-        if group_id:
-            await server.send_to_dcs({
-                "command": "createMenu",
-                "playerID": player.id,
-                "groupID": group_id,
-                "menu": menu
-            })
+        # Send menu to DCS (group_id already validated at start of function)
+        await server.send_to_dcs({
+            "command": "createMenu",
+            "playerID": player.id,
+            "groupID": group_id,
+            "menu": menu
+        })
 
     async def _menu_view_tasks(self, server: Server, player: Player):
         """Handle 'View Available Tasks' menu option."""
