@@ -673,9 +673,9 @@ class Airbase(BaseModel):
     lng: float
     name: str
     position: Position
-    frequencyList: list[list[int]] | list[tuple[int, int]]
+    frequencyList: list[list[int]] | list[tuple[int, int]] | None = None
     dynamic: Dynamic
-    runwayList: list[str]
+    runwayList: list[str] | None = None
     coalition: int | None = None
 
 
