@@ -15,6 +15,15 @@ _ = get_translation(__name__.split('.')[1])
 log = logging.getLogger(__name__)
 
 
+def format_cruise_speed(value: str) -> str:
+    """Format cruise speed for display. Input: "450" or "M0.85" -> "450 kts" or "M0.85"."""
+    if not value:
+        return ""
+    if str(value).startswith('M'):
+        return str(value)
+    return f"{value} kts"
+
+
 class FlightPlanEventListener(EventListener["FlightPlan"]):
     """Event listener for flight plan plugin - handles events and chat commands."""
 
@@ -185,7 +194,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 embed.add_field(name=_('Cruise'), value=f"FL{fl:03d}", inline=True)
 
             if fp.get('cruise_speed'):
-                embed.add_field(name=_('Speed'), value=f"{fp['cruise_speed']} kts", inline=True)
+                embed.add_field(name=_('Speed'), value=format_cruise_speed(fp['cruise_speed']), inline=True)
 
             if fp.get('etd'):
                 etd = fp['etd']

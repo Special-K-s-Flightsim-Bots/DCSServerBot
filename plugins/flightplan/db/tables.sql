@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS flightplan_plans (
     etd TIMESTAMPTZ,
     eta TIMESTAMPTZ,
     cruise_altitude INTEGER,
-    cruise_speed INTEGER,
+    cruise_speed TEXT,  -- Can be knots (e.g., "450") or Mach (e.g., "M0.85")
     waypoints JSONB,
     departure_position JSONB,
     destination_position JSONB,

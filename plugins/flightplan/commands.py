@@ -93,6 +93,62 @@ def parse_altitude(value: str) -> Optional[int]:
     return None
 
 
+def parse_cruise_speed(value: str) -> Optional[str]:
+    """
+    Parse cruise speed from various formats.
+
+    Accepts:
+    - Knots: "450", "450kts", "450 kts"
+    - Mach: "M0.85", "M 0.85", "0.85M", ".85M", "M.85"
+
+    Returns normalized string: "450" for knots or "M0.85" for Mach.
+    Returns None if invalid.
+    """
+    if not value:
+        return None
+
+    value = value.strip().upper().replace(' ', '')
+
+    # Mach format: M0.85, M.85, 0.85M, .85M
+    # Leading M
+    mach_match = re.match(r'^M\.?(\d*\.?\d+)$', value)
+    if mach_match:
+        mach_num = mach_match.group(1)
+        # Ensure it starts with 0 if it's just decimal
+        if mach_num.startswith('.'):
+            mach_num = '0' + mach_num
+        return f"M{mach_num}"
+
+    # Trailing M
+    mach_match = re.match(r'^\.?(\d*\.?\d+)M$', value)
+    if mach_match:
+        mach_num = mach_match.group(1)
+        if mach_num.startswith('.'):
+            mach_num = '0' + mach_num
+        return f"M{mach_num}"
+
+    # Knots format: 450, 450KTS, 450KT
+    kts_match = re.match(r'^(\d+)(?:KTS?)?$', value)
+    if kts_match:
+        return kts_match.group(1)
+
+    return None
+
+
+def format_cruise_speed(value: str) -> str:
+    """
+    Format cruise speed for display.
+
+    Input: "450" or "M0.85"
+    Output: "450 kts" or "M0.85"
+    """
+    if not value:
+        return ""
+    if value.startswith('M'):
+        return value  # Already in Mach format
+    return f"{value} kts"
+
+
 def parse_etd(value: str) -> Optional[datetime]:
     """
     Parse ETD time from various formats.
@@ -453,7 +509,7 @@ def _create_flightplan_embed(fp: dict, title: str = None) -> discord.Embed:
         embed.add_field(name=_('Cruise'), value=f"FL{fl:03d}", inline=True)
 
     if fp.get('cruise_speed'):
-        embed.add_field(name=_('Speed'), value=f"{fp['cruise_speed']} kts", inline=True)
+        embed.add_field(name=_('Speed'), value=format_cruise_speed(fp['cruise_speed']), inline=True)
 
     if fp.get('etd'):
         etd_str = fp['etd'].strftime('%H:%M UTC')
@@ -521,7 +577,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
         alternate_idx=_('Alternate airfield (optional)'),
         waypoints=_('Comma-separated waypoints (e.g., "PANTHER,38TLN123,@MYPOINT")'),
         cruise_altitude=_('Cruise altitude (e.g., FL300 or 30000)'),
-        cruise_speed=_('Cruise speed in knots (e.g., 450)'),
+        cruise_speed=_('Cruise speed in knots or Mach (e.g., 450 or M0.85)'),
         etd=_('Estimated departure time in HH:MM UTC'),
         remarks=_('Additional remarks (optional)')
     )
@@ -537,7 +593,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
         alternate_idx: Optional[int] = None,
         waypoints: Optional[str] = None,
         cruise_altitude: Optional[str] = None,
-        cruise_speed: Optional[int] = None,
+        cruise_speed: Optional[str] = None,
         etd: Optional[str] = None,
         remarks: Optional[str] = None
     ):
@@ -604,6 +660,17 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
                     )
                     return
 
+            # Parse cruise speed (accepts 450, 450kts, M0.85, etc.)
+            parsed_cruise_speed = None
+            if cruise_speed:
+                parsed_cruise_speed = parse_cruise_speed(cruise_speed)
+                if parsed_cruise_speed is None:
+                    await interaction.followup.send(
+                        _('Invalid speed format. Use knots (e.g., 450) or Mach (e.g., M0.85).'),
+                        ephemeral=True
+                    )
+                    return
+
             # Parse ETD (accepts 14:30 or 1430)
             etd_dt = None
             if etd:
@@ -635,7 +702,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
                 json.dumps(dep_position) if dep_position else None,
                 json.dumps(dest_position) if dest_position else None,
                 json.dumps(alt_position) if alt_position else None,
-                cruise_alt_feet, cruise_speed, etd_dt, stale_at
+                cruise_alt_feet, parsed_cruise_speed, etd_dt, stale_at
             ))
             result = await cursor.fetchone()
             plan_id = result[0]
@@ -655,7 +722,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
                     'alternate': alternate,
                     'waypoints': parsed_waypoints,
                     'cruise_altitude': cruise_alt_feet,
-                    'cruise_speed': cruise_speed,
+                    'cruise_speed': parsed_cruise_speed,
                     'etd': etd_dt,
                     'remarks': remarks,
                     'status': 'filed',
@@ -676,6 +743,8 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
             embed.add_field(name=_('Alternate'), value=alternate, inline=True)
         if cruise_alt_feet:
             embed.add_field(name=_('Cruise'), value=f"FL{cruise_alt_feet // 100:03d}", inline=True)
+        if parsed_cruise_speed:
+            embed.add_field(name=_('Speed'), value=format_cruise_speed(parsed_cruise_speed), inline=True)
         if etd_dt:
             embed.add_field(name=_('ETD'), value=etd_dt.strftime('%H:%M UTC'), inline=True)
         if parsed_waypoints:
