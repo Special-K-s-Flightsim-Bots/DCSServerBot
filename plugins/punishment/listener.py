@@ -24,7 +24,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         self.active_servers: set[str] = set()
         self.pending_forgiveness: dict[tuple[str, str], list[asyncio.Task]] = {}
         self.pending_kill: dict[str, tuple[int, str | None, str | None, str | None]] = ThreadSafeDict()
-        self.disconnected: dict[str, tuple[int, str | None, str | None]] = {}
+        self.disconnected: dict[str, tuple[int, str | None, str | None]] = ThreadSafeDict()
 
     async def shutdown(self) -> None:
         for tasks in self.pending_forgiveness.values():
@@ -242,8 +242,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                                        (server.mission_id, target_id))
 
         # inform players
-        side = Side.RED if initiator.side == Side.BLUE else Side.RED
-        message = MissionEventListener.EVENT_TEXTS[side]['kill'].format(
+        message = MissionEventListener.EVENT_TEXTS[initiator.side]['kill'].format(
             ('player ' + initiator.name) if initiator is not None else 'AI',
             initiator.unit_type if initiator else 'unknown',
             victim.side.name,
@@ -251,9 +250,9 @@ class PunishmentEventListener(EventListener["Punishment"]):
             victim.unit_type,
             weapon or "the reslot-hammer"
         )
-        mission.eventlistener.send_dcs_event(server, side, message)
+        mission.eventlistener.send_dcs_event(server, initiator.side, message)
         message = "{} {} in {} killed {} {} in {} with {}.".format(
-            side.name,
+            initiator.side.name,
             ('player ' + initiator.name) if initiator is not None else 'AI',
             initiator.unit_type if initiator else 'unknown',
             victim.side.name,
@@ -345,7 +344,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             shot_time, shooter_id, weapon, s_event = self.pending_kill.pop(player.ucid, (-1, None, None, None))
             delta_time = int(time.time()) - shot_time
             # no shot event registered or too old already
-            if shot_time == -1:
+            if shot_time is None or shot_time == -1:
                 return
 
             # give the kill to the opponent if we were hit earlier or if the shot was shortly before

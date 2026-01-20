@@ -591,7 +591,7 @@ class ServerAttendanceStats(BaseModel):
     # Daily trend for the last week
     daily_trend: list[dict] = Field(default_factory=list, description="Daily unique player counts for trend analysis")
     
-    # Enhanced statistics from Discord /serverstats command
+    # Enhanced statistics from the Discord /serverstats command
     top_theatres: list[TopTheatre] = Field(default_factory=list, description="Top theatres by playtime")
     top_missions: list[TopMission] = Field(default_factory=list, description="Top missions by playtime") 
     top_modules: list[TopModule] = Field(default_factory=list, description="Top modules by playtime and usage")
@@ -637,30 +637,69 @@ class ErrorResponse(BaseModel):
     error: str = Field(..., description="Error message")
 
 
+class Position(BaseModel):
+    y: float
+    x: float
+    z: float
+
+
+class FrequencyListItem(BaseModel):
+    # each frequency entry is a two‑element list: [frequency, value]
+    frequency: int
+    value: int
+
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate_tuple
+
+    @classmethod
+    def validate_tuple(cls, v):
+        if not (isinstance(v, (list, tuple)) and len(v) == 2):
+            raise TypeError('frequency entry must be a 2‑item list')
+        return v
+
+
+class Dynamic(BaseModel):
+    dynamicSpawnAvailable: bool
+    allowHotSpawn: bool
+
+
+class Airbase(BaseModel):
+    alt: float
+    code: str
+    id: str
+    lat: float
+    rwy_heading: int
+    lng: float
+    name: str
+    position: Position
+    frequencyList: list[list[int]] | list[tuple[int, int]]
+    dynamic: Dynamic
+    runwayList: list[str]
+    coalition: int | None = None
+
+
 class AirbasesResponse(BaseModel):
-    airbases: dict = Field(..., description="Airbases data")
+    airbases: list[Airbase] = Field(..., description="Airbases data")
 
     model_config = {
         "json_schema_extra": {
             "example": {
-                    "command": "getAirbases",
-                    "channel": "sync-****",
-                    "server_name": "Server Name",
-                    "airbases": [
-                        {
-                            "alt": 250.00025,
-                            "code": "ICAO",
-                            "id": "Airbase_Name",
-                            "lat": 35.732306452624,
-                            "rwy_heading": 274,
-                            "lng": 37.104127964423,
-                            "name": "Airbase Name",
-                            "position": {
+                "airbases": [
+                    {
+                        "alt": 250.00025,
+                        "code": "ICAO",
+                        "id": "Airbase_Name",
+                        "lat": 35.732306452624,
+                        "rwy_heading": 274,
+                        "lng": 37.104127964423,
+                        "name": "Airbase Name",
+                        "position": {
                             "y": 250.00025,
                             "x": 76048.957031,
                             "z": 111344.925781
-                            },
-                            "frequencyList": [
+                        },
+                        "frequencyList": [
                             [
                                 38950000,
                                 0
@@ -677,18 +716,18 @@ class AirbasesResponse(BaseModel):
                                 4025000,
                                 0
                             ]
-                            ],
-                            "dynamic": {
+                        ],
+                        "dynamic": {
                             "dynamicSpawnAvailable": True,
                             "allowHotSpawn": False
-                            },
-                            "runwayList": [
+                        },
+                        "runwayList": [
                             "09",
                             "27"
-                            ]
-                        },
-                    ]
-
+                        ],
+                        "coalition": 1
+                    }
+                ]
             }
         }
     }

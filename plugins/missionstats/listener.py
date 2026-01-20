@@ -1,7 +1,7 @@
 import asyncio
 
 from core import EventListener, PersistentReport, Server, Coalition, Channel, event, Report, get_translation, \
-    ThreadSafeDict
+    ThreadSafeDict, Side
 from discord.ext import tasks
 from typing import TYPE_CHECKING, Counter
 
@@ -75,6 +75,14 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
     async def getMissionSituation(self, server: Server, data: dict) -> None:
         self.mission_stats[server.name] = data
         self.update[server.name] = True
+
+        # set airbase coalitions
+        for airbase in server.current_mission.airbases:
+            for coalition in [Side.BLUE, Side.RED]:
+                if airbase['name'] in data.get('coalitions', {}).get(coalition.name, {}).get('airbases', []):
+                    airbase['coalition'] = coalition.value
+                else:
+                    airbase['coalition'] = Side.NEUTRAL.value
 
     async def _toggle_mission_stats(self, server: Server):
         if self.plugin.get_config(server).get('enabled', True):
@@ -267,6 +275,14 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                 message = self.EVENT_TEXTS[win_coalition]['capture_from'].format(name)
             else:
                 message = self.EVENT_TEXTS[win_coalition]['capture'].format(name)
+
+            # update the internal airbase table
+            try:
+                airbase = next(x for x in server.current_mission.airbases if x['name'] == name)
+                airbase['coalition'] = 1 if win_coalition == Coalition.RED else 2
+            except StopIteration:
+                pass
+
             update = True
             events_channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
             if events_channel:
