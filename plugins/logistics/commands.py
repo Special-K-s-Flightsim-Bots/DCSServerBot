@@ -735,4 +735,9 @@ class Logistics(Plugin[LogisticsEventListener]):
 
 
 async def setup(bot: DCSServerBot):
+    from core import PluginRequiredError
+    if 'missionstats' not in bot.plugins:
+        raise PluginRequiredError('missionstats')
+    if 'logbook' not in bot.plugins:
+        log.warning("Logistics: logbook plugin not found - pilot completion tracking disabled")
     await bot.add_cog(Logistics(bot, LogisticsEventListener))
