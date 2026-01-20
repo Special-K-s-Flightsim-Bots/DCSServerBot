@@ -354,7 +354,7 @@ class RestAPI(Plugin):
             "unlimited": airbase_data.get("unlimited", {}),
         }
     
-    async def set_warehouse_item(self, server_name: str = Query(...), airbase_name: str = Query(...), item: str = Query(...), value: int = Query(...)) -> AirbaseSetWarehouseItemResponse:
+    async def set_warehouse_item(self, server_name: str = Form(...), airbase_name: str = Form(...), item: str = Form(...), value: int = Form(...)) -> AirbaseSetWarehouseItemResponse:
         resolved_server_name, server = self.get_resolved_server(server_name)
         if not server:
             raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
