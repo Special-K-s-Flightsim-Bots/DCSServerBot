@@ -81,8 +81,9 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             for coalition in [Side.BLUE, Side.RED]:
                 if airbase['name'] in data.get('coalitions', {}).get(coalition.name, {}).get('airbases', []):
                     airbase['coalition'] = coalition.value
-                    continue
-            airbase['coalition'] = Side.NEUTRAL.value
+                    break
+            else:
+                airbase['coalition'] = Side.NEUTRAL.value
 
     async def _toggle_mission_stats(self, server: Server):
         if self.plugin.get_config(server).get('enabled', True):

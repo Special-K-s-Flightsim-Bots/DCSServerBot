@@ -494,8 +494,9 @@ class MissionEventListener(EventListener["Mission"]):
             for coalition in [Side.BLUE, Side.RED]:
                 if airbase['name'] in _data.get('coalitions', {}).get(coalition.name, {}).get('airbases', []):
                     airbase['coalition'] = coalition.value
-                    continue
-            airbase['coalition'] = Side.NEUTRAL.value
+                    break
+            else:
+                airbase['coalition'] = Side.NEUTRAL.value
 
     @event(name="getWarehouseResources")
     async def getWarehouseResources(self, server: Server, data: dict):
