@@ -320,6 +320,15 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
     @event(name="onSimulationStart")
     async def on_simulation_start(self, server: Server, _data: dict) -> None:
         """Handle mission start - cancel stale plans and recreate active markers."""
+        await self._handle_simulation_start(server)
+
+    @event(name="flightplanSimulationStart")
+    async def on_flightplan_simulation_start(self, server: Server, _data: dict) -> None:
+        """Handle custom flightplan simulation start event from Lua callback."""
+        await self._handle_simulation_start(server)
+
+    async def _handle_simulation_start(self, server: Server) -> None:
+        """Common handler for simulation start - cancel stale plans and recreate markers."""
         config = self.get_config(server)
 
         # Cancel stale plans if configured
