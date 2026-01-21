@@ -1399,37 +1399,82 @@ class Logbook(Plugin[LogbookEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(
-        days=_('Show qualifications expiring within this many days (default: 30)')
+        days=_('Show qualifications expiring within this many days (default: 30)'),
+        squadron=_('Filter by squadron (optional)'),
+        qualification=_('Filter by qualification type (optional)')
     )
+    @app_commands.autocomplete(squadron=logbook_squadron_autocomplete, qualification=qualification_autocomplete)
     async def qualification_expiring(self, interaction: discord.Interaction,
-                                     days: Optional[int] = 30):
+                                     days: Optional[int] = 30,
+                                     squadron: Optional[int] = None,
+                                     qualification: Optional[int] = None):
         ephemeral = utils.get_ephemeral(interaction)
 
         cutoff_date = datetime.now(timezone.utc) + timedelta(days=days)
 
+        # Build dynamic query with optional filters
+        query = """
+            SELECT p.name as pilot_name, p.discord_id, q.name as qual_name, pq.expires_at,
+                   s.name as squadron_name
+            FROM logbook_pilot_qualifications pq
+            JOIN players p ON pq.player_ucid = p.ucid
+            JOIN logbook_qualifications q ON pq.qualification_id = q.id
+            LEFT JOIN logbook_squadron_members sm ON sm.player_ucid = p.ucid
+            LEFT JOIN logbook_squadrons s ON s.id = sm.squadron_id
+            WHERE pq.expires_at IS NOT NULL AND pq.expires_at <= %s
+        """
+        params = [cutoff_date]
+
+        if squadron is not None:
+            query += " AND sm.squadron_id = %s"
+            params.append(squadron)
+
+        if qualification is not None:
+            query += " AND pq.qualification_id = %s"
+            params.append(qualification)
+
+        query += " ORDER BY pq.expires_at ASC"
+
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
-                    SELECT p.name as pilot_name, p.discord_id, q.name as qual_name, pq.expires_at
-                    FROM logbook_pilot_qualifications pq
-                    JOIN players p ON pq.player_ucid = p.ucid
-                    JOIN logbook_qualifications q ON pq.qualification_id = q.id
-                    WHERE pq.expires_at IS NOT NULL AND pq.expires_at <= %s
-                    ORDER BY pq.expires_at ASC
-                """, (cutoff_date,))
+                await cursor.execute(query, tuple(params))
                 expiring = await cursor.fetchall()
+
+                # Get filter names for display
+                squadron_name = None
+                qual_name = None
+                if squadron is not None:
+                    await cursor.execute("SELECT name FROM logbook_squadrons WHERE id = %s", (squadron,))
+                    row = await cursor.fetchone()
+                    if row:
+                        squadron_name = row['name']
+                if qualification is not None:
+                    await cursor.execute("SELECT name FROM logbook_qualifications WHERE id = %s", (qualification,))
+                    row = await cursor.fetchone()
+                    if row:
+                        qual_name = row['name']
+
+        # Build description with active filters
+        desc_parts = [_('Qualifications expiring within {} days').format(days)]
+        if squadron_name:
+            desc_parts.append(_('Squadron: {}').format(squadron_name))
+        if qual_name:
+            desc_parts.append(_('Qualification: {}').format(qual_name))
 
         if not expiring:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _('No qualifications expiring within {} days.').format(days),
+                _('No qualifications expiring within {} days{}.').format(
+                    days,
+                    _(' for the selected filters') if (squadron or qualification) else ''
+                ),
                 ephemeral=ephemeral
             )
             return
 
         embed = discord.Embed(
             title=_('Expiring Qualifications'),
-            description=_('Qualifications expiring within {} days').format(days),
+            description=' | '.join(desc_parts),
             color=discord.Color.orange()
         )
 
@@ -1444,7 +1489,11 @@ class Logbook(Plugin[LogbookEventListener]):
                 status = "**EXPIRED**"
             else:
                 status = f"{days_left}d"
-            lines.append(f"**{exp['pilot_name']}** - {exp['qual_name']} ({status})")
+            # Include squadron if not filtered by squadron
+            if squadron is None and exp.get('squadron_name'):
+                lines.append(f"**{exp['pilot_name']}** ({exp['squadron_name']}) - {exp['qual_name']} ({status})")
+            else:
+                lines.append(f"**{exp['pilot_name']}** - {exp['qual_name']} ({status})")
 
         # Split into chunks if needed
         text = '\n'.join(lines)
