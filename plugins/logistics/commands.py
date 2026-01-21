@@ -796,7 +796,11 @@ class Logistics(Plugin[LogisticsEventListener]):
                 "name": airbase
             }, timeout=60)
         except Exception as e:
-            await interaction.followup.send(f"Failed to query warehouse: {e}", ephemeral=True)
+            self.log.exception(f"Failed to query warehouse for {airbase}: {e}")
+            await interaction.followup.send(
+                f"Failed to query {airbase} warehouse. Please try again or contact an admin.",
+                ephemeral=True
+            )
             return
 
         if not data or 'warehouse' not in data:
