@@ -10,8 +10,10 @@ Supports multiple input formats:
 - Navigation fixes: "ADLER", "TSK" (from flightplan_navigation_fixes table)
 """
 
+import math
 import re
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Optional, TYPE_CHECKING
 
@@ -371,3 +373,250 @@ async def parse_waypoint_list(
             waypoints.append(result)
 
     return waypoints
+
+
+# ==================== DISTANCE AND ETA CALCULATIONS ====================
+
+EARTH_RADIUS_NM = 3440.065  # Earth radius in nautical miles
+
+
+def haversine_distance_nm(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """
+    Calculate great-circle distance between two lat/lon points.
+
+    Parameters
+    ----------
+    lat1, lon1 : float
+        Start point coordinates in decimal degrees
+    lat2, lon2 : float
+        End point coordinates in decimal degrees
+
+    Returns
+    -------
+    float
+        Distance in nautical miles
+    """
+    lat1_rad = math.radians(lat1)
+    lat2_rad = math.radians(lat2)
+    delta_lat = math.radians(lat2 - lat1)
+    delta_lon = math.radians(lon2 - lon1)
+
+    a = (math.sin(delta_lat / 2) ** 2 +
+         math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    return EARTH_RADIUS_NM * c
+
+
+def calculate_route_distance(
+    dep_lat: float, dep_lon: float,
+    dest_lat: float, dest_lon: float,
+    waypoints: Optional[list[dict]] = None
+) -> float:
+    """
+    Calculate total route distance through waypoints.
+
+    Parameters
+    ----------
+    dep_lat, dep_lon : float
+        Departure coordinates in decimal degrees
+    dest_lat, dest_lon : float
+        Destination coordinates in decimal degrees
+    waypoints : list[dict], optional
+        List of waypoint dicts with 'lat' and 'lon' keys
+
+    Returns
+    -------
+    float
+        Total distance in nautical miles
+    """
+    total_distance = 0.0
+    current_lat, current_lon = dep_lat, dep_lon
+
+    # Add distance through each waypoint
+    if waypoints:
+        for wp in waypoints:
+            wp_lat = wp.get('lat')
+            wp_lon = wp.get('lon')
+            if wp_lat is not None and wp_lon is not None:
+                total_distance += haversine_distance_nm(
+                    current_lat, current_lon, wp_lat, wp_lon
+                )
+                current_lat, current_lon = wp_lat, wp_lon
+
+    # Add final leg to destination
+    total_distance += haversine_distance_nm(
+        current_lat, current_lon, dest_lat, dest_lon
+    )
+
+    return total_distance
+
+
+def mach_to_tas(mach: float, altitude_ft: int) -> float:
+    """
+    Convert Mach number to True Airspeed (TAS) in knots.
+
+    Uses International Standard Atmosphere (ISA) model.
+    Below 36,089 ft: temperature decreases linearly.
+    Above 36,089 ft (tropopause): temperature is constant at -56.5°C.
+
+    Parameters
+    ----------
+    mach : float
+        Mach number (e.g., 0.85)
+    altitude_ft : int
+        Altitude in feet
+
+    Returns
+    -------
+    float
+        True airspeed in knots
+    """
+    # ISA temperature model
+    if altitude_ft <= 36089:
+        # Troposphere: T = 288.15 - 0.001981 * altitude_ft (in Kelvin)
+        temp_kelvin = 288.15 - 0.001981 * altitude_ft
+    else:
+        # Tropopause and above: constant temperature
+        temp_kelvin = 216.65
+
+    # Speed of sound: a = sqrt(gamma * R * T)
+    # For air: gamma = 1.4, R = 287.05 J/(kg·K)
+    # a = sqrt(1.4 * 287.05 * T) m/s = sqrt(401.87 * T) m/s
+    speed_of_sound_ms = math.sqrt(401.87 * temp_kelvin)
+
+    # Convert to knots (1 m/s = 1.94384 knots)
+    speed_of_sound_kts = speed_of_sound_ms * 1.94384
+
+    return mach * speed_of_sound_kts
+
+
+def parse_speed_to_kts(cruise_speed: str, cruise_altitude: Optional[int] = None) -> Optional[float]:
+    """
+    Parse cruise speed to knots TAS.
+
+    Parameters
+    ----------
+    cruise_speed : str
+        Speed in knots (e.g., "450") or Mach (e.g., "M0.85")
+    cruise_altitude : int, optional
+        Cruise altitude in feet (required for Mach conversion)
+
+    Returns
+    -------
+    float or None
+        Speed in knots, or None if unable to parse
+    """
+    if not cruise_speed:
+        return None
+
+    speed_str = str(cruise_speed).strip().upper()
+
+    # Mach number
+    if speed_str.startswith('M'):
+        try:
+            mach = float(speed_str[1:])
+            altitude = cruise_altitude or 30000  # Default FL300 if not specified
+            return mach_to_tas(mach, altitude)
+        except ValueError:
+            return None
+
+    # Knots (TAS assumed)
+    try:
+        return float(speed_str.replace('KTS', '').replace('KT', '').strip())
+    except ValueError:
+        return None
+
+
+def calculate_eta(
+    etd: datetime,
+    distance_nm: float,
+    speed_kts: float
+) -> datetime:
+    """
+    Calculate ETA from ETD, distance, and speed.
+
+    Parameters
+    ----------
+    etd : datetime
+        Estimated time of departure
+    distance_nm : float
+        Total route distance in nautical miles
+    speed_kts : float
+        Ground speed in knots (TAS used as approximation)
+
+    Returns
+    -------
+    datetime
+        Estimated time of arrival
+    """
+    if speed_kts <= 0:
+        return etd
+
+    # Flight time in hours
+    flight_time_hours = distance_nm / speed_kts
+
+    # Convert to timedelta and add to ETD
+    flight_time = timedelta(hours=flight_time_hours)
+    return etd + flight_time
+
+
+def calculate_flight_plan_eta(
+    etd: Optional[datetime],
+    dep_position: Optional[dict],
+    dest_position: Optional[dict],
+    waypoints: Optional[list[dict]],
+    cruise_speed: Optional[str],
+    cruise_altitude: Optional[int]
+) -> Optional[datetime]:
+    """
+    Calculate ETA for a flight plan given all relevant data.
+
+    Parameters
+    ----------
+    etd : datetime, optional
+        Estimated time of departure
+    dep_position : dict, optional
+        Departure position with 'lat' and 'lon' keys
+    dest_position : dict, optional
+        Destination position with 'lat' and 'lon' keys
+    waypoints : list[dict], optional
+        List of waypoint dicts
+    cruise_speed : str, optional
+        Cruise speed (e.g., "450" or "M0.85")
+    cruise_altitude : int, optional
+        Cruise altitude in feet
+
+    Returns
+    -------
+    datetime or None
+        Calculated ETA, or None if insufficient data
+    """
+    # Need ETD, positions, and speed to calculate ETA
+    if not etd:
+        return None
+    if not dep_position or not dest_position:
+        return None
+    if not cruise_speed:
+        return None
+
+    dep_lat = dep_position.get('lat')
+    dep_lon = dep_position.get('lon')
+    dest_lat = dest_position.get('lat')
+    dest_lon = dest_position.get('lon')
+
+    if dep_lat is None or dep_lon is None or dest_lat is None or dest_lon is None:
+        return None
+
+    # Calculate route distance
+    distance_nm = calculate_route_distance(
+        dep_lat, dep_lon, dest_lat, dest_lon, waypoints
+    )
+
+    # Parse speed to knots
+    speed_kts = parse_speed_to_kts(cruise_speed, cruise_altitude)
+    if not speed_kts or speed_kts <= 0:
+        return None
+
+    # Calculate ETA
+    return calculate_eta(etd, distance_nm, speed_kts)

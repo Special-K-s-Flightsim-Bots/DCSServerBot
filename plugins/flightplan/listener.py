@@ -218,6 +218,14 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                     etd_str = str(etd)
                 embed.add_field(name=_('ETD'), value=etd_str, inline=True)
 
+            if fp.get('eta'):
+                eta = fp['eta']
+                if isinstance(eta, datetime):
+                    eta_str = format_time_utc(eta)
+                else:
+                    eta_str = str(eta)
+                embed.add_field(name=_('ETA'), value=eta_str, inline=True)
+
             # Waypoints
             waypoints = fp.get('waypoints')
             if waypoints:
@@ -470,6 +478,11 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
             etd = fp['etd']
             if isinstance(etd, datetime):
                 msg += f" | ETD {format_time_utc(etd, '%H:%M')}"
+
+        if fp.get('eta'):
+            eta = fp['eta']
+            if isinstance(eta, datetime):
+                msg += f" | ETA {format_time_utc(eta, '%H:%M')}"
 
         await player.sendChatMessage(msg)
 

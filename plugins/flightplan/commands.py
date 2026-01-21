@@ -12,7 +12,7 @@ from services.bot import DCSServerBot
 from typing import Literal, Optional
 
 from .listener import FlightPlanEventListener
-from .utils import parse_waypoint_input, WaypointType
+from .utils import parse_waypoint_input, WaypointType, calculate_flight_plan_eta
 
 
 # Theater bounding boxes for OpenAIP queries (minLon, minLat, maxLon, maxLat)
@@ -703,6 +703,16 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
             filed_at = datetime.now(timezone.utc)
             stale_at = _calculate_stale_at(etd_dt, filed_at, stale_hours)
 
+            # Calculate ETA from ETD, route distance, and cruise speed
+            eta_dt = calculate_flight_plan_eta(
+                etd=etd_dt,
+                dep_position=dep_position,
+                dest_position=dest_position,
+                waypoints=parsed_waypoints,
+                cruise_speed=parsed_cruise_speed,
+                cruise_altitude=cruise_alt_feet
+            )
+
             # Get coalition from player if they're online, otherwise default to 0
             coalition = 0
             player = server.get_player(ucid=ucid, active=True)
@@ -713,8 +723,8 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
                 INSERT INTO flightplan_plans
                 (player_ucid, server_name, callsign, aircraft_type, departure, destination,
                  alternate, route, remarks, waypoints, departure_position, destination_position,
-                 alternate_position, cruise_altitude, cruise_speed, etd, stale_at, coalition)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 alternate_position, cruise_altitude, cruise_speed, etd, eta, stale_at, coalition)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 ucid, server.name, callsign, aircraft_type, departure, destination,
@@ -723,7 +733,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
                 json.dumps(dep_position) if dep_position else None,
                 json.dumps(dest_position) if dest_position else None,
                 json.dumps(alt_position) if alt_position else None,
-                cruise_alt_feet, parsed_cruise_speed, etd_dt, stale_at, coalition
+                cruise_alt_feet, parsed_cruise_speed, etd_dt, eta_dt, stale_at, coalition
             ))
             result = await cursor.fetchone()
             plan_id = result[0]
@@ -745,6 +755,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
                     'cruise_altitude': cruise_alt_feet,
                     'cruise_speed': parsed_cruise_speed,
                     'etd': etd_dt,
+                    'eta': eta_dt,
                     'remarks': remarks,
                     'status': 'filed',
                     'filed_at': filed_at,
@@ -768,6 +779,8 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
             embed.add_field(name=_('Speed'), value=format_cruise_speed(parsed_cruise_speed), inline=True)
         if etd_dt:
             embed.add_field(name=_('ETD'), value=format_time_utc(etd_dt), inline=True)
+        if eta_dt:
+            embed.add_field(name=_('ETA'), value=format_time_utc(eta_dt), inline=True)
         if parsed_waypoints:
             wp_names = [wp['name'] for wp in parsed_waypoints[:3]]
             embed.add_field(name=_('Waypoints'), value=' → '.join(wp_names), inline=False)
