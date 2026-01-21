@@ -59,11 +59,27 @@ class LogbookEventListener(EventListener["Logbook"]):
                 except Exception:
                     pass  # traps table might not exist (greenieboard plugin not installed)
 
+                # PvP kills from missionstats table (kills where target is another player)
+                pvp_kills = 0
+                try:
+                    await cursor.execute("""
+                        SELECT COUNT(*) as count FROM missionstats
+                        WHERE init_id = %s
+                          AND target_id IS NOT NULL
+                          AND target_id != %s
+                          AND event = 'S_EVENT_KILL'
+                    """, (player_ucid, player_ucid))
+                    row = await cursor.fetchone()
+                    if row:
+                        pvp_kills = row['count']
+                except Exception:
+                    pass  # missionstats table might not exist
+
                 # Build stats dictionary for requirement checking
                 player_stats = {
                     'flight_hours': float(stats.get('total_hours', 0) or 0),
                     'total_kills': int(stats.get('total_kills', 0) or 0),
-                    'pvp_kills': int(stats.get('total_kills', 0) or 0),  # Approximation
+                    'pvp_kills': pvp_kills,
                     'deaths': int(stats.get('total_deaths', 0) or 0),
                     'takeoffs': int(stats.get('total_takeoffs', 0) or 0),
                     'landings': int(stats.get('total_landings', 0) or 0),
@@ -221,10 +237,26 @@ class LogbookEventListener(EventListener["Logbook"]):
                 except Exception:
                     pass
 
+                # PvP kills from missionstats table (kills where target is another player)
+                pvp_kills = 0
+                try:
+                    await cursor.execute("""
+                        SELECT COUNT(*) as count FROM missionstats
+                        WHERE init_id = %s
+                          AND target_id IS NOT NULL
+                          AND target_id != %s
+                          AND event = 'S_EVENT_KILL'
+                    """, (player_ucid, player_ucid))
+                    row = await cursor.fetchone()
+                    if row:
+                        pvp_kills = row['count']
+                except Exception:
+                    pass
+
                 player_stats = {
                     'flight_hours': float(stats.get('total_hours', 0) or 0),
                     'total_kills': int(stats.get('total_kills', 0) or 0),
-                    'pvp_kills': int(stats.get('total_kills', 0) or 0),
+                    'pvp_kills': pvp_kills,
                     'deaths': int(stats.get('total_deaths', 0) or 0),
                     'takeoffs': int(stats.get('total_takeoffs', 0) or 0),
                     'landings': int(stats.get('total_landings', 0) or 0),
