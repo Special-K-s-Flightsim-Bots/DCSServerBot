@@ -310,31 +310,39 @@ class LogisticsEventListener(EventListener["Logistics"]):
     @chat_command(name="deliver", help="Mark current task as delivered")
     async def deliver_cmd(self, server: Server, player: Player, params: list[str]):
         """Manual completion option - for when auto-detect fails."""
-        task = await self._get_assigned_task(player.ucid, server.name)
-        if not task:
-            await player.sendChatMessage("You have no active logistics task.")
-            return
+        try:
+            task = await self._get_assigned_task(player.ucid, server.name)
+            if not task:
+                await player.sendChatMessage("You have no active logistics task.")
+                return
 
-        result = await self._complete_task(server, player, task['id'])
-        if result['success']:
-            await player.sendChatMessage(f"Task #{task['id']} marked as delivered! Well done.")
-            await player.sendPopupMessage("DELIVERY COMPLETE\n\nTask logged to your record.", 10)
-        else:
-            await player.sendChatMessage(f"Cannot complete task: {result['error']}")
+            result = await self._complete_task(server, player, task['id'])
+            if result['success']:
+                await player.sendChatMessage(f"Task #{task['id']} marked as delivered! Well done.")
+                await player.sendPopupMessage("DELIVERY COMPLETE\n\nTask logged to your record.", 10)
+            else:
+                await player.sendChatMessage(f"Cannot complete task: {result['error']}")
+        except Exception as e:
+            self.log.exception(f"Error in deliver command for player {player.name}: {e}")
+            await player.sendChatMessage("An error occurred processing your delivery. Please try again or contact an admin.")
 
     @chat_command(name="abandon", help="Abandon your current logistics task")
     async def abandon_cmd(self, server: Server, player: Player, params: list[str]):
         """Release the task back to available pool."""
-        task = await self._get_assigned_task(player.ucid, server.name)
-        if not task:
-            await player.sendChatMessage("You have no active logistics task.")
-            return
+        try:
+            task = await self._get_assigned_task(player.ucid, server.name)
+            if not task:
+                await player.sendChatMessage("You have no active logistics task.")
+                return
 
-        result = await self._abandon_task(server, player, task['id'])
-        if result['success']:
-            await player.sendChatMessage(f"Task #{task['id']} abandoned. It is now available for others.")
-        else:
-            await player.sendChatMessage(f"Cannot abandon task: {result['error']}")
+            result = await self._abandon_task(server, player, task['id'])
+            if result['success']:
+                await player.sendChatMessage(f"Task #{task['id']} abandoned. It is now available for others.")
+            else:
+                await player.sendChatMessage(f"Cannot abandon task: {result['error']}")
+        except Exception as e:
+            self.log.exception(f"Error in abandon command for player {player.name}: {e}")
+            await player.sendChatMessage("An error occurred. Please try again or contact an admin.")
 
     # -request command removed - use Discord /logistics create instead
     # The interactive flow was too cumbersome for in-game chat
