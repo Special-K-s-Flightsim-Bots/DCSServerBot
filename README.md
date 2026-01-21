@@ -488,7 +488,7 @@ My Fancy Server:                # Your server name, as displayed in the server l
   ignore_dirs:                  # Optional: ignore directories from mission upload / mission add (already ignored are .dcssb, Scripts and Saves)
     - archive
   autorole: Fancy Players       # Optional: give people this role if they are online on this server (overwrites autorole/online in bot.yaml!).
-  show_atis: true               # Optional: show ATIS information on BIRTH
+  show_atis: true               # Optional: show ATIS information on BIRTH (default: false)
   force_voice: false            # Optional: enforce the usage of a voice channel (users need to be linked!) - default: false
   discord:                      # Optional: specify discord roles that are allowed to use this server
     - '@everyone'               # Attention: people cannot self-link on these servers and have to be liked properly already!

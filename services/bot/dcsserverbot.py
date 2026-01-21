@@ -35,9 +35,9 @@ class DCSServerBot(commands.Bot):
         self.eventListeners: set[EventListener] = self.bus.eventListeners
         self.audit_channel = None
         self.member: discord.Member | None = None
-        self.lock: asyncio.Lock = asyncio.Lock()
         self.synced: bool = False
         self.tree.on_error = self.on_app_command_error
+        self._locks: dict[tuple[str, str], asyncio.Lock] = {}
         self._roles = None
 
     async def start(self, token: str, *, reconnect: bool = True) -> None:
@@ -564,7 +564,8 @@ class DCSServerBot(commands.Bot):
 
     async def setEmbed(self, *, embed_name: str, embed: discord.Embed, channel_id: Channel | int = Channel.STATUS,
                        file: discord.File | None = None, server: "Server | None" = None):
-        async with self.lock:
+        lock = self._locks.setdefault((server.name if server else 'MASTER', embed_name), asyncio.Lock())
+        async with lock:
             # do not update any embed if the session is closed already
             if self.is_closed():
                 return

@@ -186,8 +186,10 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
+        if 'side' not in data or data['id'] == 1:
+            return
         config = self.plugin.get_config(server)
-        if not config or 'side' not in data:
+        if not config:
             return
         player: CreditPlayer = cast(CreditPlayer, server.get_player(ucid=data['ucid'], active=True))
         if not player:

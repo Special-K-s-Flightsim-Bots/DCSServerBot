@@ -59,7 +59,7 @@ class GameMasterEventListener(EventListener["GameMaster"]):
 
     @event(name="onChatMessage")
     async def onChatMessage(self, server: Server, data: dict) -> None:
-        player: Player = server.get_player(id=data['from'])
+        player: Player = server.get_player(id=data['from'], active=True)
         if not player or not data['message']:
             return
         if server.locals.get('chat_log') and self.chat_log.get(server.name):
@@ -350,7 +350,7 @@ class GameMasterEventListener(EventListener["GameMaster"]):
     async def onPlayerChangeCoalition(self, server: Server, data: dict) -> None:
         if data['side'] == 0 or not server.locals.get('coalitions'):
             return
-        player: Player = server.get_player(id=data['id'])
+        player: Player = server.get_player(id=data['id'], active=True)
         if not player:
             return
         # DCS Admin and GameMaster can join any side

@@ -63,9 +63,9 @@ class MonitoringListener(EventListener["Monitoring"]):
             fps = -1
 
         mission_time = (server.current_mission.start_time + server.current_mission.mission_time) if server.current_mission else None
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
                     INSERT INTO serverstats (server_name, node, mission_id, users, status, mission_time, cpu, mem_total, 
                                              mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, fps, ping) 
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)

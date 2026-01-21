@@ -396,7 +396,7 @@ class MissionEventListener(EventListener["Mission"]):
         self._update_mission(server, data)
         if data['channel'].startswith('sync-'):
             if not data.get('players'):
-                server.players.clear()
+                server.clear_players()
                 server.status = Status.STOPPED
                 return
             asyncio.create_task(self._update_bans(server))
@@ -439,7 +439,8 @@ class MissionEventListener(EventListener["Mission"]):
                     "command": "onMissionEvent",
                     "eventName": "S_EVENT_DISCONNECT",
                     "initiator": {
-                        "name": player.name
+                        "name": player.name,
+                        "type": "UNIT"
                     },
                     "server_name": server.name
                 }
@@ -599,7 +600,8 @@ class MissionEventListener(EventListener["Mission"]):
                 "command": "onMissionEvent",
                 "eventName": "S_EVENT_CONNECT",
                 "initiator": {
-                    "name": data['name']
+                    "name": data['name'],
+                    "type": "UNIT"
                 },
                 "server_name": server.name
             }
@@ -780,11 +782,7 @@ class MissionEventListener(EventListener["Mission"]):
     async def onPlayerStop(self, server: Server, data: dict) -> None:
         if data['id'] == 1:
             return
-        if 'ucid' in data:
-            player = server.get_player(ucid=data['ucid'])
-        else:
-            # this should never happen
-            player = server.get_player(id=data['id'])
+        player = server.get_player(ucid=data['ucid'])
         if player:
             asyncio.create_task(self._stop_player(server, player))
 
@@ -798,7 +796,8 @@ class MissionEventListener(EventListener["Mission"]):
                     "command": "onMissionEvent",
                     "eventName": "S_EVENT_DISCONNECT",
                     "initiator": {
-                        "name": player.name
+                        "name": player.name,
+                        "type": "UNIT"
                     },
                     "server_name": server.name
                 }
@@ -811,12 +810,12 @@ class MissionEventListener(EventListener["Mission"]):
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
+        player: Player = server.get_player(id=data['id'], active=True)
+        if not player:
+            return
         # Workaround for missing disconnect events
         if 'side' not in data:
-            asyncio.create_task(self._disconnect(server, server.get_player(id=data['id'], active=True)))
-            return
-        player: Player = server.get_player(ucid=data['ucid'], active=True)
-        if not player:
+            asyncio.create_task(self._disconnect(server, player))
             return
         try:
             if Side(data['side']) != Side.NEUTRAL:
