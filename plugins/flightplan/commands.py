@@ -703,12 +703,18 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
             filed_at = datetime.now(timezone.utc)
             stale_at = _calculate_stale_at(etd_dt, filed_at, stale_hours)
 
+            # Get coalition from player if they're online, otherwise default to 0
+            coalition = 0
+            player = server.get_player(ucid=ucid, active=True)
+            if player and player.side:
+                coalition = player.side.value
+
             cursor = await conn.execute("""
                 INSERT INTO flightplan_plans
                 (player_ucid, server_name, callsign, aircraft_type, departure, destination,
                  alternate, route, remarks, waypoints, departure_position, destination_position,
-                 alternate_position, cruise_altitude, cruise_speed, etd, stale_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 alternate_position, cruise_altitude, cruise_speed, etd, stale_at, coalition)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 ucid, server.name, callsign, aircraft_type, departure, destination,
@@ -717,7 +723,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
                 json.dumps(dep_position) if dep_position else None,
                 json.dumps(dest_position) if dest_position else None,
                 json.dumps(alt_position) if alt_position else None,
-                cruise_alt_feet, parsed_cruise_speed, etd_dt, stale_at
+                cruise_alt_feet, parsed_cruise_speed, etd_dt, stale_at, coalition
             ))
             result = await cursor.fetchone()
             plan_id = result[0]

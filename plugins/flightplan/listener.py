@@ -537,15 +537,15 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
             cursor = await conn.execute("""
                 INSERT INTO flightplan_plans
                 (player_ucid, server_name, callsign, aircraft_type, departure, destination,
-                 departure_position, destination_position, stale_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 departure_position, destination_position, stale_at, coalition)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 player.ucid, server.name, callsign, aircraft,
                 dep_wp.name, dest_wp.name,
                 json.dumps(dep_position) if dep_position else None,
                 json.dumps(dest_position) if dest_position else None,
-                stale_at
+                stale_at, player.side.value
             ))
             result = await cursor.fetchone()
             plan_id = result[0]
