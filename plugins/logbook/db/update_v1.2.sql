@@ -9,14 +9,22 @@ CREATE TABLE IF NOT EXISTS logbook_pilots (
 -- Add service column to squadrons (the squadron's parent service)
 ALTER TABLE logbook_squadrons ADD COLUMN IF NOT EXISTS service TEXT;
 
--- Migrate rank from squadron_members to logbook_pilots
+-- Migrate rank from squadron_members to logbook_pilots (only if rank column still exists)
 -- Takes the rank from the most recent squadron membership
-INSERT INTO logbook_pilots (player_ucid, rank)
-SELECT DISTINCT ON (player_ucid) player_ucid, rank
-FROM logbook_squadron_members
-WHERE rank IS NOT NULL
-ORDER BY player_ucid, joined_at DESC
-ON CONFLICT (player_ucid) DO UPDATE SET rank = EXCLUDED.rank WHERE logbook_pilots.rank IS NULL;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'logbook_squadron_members' AND column_name = 'rank'
+    ) THEN
+        INSERT INTO logbook_pilots (player_ucid, rank)
+        SELECT DISTINCT ON (player_ucid) player_ucid, rank
+        FROM logbook_squadron_members
+        WHERE rank IS NOT NULL
+        ORDER BY player_ucid, joined_at DESC
+        ON CONFLICT (player_ucid) DO UPDATE SET rank = EXCLUDED.rank WHERE logbook_pilots.rank IS NULL;
+    END IF;
+END $$;
 
 -- Populate squadron service based on naming conventions
 UPDATE logbook_squadrons SET service = 'RN' WHERE name LIKE '%NAS%' AND service IS NULL;
