@@ -214,15 +214,24 @@ def migrate_pilots(mayfly_data: dict, target_conn, squadron_map: dict, dry_run: 
                     ON CONFLICT (ucid) DO UPDATE SET name = EXCLUDED.name
                 """, (ucid, name))
 
-                # Add squadron memberships
+                # Add pilot service and rank to logbook_pilots table
+                cur.execute("""
+                    INSERT INTO logbook_pilots (player_ucid, service, rank)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (player_ucid) DO UPDATE SET
+                        service = EXCLUDED.service,
+                        rank = EXCLUDED.rank
+                """, (ucid, service, rank))
+
+                # Add squadron memberships (rank is now in logbook_pilots, not here)
                 for sq_name in squadrons:
                     if sq_name in squadron_map:
                         sq_id = squadron_map[sq_name]
                         cur.execute("""
-                            INSERT INTO logbook_squadron_members (squadron_id, player_ucid, rank)
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT (squadron_id, player_ucid) DO UPDATE SET rank = EXCLUDED.rank
-                        """, (sq_id, ucid, rank))
+                            INSERT INTO logbook_squadron_members (squadron_id, player_ucid)
+                            VALUES (%s, %s)
+                            ON CONFLICT (squadron_id, player_ucid) DO NOTHING
+                        """, (sq_id, ucid))
 
     print(f"  Total: {len(mayfly_data['pilots'])} pilots")
 
