@@ -585,19 +585,20 @@ class Logbook(Plugin[LogbookEventListener]):
                     return
 
                 # Get roster with stats
-                # Note: "rank" is a reserved word in PostgreSQL, so we quote it
+                # Note: rank is now in logbook_pilots table, not squadron_members
                 await cursor.execute("""
                     SELECT
-                        sm."rank",
+                        lp.rank,
                         sm.position,
                         p.name,
                         sm.joined_at,
                         COALESCE(pls.total_hours, 0) as total_hours
                     FROM logbook_squadron_members sm
                     JOIN players p ON sm.player_ucid = p.ucid
+                    LEFT JOIN logbook_pilots lp ON sm.player_ucid = lp.player_ucid
                     LEFT JOIN pilot_logbook_stats pls ON sm.player_ucid = pls.ucid
                     WHERE sm.squadron_id = %s
-                    ORDER BY sm."rank" DESC, sm.joined_at ASC
+                    ORDER BY lp.rank NULLS LAST, sm.joined_at ASC
                 """, (squadron,))
                 members = await cursor.fetchall()
 
