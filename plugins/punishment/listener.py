@@ -231,8 +231,6 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 name=player.name, points=points)))
 
     async def _give_kill(self, server: Server, init_id: str | None, target_id: str, weapon: str) -> None:
-        return
-
         if init_id is None or target_id is None:
             return
 
@@ -281,27 +279,22 @@ class PunishmentEventListener(EventListener["Punishment"]):
         if data['ucid'] not in self.disconnected:
             return
 
-        self.log.debug("### onPlayerConnect() - disconnected set")
         config = self.get_config(server)
         _time, shooter_id, weapon = self.disconnected.pop(data['ucid'])
         # we do not punish if the disconnect was longer than reslot_window seconds ago
         delta_time = int(time.time()) - _time
         if delta_time > config.get('reslot_window', 60):
-            self.log.debug("### onPlayerConnect() - after window, ok")
             return
 
-        self.log.debug("### onPlayerConnect() - inside window, not ok")
         player = server.get_player(ucid=data['ucid'])
         evt = {
             "eventName": "reslot",
             "server_name": server.name,
             "initiator": player
         }
-        self.log.debug("### onPlayerConnect() - send punish event")
         asyncio.create_task(self._check_punishment(evt))
         admin = self.bot.get_admin_channel(server)
         if admin:
-            self.log.debug("### onPlayerConnect() - inform admins")
             asyncio.create_task(admin.send(
                 "```" + _("Player {} ({}) disconnected and reconnected {} seconds after being shot at.").format(
                     player.name, player.ucid, delta_time) + "```"))
@@ -355,21 +348,17 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 self.pending_kill.pop(player.ucid, None)
 
         elif data['eventName'] in ['S_EVENT_CRASH', 'S_EVENT_EJECTION']:
-            self.log.debug(f"### onMissionEvent() - {data['eventName']} received")
             config = self.get_config(server)
             player = server.get_player(name=data.get('initiator', {}).get('name'))
             if not player or player.sub_slot > 0:
-                self.log.debug(f"### onMissionEvent() - no player, ignore")
                 return
 
             shot_time, shooter_id, weapon, s_event = self.pending_kill.pop(player.ucid, (-1, None, None, None))
             delta_time = int(time.time()) - shot_time
             # no shot event registered or too old already
             if shot_time is None or shot_time == -1:
-                self.log.debug(f"### onMissionEvent() - no shot or hit event detected, ignore")
                 return
 
-            self.log.debug(f"### onMissionEvent() - give kill")
             # give the kill to the opponent if we were hit earlier or if the shot was shortly before
             if ((s_event == 'S_EVENT_SHOT' and delta_time < config.get('reslot_window', 60)) or
                     (s_event == 'S_EVENT_HIT' and delta_time < config.get('survival_window', 300))):

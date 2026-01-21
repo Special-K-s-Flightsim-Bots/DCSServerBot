@@ -161,9 +161,9 @@ class FunkManEventListener(EventListener["FunkMan"]):
         config = self.plugin.get_config(server)
         player: Player = server.get_player(name=data['player'])
         if player:
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("""
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("""
                         INSERT INTO bomb_runs (mission_id, player_ucid, unit_type, range_name, distance, quality)
                         VALUES (%s, %s, %s, %s, %s, %s)
                     """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
@@ -183,9 +183,9 @@ class FunkManEventListener(EventListener["FunkMan"]):
         config = self.plugin.get_config(server)
         player: Player = server.get_player(name=data['player'])
         if player:
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("""
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("""
                         INSERT INTO strafe_runs (mission_id, player_ucid, unit_type, range_name, accuracy, quality)
                         VALUES (%s, %s, %s, %s, %s, %s)
                     """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),

@@ -45,7 +45,8 @@ class Server(DataObject, ABC):
     _settings: utils.SettingsDict | utils.RemoteSettingsDict | None = field(default=None, compare=False)
     current_mission: Mission | None = field(default=None, compare=False)
     _mission_id: int = field(default=None, compare=False)
-    players: dict[int, Player] = field(default_factory=dict, compare=False)
+    players: dict[str, Player] = field(default_factory=dict, compare=False)
+    players_by_id: dict[int, Player] = field(default_factory=dict, compare=False)
     process: Process | None = field(default=None, compare=False)
     _maintenance: bool = field(compare=False, default=False)
     restart_pending: bool = field(default=False, compare=False)
@@ -207,18 +208,27 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     def add_player(self, player: Player):
-        self.players[player.id] = player
+        self.players[player.ucid] = player
+        self.players_by_id[player.id] = player
 
     def get_player(self, **kwargs) -> Player | None:
-        if 'id' in kwargs:
-            return self.players.get(kwargs['id'])
+        # Check for IDs
+        if 'ucid' in kwargs:
+            player = self.players.get(kwargs['ucid'])
+            if player and (kwargs.get('active') is None or player.active == kwargs['active']):
+                return player
+            return None
+        elif 'id' in kwargs:
+            player = self.players_by_id.get(kwargs['id'])
+            if player and (kwargs.get('active') is None or player.active == kwargs['active']):
+                return player
+            return None
+
         for player in self.players.values():
             if player.id == 1:
                 continue
             if kwargs.get('active') is not None and player.active != kwargs['active']:
                 continue
-            if 'ucid' in kwargs and player.ucid == kwargs['ucid']:
-                return player
             if 'discord_id' in kwargs and player.member and player.member.id == kwargs['discord_id']:
                 return player
             if 'unit_id' in kwargs and player.unit_id == kwargs['unit_id']:
@@ -228,6 +238,10 @@ class Server(DataObject, ABC):
             if 'ipaddr' in kwargs and player.ipaddr == kwargs['ipaddr']:
                 return player
         return None
+
+    def clear_players(self):
+        self.players.clear()
+        self.players_by_id.clear()
 
     def get_active_players(self, *, side: Side = None) -> list[Player]:
         return [x for x in self.players.values() if x.active and (not side or side == x.side)]
