@@ -135,18 +135,20 @@ def parse_cruise_speed(value: str) -> Optional[str]:
     return None
 
 
-def format_cruise_speed(value: str) -> str:
+def format_cruise_speed(value) -> str:
     """
     Format cruise speed for display.
 
-    Input: "450" or "M0.85"
+    Input: "450", 450, or "M0.85"
     Output: "450 kts" or "M0.85"
     """
     if not value:
         return ""
-    if value.startswith('M'):
-        return value  # Already in Mach format
-    return f"{value} kts"
+    # Convert to string in case it's stored as an integer
+    value_str = str(value)
+    if value_str.startswith('M'):
+        return value_str  # Already in Mach format
+    return f"{value_str} kts"
 
 
 def parse_etd(value: str) -> Optional[datetime]:
