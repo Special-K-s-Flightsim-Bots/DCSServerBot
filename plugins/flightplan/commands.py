@@ -93,6 +93,19 @@ def parse_altitude(value: str) -> Optional[int]:
     return None
 
 
+def format_time_utc(dt: datetime, fmt: str = '%H:%M UTC') -> str:
+    """
+    Format a datetime as UTC time string.
+    Handles both timezone-aware and naive datetimes.
+    """
+    if dt is None:
+        return ""
+    # If timezone-aware, convert to UTC
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc)
+    return dt.strftime(fmt)
+
+
 def parse_cruise_speed(value: str) -> Optional[str]:
     """
     Parse cruise speed from various formats.
@@ -514,11 +527,11 @@ def _create_flightplan_embed(fp: dict, title: str = None) -> discord.Embed:
         embed.add_field(name=_('Speed'), value=format_cruise_speed(fp['cruise_speed']), inline=True)
 
     if fp.get('etd'):
-        etd_str = fp['etd'].strftime('%H:%M UTC')
+        etd_str = format_time_utc(fp['etd'])
         embed.add_field(name=_('ETD'), value=etd_str, inline=True)
 
     if fp.get('eta'):
-        eta_str = fp['eta'].strftime('%H:%M UTC')
+        eta_str = format_time_utc(fp['eta'])
         embed.add_field(name=_('ETA'), value=eta_str, inline=True)
 
     # Waypoints
@@ -748,7 +761,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
         if parsed_cruise_speed:
             embed.add_field(name=_('Speed'), value=format_cruise_speed(parsed_cruise_speed), inline=True)
         if etd_dt:
-            embed.add_field(name=_('ETD'), value=etd_dt.strftime('%H:%M UTC'), inline=True)
+            embed.add_field(name=_('ETD'), value=format_time_utc(etd_dt), inline=True)
         if parsed_waypoints:
             wp_names = [wp['name'] for wp in parsed_waypoints[:3]]
             embed.add_field(name=_('Waypoints'), value=' → '.join(wp_names), inline=False)

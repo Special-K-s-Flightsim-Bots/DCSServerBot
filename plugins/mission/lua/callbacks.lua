@@ -473,13 +473,20 @@ function mission.onPlayerTrySendChat(from, message, to)
     if from == SERVER_USER_ID then
         return
     end
+    -- Guard against bot not being initialized yet
+    if not dcsbot.params or not dcsbot.params.mission then
+        log.write('DCSServerBot', log.WARNING, 'Mission: params not initialized, chat commands disabled')
+        return
+    end
     local config = dcsbot.params.mission
-    if string.sub(message, 1, 1) == config.chat_command_prefix then
+    -- Use default prefix '-' if not configured
+    local prefix = config.chat_command_prefix or '-'
+    if string.sub(message, 1, 1) == prefix then
         local elements = utils.split(message, ' ')
         local subcommand
         local params
         -- Handle case where user types "- fp" instead of "-fp"
-        if elements[1] == config.chat_command_prefix and elements[2] then
+        if elements[1] == prefix and elements[2] then
             -- First element is just the prefix, command is in second element
             subcommand = elements[2]
             params = { unpack(elements, 3) }

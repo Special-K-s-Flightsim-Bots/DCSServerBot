@@ -24,6 +24,20 @@ def format_cruise_speed(value: str) -> str:
     return f"{value} kts"
 
 
+def format_time_utc(dt: datetime, fmt: str = '%H:%M UTC') -> str:
+    """
+    Format a datetime as UTC time string.
+    Handles both timezone-aware and naive datetimes.
+    """
+    if dt is None:
+        return ""
+    # If timezone-aware, convert to UTC
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc)
+    # Format with the specified format
+    return dt.strftime(fmt)
+
+
 class FlightPlanEventListener(EventListener["FlightPlan"]):
     """Event listener for flight plan plugin - handles events and chat commands."""
 
@@ -76,8 +90,8 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 etd = fp['etd']
                 if isinstance(etd, str):
                     etd_str = etd
-                else:
-                    etd_str = etd.strftime('%H:%M UTC')
+                elif isinstance(etd, datetime):
+                    etd_str = format_time_utc(etd)
 
             # Build command data
             data = {
@@ -199,7 +213,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
             if fp.get('etd'):
                 etd = fp['etd']
                 if isinstance(etd, datetime):
-                    etd_str = etd.strftime('%H:%M UTC')
+                    etd_str = format_time_utc(etd)
                 else:
                     etd_str = str(etd)
                 embed.add_field(name=_('ETD'), value=etd_str, inline=True)
@@ -224,15 +238,15 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
             if fp.get('filed_at'):
                 filed = fp['filed_at']
                 if isinstance(filed, datetime):
-                    timestamps.append(f"Filed: {filed.strftime('%H:%M UTC')}")
+                    timestamps.append(f"Filed: {format_time_utc(filed)}")
             if fp.get('activated_at'):
                 activated = fp['activated_at']
                 if isinstance(activated, datetime):
-                    timestamps.append(f"Activated: {activated.strftime('%H:%M UTC')}")
+                    timestamps.append(f"Activated: {format_time_utc(activated)}")
             if fp.get('completed_at'):
                 completed = fp['completed_at']
                 if isinstance(completed, datetime):
-                    timestamps.append(f"Completed: {completed.strftime('%H:%M UTC')}")
+                    timestamps.append(f"Completed: {format_time_utc(completed)}")
             if timestamps:
                 embed.add_field(name=_('Timeline'), value=' | '.join(timestamps), inline=False)
 
@@ -440,7 +454,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         if fp.get('etd'):
             etd = fp['etd']
             if isinstance(etd, datetime):
-                msg += f" | ETD {etd.strftime('%H:%M')}"
+                msg += f" | ETD {format_time_utc(etd, '%H:%M')}"
 
         await player.sendChatMessage(msg)
 
@@ -865,7 +879,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         if fp.get('etd'):
             etd = fp['etd']
             if isinstance(etd, datetime):
-                msg += f"ETD: {etd.strftime('%H:%M UTC')}\n"
+                msg += f"ETD: {format_time_utc(etd)}\n"
 
         if fp.get('waypoints'):
             waypoints = fp['waypoints']
