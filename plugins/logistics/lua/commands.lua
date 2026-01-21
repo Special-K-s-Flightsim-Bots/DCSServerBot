@@ -11,19 +11,20 @@ function dcsbot.createLogisticsMarkers(json)
     log.write('DCSServerBot', log.DEBUG, 'Logistics: createLogisticsMarkers()')
     local channel = json.channel or "-1"
     local timeout = json.timeout or 0
+    -- Use basicSerialize for all string values to prevent injection
     local script = 'dcsbot.createLogisticsMarkers(' ..
-        json.task_id .. ', ' ..
-        json.coalition .. ', ' ..
+        tostring(json.task_id) .. ', ' ..
+        tostring(json.coalition) .. ', ' ..
         utils.basicSerialize(json.source_name) .. ', ' ..
-        '{x=' .. json.source_x .. ', y=0, z=' .. json.source_z .. '}, ' ..
+        '{x=' .. tostring(json.source_x) .. ', y=0, z=' .. tostring(json.source_z) .. '}, ' ..
         utils.basicSerialize(json.dest_name) .. ', ' ..
-        '{x=' .. json.dest_x .. ', y=0, z=' .. json.dest_z .. '}, ' ..
+        '{x=' .. tostring(json.dest_x) .. ', y=0, z=' .. tostring(json.dest_z) .. '}, ' ..
         utils.basicSerialize(json.cargo_type) .. ', ' ..
         utils.basicSerialize(json.pilot_name or '') .. ', ' ..
         utils.basicSerialize(json.deadline or '') .. ', ' ..
         utils.basicSerialize(json.waypoints or '[]') .. ', ' ..
-        '"' .. channel .. '", ' ..
-        timeout .. ')'
+        utils.basicSerialize(channel) .. ', ' ..
+        tostring(timeout) .. ')'
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
 end
 
@@ -31,7 +32,7 @@ end
 function dcsbot.removeLogisticsMarkers(json)
     log.write('DCSServerBot', log.DEBUG, 'Logistics: removeLogisticsMarkers()')
     local channel = json.channel or "-1"
-    local script = 'dcsbot.removeLogisticsMarkers(' .. json.task_id .. ', "' .. channel .. '")'
+    local script = 'dcsbot.removeLogisticsMarkers(' .. tostring(json.task_id) .. ', ' .. utils.basicSerialize(channel) .. ')'
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
 end
 
@@ -39,9 +40,9 @@ end
 function dcsbot.updateLogisticsMarkerPilot(json)
     log.write('DCSServerBot', log.DEBUG, 'Logistics: updateLogisticsMarkerPilot()')
     local script = 'dcsbot.updateLogisticsMarkerPilot(' ..
-        json.task_id .. ', ' ..
+        tostring(json.task_id) .. ', ' ..
         utils.basicSerialize(json.pilot_name) .. ', ' ..
-        '"' .. json.channel .. '")'
+        utils.basicSerialize(json.channel) .. ')'
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
 end
 
@@ -50,7 +51,7 @@ function dcsbot.getPlayerPosition(json)
     log.write('DCSServerBot', log.DEBUG, 'Logistics: getPlayerPosition()')
     local script = 'dcsbot.getPlayerPosition(' ..
         utils.basicSerialize(json.unit_name) .. ', ' ..
-        '"' .. json.channel .. '")'
+        utils.basicSerialize(json.channel) .. ')'
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
 end
 
@@ -59,10 +60,10 @@ function dcsbot.checkDeliveryProximity(json)
     log.write('DCSServerBot', log.DEBUG, 'Logistics: checkDeliveryProximity()')
     local script = 'dcsbot.checkDeliveryProximity(' ..
         utils.basicSerialize(json.unit_name) .. ', ' ..
-        json.task_id .. ', ' ..
-        '{x=' .. json.dest_x .. ', y=0, z=' .. json.dest_z .. '}, ' ..
-        json.threshold .. ', ' ..
-        '"' .. json.channel .. '")'
+        tostring(json.task_id) .. ', ' ..
+        '{x=' .. tostring(json.dest_x) .. ', y=0, z=' .. tostring(json.dest_z) .. '}, ' ..
+        tostring(json.threshold) .. ', ' ..
+        utils.basicSerialize(json.channel) .. ')'
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
 end
 

@@ -11,22 +11,23 @@ function dcsbot.createFlightPlanMarkers(json)
     log.write('DCSServerBot', log.DEBUG, 'FlightPlan: createFlightPlanMarkers()')
     local channel = json.channel or "-1"
     local timeout = json.timeout or 0
+    -- Use basicSerialize for all string values and tostring for numbers to prevent injection
     local script = 'dcsbot.createFlightPlanMarkers(' ..
-        json.plan_id .. ', ' ..
-        json.coalition .. ', ' ..
+        tostring(json.plan_id) .. ', ' ..
+        tostring(json.coalition) .. ', ' ..
         utils.basicSerialize(json.callsign) .. ', ' ..
         utils.basicSerialize(json.departure_name) .. ', ' ..
-        '{x=' .. json.departure_x .. ', y=0, z=' .. json.departure_z .. '}, ' ..
+        '{x=' .. tostring(json.departure_x) .. ', y=0, z=' .. tostring(json.departure_z) .. '}, ' ..
         utils.basicSerialize(json.destination_name) .. ', ' ..
-        '{x=' .. json.destination_x .. ', y=0, z=' .. json.destination_z .. '}, ' ..
+        '{x=' .. tostring(json.destination_x) .. ', y=0, z=' .. tostring(json.destination_z) .. '}, ' ..
         utils.basicSerialize(json.alternate_name or '') .. ', ' ..
-        (json.alternate_x and ('{x=' .. json.alternate_x .. ', y=0, z=' .. json.alternate_z .. '}') or 'nil') .. ', ' ..
+        (json.alternate_x and ('{x=' .. tostring(json.alternate_x) .. ', y=0, z=' .. tostring(json.alternate_z) .. '}') or 'nil') .. ', ' ..
         utils.basicSerialize(json.aircraft_type or '') .. ', ' ..
-        (json.cruise_altitude or 0) .. ', ' ..
+        tostring(json.cruise_altitude or 0) .. ', ' ..
         utils.basicSerialize(json.etd or '') .. ', ' ..
         utils.basicSerialize(json.waypoints or '[]') .. ', ' ..
-        '"' .. channel .. '", ' ..
-        timeout .. ')'
+        utils.basicSerialize(channel) .. ', ' ..
+        tostring(timeout) .. ')'
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
 end
 
@@ -34,6 +35,6 @@ end
 function dcsbot.removeFlightPlanMarkers(json)
     log.write('DCSServerBot', log.DEBUG, 'FlightPlan: removeFlightPlanMarkers()')
     local channel = json.channel or "-1"
-    local script = 'dcsbot.removeFlightPlanMarkers(' .. json.plan_id .. ', "' .. channel .. '")'
+    local script = 'dcsbot.removeFlightPlanMarkers(' .. tostring(json.plan_id) .. ', ' .. utils.basicSerialize(channel) .. ')'
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
 end
