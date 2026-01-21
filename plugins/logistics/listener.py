@@ -2,6 +2,7 @@ import asyncio
 import discord
 import json
 import logging
+import re
 
 from core import EventListener, Server, event, chat_command, Player, Side
 from datetime import datetime, timezone, timedelta
@@ -12,6 +13,60 @@ if TYPE_CHECKING:
     from .commands import Logistics
 
 log = logging.getLogger(__name__)
+
+
+def _normalize_airbase_name(name: str) -> str:
+    """
+    Normalize an airbase name for comparison.
+    Handles variations like 'Batumi', 'Batumi-Chorokhi', 'Batumi Airbase', etc.
+    """
+    if not name:
+        return ""
+    # Convert to lowercase
+    name = name.lower().strip()
+    # Remove common suffixes/prefixes
+    suffixes = [' airbase', ' airport', ' airfield', ' afb', ' ab', ' intl', ' international',
+                '-airbase', '-airport', '-airfield', '_airbase', '_airport', '_airfield']
+    for suffix in suffixes:
+        if name.endswith(suffix):
+            name = name[:-len(suffix)]
+    # Remove non-alphanumeric characters except spaces and hyphens for further comparison
+    return name
+
+
+def _airbase_names_match(place_name: str, dest_name: str) -> bool:
+    """
+    Check if two airbase names refer to the same location.
+    Uses strict matching to avoid false positives.
+
+    Returns True only if:
+    1. Exact match (case-insensitive, normalized)
+    2. One name is a clear prefix/base of the other (e.g., "Batumi" matches "Batumi-Chorokhi")
+       but only if it's a complete word boundary match
+    """
+    if not place_name or not dest_name:
+        return False
+
+    norm_place = _normalize_airbase_name(place_name)
+    norm_dest = _normalize_airbase_name(dest_name)
+
+    # Exact match after normalization
+    if norm_place == norm_dest:
+        return True
+
+    # Check if one is a word-boundary prefix of the other
+    # "Batumi" should match "Batumi-Chorokhi" but not "BatumiX"
+    shorter, longer = (norm_place, norm_dest) if len(norm_place) <= len(norm_dest) else (norm_dest, norm_place)
+
+    if longer.startswith(shorter):
+        # Check that the character after the shorter name is a word boundary
+        if len(longer) == len(shorter):
+            return True
+        next_char = longer[len(shorter)]
+        if next_char in ' -_':
+            return True
+
+    return False
 
 
 class LogisticsEventListener(EventListener["Logistics"]):
@@ -985,9 +1040,9 @@ class LogisticsEventListener(EventListener["Logistics"]):
         place_name = place.get('name', '')
 
         if place_name and dest_name:
-            # Normalize names for comparison
-            if place_name.lower() == dest_name.lower() or dest_name.lower() in place_name.lower():
-                log.info(f"Logistics: Auto-completing task {task['id']} for {player.name} at {place_name}")
+            # Use strict airbase name matching to avoid false positives
+            if _airbase_names_match(place_name, dest_name):
+                log.info(f"Logistics: Auto-completing task {task['id']} for {player.name} at {place_name} (dest: {dest_name})")
                 result = await self._complete_task(server, player, task['id'])
                 if result['success']:
                     await player.sendChatMessage(f"Delivery confirmed at {place_name}! Task #{task['id']} completed.")
