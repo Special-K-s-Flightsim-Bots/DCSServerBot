@@ -377,24 +377,25 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         if plan_id:
             self.log.debug(f"Removed {data.get('removed_count', 0)} markers for plan {plan_id}")
 
-    @event(name="onPlayerChangeSlot")
-    async def on_player_change_slot(self, server: Server, data: dict) -> None:
-        """Create F10 menu when player takes a slot."""
-        # Only handle when player takes a coalition slot (has 'side' in data)
-        if 'side' not in data or data.get('side') == 0:
-            return
+    @event(name="onMissionEvent")
+    async def on_mission_event(self, server: Server, data: dict) -> None:
+        """Handle mission events for F10 menu creation."""
+        event_name = data.get('eventName')
 
-        player = server.get_player(ucid=data.get('ucid'), active=True)
-        if not player:
-            return
+        if event_name == 'S_EVENT_BIRTH':
+            # Create F10 menu when player spawns (reliable group_id from mission event)
+            initiator = data.get('initiator', {})
+            player_name = initiator.get('name')
+            if not player_name:
+                return
 
-        # Use group_id from event data since player object may not be updated yet
-        group_id = data.get('group_id')
-        if not group_id:
-            return
+            player = server.get_player(name=player_name)
+            if not player:
+                return
 
-        # Create F10 menu for the player
-        await self._create_flightplan_menu(server, player, group_id=group_id)
+            group_id = initiator.get('group', {}).get('id_')
+            if group_id is not None:
+                await self._create_flightplan_menu(server, player, group_id=group_id)
 
     @event(name="flightplan")
     async def on_flightplan_callback(self, server: Server, data: dict) -> None:

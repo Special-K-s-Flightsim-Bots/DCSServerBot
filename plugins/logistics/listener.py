@@ -101,13 +101,30 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
-        """Handle mission events for delivery detection."""
-        if data.get('eventName') == 'S_EVENT_LAND':
+        """Handle mission events for delivery detection and F10 menu creation."""
+        event_name = data.get('eventName')
+
+        if event_name == 'S_EVENT_BIRTH':
+            # Create F10 menu when player spawns (reliable group_id from mission event)
+            initiator = data.get('initiator', {})
+            player_name = initiator.get('name')
+            if not player_name:
+                return
+
+            player = server.get_player(name=player_name)
+            if not player:
+                return
+
+            group_id = initiator.get('group', {}).get('id_')
+            if group_id is not None:
+                await self._create_logistics_menu(server, player, group_id=group_id)
+
+        elif event_name == 'S_EVENT_LAND':
             await self._check_delivery_on_landing(server, data)
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
-        """Show player their assigned task when they spawn and create F10 menu."""
+        """Show player their assigned task when they select a slot."""
         # Only handle when player takes a coalition slot (has 'side' in data)
         if 'side' not in data or data.get('side') == 0:
             return
@@ -116,17 +133,10 @@ class LogisticsEventListener(EventListener["Logistics"]):
         if not player:
             return
 
-        # Use group_id from event data since player object may not be updated yet
-        group_id = data.get('group_id')
-        if not group_id:
-            return
-
+        # Notify player of their assigned task (menu creation moved to S_EVENT_BIRTH)
         task = await self._get_assigned_task(player.ucid, server.name)
         if task:
             await self._notify_player_of_task(player, task)
-
-        # Create F10 menu for the player
-        await self._create_logistics_menu(server, player, group_id=group_id)
 
     @event(name="createLogisticsMarkers")
     async def onCreateLogisticsMarkers(self, server: Server, data: dict) -> None:
