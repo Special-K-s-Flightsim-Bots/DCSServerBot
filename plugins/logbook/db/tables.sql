@@ -84,23 +84,8 @@ CREATE TABLE IF NOT EXISTS logbook_pilot_awards (
 CREATE INDEX IF NOT EXISTS idx_logbook_pilot_awards_ucid ON logbook_pilot_awards (player_ucid);
 CREATE INDEX IF NOT EXISTS idx_logbook_pilot_awards_award_id ON logbook_pilot_awards (award_id);
 
-CREATE TABLE IF NOT EXISTS logbook_flight_plans (
-    id SERIAL PRIMARY KEY,
-    player_ucid TEXT NOT NULL,
-    filed_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    departure TEXT,
-    destination TEXT,
-    alternate TEXT,
-    aircraft_type TEXT,
-    callsign TEXT,
-    route TEXT,
-    remarks TEXT,
-    status TEXT NOT NULL DEFAULT 'filed',
-    FOREIGN KEY (player_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_logbook_flight_plans_ucid ON logbook_flight_plans (player_ucid);
-CREATE INDEX IF NOT EXISTS idx_logbook_flight_plans_status ON logbook_flight_plans (status);
-CREATE INDEX IF NOT EXISTS idx_logbook_flight_plans_filed_at ON logbook_flight_plans (filed_at);
+-- NOTE: Flight plans are managed by the dedicated flightplan plugin.
+-- See plugins/flightplan/db/tables.sql for the flightplan_plans table.
 
 CREATE TABLE IF NOT EXISTS logbook_stores_requests (
     id SERIAL PRIMARY KEY,

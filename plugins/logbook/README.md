@@ -151,11 +151,13 @@ The plugin creates the following tables:
 - `logbook_pilot_qualifications` - Granted qualifications
 - `logbook_awards` - Award definitions with ribbon images
 - `logbook_pilot_awards` - Granted awards
-- `logbook_flight_plans` - Filed flight plans
+- `logbook_stores_requests` - Squadron stores/equipment requests
 - `logbook_historical_hours` - Imported historical flight time
 
 And one view:
 - `pilot_logbook_stats` - Aggregated pilot statistics
+
+> **Note:** Flight plans are managed by the separate `flightplan` plugin. See the flightplan plugin README for details.
 
 ## Data Model
 
