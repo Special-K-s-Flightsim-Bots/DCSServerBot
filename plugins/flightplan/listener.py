@@ -428,6 +428,20 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
 
     # ==================== CHAT COMMANDS ====================
 
+    @chat_command(name="fphelp", help=_("Show flight plan commands"))
+    async def cmd_fphelp(self, server: Server, player: Player, params: list[str]) -> None:
+        """Show flight plan-specific commands."""
+        msg = (
+            "Flight Plan Commands:\n"
+            f"  {self.prefix}fp - Show your active flight plan\n"
+            f"  {self.prefix}fileplan <DEP> <DEST> [aircraft] - Quick file a plan\n"
+            f"  {self.prefix}activatefp [id] - Activate a filed plan\n"
+            f"  {self.prefix}completefp - Complete your active plan\n"
+            f"  {self.prefix}cancelfp [id] - Cancel a flight plan\n"
+            f"  {self.prefix}plotfp [id] - Plot plan on F10 map (30s)"
+        )
+        await player.sendChatMessage(msg)
+
     @chat_command(name="flightplan", aliases=["fp"], help=_("Show your active flight plan"))
     async def cmd_flightplan(self, server: Server, player: Player, params: list[str]) -> None:
         """Show the player's active flight plan."""

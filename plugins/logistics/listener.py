@@ -222,6 +222,21 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     # ==================== CHAT COMMANDS ====================
 
+    @chat_command(name="lhelp", aliases=["logistics"], help="Show logistics commands")
+    async def lhelp_cmd(self, server: Server, player: Player, params: list[str]):
+        """Show logistics-specific commands."""
+        msg = (
+            "Logistics Commands:\n"
+            f"  {self.prefix}tasks - List available tasks\n"
+            f"  {self.prefix}accept <id> - Accept a task\n"
+            f"  {self.prefix}mytask - Show your current task\n"
+            f"  {self.prefix}taskinfo <id> - View task details\n"
+            f"  {self.prefix}deliver - Mark task as delivered\n"
+            f"  {self.prefix}abandon - Release your task\n"
+            f"  {self.prefix}plot <all|id> - Plot tasks on F10 map"
+        )
+        await player.sendChatMessage(msg)
+
     @chat_command(name="tasks", help="List available logistics tasks")
     async def tasks_cmd(self, server: Server, player: Player, params: list[str]):
         """Show available tasks for player's coalition."""

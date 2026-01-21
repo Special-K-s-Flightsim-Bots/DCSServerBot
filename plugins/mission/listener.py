@@ -1068,6 +1068,54 @@ class MissionEventListener(EventListener["Mission"]):
             asyncio.create_task(server.current_mission.unpause())
             await player.sendChatMessage("Mission unpaused.")
 
+    @chat_command(name="help", aliases=["?", "commands"], help="show available chat commands")
+    async def help_cmd(self, server: Server, player: Player, params: list[str]):
+        """Show all available chat commands the player can use."""
+        commands_by_category: dict[str, list[tuple[str, str, str]]] = {}
+
+        # Collect commands from all plugins
+        for cog in self.bot.cogs.values():
+            if not isinstance(cog, Plugin) or not cog.eventlistener:
+                continue
+
+            plugin_name = cog.plugin_name.capitalize()
+            for cmd in cog.eventlistener.chat_commands:
+                # Check if player can run this command
+                if not cmd.enabled:
+                    continue
+                if cmd.roles and not player.has_discord_roles(cmd.roles):
+                    continue
+
+                # Build command signature
+                usage = f" {cmd.usage}" if cmd.usage else ""
+                signature = f"{self.prefix}{cmd.name}{usage}"
+                help_text = cmd.help or "No description"
+
+                if plugin_name not in commands_by_category:
+                    commands_by_category[plugin_name] = []
+                commands_by_category[plugin_name].append((cmd.name, signature, help_text))
+
+        # Format output
+        if params and params[0].lower() in ['all', 'full']:
+            # Detailed view with descriptions
+            lines = ["Available Commands:"]
+            for category in sorted(commands_by_category.keys()):
+                lines.append(f"\n[{category}]")
+                for name, sig, help_text in sorted(commands_by_category[category]):
+                    lines.append(f"  {sig}")
+                    lines.append(f"    {help_text}")
+
+            # Send as popup for better readability
+            await player.sendUserMessage('\n'.join(lines), 30)
+        else:
+            # Compact view - just command names grouped
+            lines = ["Commands (use -help all for details):"]
+            for category in sorted(commands_by_category.keys()):
+                cmds = sorted([name for name, _, _ in commands_by_category[category]])
+                lines.append(f"  {category}: {self.prefix}{f', {self.prefix}'.join(cmds)}")
+
+            await player.sendChatMessage('\n'.join(lines))
+
     async def send_atis(self, server: Server, player: Player, name: str) -> bool:
         airbase = next((
             x for x in server.current_mission.airbases
