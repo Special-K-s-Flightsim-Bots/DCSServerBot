@@ -775,12 +775,16 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 VALUES (%s, 'completed', %s, %s)
             """, (task_id, player.ucid, '{"action": "delivery_confirmed"}'))
 
-            # Credit to logbook
-            await conn.execute("""
-                INSERT INTO logbook_logistics_completions
-                (player_ucid, task_id, cargo_type, source_name, destination_name, completed_at)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (player.ucid, task_id, task[0], task[1], task[2], now))
+            # Credit to logbook (if logbook plugin is loaded)
+            if 'logbook' in self.bot.plugins:
+                try:
+                    await conn.execute("""
+                        INSERT INTO logbook_logistics_completions
+                        (player_ucid, task_id, cargo_type, source_name, destination_name, completed_at)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (player.ucid, task_id, task[0], task[1], task[2], now))
+                except Exception as e:
+                    log.warning(f"Failed to credit logbook for task {task_id}: {e}")
 
             # Remove markers
             await self._remove_task_markers(server, task_id)
