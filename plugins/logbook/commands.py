@@ -210,12 +210,11 @@ async def pilot_award_autocomplete(interaction: discord.Interaction, current: st
         return []
 
 
-def format_hours(seconds: float) -> str:
-    """Format seconds as hours with 1 decimal place."""
-    if seconds is None:
+def format_hours(hours: float) -> str:
+    """Format hours with 1 decimal place."""
+    if hours is None:
         return "0.0h"
-    hours = seconds / 3600 if seconds > 100 else seconds  # Handle both seconds and hours
-    return f"{hours:.1f}h"
+    return f"{float(hours):.1f}h"
 
 
 class Logbook(Plugin[LogbookEventListener]):
