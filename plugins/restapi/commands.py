@@ -21,7 +21,8 @@ from typing import Any, Literal, cast
 from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
                      PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats, 
-                     AirbasesResponse, AirbaseInfoResponse, AirbaseWarehouseResponse, AirbaseSetWarehouseItemResponse)
+                     AirbasesResponse, AirbaseInfoResponse, AirbaseWarehouseResponse, AirbaseSetWarehouseItemResponse,
+                     AirbaseCaptureResponse)
 from ..srs.commands import SRS
 
 app: FastAPI | None = None
@@ -127,6 +128,15 @@ class RestAPI(Plugin):
             response_model=AirbaseSetWarehouseItemResponse,
             description="Set warehouse item quantity for an airbase on a given server.",
             summary="Set Quantity of an Airbase Warehouse Item",
+            tags=["Airbase"]
+        )
+        
+        self.router.add_api_route(
+            "/airbase/capture", self.capture_airbase,
+            methods=["POST"],
+            response_model = AirbaseCaptureResponse,
+            description="Capture the airbase.",
+            summary="Airbase Information",
             tags=["Airbase"]
         )
         
@@ -366,6 +376,29 @@ class RestAPI(Plugin):
             server_name=server_name,
             value=value
         )
+    
+    async def capture_airbase(self, server_name: str = Form(...), airbase_name: str = Form(...), coalition: int = Form(...))-> AirbaseCaptureResponse:
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+        
+        await server.send_to_dcs_sync({
+            "command": "captureAirbase",
+            "name": airbase_name,
+            "coalition": coalition
+        }, timeout=60)
+
+        # return CaptureAirbaseResponse(
+        #     server_name=server_name,
+        #     airbase=airbase_name,
+        #     coalition=coalition
+        # )
+        
+        return {
+            "server_name": server_name,
+            "airbase_name": airbase_name,
+            "coalition": coalition
+        }
 
     @async_cache
     async def get_ucid(self, nick: str, date: str | datetime | None = None) -> str:
