@@ -544,11 +544,16 @@ class LogisticsEventListener(EventListener["Logistics"]):
             msg = await channel.send(embed=embed)
 
             # Store message ID in database
-            async with self.apool.connection() as conn:
-                await conn.execute(
-                    "UPDATE logistics_tasks SET discord_message_id = %s WHERE id = %s",
-                    (msg.id, task['id'])
-                )
+            try:
+                async with self.apool.connection() as conn:
+                    await conn.execute(
+                        "UPDATE logistics_tasks SET discord_message_id = %s WHERE id = %s",
+                        (msg.id, task['id'])
+                    )
+            except Exception as db_err:
+                log.warning(f"Failed to store Discord message ID {msg.id} for task {task['id']}: {db_err}")
+                # Message was sent but ID not stored - future updates will create new messages
+                # This is not critical, so we still return the message ID
 
             return msg.id
 
@@ -557,13 +562,19 @@ class LogisticsEventListener(EventListener["Logistics"]):
             return None
 
     async def _get_available_tasks(self, server_name: str, coalition: int) -> list[dict]:
-        """Get tasks available for a coalition."""
+        """Get tasks available for acceptance by a coalition.
+
+        Only returns tasks that are:
+        - In 'approved' status (ready to be accepted)
+        - Not already assigned to anyone
+        - For the specified coalition
+        """
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT id, cargo_type, source_name, destination_name, priority, deadline
                 FROM logistics_tasks
                 WHERE server_name = %s AND coalition = %s
-                AND status = 'approved'
+                AND status = 'approved' AND assigned_ucid IS NULL
                 ORDER BY
                     CASE priority
                         WHEN 'urgent' THEN 1
@@ -574,7 +585,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
                     created_at ASC
             """, (server_name, coalition))
             rows = await cursor.fetchall()
-            return [
+            tasks = [
                 {
                     'id': row[0],
                     'cargo_type': row[1],
@@ -585,6 +596,11 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 }
                 for row in rows
             ]
+            if not tasks:
+                log.debug(f"No available tasks for server={server_name}, coalition={coalition}")
+            else:
+                log.debug(f"Found {len(tasks)} available tasks for server={server_name}, coalition={coalition}: {[t['id'] for t in tasks]}")
+            return tasks
 
     async def _get_available_tasks_with_positions(self, server_name: str, coalition: int) -> list[dict]:
         """Get tasks available for a coalition with position data for plotting."""
@@ -857,50 +873,51 @@ class LogisticsEventListener(EventListener["Logistics"]):
             async with conn.transaction():
                 now = datetime.now(timezone.utc)
 
-            # Update task - return to approved status
-            result = await conn.execute("""
-                UPDATE logistics_tasks
-                SET assigned_ucid = NULL, assigned_at = NULL, status = 'approved', updated_at = %s
-                WHERE id = %s AND assigned_ucid = %s AND status IN ('assigned', 'in_progress')
-            """, (now, task_id, player.ucid))
+                # Update task - return to approved status
+                result = await conn.execute("""
+                    UPDATE logistics_tasks
+                    SET assigned_ucid = NULL, assigned_at = NULL, status = 'approved', updated_at = %s
+                    WHERE id = %s AND assigned_ucid = %s AND status IN ('assigned', 'in_progress')
+                """, (now, task_id, player.ucid))
 
-            if result.rowcount == 0:
-                return {'success': False, 'error': 'Task not found or not assigned to you'}
+                if result.rowcount == 0:
+                    return {'success': False, 'error': 'Task not found or not assigned to you'}
 
-            # Record history
-            await conn.execute("""
-                INSERT INTO logistics_tasks_history (task_id, event, actor_ucid, details)
-                VALUES (%s, 'abandoned', %s, %s)
-            """, (task_id, player.ucid, '{"action": "player_abandoned"}'))
+                # Record history
+                await conn.execute("""
+                    INSERT INTO logistics_tasks_history (task_id, event, actor_ucid, details)
+                    VALUES (%s, 'abandoned', %s, %s)
+                """, (task_id, player.ucid, '{"action": "player_abandoned"}'))
 
-            # Update markers to remove pilot name
-            await self._update_markers_with_pilot(server, task_id, None)
-
-            # Publish abandonment to status channel (back to approved status)
-            config = self.get_config(server) or {}
-            if config.get('publish_on_abandon', True):
+                # Get task data for Discord publish (inside transaction to ensure consistency)
                 cursor = await conn.execute("""
                     SELECT id, cargo_type, source_name, destination_name, priority,
                            coalition, deadline, created_at, server_name, discord_message_id
                     FROM logistics_tasks WHERE id = %s
                 """, (task_id,))
                 pub_task = await cursor.fetchone()
-                if pub_task:
-                    await self.publish_logistics_task({
-                        'id': pub_task[0],
-                        'cargo_type': pub_task[1],
-                        'source_name': pub_task[2],
-                        'destination_name': pub_task[3],
-                        'priority': pub_task[4],
-                        'coalition': pub_task[5],
-                        'deadline': pub_task[6],
-                        'created_at': pub_task[7],
-                        'assigned_name': None,
-                        'server_name': pub_task[8],
-                        'discord_message_id': pub_task[9]
-                    }, 'approved')  # Back to approved status
 
-            return {'success': True}
+        # Update markers to remove pilot name (outside transaction - non-critical)
+        await self._update_markers_with_pilot(server, task_id, None)
+
+        # Publish abandonment to status channel (back to approved status)
+        config = self.get_config(server) or {}
+        if config.get('publish_on_abandon', True) and pub_task:
+            await self.publish_logistics_task({
+                'id': pub_task[0],
+                'cargo_type': pub_task[1],
+                'source_name': pub_task[2],
+                'destination_name': pub_task[3],
+                'priority': pub_task[4],
+                'coalition': pub_task[5],
+                'deadline': pub_task[6],
+                'created_at': pub_task[7],
+                'assigned_name': None,
+                'server_name': pub_task[8],
+                'discord_message_id': pub_task[9]
+            }, 'approved')  # Back to approved status
+
+        return {'success': True}
 
     async def _recreate_assigned_task_markers(self, server: Server):
         """Recreate markers only for assigned/in-progress tasks on mission start."""
@@ -1122,12 +1139,15 @@ class LogisticsEventListener(EventListener["Logistics"]):
         if group_id is None:
             group_id = player.group_id
         if not group_id:
+            log.debug(f"Cannot create logistics menu for {player.name}: no group_id")
             return
 
         # Build dynamic menu based on available tasks
+        log.debug(f"Building logistics menu for {player.name} (ucid={player.ucid}, side={player.side.value if player.side else None})")
         tasks = await self._get_available_tasks(server.name, player.side.value)
         tasks_with_pos = await self._get_available_tasks_with_positions(server.name, player.side.value)
         assigned_task = await self._get_assigned_task(player.ucid, server.name)
+        log.debug(f"Menu build: {len(tasks)} available tasks, {len(tasks_with_pos)} plottable tasks, assigned={assigned_task is not None}")
 
         # Build menu structure
         menu = [{

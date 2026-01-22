@@ -697,66 +697,84 @@ class Logistics(Plugin[LogisticsEventListener]):
                     VALUES (%s, 'assigned', %s, %s)
                 """, (task_id, interaction.user.id, f'{{"assigned_to": "{player_ucid}", "assigned_by": "discord"}}'))
 
-        # Create F10 markers if player is online
+        # Create F10 markers and notify player if online
+        # Wrapped in try/except to handle failures gracefully after DB commit
+        marker_error = None
         server = self.bot.servers.get(task[0])
         if server:
             player = server.get_player(ucid=player_ucid, active=True)
             if player and player.side:
-                # Create markers for the assigned task
-                source_pos = json.loads(task[9]) if task[9] else None
-                dest_pos = json.loads(task[10]) if task[10] else None
+                try:
+                    # Create markers for the assigned task
+                    # Note: psycopg3 auto-deserializes JSON columns to dicts
+                    source_pos = task[9] if isinstance(task[9], dict) else json.loads(task[9]) if task[9] else None
+                    dest_pos = task[10] if isinstance(task[10], dict) else json.loads(task[10]) if task[10] else None
 
-                if source_pos and dest_pos:
-                    await server.send_to_dcs({
-                        'command': 'createLogisticsMarkers',
-                        'task_id': task_id,
-                        'player_ucid': player_ucid,
-                        'coalition': player.side.value,
-                        'cargo_type': task[1],
-                        'source_name': task[2],
-                        'source_x': source_pos.get('x'),
-                        'source_z': source_pos.get('z'),
-                        'destination_name': task[3],
-                        'destination_x': dest_pos.get('x'),
-                        'destination_z': dest_pos.get('z'),
-                        'deadline': task[6].isoformat() if task[6] else None,
-                        'priority': task[4]
-                    })
+                    if source_pos and dest_pos:
+                        await server.send_to_dcs({
+                            'command': 'createLogisticsMarkers',
+                            'task_id': task_id,
+                            'player_ucid': player_ucid,
+                            'coalition': player.side.value,
+                            'cargo_type': task[1],
+                            'source_name': task[2],
+                            'source_x': source_pos.get('x'),
+                            'source_z': source_pos.get('z'),
+                            'destination_name': task[3],
+                            'destination_x': dest_pos.get('x'),
+                            'destination_z': dest_pos.get('z'),
+                            'deadline': task[6].isoformat() if task[6] else None,
+                            'priority': task[4]
+                        })
 
-                # Notify player in-game
-                await player.sendPopupMessage(
-                    f"LOGISTICS TASK ASSIGNED\n\n"
-                    f"Task #{task_id}: {task[1]}\n"
-                    f"From: {task[2]}\n"
-                    f"To: {task[3]}\n"
-                    f"Deadline: {task[6].strftime('%H:%MZ') if task[6] else 'None'}\n\n"
-                    f"Check your F10 map for route markers.",
-                    20
-                )
+                    # Notify player in-game
+                    await player.sendPopupMessage(
+                        f"LOGISTICS TASK ASSIGNED\n\n"
+                        f"Task #{task_id}: {task[1]}\n"
+                        f"From: {task[2]}\n"
+                        f"To: {task[3]}\n"
+                        f"Deadline: {task[6].strftime('%H:%MZ') if task[6] else 'None'}\n\n"
+                        f"Check your F10 map for route markers.",
+                        20
+                    )
+                except Exception as e:
+                    self.log.warning(f"Failed to create markers/notify player for task {task_id}: {e}")
+                    marker_error = str(e)
 
             # Publish to status channel
-            config = self.get_config(server)
-            if config.get('publish_on_assign', True):
-                await self.eventlistener.publish_logistics_task({
-                    'id': task_id,
-                    'cargo_type': task[1],
-                    'source_name': task[2],
-                    'destination_name': task[3],
-                    'priority': task[4],
-                    'coalition': task[5],
-                    'deadline': task[6],
-                    'created_at': task[7],
-                    'assigned_ucid': player_ucid,
-                    'assigned_name': player_name,
-                    'assigned_at': now,
-                    'server_name': task[0],
-                    'discord_message_id': task[8]
-                }, 'assigned')
+            try:
+                config = self.get_config(server)
+                if config.get('publish_on_assign', True):
+                    await self.eventlistener.publish_logistics_task({
+                        'id': task_id,
+                        'cargo_type': task[1],
+                        'source_name': task[2],
+                        'destination_name': task[3],
+                        'priority': task[4],
+                        'coalition': task[5],
+                        'deadline': task[6],
+                        'created_at': task[7],
+                        'assigned_ucid': player_ucid,
+                        'assigned_name': player_name,
+                        'assigned_at': now,
+                        'server_name': task[0],
+                        'discord_message_id': task[8]
+                    }, 'assigned')
+            except Exception as e:
+                self.log.warning(f"Failed to publish task {task_id} to Discord: {e}")
 
-        await interaction.followup.send(
-            f"Task #{task_id} has been assigned to **{player_name}**.",
-            ephemeral=ephemeral
-        )
+        # Provide feedback with any warnings
+        if marker_error:
+            await interaction.followup.send(
+                f"Task #{task_id} has been assigned to **{player_name}**.\n"
+                f"Note: F10 markers could not be created (player may need to respawn to see them).",
+                ephemeral=ephemeral
+            )
+        else:
+            await interaction.followup.send(
+                f"Task #{task_id} has been assigned to **{player_name}**.",
+                ephemeral=ephemeral
+            )
 
     # ==================== WAREHOUSE COMMANDS ====================
 
