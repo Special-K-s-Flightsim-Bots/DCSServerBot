@@ -44,9 +44,10 @@ class MOTD(Plugin[MOTDListener]):
                 if 'sound' in config:
                     await player.playSound(config['sound'])
             else:
-                await server.sendPopupMessage(Coalition.ALL, message, timeout)
+                coalition = Coalition(config.get('coalition', 'all').lower())
+                await server.sendPopupMessage(coalition, message, timeout)
                 if 'sound' in config:
-                    await server.playSound(Coalition.ALL, config['sound'])
+                    await server.playSound(coalition, config['sound'])
 
     @staticmethod
     async def get_recipients(server: Server, config: dict) -> AsyncGenerator[Player, None]:
@@ -58,6 +59,7 @@ class MOTD(Plugin[MOTDListener]):
                 in_roles.append(role)
             else:
                 out_roles.append(role[1:])
+        coalition = Coalition(config.get('coalition', 'all').lower())
         for player in players:
             if len(in_roles):
                 if not player.member or not utils.check_roles(in_roles, player.member):
@@ -65,7 +67,8 @@ class MOTD(Plugin[MOTDListener]):
             if len(out_roles):
                 if player.member and utils.check_roles(out_roles, player.member):
                     continue
-            yield player
+            if coalition == Coalition.ALL or player.coalition == coalition:
+                yield player
 
     @command(description='Test MOTD')
     @app_commands.guild_only()
