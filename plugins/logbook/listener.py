@@ -168,7 +168,7 @@ class LogbookEventListener(EventListener["Logbook"]):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 # Find all expired qualifications for this player
                 await cursor.execute("""
-                    SELECT pq.id, q.name, q.id as qualification_id, q.requirements
+                    SELECT pq.qualification_id, q.name, q.requirements
                     FROM logbook_pilot_qualifications pq
                     JOIN logbook_qualifications q ON pq.qualification_id = q.id
                     WHERE pq.player_ucid = %s
@@ -181,8 +181,8 @@ class LogbookEventListener(EventListener["Logbook"]):
                     try:
                         await conn.execute("""
                             DELETE FROM logbook_pilot_qualifications
-                            WHERE id = %s
-                        """, (qual['id'],))
+                            WHERE player_ucid = %s AND qualification_id = %s
+                        """, (player_ucid, qual['qualification_id']))
                         revoked.append(qual['name'])
                         self.log.info(f"Revoked expired qualification '{qual['name']}' from player {player_ucid}")
                     except Exception as e:
