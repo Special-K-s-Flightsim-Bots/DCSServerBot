@@ -199,6 +199,13 @@ Tasks are automatically completed when:
 - **cancelled**: Cancelled by admin
 - **denied**: Request denied by admin
 
+### Task Assignment Rules
+
+- **One task per pilot**: Each pilot can only have one active task at a time. Attempting to accept another task returns an error with your current task ID.
+- **No task stealing**: Once a task is assigned, other pilots cannot claim it. The assigned pilot must either complete or abandon the task first.
+- **Abandoning tasks**: Use `-abandon` or the F10 menu to release a task back to the available pool for others to accept.
+- **Admin override**: Server admins can reassign tasks via `/logistics assign` Discord command.
+
 ## Logbook Integration
 
 When a logistics task is completed, the pilot receives credit in the `logbook_logistics_completions` table:

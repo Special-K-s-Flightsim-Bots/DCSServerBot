@@ -713,16 +713,24 @@ class LogisticsEventListener(EventListener["Logistics"]):
         """Assign a task to a player."""
         async with self.apool.connection() as conn:
             async with conn.transaction():
-                # Check if task is available
+                # Check if task exists and get its status
                 cursor = await conn.execute("""
-                SELECT id, cargo_type, source_name, destination_name, deadline, coalition
+                SELECT id, cargo_type, source_name, destination_name, deadline, coalition, status, assigned_ucid
                 FROM logistics_tasks
-                WHERE id = %s AND server_name = %s AND status = 'approved'
+                WHERE id = %s AND server_name = %s
             """, (task_id, server.name))
             task = await cursor.fetchone()
 
             if not task:
-                return {'success': False, 'error': 'Task not found or not available'}
+                return {'success': False, 'error': 'Task not found'}
+
+            # Check if already assigned to someone else
+            if task[6] == 'assigned' and task[7]:
+                return {'success': False, 'error': 'Task is already assigned to another pilot'}
+
+            # Check if task is in approved status (available for acceptance)
+            if task[6] != 'approved':
+                return {'success': False, 'error': f'Task is not available (status: {task[6]})'}
 
             if task[5] != player.side.value:
                 return {'success': False, 'error': 'Task is for a different coalition'}
