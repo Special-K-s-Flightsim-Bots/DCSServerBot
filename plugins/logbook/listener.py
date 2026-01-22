@@ -202,7 +202,7 @@ class LogbookEventListener(EventListener["Logbook"]):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 # Find qualifications expiring within 7 days that have auto-grant requirements
                 await cursor.execute("""
-                    SELECT pq.id, q.name, q.id as qualification_id, q.requirements, q.valid_days
+                    SELECT pq.qualification_id, q.name, q.requirements, q.valid_days
                     FROM logbook_pilot_qualifications pq
                     JOIN logbook_qualifications q ON pq.qualification_id = q.id
                     WHERE pq.player_ucid = %s
@@ -273,8 +273,8 @@ class LogbookEventListener(EventListener["Logbook"]):
                             await conn.execute("""
                                 UPDATE logbook_pilot_qualifications
                                 SET expires_at = %s
-                                WHERE id = %s
-                            """, (new_expires, qual['id']))
+                                WHERE player_ucid = %s AND qualification_id = %s
+                            """, (new_expires, player_ucid, qual['qualification_id']))
                             refreshed.append(qual['name'])
                             self.log.info(f"Refreshed qualification '{qual['name']}' for player {player_ucid}")
                         except Exception as e:
