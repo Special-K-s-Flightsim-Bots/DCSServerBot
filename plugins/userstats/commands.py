@@ -698,6 +698,10 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 await cursor.execute("SELECT name, description, image_url FROM squadrons WHERE id = %s",
                                      (squadron_id, ))
                 row = await cursor.fetchone()
+                if not row:
+                    embed.title = "Squadron Not Found"
+                    embed.description = f"No squadron found with ID {squadron_id}"
+                    return embed
                 embed.title = f"Members of Squadron \"{row['name']}\""
                 embed.description = row['description'] or MISSING
                 embed.set_thumbnail(url=row['image_url'])

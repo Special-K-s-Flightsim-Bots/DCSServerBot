@@ -2384,7 +2384,7 @@ class Mission(Plugin[MissionEventListener]):
                 max_time = config.get('afk_time', -1)
                 if not config or max_time == -1 or server.status != Status.RUNNING:
                     continue
-                for ucid, dt in server.afk.items():
+                for ucid, dt in server.afk.copy().items():
                     player = server.get_player(ucid=ucid, active=True)
                     exemptions = config.get('exemptions', {})
                     if 'discord' in exemptions:
@@ -2398,6 +2398,7 @@ class Mission(Plugin[MissionEventListener]):
                             'message_afk', '{player.name}, you have been kicked for being AFK for more than {time}.'
                         ).format(player=player, time=utils.format_time(max_time))
                         await server.kick(player, msg)
+                        server.afk.pop(ucid, None)
         except Exception as ex:
             self.log.exception(ex)
 
