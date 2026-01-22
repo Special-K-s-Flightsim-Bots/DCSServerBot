@@ -406,10 +406,9 @@ class MissionEventListener(EventListener["Mission"]):
             # get the airbases async (if not filled already)
             if not data.get('airbases'):
                 asyncio.create_task(server.send_to_dcs({"command": "getAirbases"}))
+
         server.afk.clear()
-        # all players are inactive for now
-        for p in server.players.values():
-            p.active = False
+        server.players_by_id.clear()
         for p in data['players']:
             if p['id'] == 1:
                 continue
@@ -424,27 +423,26 @@ class MissionEventListener(EventListener["Mission"]):
                 server.add_player(player)
             else:
                 await player.update(p)
+                server.players_by_id[player.id] = player
+
+            # autorole
             if player.member:
                 autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
                 if autorole:
                     asyncio.create_task(player.add_role(autorole))
 
             asyncio.create_task(self._upload_user_roles(server, player))
+
+            # initialize AFK check
             if Side(p['side']) == Side.NEUTRAL:
                 server.afk[player.ucid] = datetime.now(timezone.utc)
+
         # clean up inactive players
-        for player in [p for p in server.players.values() if not p.active and p.id != 1]:
-            asyncio.create_task(self.bus.send_to_node(
-                {
-                    "command": "onMissionEvent",
-                    "eventName": "S_EVENT_DISCONNECT",
-                    "initiator": {
-                        "name": player.name,
-                        "type": "UNIT"
-                    },
-                    "server_name": server.name
-                }
-            ))
+        active_ucids = [p['ucid'] for p in data['players'] if p['active']]
+        for player in [p for p in server.players.values() if p.active]:
+            if player.id == 1 or player.ucid in active_ucids:
+                continue
+            await self._disconnect(server, player)
 
         # check if we are idle
         if not server.is_populated():
@@ -650,6 +648,8 @@ class MissionEventListener(EventListener["Mission"]):
                     "reason": messages['message_reserved']
                 }))
                 return
+
+        # create the player object
         player: Player = server.get_player(ucid=data['ucid'])
         if not player:
             player = DataObjectFactory().new(
@@ -658,10 +658,12 @@ class MissionEventListener(EventListener["Mission"]):
             server.add_player(player)
         else:
             await player.update(data)
+
         # security check, if a banned player somehow managed to get here (should never happen)
         if player.is_banned():
             asyncio.create_task(server.kick(player, messages['message_ban'].format('n/a')))
             return
+
         # greet the player
         if not player.member:
             # only warn for unknown users if it is a non-public server and automatch is on
@@ -694,6 +696,7 @@ class MissionEventListener(EventListener["Mission"]):
                         return
                     else:
                         asyncio.create_task(player.member.move_to(voice))
+
         # add the player to the afk list
         server.afk[player.ucid] = datetime.now(timezone.utc)
         self.display_mission_embed(server)
@@ -813,14 +816,15 @@ class MissionEventListener(EventListener["Mission"]):
         player: Player = server.get_player(id=data['id'], active=True)
         if not player:
             return
+
         # Workaround for missing disconnect events
         if 'side' not in data:
             asyncio.create_task(self._disconnect(server, player))
             return
+
         try:
             if Side(data['side']) != Side.NEUTRAL:
-                if player.ucid in server.afk:
-                    del server.afk[player.ucid]
+                server.afk.pop(player.ucid, None)
                 if 'change_slot' not in self.get_config(server).get('event_filter', []):
                     side = Side(data['side'])
                     self.send_dcs_event(server, side, self.EVENT_TEXTS[side]['change_slot'].format(player.side.name,

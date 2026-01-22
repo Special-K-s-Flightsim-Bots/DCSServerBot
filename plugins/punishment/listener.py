@@ -287,6 +287,10 @@ class PunishmentEventListener(EventListener["Punishment"]):
             return
 
         player = server.get_player(ucid=data['ucid'])
+        if not player:
+            self.log.warning("Player UCID is in the disconnect list but not in the playerlist anymore!")
+            return
+
         evt = {
             "eventName": "reslot",
             "server_name": server.name,

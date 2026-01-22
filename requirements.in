@@ -51,7 +51,7 @@ lupa==2.6
 matplotlib==3.10.8
 
 # MGRS: Python library for handling MGRS conversions
-mgrs>=1.5.1 ; python_version < "3.13"
+mgrs>=1.5.3
 
 # Minidump: Windows Minidump file reader
 minidump==0.0.24; sys_platform == 'win32'

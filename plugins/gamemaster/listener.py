@@ -33,8 +33,10 @@ class GameMasterEventListener(EventListener["GameMaster"]):
 
     async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
         coalitions_enabled = server.locals.get('coalitions')
-        coalition = await self.get_coalition(server, player) if coalitions_enabled else None
         # disable -password and -coalition if people have not joined a coalition yet
+        if command.name == 'coalition' and not coalitions_enabled:
+            return False
+        coalition = await self.get_coalition(server, player) if coalitions_enabled else None
         if command.name == 'password' and not coalition:
             return False
         return await super().can_run(command, server, player)
