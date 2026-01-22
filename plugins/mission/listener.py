@@ -601,6 +601,7 @@ class MissionEventListener(EventListener["Mission"]):
                     "name": data['name'],
                     "type": "UNIT"
                 },
+                "comment": "auto-generated",
                 "server_name": server.name
             }
         ))
@@ -802,6 +803,7 @@ class MissionEventListener(EventListener["Mission"]):
                         "name": player.name,
                         "type": "UNIT"
                     },
+                    "comment": "auto-generated",
                     "server_name": server.name
                 }
             )

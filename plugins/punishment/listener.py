@@ -235,44 +235,70 @@ class PunishmentEventListener(EventListener["Punishment"]):
             return
 
         initiator = server.get_player(ucid=init_id)
-        victim = server.get_player(ucid=target_id)
+        target = server.get_player(ucid=target_id)
 
-        # update the database
-        try:
-            mission = cast(Mission, self.bot.cogs.get('Mission'))
-            async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    if initiator:
-                        # give PvP kill
-                        await conn.execute(UserStatisticsEventListener.SQL_EVENT_UPDATES['pvp_planes'],
-                                           (server.mission_id, init_id))
-                    if victim:
-                        # count deaths
-                        await conn.execute(UserStatisticsEventListener.SQL_EVENT_UPDATES['deaths_pvp_planes'],
-                                           (server.mission_id, target_id))
+        # create the pseudo-event "kill" (for stats and to credit the player)
+        asyncio.create_task(self.bus.send_to_node(
+            {
+                "command": "onGameEvent",
+                "eventName": "kill",
+                "arg1": initiator.id,
+                "arg2": initiator.unit_type,
+                "arg3": initiator.side.value,
+                "arg4": target.id,
+                "arg5": target.unit_type,
+                "arg6": target.side.value,
+                "arg7": weapon or "the reslot hammer",
+                "killerCategory": "Planes",
+                "victimCategory": "Planes",
+                "channel": "-1",
+                "server_name": server.name
+            }
+        ))
+        # create the pseudo-event "S_EVENT_KILL"
+        asyncio.create_task(self.bus.send_to_node(
+            {
+                "command": "onMissionEvent",
+                "eventName": "S_EVENT_KILL",
+                "id": 28,
+                "initiator": {
+                    "type": "UNIT",
+                    "name": initiator.name,
+                    "coalition": initiator.side.value,
+                    "unit_name": initiator.unit_name,
+                    "unit_type": initiator.unit_type,
+                    "category": 0,
+                    "group_name": initiator.group_name
+                },
+                "target": {
+                    "type": "UNIT",
+                    "name": target.name,
+                    "coalition": target.side.value,
+                    "unit_name": target.unit_name,
+                    "unit_type": target.unit_type,
+                    "category": 0,
+                    "group_name": target.group_name
+                },
+                "weapon": {
+                    "name": weapon or "the reslot hammer"
+                },
+                "channel": "-1",
+                "comment": "auto-generated",
+                "server_name": server.name
+            }
+        ))
 
-            # inform players
-            message = MissionEventListener.EVENT_TEXTS[initiator.side]['kill'].format(
-                ('player ' + initiator.name) if initiator is not None else 'AI',
-                initiator.unit_type if initiator else 'unknown',
-                victim.side.name,
-                'player ' + victim.name,
-                victim.unit_type,
-                weapon or "the reslot-hammer"
-            )
-            mission.eventlistener.send_dcs_event(server, initiator.side, message)
-            message = "{} {} in {} killed {} {} in {} with {}.".format(
-                initiator.side.name,
-                ('player ' + initiator.name) if initiator is not None else 'AI',
-                initiator.unit_type if initiator else 'unknown',
-                victim.side.name,
-                'player ' + victim.name,
-                victim.unit_type,
-                weapon or "the reslot-hammer"
-            )
-            asyncio.create_task(server.sendChatMessage(Coalition.ALL, message))
-        except Exception as ex:
-            self.log.exception(ex)
+        # inform the players
+        message = "{} {} in {} killed {} {} in {} with {}.".format(
+            initiator.side.name,
+            ('player ' + initiator.name) if initiator is not None else 'AI',
+            initiator.unit_type if initiator else 'unknown',
+            target.side.name,
+            'player ' + target.name,
+            target.unit_type,
+            weapon or "the reslot-hammer"
+        )
+        asyncio.create_task(server.sendChatMessage(Coalition.ALL, message))
 
     @event(name="onPlayerConnect")
     async def onPlayerConnect(self, server: Server, data: dict) -> None:
@@ -300,7 +326,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         admin = self.bot.get_admin_channel(server)
         if admin:
             asyncio.create_task(admin.send(
-                "```" + _("Player {} ({}) disconnected and reconnected {} seconds after being shot at.").format(
+                "```" + _("Player {} (ucid={}) disconnected and reconnected {} seconds after being shot at.").format(
                     player.name, player.ucid, delta_time) + "```"))
 
     @event(name="onPlayerStart")
