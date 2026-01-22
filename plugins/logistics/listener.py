@@ -1191,9 +1191,31 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 }
             })
 
-            # Plot by ID submenu
+            # Plot by ID submenu - prioritize player's assigned task
             plot_menu = []
-            for task in tasks_with_pos[:5]:  # Limit to 5 tasks in menu
+            plotted_ids = set()
+
+            # First, add player's assigned task if they have one
+            if assigned_task:
+                assigned_id = assigned_task['id']
+                assigned_in_list = next((t for t in tasks_with_pos if t['id'] == assigned_id), None)
+                if assigned_in_list:
+                    priority_marker = "!" if assigned_in_list.get('priority') == 'urgent' else ""
+                    label = f"#{assigned_id}{priority_marker}: {assigned_in_list['cargo_type'][:20]} (yours)"
+                    plot_menu.append({
+                        label: {
+                            "command": "logistics",
+                            "params": {"action": "plot_task", "task_id": assigned_id}
+                        }
+                    })
+                    plotted_ids.add(assigned_id)
+
+            # Then fill remaining slots with other tasks
+            for task in tasks_with_pos:
+                if len(plot_menu) >= 5:
+                    break
+                if task['id'] in plotted_ids:
+                    continue
                 priority_marker = "!" if task.get('priority') == 'urgent' else ""
                 label = f"#{task['id']}{priority_marker}: {task['cargo_type'][:20]}"
                 plot_menu.append({
@@ -1202,6 +1224,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
                         "params": {"action": "plot_task", "task_id": task['id']}
                     }
                 })
+                plotted_ids.add(task['id'])
+
             menu[0]["Logistics"].append({"Plot Task": plot_menu})
 
         # Add task actions if player has an assigned task
