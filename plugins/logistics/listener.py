@@ -184,6 +184,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
             if result['success']:
                 await player.sendChatMessage(f"Delivery confirmed! Task #{task_id} completed.")
                 await player.sendPopupMessage("DELIVERY COMPLETE\n\nTask logged to your record.", 10)
+                # Refresh F10 menu to remove completed task
+                await self._create_logistics_menu(server, player)
 
     @event(name="logistics")
     async def onLogisticsCallback(self, server: Server, data: dict) -> None:
@@ -345,6 +347,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
             if result['success']:
                 await player.sendChatMessage(f"Task #{task['id']} marked as delivered! Well done.")
                 await player.sendPopupMessage("DELIVERY COMPLETE\n\nTask logged to your record.", 10)
+                # Refresh F10 menu to remove completed task
+                await self._create_logistics_menu(server, player)
             else:
                 await player.sendChatMessage(f"Cannot complete task: {result['error']}")
         except Exception as e:
@@ -363,6 +367,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
             result = await self._abandon_task(server, player, task['id'])
             if result['success']:
                 await player.sendChatMessage(f"Task #{task['id']} abandoned. It is now available for others.")
+                # Refresh F10 menu to reflect task changes
+                await self._create_logistics_menu(server, player)
             else:
                 await player.sendChatMessage(f"Cannot abandon task: {result['error']}")
         except Exception as e:
@@ -1107,6 +1113,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 if result['success']:
                     await player.sendChatMessage(f"Delivery confirmed at {place_name}! Task #{task['id']} completed.")
                     await player.sendPopupMessage("DELIVERY COMPLETE\n\nTask logged to your record.", 10)
+                    # Refresh F10 menu to remove completed task
+                    await self._create_logistics_menu(server, player)
                 return
 
         # Fallback: check proximity if we have position data
