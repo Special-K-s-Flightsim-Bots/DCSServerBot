@@ -17,6 +17,17 @@ from .models import (
 )
 
 
+def seconds_to_time_str(seconds: int | float | None) -> str:
+    """Convert seconds to HH:MM:SS format."""
+    if seconds is None:
+        return "Unknown"
+    total_seconds = int(seconds)
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    secs = total_seconds % 60
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
 class MCPAPI(Plugin):
     """
     MCP (Model Context Protocol) REST API plugin.
@@ -291,7 +302,7 @@ class MCPAPI(Plugin):
                 name=mission.name,
                 filename=mission.filename,
                 theatre=mission.map or "Unknown",
-                start_time=mission.start_time or "Unknown",
+                start_time=seconds_to_time_str(mission.start_time),
                 real_time=int(mission.real_time) if mission.real_time else 0,
                 pause=server.status == Status.PAUSED
             )
@@ -350,7 +361,7 @@ class MCPAPI(Plugin):
             name=mission.name,
             filename=mission.filename,
             theatre=mission.map or "Unknown",
-            start_time=mission.start_time or "Unknown",
+            start_time=seconds_to_time_str(mission.start_time),
             real_time=int(mission.real_time) if mission.real_time else 0,
             pause=server.status == Status.PAUSED
         )
