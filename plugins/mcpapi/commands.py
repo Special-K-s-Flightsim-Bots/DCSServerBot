@@ -239,8 +239,8 @@ class MCPAPI(Plugin):
         entries = deque(maxlen=lines)
         total_lines = 0
 
-        # Parse log format: [date time] LEVEL    message
-        log_pattern = re.compile(r'\[(\d{2}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})\]\s+(\w+)\s+(.+)')
+        # Parse log format: 2026-01-23 19:08:51.643 DEBUG	message
+        log_pattern = re.compile(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)\s+(\w+)\t(.+)')
 
         try:
             with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
