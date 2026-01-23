@@ -737,6 +737,9 @@ class Logistics(Plugin[LogisticsEventListener]):
                         f"Check your F10 map for route markers.",
                         20
                     )
+
+                    # Refresh the player's F10 menu to show their assigned task
+                    await self.eventlistener._create_logistics_menu(server, player)
                 except Exception as e:
                     self.log.warning(f"Failed to create markers/notify player for task {task_id}: {e}")
                     marker_error = str(e)
