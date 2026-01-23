@@ -2,7 +2,7 @@
 -- Add support for Mach number cruise speed (e.g., "M0.85")
 
 -- Make migration idempotent - only alter if column is not already TEXT
-DO $
+DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
@@ -13,4 +13,4 @@ BEGIN
         ALTER TABLE flightplan_plans
             ALTER COLUMN cruise_speed TYPE TEXT USING cruise_speed::TEXT;
     END IF;
-END $;
+END $$;
