@@ -133,6 +133,11 @@ class MockInteraction:
     def permissions(self) -> discord.Permissions:
         return discord.Permissions.all()
 
+    @property
+    def author(self):
+        """Alias for user - some code uses interaction.author instead of interaction.user."""
+        return self.user
+
 
 class MockUser:
     """Mock Discord user with admin permissions."""
