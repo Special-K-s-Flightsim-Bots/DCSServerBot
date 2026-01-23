@@ -1,0 +1,28 @@
+# MCP API Plugin Configuration
+#
+# This plugin provides REST API endpoints for bot control and DCS server
+# interaction, designed for use with AI assistants via MCP (Model Context Protocol).
+#
+# Prerequisites:
+# - WebService must be configured (services/webservice.yaml)
+# - Add 'mcpapi' to opt_plugins in main.yaml
+#
+# All endpoints are available at: http://<host>:<port><prefix>/
+#
+# Available endpoints:
+#   GET  /mcp/bot/status         - Bot status (version, uptime, plugins)
+#   GET  /mcp/bot/health         - Health check
+#   GET  /mcp/bot/logs           - Recent log entries
+#   GET  /mcp/bot/plugins        - List loaded plugins
+#   GET  /mcp/servers/{name}/status  - DCS server status
+#   GET  /mcp/servers/{name}/players - Connected players
+#   GET  /mcp/servers/{name}/mission - Current mission info
+#   POST /mcp/servers/{name}/chat    - Send chat message
+
+DEFAULT:
+  # URL prefix for all MCP API endpoints (default: /mcp)
+  prefix: /mcp
+
+  # API key for authentication (optional but recommended)
+  # If not set, no authentication is required
+  # api_key: your-secret-api-key-here
