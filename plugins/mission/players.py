@@ -19,7 +19,7 @@ class Main(report.EmbedElement):
         players_sorted = sorted(players, key=lambda p: p.display_name)
         for player in players_sorted:
             sides[player.side]['names'].append(player.display_name)
-            pending = player.pending and in_game
+            pending = (player.pending and player.sub_slot == 0) and in_game
             if player.side != Side.NEUTRAL and not pending:
                 unit = player.unit_type
                 if player.sub_slot > 0:
