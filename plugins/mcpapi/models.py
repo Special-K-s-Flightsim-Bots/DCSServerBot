@@ -193,3 +193,68 @@ class LogisticsTaskResponse(BaseModel):
     task_id: int | None = Field(None, description="The created task ID")
     message: str = Field(..., description="Status message")
     discord_posted: bool = Field(default=False, description="Whether the task was posted to Discord")
+
+
+class CommandParameter(BaseModel):
+    """Information about a command parameter."""
+    name: str = Field(..., description="Parameter name")
+    type: str = Field(..., description="Parameter type")
+    required: bool = Field(..., description="Whether the parameter is required")
+    description: str | None = Field(None, description="Parameter description")
+    default: str | None = Field(None, description="Default value if any")
+
+
+class CommandInfo(BaseModel):
+    """Information about a slash command."""
+    name: str = Field(..., description="Full command name (e.g., 'logistics create')")
+    description: str = Field(..., description="Command description")
+    parameters: list[CommandParameter] = Field(default_factory=list, description="Command parameters")
+
+
+class CommandListResponse(BaseModel):
+    """Response containing available commands."""
+    commands: list[CommandInfo] = Field(..., description="List of available commands")
+
+
+class SlashCommandRequest(BaseModel):
+    """Request to execute a slash command."""
+    command: str = Field(..., description="Full command path (e.g., 'logistics list' or 'mission restart')")
+    parameters: dict[str, str | int | float | bool] = Field(default_factory=dict, description="Command parameters as key-value pairs")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "command": "logistics list",
+                "parameters": {
+                    "server": "DCS Server",
+                    "status": "approved"
+                }
+            }
+        }
+    }
+
+
+class EmbedField(BaseModel):
+    """A field in a Discord embed."""
+    name: str
+    value: str
+    inline: bool = False
+
+
+class EmbedInfo(BaseModel):
+    """Discord embed information."""
+    title: str | None = None
+    description: str | None = None
+    color: int | None = None
+    fields: list[EmbedField] = Field(default_factory=list)
+    footer: str | None = None
+    image_url: str | None = None
+    thumbnail_url: str | None = None
+
+
+class SlashCommandResponse(BaseModel):
+    """Response from executing a slash command."""
+    success: bool = Field(..., description="Whether the command executed successfully")
+    content: str | None = Field(None, description="Text content of the response")
+    embeds: list[EmbedInfo] = Field(default_factory=list, description="Embed responses")
+    error: str | None = Field(None, description="Error message if failed")

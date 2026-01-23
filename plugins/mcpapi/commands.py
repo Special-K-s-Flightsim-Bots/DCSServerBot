@@ -1,4 +1,6 @@
 import asyncio
+import discord
+import inspect
 import json
 import os
 import re
@@ -6,6 +8,7 @@ import re
 from collections import deque
 from core import Plugin, DEFAULT_TAG, Status, ServiceRegistry, PluginInstallationError, Server, Coalition
 from datetime import datetime, timezone
+from discord import app_commands
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Query, Body
 from fastapi.security import APIKeyHeader
 from psycopg.rows import dict_row
@@ -16,7 +19,9 @@ from typing import Any
 from .models import (
     BotStatus, HealthCheck, PluginInfo, LogsResponse, LogEntry,
     ServerStatus, MissionInfo, PlayerInfo, ChatMessage, ChatResponse,
-    LogisticsTaskCreate, LogisticsTaskResponse
+    LogisticsTaskCreate, LogisticsTaskResponse,
+    CommandInfo, CommandParameter, CommandListResponse,
+    SlashCommandRequest, SlashCommandResponse, EmbedInfo, EmbedField
 )
 
 
@@ -29,6 +34,151 @@ def seconds_to_time_str(seconds: int | float | None) -> str:
     minutes = (total_seconds % 3600) // 60
     secs = total_seconds % 60
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
+class MockInteractionResponse:
+    """Mock interaction.response that captures responses instead of sending to Discord."""
+
+    def __init__(self):
+        self.responded = False
+        self.deferred = False
+        self.content: str | None = None
+        self.embeds: list[discord.Embed] = []
+        self.ephemeral: bool = False
+
+    async def send_message(self, content: str = None, *, embed: discord.Embed = None,
+                           embeds: list[discord.Embed] = None, ephemeral: bool = False, **kwargs):
+        self.responded = True
+        self.content = content
+        self.ephemeral = ephemeral
+        if embed:
+            self.embeds = [embed]
+        elif embeds:
+            self.embeds = embeds
+
+    async def defer(self, *, thinking: bool = False, ephemeral: bool = False):
+        self.deferred = True
+        self.ephemeral = ephemeral
+
+    def is_done(self) -> bool:
+        return self.responded or self.deferred
+
+
+class MockFollowup:
+    """Mock interaction.followup that captures followup messages."""
+
+    def __init__(self, response: MockInteractionResponse):
+        self._response = response
+        self.messages: list[dict] = []
+
+    async def send(self, content: str = None, *, embed: discord.Embed = None,
+                   embeds: list[discord.Embed] = None, ephemeral: bool = False, **kwargs) -> 'MockMessage':
+        msg = {
+            'content': content,
+            'embeds': [embed] if embed else (embeds or []),
+            'ephemeral': ephemeral
+        }
+        self.messages.append(msg)
+        # Update the response with the latest content
+        if content:
+            self._response.content = content
+        if embed:
+            self._response.embeds = [embed]
+        elif embeds:
+            self._response.embeds = embeds
+        return MockMessage(msg)
+
+
+class MockMessage:
+    """Mock message object for followup.send() return value."""
+
+    def __init__(self, data: dict):
+        self._data = data
+        self.content = data.get('content')
+        self.embeds = data.get('embeds', [])
+
+    async def edit(self, *, content: str = None, embed: discord.Embed = None, **kwargs):
+        if content:
+            self._data['content'] = content
+            self.content = content
+        if embed:
+            self._data['embeds'] = [embed]
+            self.embeds = [embed]
+
+
+class MockInteraction:
+    """Mock Discord interaction for executing slash commands via REST API."""
+
+    def __init__(self, bot: DCSServerBot, guild: discord.Guild, channel: discord.TextChannel = None):
+        self.client = bot
+        self.guild = guild
+        self.guild_id = guild.id if guild else None
+        self.channel = channel or (guild.text_channels[0] if guild and guild.text_channels else None)
+        self.channel_id = self.channel.id if self.channel else None
+
+        # Create mock user with admin permissions
+        self.user = MockUser(bot)
+        self.message = None
+        self.locale = discord.Locale.american_english
+        self.command = None
+        self.namespace = None
+
+        # Response handling
+        self.response = MockInteractionResponse()
+        self.followup = MockFollowup(self.response)
+
+        self._responded = False
+
+    @property
+    def permissions(self) -> discord.Permissions:
+        return discord.Permissions.all()
+
+
+class MockUser:
+    """Mock Discord user with admin permissions."""
+
+    def __init__(self, bot: DCSServerBot):
+        self.id = 0  # System user
+        self.name = "MCP API"
+        self.display_name = "MCP API"
+        self.bot = False
+        self._bot = bot
+
+    @property
+    def roles(self) -> list:
+        """Return all roles to pass permission checks."""
+        # Get the guild and return admin roles
+        guild = self._bot.guilds[0] if self._bot.guilds else None
+        if guild:
+            return list(guild.roles)
+        return []
+
+    def get_role(self, role_id: int):
+        guild = self._bot.guilds[0] if self._bot.guilds else None
+        if guild:
+            return guild.get_role(role_id)
+        return None
+
+
+def embed_to_info(embed: discord.Embed) -> EmbedInfo:
+    """Convert a Discord Embed to our EmbedInfo model."""
+    fields = []
+    for field in embed.fields:
+        fields.append(EmbedField(
+            name=field.name,
+            value=field.value,
+            inline=field.inline
+        ))
+
+    return EmbedInfo(
+        title=embed.title,
+        description=embed.description,
+        color=embed.color.value if embed.color else None,
+        fields=fields,
+        footer=embed.footer.text if embed.footer else None,
+        image_url=embed.image.url if embed.image else None,
+        thumbnail_url=embed.thumbnail.url if embed.thumbnail else None
+    )
 
 
 class MCPAPI(Plugin):
@@ -180,6 +330,24 @@ class MCPAPI(Plugin):
             description="Create a new logistics task and post it to Discord.",
             summary="Create Logistics Task",
             tags=["Logistics"]
+        )
+
+        # Slash Command Routes
+        self.router.add_api_route(
+            "/commands", self.list_commands,
+            methods=["GET"],
+            response_model=CommandListResponse,
+            description="List all available slash commands with their parameters.",
+            summary="List Commands",
+            tags=["Slash Commands"]
+        )
+        self.router.add_api_route(
+            "/commands/execute", self.execute_command,
+            methods=["POST"],
+            response_model=SlashCommandResponse,
+            description="Execute a slash command and return the response.",
+            summary="Execute Command",
+            tags=["Slash Commands"]
         )
 
         self.app.include_router(self.router)
@@ -544,6 +712,191 @@ class MCPAPI(Plugin):
         except Exception as e:
             self.log.error(f"Failed to create logistics task: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to create task: {str(e)}")
+
+    # Slash Command Endpoints
+
+    def _get_all_commands(self) -> list[tuple[str, app_commands.Command | app_commands.Group]]:
+        """Get all registered slash commands recursively."""
+        commands = []
+
+        def collect_commands(items, prefix=""):
+            for cmd in items:
+                full_name = f"{prefix}{cmd.name}" if prefix else cmd.name
+                if isinstance(cmd, app_commands.Group):
+                    # Add the group itself
+                    commands.append((full_name, cmd))
+                    # Recursively add subcommands
+                    collect_commands(cmd.commands, f"{full_name} ")
+                else:
+                    commands.append((full_name, cmd))
+
+        # Get commands from the bot's command tree
+        collect_commands(self.bot.tree.get_commands())
+
+        return commands
+
+    def _get_command_info(self, name: str, cmd: app_commands.Command) -> CommandInfo:
+        """Extract command info including parameters."""
+        params = []
+
+        if hasattr(cmd, '_callback') and cmd._callback:
+            sig = inspect.signature(cmd._callback)
+            for param_name, param in sig.parameters.items():
+                if param_name in ('self', 'interaction'):
+                    continue
+
+                # Determine type
+                param_type = "string"
+                if param.annotation != inspect.Parameter.empty:
+                    ann = param.annotation
+                    if hasattr(ann, '__origin__'):
+                        # Handle Optional, Union, etc.
+                        ann = ann.__args__[0] if ann.__args__ else ann
+                    if ann == int or 'int' in str(ann).lower():
+                        param_type = "integer"
+                    elif ann == float:
+                        param_type = "number"
+                    elif ann == bool:
+                        param_type = "boolean"
+                    elif 'Server' in str(ann):
+                        param_type = "server"
+                    elif 'Node' in str(ann):
+                        param_type = "node"
+
+                # Check if required
+                required = param.default == inspect.Parameter.empty
+
+                # Get description from decorator if available
+                description = None
+                if hasattr(cmd, '_attr_descriptions') and param_name in cmd._attr_descriptions:
+                    description = cmd._attr_descriptions[param_name]
+
+                default_val = None
+                if param.default != inspect.Parameter.empty and param.default is not None:
+                    default_val = str(param.default)
+
+                params.append(CommandParameter(
+                    name=param_name,
+                    type=param_type,
+                    required=required,
+                    description=description,
+                    default=default_val
+                ))
+
+        return CommandInfo(
+            name=name,
+            description=cmd.description or "No description",
+            parameters=params
+        )
+
+    async def list_commands(self) -> CommandListResponse:
+        """List all available slash commands."""
+        commands = []
+
+        for name, cmd in self._get_all_commands():
+            if isinstance(cmd, app_commands.Group):
+                # Skip groups themselves, we only want executable commands
+                continue
+            commands.append(self._get_command_info(name, cmd))
+
+        return CommandListResponse(commands=commands)
+
+    async def execute_command(
+        self,
+        request: SlashCommandRequest = Body(...)
+    ) -> SlashCommandResponse:
+        """Execute a slash command and return the response."""
+        # Parse command path (e.g., "logistics list" -> ["logistics", "list"])
+        command_parts = request.command.strip().split()
+        if not command_parts:
+            raise HTTPException(status_code=400, detail="Command cannot be empty")
+
+        # Find the command in the bot's command tree
+        command = None
+        for name, cmd in self._get_all_commands():
+            if name == request.command:
+                command = cmd
+                break
+
+        if not command:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Command '{request.command}' not found. Use GET /mcp/commands to list available commands."
+            )
+
+        if isinstance(command, app_commands.Group):
+            raise HTTPException(
+                status_code=400,
+                detail=f"'{request.command}' is a command group, not an executable command. Specify a subcommand."
+            )
+
+        # Get the guild
+        if not self.bot.guilds:
+            raise HTTPException(status_code=503, detail="Bot is not connected to any guild")
+        guild = self.bot.guilds[0]
+
+        # Create mock interaction
+        interaction = MockInteraction(self.bot, guild)
+
+        # Build parameters dict
+        params = dict(request.parameters)
+
+        # Handle special parameter transformations
+        if hasattr(command, '_callback'):
+            sig = inspect.signature(command._callback)
+            for param_name, param in sig.parameters.items():
+                if param_name in ('self', 'interaction'):
+                    continue
+
+                # Handle server parameter - resolve server name to Server object
+                if 'Server' in str(param.annotation) and param_name in params:
+                    server_name = params[param_name]
+                    server = self._resolve_server(server_name)
+                    params[param_name] = server
+
+                # Handle node parameter
+                if 'Node' in str(param.annotation) and param_name not in params:
+                    params[param_name] = self.node
+
+        try:
+            # Get the cog that owns this command
+            cog = None
+            if hasattr(command, 'binding') and command.binding:
+                cog = command.binding
+
+            # Call the command callback directly
+            if cog:
+                await command._callback(cog, interaction, **params)
+            else:
+                await command._callback(interaction, **params)
+
+            # Extract response
+            embeds = []
+            for embed in interaction.response.embeds:
+                embeds.append(embed_to_info(embed))
+
+            # Also check followup messages
+            for msg in interaction.followup.messages:
+                for embed in msg.get('embeds', []):
+                    embeds.append(embed_to_info(embed))
+
+            return SlashCommandResponse(
+                success=True,
+                content=interaction.response.content,
+                embeds=embeds,
+                error=None
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            self.log.error(f"Error executing command '{request.command}': {e}", exc_info=True)
+            return SlashCommandResponse(
+                success=False,
+                content=None,
+                embeds=[],
+                error=str(e)
+            )
 
 
 async def setup(bot: DCSServerBot):
