@@ -164,3 +164,32 @@ class ChatResponse(BaseModel):
     """Response after sending a chat message."""
     success: bool = Field(..., description="Whether the message was sent")
     message: str = Field(..., description="Status message")
+
+
+class LogisticsTaskCreate(BaseModel):
+    """Request to create a logistics task."""
+    source: str = Field(..., description="Pickup location name (airbase/FARP)")
+    destination: str = Field(..., description="Delivery location name")
+    cargo: str = Field(..., description="Description of cargo to deliver")
+    priority: Literal["low", "normal", "high", "urgent"] = Field(default="normal", description="Task priority")
+    coalition: Literal["red", "blue"] = Field(default="blue", description="Which coalition can accept the task")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "source": "Herat",
+                "destination": "Shindand",
+                "cargo": "Medical Supplies",
+                "priority": "normal",
+                "coalition": "blue"
+            }
+        }
+    }
+
+
+class LogisticsTaskResponse(BaseModel):
+    """Response after creating a logistics task."""
+    success: bool = Field(..., description="Whether the task was created")
+    task_id: int | None = Field(None, description="The created task ID")
+    message: str = Field(..., description="Status message")
+    discord_posted: bool = Field(default=False, description="Whether the task was posted to Discord")

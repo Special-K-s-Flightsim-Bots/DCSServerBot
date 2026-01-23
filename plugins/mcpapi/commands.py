@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import re
 
@@ -7,13 +8,15 @@ from core import Plugin, DEFAULT_TAG, Status, ServiceRegistry, PluginInstallatio
 from datetime import datetime, timezone
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Query, Body
 from fastapi.security import APIKeyHeader
+from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.webservice import WebService
 from typing import Any
 
 from .models import (
     BotStatus, HealthCheck, PluginInfo, LogsResponse, LogEntry,
-    ServerStatus, MissionInfo, PlayerInfo, ChatMessage, ChatResponse
+    ServerStatus, MissionInfo, PlayerInfo, ChatMessage, ChatResponse,
+    LogisticsTaskCreate, LogisticsTaskResponse
 )
 
 
@@ -159,6 +162,16 @@ class MCPAPI(Plugin):
             description="Send a chat message to the DCS server.",
             summary="Send Chat",
             tags=["DCS Server"]
+        )
+
+        # Logistics Routes
+        self.router.add_api_route(
+            "/servers/{server_name}/logistics/task", self.create_logistics_task,
+            methods=["POST"],
+            response_model=LogisticsTaskResponse,
+            description="Create a new logistics task and post it to Discord.",
+            summary="Create Logistics Task",
+            tags=["Logistics"]
         )
 
         self.app.include_router(self.router)
@@ -392,6 +405,116 @@ class MCPAPI(Plugin):
                 success=False,
                 message=f"Failed to send message: {str(e)}"
             )
+
+    # Logistics Endpoints
+
+    async def create_logistics_task(
+        self,
+        server_name: str,
+        task: LogisticsTaskCreate = Body(...)
+    ) -> LogisticsTaskResponse:
+        """Create a new logistics task and post it to Discord."""
+        server = self._resolve_server(server_name)
+
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Server is not running (status: {server.status.name})"
+            )
+
+        # Get the logistics plugin to access its event listener
+        logistics_cog = self.bot.cogs.get('Logistics')
+        if not logistics_cog:
+            raise HTTPException(status_code=503, detail="Logistics plugin is not loaded")
+
+        # Validate source and destination against mission airbases
+        if not server.current_mission or not server.current_mission.airbases:
+            raise HTTPException(status_code=400, detail="No mission loaded or no airbases available")
+
+        source_airbase = None
+        dest_airbase = None
+        for ab in server.current_mission.airbases:
+            if ab['name'].lower() == task.source.lower():
+                source_airbase = ab
+            if ab['name'].lower() == task.destination.lower():
+                dest_airbase = ab
+
+        if not source_airbase:
+            raise HTTPException(status_code=400, detail=f"Source airbase '{task.source}' not found in mission")
+        if not dest_airbase:
+            raise HTTPException(status_code=400, detail=f"Destination airbase '{task.destination}' not found in mission")
+
+        coalition_id = 1 if task.coalition == 'red' else 2
+        source_position = json.dumps(source_airbase.get('position')) if source_airbase.get('position') else None
+        dest_position = json.dumps(dest_airbase.get('position')) if dest_airbase.get('position') else None
+
+        try:
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    now = datetime.now(timezone.utc)
+                    cursor = await conn.execute("""
+                        INSERT INTO logistics_tasks
+                        (server_name, created_by_ucid, status, priority, cargo_type,
+                         source_name, source_position, destination_name, destination_position,
+                         coalition, deadline, approved_by, approved_at, created_at, updated_at)
+                        VALUES (%s, %s, 'approved', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id
+                    """, (
+                        server.name,
+                        None,  # No player UCID for API-created tasks
+                        task.priority,
+                        task.cargo,
+                        source_airbase['name'],
+                        source_position,
+                        dest_airbase['name'],
+                        dest_position,
+                        coalition_id,
+                        None,  # No deadline
+                        'MCP_API',  # Approved by API
+                        now,
+                        now,
+                        now
+                    ))
+                    row = await cursor.fetchone()
+                    task_id = row[0]
+
+                    # Record history
+                    await conn.execute("""
+                        INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
+                        VALUES (%s, 'created', %s, %s)
+                    """, (task_id, None, '{"source": "mcp_api", "auto_approved": true}'))
+
+            # Publish to Discord
+            discord_posted = False
+            try:
+                task_data = {
+                    'id': task_id,
+                    'server_name': server.name,
+                    'cargo_type': task.cargo,
+                    'source_name': source_airbase['name'],
+                    'destination_name': dest_airbase['name'],
+                    'priority': task.priority,
+                    'coalition': coalition_id,
+                    'deadline': None,
+                    'status': 'approved',
+                    'created_at': now,
+                    'discord_message_id': None
+                }
+                await logistics_cog.eventlistener.publish_logistics_task(task_data, 'approved')
+                discord_posted = True
+            except Exception as e:
+                self.log.warning(f"Failed to post logistics task to Discord: {e}")
+
+            return LogisticsTaskResponse(
+                success=True,
+                task_id=task_id,
+                message=f"Logistics task #{task_id} created: {task.cargo} from {source_airbase['name']} to {dest_airbase['name']}",
+                discord_posted=discord_posted
+            )
+
+        except Exception as e:
+            self.log.error(f"Failed to create logistics task: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to create task: {str(e)}")
 
 
 async def setup(bot: DCSServerBot):
