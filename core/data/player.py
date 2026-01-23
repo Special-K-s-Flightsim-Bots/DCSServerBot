@@ -28,6 +28,7 @@ class Player(DataObject):
     side: Side = field(compare=False)
     ucid: str
     ipaddr: str
+    connected: bool = field(compare=False, default=True, init=False)
     banned: bool = field(compare=False, default=False, init=False)
     slot: int = field(compare=False, default=0)
     sub_slot: int = field(compare=False, default=0)
@@ -112,6 +113,9 @@ class Player(DataObject):
     def is_active(self) -> bool:
         return self.active
 
+    def is_connected(self) -> bool:
+        return self.connected
+
     def is_multicrew(self) -> bool:
         return self.sub_slot != 0
 
@@ -186,7 +190,7 @@ class Player(DataObject):
                     # if the ID has changed (due to reconnect), we need to update the server list
                     if self.id != data['id']:
                         self.id = data['id']
-                        self.server.players_by_id[self.id] = self
+                    self.server.players_by_id[self.id] = self
                 if 'active' in data:
                     self.active = data['active']
                 if 'name' in data and self.name != data['name']:

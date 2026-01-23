@@ -90,6 +90,7 @@ class MissionEventListener(EventListener["Mission"]):
         self.mission_embeds: dict[str, bool] = {}
         self.alert_fired: dict[str, bool] = {}
         self.whitelist: set[str] = set()
+        self.restart_pending: dict[str, bool] = {}
         # start schedulers
         self.print_queue.start()
         self.update_player_embed.start()
@@ -423,7 +424,7 @@ class MissionEventListener(EventListener["Mission"]):
                 server.add_player(player)
             else:
                 await player.update(p)
-                server.players_by_id[player.id] = player
+            player.connected = True
 
             # autorole
             if player.member:
@@ -439,10 +440,11 @@ class MissionEventListener(EventListener["Mission"]):
 
         # clean up inactive players
         active_ucids = [p['ucid'] for p in data['players'] if p['active']]
-        for player in [p for p in server.players.values() if p.active]:
+        for player in [p for p in server.players.values()]:
             if player.id == 1 or player.ucid in active_ucids:
                 continue
-            await self._disconnect(server, player)
+            if player.is_connected():
+                await self._disconnect(server, player)
 
         # check if we are idle
         if not server.is_populated():
@@ -544,6 +546,7 @@ class MissionEventListener(EventListener["Mission"]):
     @event(name="onSimulationStart")
     async def onSimulationStart(self, server: Server, _: dict) -> None:
         server.status = Status.PAUSED
+        self.restart_pending[server.name] = False
         # If the server is PAUSED and smooth_pause is configured, start it for some seconds and pause it again,
         # to let all scripts load properly.
         if server.settings.get('advanced', {}).get('resume_mode', 0) == 2:
@@ -564,6 +567,10 @@ class MissionEventListener(EventListener["Mission"]):
         server.current_mission.mission_time = data['mission_time']
         server.current_mission.real_time = data['real_time']
         self.display_mission_embed(server)
+
+    @event(name="onMissionRestart")
+    async def onMissionRestart(self, server: Server, _data: dict) -> None:
+        self.restart_pending[server.name] = True
 
     @event(name="onSimulationStop")
     async def onSimulationStop(self, server: Server, _data: dict) -> None:
@@ -617,6 +624,8 @@ class MissionEventListener(EventListener["Mission"]):
             server.add_player(player)
         else:
             await player.update(data)
+        player.connected = True
+
         # if the first player joined, the server is considered non-idle
         if server.idle_since:
             server.idle_since = None
@@ -788,12 +797,17 @@ class MissionEventListener(EventListener["Mission"]):
             return
         player = server.get_player(ucid=data['ucid'])
         if player:
-            asyncio.create_task(self._stop_player(server, player))
+            if not self.restart_pending.get(server.name, False):
+                asyncio.create_task(self._disconnect(server, player))
+            else:
+                asyncio.create_task(self._stop_player(server, player))
 
     async def _disconnect(self, server: Server, player: Player):
-        if not player or not player.active:
+        if not player or player.connected is False:
             return
+
         try:
+            player.connected = False
             # create the pseudo-event "S_EVENT_DISCONNECT"
             await self.bus.send_to_node(
                 {
@@ -811,7 +825,8 @@ class MissionEventListener(EventListener["Mission"]):
                 self.send_dcs_event(server, player.side,
                                     self.EVENT_TEXTS[player.side]['disconnect'].format(player.name, server.name))
         finally:
-            await self._stop_player(server, player)
+            if player.active:
+                await self._stop_player(server, player)
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
@@ -851,7 +866,8 @@ class MissionEventListener(EventListener["Mission"]):
         elif data['eventName'] == 'disconnect':
             if data['arg1'] == 1:
                 return
-            asyncio.create_task(self._disconnect(server, server.get_player(id=data['arg1'], active=True)))
+            player = server.get_player(id=data['arg1'], active=True)
+            asyncio.create_task(self._disconnect(server, player))
 
         # check the event filter first
         if data['eventName'] in self.get_config(server).get('event_filter', []):
