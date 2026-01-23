@@ -290,7 +290,7 @@ class MCPAPI(Plugin):
             mission_info = MissionInfo(
                 name=mission.name,
                 filename=mission.filename,
-                theatre=mission.theatre or "Unknown",
+                theatre=mission.map or "Unknown",
                 start_time=mission.start_time or "Unknown",
                 real_time=int(mission.real_time) if mission.real_time else 0,
                 pause=server.status == Status.PAUSED
@@ -349,7 +349,7 @@ class MCPAPI(Plugin):
         return MissionInfo(
             name=mission.name,
             filename=mission.filename,
-            theatre=mission.theatre or "Unknown",
+            theatre=mission.map or "Unknown",
             start_time=mission.start_time or "Unknown",
             real_time=int(mission.real_time) if mission.real_time else 0,
             pause=server.status == Status.PAUSED
