@@ -129,6 +129,14 @@ class MCPAPI(Plugin):
             summary="List Plugins",
             tags=["Bot Control"]
         )
+        self.router.add_api_route(
+            "/bot/restart", self.bot_restart,
+            methods=["POST"],
+            response_model=ChatResponse,
+            description="Request a bot restart (requires supervisor script).",
+            summary="Restart Bot",
+            tags=["Bot Control"]
+        )
 
         # DCS Server Routes
         self.router.add_api_route(
@@ -301,6 +309,27 @@ class MCPAPI(Plugin):
             version = getattr(cog, 'plugin_version', 'unknown')
             plugins.append(PluginInfo(name=cog_name.lower(), version=version))
         return plugins
+
+    async def bot_restart(self) -> ChatResponse:
+        """Request a bot restart via supervisor signal file."""
+        # The supervisor script monitors for this file and restarts the bot
+        signal_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.restart_requested')
+
+        try:
+            with open(signal_file, 'w') as f:
+                f.write(datetime.now(timezone.utc).isoformat())
+
+            self.log.warning("Bot restart requested via MCP API")
+            return ChatResponse(
+                success=True,
+                message="Restart signal sent. Bot will restart if supervisor is running."
+            )
+        except Exception as e:
+            self.log.error(f"Failed to create restart signal file: {e}")
+            return ChatResponse(
+                success=False,
+                message=f"Failed to signal restart: {str(e)}"
+            )
 
     # DCS Server Endpoints
 
