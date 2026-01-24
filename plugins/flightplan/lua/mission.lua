@@ -246,4 +246,43 @@ function dcsbot.removeFlightPlanMarkers(plan_id, channel)
     end
 end
 
+-- Calculate 2D distance between two points
+local function distance2D(p1, p2)
+    local dx = p2.x - p1.x
+    local dz = p2.z - p1.z
+    return math.sqrt(dx * dx + dz * dz)
+end
+
+-- Check proximity of a unit to destination for flight plan auto-completion
+-- Parameters:
+--   unit_name: name of the unit to check
+--   plan_id: flight plan ID
+--   dest_pos: {x, z} destination position
+--   threshold: distance in meters for successful proximity check
+--   channel: response channel
+function dcsbot.checkFlightPlanProximity(unit_name, plan_id, dest_pos, threshold, channel)
+    env.info('DCSServerBot - FlightPlan: checkFlightPlanProximity(' .. unit_name .. ', ' .. plan_id .. ')')
+
+    local msg = {
+        command = "checkFlightPlanProximity",
+        plan_id = plan_id,
+        unit_name = unit_name
+    }
+
+    local unit = Unit.getByName(unit_name)
+    if unit and unit:isExist() then
+        local pos = unit:getPoint()
+        local dist = distance2D(pos, dest_pos)
+        msg.distance = dist
+        msg.within_threshold = dist <= threshold
+        msg.threshold = threshold
+        msg.found = true
+    else
+        msg.found = false
+        msg.within_threshold = false
+    end
+
+    dcsbot.sendBotTable(msg, channel)
+end
+
 env.info("DCSServerBot - FlightPlan: mission.lua loaded.")

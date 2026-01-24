@@ -5,6 +5,7 @@ An IFR-style flight planning system for DCSServerBot with Discord integration, F
 ## Features
 
 - **Flight Plan Filing**: Create detailed flight plans with departure, destination, waypoints, altitude, and ETD
+- **Auto-Lifecycle**: Automatic activation on takeoff and completion on landing at destination
 - **F10 Map Visualization**: Plot flight plans as markers on the F10 map (temporary or permanent)
 - **Discord Integration**: Publish flight plan status to a dedicated channel with live updates
 - **Navigation Fixes**: Support for VORs, NDBs, TACANs, and intersections with OpenAIP integration
@@ -47,9 +48,35 @@ DEFAULT:
   stale_hours: 24                     # Cancel plans older than this (hours)
   auto_cancel_stale: true             # Auto-cancel stale plans on mission start
   marker_timeout: 30                  # Default F10 marker display time (seconds)
+
+  # Auto-Lifecycle: Automatic activation on takeoff, completion on landing
+  auto_lifecycle:
+    activate_on_takeoff: true         # Auto-activate filed plan when player takes off
+    complete_on_landing: true         # Auto-complete active plan when landing at destination
+    require_departure_match: false    # If true, only activate if takeoff is at departure airbase
+    proximity_threshold: 3000         # Fallback distance (meters) for destination matching
+
   openaip:                            # OpenAIP integration (optional)
     api_key: "your-api-key-here"      # Get from https://www.openaip.net/
     cache_hours: 168                  # Cache navigation data for 1 week
+```
+
+### Auto-Lifecycle Feature
+
+The auto-lifecycle feature provides seamless flight plan management:
+
+1. **Automatic Activation on Takeoff**: When a player takes off, their most recent filed flight plan is automatically activated. F10 markers are created and Discord is updated.
+
+2. **Automatic Completion on Landing**: When a player lands at their destination airbase, the active flight plan is automatically completed. Markers are removed and Discord is updated.
+
+3. **Destination Matching**: The system uses airbase name matching (handles variations like "Batumi" vs "Batumi-Chorokhi") and falls back to proximity checking if the airbase name isn't available in the event data.
+
+To disable auto-lifecycle features (for manual-only operation):
+```yaml
+DEFAULT:
+  auto_lifecycle:
+    activate_on_takeoff: false
+    complete_on_landing: false
 ```
 
 ## Discord Slash Commands
@@ -340,21 +367,41 @@ F10 marker tracking for cleanup.
                     +--------+---------+
                              |
             +----------------+----------------+
-            |                                 |
-            v                                 v
-  +---------+---------+             +---------+---------+
-  |     Activated     |             |     Cancelled     |
-  | (Route on F10)    |             | (User cancelled)  |
-  +---------+---------+             +-------------------+
-            |
-            +--------------------------------+
-            |                                |
-            v                                v
-  +---------+---------+             +---------+---------+
-  |     Completed     |             |     Cancelled     |
-  | (Flight finished) |             | (Stale/timeout)   |
-  +-------------------+             +-------------------+
+            |                |                |
+            v                v                v
+  +---------+---------+  [TAKEOFF]  +---------+---------+
+  |   Manual Activate |  (auto)    |     Cancelled     |
+  |   (command/menu)  |---+        | (User cancelled)  |
+  +---------+---------+   |        +-------------------+
+            |             |
+            +------+------+
+                   |
+                   v
+         +---------+---------+
+         |     Activated     |
+         | (Route on F10)    |
+         +---------+---------+
+                   |
+            +------+------+----------------+
+            |             |                |
+            v             v                v
+  +---------+---------+ [LAND@DEST]  +---------+---------+
+  |  Manual Complete  | (auto)       |     Cancelled     |
+  |  (command/menu)   |---+          | (Stale/timeout)   |
+  +---------+---------+   |          +-------------------+
+            |             |
+            +------+------+
+                   |
+                   v
+         +---------+---------+
+         |     Completed     |
+         | (Flight logged)   |
+         +-------------------+
 ```
+
+**Auto-Lifecycle Events:**
+- **TAKEOFF**: If `auto_lifecycle.activate_on_takeoff` is enabled, filed plans are automatically activated
+- **LAND@DEST**: If `auto_lifecycle.complete_on_landing` is enabled, landing at destination completes the plan
 
 ## Troubleshooting
 

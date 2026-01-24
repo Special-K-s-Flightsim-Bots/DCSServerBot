@@ -15,6 +15,61 @@ _ = get_translation(__name__.split('.')[1])
 log = logging.getLogger(__name__)
 
 
+# ==================== AIRBASE NAME MATCHING ====================
+
+def _normalize_airbase_name(name: str) -> str:
+    """
+    Normalize an airbase name for comparison.
+    Handles variations like 'Batumi', 'Batumi-Chorokhi', 'Batumi Airbase', etc.
+    """
+    if not name:
+        return ""
+    # Convert to lowercase
+    name = name.lower().strip()
+    # Remove common suffixes/prefixes
+    suffixes = [' airbase', ' airport', ' airfield', ' afb', ' ab', ' intl', ' international',
+                '-airbase', '-airport', '-airfield', '_airbase', '_airport', '_airfield']
+    for suffix in suffixes:
+        if name.endswith(suffix):
+            name = name[:-len(suffix)]
+    return name
+
+
+def _airbase_names_match(place_name: str, dest_name: str) -> bool:
+    """
+    Check if two airbase names refer to the same location.
+    Uses strict matching to avoid false positives.
+
+    Returns True only if:
+    1. Exact match (case-insensitive, normalized)
+    2. One name is a clear prefix/base of the other (e.g., "Batumi" matches "Batumi-Chorokhi")
+       but only if it's a complete word boundary match
+    """
+    if not place_name or not dest_name:
+        return False
+
+    norm_place = _normalize_airbase_name(place_name)
+    norm_dest = _normalize_airbase_name(dest_name)
+
+    # Exact match after normalization
+    if norm_place == norm_dest:
+        return True
+
+    # Check if one is a word-boundary prefix of the other
+    # "Batumi" should match "Batumi-Chorokhi" but not "BatumiX"
+    shorter, longer = (norm_place, norm_dest) if len(norm_place) <= len(norm_dest) else (norm_dest, norm_place)
+
+    if longer.startswith(shorter):
+        # Check that the character after the shorter name is a word boundary
+        if len(longer) == len(shorter):
+            return True
+        next_char = longer[len(shorter)]
+        if next_char in ' -_':
+            return True
+
+    return False
+
+
 def format_cruise_speed(value: str) -> str:
     """Format cruise speed for display. Input: "450" or "M0.85" -> "450 kts" or "M0.85"."""
     if not value:
@@ -360,6 +415,219 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         # Recreate markers for active plans
         await self.recreate_active_markers(server)
 
+    # ==================== AUTO-LIFECYCLE METHODS ====================
+
+    async def _check_activation_on_takeoff(self, server: Server, data: dict) -> None:
+        """
+        Auto-activate a filed flight plan when the player takes off.
+
+        Only activates if:
+        1. auto_lifecycle.activate_on_takeoff is enabled in config
+        2. Player has a filed (not yet active) flight plan
+        3. Takeoff location matches the flight plan's departure (optional, configurable)
+        """
+        config = self.get_config(server) or {}
+        auto_config = config.get('auto_lifecycle', {})
+
+        if not auto_config.get('activate_on_takeoff', True):
+            return
+
+        # Get player from initiator
+        initiator = data.get('initiator', {})
+        player_name = initiator.get('name')
+        if not player_name:
+            return
+
+        player = server.get_player(name=player_name)
+        if not player:
+            return
+
+        # Get player's most recent filed flight plan
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT * FROM flightplan_plans
+                    WHERE player_ucid = %s
+                    AND server_name = %s
+                    AND status = 'filed'
+                    ORDER BY filed_at DESC
+                    LIMIT 1
+                """, (player.ucid, server.name))
+                fp = await cursor.fetchone()
+
+        if not fp:
+            return  # No filed flight plan
+
+        # Optionally verify takeoff location matches departure
+        if auto_config.get('require_departure_match', False):
+            place = data.get('place', {})
+            place_name = place.get('name', '')
+            if place_name and fp.get('departure'):
+                if not _airbase_names_match(place_name, fp['departure']):
+                    self.log.debug(
+                        f"FlightPlan: Takeoff at {place_name} doesn't match departure {fp['departure']}, "
+                        f"not auto-activating plan #{fp['id']}"
+                    )
+                    return
+
+        # Activate the flight plan
+        now = datetime.now(timezone.utc)
+        async with self.apool.connection() as conn:
+            await conn.execute(
+                "UPDATE flightplan_plans SET status = 'active', activated_at = %s WHERE id = %s",
+                (now, fp['id'])
+            )
+
+        self.log.info(f"FlightPlan: Auto-activated plan #{fp['id']} for {player.name} on takeoff")
+
+        # Create F10 markers
+        await self.create_flight_plan_markers(server, fp, timeout=0)
+
+        # Publish to Discord if configured
+        if config.get('publish_on_activate', True):
+            fp['activated_at'] = now
+            await self.publish_flight_plan(fp, 'activated')
+
+        # Notify player
+        await player.sendChatMessage(
+            _("Flight plan #{} activated. Route: {} -> {}").format(
+                fp['id'], fp.get('departure', '?'), fp.get('destination', '?')
+            )
+        )
+
+        # Refresh F10 menu
+        group_id = initiator.get('group', {}).get('id_')
+        if group_id:
+            await self._create_flightplan_menu(server, player, group_id=group_id)
+
+    async def _check_completion_on_landing(self, server: Server, data: dict) -> None:
+        """
+        Auto-complete an active flight plan when the player lands at the destination.
+
+        Completes if:
+        1. auto_lifecycle.complete_on_landing is enabled in config
+        2. Player has an active flight plan
+        3. Landing location matches the flight plan's destination
+        """
+        config = self.get_config(server) or {}
+        auto_config = config.get('auto_lifecycle', {})
+
+        if not auto_config.get('complete_on_landing', True):
+            return
+
+        # Get player from initiator
+        initiator = data.get('initiator', {})
+        player_name = initiator.get('name')
+        if not player_name:
+            return
+
+        player = server.get_player(name=player_name)
+        if not player:
+            return
+
+        # Get player's active flight plan
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT * FROM flightplan_plans
+                    WHERE player_ucid = %s
+                    AND server_name = %s
+                    AND status = 'active'
+                    ORDER BY activated_at DESC
+                    LIMIT 1
+                """, (player.ucid, server.name))
+                fp = await cursor.fetchone()
+
+        if not fp:
+            return  # No active flight plan
+
+        # Check if landed at destination
+        place = data.get('place', {})
+        place_name = place.get('name', '')
+        destination = fp.get('destination', '')
+
+        if place_name and destination:
+            if _airbase_names_match(place_name, destination):
+                # Complete the flight plan
+                await self._auto_complete_flight_plan(server, player, fp, place_name, initiator)
+                return
+
+        # Fallback: proximity check if we have destination position
+        dest_pos = fp.get('destination_position')
+        if dest_pos:
+            if isinstance(dest_pos, str):
+                dest_pos = json.loads(dest_pos)
+
+            unit_name = initiator.get('unit_name')
+            if unit_name and dest_pos.get('x') and dest_pos.get('z'):
+                threshold = auto_config.get('proximity_threshold', 3000)  # 3km default
+                await self._request_destination_proximity_check(
+                    server, fp['id'], unit_name, dest_pos, threshold
+                )
+
+    async def _auto_complete_flight_plan(
+        self,
+        server: Server,
+        player: Player,
+        fp: dict,
+        landing_location: str,
+        initiator: dict
+    ) -> None:
+        """Complete a flight plan automatically after landing at destination."""
+        now = datetime.now(timezone.utc)
+
+        async with self.apool.connection() as conn:
+            await conn.execute(
+                "UPDATE flightplan_plans SET status = 'completed', completed_at = %s WHERE id = %s",
+                (now, fp['id'])
+            )
+
+        self.log.info(
+            f"FlightPlan: Auto-completed plan #{fp['id']} for {player.name} "
+            f"on landing at {landing_location}"
+        )
+
+        # Remove F10 markers
+        await self.remove_flight_plan_markers(server, fp['id'])
+
+        # Publish to Discord
+        fp['completed_at'] = now
+        await self.publish_flight_plan(fp, 'completed')
+
+        # Notify player
+        await player.sendChatMessage(
+            _("Flight plan #{} completed. Welcome to {}.").format(fp['id'], landing_location)
+        )
+        await player.sendPopupMessage(
+            _("FLIGHT COMPLETE\n\nPlan #{} logged.\n{} -> {}").format(
+                fp['id'], fp.get('departure', '?'), fp.get('destination', '?')
+            ),
+            15
+        )
+
+        # Refresh F10 menu
+        group_id = initiator.get('group', {}).get('id_')
+        if group_id:
+            await self._create_flightplan_menu(server, player, group_id=group_id)
+
+    async def _request_destination_proximity_check(
+        self,
+        server: Server,
+        plan_id: int,
+        unit_name: str,
+        dest_pos: dict,
+        threshold: int
+    ) -> None:
+        """Request proximity check from DCS for flight plan completion."""
+        await server.send_to_dcs({
+            "command": "checkFlightPlanProximity",
+            "plan_id": plan_id,
+            "unit_name": unit_name,
+            "dest_x": dest_pos.get('x', 0),
+            "dest_z": dest_pos.get('z', 0),
+            "threshold": threshold
+        })
+
     @event(name="createFlightPlanMarkers")
     async def on_create_markers(self, server: Server, data: dict) -> None:
         """Handle marker creation confirmation from Lua."""
@@ -385,9 +653,48 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         if plan_id:
             self.log.debug(f"Removed {data.get('removed_count', 0)} markers for plan {plan_id}")
 
+    @event(name="checkFlightPlanProximity")
+    async def on_check_proximity(self, server: Server, data: dict) -> None:
+        """Handle proximity check result from DCS for auto-completion."""
+        if not data.get('found') or not data.get('within_threshold'):
+            return
+
+        plan_id = data.get('plan_id')
+        if not plan_id:
+            return
+
+        # Get the flight plan and verify it's still active
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT * FROM flightplan_plans
+                    WHERE id = %s AND status = 'active'
+                """, (plan_id,))
+                fp = await cursor.fetchone()
+
+        if not fp:
+            return
+
+        # Get the player
+        player = server.get_player(ucid=fp['player_ucid'])
+        if not player:
+            return
+
+        self.log.info(
+            f"FlightPlan: Proximity check passed for plan #{plan_id}, "
+            f"completing (distance: {data.get('distance', 'unknown')}m)"
+        )
+
+        # Complete the flight plan
+        await self._auto_complete_flight_plan(
+            server, player, fp,
+            fp.get('destination', 'destination'),
+            {}  # No initiator data available from proximity check
+        )
+
     @event(name="onMissionEvent")
     async def on_mission_event(self, server: Server, data: dict) -> None:
-        """Handle mission events for F10 menu creation."""
+        """Handle mission events for F10 menu creation and auto-lifecycle."""
         event_name = data.get('eventName')
 
         if event_name == 'S_EVENT_BIRTH':
@@ -404,6 +711,14 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
             group_id = initiator.get('group', {}).get('id_')
             if group_id is not None:
                 await self._create_flightplan_menu(server, player, group_id=group_id)
+
+        elif event_name == 'S_EVENT_TAKEOFF':
+            # Auto-activate flight plan on takeoff
+            await self._check_activation_on_takeoff(server, data)
+
+        elif event_name == 'S_EVENT_LAND':
+            # Auto-complete flight plan on landing at destination
+            await self._check_completion_on_landing(server, data)
 
     @event(name="flightplan")
     async def on_flightplan_callback(self, server: Server, data: dict) -> None:

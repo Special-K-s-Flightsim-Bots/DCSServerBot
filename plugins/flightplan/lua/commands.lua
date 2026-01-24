@@ -38,3 +38,16 @@ function dcsbot.removeFlightPlanMarkers(json)
     local script = 'dcsbot.removeFlightPlanMarkers(' .. tostring(json.plan_id) .. ', ' .. utils.basicSerialize(channel) .. ')'
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
 end
+
+-- Check proximity of a unit to destination for flight plan auto-completion
+function dcsbot.checkFlightPlanProximity(json)
+    log.write('DCSServerBot', log.DEBUG, 'FlightPlan: checkFlightPlanProximity()')
+    local channel = json.channel or "-1"
+    local script = 'dcsbot.checkFlightPlanProximity(' ..
+        utils.basicSerialize(json.unit_name) .. ', ' ..
+        tostring(json.plan_id) .. ', ' ..
+        '{x=' .. tostring(json.dest_x) .. ', z=' .. tostring(json.dest_z) .. '}, ' ..
+        tostring(json.threshold or 3000) .. ', ' ..
+        utils.basicSerialize(channel) .. ')'
+    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
+end
