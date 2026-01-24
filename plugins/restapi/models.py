@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -7,37 +8,35 @@ from pydantic import BaseModel, Field
 class UserEntry(BaseModel):
     nick: str = Field(..., description="Player nickname")
     date: datetime = Field(..., description="Last seen timestamp")
-    current_server: str | None = Field(None, description="Current server")
+    current_server: Optional[str] = Field(None, description="Current server")
 
-    model_config = {
-        "json_encoders": {
+    class Config:
+        json_encoders = {
             datetime: lambda v: v.isoformat()
-        },
-        "json_schema_extra": {
+        }
+        json_schema_extra = {
             "example": {
                 "nick": "Player1",
                 "date": "2025-08-07T12:00:00",
                 "current_server": "My Fancy Server",
             }
         }
-    }
 
 
 class DailyPlayers(BaseModel):
     date: datetime
     player_count: int
 
-    model_config = {
-            "json_encoders": {
-                datetime: lambda v: v.isoformat()
-            },
-            "json_schema_extra": {
-                "example": {
-                    "date": "2025-08-07T12:00:00",
-                    "player_count": 100
-                }
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+        json_schema_extra = {
+            "example": {
+                "date": "2025-08-07T12:00:00",
+                "player_count": 100
             }
-    }
+        }
 
 
 class ServerStats(BaseModel):
@@ -72,11 +71,11 @@ class MissionInfo(BaseModel):
     uptime: int
     date_time: str
     theatre: str
-    blue_slots: int | None = None
-    blue_slots_used: int | None = None
-    red_slots: int | None = None
-    red_slots_used: int | None = None
-    restart_time: int | None = None
+    blue_slots: Optional[int] = None
+    blue_slots_used: Optional[int] = None
+    red_slots: Optional[int] = None
+    red_slots_used: Optional[int] = None
+    restart_time: Optional[int] = None
 
     model_config = {
         "json_schema_extra": {
@@ -861,6 +860,22 @@ class AirbaseSetWarehouseItemResponse(BaseModel):
                 "item": "weapons.bombs.GBU_38",
                 "value": 50,
                 "server_name": "Server Name"
+            }
+        }
+    }
+
+class AirbaseCaptureResponse(BaseModel):
+        
+    server_name: str = Field(..., description="Server name")
+    airbase_name: str = Field(..., description="Airbase name")
+    coalition: int = Field(..., description="Coalition capturing the airbase")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "server_name": "Server Name",
+                "airbase": "Airbase Name",
+                "coalition": 0
             }
         }
     }
