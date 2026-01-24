@@ -1,0 +1,20 @@
+schema;element_schema:
+  type: map
+  func: is_element
+  nullable: false
+  mapping:
+    enabled: {type: bool, nullable: true}
+    auto_qualifications: {type: bool, nullable: true}
+
+type: map
+func: check_main_structure
+nullable: false
+mapping:
+  DEFAULT:
+    include: 'element_schema'
+  commands:
+    include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
+  regex;(.+):
+    include: 'element_schema'
