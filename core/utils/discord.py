@@ -1276,11 +1276,17 @@ async def server_selection(
         ephemeral: bool | None = True,
         filter_func: Callable[[Server], bool] = _server_filter
 ) -> Server | list[Server] | None:
+    if not filter_func:
+        filter_func = _server_filter
+
     all_servers = bot.get_servers(manager=interaction.user if isinstance(interaction, discord.Interaction) else interaction.author)
     if not all_servers:
         return []
     elif len(all_servers) == 1:
-        return [next(iter(all_servers.values()))]
+        try:
+            return [next(x for x in all_servers.values() if filter_func(x))]
+        except StopIteration:
+            return []
     if multi_select:
         max_values = len(all_servers)
     else:
@@ -1667,7 +1673,12 @@ class ServerUploadHandler(NodeUploadHandler):
         self.server = server
 
     @staticmethod
-    async def get_server(message: discord.Message, channel_id: int | None = None) -> Server | None:
+    async def get_server(
+            message: discord.Message,
+            *,
+            channel_id: int | None = None,
+            filter_func: Callable[[Server], bool] = None
+    ) -> Server | None:
         from services.bot import BotService
 
         bot = ServiceRegistry.get(BotService).bot
@@ -1677,7 +1688,12 @@ class ServerUploadHandler(NodeUploadHandler):
 
         if not server and message.channel.id == channel_id:
             ctx = await bot.get_context(message)
-            server = await utils.server_selection(bot, ctx, title=_("To which server do you want to upload?"))
+            server = await utils.server_selection(
+                bot,
+                ctx,
+                title=_("To which server do you want to upload?"),
+                filter_func=filter_func
+            )
             if not server:
                 await ctx.send(_('Upload aborted.'))
                 return None

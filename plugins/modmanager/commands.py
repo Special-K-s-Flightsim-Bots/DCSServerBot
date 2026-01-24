@@ -2,8 +2,10 @@ import aiohttp
 import discord
 import os
 
-from core import Status, Plugin, utils, Server, ServiceRegistry, PluginInstallationError, Group, get_translation
+from core import Status, Plugin, utils, Server, ServiceRegistry, PluginInstallationError, Group, get_translation, \
+    ServerUploadHandler
 from discord import SelectOption, app_commands, ButtonStyle, TextStyle
+from discord.ext import commands
 from discord.ui import View, Select, Button, Modal, TextInput
 from services.bot import DCSServerBot
 from services.modmanager import ModManagerService, Folder
@@ -511,6 +513,38 @@ class ModManager(Plugin):
             await msg.edit(content=_("{file} downloaded. Use {command} to install it.").format(
                 file=filename, command=(await utils.get_command(self.bot, group=self.mods.name,
                                                                 name=self._install.name)).mention))
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        pattern = ['.zip']
+        if not ServerUploadHandler.is_valid(message, pattern=pattern, roles=self.bot.roles['DCS Admin']):
+            return
+        try:
+            server = await ServerUploadHandler.get_server(message)
+            if not server:
+                return
+
+            ctx = await self.bot.get_context(message)
+            folder = await utils.selection(
+                ctx,
+                title="Where do you want to upload the mod?",
+                options=[
+                    SelectOption(label="SavedGames", value="SavedGames"),
+                    SelectOption(label="RootFolder", value="RootFolder"),
+                ]
+            )
+            if not folder:
+                await message.channel.send(_("Aborted."))
+                return
+
+            handler = ServerUploadHandler(server=server, message=message, pattern=pattern)
+            config = self.service.get_config(server)
+            base_dir = os.path.expandvars(config[folder])
+            await handler.upload(base_dir)
+        except Exception as ex:
+            self.log.exception(ex)
+        finally:
+            await message.delete()
 
 
 async def setup(bot: DCSServerBot):
