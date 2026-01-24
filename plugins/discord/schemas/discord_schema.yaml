@@ -1,6 +1,29 @@
+schema;element_schema:
+  type: map
+  nullable: false
+  mapping:
+    roles:
+      type: map
+      nullable: false
+      mapping:
+        regex;(.+):
+          type: map
+          nullable: false
+          mapping:
+            regex;(on_add|on_remove|on_leave):
+              type: map
+              nullable: false
+              mapping:
+                message: {type: str, nullable: false, range: {min: 1}}
+                mention: {type: text, nullable: false}
+                channel: {type: int, nullable: false}
+
 type: map
+func: check_main_structure
 nullable: false
 mapping:
+  DEFAULT:
+    include: 'element_schema'
   commands:
     include: 'commands_schema'
   chat_commands:
