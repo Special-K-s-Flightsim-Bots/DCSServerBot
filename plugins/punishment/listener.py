@@ -197,20 +197,26 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 evt['eventName'] = 'friendly_fire'
             asyncio.create_task(self._check_punishment(evt))
 
-        elif data['eventName'] == 'kill' and data['arg1'] != data['arg4'] and data['arg3'] == data['arg6']:
-            target = server.get_player(id=data['arg4'])
-            if target:
-                evt['target'] = target
-            # check collision
-            if data['arg7'] == initiator.unit_display_name:
-                evt['eventName'] = 'collision_kill'
-            else:
-                evt['eventName'] = 'kill'
-            asyncio.create_task(self._check_punishment(evt))
+        elif data['eventName'] == 'kill':
+            # check team-kills
+            if data['arg1'] != data['arg4'] and data['arg3'] == data['arg6']:
+                target = server.get_player(id=data['arg4'])
+                if target:
+                    evt['target'] = target
+                # check collision
+                if data['arg7'] == initiator.unit_display_name:
+                    evt['eventName'] = 'collision_kill'
+                else:
+                    evt['eventName'] = 'kill'
+                asyncio.create_task(self._check_punishment(evt))
+            # remove pending kills
+            player = server.get_player(id=data['arg4'])
+            if player:
+                self.pending_kill.pop(player.ucid, None)
 
         elif data['eventName'] == 'disconnect':
             shot_time, evt = self.pending_kill.pop(initiator.ucid, (-1, None))
-            if not shot_time or shot_time == -1:
+            if shot_time == -1:
                 return
 
             delta_time = int(time.time()) - shot_time
@@ -274,7 +280,8 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 "killerCategory": init_cat,
                 "victimCategory": target_cat,
                 "channel": "-1",
-                "server_name": server.name
+                "server_name": server.name,
+                "comment": "auto-generated"
             }
         ))
 
@@ -333,14 +340,16 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
+        config = self.get_config(server)
+
         # airstarts or takeoffs reset the reslot timer directly on birth
         if (data['eventName'] == 'S_EVENT_BIRTH' and not data.get('place')) or data['eventName'] == 'S_EVENT_TAKEOFF':
-            player = server.get_player(name=data.get('initiator', {}).get('name'))
-            if player:
-                self.pending_kill[player.ucid] = (-1, None)
+            initiator = server.get_player(name=data.get('initiator', {}).get('name'))
+            if initiator:
+                self.pending_kill[initiator.ucid] = (-1, None)
 
         elif data['eventName'] in ['S_EVENT_SHOT', 'S_EVENT_HIT']:
-            victim = server.get_player(name=data.get('target', {}).get('name'))
+            target = server.get_player(name=data.get('target', {}).get('name'))
             # ignore teamkills
             if (
                     data.get('initiator', {}).get('coalition', 0) ==
@@ -348,31 +357,37 @@ class PunishmentEventListener(EventListener["Punishment"]):
             ):
                 return
             # we only care for real players here
-            if victim and victim.ucid in self.pending_kill:
-                self.pending_kill[victim.ucid] = (int(time.time()), data)
+            if target and target.ucid in self.pending_kill:
+                # we do not overwrite hit events
+                if data['eventName'] == 'S_EVENT_SHOT':
+                    shot_time, s_event = self.pending_kill.get(target.ucid, (-1, None))
+                    if shot_time > 0 and s_event.get('eventName') == 'S_EVENT_HIT':
+                        delta_time = int(time.time()) - shot_time
+                        # we do not overwrite hit events if they are still hot
+                        if delta_time < config.get('survival_window', 300):
+                            return
+                self.pending_kill[target.ucid] = (int(time.time()), data)
 
         elif data['eventName'] == 'S_EVENT_LAND':
-            player = server.get_player(name=data.get('initiator', {}).get('name'))
-            if player and player.sub_slot == 0:
-                self.pending_kill.pop(player.ucid, None)
+            initiator = server.get_player(name=data.get('initiator', {}).get('name'))
+            if initiator and initiator.sub_slot == 0:
+                self.pending_kill.pop(initiator.ucid, None)
 
         elif data['eventName'] == 'S_EVENT_KILL':
-            player = server.get_player(name=data.get('target', {}).get('name'))
-            if player:
-                self.pending_kill.pop(player.ucid, None)
+            target = server.get_player(name=data.get('target', {}).get('name'))
+            if target:
+                self.pending_kill.pop(target.ucid, None)
 
         elif data['eventName'] in ['S_EVENT_CRASH', 'S_EVENT_EJECTION']:
-            config = self.get_config(server)
-            player = server.get_player(name=data.get('initiator', {}).get('name'))
-            if not player or player.sub_slot > 0:
+            initiator = server.get_player(name=data.get('initiator', {}).get('name'))
+            if not initiator or initiator.sub_slot > 0:
                 return
 
-            shot_time, s_event = self.pending_kill.pop(player.ucid, (-1, None))
+            shot_time, s_event = self.pending_kill.pop(initiator.ucid, (-1, None))
+            if shot_time == -1:
+                return
+
             delta_time = int(time.time()) - shot_time
-            # no shot event registered or too old already
-            if shot_time is None or shot_time == -1:
-                return
-
             # give the kill to the opponent if we were hit earlier or if the shot was shortly before
             if ((s_event['eventName'] == 'S_EVENT_SHOT' and delta_time < config.get('reslot_window', 60)) or
                     (s_event['eventName'] == 'S_EVENT_HIT' and delta_time < config.get('survival_window', 300))):
@@ -388,8 +403,8 @@ class PunishmentEventListener(EventListener["Punishment"]):
         if not player or player.slot > 0:
             return
 
-        shot_time, s_event = self.pending_kill.pop(player.ucid, (None, None))
-        if shot_time is None or shot_time == -1:
+        shot_time, s_event = self.pending_kill.pop(player.ucid, (-1, None))
+        if shot_time == -1:
             return
 
         delta_time = int(time.time()) - shot_time
