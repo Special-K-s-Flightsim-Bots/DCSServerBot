@@ -114,6 +114,13 @@ class RestAPI(Plugin):
             tags=["Airbase"]
         )
         self.router.add_api_route(
+            "/airbase/atis", self.airbase_atis,
+            methods=["GET"],
+            description="Get ATIS information for an airbase on a given server.",
+            summary="Airbase ATIS",
+            tags=["Airbase"]
+        )
+        self.router.add_api_route(
             "/airbase/warehouse", self.airbase_warehouse,
             methods=["GET"],
             response_model = AirbaseWarehouseResponse,
@@ -341,6 +348,26 @@ class RestAPI(Plugin):
         return {
             "airbase": airbase_data,
         }
+    
+    async def airbase_atis(self, server_name: str = Query(...), airbase_name: str = Query(...)):
+        """Return ATIS information for a given airbase on a server."""
+        # Resolve server
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        # Get airbase info using the same logic as mission/commands.py get_airbase
+        airbase_data = await server.send_to_dcs_sync({"command": "getAirbase", "name": airbase_name}, timeout=60)
+        
+        atisData = await server.send_to_dcs_sync({
+            "command": "getWeatherInfo",
+            "x": airbase_data['position']['x'],
+            "y": airbase_data['position']['y'],
+            "z": airbase_data['position']['z']
+        }, timeout=60)
+        
+        # Return only the ATIS info
+        return atisData
 
     async def airbase_warehouse(self, server_name: str = Query(...), airbase_name: str = Query(...)):
         """Return warehouse information for a given airbase on a server."""
