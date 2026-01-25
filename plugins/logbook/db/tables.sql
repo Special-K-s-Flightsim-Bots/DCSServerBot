@@ -1,7 +1,15 @@
+CREATE TABLE IF NOT EXISTS logbook_pilots (
+    player_ucid TEXT PRIMARY KEY,
+    service TEXT,
+    rank TEXT,
+    FOREIGN KEY (player_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS logbook_squadrons (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     abbreviation TEXT,
+    service TEXT,
     description TEXT,
     logo_url TEXT,
     co_ucid TEXT,
@@ -17,7 +25,6 @@ CREATE INDEX IF NOT EXISTS idx_logbook_squadrons_xo_ucid ON logbook_squadrons (x
 CREATE TABLE IF NOT EXISTS logbook_squadron_members (
     squadron_id INTEGER NOT NULL,
     player_ucid TEXT NOT NULL,
-    rank TEXT,
     position TEXT,
     joined_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
     PRIMARY KEY (squadron_id, player_ucid),
@@ -57,6 +64,7 @@ CREATE TABLE IF NOT EXISTS logbook_awards (
     description TEXT,
     image_url TEXT,
     ribbon_colors JSONB,
+    ribbon_image BYTEA,
     auto_grant BOOLEAN NOT NULL DEFAULT FALSE,
     requirements JSONB
 );
@@ -76,23 +84,8 @@ CREATE TABLE IF NOT EXISTS logbook_pilot_awards (
 CREATE INDEX IF NOT EXISTS idx_logbook_pilot_awards_ucid ON logbook_pilot_awards (player_ucid);
 CREATE INDEX IF NOT EXISTS idx_logbook_pilot_awards_award_id ON logbook_pilot_awards (award_id);
 
-CREATE TABLE IF NOT EXISTS logbook_flight_plans (
-    id SERIAL PRIMARY KEY,
-    player_ucid TEXT NOT NULL,
-    filed_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    departure TEXT,
-    destination TEXT,
-    alternate TEXT,
-    aircraft_type TEXT,
-    callsign TEXT,
-    route TEXT,
-    remarks TEXT,
-    status TEXT NOT NULL DEFAULT 'filed',
-    FOREIGN KEY (player_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_logbook_flight_plans_ucid ON logbook_flight_plans (player_ucid);
-CREATE INDEX IF NOT EXISTS idx_logbook_flight_plans_status ON logbook_flight_plans (status);
-CREATE INDEX IF NOT EXISTS idx_logbook_flight_plans_filed_at ON logbook_flight_plans (filed_at);
+-- NOTE: Flight plans are managed by the dedicated flightplan plugin.
+-- See plugins/flightplan/db/tables.sql for the flightplan_plans table.
 
 CREATE TABLE IF NOT EXISTS logbook_stores_requests (
     id SERIAL PRIMARY KEY,

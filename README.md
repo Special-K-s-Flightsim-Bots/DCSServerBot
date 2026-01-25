@@ -84,6 +84,7 @@ from time to time, but you as a community member can also create your own plugin
 | FlightPlan    | IFR-style flight planning with F10 map visualization and navigation fix support.                |   yes    |                                       | [README](./plugins/flightplan/README.md)    |
 | FunkMan       | Support for [FunkMan](https://github.com/funkyfranky/FunkMan)                                   |   yes    |                                       | [README](./plugins/funkman/README.md)       |
 | GreenieBoard  | Greenieboard and LSO quality mark analysis (Super Carrier and Moose.AIRBOSS / FunkMan)          |   yes    | Missionstats                          | [README](./plugins/greenieboard/README.md)  |
+| Logbook       | Pilot logbook with squadrons, qualifications, awards, and ribbon rack images.                   |   yes    | Userstats                             | [README](./plugins/logbook/README.md)       |
 | LotAtc        | Upload LotAtc Transponder files to your servers.                                                |   yes    |                                       | [README](./plugins/lotatc/README.md)        |
 | MOTD          | Message for players on join or when they jump in a module.                                      |   yes    | Mission, MissionStats                 | [README](./plugins/motd/README.md)          |
 | Music         | Upload and play music over SRS.                                                                 |   yes    |                                       | [README](./plugins/music/README.md)         |
