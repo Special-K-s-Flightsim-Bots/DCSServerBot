@@ -994,7 +994,8 @@ class NodeImpl(Node):
                 if self.master:
                     cursor = await conn.execute("SELECT update_pending FROM cluster WHERE guild_id = %s",
                                                 (self.guild_id,))
-                    update_pending = (await cursor.fetchone())[0]
+                    row = await cursor.fetchone()
+                    update_pending = row and row[0]
                 else:
                     update_pending = False
                 if not update_pending:
