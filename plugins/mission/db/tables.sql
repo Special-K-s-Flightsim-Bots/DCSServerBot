@@ -20,14 +20,19 @@ CREATE TABLE players_hist (
 CREATE INDEX idx_players_hist_discord_id ON players_hist(discord_id);
 CREATE INDEX idx_players_hist_ucid ON players_hist(ucid);
 CREATE OR REPLACE FUNCTION player_hist_change()
-RETURNS trigger
-AS $$
+RETURNS trigger AS $$
 BEGIN
-    INSERT INTO players_hist(ucid, discord_id, name, manual)
-    SELECT OLD.ucid, OLD.discord_id, OLD.name, COALESCE(OLD.manual, FALSE);
-    RETURN NEW;
+  IF NEW.discord_id IS DISTINCT FROM OLD.discord_id
+  OR NEW.name       IS DISTINCT FROM OLD.name
+  OR NEW.manual     IS DISTINCT FROM OLD.manual THEN
+
+    INSERT INTO players_hist (ucid, discord_id, name, manual, time)
+    VALUES (NEW.ucid, NEW.discord_id, NEW.name, NEW.manual, (now() AT TIME ZONE 'UTC'));
+  END IF;
+
+  RETURN NEW;
 END;
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE plpgsql;
 CREATE TRIGGER tgr_player_update AFTER UPDATE OF discord_id, name, manual ON players FOR EACH ROW EXECUTE PROCEDURE player_hist_change();
 CREATE TABLE IF NOT EXISTS bans (
     ucid TEXT PRIMARY KEY,

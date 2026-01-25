@@ -19,8 +19,8 @@ from datetime import datetime, timezone
 from discord import Interaction, app_commands, SelectOption
 from discord.app_commands import Range, describe
 from discord.ext import commands, tasks
-from discord.ui import Modal, TextInput
 from io import BytesIO
+from openpyxl.utils import get_column_letter
 from pathlib import Path
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
@@ -30,7 +30,7 @@ from .airbase import Info
 from .const import LIQUIDS
 from .listener import MissionEventListener
 from .upload import MissionUploadHandler
-from .views import ServerView, PresetView, InfoView, ModifyView, AirbaseView
+from .views import ServerView, PresetView, InfoView, ModifyView, AirbaseView, BanModal
 from ..userstats.filter import PeriodFilter
 
 # ruamel YAML support
@@ -140,7 +140,7 @@ async def nosav_autocomplete(interaction: discord.Interaction, current: str) -> 
 async def get_airbase(server: Server, name: str) -> dict:
     return await server.send_to_dcs_sync({"command": "getAirbase", "name": name}, timeout=60)
 
-async def wh_category_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+async def wh_category_autocomplete(interaction: discord.Interaction, _current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
@@ -1185,6 +1185,8 @@ class Mission(Plugin[MissionEventListener]):
             _("Airbase \"{}\": Coalition changed to **{}**.\n:warning: Auto-capturing is now **disabled**!").format(
                 airbase['name'], coalition.lower()))
 
+    warehouse = Group(name='warehouse', description=_('Commands to manage warehouses'))
+
     @staticmethod
     async def manage_items(server: Server, airbase: dict, category: str, item: str | list[int],
                            value: int | None = None) -> dict:
@@ -1228,34 +1230,13 @@ class Mission(Plugin[MissionEventListener]):
         await asyncio.gather(*tasks)
 
     @staticmethod
-    async def manage_warehouse(server: Server, airbase: dict, value: int | None = None) -> None:
-        tasks = []
-        for category in server.resources.keys():
-            tasks.append(asyncio.create_task(Mission.manage_category(server, airbase, category, value)))
-        await asyncio.gather(*tasks)
-
-    @airbase.command(description=_('Manage warehouses'))
-    @utils.app_has_role('DCS')
-    @app_commands.guild_only()
-    @app_commands.rename(_server='server')
-    @app_commands.rename(idx=_('airbase'))
-    @app_commands.describe(idx=_('Airbase for warehouse information'))
-    @app_commands.autocomplete(idx=utils.airbase_autocomplete)
-    @app_commands.autocomplete(category=wh_category_autocomplete)
-    @app_commands.autocomplete(item=wh_item_autocomplete)
-    async def warehouse(self, interaction: discord.Interaction,
-                        _server: app_commands.Transform[Server, utils.ServerTransformer(
-                            status=[Status.RUNNING, Status.PAUSED])],
-                        idx: int, category: str | None = None, item: str | None = None, value: int | None = None):
+    async def _manage_warehouse(interaction: discord.Interaction, _server: Server, idx: int,
+                                category: str | None = None, item: str | None = None, value: int | None = None) -> None:
         if _server.status not in [Status.RUNNING, Status.PAUSED]:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
                                                     ephemeral=True)
             return
-
-        if value is not None and not utils.check_roles(set(self.bot.roles['DCS Admin'] + self.bot.roles['GameMaster']),
-                                                       interaction.user):
-            raise PermissionError(_("You cannot change warehouse items."))
 
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
@@ -1275,7 +1256,7 @@ class Mission(Plugin[MissionEventListener]):
         embed = discord.Embed(title=_("Warehouse information for {}").format(airbase['name']),
                               color=discord.Color.blue())
 
-        if category and item:
+        if item:
             _item = list(map(int, item.split('.'))) if isinstance(item, str) else item
             data = await Mission.manage_items(_server, airbase, category, _item, value)
             if data['value'] == 1000000:
@@ -1294,16 +1275,13 @@ class Mission(Plugin[MissionEventListener]):
 
         else:
             if value is not None:
-                message = _("Do you really want to set all {}values in your warehouse to {}?").format(
-                    (category + ' ') if category else '', value)
-                if not utils.yn_question(interaction, message):
+                message = _("Do you really want to set all {} values in your warehouse to {}?").format(
+                    category, value)
+                if not await utils.yn_question(interaction, message):
                     await interaction.followup.send(_("Aborted."))
                     return
 
-                if category is not None:
-                    await Mission.manage_category(_server, airbase, category, value)
-                else:
-                    await Mission.manage_warehouse(_server, airbase, value)
+                await Mission.manage_category(_server, airbase, category, value)
 
             data = await _server.send_to_dcs_sync({
                 "command": "getAirbase",
@@ -1318,6 +1296,168 @@ class Mission(Plugin[MissionEventListener]):
                 Info.render_aircraft(embed, data)
 
             await interaction.followup.send(embed=embed, ephemeral=utils.get_ephemeral(interaction))
+
+    @warehouse.command(description=_('Set warehouses items'))
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    @app_commands.guild_only()
+    @app_commands.rename(_server='server')
+    @app_commands.rename(idx=_('airbase'))
+    @app_commands.describe(idx=_('Airbase for warehouse information'))
+    @app_commands.autocomplete(idx=utils.airbase_autocomplete)
+    @app_commands.autocomplete(category=wh_category_autocomplete)
+    @app_commands.autocomplete(item=wh_item_autocomplete)
+    async def set(self, interaction: discord.Interaction,
+                        _server: app_commands.Transform[Server, utils.ServerTransformer(
+                            status=[Status.RUNNING, Status.PAUSED])],
+                        idx: int, category: str, item: str | None = None, value: int = 0):
+        await self._manage_warehouse(interaction, _server, idx, category, item, value)
+
+    @warehouse.command(description=_('Get warehouses items'))
+    @utils.app_has_role('DCS')
+    @app_commands.guild_only()
+    @app_commands.rename(_server='server')
+    @app_commands.rename(idx=_('airbase'))
+    @app_commands.describe(idx=_('Airbase for warehouse information'))
+    @app_commands.autocomplete(idx=utils.airbase_autocomplete)
+    @app_commands.autocomplete(category=wh_category_autocomplete)
+    @app_commands.autocomplete(item=wh_item_autocomplete)
+    async def get(self, interaction: discord.Interaction,
+                  _server: app_commands.Transform[Server, utils.ServerTransformer(
+                      status=[Status.RUNNING, Status.PAUSED])],
+                  idx: int, category: str | None = None, item: str | None = None):
+        await self._manage_warehouse(interaction, _server, idx, category, item)
+
+    @staticmethod
+    async def download_warehouse(interaction: discord.Interaction, airbase: dict, data: dict):
+        def dict_to_df(mapping: dict) -> pd.DataFrame:
+            df = pd.DataFrame(list(mapping.items()), columns=["Name", "Count"])
+            return df
+
+        sheet_titles = {
+            "aircraft": "Aircraft",
+            "weapon": "Weapons",
+            "liquids": "Liquids",
+        }
+
+        warehouse = data.get('warehouse', {})
+
+        dataframes = {}
+        for key, title in sheet_titles.items():
+            inner_dict = warehouse.get(key)
+            if key == "liquids":
+                mapped = {LIQUIDS.get(k, k): v for k, v in inner_dict.items()}
+            else:
+                mapped = inner_dict
+            df = dict_to_df(mapped)
+            df.sort_values("Name", inplace=True)
+            dataframes[title] = df
+
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+            for sheet_name, df in dataframes.items():
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+            wb = writer.book
+            for sheet_name, df in dataframes.items():
+                ws = wb[sheet_name]
+                ws.auto_filter.ref = f"A1:{get_column_letter(len(df.columns))}{len(df) + 1}"
+
+                for col_idx, col_name in enumerate(df.columns, start=1):
+                    max_len = max(
+                        df[col_name].astype(str).map(len).max(),  # data
+                        len(col_name)  # header
+                    )
+                    column_letter = get_column_letter(col_idx)
+                    ws.column_dimensions[column_letter].width = max_len + 2
+
+        buffer.seek(0)
+        try:
+            code = utils.slugify(airbase.get('code', '') or airbase.get('name', 'XXXX'))
+            # noinspection PyUnresolvedReferences
+            await interaction.followup.send(
+                file=discord.File(fp=buffer, filename=f"warehouse-{code.lower()}.xlsx"), ephemeral=True
+            )
+        finally:
+            buffer.close()
+
+    @warehouse.command(name="export", description=_('Export a warehouse'))
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    @app_commands.guild_only()
+    @app_commands.rename(_server='server')
+    @app_commands.rename(idx=_('airbase'))
+    @app_commands.describe(idx=_('Airbase for warehouse information'))
+    @app_commands.autocomplete(idx=utils.airbase_autocomplete)
+    async def export(self, interaction: discord.Interaction,
+                     _server: app_commands.Transform[Server, utils.ServerTransformer(
+                         status=[Status.RUNNING, Status.PAUSED])],
+                     idx: int):
+        if _server.status not in [Status.RUNNING, Status.PAUSED]:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
+                                                    ephemeral=True)
+            return
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=utils.get_ephemeral(interaction))
+        airbase = _server.current_mission.airbases[idx]
+        data = await _server.send_to_dcs_sync({
+            "command": "getAirbase",
+            "name": airbase['name']
+        }, timeout=60)
+        await self.download_warehouse(interaction, airbase, data)
+
+    @warehouse.command(name="list", description=_('Export all possible wstypes'))
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    @app_commands.guild_only()
+    @app_commands.rename(_server='server')
+    async def wstypes(self, interaction: discord.Interaction,
+                      _server: app_commands.Transform[Server, utils.ServerTransformer(
+                         status=[Status.RUNNING, Status.PAUSED])]):
+        if _server.status not in [Status.RUNNING, Status.PAUSED]:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
+                                                    ephemeral=True)
+            return
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=utils.get_ephemeral(interaction))
+        sheet_titles = {
+            "aircraft": "Aircraft",
+            "weapon": "Weapons",
+            "liquids": "Liquids",
+        }
+
+        dataframes = {}
+        for key, title in sheet_titles.items():
+            dataframes[title] = pd.DataFrame.from_dict(_server.resources.get(key),
+                                                       orient='index', columns=['wsType', 'Name'])
+
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+            for sheet_name, df in dataframes.items():
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+            wb = writer.book
+            for sheet_name, df in dataframes.items():
+                ws = wb[sheet_name]
+                ws.auto_filter.ref = f"A1:{get_column_letter(len(df.columns))}{len(df) + 1}"
+
+                for col_idx, col_name in enumerate(df.columns, start=1):
+                    max_len = max(
+                        df[col_name].astype(str).map(len).max(),  # data
+                        len(col_name)  # header
+                    )
+                    column_letter = get_column_letter(col_idx)
+                    ws.column_dimensions[column_letter].width = max_len + 2
+
+        buffer.seek(0)
+        try:
+            # noinspection PyUnresolvedReferences
+            await interaction.followup.send(
+                file=discord.File(fp=buffer, filename=f"warehouse-items.xlsx"), ephemeral=True
+            )
+        finally:
+            buffer.close()
 
     # New command group "/player"
     player = Group(name="player", description=_("Commands to manage DCS players"))
@@ -1362,26 +1502,12 @@ class Mission(Plugin[MissionEventListener]):
                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                   player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
 
-        class BanModal(Modal, title=_("Ban Details")):
-            reason = TextInput(label=_("Reason"), max_length=80, required=True)
-            period = TextInput(label=_("Days (empty = forever)"), required=False)
-
-            async def on_submit(derived, interaction: discord.Interaction):
-                days = int(derived.period.value) if derived.period.value else None
-                await self.bus.ban(player.ucid, interaction.user.display_name, derived.reason.value, days)
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(
-                    _("Player {} banned on all servers ").format(player.display_name) +
-                    (_("for {} days.").format(days) if days else ""),
-                    ephemeral=utils.get_ephemeral(interaction))
-                await self.bot.audit(f'banned player {player.display_name} with reason "{derived.reason.value}"' +
-                                     (f' for {days} days.' if days else ' permanently.'), user=interaction.user)
         if not player:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
             return
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_modal(BanModal())
+        await interaction.response.send_modal(BanModal(player.ucid))
 
     @player.command(description=_('Locks a player'))
     @app_commands.guild_only()
@@ -1777,7 +1903,7 @@ class Mission(Plugin[MissionEventListener]):
                 break
         else:
             server = None
-        await self.bot.bus.send_to_node({
+        await self.bus.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
             "method": "propagate_event",
@@ -1814,7 +1940,7 @@ class Mission(Plugin[MissionEventListener]):
             await self.bot.audit(
                 f'unlinked member {utils.escape_string(member.display_name)} from ucid {ucid}',
                 user=interaction.user)
-            await self.bot.bus.send_to_node({
+            await self.bus.send_to_node({
                 "command": "rpc",
                 "service": "ServiceBus",
                 "method": "propagate_event",
@@ -1958,7 +2084,7 @@ class Mission(Plugin[MissionEventListener]):
         await self._info(interaction, member)
 
     @staticmethod
-    def format_unmatched(data, marker, marker_emoji):
+    def format_unmatched(data, _marker, _marker_emoji):
         embed = discord.Embed(title=_('Unlinked Players'), color=discord.Color.blue())
         embed.description = _('These players could be possibly linked:')
         ids = players = members = ''
@@ -2008,7 +2134,7 @@ class Mission(Plugin[MissionEventListener]):
                             member=unmatched[n]['match'].display_name), ephemeral=True)
 
     @staticmethod
-    def format_suspicious(data, marker, marker_emoji):
+    def format_suspicious(data, _marker, _marker_emoji):
         embed = discord.Embed(title=_('Possible Mislinks'), color=discord.Color.blue())
         embed.description = _('These players could be possibly mislinked:')
         ids = players = members = ''
@@ -2459,7 +2585,7 @@ class Mission(Plugin[MissionEventListener]):
                 channel = node.get('uploads', {}).get('channel')
                 if channel:
                     if message.channel.id == channel:
-                        server = await MissionUploadHandler.get_server(message, channel)
+                        server = await MissionUploadHandler.get_server(message, channel_id=channel)
                     break
             elif 'uploads' in node:
                 channel = node.get('uploads', {}).get('channel')
