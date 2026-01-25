@@ -81,6 +81,7 @@ from time to time, but you as a community member can also create your own plugin
 | DBExporter    | Export the DCSServerBot database or singular tables as json.                                    |   yes    |                                       | [README](./plugins/dbexporter/README.md)    |
 | Debug         | Enables debug logging of DCS Hook- and MSE-events into the dcs.log or extra logfiles.           |   yes    |                                       | [README](./plugins/debug/README.md)         |
 | Discord       | Discord helper commands.                                                                        |   yes    |                                       | [README](./plugins/discord/README.md)       |
+| FlightPlan    | IFR-style flight planning with F10 map visualization and navigation fix support.                |   yes    |                                       | [README](./plugins/flightplan/README.md)    |
 | FunkMan       | Support for [FunkMan](https://github.com/funkyfranky/FunkMan)                                   |   yes    |                                       | [README](./plugins/funkman/README.md)       |
 | GreenieBoard  | Greenieboard and LSO quality mark analysis (Super Carrier and Moose.AIRBOSS / FunkMan)          |   yes    | Missionstats                          | [README](./plugins/greenieboard/README.md)  |
 | LotAtc        | Upload LotAtc Transponder files to your servers.                                                |   yes    |                                       | [README](./plugins/lotatc/README.md)        |
