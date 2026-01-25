@@ -210,38 +210,11 @@ async def pilot_award_autocomplete(interaction: discord.Interaction, current: st
         return []
 
 
-async def flightplan_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    """Autocomplete for flight plans (user's own active plans)."""
-    try:
-        ucid = await interaction.client.get_ucid_by_member(interaction.user)
-        if not ucid:
-            return []
-        async with interaction.client.apool.connection() as conn:
-            cursor = await conn.execute("""
-                SELECT id, callsign, departure, destination
-                FROM logbook_flight_plans
-                WHERE player_ucid = %s AND status IN ('filed', 'active')
-                AND (callsign ILIKE %s OR departure ILIKE %s OR destination ILIKE %s)
-                ORDER BY filed_at DESC LIMIT 25
-            """, (ucid, '%' + current + '%', '%' + current + '%', '%' + current + '%'))
-            return [
-                app_commands.Choice(
-                    name=f"{row[1] or 'N/A'}: {row[2] or '?'} -> {row[3] or '?'}",
-                    value=row[0]
-                )
-                async for row in cursor
-            ]
-    except Exception as e:
-        log.warning(f"Autocomplete error: {e}")
-        return []
-
-
-def format_hours(seconds: float) -> str:
-    """Format seconds as hours with 1 decimal place."""
-    if seconds is None:
+def format_hours(hours: float) -> str:
+    """Format hours with 1 decimal place."""
+    if hours is None:
         return "0.0h"
-    hours = seconds / 3600 if seconds > 100 else seconds  # Handle both seconds and hours
-    return f"{hours:.1f}h"
+    return f"{float(hours):.1f}h"
 
 
 class Logbook(Plugin[LogbookEventListener]):
@@ -258,9 +231,7 @@ class Logbook(Plugin[LogbookEventListener]):
     # Command group "/award"
     award = Group(name="award", description=_("Commands to manage pilot awards"))
 
-    # Command group "/flightplan"
-    flightplan = Group(name="flightplan", description=_("Commands to manage flight plans"))
-
+    # NOTE: /flightplan commands have been moved to the flightplan plugin
     # NOTE: /stores commands have been moved to the logistics plugin
 
     # ==================== LOGBOOK COMMANDS ====================
@@ -319,6 +290,180 @@ class Logbook(Plugin[LogbookEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
+    @logbook.command(description=_('Show unified pilot information'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def pilot(self, interaction: discord.Interaction, user: Optional[discord.Member] = None):
+        """Display comprehensive pilot info: service, rank, hours, qualifications, awards, and ribbon rack."""
+        ephemeral = utils.get_ephemeral(interaction)
+        if not user:
+            ucid = await self.bot.get_ucid_by_member(interaction.user)
+            name = interaction.user.display_name
+        else:
+            ucid = await self.bot.get_ucid_by_member(user)
+            name = user.display_name
+
+        if not ucid:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_('User is not linked!'), ephemeral=True)
+            return
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                # Get basic stats from pilot_logbook_stats view
+                await cursor.execute("""
+                    SELECT total_hours FROM pilot_logbook_stats WHERE ucid = %s
+                """, (ucid,))
+                stats_row = await cursor.fetchone()
+                total_hours = stats_row['total_hours'] if stats_row else 0
+
+                # Get last_seen from players table
+                await cursor.execute("""
+                    SELECT last_seen FROM players WHERE ucid = %s
+                """, (ucid,))
+                player_row = await cursor.fetchone()
+                last_seen = player_row['last_seen'] if player_row else None
+
+                # Get pilot service and rank from logbook_pilots
+                await cursor.execute("""
+                    SELECT service, rank FROM logbook_pilots WHERE player_ucid = %s
+                """, (ucid,))
+                pilot_row = await cursor.fetchone()
+
+                # Get all squadron memberships
+                await cursor.execute("""
+                    SELECT s.name as squadron_name
+                    FROM logbook_squadron_members m
+                    JOIN logbook_squadrons s ON m.squadron_id = s.id
+                    WHERE m.player_ucid = %s
+                    ORDER BY m.joined_at ASC
+                """, (ucid,))
+                squadrons = await cursor.fetchall()
+
+                # Get qualifications
+                await cursor.execute("""
+                    SELECT q.name, pq.granted_at, pq.expires_at
+                    FROM logbook_pilot_qualifications pq
+                    JOIN logbook_qualifications q ON pq.qualification_id = q.id
+                    WHERE pq.player_ucid = %s
+                    ORDER BY pq.granted_at DESC
+                """, (ucid,))
+                qualifications = await cursor.fetchall()
+
+                # Get awards (with ribbon colors for image generation)
+                await cursor.execute("""
+                    SELECT a.name, a.ribbon_colors, pa.granted_at
+                    FROM logbook_pilot_awards pa
+                    JOIN logbook_awards a ON pa.award_id = a.id
+                    WHERE pa.player_ucid = %s
+                    ORDER BY pa.granted_at DESC
+                """, (ucid,))
+                awards = await cursor.fetchall()
+
+        # Build embed
+        embed = discord.Embed(
+            title=_('Pilot Information: {}').format(utils.escape_string(name)),
+            color=discord.Color.blue()
+        )
+
+        # Service and Rank (from logbook_pilots)
+        service = pilot_row['service'] if pilot_row and pilot_row.get('service') else '-'
+        rank = pilot_row['rank'] if pilot_row and pilot_row.get('rank') else '-'
+        embed.add_field(name=_('Service'), value=service, inline=True)
+        embed.add_field(name=_('Rank'), value=rank, inline=True)
+
+        # Squadrons (all assignments)
+        if squadrons:
+            squadron_names = ', '.join(s['squadron_name'] for s in squadrons)
+            embed.add_field(name=_('Squadron(s)'), value=squadron_names, inline=True)
+        else:
+            embed.add_field(name=_('Squadron(s)'), value='-', inline=True)
+
+        # Total Hours
+        hours_str = f"{float(total_hours):.1f}" if total_hours else "0.0"
+        embed.add_field(name=_('Total Hours'), value=hours_str, inline=True)
+
+        # Last Joined (last_seen)
+        if last_seen:
+            last_joined_str = last_seen.strftime('%Y-%m-%d')
+        else:
+            last_joined_str = '-'
+        embed.add_field(name=_('Last Joined'), value=last_joined_str, inline=True)
+
+        # Qualifications (with 1024 char limit handling)
+        if qualifications:
+            qual_lines = []
+            for q in qualifications:
+                issued = q['granted_at'].strftime('%d %b %y') if q['granted_at'] else '-'
+                if q.get('expires_at'):
+                    expires = q['expires_at'].strftime('%d %b %y')
+                    qual_lines.append(f"**{q['name']}** ({issued} - {expires})")
+                else:
+                    qual_lines.append(f"**{q['name']}** ({issued})")
+            # Build value respecting 1024 char limit
+            qual_value = ""
+            shown = 0
+            for line in qual_lines:
+                test_value = qual_value + ("\n" if qual_value else "") + line
+                if len(test_value) > 1000:  # Leave room for "and X more"
+                    remaining = len(qual_lines) - shown
+                    qual_value += f"\n*...and {remaining} more*"
+                    break
+                qual_value = test_value
+                shown += 1
+            embed.add_field(name=_('Qualifications ({})').format(len(qualifications)), value=qual_value, inline=False)
+        else:
+            embed.add_field(name=_('Qualifications'), value=_('None'), inline=False)
+
+        # Awards (with 1024 char limit handling)
+        if awards:
+            award_lines = []
+            for a in awards:
+                issued = a['granted_at'].strftime('%d %b %y') if a['granted_at'] else '-'
+                award_lines.append(f"**{a['name']}** ({issued})")
+            # Build value respecting 1024 char limit
+            award_value = ""
+            shown = 0
+            for line in award_lines:
+                test_value = award_value + ("\n" if award_value else "") + line
+                if len(test_value) > 1000:  # Leave room for "and X more"
+                    remaining = len(award_lines) - shown
+                    award_value += f"\n*...and {remaining} more*"
+                    break
+                award_value = test_value
+                shown += 1
+            embed.add_field(name=_('Awards ({})').format(len(awards)), value=award_value, inline=False)
+        else:
+            embed.add_field(name=_('Awards'), value=_('None'), inline=False)
+
+        # Generate ribbon rack image if there are awards
+        file = None
+        if awards and HAS_IMAGING:
+            # Build awards list for ribbon rack: (name, colors, count)
+            ribbon_awards = []
+            for a in awards:
+                colors = a.get('ribbon_colors')
+                if isinstance(colors, str):
+                    import json as json_module
+                    try:
+                        colors = json_module.loads(colors)
+                    except (json_module.JSONDecodeError, TypeError):
+                        colors = None
+                ribbon_awards.append((a['name'], colors, 1))
+
+            ribbon_bytes = create_ribbon_rack(ribbon_awards)
+            if ribbon_bytes:
+                file = discord.File(io.BytesIO(ribbon_bytes), filename='ribbons.png')
+                embed.set_image(url='attachment://ribbons.png')
+
+        if file:
+            await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+        else:
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
     # ==================== SQUADRON COMMANDS ====================
 
     @squadron.command(name='create', description=_('Create a new squadron'))
@@ -327,10 +472,12 @@ class Logbook(Plugin[LogbookEventListener]):
     @app_commands.describe(
         name=_('Squadron name (e.g., "801 NAS")'),
         abbreviation=_('Short abbreviation (e.g., "801")'),
+        service=_('Parent service (e.g., "RN", "RAF", "AAC")'),
         description=_('Squadron motto or description')
     )
     async def squadron_create(self, interaction: discord.Interaction,
                               name: str,
+                              service: str,
                               abbreviation: Optional[str] = None,
                               description: Optional[str] = None):
         ephemeral = utils.get_ephemeral(interaction)
@@ -338,11 +485,11 @@ class Logbook(Plugin[LogbookEventListener]):
         async with self.apool.connection() as conn:
             # Use INSERT ... ON CONFLICT to avoid race condition
             cursor = await conn.execute("""
-                INSERT INTO logbook_squadrons (name, abbreviation, description)
-                VALUES (%s, %s, %s)
+                INSERT INTO logbook_squadrons (name, abbreviation, service, description)
+                VALUES (%s, %s, %s, %s)
                 ON CONFLICT (name) DO NOTHING
                 RETURNING id
-            """, (name, abbreviation, description))
+            """, (name, abbreviation, service.upper(), description))
             result = await cursor.fetchone()
 
             if not result:
@@ -361,6 +508,7 @@ class Logbook(Plugin[LogbookEventListener]):
             color=discord.Color.green()
         )
         embed.add_field(name=_('ID'), value=str(squadron_id), inline=True)
+        embed.add_field(name=_('Service'), value=service.upper(), inline=True)
         if abbreviation:
             embed.add_field(name=_('Abbreviation'), value=abbreviation, inline=True)
         if description:
@@ -368,7 +516,7 @@ class Logbook(Plugin[LogbookEventListener]):
 
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
-        await self.bot.audit(f'created squadron {name}', user=interaction.user)
+        await self.bot.audit(f'created squadron {name} ({service.upper()})', user=interaction.user)
 
     @squadron.command(name='info', description=_('Show squadron information'))
     @app_commands.guild_only()
@@ -436,18 +584,20 @@ class Logbook(Plugin[LogbookEventListener]):
                     return
 
                 # Get roster with stats
+                # Note: rank is now in logbook_pilots table, not squadron_members
                 await cursor.execute("""
                     SELECT
-                        sm.rank,
+                        lp.rank,
                         sm.position,
                         p.name,
                         sm.joined_at,
                         COALESCE(pls.total_hours, 0) as total_hours
                     FROM logbook_squadron_members sm
                     JOIN players p ON sm.player_ucid = p.ucid
+                    LEFT JOIN logbook_pilots lp ON sm.player_ucid = lp.player_ucid
                     LEFT JOIN pilot_logbook_stats pls ON sm.player_ucid = pls.ucid
                     WHERE sm.squadron_id = %s
-                    ORDER BY sm.rank DESC, sm.joined_at ASC
+                    ORDER BY lp.rank NULLS LAST, sm.joined_at ASC
                 """, (squadron,))
                 members = await cursor.fetchall()
 
@@ -490,13 +640,11 @@ class Logbook(Plugin[LogbookEventListener]):
     @app_commands.describe(
         squadron=_('Squadron to assign to'),
         user=_('Discord user to assign'),
-        rank=_('Military rank (e.g., "Lt", "Cdr", "Wg Cdr")'),
         position=_('Position in squadron (e.g., "Pilot", "WSO")')
     )
     async def squadron_assign(self, interaction: discord.Interaction,
                               squadron: int,
                               user: discord.Member,
-                              rank: Optional[str] = None,
                               position: Optional[str] = None):
         ephemeral = utils.get_ephemeral(interaction)
 
@@ -519,33 +667,32 @@ class Logbook(Plugin[LogbookEventListener]):
                     await interaction.response.send_message(_('Squadron not found!'), ephemeral=True)
                     return
 
-                # Check if already assigned
+                # Check if already assigned to this squadron
                 await cursor.execute("""
-                    SELECT squadron_id FROM logbook_squadron_members WHERE player_ucid = %s
-                """, (ucid,))
+                    SELECT squadron_id FROM logbook_squadron_members
+                    WHERE player_ucid = %s AND squadron_id = %s
+                """, (ucid, squadron))
                 existing = await cursor.fetchone()
 
-                async with conn.transaction():
-                    if existing:
-                        # Remove from old squadron
-                        await conn.execute(
-                            "DELETE FROM logbook_squadron_members WHERE player_ucid = %s",
-                            (ucid,)
-                        )
+                if existing:
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(
+                        _('{} is already assigned to {}!').format(user.display_name, squadron_row['name']),
+                        ephemeral=True
+                    )
+                    return
 
-                    # Add to new squadron
-                    await conn.execute("""
-                        INSERT INTO logbook_squadron_members (squadron_id, player_ucid, rank, position)
-                        VALUES (%s, %s, %s, %s)
-                    """, (squadron, ucid, rank, position))
+                # Add to squadron (pilots can be in multiple squadrons)
+                await conn.execute("""
+                    INSERT INTO logbook_squadron_members (squadron_id, player_ucid, position)
+                    VALUES (%s, %s, %s)
+                """, (squadron, ucid, position))
 
         embed = discord.Embed(
             title=_('Member Assigned'),
             description=_('{} has been assigned to {}.').format(user.display_name, squadron_row['name']),
             color=discord.Color.green()
         )
-        if rank:
-            embed.add_field(name=_('Rank'), value=rank, inline=True)
         if position:
             embed.add_field(name=_('Position'), value=position, inline=True)
 
@@ -553,6 +700,52 @@ class Logbook(Plugin[LogbookEventListener]):
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
         await self.bot.audit(
             f'assigned {user.display_name} to squadron {squadron_row["name"]}',
+            user=interaction.user
+        )
+
+    @logbook.command(name='setpilot', description=_('Set or update pilot service and rank'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.describe(
+        user=_('Discord user'),
+        service=_('Military service (e.g., "RN", "RAF", "AAC")'),
+        rank=_('Military rank (e.g., "Lt", "Cdr", "Wg Cdr")')
+    )
+    async def logbook_setpilot(self, interaction: discord.Interaction,
+                               user: discord.Member,
+                               service: str,
+                               rank: str):
+        ephemeral = utils.get_ephemeral(interaction)
+
+        ucid = await self.bot.get_ucid_by_member(user)
+        if not ucid:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _('User {} is not linked to DCS!').format(user.display_name),
+                ephemeral=True
+            )
+            return
+
+        async with self.apool.connection() as conn:
+            # Upsert into logbook_pilots
+            await conn.execute("""
+                INSERT INTO logbook_pilots (player_ucid, service, rank)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (player_ucid) DO UPDATE SET service = %s, rank = %s
+            """, (ucid, service.upper(), rank, service.upper(), rank))
+
+        embed = discord.Embed(
+            title=_('Pilot Updated'),
+            description=_('Pilot info for {} has been set.').format(user.display_name),
+            color=discord.Color.green()
+        )
+        embed.add_field(name=_('Service'), value=service.upper(), inline=True)
+        embed.add_field(name=_('Rank'), value=rank, inline=True)
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+        await self.bot.audit(
+            f'set pilot info for {user.display_name}: {service.upper()} {rank}',
             user=interaction.user
         )
 
@@ -796,6 +989,102 @@ class Logbook(Plugin[LogbookEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
         await self.bot.audit(f'deleted squadron {squadron_row["name"]}', user=interaction.user)
+
+    @squadron.command(name='edit', description=_('Edit squadron details'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(squadron=logbook_squadron_autocomplete)
+    @app_commands.describe(
+        squadron=_('Squadron to edit'),
+        name=_('New squadron name'),
+        abbreviation=_('New abbreviation'),
+        service=_('New parent service'),
+        description=_('New description'),
+        logo_url=_('New logo URL')
+    )
+    async def squadron_edit(self, interaction: discord.Interaction,
+                            squadron: int,
+                            name: Optional[str] = None,
+                            abbreviation: Optional[str] = None,
+                            service: Optional[str] = None,
+                            description: Optional[str] = None,
+                            logo_url: Optional[str] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+
+        # Check if at least one field is being updated
+        if not any([name, abbreviation, service, description, logo_url]):
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _('Please provide at least one field to update.'),
+                ephemeral=True
+            )
+            return
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                # Get current squadron info
+                await cursor.execute("SELECT * FROM logbook_squadrons WHERE id = %s", (squadron,))
+                squadron_row = await cursor.fetchone()
+
+                if not squadron_row:
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(_('Squadron not found!'), ephemeral=True)
+                    return
+
+                old_name = squadron_row['name']
+
+                # Build dynamic update query
+                updates = []
+                params = []
+
+                if name:
+                    updates.append("name = %s")
+                    params.append(name)
+                if abbreviation:
+                    updates.append("abbreviation = %s")
+                    params.append(abbreviation)
+                if service:
+                    updates.append("service = %s")
+                    params.append(service.upper())
+                if description:
+                    updates.append("description = %s")
+                    params.append(description)
+                if logo_url:
+                    updates.append("logo_url = %s")
+                    params.append(logo_url)
+
+                params.append(squadron)
+
+                await conn.execute(f"""
+                    UPDATE logbook_squadrons
+                    SET {', '.join(updates)}
+                    WHERE id = %s
+                """, tuple(params))
+
+        embed = discord.Embed(
+            title=_('Squadron Updated'),
+            description=_('Squadron "{}" has been updated.').format(name or old_name),
+            color=discord.Color.blue()
+        )
+
+        # Show what was changed
+        changes = []
+        if name:
+            changes.append(f"Name: {old_name} → {name}")
+        if abbreviation:
+            changes.append(f"Abbreviation: {abbreviation}")
+        if service:
+            changes.append(f"Service: {service.upper()}")
+        if description:
+            changes.append(f"Description: {description[:50]}{'...' if len(description) > 50 else ''}")
+        if logo_url:
+            changes.append(f"Logo: Updated")
+
+        embed.add_field(name=_('Changes'), value='\n'.join(changes), inline=False)
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+        await self.bot.audit(f'edited squadron {old_name}' + (f' → {name}' if name else ''), user=interaction.user)
 
     # ==================== QUALIFICATION COMMANDS ====================
 
@@ -1206,37 +1495,82 @@ class Logbook(Plugin[LogbookEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(
-        days=_('Show qualifications expiring within this many days (default: 30)')
+        days=_('Show qualifications expiring within this many days (default: 30)'),
+        squadron=_('Filter by squadron (optional)'),
+        qualification=_('Filter by qualification type (optional)')
     )
+    @app_commands.autocomplete(squadron=logbook_squadron_autocomplete, qualification=qualification_autocomplete)
     async def qualification_expiring(self, interaction: discord.Interaction,
-                                     days: Optional[int] = 30):
+                                     days: Optional[int] = 30,
+                                     squadron: Optional[int] = None,
+                                     qualification: Optional[int] = None):
         ephemeral = utils.get_ephemeral(interaction)
 
         cutoff_date = datetime.now(timezone.utc) + timedelta(days=days)
 
+        # Build dynamic query with optional filters
+        query = """
+            SELECT p.name as pilot_name, p.discord_id, q.name as qual_name, pq.expires_at,
+                   s.name as squadron_name
+            FROM logbook_pilot_qualifications pq
+            JOIN players p ON pq.player_ucid = p.ucid
+            JOIN logbook_qualifications q ON pq.qualification_id = q.id
+            LEFT JOIN logbook_squadron_members sm ON sm.player_ucid = p.ucid
+            LEFT JOIN logbook_squadrons s ON s.id = sm.squadron_id
+            WHERE pq.expires_at IS NOT NULL AND pq.expires_at <= %s
+        """
+        params = [cutoff_date]
+
+        if squadron is not None:
+            query += " AND sm.squadron_id = %s"
+            params.append(squadron)
+
+        if qualification is not None:
+            query += " AND pq.qualification_id = %s"
+            params.append(qualification)
+
+        query += " ORDER BY pq.expires_at ASC"
+
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
-                    SELECT p.name as pilot_name, p.discord_id, q.name as qual_name, pq.expires_at
-                    FROM logbook_pilot_qualifications pq
-                    JOIN players p ON pq.player_ucid = p.ucid
-                    JOIN logbook_qualifications q ON pq.qualification_id = q.id
-                    WHERE pq.expires_at IS NOT NULL AND pq.expires_at <= %s
-                    ORDER BY pq.expires_at ASC
-                """, (cutoff_date,))
+                await cursor.execute(query, tuple(params))
                 expiring = await cursor.fetchall()
+
+                # Get filter names for display
+                squadron_name = None
+                qual_name = None
+                if squadron is not None:
+                    await cursor.execute("SELECT name FROM logbook_squadrons WHERE id = %s", (squadron,))
+                    row = await cursor.fetchone()
+                    if row:
+                        squadron_name = row['name']
+                if qualification is not None:
+                    await cursor.execute("SELECT name FROM logbook_qualifications WHERE id = %s", (qualification,))
+                    row = await cursor.fetchone()
+                    if row:
+                        qual_name = row['name']
+
+        # Build description with active filters
+        desc_parts = [_('Qualifications expiring within {} days').format(days)]
+        if squadron_name:
+            desc_parts.append(_('Squadron: {}').format(squadron_name))
+        if qual_name:
+            desc_parts.append(_('Qualification: {}').format(qual_name))
 
         if not expiring:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _('No qualifications expiring within {} days.').format(days),
+                _('No qualifications expiring within {} days{}.').format(
+                    days,
+                    _(' for the selected filters') if (squadron or qualification) else ''
+                ),
                 ephemeral=ephemeral
             )
             return
 
         embed = discord.Embed(
             title=_('Expiring Qualifications'),
-            description=_('Qualifications expiring within {} days').format(days),
+            description=' | '.join(desc_parts),
             color=discord.Color.orange()
         )
 
@@ -1251,7 +1585,11 @@ class Logbook(Plugin[LogbookEventListener]):
                 status = "**EXPIRED**"
             else:
                 status = f"{days_left}d"
-            lines.append(f"**{exp['pilot_name']}** - {exp['qual_name']} ({status})")
+            # Include squadron if not filtered by squadron
+            if squadron is None and exp.get('squadron_name'):
+                lines.append(f"**{exp['pilot_name']}** ({exp['squadron_name']}) - {exp['qual_name']} ({status})")
+            else:
+                lines.append(f"**{exp['pilot_name']}** - {exp['qual_name']} ({status})")
 
         # Split into chunks if needed
         text = '\n'.join(lines)
@@ -1334,14 +1672,19 @@ class Logbook(Plugin[LogbookEventListener]):
                 )
                 return
 
+        # Generate ribbon image
+        ribbon_bytes = None
+        if HAS_IMAGING:
+            ribbon_bytes = create_ribbon_rack([(name, colors_json, 1)], scale=2.0)
+
         async with self.apool.connection() as conn:
             # Use INSERT ... ON CONFLICT to avoid race condition
             cursor = await conn.execute("""
-                INSERT INTO logbook_awards (name, description, image_url, ribbon_colors)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO logbook_awards (name, description, image_url, ribbon_colors, ribbon_image)
+                VALUES (%s, %s, %s, %s, %s)
                 ON CONFLICT (name) DO NOTHING
                 RETURNING id
-            """, (name, description, image_url, json.dumps(colors_json) if colors_json else None))
+            """, (name, description, image_url, json.dumps(colors_json) if colors_json else None, ribbon_bytes))
             result = await cursor.fetchone()
 
             if not result:
@@ -1362,15 +1705,21 @@ class Logbook(Plugin[LogbookEventListener]):
         embed.add_field(name=_('ID'), value=str(award_id), inline=True)
         if description:
             embed.add_field(name=_('Description'), value=description, inline=False)
-        if colors_json:
-            # Show color preview
-            color_display = ' '.join([f"`{c}`" for c in colors_json[:5]])
-            embed.add_field(name=_('Ribbon Colors'), value=color_display, inline=False)
+
+        # Attach ribbon image if generated
+        file = None
+        if ribbon_bytes:
+            file = discord.File(io.BytesIO(ribbon_bytes), filename='ribbon.png')
+            embed.set_image(url='attachment://ribbon.png')
+
         if image_url:
             embed.set_thumbnail(url=image_url)
 
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+        if file:
+            await interaction.response.send_message(embed=embed, file=file, ephemeral=ephemeral)
+        else:
+            await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
         await self.bot.audit(f'created award {name}', user=interaction.user)
 
     @award.command(name='info', description=_('Show award details'))
@@ -1402,20 +1751,27 @@ class Logbook(Plugin[LogbookEventListener]):
         )
 
         embed.add_field(name=_('Recipients'), value=str(row['recipient_count']), inline=True)
+        if row.get('auto_grant'):
+            embed.add_field(name=_('Auto-Grant'), value=_('Yes'), inline=True)
 
-        if row.get('ribbon_colors'):
-            try:
-                colors = json.loads(row['ribbon_colors']) if isinstance(row['ribbon_colors'], str) else row['ribbon_colors']
-                color_display = ' '.join([f"`{c}`" for c in colors[:5]])
-                embed.add_field(name=_('Ribbon Colors'), value=color_display, inline=False)
-            except Exception:
-                pass
+        # Use stored ribbon image if available
+        file = None
+        ribbon_bytes = row.get('ribbon_image')
+        if ribbon_bytes:
+            # ribbon_image is stored as memoryview/bytes from database
+            if isinstance(ribbon_bytes, memoryview):
+                ribbon_bytes = bytes(ribbon_bytes)
+            file = discord.File(io.BytesIO(ribbon_bytes), filename='ribbon.png')
+            embed.set_image(url='attachment://ribbon.png')
 
         if row.get('image_url'):
             embed.set_thumbnail(url=row['image_url'])
 
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+        if file:
+            await interaction.response.send_message(embed=embed, file=file, ephemeral=ephemeral)
+        else:
+            await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     @award.command(name='grant', description=_('Grant an award to a pilot'))
     @app_commands.guild_only()
@@ -1590,26 +1946,39 @@ class Logbook(Plugin[LogbookEventListener]):
                         )
                         return
 
-                    embed = discord.Embed(
+                    # Group awards by name and build embeds with pagination
+                    embeds = []
+                    current_embed = discord.Embed(
                         title=_('Awards for {}').format(user.display_name),
                         color=discord.Color.gold()
                     )
-
-                    # Group awards by name and show count
+                    field_count = 0
                     seen_awards = {}
+
                     for award in awards:
                         name = award['name']
                         if name not in seen_awards:
+                            if field_count >= 25:
+                                embeds.append(current_embed)
+                                current_embed = discord.Embed(
+                                    title=_('Awards for {} (continued)').format(user.display_name),
+                                    color=discord.Color.gold()
+                                )
+                                field_count = 0
+
                             count_str = f" x{award['count']}" if award['count'] > 1 else ""
                             value = award.get('description') or _('No description')
                             if award.get('citation'):
                                 value += f"\n*\"{award['citation']}\"*"
-                            embed.add_field(
+                            current_embed.add_field(
                                 name=f"{name}{count_str}",
                                 value=value,
                                 inline=False
                             )
+                            field_count += 1
                             seen_awards[name] = True
+
+                    embeds.append(current_embed)
 
                 else:
                     # Show all award definitions
@@ -1629,21 +1998,35 @@ class Logbook(Plugin[LogbookEventListener]):
                         )
                         return
 
-                    embed = discord.Embed(
+                    # Discord embeds have a max of 25 fields, so paginate if needed
+                    embeds = []
+                    current_embed = discord.Embed(
                         title=_('Awards'),
-                        description=_('All defined awards'),
+                        description=_('All defined awards ({} total)').format(len(awards)),
                         color=discord.Color.gold()
                     )
+                    field_count = 0
 
                     for award in awards:
-                        embed.add_field(
+                        if field_count >= 25:
+                            embeds.append(current_embed)
+                            current_embed = discord.Embed(
+                                title=_('Awards (continued)'),
+                                color=discord.Color.gold()
+                            )
+                            field_count = 0
+
+                        current_embed.add_field(
                             name=award['name'],
                             value=_("{} recipients").format(award['recipient_count']),
                             inline=True
                         )
+                        field_count += 1
+
+                    embeds.append(current_embed)
 
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+        await interaction.response.send_message(embeds=embeds, ephemeral=ephemeral)
 
     @award.command(name='delete', description=_('Delete an award'))
     @app_commands.guild_only()
@@ -1761,347 +2144,6 @@ class Logbook(Plugin[LogbookEventListener]):
         embed.set_footer(text=_("{} awards").format(sum(a['count'] for a in awards)))
 
         await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
-
-    # ==================== FLIGHT PLAN COMMANDS ====================
-
-    @flightplan.command(name='file', description=_('File a flight plan'))
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS')
-    @app_commands.describe(
-        callsign=_('Your callsign for this flight'),
-        aircraft_type=_('Aircraft type (e.g., F-16C, F/A-18C)'),
-        departure=_('Departure airfield'),
-        destination=_('Destination airfield'),
-        alternate=_('Alternate airfield (optional)'),
-        route=_('Planned route (optional)'),
-        remarks=_('Additional remarks (optional)')
-    )
-    async def flightplan_file(self, interaction: discord.Interaction,
-                              callsign: str,
-                              aircraft_type: str,
-                              departure: str,
-                              destination: str,
-                              alternate: Optional[str] = None,
-                              route: Optional[str] = None,
-                              remarks: Optional[str] = None):
-        ephemeral = utils.get_ephemeral(interaction)
-
-        ucid = await self.bot.get_ucid_by_member(interaction.user)
-        if not ucid:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                _('You are not linked to DCS!'),
-                ephemeral=True
-            )
-            return
-
-        async with self.apool.connection() as conn:
-            cursor = await conn.execute("""
-                INSERT INTO logbook_flight_plans
-                (player_ucid, callsign, aircraft_type, departure, destination, alternate, route, remarks)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, (ucid, callsign, aircraft_type, departure, destination, alternate, route, remarks))
-            result = await cursor.fetchone()
-            plan_id = result[0]
-
-        embed = discord.Embed(
-            title=_('Flight Plan Filed'),
-            description=_('Flight plan #{} has been filed.').format(plan_id),
-            color=discord.Color.green()
-        )
-        embed.add_field(name=_('Callsign'), value=callsign, inline=True)
-        embed.add_field(name=_('Aircraft'), value=aircraft_type, inline=True)
-        embed.add_field(name=_('Route'), value=f"{departure} → {destination}", inline=True)
-        if alternate:
-            embed.add_field(name=_('Alternate'), value=alternate, inline=True)
-        if route:
-            embed.add_field(name=_('Via'), value=route, inline=False)
-        if remarks:
-            embed.add_field(name=_('Remarks'), value=remarks, inline=False)
-
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
-
-    @flightplan.command(name='view', description=_('View a flight plan'))
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS')
-    @app_commands.autocomplete(plan=flightplan_autocomplete)
-    @app_commands.describe(plan=_('Flight plan to view'))
-    async def flightplan_view(self, interaction: discord.Interaction, plan: int):
-        ephemeral = utils.get_ephemeral(interaction)
-
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
-                    SELECT fp.*, p.name as pilot_name
-                    FROM logbook_flight_plans fp
-                    JOIN players p ON fp.player_ucid = p.ucid
-                    WHERE fp.id = %s
-                """, (plan,))
-                fp = await cursor.fetchone()
-
-        if not fp:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_('Flight plan not found!'), ephemeral=True)
-            return
-
-        status_colors = {
-            'filed': discord.Color.blue(),
-            'active': discord.Color.green(),
-            'completed': discord.Color.dark_green(),
-            'cancelled': discord.Color.red()
-        }
-
-        embed = discord.Embed(
-            title=_('Flight Plan #{}').format(plan),
-            description=_('Filed by {}').format(fp['pilot_name']),
-            color=status_colors.get(fp['status'], discord.Color.blue())
-        )
-
-        embed.add_field(name=_('Status'), value=fp['status'].upper(), inline=True)
-        if fp.get('callsign'):
-            embed.add_field(name=_('Callsign'), value=fp['callsign'], inline=True)
-        if fp.get('aircraft_type'):
-            embed.add_field(name=_('Aircraft'), value=fp['aircraft_type'], inline=True)
-        embed.add_field(name=_('Departure'), value=fp.get('departure') or _('N/A'), inline=True)
-        embed.add_field(name=_('Destination'), value=fp.get('destination') or _('N/A'), inline=True)
-        if fp.get('alternate'):
-            embed.add_field(name=_('Alternate'), value=fp['alternate'], inline=True)
-        if fp.get('route'):
-            embed.add_field(name=_('Route'), value=fp['route'], inline=False)
-        if fp.get('remarks'):
-            embed.add_field(name=_('Remarks'), value=fp['remarks'], inline=False)
-
-        filed_at = fp['filed_at']
-        if filed_at:
-            embed.set_footer(text=_('Filed at {}').format(filed_at.strftime('%Y-%m-%d %H:%M UTC')))
-
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
-
-    @flightplan.command(name='list', description=_('List flight plans'))
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS')
-    @app_commands.describe(
-        status=_('Filter by status (leave empty for all active plans)'),
-        user=_('Show flight plans for a specific pilot')
-    )
-    @app_commands.choices(status=[
-        app_commands.Choice(name='Filed', value='filed'),
-        app_commands.Choice(name='Active', value='active'),
-        app_commands.Choice(name='Completed', value='completed'),
-        app_commands.Choice(name='Cancelled', value='cancelled'),
-        app_commands.Choice(name='All', value='all'),
-    ])
-    async def flightplan_list(self, interaction: discord.Interaction,
-                              status: Optional[str] = None,
-                              user: Optional[discord.Member] = None):
-        ephemeral = utils.get_ephemeral(interaction)
-
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                query_parts = ["SELECT fp.*, p.name as pilot_name FROM logbook_flight_plans fp"]
-                query_parts.append("JOIN players p ON fp.player_ucid = p.ucid")
-                conditions = []
-                params = []
-
-                if user:
-                    ucid = await self.bot.get_ucid_by_member(user)
-                    if ucid:
-                        conditions.append("fp.player_ucid = %s")
-                        params.append(ucid)
-
-                if status and status != 'all':
-                    conditions.append("fp.status = %s")
-                    params.append(status)
-                elif not status:
-                    # Default to active plans
-                    conditions.append("fp.status IN ('filed', 'active')")
-
-                if conditions:
-                    query_parts.append("WHERE " + " AND ".join(conditions))
-
-                query_parts.append("ORDER BY fp.filed_at DESC LIMIT 20")
-                query = " ".join(query_parts)
-
-                await cursor.execute(query, tuple(params))
-                plans = await cursor.fetchall()
-
-        if not plans:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                _('No flight plans found.'),
-                ephemeral=ephemeral
-            )
-            return
-
-        embed = discord.Embed(
-            title=_('Flight Plans'),
-            color=discord.Color.blue()
-        )
-
-        for fp in plans[:10]:  # Limit display
-            status_emoji = {
-                'filed': '📝',
-                'active': '✈️',
-                'completed': '✅',
-                'cancelled': '❌'
-            }.get(fp['status'], '❓')
-
-            route = f"{fp.get('departure', '?')} → {fp.get('destination', '?')}"
-            embed.add_field(
-                name=f"{status_emoji} #{fp['id']} - {fp.get('callsign', 'N/A')} ({fp['pilot_name']})",
-                value=f"{fp.get('aircraft_type', 'N/A')} | {route}",
-                inline=False
-            )
-
-        if len(plans) > 10:
-            embed.set_footer(text=_("Showing 10 of {} flight plans").format(len(plans)))
-
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
-
-    @flightplan.command(name='activate', description=_('Activate a filed flight plan'))
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS')
-    @app_commands.autocomplete(plan=flightplan_autocomplete)
-    async def flightplan_activate(self, interaction: discord.Interaction, plan: int):
-        ephemeral = utils.get_ephemeral(interaction)
-
-        ucid = await self.bot.get_ucid_by_member(interaction.user)
-
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(
-                    "SELECT * FROM logbook_flight_plans WHERE id = %s AND player_ucid = %s",
-                    (plan, ucid)
-                )
-                fp = await cursor.fetchone()
-
-                if not fp:
-                    # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(
-                        _('Flight plan not found or not yours!'),
-                        ephemeral=True
-                    )
-                    return
-
-                if fp['status'] != 'filed':
-                    # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(
-                        _('Only filed flight plans can be activated. Current status: {}').format(fp['status']),
-                        ephemeral=True
-                    )
-                    return
-
-                await conn.execute(
-                    "UPDATE logbook_flight_plans SET status = 'active' WHERE id = %s",
-                    (plan,)
-                )
-
-        embed = discord.Embed(
-            title=_('Flight Plan Activated'),
-            description=_('Flight plan #{} is now active.').format(plan),
-            color=discord.Color.green()
-        )
-
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
-
-    @flightplan.command(name='complete', description=_('Mark a flight plan as completed'))
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS')
-    @app_commands.autocomplete(plan=flightplan_autocomplete)
-    async def flightplan_complete(self, interaction: discord.Interaction, plan: int):
-        ephemeral = utils.get_ephemeral(interaction)
-
-        ucid = await self.bot.get_ucid_by_member(interaction.user)
-
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(
-                    "SELECT * FROM logbook_flight_plans WHERE id = %s AND player_ucid = %s",
-                    (plan, ucid)
-                )
-                fp = await cursor.fetchone()
-
-                if not fp:
-                    # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(
-                        _('Flight plan not found or not yours!'),
-                        ephemeral=True
-                    )
-                    return
-
-                if fp['status'] not in ('filed', 'active'):
-                    # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(
-                        _('Flight plan cannot be completed. Current status: {}').format(fp['status']),
-                        ephemeral=True
-                    )
-                    return
-
-                await conn.execute(
-                    "UPDATE logbook_flight_plans SET status = 'completed' WHERE id = %s",
-                    (plan,)
-                )
-
-        embed = discord.Embed(
-            title=_('Flight Plan Completed'),
-            description=_('Flight plan #{} has been marked as completed.').format(plan),
-            color=discord.Color.dark_green()
-        )
-
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
-
-    @flightplan.command(name='cancel', description=_('Cancel a flight plan'))
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS')
-    @app_commands.autocomplete(plan=flightplan_autocomplete)
-    async def flightplan_cancel(self, interaction: discord.Interaction, plan: int):
-        ephemeral = utils.get_ephemeral(interaction)
-
-        ucid = await self.bot.get_ucid_by_member(interaction.user)
-
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(
-                    "SELECT * FROM logbook_flight_plans WHERE id = %s AND player_ucid = %s",
-                    (plan, ucid)
-                )
-                fp = await cursor.fetchone()
-
-                if not fp:
-                    # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(
-                        _('Flight plan not found or not yours!'),
-                        ephemeral=True
-                    )
-                    return
-
-                if fp['status'] not in ('filed', 'active'):
-                    # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(
-                        _('Flight plan cannot be cancelled. Current status: {}').format(fp['status']),
-                        ephemeral=True
-                    )
-                    return
-
-                await conn.execute(
-                    "UPDATE logbook_flight_plans SET status = 'cancelled' WHERE id = %s",
-                    (plan,)
-                )
-
-        embed = discord.Embed(
-            title=_('Flight Plan Cancelled'),
-            description=_('Flight plan #{} has been cancelled.').format(plan),
-            color=discord.Color.red()
-        )
-
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     # NOTE: Stores commands have been moved to the logistics plugin
 

@@ -1,0 +1,36 @@
+schema;openaip_schema:
+  type: map
+  nullable: true
+  mapping:
+    api_key: {type: str, nullable: true}
+    cache_hours: {type: int, nullable: true}
+
+schema;element_schema:
+  type: map
+  func: is_element
+  nullable: false
+  mapping:
+    enabled: {type: bool, nullable: true}
+    status_channel: {type: any, nullable: true}
+    publish_on_file: {type: bool, nullable: true}
+    publish_on_activate: {type: bool, nullable: true}
+    publish_on_complete: {type: bool, nullable: true}
+    publish_on_cancel: {type: bool, nullable: true}
+    stale_hours: {type: int, nullable: true}
+    auto_cancel_stale: {type: bool, nullable: true}
+    marker_timeout: {type: int, nullable: true}
+    openaip:
+      include: 'openaip_schema'
+
+type: map
+func: check_main_structure
+nullable: false
+mapping:
+  DEFAULT:
+    include: 'element_schema'
+  commands:
+    include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
+  regex;(.+):
+    include: 'element_schema'

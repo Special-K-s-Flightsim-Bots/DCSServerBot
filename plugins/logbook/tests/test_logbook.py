@@ -354,6 +354,7 @@ class TestSQLSyntax:
 
     def test_expected_tables_exist(self, sql_content):
         """Test that expected tables are defined."""
+        # Note: logbook_flight_plans is now in the dedicated flightplan plugin
         expected_tables = [
             'logbook_squadrons',
             'logbook_squadron_members',
@@ -361,7 +362,6 @@ class TestSQLSyntax:
             'logbook_pilot_qualifications',
             'logbook_awards',
             'logbook_pilot_awards',
-            'logbook_flight_plans',
             'logbook_stores_requests',
             'logbook_historical_hours',
         ]
