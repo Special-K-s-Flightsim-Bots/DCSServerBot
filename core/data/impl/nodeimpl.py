@@ -6,8 +6,10 @@ import discord
 import glob
 import gzip
 import json
+import math
 import os
 import platform
+import psutil
 import psycopg
 import psycopg_pool
 import re
@@ -17,6 +19,11 @@ import ssl
 import subprocess
 import sys
 import zlib
+
+if sys.platform == 'win32':
+    from core.process.win32.cpu import get_cpu_name
+else:
+    from core.process.linux.cpu import get_cpu_name
 
 from collections import defaultdict
 from contextlib import closing
@@ -1831,6 +1838,12 @@ class NodeImpl(Node):
             "Bot Version": f"{self.node.bot_version}.{self.node.sub_version}",
             "DCS Branch": self.dcs_branch,
             "DCS Version": self.dcs_version,
+            "OS": platform.system(),
+            "OS Release": platform.version(),
+            "CPU Name": get_cpu_name(),
+            "CPU Count": psutil.cpu_count(),
+            "Total RAM": math.ceil(psutil.virtual_memory().total / (1024 * 1024 * 1024)),
+            "Python Version": platform.python_version()
         }
         if cpool_url != lpool_url:
             node_dict.update({
