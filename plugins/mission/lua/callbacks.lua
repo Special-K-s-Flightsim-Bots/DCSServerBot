@@ -229,6 +229,15 @@ function mission.onMissionLoadEnd()
     utils.sendBotTable(msg)
 end
 
+function mission.onMissionRestart(arg1)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onMissionRestart()')
+    local msg = {
+        command = "onMissionRestart",
+        arg1 = arg1
+    }
+    utils.sendBotTable(msg)
+end
+
 function mission.onPlayerConnect(id)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerConnect()')
 	if id == SERVER_USER_ID and dcsbot.registered == false then
@@ -437,6 +446,9 @@ local eventHandlers = {
                 return false
             end
         end
+    end,
+    onMissionRestart = function(arg1)
+        mission.onMissionRestart(arg1)
     end
 }
 
