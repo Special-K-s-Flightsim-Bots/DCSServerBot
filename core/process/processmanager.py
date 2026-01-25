@@ -7,7 +7,7 @@ import threading
 if sys.platform == 'win32':
     from .win32.cpu import get_cpu_set_information, get_e_core_affinity
 else:
-    from .linux.cpu import get_cpu_set_information
+    from .linux.cpu import get_cpu_set_information, get_e_core_affinity
 
 logger = logging.getLogger(__name__)
 
