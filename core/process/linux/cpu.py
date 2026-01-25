@@ -2,7 +2,8 @@ import os
 
 __all__ = [
     'get_cpu_set_information',
-    'get_e_core_affinity'
+    'get_e_core_affinity',
+    'get_cpu_name'
 ]
 
 
@@ -208,3 +209,73 @@ def get_e_core_affinity() -> int:
             mask |= 1 << cpu_num
 
     return mask
+
+
+def get_cpu_name() -> str:
+    """
+    Returns a human-friendly CPU name on Linux.
+
+    Sources (in order):
+      1) DMI (often best on bare metal): /sys/devices/virtual/dmi/id/processor_version
+      2) /proc/cpuinfo: model name (x86), then Hardware/Processor (ARM)
+      3) platform.processor() fallback
+
+    Returns:
+        str: CPU name (or "Unknown CPU" if not detectable).
+    """
+
+    def _read_first_line(path: str) -> str | None:
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                s = f.readline().strip()
+                return s or None
+        except Exception:
+            return None
+
+    # 1) DMI
+    dmi_name = _read_first_line("/sys/devices/virtual/dmi/id/processor_version")
+    if dmi_name:
+        return dmi_name
+
+    # 2) /proc/cpuinfo
+    try:
+        with open("/proc/cpuinfo", "r", encoding="utf-8", errors="replace") as f:
+            model_name = None
+            hardware = None
+            processor = None
+
+            for line in f:
+                if ":" not in line:
+                    continue
+                key, val = (p.strip() for p in line.split(":", 1))
+                lk = key.lower()
+
+                if lk == "model name" and val:
+                    model_name = val
+                    break  # usually the best possible answer on x86
+                if lk == "hardware" and val and hardware is None:
+                    hardware = val
+                if lk == "processor" and val and processor is None:
+                    # On ARM, this might be a CPU description (not the per-core numeric id)
+                    processor = val
+
+            if model_name:
+                return model_name
+            if hardware:
+                return hardware
+            if processor:
+                return processor
+    except Exception:
+        pass
+
+    # 3) platform fallback
+    try:
+        import platform
+
+        p = (platform.processor() or "").strip()
+        if p:
+            return p
+    except Exception:
+        pass
+
+    return "Unknown CPU"

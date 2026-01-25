@@ -2,12 +2,20 @@ import aiohttp
 import asyncio
 import certifi
 import discord
+import math
 import os
 import pandas as pd
 import platform
+import psutil
 import psycopg
 import shutil
 import ssl
+import sys
+
+if sys.platform == 'win32':
+    from core.process.win32.cpu import get_cpu_name
+else:
+    from core.process.linux.cpu import get_cpu_name
 
 from contextlib import suppress
 from core import Plugin, utils, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError, \
@@ -449,7 +457,12 @@ class Cloud(Plugin[CloudListener]):
                 "bot_version": f"{self.bot.version}.{self.bot.sub_version}",
                 "variant": "DCSServerBot" if not isinstance(self.bot, DummyBot) else "No Bot",
                 "dcs_version": dcs_version,
-                "python_version": '.'.join(platform.python_version_tuple()),
+                "os": platform.system(),
+                "os_release": platform.version(),
+                "cpu_name": get_cpu_name(),
+                "cpu_count": psutil.cpu_count(),
+                "total_ram": math.ceil(psutil.virtual_memory().total / (1024*1024*1024)),
+                "python_version": platform.python_version(),
                 "num_bots": num_bots,
                 "num_servers": num_servers,
                 "plugins": [
