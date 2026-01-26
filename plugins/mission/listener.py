@@ -659,7 +659,7 @@ class MissionEventListener(EventListener["Mission"]):
                 }))
                 return
 
-        # create the player object
+        # create the player object (should have been created through onPlayerConnect already)
         player: Player = server.get_player(ucid=data['ucid'])
         if not player:
             player = DataObjectFactory().new(
@@ -668,6 +668,7 @@ class MissionEventListener(EventListener["Mission"]):
             server.add_player(player)
         else:
             await player.update(data)
+        player.connected = True
 
         # security check, if a banned player somehow managed to get here (should never happen)
         if player.is_banned():
@@ -798,9 +799,9 @@ class MissionEventListener(EventListener["Mission"]):
         player = server.get_player(ucid=data['ucid'])
         if player:
             if not self.restart_pending.get(server.name, False):
-                asyncio.create_task(self._disconnect(server, player))
+                await self._disconnect(server, player)
             else:
-                asyncio.create_task(self._stop_player(server, player))
+                await self._stop_player(server, player)
 
     async def _disconnect(self, server: Server, player: Player):
         if not player or player.connected is False:
@@ -809,7 +810,7 @@ class MissionEventListener(EventListener["Mission"]):
         try:
             player.connected = False
             # create the pseudo-event "S_EVENT_DISCONNECT"
-            await self.bus.send_to_node(
+            asyncio.create_task(self.bus.send_to_node(
                 {
                     "command": "onMissionEvent",
                     "eventName": "S_EVENT_DISCONNECT",
@@ -820,7 +821,7 @@ class MissionEventListener(EventListener["Mission"]):
                     "comment": "auto-generated",
                     "server_name": server.name
                 }
-            )
+            ))
             if 'disconnect' not in self.get_config(server).get('event_filter', []):
                 self.send_dcs_event(server, player.side,
                                     self.EVENT_TEXTS[player.side]['disconnect'].format(player.name, server.name))
@@ -836,7 +837,7 @@ class MissionEventListener(EventListener["Mission"]):
 
         # Workaround for missing disconnect events
         if 'side' not in data:
-            asyncio.create_task(self._disconnect(server, player))
+            await self._disconnect(server, player)
             return
 
         try:
@@ -867,7 +868,8 @@ class MissionEventListener(EventListener["Mission"]):
             if data['arg1'] == 1:
                 return
             player = server.get_player(id=data['arg1'], active=True)
-            asyncio.create_task(self._disconnect(server, player))
+            await self._disconnect(server, player)
+            return
 
         # check the event filter first
         if data['eventName'] in self.get_config(server).get('event_filter', []):

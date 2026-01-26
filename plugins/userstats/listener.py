@@ -342,13 +342,13 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
 
         event_name = data['eventName']
         if event_name == 'disconnect':
-            asyncio.create_task(self._handle_disconnect_event(server, data))
+            await self._handle_disconnect_event(server, data)
         elif event_name == 'kill':
-            asyncio.create_task(self._handle_kill_event(server, data))
+            await self._handle_kill_event(server, data)
         elif event_name in ['takeoff', 'landing', 'crash', 'pilot_death']:
-            asyncio.create_task(self._handle_common_event(server, data))
+            await self._handle_common_event(server, data)
         elif event_name == 'eject':
-            asyncio.create_task(self._handle_eject_event(server, data))
+            await self._handle_eject_event(server, data)
         elif event_name == 'mission_end':
             config = self.get_config(server)
             if 'highscore' in config:

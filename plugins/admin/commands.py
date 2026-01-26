@@ -355,14 +355,19 @@ class Admin(Plugin[AdminEventListener]):
             user = self.bot.get_user(ban['discord_id'])
         else:
             user = None
-        embed.add_field(name=utils.escape_string(user.name if user else ban['name'] if ban['name'] else _('<unknown>')),
-                        value=ban['ucid'])
+        embed.add_field(name=_("User"),
+                        value=user.mention if user else ban['name'] if ban['name'] else _('<unknown>'))
         if ban['banned_until'].year == 9999:
             until = _('never')
         else:
-            until = ban['banned_until'].strftime('%y-%m-%d %H:%M')
-        embed.add_field(name=_("Banned by: {}").format(ban['banned_by']), value=_("Exp.: {}").format(until))
-        embed.add_field(name=_('Reason'), value=ban['reason'])
+            time_obj = ban['banned_until']
+            until = f'<t:{int(time_obj.timestamp())}:R>\n({time_obj.strftime("%y-%m-%d %H:%Mz")})'
+        embed.add_field(name=_("Banned by"),
+                        value=ban['banned_by'])
+        embed.add_field(name=_("Expires"),
+                        value=until)
+        embed.add_field(name=_('Reason'),
+                        value=ban['reason'])
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
