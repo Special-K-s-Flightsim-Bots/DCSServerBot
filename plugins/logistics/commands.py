@@ -22,10 +22,10 @@ async def logistics_task_autocomplete(interaction: discord.Interaction, current:
     try:
         # Try to get server context for filtering
         server_name = None
-        if hasattr(interaction.namespace, 'server') and interaction.namespace.server:
+        if hasattr(interaction.namespace, '_server') and interaction.namespace._server:
             try:
                 server: Server = await utils.ServerTransformer().transform(
-                    interaction, interaction.namespace.server
+                    interaction, interaction.namespace._server
                 )
                 if server:
                     server_name = server.name
@@ -65,10 +65,10 @@ async def pending_task_autocomplete(interaction: discord.Interaction, current: s
     try:
         # Try to get server context for filtering
         server_name = None
-        if hasattr(interaction.namespace, 'server') and interaction.namespace.server:
+        if hasattr(interaction.namespace, '_server') and interaction.namespace._server:
             try:
                 server: Server = await utils.ServerTransformer().transform(
-                    interaction, interaction.namespace.server
+                    interaction, interaction.namespace._server
                 )
                 if server:
                     server_name = server.name
@@ -111,10 +111,10 @@ async def approved_task_autocomplete(interaction: discord.Interaction, current: 
     try:
         # Try to get server context for filtering
         server_name = None
-        if hasattr(interaction.namespace, 'server') and interaction.namespace.server:
+        if hasattr(interaction.namespace, '_server') and interaction.namespace._server:
             try:
                 server: Server = await utils.ServerTransformer().transform(
-                    interaction, interaction.namespace.server
+                    interaction, interaction.namespace._server
                 )
                 if server:
                     server_name = server.name
@@ -222,12 +222,12 @@ class Logistics(Plugin[LogisticsEventListener]):
     @logistics.command(description=_('Create a new logistics task'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
-    @app_commands.rename(source_idx='source', dest_idx='destination')
+    @app_commands.rename(_server='server', source_idx='source', dest_idx='destination')
     @app_commands.describe(source_idx='Pickup location (airbase/FARP/carrier)')
     @app_commands.describe(dest_idx='Delivery location')
     @app_commands.autocomplete(source_idx=utils.airbase_autocomplete, dest_idx=utils.airbase_autocomplete)
     async def create(self, interaction: discord.Interaction,
-                     server: app_commands.Transform[Server, utils.ServerTransformer],
+                     _server: app_commands.Transform[Server, utils.ServerTransformer],
                      source_idx: int,
                      dest_idx: int,
                      cargo: str,
@@ -239,7 +239,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
         Parameters
         ----------
-        server: The server to create the task on
+        _server: The server to create the task on
         source_idx: Pickup location (airbase/FARP/carrier)
         dest_idx: Delivery location
         cargo: Description of cargo to deliver
@@ -252,7 +252,7 @@ class Logistics(Plugin[LogisticsEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
 
         # Check configurable permission
-        if not self._check_permission(interaction, server, 'create'):
+        if not self._check_permission(interaction, _server, 'create'):
             await interaction.followup.send(
                 "You don't have permission to create logistics tasks. Contact an admin.",
                 ephemeral=True
@@ -260,13 +260,13 @@ class Logistics(Plugin[LogisticsEventListener]):
             return
 
         # Get airbase names from indices
-        if not server.current_mission or not server.current_mission.airbases:
+        if not _server.current_mission or not _server.current_mission.airbases:
             await interaction.followup.send("Server has no mission loaded or no airbases available.", ephemeral=True)
             return
 
         try:
-            source_airbase = server.current_mission.airbases[source_idx]
-            dest_airbase = server.current_mission.airbases[dest_idx]
+            source_airbase = _server.current_mission.airbases[source_idx]
+            dest_airbase = _server.current_mission.airbases[dest_idx]
         except IndexError:
             await interaction.followup.send("Invalid airbase selection.", ephemeral=True)
             return
@@ -306,7 +306,7 @@ class Logistics(Plugin[LogisticsEventListener]):
                     VALUES (%s, %s, 'approved', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
                 """, (
-                    server.name,
+                    _server.name,
                     None,  # NULL for admin-created tasks (no player UCID)
                     priority,
                     cargo,
@@ -331,11 +331,11 @@ class Logistics(Plugin[LogisticsEventListener]):
                 """, (task_id, interaction.user.id, '{"source": "discord_admin", "auto_approved": true}'))
 
         # Publish to status channel if configured (outside transaction)
-        config = self.get_config(server)
+        config = self.get_config(_server)
         if config.get('publish_on_create', True):
             task_data = {
                 'id': task_id,
-                'server_name': server.name,
+                'server_name': _server.name,
                 'cargo_type': cargo,
                 'source_name': source,
                 'destination_name': destination,
@@ -368,10 +368,11 @@ class Logistics(Plugin[LogisticsEventListener]):
     @logistics.command(description=_('List logistics tasks'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
-    @app_commands.describe(server='Server to list tasks for')
+    @app_commands.rename(_server='server')
+    @app_commands.describe(_server='Server to list tasks for')
     @app_commands.describe(status='Filter by task status')
     async def list(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer],
+                   _server: app_commands.Transform[Server, utils.ServerTransformer],
                    status: Literal['all', 'pending', 'approved', 'assigned', 'completed'] = 'approved'):
         """
         List logistics tasks with optional filtering.
@@ -389,10 +390,10 @@ class Logistics(Plugin[LogisticsEventListener]):
             # Server is required for multi-server support
             if status == 'all':
                 status_filter = "WHERE t.server_name = %s"
-                params = [server.name]
+                params = [_server.name]
             else:
                 status_filter = "WHERE t.status = %s AND t.server_name = %s"
-                params = [status, server.name]
+                params = [status, _server.name]
 
             cursor = await conn.execute(f"""
                 SELECT t.id, t.cargo_type, t.source_name, t.destination_name,
@@ -926,11 +927,11 @@ class Logistics(Plugin[LogisticsEventListener]):
     @logistics.command(name='warehouse-status', description=_('Query warehouse inventory at a location'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
-    @app_commands.rename(airbase_idx='airbase')
+    @app_commands.rename(_server='server', airbase_idx='airbase')
     @app_commands.describe(airbase_idx='Airbase or carrier to query')
     @app_commands.autocomplete(airbase_idx=utils.airbase_autocomplete)
     async def warehouse_status(self, interaction: discord.Interaction,
-                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                     _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                      airbase_idx: int,
                      category: Literal['all', 'aircraft', 'weapon', 'liquids'] = 'all'):
         """
@@ -938,7 +939,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
         Parameters
         ----------
-        server: The server to query
+        _server: The server to query
         airbase_idx: Airbase or carrier to query
         category: Filter by category
         """
@@ -947,19 +948,19 @@ class Logistics(Plugin[LogisticsEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
 
         # Get airbase name from index
-        if not server.current_mission or not server.current_mission.airbases:
+        if not _server.current_mission or not _server.current_mission.airbases:
             await interaction.followup.send("Server has no mission loaded or no airbases available.", ephemeral=True)
             return
 
         try:
-            airbase_data = server.current_mission.airbases[airbase_idx]
+            airbase_data = _server.current_mission.airbases[airbase_idx]
             airbase = airbase_data['name']
         except IndexError:
             await interaction.followup.send("Invalid airbase selection.", ephemeral=True)
             return
 
         try:
-            data = await server.send_to_dcs_sync({
+            data = await _server.send_to_dcs_sync({
                 "command": "getAirbase",
                 "name": airbase
             }, timeout=60)
@@ -1034,12 +1035,12 @@ class Logistics(Plugin[LogisticsEventListener]):
     @logistics.command(name='warehouse-compare', description=_('Compare inventory between two locations'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
-    @app_commands.rename(source_idx='source', dest_idx='destination')
+    @app_commands.rename(_server='server', source_idx='source', dest_idx='destination')
     @app_commands.describe(source_idx='First location to compare')
     @app_commands.describe(dest_idx='Second location to compare')
     @app_commands.autocomplete(source_idx=utils.airbase_autocomplete, dest_idx=utils.airbase_autocomplete)
     async def warehouse_compare(self, interaction: discord.Interaction,
-                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                      _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                       source_idx: int,
                       dest_idx: int):
         """
@@ -1047,7 +1048,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
         Parameters
         ----------
-        server: The server to query
+        _server: The server to query
         source_idx: First location to compare
         dest_idx: Second location to compare
         """
@@ -1056,23 +1057,23 @@ class Logistics(Plugin[LogisticsEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
 
         # Get airbase names from indices
-        if not server.current_mission or not server.current_mission.airbases:
+        if not _server.current_mission or not _server.current_mission.airbases:
             await interaction.followup.send("Server has no mission loaded or no airbases available.", ephemeral=True)
             return
 
         try:
-            source = server.current_mission.airbases[source_idx]['name']
-            destination = server.current_mission.airbases[dest_idx]['name']
+            source = _server.current_mission.airbases[source_idx]['name']
+            destination = _server.current_mission.airbases[dest_idx]['name']
         except IndexError:
             await interaction.followup.send("Invalid airbase selection.", ephemeral=True)
             return
 
         try:
-            source_data = await server.send_to_dcs_sync({
+            source_data = await _server.send_to_dcs_sync({
                 "command": "getAirbase",
                 "name": source
             }, timeout=60)
-            dest_data = await server.send_to_dcs_sync({
+            dest_data = await _server.send_to_dcs_sync({
                 "command": "getAirbase",
                 "name": destination
             }, timeout=60)
