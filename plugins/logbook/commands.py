@@ -812,21 +812,25 @@ class Logbook(Plugin[LogbookEventListener]):
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                # Get player name
-                await cursor.execute("SELECT name FROM players WHERE ucid = %s", (member,))
+                # Verify member is in the squadron and get their name
+                await cursor.execute("""
+                    SELECT p.name FROM players p
+                    JOIN logbook_squadron_members lsm ON p.ucid = lsm.player_ucid
+                    WHERE lsm.squadron_id = %s AND lsm.player_ucid = %s
+                """, (squadron, member))
                 player_row = await cursor.fetchone()
 
                 if not player_row:
                     # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(_('Member not found!'), ephemeral=True)
+                    await interaction.response.send_message(_('Member not found in squadron!'), ephemeral=True)
                     return
 
-                # Update rank
+                # Update pilot's global rank in logbook_pilots (uses UPSERT)
                 await conn.execute("""
-                    UPDATE logbook_squadron_members
-                    SET rank = %s
-                    WHERE squadron_id = %s AND player_ucid = %s
-                """, (rank, squadron, member))
+                    INSERT INTO logbook_pilots (player_ucid, rank)
+                    VALUES (%s, %s)
+                    ON CONFLICT (player_ucid) DO UPDATE SET rank = EXCLUDED.rank
+                """, (member, rank))
 
         embed = discord.Embed(
             title=_('Rank Updated'),
