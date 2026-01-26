@@ -18,15 +18,36 @@ _ = get_translation(__name__.split('.')[1])
 # ==================== AUTOCOMPLETE FUNCTIONS ====================
 
 async def logistics_task_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    """Autocomplete for logistics tasks."""
+    """Autocomplete for logistics tasks, filtered by server if available."""
     try:
+        # Try to get server context for filtering
+        server_name = None
+        if hasattr(interaction.namespace, 'server') and interaction.namespace.server:
+            try:
+                server: Server = await utils.ServerTransformer().transform(
+                    interaction, interaction.namespace.server
+                )
+                if server:
+                    server_name = server.name
+            except Exception:
+                pass  # Fall back to showing all servers
+
         async with interaction.client.apool.connection() as conn:
-            cursor = await conn.execute("""
-                SELECT t.id, t.cargo_type, t.destination_name, t.status
-                FROM logistics_tasks t
-                WHERE (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
-                ORDER BY t.created_at DESC LIMIT 25
-            """, ('%' + current + '%', '%' + current + '%', '%' + current + '%'))
+            if server_name:
+                cursor = await conn.execute("""
+                    SELECT t.id, t.cargo_type, t.destination_name, t.status
+                    FROM logistics_tasks t
+                    WHERE t.server_name = %s
+                    AND (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
+                    ORDER BY t.created_at DESC LIMIT 25
+                """, (server_name, '%' + current + '%', '%' + current + '%', '%' + current + '%'))
+            else:
+                cursor = await conn.execute("""
+                    SELECT t.id, t.cargo_type, t.destination_name, t.status
+                    FROM logistics_tasks t
+                    WHERE (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
+                    ORDER BY t.created_at DESC LIMIT 25
+                """, ('%' + current + '%', '%' + current + '%', '%' + current + '%'))
             return [
                 app_commands.Choice(
                     name=f"#{row[0]} - {row[1][:30]} -> {row[2]} ({row[3]})",
@@ -40,17 +61,39 @@ async def logistics_task_autocomplete(interaction: discord.Interaction, current:
 
 
 async def pending_task_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    """Autocomplete for pending logistics tasks."""
+    """Autocomplete for pending logistics tasks, filtered by server if available."""
     try:
+        # Try to get server context for filtering
+        server_name = None
+        if hasattr(interaction.namespace, 'server') and interaction.namespace.server:
+            try:
+                server: Server = await utils.ServerTransformer().transform(
+                    interaction, interaction.namespace.server
+                )
+                if server:
+                    server_name = server.name
+            except Exception:
+                pass
+
         async with interaction.client.apool.connection() as conn:
-            cursor = await conn.execute("""
-                SELECT t.id, t.cargo_type, t.destination_name, p.name
-                FROM logistics_tasks t
-                JOIN players p ON t.created_by_ucid = p.ucid
-                WHERE t.status = 'pending'
-                AND (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
-                ORDER BY t.created_at ASC LIMIT 25
-            """, ('%' + current + '%', '%' + current + '%', '%' + current + '%'))
+            if server_name:
+                cursor = await conn.execute("""
+                    SELECT t.id, t.cargo_type, t.destination_name, p.name
+                    FROM logistics_tasks t
+                    JOIN players p ON t.created_by_ucid = p.ucid
+                    WHERE t.server_name = %s AND t.status = 'pending'
+                    AND (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
+                    ORDER BY t.created_at ASC LIMIT 25
+                """, (server_name, '%' + current + '%', '%' + current + '%', '%' + current + '%'))
+            else:
+                cursor = await conn.execute("""
+                    SELECT t.id, t.cargo_type, t.destination_name, p.name
+                    FROM logistics_tasks t
+                    JOIN players p ON t.created_by_ucid = p.ucid
+                    WHERE t.status = 'pending'
+                    AND (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
+                    ORDER BY t.created_at ASC LIMIT 25
+                """, ('%' + current + '%', '%' + current + '%', '%' + current + '%'))
             return [
                 app_commands.Choice(
                     name=f"#{row[0]} - {row[1][:25]} (by {row[3]})",
@@ -64,16 +107,37 @@ async def pending_task_autocomplete(interaction: discord.Interaction, current: s
 
 
 async def approved_task_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    """Autocomplete for approved (unassigned) logistics tasks."""
+    """Autocomplete for approved (unassigned) logistics tasks, filtered by server if available."""
     try:
+        # Try to get server context for filtering
+        server_name = None
+        if hasattr(interaction.namespace, 'server') and interaction.namespace.server:
+            try:
+                server: Server = await utils.ServerTransformer().transform(
+                    interaction, interaction.namespace.server
+                )
+                if server:
+                    server_name = server.name
+            except Exception:
+                pass
+
         async with interaction.client.apool.connection() as conn:
-            cursor = await conn.execute("""
-                SELECT t.id, t.cargo_type, t.source_name, t.destination_name
-                FROM logistics_tasks t
-                WHERE t.status = 'approved' AND t.assigned_ucid IS NULL
-                AND (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
-                ORDER BY t.created_at DESC LIMIT 25
-            """, ('%' + current + '%', '%' + current + '%', '%' + current + '%'))
+            if server_name:
+                cursor = await conn.execute("""
+                    SELECT t.id, t.cargo_type, t.source_name, t.destination_name
+                    FROM logistics_tasks t
+                    WHERE t.server_name = %s AND t.status = 'approved' AND t.assigned_ucid IS NULL
+                    AND (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
+                    ORDER BY t.created_at DESC LIMIT 25
+                """, (server_name, '%' + current + '%', '%' + current + '%', '%' + current + '%'))
+            else:
+                cursor = await conn.execute("""
+                    SELECT t.id, t.cargo_type, t.source_name, t.destination_name
+                    FROM logistics_tasks t
+                    WHERE t.status = 'approved' AND t.assigned_ucid IS NULL
+                    AND (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
+                    ORDER BY t.created_at DESC LIMIT 25
+                """, ('%' + current + '%', '%' + current + '%', '%' + current + '%'))
             return [
                 app_commands.Choice(
                     name=f"#{row[0]} - {row[1][:20]} ({row[2]} -> {row[3]})",
