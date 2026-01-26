@@ -52,6 +52,30 @@ end
 function dcsbot.createLogisticsMarkers(task_id, coalitionNum, source_name, source_pos, dest_name, dest_pos, cargo_type, pilot_name, deadline, waypoints_json, channel, timeout)
     env.info('DCSServerBot - Logistics: createLogisticsMarkers(' .. task_id .. ')')
 
+    -- Validate position data to prevent crashes from nil coordinates
+    if not source_pos or source_pos.x == nil or source_pos.z == nil then
+        env.error('DCSServerBot - Logistics: Invalid source_pos for task ' .. task_id)
+        local msg = {
+            command = "createLogisticsMarkers",
+            task_id = task_id,
+            success = false,
+            error = "Invalid source position"
+        }
+        dcsbot.sendBotTable(msg, channel)
+        return
+    end
+    if not dest_pos or dest_pos.x == nil or dest_pos.z == nil then
+        env.error('DCSServerBot - Logistics: Invalid dest_pos for task ' .. task_id)
+        local msg = {
+            command = "createLogisticsMarkers",
+            task_id = task_id,
+            success = false,
+            error = "Invalid destination position"
+        }
+        dcsbot.sendBotTable(msg, channel)
+        return
+    end
+
     -- Remove any existing markers for this task first
     dcsbot.removeLogisticsMarkersInternal(task_id)
 
