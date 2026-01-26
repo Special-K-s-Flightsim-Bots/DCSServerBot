@@ -32,6 +32,14 @@ schema;element_schema:
         timeout_hours: {type: int, nullable: true}
         stale_days: {type: int, nullable: true}
         max_per_player: {type: int, nullable: true}
+    permissions:
+      type: map
+      nullable: true
+      mapping:
+        create: {type: seq, nullable: true, sequence: [{type: str}]}
+        approve: {type: seq, nullable: true, sequence: [{type: str}]}
+        assign: {type: seq, nullable: true, sequence: [{type: str}]}
+        cancel: {type: seq, nullable: true, sequence: [{type: str}]}
 
 type: map
 func: check_main_structure
