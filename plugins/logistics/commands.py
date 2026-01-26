@@ -331,15 +331,17 @@ class Logistics(Plugin[LogisticsEventListener]):
     @logistics.command(description=_('List logistics tasks'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
+    @app_commands.describe(server='Server to list tasks for')
+    @app_commands.describe(status='Filter by task status')
     async def list(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer] | None = None,
+                   server: app_commands.Transform[Server, utils.ServerTransformer],
                    status: Literal['all', 'pending', 'approved', 'assigned', 'completed'] = 'approved'):
         """
         List logistics tasks with optional filtering.
 
         Parameters
         ----------
-        server: Filter by server (optional)
+        server: Server to list tasks for
         status: Filter by status
         """
         ephemeral = utils.get_ephemeral(interaction)
@@ -347,19 +349,13 @@ class Logistics(Plugin[LogisticsEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
 
         async with self.apool.connection() as conn:
+            # Server is required for multi-server support
             if status == 'all':
-                status_filter = ""
-                params = []
+                status_filter = "WHERE t.server_name = %s"
+                params = [server.name]
             else:
-                status_filter = "WHERE t.status = %s"
-                params = [status]
-
-            if server:
-                if status_filter:
-                    status_filter += " AND t.server_name = %s"
-                else:
-                    status_filter = "WHERE t.server_name = %s"
-                params.append(server.name)
+                status_filter = "WHERE t.status = %s AND t.server_name = %s"
+                params = [status, server.name]
 
             cursor = await conn.execute(f"""
                 SELECT t.id, t.cargo_type, t.source_name, t.destination_name,
