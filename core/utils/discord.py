@@ -997,7 +997,10 @@ class ServerTransformer(app_commands.Transformer):
             server: Server | None = interaction.client.get_server(interaction)
             is_admin = self.is_admin(interaction)
 
-            if (not current and server and server.status != Status.UNREGISTERED and
+            # Only return single server if there's truly only one server available
+            # Don't early-return based on channel mapping when multiple servers exist
+            if (not current and server and len(interaction.client.servers) == 1 and
+                    server.status != Status.UNREGISTERED and
                     (not self.status or server.status in self.status)):
                 return [app_commands.Choice(name=server.name, value=server.name)]
             choices: list[app_commands.Choice[str]] = [
