@@ -2,6 +2,7 @@ local base 		= _G
 local Terrain   = base.require('terrain')
 local UC   		= base.require("utils_common")
 local Weather   = base.require('Weather')
+local magvar    = base.require("magvar")
 local dcsbot	= base.dcsbot
 local config	= base.require("DCSServerBotConfig")
 local utils 	= base.require("DCSServerBotUtils")
@@ -178,6 +179,8 @@ function dcsbot.getAirbases(json)
             airbase.id = airdrome.id
             airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(airdrome.reference_point.x, airdrome.reference_point.y)
             airbase.alt = Terrain.GetHeight(airdrome.reference_point.x, airdrome.reference_point.y)
+            airbase.mgrs =  Terrain.GetMGRScoordinates(airdrome.reference_point.x, airdrome.reference_point.y)
+            airbase.magVar = UC.toDegrees(magvar.get_mag_decl(airbase.lat, airbase.lng), true)
             airbase.position = {}
             airbase.position.x = airdrome.reference_point.x
             airbase.position.y = airbase.alt
