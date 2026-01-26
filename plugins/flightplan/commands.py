@@ -466,15 +466,38 @@ async def waypoint_autocomplete(interaction: discord.Interaction, current: str) 
 
 
 async def nav_fix_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    """Autocomplete for navigation fixes."""
+    """Autocomplete for navigation fixes, filtered by server's theater if available."""
     try:
+        # Try to get server context for theater filtering
+        theater = None
+        if hasattr(interaction.namespace, 'server') and interaction.namespace.server:
+            try:
+                server: Server = await utils.ServerTransformer().transform(
+                    interaction, interaction.namespace.server
+                )
+                if server and server.current_mission:
+                    theater = get_theater_name(server.current_mission.map)
+            except Exception:
+                pass  # Fall back to showing all theaters
+
         async with interaction.client.apool.connection() as conn:
-            cursor = await conn.execute("""
-                SELECT identifier, name, fix_type, map_theater
-                FROM flightplan_navigation_fixes
-                WHERE identifier ILIKE %s OR name ILIKE %s
-                ORDER BY identifier LIMIT 25
-            """, ('%' + current + '%', '%' + current + '%'))
+            if theater:
+                # Filter by server's theater
+                cursor = await conn.execute("""
+                    SELECT identifier, name, fix_type, map_theater
+                    FROM flightplan_navigation_fixes
+                    WHERE map_theater = %s AND (identifier ILIKE %s OR name ILIKE %s)
+                    ORDER BY identifier LIMIT 25
+                """, (theater, '%' + current + '%', '%' + current + '%'))
+            else:
+                # No server context - show all theaters
+                cursor = await conn.execute("""
+                    SELECT identifier, name, fix_type, map_theater
+                    FROM flightplan_navigation_fixes
+                    WHERE identifier ILIKE %s OR name ILIKE %s
+                    ORDER BY identifier LIMIT 25
+                """, ('%' + current + '%', '%' + current + '%'))
+
             return [
                 app_commands.Choice(
                     name=f"{row[0]} - {row[1] or row[2]} ({row[3]})",

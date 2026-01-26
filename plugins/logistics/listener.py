@@ -984,18 +984,30 @@ class LogisticsEventListener(EventListener["Logistics"]):
         if isinstance(dest_pos, str):
             dest_pos = json.loads(dest_pos)
 
+        # Validate coordinates - must have non-None x and z values
+        # Note: .get('x', 0) returns None if key exists with None value, not 0
+        source_x = source_pos.get('x')
+        source_z = source_pos.get('z')
+        dest_x = dest_pos.get('x')
+        dest_z = dest_pos.get('z')
+
+        if source_x is None or source_z is None or dest_x is None or dest_z is None:
+            log.warning(f"Skipping markers for task {task['id']} - invalid coordinates: "
+                        f"source=({source_x}, {source_z}), dest=({dest_x}, {dest_z})")
+            return
+
         deadline_str = task['deadline'].strftime('%H:%MZ') if task.get('deadline') else ""
 
         await server.send_to_dcs({
             "command": "createLogisticsMarkers",
             "task_id": task['id'],
             "coalition": task['coalition'],
-            "source_name": task['source_name'],
-            "source_x": source_pos.get('x', 0),
-            "source_z": source_pos.get('z', 0),
-            "dest_name": task['destination_name'],
-            "dest_x": dest_pos.get('x', 0),
-            "dest_z": dest_pos.get('z', 0),
+            "source_name": task['source_name'] or "Unknown",
+            "source_x": source_x,
+            "source_z": source_z,
+            "dest_name": task['destination_name'] or "Unknown",
+            "dest_x": dest_x,
+            "dest_z": dest_z,
             "cargo_type": task['cargo_type'],
             "pilot_name": task.get('assigned_name') or "",
             "deadline": deadline_str,
