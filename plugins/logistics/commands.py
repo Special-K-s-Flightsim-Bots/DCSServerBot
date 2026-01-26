@@ -188,6 +188,35 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     # Warehouse commands are now under /logistics to avoid conflict with mission plugin's /warehouse
 
+    # Default permission roles (can be overridden in config)
+    DEFAULT_PERMISSIONS = {
+        'create': ['DCS Admin'],           # Create tasks (auto-approved)
+        'approve': ['DCS Admin'],          # Approve/deny pending tasks
+        'assign': ['DCS Admin'],           # Assign tasks to pilots
+        'cancel': ['DCS Admin'],           # Cancel any task
+    }
+
+    def _check_permission(self, interaction: discord.Interaction, server: Server, permission: str) -> bool:
+        """
+        Check if user has permission based on config or defaults.
+
+        Config format in logistics.yaml:
+            permissions:
+              create:
+                - DCS Admin
+                - Logistics Officer
+              approve:
+                - DCS Admin
+        """
+        config = self.get_config(server)
+        permissions = config.get('permissions', {})
+
+        # Get roles for this permission (from config or defaults)
+        allowed_roles = permissions.get(permission, self.DEFAULT_PERMISSIONS.get(permission, ['DCS Admin']))
+
+        # Check if user has any of the allowed roles
+        return utils.check_roles(allowed_roles, interaction.user)
+
     # ==================== LOGISTICS COMMANDS ====================
 
     @logistics.command(description=_('Create a new logistics task'))
@@ -221,6 +250,14 @@ class Logistics(Plugin[LogisticsEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
+
+        # Check configurable permission
+        if not self._check_permission(interaction, server, 'create'):
+            await interaction.followup.send(
+                "You don't have permission to create logistics tasks. Contact an admin.",
+                ephemeral=True
+            )
+            return
 
         # Get airbase names from indices
         if not server.current_mission or not server.current_mission.airbases:
@@ -511,6 +548,15 @@ class Logistics(Plugin[LogisticsEventListener]):
                     await interaction.followup.send(f"Task #{task_id} not found.", ephemeral=True)
                     return
 
+                # Check configurable permission
+                server = self.bot.servers.get(task[3])  # task[3] is server_name
+                if server and not self._check_permission(interaction, server, 'approve'):
+                    await interaction.followup.send(
+                        "You don't have permission to approve logistics tasks. Contact an admin.",
+                        ephemeral=True
+                    )
+                    return
+
                 if task[1] != 'pending':
                     await interaction.followup.send(f"Task #{task_id} is not pending (status: {task[1]}).", ephemeral=True)
                     return
@@ -596,6 +642,25 @@ class Logistics(Plugin[LogisticsEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
 
         async with self.apool.connection() as conn:
+            # First fetch task to check permission
+            cursor = await conn.execute(
+                "SELECT server_name FROM logistics_tasks WHERE id = %s AND status = 'pending'",
+                (task_id,)
+            )
+            task = await cursor.fetchone()
+            if not task:
+                await interaction.followup.send(f"Task #{task_id} not found or not pending.", ephemeral=True)
+                return
+
+            # Check configurable permission
+            server = self.bot.servers.get(task[0])
+            if server and not self._check_permission(interaction, server, 'approve'):
+                await interaction.followup.send(
+                    "You don't have permission to deny logistics tasks. Contact an admin.",
+                    ephemeral=True
+                )
+                return
+
             async with conn.transaction():
                 now = datetime.now(timezone.utc)
 
@@ -636,19 +701,28 @@ class Logistics(Plugin[LogisticsEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
 
         async with self.apool.connection() as conn:
+            # Get task for server info, permission check, and publishing
+            cursor = await conn.execute("""
+                SELECT server_name, cargo_type, source_name, destination_name, priority,
+                       coalition, deadline, created_at, discord_message_id
+                FROM logistics_tasks WHERE id = %s AND status != 'completed'
+            """, (task_id,))
+            task = await cursor.fetchone()
+
+            if not task:
+                await interaction.followup.send(f"Task #{task_id} not found or already completed.", ephemeral=True)
+                return
+
+            # Check configurable permission
+            server = self.bot.servers.get(task[0])
+            if server and not self._check_permission(interaction, server, 'cancel'):
+                await interaction.followup.send(
+                    "You don't have permission to cancel logistics tasks. Contact an admin.",
+                    ephemeral=True
+                )
+                return
+
             async with conn.transaction():
-                # Get task for server info and publishing
-                cursor = await conn.execute("""
-                    SELECT server_name, cargo_type, source_name, destination_name, priority,
-                           coalition, deadline, created_at, discord_message_id
-                    FROM logistics_tasks WHERE id = %s AND status != 'completed'
-                """, (task_id,))
-                task = await cursor.fetchone()
-
-                if not task:
-                    await interaction.followup.send(f"Task #{task_id} not found or already completed.", ephemeral=True)
-                    return
-
                 now = datetime.now(timezone.utc)
 
                 await conn.execute("""
@@ -688,7 +762,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     @logistics.command(description=_('Assign a logistics task to a pilot'))
     @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
+    @utils.app_has_role('DCS')
     @app_commands.autocomplete(task_id=approved_task_autocomplete, player_ucid=player_autocomplete)
     async def assign(self, interaction: discord.Interaction,
                      task_id: int,
@@ -719,6 +793,15 @@ class Logistics(Plugin[LogisticsEventListener]):
 
                 if not task:
                     await interaction.followup.send(f"Task #{task_id} not found.", ephemeral=True)
+                    return
+
+                # Check configurable permission
+                server = self.bot.servers.get(task[0])
+                if server and not self._check_permission(interaction, server, 'assign'):
+                    await interaction.followup.send(
+                        "You don't have permission to assign logistics tasks. Contact an admin.",
+                        ephemeral=True
+                    )
                     return
 
                 if task[11] != 'approved':
