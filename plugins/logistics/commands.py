@@ -186,8 +186,7 @@ class Logistics(Plugin[LogisticsEventListener]):
     # Command group "/logistics"
     logistics = Group(name="logistics", description=_("Logistics mission management"))
 
-    # Command group "/warehouse"
-    warehouse = Group(name="warehouse", description=_("Warehouse inventory commands"))
+    # Warehouse commands are now under /logistics to avoid conflict with mission plugin's /warehouse
 
     # ==================== LOGISTICS COMMANDS ====================
 
@@ -845,13 +844,13 @@ class Logistics(Plugin[LogisticsEventListener]):
 
     # ==================== WAREHOUSE COMMANDS ====================
 
-    @warehouse.command(description=_('Query warehouse inventory at a location'))
+    @logistics.command(name='warehouse-status', description=_('Query warehouse inventory at a location'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     @app_commands.rename(airbase_idx='airbase')
     @app_commands.describe(airbase_idx='Airbase or carrier to query')
     @app_commands.autocomplete(airbase_idx=utils.airbase_autocomplete)
-    async def status(self, interaction: discord.Interaction,
+    async def warehouse_status(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                      airbase_idx: int,
                      category: Literal['all', 'aircraft', 'weapon', 'liquids'] = 'all'):
@@ -953,14 +952,14 @@ class Logistics(Plugin[LogisticsEventListener]):
 
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
-    @warehouse.command(description=_('Compare inventory between two locations'))
+    @logistics.command(name='warehouse-compare', description=_('Compare inventory between two locations'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     @app_commands.rename(source_idx='source', dest_idx='destination')
     @app_commands.describe(source_idx='First location to compare')
     @app_commands.describe(dest_idx='Second location to compare')
     @app_commands.autocomplete(source_idx=utils.airbase_autocomplete, dest_idx=utils.airbase_autocomplete)
-    async def compare(self, interaction: discord.Interaction,
+    async def warehouse_compare(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                       source_idx: int,
                       dest_idx: int):
