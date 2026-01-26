@@ -66,13 +66,3 @@ function dcsbot.checkDeliveryProximity(json)
         utils.basicSerialize(json.channel) .. ')'
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
 end
-
--- Send popup message to player
-function dcsbot.logisticsPopup(json)
-    log.write('DCSServerBot', log.DEBUG, 'Logistics: logisticsPopup()')
-    local script = 'dcsbot.logisticsPopup(' ..
-        json.coalition .. ', ' ..
-        utils.basicSerialize(json.message) .. ', ' ..
-        (json.time or 10) .. ')'
-    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
-end

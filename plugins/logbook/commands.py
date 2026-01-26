@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from discord import app_commands
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Optional
+from typing import Optional, Any
 
 from .listener import LogbookEventListener
 from .utils.ribbon import create_ribbon_rack, HAS_IMAGING
@@ -339,7 +339,7 @@ class Logbook(Plugin[LogbookEventListener]):
                     FROM logbook_squadron_members m
                     JOIN logbook_squadrons s ON m.squadron_id = s.id
                     WHERE m.player_ucid = %s
-                    ORDER BY m.joined_at ASC
+                    ORDER BY m.joined_at
                 """, (ucid,))
                 squadrons = await cursor.fetchall()
 
@@ -597,7 +597,7 @@ class Logbook(Plugin[LogbookEventListener]):
                     LEFT JOIN logbook_pilots lp ON sm.player_ucid = lp.player_ucid
                     LEFT JOIN pilot_logbook_stats pls ON sm.player_ucid = pls.ucid
                     WHERE sm.squadron_id = %s
-                    ORDER BY lp.rank NULLS LAST, sm.joined_at ASC
+                    ORDER BY lp.rank NULLS LAST, sm.joined_at
                 """, (squadron,))
                 members = await cursor.fetchall()
 
@@ -1437,7 +1437,6 @@ class Logbook(Plugin[LogbookEventListener]):
 
                     now = datetime.now(timezone.utc)
                     for qual in quals:
-                        status = ""
                         if qual.get('expires_at'):
                             expires_at = qual['expires_at']
                             if expires_at.tzinfo is None:
@@ -1523,7 +1522,7 @@ class Logbook(Plugin[LogbookEventListener]):
             LEFT JOIN logbook_squadrons s ON s.id = sm.squadron_id
             WHERE pq.expires_at IS NOT NULL AND pq.expires_at <= %s
         """
-        params = [cutoff_date]
+        params: list[Any] = [cutoff_date]
 
         if squadron is not None:
             query += " AND sm.squadron_id = %s"
@@ -1719,10 +1718,11 @@ class Logbook(Plugin[LogbookEventListener]):
         if image_url:
             embed.set_thumbnail(url=image_url)
 
-        # noinspection PyUnresolvedReferences
         if file:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(embed=embed, file=file, ephemeral=ephemeral)
         else:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
         await self.bot.audit(f'created award {name}', user=interaction.user)
 
@@ -1771,10 +1771,11 @@ class Logbook(Plugin[LogbookEventListener]):
         if row.get('image_url'):
             embed.set_thumbnail(url=row['image_url'])
 
-        # noinspection PyUnresolvedReferences
         if file:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(embed=embed, file=file, ephemeral=ephemeral)
         else:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     @award.command(name='grant', description=_('Grant an award to a pilot'))

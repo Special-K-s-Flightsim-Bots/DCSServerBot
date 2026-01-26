@@ -83,7 +83,7 @@ async def pending_task_autocomplete(interaction: discord.Interaction, current: s
                     JOIN players p ON t.created_by_ucid = p.ucid
                     WHERE t.server_name = %s AND t.status = 'pending'
                     AND (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
-                    ORDER BY t.created_at ASC LIMIT 25
+                    ORDER BY t.created_at LIMIT 25
                 """, (server_name, '%' + current + '%', '%' + current + '%', '%' + current + '%'))
             else:
                 cursor = await conn.execute("""
@@ -92,7 +92,7 @@ async def pending_task_autocomplete(interaction: discord.Interaction, current: s
                     JOIN players p ON t.created_by_ucid = p.ucid
                     WHERE t.status = 'pending'
                     AND (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
-                    ORDER BY t.created_at ASC LIMIT 25
+                    ORDER BY t.created_at LIMIT 25
                 """, ('%' + current + '%', '%' + current + '%', '%' + current + '%'))
             return [
                 app_commands.Choice(
@@ -379,7 +379,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
         Parameters
         ----------
-        server: Server to list tasks for
+        _server: Server to list tasks for
         status: Filter by status
         """
         ephemeral = utils.get_ephemeral(interaction)
@@ -981,7 +981,7 @@ class Logistics(Plugin[LogisticsEventListener]):
 
         embed = discord.Embed(
             title=f"Warehouse: {airbase}",
-            description=f"Server: {server.name}",
+            description=f"Server: {_server.name}",
             color=discord.Color.blue()
         )
 

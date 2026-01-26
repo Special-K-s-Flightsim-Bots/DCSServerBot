@@ -9,10 +9,10 @@ from datetime import datetime, timedelta, timezone
 from discord import app_commands
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Literal, Optional
+from typing import Optional
 
 from .listener import FlightPlanEventListener
-from .utils import parse_waypoint_input, WaypointType, calculate_flight_plan_eta
+from .utils import parse_waypoint_input, calculate_flight_plan_eta
 
 
 # Theater bounding boxes for OpenAIP queries (minLon, minLat, maxLon, maxLat)

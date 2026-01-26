@@ -176,7 +176,7 @@ function dcsbot.createLogisticsMarkers(task_id, coalitionNum, source_name, sourc
     -- Schedule auto-removal if timeout is set
     if timeout and timeout > 0 then
         local tid = task_id  -- capture for closure
-        timer.scheduleFunction(function(args, time)
+        timer.scheduleFunction(function(_args, _time)
             dcsbot.removeLogisticsMarkersInternal(tid)
             env.info('DCSServerBot - Logistics: Auto-removed markers for task ' .. tid .. ' after timeout')
             return nil
@@ -332,12 +332,3 @@ function dcsbot.checkDeliveryProximity(unit_name, task_id, dest_pos, threshold, 
 
     dcsbot.sendBotTable(msg, channel)
 end
-
--- Send popup message to coalition
-function dcsbot.logisticsPopup(coalitionNum, message, time)
-    env.info('DCSServerBot - Logistics: logisticsPopup()')
-    local coal = getCoalition(coalitionNum)
-    trigger.action.outTextForCoalition(coal, message, time or 10)
-end
-
-env.info("DCSServerBot - Logistics: mission.lua loaded.")

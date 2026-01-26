@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     from .commands import FlightPlan
 
 _ = get_translation(__name__.split('.')[1])
-log = logging.getLogger(__name__)
 
 
 # ==================== AIRBASE NAME MATCHING ====================
@@ -170,7 +169,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 "timeout": timeout
             }
 
-            await server.send_to_dcs(data)
+            asyncio.create_task(server.send_to_dcs(data))
             return True
 
         except Exception as e:
@@ -184,7 +183,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 "command": "removeFlightPlanMarkers",
                 "plan_id": plan_id
             }
-            await server.send_to_dcs(data)
+            asyncio.create_task(server.send_to_dcs(data))
 
             # Clean up marker records from database
             async with self.apool.connection() as conn:
@@ -397,15 +396,6 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
     @event(name="onSimulationStart")
     async def on_simulation_start(self, server: Server, _data: dict) -> None:
         """Handle mission start - cancel stale plans and recreate active markers."""
-        await self._handle_simulation_start(server)
-
-    @event(name="flightplanSimulationStart")
-    async def on_flightplan_simulation_start(self, server: Server, _data: dict) -> None:
-        """Handle custom flightplan simulation start event from Lua callback."""
-        await self._handle_simulation_start(server)
-
-    async def _handle_simulation_start(self, server: Server) -> None:
-        """Common handler for simulation start - cancel stale plans and recreate markers."""
         config = self.get_config(server)
 
         # Cancel stale plans if configured
@@ -489,11 +479,11 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
             await self.publish_flight_plan(fp, 'activated')
 
         # Notify player
-        await player.sendChatMessage(
+        asyncio.create_task(player.sendChatMessage(
             _("Flight plan #{} activated. Route: {} -> {}").format(
                 fp['id'], fp.get('departure', '?'), fp.get('destination', '?')
             )
-        )
+        ))
 
         # Refresh F10 menu
         group_id = initiator.get('group', {}).get('id_')
@@ -595,15 +585,15 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         await self.publish_flight_plan(fp, 'completed')
 
         # Notify player
-        await player.sendChatMessage(
+        asyncio.create_task(player.sendChatMessage(
             _("Flight plan #{} completed. Welcome to {}.").format(fp['id'], landing_location)
-        )
-        await player.sendPopupMessage(
+        ))
+        asyncio.create_task(player.sendPopupMessage(
             _("FLIGHT COMPLETE\n\nPlan #{} logged.\n{} -> {}").format(
                 fp['id'], fp.get('departure', '?'), fp.get('destination', '?')
             ),
             15
-        )
+        ))
 
         # Refresh F10 menu
         group_id = initiator.get('group', {}).get('id_')
@@ -619,14 +609,14 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         threshold: int
     ) -> None:
         """Request proximity check from DCS for flight plan completion."""
-        await server.send_to_dcs({
+        asyncio.create_task(server.send_to_dcs({
             "command": "checkFlightPlanProximity",
             "plan_id": plan_id,
             "unit_name": unit_name,
             "dest_x": dest_pos.get('x', 0),
             "dest_z": dest_pos.get('z', 0),
             "threshold": threshold
-        })
+        }))
 
     @event(name="createFlightPlanMarkers")
     async def on_create_markers(self, server: Server, data: dict) -> None:
@@ -763,7 +753,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
             f"  {self.prefix}cancelfp [id] - Cancel a flight plan\n"
             f"  {self.prefix}plotfp [id] - Plot plan on F10 map (30s)"
         )
-        await player.sendChatMessage(msg)
+        asyncio.create_task(player.sendChatMessage(msg))
 
     @chat_command(name="flightplan", aliases=["fp"], help=_("Show your active flight plan"))
     async def cmd_flightplan(self, server: Server, player: Player, params: list[str]) -> None:
@@ -778,7 +768,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 fp = await cursor.fetchone()
 
         if not fp:
-            await player.sendChatMessage(_("You have no active flight plan."))
+            asyncio.create_task(player.sendChatMessage(_("You have no active flight plan.")))
             return
 
         status = fp['status'].upper()
@@ -799,7 +789,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
             if isinstance(eta, datetime):
                 msg += f" | ETA {format_time_utc(eta, '%H:%M')}"
 
-        await player.sendChatMessage(msg)
+        asyncio.create_task(player.sendChatMessage(msg))
 
     @chat_command(name="plotfp", help=_("Plot flight plan on F10 map for 30 seconds"))
     async def cmd_plotfp(self, server: Server, player: Player, params: list[str]) -> None:
@@ -810,7 +800,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
             try:
                 plan_id = int(params[0])
             except ValueError:
-                await player.sendChatMessage(_("Usage: -plotfp [plan_id]"))
+                asyncio.create_task(player.sendChatMessage(_("Usage: -plotfp [plan_id]")))
                 return
 
         async with self.apool.connection() as conn:
@@ -831,7 +821,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 fp = await cursor.fetchone()
 
         if not fp:
-            await player.sendChatMessage(_("Flight plan not found."))
+            asyncio.create_task(player.sendChatMessage(_("Flight plan not found.")))
             return
 
         # Get config for timeout
@@ -839,17 +829,17 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         timeout = config.get('marker_timeout', 30)
 
         if await self.create_flight_plan_markers(server, fp, timeout=timeout):
-            await player.sendChatMessage(
+            asyncio.create_task(player.sendChatMessage(
                 _("Flight plan #{} plotted on F10 map for {} seconds.").format(fp['id'], timeout)
-            )
+            ))
         else:
-            await player.sendChatMessage(_("Could not plot flight plan. Missing position data."))
+            asyncio.create_task(player.sendChatMessage(_("Could not plot flight plan. Missing position data.")))
 
     @chat_command(name="fileplan", help=_("Quick file a flight plan: -fileplan <DEP> <DEST> [aircraft]"))
     async def cmd_fileplan(self, server: Server, player: Player, params: list[str]) -> None:
         """Quick file a flight plan from in-game."""
         if len(params) < 2:
-            await player.sendChatMessage(_("Usage: -fileplan <departure> <destination> [aircraft]"))
+            asyncio.create_task(player.sendChatMessage(_("Usage: -fileplan <departure> <destination> [aircraft]")))
             return
 
         departure = params[0]
@@ -908,11 +898,11 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 }
                 await self.publish_flight_plan(fp_data, 'filed')
 
-        await player.sendChatMessage(
+        asyncio.create_task(player.sendChatMessage(
             _("Flight plan #{} filed: {} -> {} ({})").format(
                 plan_id, dep_wp.name, dest_wp.name, aircraft
             )
-        )
+        ))
 
     @chat_command(name="activatefp", help=_("Activate your filed flight plan"))
     async def cmd_activatefp(self, server: Server, player: Player, params: list[str]) -> None:
@@ -923,7 +913,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
             try:
                 plan_id = int(params[0])
             except ValueError:
-                await player.sendChatMessage(_("Usage: -activatefp [plan_id]"))
+                asyncio.create_task(player.sendChatMessage(_("Usage: -activatefp [plan_id]")))
                 return
 
         async with self.apool.connection() as conn:
@@ -943,13 +933,13 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 fp = await cursor.fetchone()
 
                 if not fp:
-                    await player.sendChatMessage(_("No filed flight plan found."))
+                    asyncio.create_task(player.sendChatMessage(_("No filed flight plan found.")))
                     return
 
                 if fp['status'] != 'filed':
-                    await player.sendChatMessage(
+                    asyncio.create_task(player.sendChatMessage(
                         _("Flight plan #{} is already {}.").format(fp['id'], fp['status'])
-                    )
+                    ))
                     return
 
                 now = datetime.now(timezone.utc)
@@ -966,7 +956,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         if config.get('publish_on_activate', True):
             await self.publish_flight_plan(fp, 'activated')
 
-        await player.sendChatMessage(_("Flight plan #{} activated.").format(fp['id']))
+        asyncio.create_task(player.sendChatMessage(_("Flight plan #{} activated.").format(fp['id'])))
 
     @chat_command(name="completefp", help=_("Complete your active flight plan"))
     async def cmd_completefp(self, server: Server, player: Player, params: list[str]) -> None:
@@ -981,7 +971,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 fp = await cursor.fetchone()
 
                 if not fp:
-                    await player.sendChatMessage(_("No active flight plan found."))
+                    asyncio.create_task(player.sendChatMessage(_("No active flight plan found.")))
                     return
 
                 now = datetime.now(timezone.utc)
@@ -996,7 +986,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         # Update Discord
         await self.publish_flight_plan(fp, 'completed')
 
-        await player.sendChatMessage(_("Flight plan #{} completed.").format(fp['id']))
+        asyncio.create_task(player.sendChatMessage(_("Flight plan #{} completed.").format(fp['id'])))
 
     @chat_command(name="cancelfp", help=_("Cancel your flight plan"))
     async def cmd_cancelfp(self, server: Server, player: Player, params: list[str]) -> None:
@@ -1011,7 +1001,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 fp = await cursor.fetchone()
 
                 if not fp:
-                    await player.sendChatMessage(_("No active flight plan found."))
+                    asyncio.create_task(player.sendChatMessage(_("No active flight plan found.")))
                     return
 
                 await conn.execute(
@@ -1025,7 +1015,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         # Update Discord
         await self.publish_flight_plan(fp, 'cancelled')
 
-        await player.sendChatMessage(_("Flight plan #{} cancelled.").format(fp['id']))
+        asyncio.create_task(player.sendChatMessage(_("Flight plan #{} cancelled.").format(fp['id'])))
 
     # ==================== F10 MENU METHODS ====================
 
@@ -1155,19 +1145,19 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
             })
 
         # Send menu to DCS (group_id already validated at start of function)
-        await server.send_to_dcs({
+        asyncio.create_task(server.send_to_dcs({
             "command": "createMenu",
             "playerID": player.id,
             "groupID": group_id,
             "menu": menu
-        })
+        }))
 
     async def _menu_view_plans(self, server: Server, player: Player):
         """Handle 'View Active Plans' menu option."""
         plans = await self._get_visible_plans(server.name, player.side.value if player.side else None)
 
         if not plans:
-            await player.sendPopupMessage(_("No active flight plans."), 10)
+            asyncio.create_task(player.sendPopupMessage(_("No active flight plans."), 10))
             return
 
         msg = "ACTIVE FLIGHT PLANS\n\n"
@@ -1186,7 +1176,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         if len(plans) > 5:
             msg += f"... and {len(plans) - 5} more plans"
 
-        await player.sendPopupMessage(msg, 20)
+        asyncio.create_task(player.sendPopupMessage(msg, 20))
 
     async def _menu_my_plan(self, server: Server, player: Player):
         """Handle 'My Flight Plan' menu option."""
@@ -1200,7 +1190,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 fp = await cursor.fetchone()
 
         if not fp:
-            await player.sendPopupMessage(_("You have no active flight plan."), 10)
+            asyncio.create_task(player.sendPopupMessage(_("You have no active flight plan."), 10))
             return
 
         status = fp['status'].upper()
@@ -1232,14 +1222,14 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 wp_names = [wp.get('name', '?') for wp in waypoints[:5]]
                 msg += f"Via: {' -> '.join(wp_names)}\n"
 
-        await player.sendPopupMessage(msg, 20)
+        asyncio.create_task(player.sendPopupMessage(msg, 20))
 
     async def _menu_plot_all(self, server: Server, player: Player):
         """Handle 'Plot All Plans' menu option."""
         plans = await self._get_visible_plans(server.name, player.side.value if player.side else None)
 
         if not plans:
-            await player.sendPopupMessage(_("No flight plans to plot."), 10)
+            asyncio.create_task(player.sendPopupMessage(_("No flight plans to plot."), 10))
             return
 
         config = self.get_config(server)
@@ -1252,10 +1242,10 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 plotted += 1
                 plan_ids.append(plan['id'])
 
-        await player.sendPopupMessage(
+        asyncio.create_task(player.sendPopupMessage(
             _("Plotted {} flight plan(s) on F10 map.\nMarkers will disappear in {} seconds.").format(plotted, timeout),
             10
-        )
+        ))
 
     async def _menu_plot_plan(self, server: Server, player: Player, plan_id: int):
         """Handle 'Plot Plan' menu option for a specific plan."""
@@ -1268,19 +1258,19 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 fp = await cursor.fetchone()
 
         if not fp:
-            await player.sendPopupMessage(_("Flight plan not found."), 10)
+            asyncio.create_task(player.sendPopupMessage(_("Flight plan not found."), 10))
             return
 
         config = self.get_config(server)
         timeout = config.get('marker_timeout', 30)
 
         if await self.create_flight_plan_markers(server, fp, timeout=timeout):
-            await player.sendPopupMessage(
+            asyncio.create_task(player.sendPopupMessage(
                 _("Flight plan #{} plotted on F10 map for {} seconds.").format(plan_id, timeout),
                 10
-            )
+            ))
         else:
-            await player.sendPopupMessage(_("Could not plot flight plan. Missing position data."), 10)
+            asyncio.create_task(player.sendPopupMessage(_("Could not plot flight plan. Missing position data."), 10))
 
     async def _menu_activate(self, server: Server, player: Player, plan_id: int = None):
         """Handle 'Activate Plan' menu option."""
@@ -1301,14 +1291,14 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 fp = await cursor.fetchone()
 
                 if not fp:
-                    await player.sendPopupMessage(_("No filed flight plan found."), 10)
+                    asyncio.create_task(player.sendPopupMessage(_("No filed flight plan found."), 10))
                     return
 
                 if fp['status'] != 'filed':
-                    await player.sendPopupMessage(
+                    asyncio.create_task(player.sendPopupMessage(
                         _("Flight plan #{} is already {}.").format(fp['id'], fp['status']),
                         10
-                    )
+                    ))
                     return
 
                 now = datetime.now(timezone.utc)
@@ -1325,10 +1315,10 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         if config.get('publish_on_activate', True):
             await self.publish_flight_plan(fp, 'activated')
 
-        await player.sendPopupMessage(
+        asyncio.create_task(player.sendPopupMessage(
             _("FLIGHT PLAN ACTIVATED\n\nPlan #{} is now active.\nRoute plotted on F10 map.").format(fp['id']),
             15
-        )
+        ))
 
         # Refresh menu
         await self._create_flightplan_menu(server, player)
@@ -1345,7 +1335,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 fp = await cursor.fetchone()
 
                 if not fp:
-                    await player.sendPopupMessage(_("No active flight plan found."), 10)
+                    asyncio.create_task(player.sendPopupMessage(_("No active flight plan found."), 10))
                     return
 
                 now = datetime.now(timezone.utc)
@@ -1360,10 +1350,10 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         # Update Discord
         await self.publish_flight_plan(fp, 'completed')
 
-        await player.sendPopupMessage(
+        asyncio.create_task(player.sendPopupMessage(
             _("FLIGHT COMPLETE\n\nPlan #{} completed.\nLogged to your record.").format(fp['id']),
             15
-        )
+        ))
 
         # Refresh menu
         await self._create_flightplan_menu(server, player)
@@ -1380,7 +1370,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 fp = await cursor.fetchone()
 
                 if not fp:
-                    await player.sendPopupMessage(_("No active flight plan found."), 10)
+                    asyncio.create_task(player.sendPopupMessage(_("No active flight plan found."), 10))
                     return
 
                 await conn.execute(
@@ -1394,10 +1384,10 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         # Update Discord
         await self.publish_flight_plan(fp, 'cancelled')
 
-        await player.sendPopupMessage(
+        asyncio.create_task(player.sendPopupMessage(
             _("FLIGHT CANCELLED\n\nPlan #{} cancelled.").format(fp['id']),
             10
-        )
+        ))
 
         # Refresh menu
         await self._create_flightplan_menu(server, player)
