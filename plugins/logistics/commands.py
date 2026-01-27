@@ -214,8 +214,18 @@ class Logistics(Plugin[LogisticsEventListener]):
         # Get roles for this permission (from config or defaults)
         allowed_roles = permissions.get(permission, self.DEFAULT_PERMISSIONS.get(permission, ['DCS Admin']))
 
-        # Check if user has any of the allowed roles
-        return utils.check_roles(allowed_roles, interaction.user)
+        # Map DCSServerBot role names to Discord role names using bot's role mapping
+        # e.g., 'DCS' -> ['JSW'], 'DCS Admin' -> ['HQ', 'Server Admin']
+        discord_roles = []
+        for role in allowed_roles:
+            if role in interaction.client.roles:
+                discord_roles.extend(interaction.client.roles[role])
+            else:
+                # If not a mapped role, use as-is (might be a direct Discord role name)
+                discord_roles.append(role)
+
+        # Check if user has any of the allowed Discord roles
+        return utils.check_roles(discord_roles, interaction.user)
 
     # ==================== LOGISTICS COMMANDS ====================
 
