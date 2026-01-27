@@ -12,6 +12,7 @@ schema;auto_lifecycle_schema:
     activate_on_takeoff: {type: bool, nullable: true}
     complete_on_landing: {type: bool, nullable: true}
     require_departure_match: {type: bool, nullable: true}
+    proximity_threshold: {type: int, nullable: true}
 
 schema;element_schema:
   type: map
