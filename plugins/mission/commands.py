@@ -1761,9 +1761,8 @@ class Mission(Plugin[MissionEventListener]):
 
         try:
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("INSERT INTO watchlist (player_ucid, reason, created_by) VALUES (%s, %s, %s)",
-                                       (ucid, reason, interaction.user.display_name))
+                await conn.execute("INSERT INTO watchlist (player_ucid, reason, created_by) VALUES (%s, %s, %s)",
+                                   (ucid, reason, interaction.user.display_name))
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player {} is now on the watchlist.").format(
                 user.display_name if isinstance(user, discord.Member) else ucid),
@@ -1791,8 +1790,7 @@ class Mission(Plugin[MissionEventListener]):
         else:
             ucid = user
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (ucid, ))
+            await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (ucid, ))
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(
             _("Player {} removed from the watchlist.").format(
@@ -1958,24 +1956,23 @@ class Mission(Plugin[MissionEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                if isinstance(user, discord.Member):
-                    member = user
-                    cursor = await conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
-                    rows = await cursor.fetchall()
-                    for row in rows:
-                        ucid = row[0]
-                        await unlink_member(user, ucid)
-                elif utils.is_ucid(user):
-                    ucid = user
-                    member = self.bot.get_member_by_ucid(ucid)
-                    if not member:
-                        await interaction.followup.send(_('Player is not linked!'), ephemeral=True)
-                        return
-                    await unlink_member(member, ucid)
-                else:
-                    await interaction.followup.send(_('Unknown player / member provided'), ephemeral=True)
+            if isinstance(user, discord.Member):
+                member = user
+                cursor = await conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
+                rows = await cursor.fetchall()
+                for row in rows:
+                    ucid = row[0]
+                    await unlink_member(user, ucid)
+            elif utils.is_ucid(user):
+                ucid = user
+                member = self.bot.get_member_by_ucid(ucid)
+                if not member:
+                    await interaction.followup.send(_('Player is not linked!'), ephemeral=True)
                     return
+                await unlink_member(member, ucid)
+            else:
+                await interaction.followup.send(_('Unknown player / member provided'), ephemeral=True)
+                return
 
         # If autorole is enabled, remove the role from the user:
         autorole = self.bot.locals.get('autorole', {}).get('linked')
@@ -2122,16 +2119,15 @@ class Mission(Plugin[MissionEventListener]):
         n = await utils.selection_list(interaction, unmatched, self.format_unmatched)
         if n != -1:
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
-                                       (unmatched[n]['match'].id, unmatched[n]['ucid']))
-                    await self.bot.audit(
-                        f"linked ucid {unmatched[n]['ucid']} to user {unmatched[n]['match'].display_name}.",
-                        user=interaction.user)
-                    await interaction.followup.send(
-                        _("DCS player {player} linked to member {member}.").format(
-                            player=utils.escape_string(unmatched[n]['name']),
-                            member=unmatched[n]['match'].display_name), ephemeral=True)
+                await conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
+                                   (unmatched[n]['match'].id, unmatched[n]['ucid']))
+                await self.bot.audit(
+                    f"linked ucid {unmatched[n]['ucid']} to user {unmatched[n]['match'].display_name}.",
+                    user=interaction.user)
+                await interaction.followup.send(
+                    _("DCS player {player} linked to member {member}.").format(
+                        player=utils.escape_string(unmatched[n]['name']),
+                        member=unmatched[n]['match'].display_name), ephemeral=True)
 
     @staticmethod
     def format_suspicious(data, _marker, _marker_emoji):
@@ -2181,27 +2177,26 @@ class Mission(Plugin[MissionEventListener]):
         if n != -1:
             ephemeral = utils.get_ephemeral(interaction)
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
-                                       (suspicious[n]['match'].id if 'match' in suspicious[n] else -1,
-                                        'match' in suspicious[n], suspicious[n]['ucid']))
+                await conn.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
+                                   (suspicious[n]['match'].id if 'match' in suspicious[n] else -1,
+                                    'match' in suspicious[n], suspicious[n]['ucid']))
+                await self.bot.audit(
+                    f"unlinked ucid {suspicious[n]['ucid']} from user {suspicious[n]['mismatch'].display_name}.",
+                    user=interaction.user)
+                if 'match' in suspicious[n]:
                     await self.bot.audit(
-                        f"unlinked ucid {suspicious[n]['ucid']} from user {suspicious[n]['mismatch'].display_name}.",
+                        f"linked ucid {suspicious[n]['ucid']} to user {suspicious[n]['match'].display_name}.",
                         user=interaction.user)
-                    if 'match' in suspicious[n]:
-                        await self.bot.audit(
-                            f"linked ucid {suspicious[n]['ucid']} to user {suspicious[n]['match'].display_name}.",
-                            user=interaction.user)
-                        await interaction.followup.send(
-                            _("UCID {ucid} transferred from member {old_member} to member {new_member}.").format(
-                                ucid=suspicious[n]['ucid'],
-                                old_member=utils.escape_string(suspicious[n]['mismatch'].display_name),
-                                new_member=utils.escape_string(suspicious[n]['match'].display_name)),
-                            ephemeral=ephemeral)
-                    else:
-                        await interaction.followup.send(_("Member {name} unlinked from UCID {ucid}.").format(
-                            name=utils.escape_string(suspicious[n]['mismatch'].display_name),
-                            ucid=suspicious[n]['ucid']), ephemeral=ephemeral)
+                    await interaction.followup.send(
+                        _("UCID {ucid} transferred from member {old_member} to member {new_member}.").format(
+                            ucid=suspicious[n]['ucid'],
+                            old_member=utils.escape_string(suspicious[n]['mismatch'].display_name),
+                            new_member=utils.escape_string(suspicious[n]['match'].display_name)),
+                        ephemeral=ephemeral)
+                else:
+                    await interaction.followup.send(_("Member {name} unlinked from UCID {ucid}.").format(
+                        name=utils.escape_string(suspicious[n]['mismatch'].display_name),
+                        ucid=suspicious[n]['ucid']), ephemeral=ephemeral)
 
     @command(description=_('Link your DCS and Discord user'))
     @app_commands.guild_only()
@@ -2231,23 +2226,22 @@ class Mission(Plugin[MissionEventListener]):
 
         # generate the TOKEN
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                async with conn.cursor() as cursor:
-                    # in the unlikely event that we had a token already and a linked user
-                    await cursor.execute("""
-                        DELETE FROM players WHERE discord_id = %s AND length(ucid) = 4
-                    """, (interaction.user.id,))
-                    # in the very unlikely event that we have generated the very same random number twice
-                    while True:
-                        try:
-                            token = str(random.randrange(1000, 9999))
-                            await cursor.execute("""
-                                INSERT INTO players (ucid, discord_id, last_seen) 
-                                VALUES (%s, %s, NOW() AT TIME ZONE 'UTC')
-                            """, (token, interaction.user.id))
-                            break
-                        except psycopg.errors.UniqueViolation:
-                            pass
+            async with conn.cursor() as cursor:
+                # in the unlikely event that we had a token already and a linked user
+                await cursor.execute("""
+                    DELETE FROM players WHERE discord_id = %s AND length(ucid) = 4
+                """, (interaction.user.id,))
+                # in the very unlikely event that we have generated the very same random number twice
+                while True:
+                    try:
+                        token = str(random.randrange(1000, 9999))
+                        await cursor.execute("""
+                            INSERT INTO players (ucid, discord_id, last_seen) 
+                            VALUES (%s, %s, NOW() AT TIME ZONE 'UTC')
+                        """, (token, interaction.user.id))
+                        break
+                    except psycopg.errors.UniqueViolation:
+                        pass
             await send_token(token)
 
     @player.command(description=_('Shows inactive users'))
@@ -2415,11 +2409,10 @@ class Mission(Plugin[MissionEventListener]):
     @tasks.loop(hours=1)
     async def expire_token(self):
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    DELETE FROM players 
-                    WHERE LENGTH(ucid) = 4 AND last_seen < (DATE(now() AT TIME ZONE 'utc') - interval '2 days')
-                """)
+            await conn.execute("""
+                DELETE FROM players 
+                WHERE LENGTH(ucid) = 4 AND last_seen < (DATE(now() AT TIME ZONE 'utc') - interval '2 days')
+            """)
 
     @expire_token.before_loop
     async def before_expire(self):
@@ -2428,23 +2421,22 @@ class Mission(Plugin[MissionEventListener]):
     @tasks.loop(minutes=1.0)
     async def check_for_unban(self):
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                cursor = await conn.execute("""
-                    SELECT ucid FROM bans 
-                    WHERE banned_by <> 'cloud'
-                    AND banned_until < (NOW() AT TIME ZONE 'utc')
-                """)
-                rows = await cursor.fetchall()
-                for row in rows:
-                    for server in self.bot.servers.values():
-                        if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
-                            continue
-                        await server.send_to_dcs({
-                            "command": "unban",
-                            "ucid": row[0]
-                        })
-                    # delete unbanned accounts from the database
-                    await conn.execute("DELETE FROM bans WHERE ucid = %s", (row[0], ))
+            cursor = await conn.execute("""
+                SELECT ucid FROM bans 
+                WHERE banned_by <> 'cloud'
+                AND banned_until < (NOW() AT TIME ZONE 'utc')
+            """)
+            rows = await cursor.fetchall()
+            for row in rows:
+                for server in self.bot.servers.values():
+                    if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
+                        continue
+                    await server.send_to_dcs({
+                        "command": "unban",
+                        "ucid": row[0]
+                    })
+                # delete unbanned accounts from the database
+                await conn.execute("DELETE FROM bans WHERE ucid = %s", (row[0], ))
 
     @check_for_unban.before_loop
     async def before_check_unban(self):

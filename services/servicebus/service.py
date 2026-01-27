@@ -78,11 +78,10 @@ class ServiceBus(Service):
             await self.broadcasts_channel.clear()
             # clean up the files
             async with self.node.cpool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("""
-                        DELETE FROM files 
-                        WHERE guild_id = %s AND created < ((now() AT TIME ZONE 'utc') - interval '300 seconds')
-                    """, (self.node.guild_id, ))
+                await conn.execute("""
+                    DELETE FROM files 
+                    WHERE guild_id = %s AND created < ((now() AT TIME ZONE 'utc') - interval '300 seconds')
+                """, (self.node.guild_id, ))
 
             # subscribe to the intercom and broadcast channels
             asyncio.create_task(self.intercom_channel.subscribe())
@@ -392,14 +391,13 @@ class ServiceBus(Service):
             until = datetime(year=9999, month=12, day=31)
             until_str = 'never'
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    INSERT INTO bans (ucid, banned_by, reason, banned_until) 
-                    VALUES (%s, %s, %s, %s) 
-                    ON CONFLICT (ucid) DO UPDATE 
-                    SET banned_by = excluded.banned_by, reason = excluded.reason, 
-                        banned_at = excluded.banned_at, banned_until = excluded.banned_until
-                """, (ucid, banned_by, reason, until.replace(tzinfo=None)))
+            await conn.execute("""
+                INSERT INTO bans (ucid, banned_by, reason, banned_until) 
+                VALUES (%s, %s, %s, %s) 
+                ON CONFLICT (ucid) DO UPDATE 
+                SET banned_by = excluded.banned_by, reason = excluded.reason, 
+                    banned_at = excluded.banned_at, banned_until = excluded.banned_until
+            """, (ucid, banned_by, reason, until.replace(tzinfo=None)))
         for server in self.servers.values():
             if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
                 continue
@@ -415,8 +413,7 @@ class ServiceBus(Service):
 
     async def unban(self, ucid: str):
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("UPDATE bans SET banned_until = NOW() AT TIME ZONE 'UTC' WHERE ucid = %s", (ucid, ))
+            await conn.execute("UPDATE bans SET banned_until = NOW() AT TIME ZONE 'UTC' WHERE ucid = %s", (ucid, ))
         for server in self.servers.values():
             if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
                 continue

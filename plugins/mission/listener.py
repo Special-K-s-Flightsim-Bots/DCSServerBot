@@ -1229,38 +1229,37 @@ class MissionEventListener(EventListener["Mission"]):
         player.member = member
         player.verified = True
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # now check if there was an old validated mapping for this discord_id (meaning the UCID has changed)
-                cursor = await conn.execute("SELECT ucid FROM players WHERE discord_id = %s and ucid != %s",
-                                            (discord_id, player.ucid))
-                row = await cursor.fetchone()
-                if row:
-                    old_ucid = row[0]
-                    await cursor.execute("UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s",
-                                         (old_ucid, ))
-                    for plugin in self.bot.cogs.values():  # type: Plugin
-                        await plugin.update_ucid(conn, old_ucid, player.ucid)
-                    await self.bot.audit(f'updated their UCID from {old_ucid} to {player.ucid}.',
-                                         user=player.member)
-                    await player.sendChatMessage('Your account has been updated.')
-                    # unlink the member from the old ucid
-                    await self.bus.send_to_node({
-                        "command": "rpc",
-                        "service": "ServiceBus",
-                        "method": "propagate_event",
-                        "params": {
-                            "command": "onMemberUnlinked",
-                            "server": server.name,
-                            "data": {
-                                "ucid": old_ucid,
-                                "discord_id": discord_id
-                            }
+            # now check if there was an old validated mapping for this discord_id (meaning the UCID has changed)
+            cursor = await conn.execute("SELECT ucid FROM players WHERE discord_id = %s and ucid != %s",
+                                        (discord_id, player.ucid))
+            row = await cursor.fetchone()
+            if row:
+                old_ucid = row[0]
+                await cursor.execute("UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s",
+                                     (old_ucid, ))
+                for plugin in self.bot.cogs.values():  # type: Plugin
+                    await plugin.update_ucid(conn, old_ucid, player.ucid)
+                await self.bot.audit(f'updated their UCID from {old_ucid} to {player.ucid}.',
+                                     user=player.member)
+                await player.sendChatMessage('Your account has been updated.')
+                # unlink the member from the old ucid
+                await self.bus.send_to_node({
+                    "command": "rpc",
+                    "service": "ServiceBus",
+                    "method": "propagate_event",
+                    "params": {
+                        "command": "onMemberUnlinked",
+                        "server": server.name,
+                        "data": {
+                            "ucid": old_ucid,
+                            "discord_id": discord_id
                         }
-                    })
-                else:
-                    await self.bot.audit(f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
-                                         user=player.member)
-                    await player.sendChatMessage('Your account has been linked.')
+                    }
+                })
+            else:
+                await self.bot.audit(f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
+                                     user=player.member)
+                await player.sendChatMessage('Your account has been linked.')
 
         await self.bus.send_to_node({
             "command": "rpc",

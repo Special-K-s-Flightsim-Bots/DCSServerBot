@@ -1239,12 +1239,11 @@ class Logbook(Plugin[LogbookEventListener]):
                 if qual_row.get('valid_days'):
                     expires_at = datetime.now(timezone.utc) + timedelta(days=qual_row['valid_days'])
 
-                async with conn.transaction():
-                    await conn.execute("""
-                        INSERT INTO logbook_pilot_qualifications
-                        (player_ucid, qualification_id, granted_by, expires_at)
-                        VALUES (%s, %s, %s, %s)
-                    """, (ucid, qualification, granter_ucid, expires_at))
+                await conn.execute("""
+                    INSERT INTO logbook_pilot_qualifications
+                    (player_ucid, qualification_id, granted_by, expires_at)
+                    VALUES (%s, %s, %s, %s)
+                """, (ucid, qualification, granter_ucid, expires_at))
 
         embed = discord.Embed(
             title=_('Qualification Granted'),
@@ -1815,12 +1814,11 @@ class Logbook(Plugin[LogbookEventListener]):
                     await interaction.response.send_message(_('Award not found!'), ephemeral=True)
                     return
 
-                async with conn.transaction():
-                    await conn.execute("""
-                        INSERT INTO logbook_pilot_awards
-                        (player_ucid, award_id, granted_by, citation)
-                        VALUES (%s, %s, %s, %s)
-                    """, (ucid, award, granter_ucid, citation))
+                await conn.execute("""
+                    INSERT INTO logbook_pilot_awards
+                    (player_ucid, award_id, granted_by, citation)
+                    VALUES (%s, %s, %s, %s)
+                """, (ucid, award, granter_ucid, citation))
 
         embed = discord.Embed(
             title=_('Award Granted'),

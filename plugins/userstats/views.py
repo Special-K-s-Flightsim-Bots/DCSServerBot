@@ -30,29 +30,28 @@ class SquadronModal(Modal):
     async def on_submit(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
         async with interaction.client.apool.connection() as conn:
-            async with conn.transaction():
+            await conn.execute("""
+                INSERT INTO squadrons (name, description, role, image_url, channel, locked) 
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (name) DO UPDATE
+                SET description = excluded.description, role = excluded.role, image_url = excluded.image_url, 
+                    channel = excluded.channel, locked = excluded.locked
+            """, (self.name, self.description.value, self.role.id if self.role else None, self.image_url.value,
+                  self.channel.id if self.channel else None, self.locked))
+            cursor = await conn.execute("SELECT id FROM squadrons WHERE name = %s", (self.name,))
+            squadron_id = (await cursor.fetchone())[0]
+            if self.role:
+                # might be a role change, so wipe the squadron first
                 await conn.execute("""
-                    INSERT INTO squadrons (name, description, role, image_url, channel, locked) 
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (name) DO UPDATE
-                    SET description = excluded.description, role = excluded.role, image_url = excluded.image_url, 
-                        channel = excluded.channel, locked = excluded.locked
-                """, (self.name, self.description.value, self.role.id if self.role else None, self.image_url.value,
-                      self.channel.id if self.channel else None, self.locked))
-                cursor = await conn.execute("SELECT id FROM squadrons WHERE name = %s", (self.name,))
-                squadron_id = (await cursor.fetchone())[0]
-                if self.role:
-                    # might be a role change, so wipe the squadron first
-                    await conn.execute("""
-                        DELETE FROM squadron_members WHERE squadron_id = %s
-                    """, (squadron_id, ))
-                    for member in self.role.members:
-                        ucid = await interaction.client.get_ucid_by_member(member, verified=True)
-                        if ucid:
-                            await conn.execute("""
-                                INSERT INTO squadron_members VALUES (%s, %s)
-                                ON CONFLICT (squadron_id, player_ucid) DO NOTHING
-                            """, (squadron_id, ucid))
+                    DELETE FROM squadron_members WHERE squadron_id = %s
+                """, (squadron_id, ))
+                for member in self.role.members:
+                    ucid = await interaction.client.get_ucid_by_member(member, verified=True)
+                    if ucid:
+                        await conn.execute("""
+                            INSERT INTO squadron_members VALUES (%s, %s)
+                            ON CONFLICT (squadron_id, player_ucid) DO NOTHING
+                        """, (squadron_id, ucid))
         if self.plugin.get_config().get('squadrons', {}).get('persist_list', False):
             await self.plugin.persist_squadron_list(squadron_id)
         # noinspection PyUnresolvedReferences

@@ -37,16 +37,16 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             3: 'Bomb'
         },
         "STATIC": {
-            None: None,
-            0: 'Static Object'
+            None: 'Static Object'
         },
         "SCENERY": {
-            None: None,
-            0: 'Scenery Object'
+            None: 'Scenery Object'
         },
         "CARGO": {
-            None: None,
-            0: 'Cargo'
+            None: 'Cargo'
+        },
+        "BASE": {
+            None: 'Base'
         }
     }
 
@@ -113,7 +113,10 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
     async def onSimulationStart(self, server: Server, _: dict) -> None:
         asyncio.create_task(self._toggle_mission_stats(server))
 
-    async def _update_database(self, server: Server, config: dict, data: dict):
+    async def _update_database(self, server: Server, data: dict):
+        if data['eventName'] == 'S_EVENT_BASE_CAPTURED':
+            pass
+
         def get_value(values: dict, index1, index2):
             if index1 not in values:
                 return None
@@ -121,6 +124,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                 return None
             return values[index1][index2]
 
+        config = self.get_config(server)
         if not config.get('persistence', True) or server.mission_id == -1:
             return
         player = get_value(data, 'initiator', 'name')
@@ -160,15 +164,14 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             }
             try:
                 async with self.apool.connection() as conn:
-                    async with conn.transaction():
-                        await conn.execute("""
-                            INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, init_cat, 
-                                                      target_id, target_side, target_type, target_cat, weapon, place, 
-                                                      comment) 
-                            VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, %(init_type)s, %(init_cat)s, 
-                                    %(target_id)s, %(target_side)s, %(target_type)s, %(target_cat)s, %(weapon)s, 
-                                    %(place)s, %(comment)s)
-                        """, dataset)
+                    await conn.execute("""
+                        INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, init_cat, 
+                                                  target_id, target_side, target_type, target_cat, weapon, place, 
+                                                  comment) 
+                        VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, %(init_type)s, %(init_cat)s, 
+                                %(target_id)s, %(target_side)s, %(target_type)s, %(target_cat)s, %(weapon)s, 
+                                %(place)s, %(comment)s)
+                    """, dataset)
             except Exception as ex:
                 self.log.warning(str(ex) + ' / ignoring event')
 
@@ -176,7 +179,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if config.get('persistence', True):
-            asyncio.create_task(self._update_database(server, config, data))
+            asyncio.create_task(self._update_database(server, data))
         if not data['server_name'] in self.mission_stats or not data.get('initiator'):
             return
 

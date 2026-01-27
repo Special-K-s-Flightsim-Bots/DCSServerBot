@@ -127,36 +127,36 @@ class Punishment(Plugin[PunishmentEventListener]):
     # TODO: change to pubsub
     @tasks.loop(minutes=1.0)
     async def check_punishments(self):
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
+        for server_name, server in self.bot.servers.items():
+            config = self.get_config(server)
+            # we are not initialized correctly yet
+            if not config:
+                continue
+
+            async with self.apool.connection() as conn:
                 async with conn.cursor(row_factory=dict_row) as cursor:
-                    for server_name, server in self.bot.servers.items():
-                        config = self.get_config(server)
-                        # we are not initialized correctly yet
-                        if not config:
-                            continue
-                        await cursor.execute("""
-                            SELECT * FROM pu_events_sdw WHERE server_name = %s
-                        """, (server_name,))
-                        rows = await cursor.fetchall()
-                        for row in rows:
-                            try:
-                                for punishment in config.get('punishments', {}):
-                                    if row['points'] < punishment['points']:
-                                        continue
-                                    reason = None
-                                    for penalty in config.get('penalties', []):
-                                        if penalty['event'] == row['event']:
-                                            reason = penalty['reason'] if 'reason' in penalty else row['event']
-                                            break
-                                    if not reason:
-                                        self.log.warning(
-                                            f"No penalty or reason configured for event {row['event']}.")
-                                        reason = row['event']
-                                    await self.punish(server, row['init_id'], punishment, reason, row['points'])
-                                    break
-                            finally:
-                                await cursor.execute('DELETE FROM pu_events_sdw WHERE id = %s', (row['id'], ))
+                    await cursor.execute("""
+                        SELECT * FROM pu_events_sdw WHERE server_name = %s
+                    """, (server_name,))
+                    rows = await cursor.fetchall()
+                    for row in rows:
+                        try:
+                            for punishment in config.get('punishments', {}):
+                                if row['points'] < punishment['points']:
+                                    continue
+                                reason = None
+                                for penalty in config.get('penalties', []):
+                                    if penalty['event'] == row['event']:
+                                        reason = penalty['reason'] if 'reason' in penalty else row['event']
+                                        break
+                                if not reason:
+                                    self.log.warning(
+                                        f"No penalty or reason configured for event {row['event']}.")
+                                    reason = row['event']
+                                await self.punish(server, row['init_id'], punishment, reason, row['points'])
+                                break
+                        finally:
+                            await cursor.execute('DELETE FROM pu_events_sdw WHERE id = %s', (row['id'], ))
 
     @check_punishments.before_loop
     async def before_check(self):
@@ -171,14 +171,13 @@ class Punishment(Plugin[PunishmentEventListener]):
         if decay_config:
             self.log.debug('Punishment - Running decay ...')
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    for d in decay_config:
-                        days = d['days']
-                        await conn.execute(f"""
-                            UPDATE pu_events SET points = ROUND((points * %s)::numeric, 2), decay_run = %s 
-                            WHERE time < (timezone('utc', now()) - interval '{days} days') AND decay_run < %s
-                        """, (d['weight'], days, days))
-                        await conn.execute("DELETE FROM pu_events WHERE points = 0.0")
+                for d in decay_config:
+                    days = d['days']
+                    await conn.execute(f"""
+                        UPDATE pu_events SET points = ROUND((points * %s)::numeric, 2), decay_run = %s 
+                        WHERE time < (timezone('utc', now()) - interval '{days} days') AND decay_run < %s
+                    """, (d['weight'], days, days))
+                    await conn.execute("DELETE FROM pu_events WHERE points = 0.0")
 
     @decay.before_loop
     async def before_decay(self):
@@ -208,11 +207,10 @@ class Punishment(Plugin[PunishmentEventListener]):
             return
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    INSERT INTO pu_events (init_id, server_name, event, points)
-                    VALUES (%s, %s, %s, %s) 
-                """, (ucid, server.name, reason, points))
+            await conn.execute("""
+                INSERT INTO pu_events (init_id, server_name, event, points)
+                VALUES (%s, %s, %s, %s) 
+            """, (ucid, server.name, reason, points))
 
         if points >= 0:
             message = _('User punished with {} points.').format(points)
@@ -242,20 +240,19 @@ class Punishment(Plugin[PunishmentEventListener]):
                 _("This will delete all the punishment points for this user and unban them if they were banned.\n"
                   "Are you sure?"), ephemeral=ephemeral):
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    if isinstance(user, discord.Member):
-                        cursor = await conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id,))
-                        ucids = [row[0] async for row in cursor]
-                        if not ucids:
-                            await interaction.followup.send(f"User {user.display_name} is not linked.",
-                                                            ephemeral=True)
-                    else:
-                        ucids = [user]
+                if isinstance(user, discord.Member):
+                    cursor = await conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id,))
+                    ucids = [row[0] async for row in cursor]
+                    if not ucids:
+                        await interaction.followup.send(f"User {user.display_name} is not linked.",
+                                                        ephemeral=True)
+                else:
+                    ucids = [user]
 
-                    for ucid in ucids:
-                        await conn.execute('DELETE FROM pu_events WHERE init_id = %s', (ucid, ))
-                        await conn.execute('DELETE FROM pu_events_sdw WHERE init_id = %s', (ucid, ))
-                        await self.bus.unban(ucid)
+                for ucid in ucids:
+                    await conn.execute('DELETE FROM pu_events WHERE init_id = %s', (ucid, ))
+                    await conn.execute('DELETE FROM pu_events_sdw WHERE init_id = %s', (ucid, ))
+                    await self.bus.unban(ucid)
 
             await interaction.followup.send(
                 _("All punishment points deleted and player unbanned (if they were banned by the bot before)."),

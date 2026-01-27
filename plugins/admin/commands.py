@@ -702,59 +702,58 @@ class Admin(Plugin[AdminEventListener]):
             return
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                async with conn.cursor() as cursor:
-                    if user:
-                        if isinstance(user, discord.Member):
-                            ucid = await self.bot.get_ucid_by_member(user, verified=True)
-                            if not ucid:
-                                await interaction.followup.send("Member {} is not linked!".format(user.display_name))
-                                return
-                        elif utils.is_ucid(user):
-                            ucid = user
-                        else:
-                            await interaction.followup.send("{} is not a valid UCID!".format(user))
+            async with conn.cursor() as cursor:
+                if user:
+                    if isinstance(user, discord.Member):
+                        ucid = await self.bot.get_ucid_by_member(user, verified=True)
+                        if not ucid:
+                            await interaction.followup.send("Member {} is not linked!".format(user.display_name))
                             return
+                    elif utils.is_ucid(user):
+                        ucid = user
+                    else:
+                        await interaction.followup.send("{} is not a valid UCID!".format(user))
+                        return
+                    await cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
+                    if isinstance(user, discord.Member):
+                        await interaction.followup.send(_("Data of user {} deleted.").format(user.display_name))
+                    else:
+                        await interaction.followup.send(_("Data of UCID {} deleted.").format(ucid))
+                    return
+                elif _server:
+                    await cursor.execute('DELETE FROM servers WHERE server_name = %s', (_server, ))
+                    await interaction.followup.send(_("Data of server {} deleted.").format(_server))
+                    return
+                elif view.what in ['users', 'non-members']:
+                    sql = f"""
+                        SELECT ucid FROM players 
+                        WHERE last_seen < (DATE((now() AT TIME ZONE 'utc')) - interval '{view.age} days')
+                    """
+                    if view.what == 'non-members':
+                        sql += ' AND discord_id = -1'
+                    await cursor.execute(sql)
+                    ucids = [row[0] async for row in cursor]
+                    if not ucids:
+                        await interaction.followup.send(_('No players to prune.'), ephemeral=ephemeral)
+                        return
+                    if not await utils.yn_question(
+                            interaction, _("This will delete {} players incl. their stats from the database.\n"
+                                           "Are you sure?").format(len(ucids)), ephemeral=ephemeral):
+                        return
+                    for ucid in ucids:
                         await cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
-                        if isinstance(user, discord.Member):
-                            await interaction.followup.send(_("Data of user {} deleted.").format(user.display_name))
-                        else:
-                            await interaction.followup.send(_("Data of UCID {} deleted.").format(ucid))
+                    await interaction.followup.send(f"{len(ucids)} players pruned.", ephemeral=ephemeral)
+                elif view.what == 'data':
+                    days = int(view.age)
+                    if not await utils.yn_question(
+                            interaction, _("This will delete all data older than {} days from the database.\n"
+                                           "Are you sure?").format(days), ephemeral=ephemeral):
                         return
-                    elif _server:
-                        await cursor.execute('DELETE FROM servers WHERE server_name = %s', (_server, ))
-                        await interaction.followup.send(_("Data of server {} deleted.").format(_server))
-                        return
-                    elif view.what in ['users', 'non-members']:
-                        sql = f"""
-                            SELECT ucid FROM players 
-                            WHERE last_seen < (DATE((now() AT TIME ZONE 'utc')) - interval '{view.age} days')
-                        """
-                        if view.what == 'non-members':
-                            sql += ' AND discord_id = -1'
-                        await cursor.execute(sql)
-                        ucids = [row[0] async for row in cursor]
-                        if not ucids:
-                            await interaction.followup.send(_('No players to prune.'), ephemeral=ephemeral)
-                            return
-                        if not await utils.yn_question(
-                                interaction, _("This will delete {} players incl. their stats from the database.\n"
-                                               "Are you sure?").format(len(ucids)), ephemeral=ephemeral):
-                            return
-                        for ucid in ucids:
-                            await cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
-                        await interaction.followup.send(f"{len(ucids)} players pruned.", ephemeral=ephemeral)
-                    elif view.what == 'data':
-                        days = int(view.age)
-                        if not await utils.yn_question(
-                                interaction, _("This will delete all data older than {} days from the database.\n"
-                                               "Are you sure?").format(days), ephemeral=ephemeral):
-                            return
-                        # some plugins need to prune their data based on the provided days
-                        for plugin in self.bot.cogs.values():  # type: Plugin
-                            await plugin.prune(conn, days)
-                        await interaction.followup.send(_("All data older than {} days pruned.").format(days),
-                                                        ephemeral=ephemeral)
+                    # some plugins need to prune their data based on the provided days
+                    for plugin in self.bot.cogs.values():  # type: Plugin
+                        await plugin.prune(conn, days)
+                    await interaction.followup.send(_("All data older than {} days pruned.").format(days),
+                                                    ephemeral=ephemeral)
         await self.bot.audit(f'pruned the database', user=interaction.user)
 
     node_group = Group(name="node", description=_("Commands to manage your nodes"))
@@ -1458,8 +1457,7 @@ Please make sure you forward the following ports:
     @tasks.loop(hours=12.0)
     async def cleanup(self):
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("DELETE FROM nodestats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
+            await conn.execute("DELETE FROM nodestats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
 
     @cleanup.before_loop
     async def before_cleanup(self):

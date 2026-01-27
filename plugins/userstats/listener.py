@@ -70,101 +70,99 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
 
     async def close_all_statistics(self, server: Server):
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    UPDATE missions m1 SET mission_end = (
-                        SELECT mission_start - INTERVAL '1 second' FROM missions m2 
-                        WHERE m1.server_name = m2.server_name
-                        AND m2.id > m1.id
-                        ORDER BY 1 LIMIT 1)
-                    WHERE m1.server_name = %s AND m1.mission_end IS NULL
-                """, (server.name,))
-                await conn.execute("""
-                    UPDATE missions SET mission_end = (now() AT TIME ZONE 'utc') WHERE server_name = %s AND mission_end IS NULL
-                """, (server.name,))
+            await conn.execute("""
+                UPDATE missions m1 SET mission_end = (
+                    SELECT mission_start - INTERVAL '1 second' FROM missions m2 
+                    WHERE m1.server_name = m2.server_name
+                    AND m2.id > m1.id
+                    ORDER BY 1 LIMIT 1)
+                WHERE m1.server_name = %s AND m1.mission_end IS NULL
+            """, (server.name,))
+            await conn.execute("""
+                UPDATE missions SET mission_end = (now() AT TIME ZONE 'utc') WHERE server_name = %s AND mission_end IS NULL
+            """, (server.name,))
 
-                cursor = await conn.execute("""
-                            SELECT mission_id, player_ucid, slot 
-                            FROM statistics 
-                            WHERE mission_id IN (
-                                SELECT id FROM missions WHERE server_name = %s
-                            ) AND hop_off IS NULL
-                        """, (server.name,))
-                rows = await cursor.fetchall()
-                for row in rows:
-                    await conn.execute("""
-                        UPDATE statistics SET hop_off = (SELECT mission_end FROM missions WHERE id = %s)
-                        WHERE mission_id = %s AND player_ucid = %s AND slot = %s AND hop_off IS NULL
-                    """, (row[0], row[0], row[1], row[2]))
+            cursor = await conn.execute("""
+                        SELECT mission_id, player_ucid, slot 
+                        FROM statistics 
+                        WHERE mission_id IN (
+                            SELECT id FROM missions WHERE server_name = %s
+                        ) AND hop_off IS NULL
+                    """, (server.name,))
+            rows = await cursor.fetchall()
+            for row in rows:
                 await conn.execute("""
-                    UPDATE statistics SET hop_off = (now() AT TIME ZONE 'utc') WHERE mission_id IN (
-                        SELECT id FROM missions WHERE server_name = %s
-                    ) AND hop_off IS NULL
-                """, (server.name,))
+                    UPDATE statistics SET hop_off = (SELECT mission_end FROM missions WHERE id = %s)
+                    WHERE mission_id = %s AND player_ucid = %s AND slot = %s AND hop_off IS NULL
+                """, (row[0], row[0], row[1], row[2]))
+            await conn.execute("""
+                UPDATE statistics SET hop_off = (now() AT TIME ZONE 'utc') WHERE mission_id IN (
+                    SELECT id FROM missions WHERE server_name = %s
+                ) AND hop_off IS NULL
+            """, (server.name,))
 
     async def _setup_database(self, server: Server, data: dict) -> None:
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                async with conn.cursor() as cursor:
-                    mission_id = -1
-                    await cursor.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
+            async with conn.cursor() as cursor:
+                mission_id = -1
+                await cursor.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
+                if cursor.rowcount == 1:
+                    row = await cursor.fetchone()
+                    if row[1] == data['current_mission']:
+                        mission_id = row[0]
+                    else:
+                        self.log.warning('The mission in the database does not match the mission that is live '
+                                         'on this server. Fixing...')
+                if mission_id == -1:
+                    # close ambiguous missions
+                    if cursor.rowcount >= 1:
+                        await self.close_all_statistics(server)
+                    # create a new mission
+                    await cursor.execute(self.SQL_MISSION_HANDLING['start_mission'],
+                                         (server.name, data['current_mission'], data['current_map']))
                     if cursor.rowcount == 1:
-                        row = await cursor.fetchone()
-                        if row[1] == data['current_mission']:
-                            mission_id = row[0]
-                        else:
-                            self.log.warning('The mission in the database does not match the mission that is live '
-                                             'on this server. Fixing...')
-                    if mission_id == -1:
-                        # close ambiguous missions
-                        if cursor.rowcount >= 1:
-                            await self.close_all_statistics(server)
-                        # create a new mission
-                        await cursor.execute(self.SQL_MISSION_HANDLING['start_mission'],
-                                             (server.name, data['current_mission'], data['current_map']))
-                        if cursor.rowcount == 1:
-                            mission_id = (await cursor.fetchone())[0]
-                        else:
-                            self.log.error('FATAL: Initialization of mission table failed. Statistics will not be '
-                                           'gathered for this session.')
+                        mission_id = (await cursor.fetchone())[0]
+                    else:
+                        self.log.error('FATAL: Initialization of mission table failed. Statistics will not be '
+                                       'gathered for this session.')
 
-                    if mission_id == -1:
-                        return
+                if mission_id == -1:
+                    return
 
-                    server.mission_id = mission_id
-                    # initialize active players
-                    players = server.get_active_players()
-                    ucids = []
-                    for player in players:
-                        ucids.append(player.ucid)
-                        # make sure we get slot changes that might have occurred in the meantime
-                        await cursor.execute(self.SQL_MISSION_HANDLING['check_player'], (mission_id, player.ucid))
-                        player_started = False
-                        if cursor.rowcount == 1:
-                            # the player is there already ...
-                            if (await cursor.fetchone())[0] != player.unit_type:
-                                # ... but with a different aircraft, so close the old session
-                                await cursor.execute(self.SQL_MISSION_HANDLING['stop_player'],
-                                                     (mission_id, player.ucid))
-                            else:
-                                # session will be kept
-                                player_started = True
-                        if not player_started and player.side != Side.NEUTRAL:
-                            await cursor.execute(
-                                self.SQL_MISSION_HANDLING['start_player'],
-                                (
-                                    mission_id,
-                                    player.ucid,
-                                    self.get_unit_type(player),
-                                    self.get_unit_callsign(player),
-                                    player.side.value)
-                                )
-                    # close dead entries in the database (if existent)
-                    await cursor.execute(self.SQL_MISSION_HANDLING['all_players'], (mission_id,))
-                    rows = await cursor.fetchall()
-                    for row in rows:
-                        if row[0] not in ucids:
-                            await cursor.execute(self.SQL_MISSION_HANDLING['stop_player'], (mission_id, row[0]))
+                server.mission_id = mission_id
+                # initialize active players
+                players = server.get_active_players()
+                ucids = []
+                for player in players:
+                    ucids.append(player.ucid)
+                    # make sure we get slot changes that might have occurred in the meantime
+                    await cursor.execute(self.SQL_MISSION_HANDLING['check_player'], (mission_id, player.ucid))
+                    player_started = False
+                    if cursor.rowcount == 1:
+                        # the player is there already ...
+                        if (await cursor.fetchone())[0] != player.unit_type:
+                            # ... but with a different aircraft, so close the old session
+                            await cursor.execute(self.SQL_MISSION_HANDLING['stop_player'],
+                                                 (mission_id, player.ucid))
+                        else:
+                            # session will be kept
+                            player_started = True
+                    if not player_started and player.side != Side.NEUTRAL:
+                        await cursor.execute(
+                            self.SQL_MISSION_HANDLING['start_player'],
+                            (
+                                mission_id,
+                                player.ucid,
+                                self.get_unit_type(player),
+                                self.get_unit_callsign(player),
+                                player.side.value)
+                            )
+                # close dead entries in the database (if existent)
+                await cursor.execute(self.SQL_MISSION_HANDLING['all_players'], (mission_id,))
+                rows = await cursor.fetchall()
+                for row in rows:
+                    if row[0] not in ucids:
+                        await cursor.execute(self.SQL_MISSION_HANDLING['stop_player'], (mission_id, row[0]))
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
@@ -181,22 +179,20 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await self.close_all_statistics(server)
-                cursor = await conn.execute(self.SQL_MISSION_HANDLING['start_mission'],
-                                            (server.name, data['current_mission'], data['current_map']))
-                if cursor.rowcount == 1:
-                    server.mission_id = (await cursor.fetchone())[0]
-                else:
-                    server.mission_id = -1
-                    self.log.error('FATAL: Initialization of mission table failed. Statistics will not be '
-                                   'gathered for this session.')
+            await self.close_all_statistics(server)
+            cursor = await conn.execute(self.SQL_MISSION_HANDLING['start_mission'],
+                                        (server.name, data['current_mission'], data['current_map']))
+            if cursor.rowcount == 1:
+                server.mission_id = (await cursor.fetchone())[0]
+            else:
+                server.mission_id = -1
+                self.log.error('FATAL: Initialization of mission table failed. Statistics will not be '
+                               'gathered for this session.')
 
     async def close_mission_stats(self, server: Server):
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute(self.SQL_MISSION_HANDLING['close_statistics'], (server.mission_id,))
-                await conn.execute(self.SQL_MISSION_HANDLING['close_mission'], (server.mission_id,))
+            await conn.execute(self.SQL_MISSION_HANDLING['close_statistics'], (server.mission_id,))
+            await conn.execute(self.SQL_MISSION_HANDLING['close_mission'], (server.mission_id,))
 
     @event(name="onSimulationStop")
     async def onSimulationStop(self, server: Server, _: dict) -> None:
@@ -207,18 +203,17 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
         if 'side' not in data or data['id'] == 1:
             return
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute(self.SQL_MISSION_HANDLING['stop_player'], (server.mission_id, data['ucid']))
-                if Side(data['side']) != Side.NEUTRAL:
-                    await conn.execute(
-                        self.SQL_MISSION_HANDLING['start_player'],
-                        (
-                            server.mission_id,
-                            data['ucid'],
-                            self.get_unit_type(data),
-                            self.get_unit_callsign(data),
-                            data['side'])
-                        )
+            await conn.execute(self.SQL_MISSION_HANDLING['stop_player'], (server.mission_id, data['ucid']))
+            if Side(data['side']) != Side.NEUTRAL:
+                await conn.execute(
+                    self.SQL_MISSION_HANDLING['start_player'],
+                    (
+                        server.mission_id,
+                        data['ucid'],
+                        self.get_unit_type(data),
+                        self.get_unit_callsign(data),
+                        data['side'])
+                    )
 
     @event(name="disableUserStats")
     async def disableUserStats(self, server: Server, _: dict) -> None:
@@ -233,8 +228,7 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
             self.log.warning(f"Player id={data['arg1']} not found. Can't close their statistics.")
             return
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute(self.SQL_MISSION_HANDLING['stop_player'], (server.mission_id, player.ucid))
+            await conn.execute(self.SQL_MISSION_HANDLING['stop_player'], (server.mission_id, player.ucid))
 
     async def _handle_kill_killer(self, server: Server, data: dict) -> None:
         if data['arg4'] != -1:
@@ -266,9 +260,8 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
         if kill_type in self.SQL_EVENT_UPDATES.keys():
             pilot: Player = server.get_player(id=data['arg1'])
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    for crew_member in server.get_crew_members(pilot):
-                        await conn.execute(self.SQL_EVENT_UPDATES[kill_type], (server.mission_id, crew_member.ucid))
+                for crew_member in server.get_crew_members(pilot):
+                    await conn.execute(self.SQL_EVENT_UPDATES[kill_type], (server.mission_id, crew_member.ucid))
 
     async def _handle_kill_victim(self, server: Server, data: dict) -> None:
         if data['arg1'] != -1:
@@ -298,9 +291,8 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
         if death_type in self.SQL_EVENT_UPDATES.keys():
             pilot: Player = server.get_player(id=data['arg4'])
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    for crew_member in server.get_crew_members(pilot):
-                        await conn.execute(self.SQL_EVENT_UPDATES[death_type], (server.mission_id, crew_member.ucid))
+                for crew_member in server.get_crew_members(pilot):
+                    await conn.execute(self.SQL_EVENT_UPDATES[death_type], (server.mission_id, crew_member.ucid))
 
     async def _handle_kill_event(self, server: Server, data: dict) -> None:
         # Player is an AI => return
@@ -318,8 +310,7 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
             if not player:
                 return
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute(self.SQL_EVENT_UPDATES[data['eventName']], (server.mission_id, player.ucid))
+                await conn.execute(self.SQL_EVENT_UPDATES[data['eventName']], (server.mission_id, player.ucid))
 
     async def _handle_eject_event(self, server: Server, data: dict) -> None:
         if data['arg1'] == -1:
@@ -330,9 +321,8 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
             crew_members = server.get_crew_members(pilot)
             if len(crew_members) == 1:
                 async with self.apool.connection() as conn:
-                    async with conn.transaction():
-                        await conn.execute(self.SQL_EVENT_UPDATES[data['eventName']],
-                                           (server.mission_id, crew_members[0].ucid))
+                    await conn.execute(self.SQL_EVENT_UPDATES[data['eventName']],
+                                       (server.mission_id, crew_members[0].ucid))
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
@@ -364,18 +354,17 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
         try:
             # get possible squadron roles
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    cursor = await conn.execute('SELECT id, role FROM squadrons WHERE role IS NOT NULL')
-                    rows = await cursor.fetchall()
-                    for row in rows:
-                        # do we have to add the member to a squadron?
-                        if row[1] in roles:
-                            await conn.execute("""
-                                INSERT INTO squadron_members VALUES (%s, %s) 
-                                ON CONFLICT (squadron_id, player_ucid) DO NOTHING
-                            """, (row[0], data['ucid']))
-                        if self.get_config().get('squadrons', {}).get('persist_list', False):
-                            await self.plugin.persist_squadron_list(row[0])
+                cursor = await conn.execute('SELECT id, role FROM squadrons WHERE role IS NOT NULL')
+                rows = await cursor.fetchall()
+                for row in rows:
+                    # do we have to add the member to a squadron?
+                    if row[1] in roles:
+                        await conn.execute("""
+                            INSERT INTO squadron_members VALUES (%s, %s) 
+                            ON CONFLICT (squadron_id, player_ucid) DO NOTHING
+                        """, (row[0], data['ucid']))
+                    if self.get_config().get('squadrons', {}).get('persist_list', False):
+                        await self.plugin.persist_squadron_list(row[0])
         except Exception as ex:
             self.log.exception(ex)
 
@@ -383,20 +372,19 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
     async def onMemberUnlinked(self, _server: Server, data: dict) -> None:
         try:
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    cursor = await conn.execute("""
-                        SELECT DISTINCT s.id
-                        FROM squadrons s,
-                        squadron_members sm
-                        WHERE s.id = sm.squadron_id
-                        AND sm.player_ucid = %s
-                    """, (data['ucid'],))
-                    rows = await cursor.fetchall()
-                    for row in rows:
-                        await conn.execute("""
-                            DELETE FROM squadron_members WHERE squadron_id = %s AND player_ucid = %s 
-                        """, (row[0], data['ucid']))
-                        if self.get_config().get('squadrons', {}).get('persist_list', False):
-                            await self.plugin.persist_squadron_list(row[0])
+                cursor = await conn.execute("""
+                    SELECT DISTINCT s.id
+                    FROM squadrons s,
+                    squadron_members sm
+                    WHERE s.id = sm.squadron_id
+                    AND sm.player_ucid = %s
+                """, (data['ucid'],))
+                rows = await cursor.fetchall()
+                for row in rows:
+                    await conn.execute("""
+                        DELETE FROM squadron_members WHERE squadron_id = %s AND player_ucid = %s 
+                    """, (row[0], data['ucid']))
+                    if self.get_config().get('squadrons', {}).get('persist_list', False):
+                        await self.plugin.persist_squadron_list(row[0])
         except Exception as ex:
             self.log.exception(ex)

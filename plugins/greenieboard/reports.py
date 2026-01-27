@@ -25,8 +25,9 @@ unicorn_image = plt.imread(os.path.join(this_dir, 'img', unicorn_image_path))
 
 
 class LSORating(report.EmbedElement):
-    async def render(self, landing: dict):
-        grade = GRADES[landing['grade']]
+    async def render(self, landing: dict, config: dict):
+        grades = GRADES | config.get('grades', {})
+        grade = grades[landing['grade']]
         comment = landing['comment'].replace('/', '')
 
         self.add_field(name=_("Date/Time"), value=f"{landing['time']:%y-%m-%d %H:%M:%S}")

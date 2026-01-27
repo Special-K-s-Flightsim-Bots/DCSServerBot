@@ -363,11 +363,11 @@ class GameMaster(Plugin[GameMasterEventListener]):
                 await interaction.response.send_modal(modal)
                 if await modal.wait():
                     return
-                async with conn.transaction():
-                    await conn.execute("""
-                        UPDATE campaigns SET start=%s, stop=%s, description=%s, image_url=%s 
-                        WHERE name=%s
-                    """, (modal.start, modal.end, modal.description.value, modal.image_url.value, campaign))
+
+                await conn.execute("""
+                    UPDATE campaigns SET start=%s, stop=%s, description=%s, image_url=%s 
+                    WHERE name=%s
+                """, (modal.start, modal.end, modal.description.value, modal.image_url.value, campaign))
                 await interaction.followup.send(_('Campaign {} updated.').format(campaign),
                                                         ephemeral=ephemeral)
 
@@ -418,12 +418,11 @@ class GameMaster(Plugin[GameMasterEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
         try:
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("""
-                        INSERT INTO campaigns_servers (campaign_id, server_name) 
-                        SELECT id, %s FROM campaigns WHERE name = %s 
-                        ON CONFLICT DO NOTHING
-                        """, (server.name, campaign))
+                await conn.execute("""
+                    INSERT INTO campaigns_servers (campaign_id, server_name) 
+                    SELECT id, %s FROM campaigns WHERE name = %s 
+                    ON CONFLICT DO NOTHING
+                    """, (server.name, campaign))
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Server {server} added to campaign {campaign}.").format(server=server.name, campaign=campaign),
@@ -443,13 +442,12 @@ class GameMaster(Plugin[GameMasterEventListener]):
     async def delete_server(self, interaction: discord.Interaction, campaign: str, server_name: str):
         ephemeral = utils.get_ephemeral(interaction)
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    DELETE FROM campaigns_servers
-                    WHERE campaign_id = (
-                        SELECT id FROM campaigns WHERE name = %s 
-                    ) AND server_name = %s 
-                    """, (campaign, server_name))
+            await conn.execute("""
+                DELETE FROM campaigns_servers
+                WHERE campaign_id = (
+                    SELECT id FROM campaigns WHERE name = %s 
+                ) AND server_name = %s 
+                """, (campaign, server_name))
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(
             _("Server {server} deleted from campaign {campaign}.").format(server=server_name, campaign=campaign),
@@ -527,13 +525,12 @@ class GameMaster(Plugin[GameMasterEventListener]):
             await interaction.followup.send(_("Unknown user {}!").format(to), ephemeral=True)
             return
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    INSERT INTO messages (sender, player_ucid, message, ack) 
-                    VALUES (%s, %s, %s, %s)
-                """, (interaction.user.display_name, ucid, modal.message.value, acknowledge))
-                await interaction.followup.send(_("Message will be displayed to the user."),
-                                                ephemeral=utils.get_ephemeral(interaction))
+            await conn.execute("""
+                INSERT INTO messages (sender, player_ucid, message, ack) 
+                VALUES (%s, %s, %s, %s)
+            """, (interaction.user.display_name, ucid, modal.message.value, acknowledge))
+            await interaction.followup.send(_("Message will be displayed to the user."),
+                                            ephemeral=utils.get_ephemeral(interaction))
 
     @message.command(description=_('Lists active messages'), name='list')
     @app_commands.guild_only()

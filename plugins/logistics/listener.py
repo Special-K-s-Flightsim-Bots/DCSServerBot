@@ -714,9 +714,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
     async def _assign_task(self, server: Server, player: Player, task_id: int) -> dict:
         """Assign a task to a player."""
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Check if task exists and get its status
-                cursor = await conn.execute("""
+            # Check if task exists and get its status
+            cursor = await conn.execute("""
                 SELECT id, cargo_type, source_name, destination_name, deadline, coalition, status, assigned_ucid
                 FROM logistics_tasks
                 WHERE id = %s AND server_name = %s
@@ -815,9 +814,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
     async def _complete_task(self, server: Server, player: Player, task_id: int) -> dict:
         """Complete a logistics task."""
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Get task details
-                cursor = await conn.execute("""
+            # Get task details
+            cursor = await conn.execute("""
                 SELECT cargo_type, source_name, destination_name
                 FROM logistics_tasks
                 WHERE id = %s AND assigned_ucid = %s AND status IN ('assigned', 'in_progress')
@@ -886,32 +884,31 @@ class LogisticsEventListener(EventListener["Logistics"]):
     async def _abandon_task(self, server: Server, player: Player, task_id: int) -> dict:
         """Abandon a logistics task."""
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                now = datetime.now(timezone.utc)
+            now = datetime.now(timezone.utc)
 
-                # Update task - return to approved status
-                result = await conn.execute("""
-                    UPDATE logistics_tasks
-                    SET assigned_ucid = NULL, assigned_at = NULL, status = 'approved', updated_at = %s
-                    WHERE id = %s AND assigned_ucid = %s AND status IN ('assigned', 'in_progress')
-                """, (now, task_id, player.ucid))
+            # Update task - return to approved status
+            result = await conn.execute("""
+                UPDATE logistics_tasks
+                SET assigned_ucid = NULL, assigned_at = NULL, status = 'approved', updated_at = %s
+                WHERE id = %s AND assigned_ucid = %s AND status IN ('assigned', 'in_progress')
+            """, (now, task_id, player.ucid))
 
-                if result.rowcount == 0:
-                    return {'success': False, 'error': 'Task not found or not assigned to you'}
+            if result.rowcount == 0:
+                return {'success': False, 'error': 'Task not found or not assigned to you'}
 
-                # Record history
-                await conn.execute("""
-                    INSERT INTO logistics_tasks_history (task_id, event, actor_ucid, details)
-                    VALUES (%s, 'abandoned', %s, %s)
-                """, (task_id, player.ucid, '{"action": "player_abandoned"}'))
+            # Record history
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_ucid, details)
+                VALUES (%s, 'abandoned', %s, %s)
+            """, (task_id, player.ucid, '{"action": "player_abandoned"}'))
 
-                # Get task data for Discord publish (inside transaction to ensure consistency)
-                cursor = await conn.execute("""
-                    SELECT id, cargo_type, source_name, destination_name, priority,
-                           coalition, deadline, created_at, server_name, discord_message_id
-                    FROM logistics_tasks WHERE id = %s
-                """, (task_id,))
-                pub_task = await cursor.fetchone()
+            # Get task data for Discord publish (inside transaction to ensure consistency)
+            cursor = await conn.execute("""
+                SELECT id, cargo_type, source_name, destination_name, priority,
+                       coalition, deadline, created_at, server_name, discord_message_id
+                FROM logistics_tasks WHERE id = %s
+            """, (task_id,))
+            pub_task = await cursor.fetchone()
 
         # Update markers to remove pilot name (outside transaction - non-critical)
         await self._update_markers_with_pilot(server, task_id, None)
@@ -938,22 +935,21 @@ class LogisticsEventListener(EventListener["Logistics"]):
     async def _recreate_assigned_task_markers(self, server: Server):
         """Recreate markers only for assigned/in-progress tasks on mission start."""
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Clear old marker records
-                await conn.execute("""
-                    DELETE FROM logistics_markers WHERE server_name = %s
-                """, (server.name,))
+            # Clear old marker records
+            await conn.execute("""
+                DELETE FROM logistics_markers WHERE server_name = %s
+            """, (server.name,))
 
-                # Only get tasks that are assigned or in_progress (not approved/pending)
-                cursor = await conn.execute("""
-                    SELECT t.id, t.cargo_type, t.source_name, t.source_position,
-                           t.destination_name, t.destination_position, t.coalition,
-                           t.deadline, p.name as assigned_name
-                    FROM logistics_tasks t
-                    LEFT JOIN players p ON t.assigned_ucid = p.ucid
-                    WHERE t.server_name = %s AND t.status IN ('assigned', 'in_progress')
-                """, (server.name,))
-                tasks = await cursor.fetchall()
+            # Only get tasks that are assigned or in_progress (not approved/pending)
+            cursor = await conn.execute("""
+                SELECT t.id, t.cargo_type, t.source_name, t.source_position,
+                       t.destination_name, t.destination_position, t.coalition,
+                       t.deadline, p.name as assigned_name
+                FROM logistics_tasks t
+                LEFT JOIN players p ON t.assigned_ucid = p.ucid
+                WHERE t.server_name = %s AND t.status IN ('assigned', 'in_progress')
+            """, (server.name,))
+            tasks = await cursor.fetchall()
 
         # Create markers outside the transaction (this sends to DCS)
         for task in tasks:
@@ -1066,9 +1062,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
     async def _store_marker_ids(self, server_name: str, task_id: int, marker_ids: list[dict]):
         """Store marker IDs for cleanup."""
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Clear old markers first
-                await conn.execute("""
+            # Clear old markers first
+            await conn.execute("""
                 DELETE FROM logistics_markers WHERE server_name = %s AND task_id = %s
             """, (server_name, task_id))
 
@@ -1469,32 +1464,31 @@ class LogisticsEventListener(EventListener["Logistics"]):
         cutoff = datetime.now(timezone.utc) - timedelta(days=stale_days)
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Find stale tasks
-                cursor = await conn.execute("""
-                    SELECT id FROM logistics_tasks
-                    WHERE server_name = %s
-                    AND status IN ('pending', 'approved')
-                    AND created_at < %s
-                """, (server.name, cutoff))
-                stale_tasks = await cursor.fetchall()
+            # Find stale tasks
+            cursor = await conn.execute("""
+                SELECT id FROM logistics_tasks
+                WHERE server_name = %s
+                AND status IN ('pending', 'approved')
+                AND created_at < %s
+            """, (server.name, cutoff))
+            stale_tasks = await cursor.fetchall()
 
-                if not stale_tasks:
-                    return
+            if not stale_tasks:
+                return
 
-                task_ids = [row[0] for row in stale_tasks]
-                self.log.info(f"Logistics: Cancelling {len(task_ids)} stale tasks on {server.name}: {task_ids}")
+            task_ids = [row[0] for row in stale_tasks]
+            self.log.info(f"Logistics: Cancelling {len(task_ids)} stale tasks on {server.name}: {task_ids}")
 
-                # Cancel the tasks
+            # Cancel the tasks
+            await conn.execute("""
+                UPDATE logistics_tasks
+                SET status = 'cancelled', updated_at = %s
+                WHERE id = ANY(%s)
+            """, (datetime.now(timezone.utc), task_ids))
+
+            # Record history
+            for task_id in task_ids:
                 await conn.execute("""
-                    UPDATE logistics_tasks
-                    SET status = 'cancelled', updated_at = %s
-                    WHERE id = ANY(%s)
-                """, (datetime.now(timezone.utc), task_ids))
-
-                # Record history
-                for task_id in task_ids:
-                    await conn.execute("""
-                        INSERT INTO logistics_tasks_history (task_id, event, details)
-                        VALUES (%s, 'cancelled', %s)
-                    """, (task_id, json.dumps({'reason': f'stale_after_{stale_days}_days', 'auto': True})))
+                    INSERT INTO logistics_tasks_history (task_id, event, details)
+                    VALUES (%s, 'cancelled', %s)
+                """, (task_id, json.dumps({'reason': f'stale_after_{stale_days}_days', 'auto': True})))

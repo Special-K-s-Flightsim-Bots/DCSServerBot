@@ -71,9 +71,8 @@ class Battleground(Plugin[BattlegroundEventListener]):
                 "fields": fields
             }
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("INSERT INTO bg_geometry2(server_name, data) VALUES (%s, %s)",
-                                       (server.name, json.dumps(data)))
+                await conn.execute("INSERT INTO bg_geometry2(server_name, data) VALUES (%s, %s)",
+                                   (server.name, json.dumps(data)))
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Recon data added - {side} side - {server}").format(side=side, server=server.name))
@@ -89,10 +88,9 @@ class Battleground(Plugin[BattlegroundEventListener]):
     async def reset(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer]):
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("DELETE FROM bg_geometry2 WHERE server_name = %s", (server.name, ))
-                await conn.execute("DELETE FROM bg_missions WHERE server_name = %s", (server.name,))
-                await conn.execute("DELETE FROM bg_task WHERE server_name = %s", (server.name,))
+            await conn.execute("DELETE FROM bg_geometry2 WHERE server_name = %s", (server.name, ))
+            await conn.execute("DELETE FROM bg_missions WHERE server_name = %s", (server.name,))
+            await conn.execute("DELETE FROM bg_task WHERE server_name = %s", (server.name,))
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Recon data deleted for server {}.").format(server.name),
                                                 ephemeral=utils.get_ephemeral(interaction))

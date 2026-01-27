@@ -460,12 +460,11 @@ class ServerImpl(Server):
         async def update_database(old_name: str, new_name: str):
             # rename the server in the database
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("UPDATE servers SET server_name = %s WHERE server_name = %s",
-                                       (new_name, old_name or 'n/a'))
-                    if not old_name:
-                        await conn.execute("UPDATE instances SET server_name = %s WHERE instance = %s",
-                                           (new_name, self.instance.name))
+                await conn.execute("UPDATE servers SET server_name = %s WHERE server_name = %s",
+                                   (new_name, old_name or 'n/a'))
+                if not old_name:
+                    await conn.execute("UPDATE instances SET server_name = %s WHERE instance = %s",
+                                       (new_name, self.instance.name))
 
         async def update_cluster(new_name: str):
             # only the master can take care of a cluster-wide rename
@@ -503,8 +502,7 @@ class ServerImpl(Server):
     async def unlink(self):
         if self.name == 'n/a':
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("DELETE FROM servers WHERE server_name = 'n/a'")
+                await conn.execute("DELETE FROM servers WHERE server_name = 'n/a'")
         self.instance.server = None
 
     @performance_log()
@@ -825,11 +823,10 @@ class ServerImpl(Server):
         if self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             await self.send_to_dcs({"command": "getMissionUpdate"})
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    UPDATE instances SET last_seen = (now() AT TIME ZONE 'utc') 
-                    WHERE node = %s AND server_name = %s
-                """, (self.node.name, self.name))
+            await conn.execute("""
+                UPDATE instances SET last_seen = (now() AT TIME ZONE 'utc') 
+                WHERE node = %s AND server_name = %s
+            """, (self.node.name, self.name))
 
     @override
     async def uploadMission(self, filename: str, url: str, *, missions_dir: str = None, force: bool = False,
@@ -952,10 +949,9 @@ class ServerImpl(Server):
             self.settings['advanced'] = advanced
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format(
-                    'blue_password' if coalition == Coalition.BLUE else 'red_password'),
-                    (password, self.name))
+            await conn.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format(
+                'blue_password' if coalition == Coalition.BLUE else 'red_password'),
+                (password, self.name))
 
     @override
     async def addMission(self, path: str, *, idx: int | None = -1, autostart: bool | None = False) -> list[str]:

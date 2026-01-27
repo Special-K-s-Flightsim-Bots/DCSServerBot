@@ -94,12 +94,11 @@ class PunishmentEventListener(EventListener["Punishment"]):
         initiator = data['initiator']
         target = data.get('target')
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    INSERT INTO pu_events (init_id, target_id, server_name, event, points) 
-                    VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING
-                """, (initiator.ucid, target.ucid if target else None, data['server_name'], data['eventName'],
-                      data['points']))
+            await conn.execute("""
+                INSERT INTO pu_events (init_id, target_id, server_name, event, points) 
+                VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING
+            """, (initiator.ucid, target.ucid if target else None, data['server_name'], data['eventName'],
+                  data['points']))
 
     async def _check_punishment(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]

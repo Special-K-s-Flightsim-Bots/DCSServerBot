@@ -162,12 +162,11 @@ class FunkManEventListener(EventListener["FunkMan"]):
         player: Player = server.get_player(name=data['player'])
         if player:
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("""
-                        INSERT INTO bomb_runs (mission_id, player_ucid, unit_type, range_name, distance, quality)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
-                          data['distance'], BombQuality[data['quality']].value))
+                await conn.execute("""
+                    INSERT INTO bomb_runs (mission_id, player_ucid, unit_type, range_name, distance, quality)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
+                      data['distance'], BombQuality[data['quality']].value))
             asyncio.create_task(self.update_rangeboard(server, 'bomb'))
         channel = self.bot.get_channel(int(config.get('CHANNELID_RANGE', -1)))
         if not channel:
@@ -184,12 +183,11 @@ class FunkManEventListener(EventListener["FunkMan"]):
         player: Player = server.get_player(name=data['player'])
         if player:
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("""
-                        INSERT INTO strafe_runs (mission_id, player_ucid, unit_type, range_name, accuracy, quality)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
-                          data['strafeAccuracy'], StrafeQuality[data['roundsQuality'].replace(' ', '_')].value if not data.get('invalid', False) else None))
+                await conn.execute("""
+                    INSERT INTO strafe_runs (mission_id, player_ucid, unit_type, range_name, accuracy, quality)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
+                      data['strafeAccuracy'], StrafeQuality[data['roundsQuality'].replace(' ', '_')].value if not data.get('invalid', False) else None))
             asyncio.create_task(self.update_rangeboard(server, 'strafe'))
         channel = self.bot.get_channel(int(config.get('CHANNELID_RANGE', -1)))
         if not channel:

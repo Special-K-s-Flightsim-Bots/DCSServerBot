@@ -236,10 +236,9 @@ class NodeProxy(Node):
             }
         }, timeout=timeout, node=self.name)
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                cursor = await conn.execute("SELECT data FROM files WHERE id = %s", (data, ), binary=True)
-                file = (await cursor.fetchone())[0]
-                await conn.execute("DELETE FROM files WHERE id = %s", (data, ))
+            cursor = await conn.execute("SELECT data FROM files WHERE id = %s", (data, ), binary=True)
+            file = (await cursor.fetchone())[0]
+            await conn.execute("DELETE FROM files WHERE id = %s", (data, ))
         return file
 
     @override
@@ -447,10 +446,9 @@ class NodeProxy(Node):
             }
         }, timeout=timeout, node=self.name)
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                cursor = await conn.execute("SELECT data FROM files WHERE id = %s", (data, ), binary=True)
-                image = (await cursor.fetchone())[0]
-                await conn.execute("DELETE FROM files WHERE id = %s", (data, ))
+            cursor = await conn.execute("SELECT data FROM files WHERE id = %s", (data, ), binary=True)
+            image = (await cursor.fetchone())[0]
+            await conn.execute("DELETE FROM files WHERE id = %s", (data, ))
         return image
 
     @override

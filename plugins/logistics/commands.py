@@ -306,39 +306,38 @@ class Logistics(Plugin[LogisticsEventListener]):
                 return
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                now = datetime.now(timezone.utc)
-                cursor = await conn.execute("""
-                    INSERT INTO logistics_tasks
-                    (server_name, created_by_ucid, status, priority, cargo_type,
-                     source_name, source_position, destination_name, destination_position,
-                     coalition, deadline, approved_by, approved_at, created_at, updated_at)
-                    VALUES (%s, %s, 'approved', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id
-                """, (
-                    _server.name,
-                    None,  # NULL for admin-created tasks (no player UCID)
-                    priority,
-                    cargo,
-                    source,
-                    source_position,
-                    destination,
-                    dest_position,
-                    coalition_id,
-                    deadline_dt,
-                    str(interaction.user.id),
-                    now,
-                    now,
-                    now
-                ))
-                row = await cursor.fetchone()
-                task_id = row[0]
+            now = datetime.now(timezone.utc)
+            cursor = await conn.execute("""
+                INSERT INTO logistics_tasks
+                (server_name, created_by_ucid, status, priority, cargo_type,
+                 source_name, source_position, destination_name, destination_position,
+                 coalition, deadline, approved_by, approved_at, created_at, updated_at)
+                VALUES (%s, %s, 'approved', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                _server.name,
+                None,  # NULL for admin-created tasks (no player UCID)
+                priority,
+                cargo,
+                source,
+                source_position,
+                destination,
+                dest_position,
+                coalition_id,
+                deadline_dt,
+                str(interaction.user.id),
+                now,
+                now,
+                now
+            ))
+            row = await cursor.fetchone()
+            task_id = row[0]
 
-                # Record history
-                await conn.execute("""
-                    INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
-                    VALUES (%s, 'created', %s, %s)
-                """, (task_id, interaction.user.id, '{"source": "discord_admin", "auto_approved": true}'))
+            # Record history
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
+                VALUES (%s, 'created', %s, %s)
+            """, (task_id, interaction.user.id, '{"source": "discord_admin", "auto_approved": true}'))
 
         # Publish to status channel if configured (outside transaction)
         config = self.get_config(_server)
@@ -546,61 +545,60 @@ class Logistics(Plugin[LogisticsEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Get task
-                cursor = await conn.execute("""
-                    SELECT id, status, source_name, server_name, destination_name,
-                           cargo_type, coalition, deadline
-                    FROM logistics_tasks WHERE id = %s
-                """, (task_id,))
-                task = await cursor.fetchone()
+            # Get task
+            cursor = await conn.execute("""
+                SELECT id, status, source_name, server_name, destination_name,
+                       cargo_type, coalition, deadline
+                FROM logistics_tasks WHERE id = %s
+            """, (task_id,))
+            task = await cursor.fetchone()
 
-                if not task:
-                    await interaction.followup.send(f"Task #{task_id} not found.", ephemeral=True)
-                    return
+            if not task:
+                await interaction.followup.send(f"Task #{task_id} not found.", ephemeral=True)
+                return
 
-                # Check configurable permission
-                server = self.bot.servers.get(task[3])  # task[3] is server_name
-                if server and not self._check_permission(interaction, server, 'approve'):
-                    await interaction.followup.send(
-                        "You don't have permission to approve logistics tasks. Contact an admin.",
-                        ephemeral=True
-                    )
-                    return
+            # Check configurable permission
+            server = self.bot.servers.get(task[3])  # task[3] is server_name
+            if server and not self._check_permission(interaction, server, 'approve'):
+                await interaction.followup.send(
+                    "You don't have permission to approve logistics tasks. Contact an admin.",
+                    ephemeral=True
+                )
+                return
 
-                if task[1] != 'pending':
-                    await interaction.followup.send(f"Task #{task_id} is not pending (status: {task[1]}).", ephemeral=True)
-                    return
+            if task[1] != 'pending':
+                await interaction.followup.send(f"Task #{task_id} is not pending (status: {task[1]}).", ephemeral=True)
+                return
 
-                # Update source if provided
-                final_source = source if source else task[2]
-                if final_source == 'TBD':
-                    await interaction.followup.send("Please specify a source location for this task.", ephemeral=True)
-                    return
+            # Update source if provided
+            final_source = source if source else task[2]
+            if final_source == 'TBD':
+                await interaction.followup.send("Please specify a source location for this task.", ephemeral=True)
+                return
 
-                now = datetime.now(timezone.utc)
+            now = datetime.now(timezone.utc)
 
-                # Get source position
-                server = self.bot.servers.get(task[3])
-                source_pos = None
-                if server and server.current_mission:
-                    for ab in server.current_mission.airbases:
-                        if ab['name'] == final_source:
-                            source_pos = ab.get('position')
-                            break
+            # Get source position
+            server = self.bot.servers.get(task[3])
+            source_pos = None
+            if server and server.current_mission:
+                for ab in server.current_mission.airbases:
+                    if ab['name'] == final_source:
+                        source_pos = ab.get('position')
+                        break
 
-                await conn.execute("""
-                    UPDATE logistics_tasks
-                    SET status = 'approved', source_name = %s, source_position = %s,
-                        approved_by = %s, approved_at = %s, notes = %s, updated_at = %s
-                    WHERE id = %s
-                """, (final_source, source_pos, str(interaction.user.id), now, notes, now, task_id))
+            await conn.execute("""
+                UPDATE logistics_tasks
+                SET status = 'approved', source_name = %s, source_position = %s,
+                    approved_by = %s, approved_at = %s, notes = %s, updated_at = %s
+                WHERE id = %s
+            """, (final_source, source_pos, str(interaction.user.id), now, notes, now, task_id))
 
-                # Record history
-                await conn.execute("""
-                    INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
-                    VALUES (%s, 'approved', %s, %s)
-                """, (task_id, interaction.user.id, f'{{"notes": "{notes or ""}"}}'))
+            # Record history
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
+                VALUES (%s, 'approved', %s, %s)
+            """, (task_id, interaction.user.id, f'{{"notes": "{notes or ""}"}}'))
 
         # Create markers if server is running
         if server and server.status == Status.RUNNING and source_pos:
@@ -672,23 +670,22 @@ class Logistics(Plugin[LogisticsEventListener]):
                 )
                 return
 
-            async with conn.transaction():
-                now = datetime.now(timezone.utc)
+            now = datetime.now(timezone.utc)
 
-                result = await conn.execute("""
-                    UPDATE logistics_tasks
-                    SET status = 'cancelled', notes = %s, updated_at = %s
-                    WHERE id = %s AND status = 'pending'
-                """, (f"Denied: {reason}", now, task_id))
+            result = await conn.execute("""
+                UPDATE logistics_tasks
+                SET status = 'cancelled', notes = %s, updated_at = %s
+                WHERE id = %s AND status = 'pending'
+            """, (f"Denied: {reason}", now, task_id))
 
-                if result.rowcount == 0:
-                    await interaction.followup.send(f"Task #{task_id} not found or not pending.", ephemeral=True)
-                    return
+            if result.rowcount == 0:
+                await interaction.followup.send(f"Task #{task_id} not found or not pending.", ephemeral=True)
+                return
 
-                await conn.execute("""
-                    INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
-                    VALUES (%s, 'denied', %s, %s)
-                """, (task_id, interaction.user.id, f'{{"reason": "{reason}"}}'))
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
+                VALUES (%s, 'denied', %s, %s)
+            """, (task_id, interaction.user.id, f'{{"reason": "{reason}"}}'))
 
         await interaction.followup.send(f"Task #{task_id} has been denied.", ephemeral=ephemeral)
 
@@ -733,19 +730,18 @@ class Logistics(Plugin[LogisticsEventListener]):
                 )
                 return
 
-            async with conn.transaction():
-                now = datetime.now(timezone.utc)
+            now = datetime.now(timezone.utc)
 
-                await conn.execute("""
-                    UPDATE logistics_tasks
-                    SET status = 'cancelled', notes = %s, updated_at = %s
-                    WHERE id = %s
-                """, (f"Cancelled: {reason or 'No reason given'}", now, task_id))
+            await conn.execute("""
+                UPDATE logistics_tasks
+                SET status = 'cancelled', notes = %s, updated_at = %s
+                WHERE id = %s
+            """, (f"Cancelled: {reason or 'No reason given'}", now, task_id))
 
-                await conn.execute("""
-                    INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
-                    VALUES (%s, 'cancelled', %s, %s)
-                """, (task_id, interaction.user.id, f'{{"reason": "{reason or ""}"}}'))
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
+                VALUES (%s, 'cancelled', %s, %s)
+            """, (task_id, interaction.user.id, f'{{"reason": "{reason or ""}"}}'))
 
         # Remove markers
         server = self.bot.servers.get(task[0])
@@ -791,64 +787,63 @@ class Logistics(Plugin[LogisticsEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Verify task is approved and unassigned
-                cursor = await conn.execute("""
-                    SELECT t.server_name, t.cargo_type, t.source_name, t.destination_name,
-                           t.priority, t.coalition, t.deadline, t.created_at, t.discord_message_id,
-                           t.source_position, t.destination_position, t.status, t.assigned_ucid
-                    FROM logistics_tasks t
-                    WHERE t.id = %s
-                """, (task_id,))
-                task = await cursor.fetchone()
+            # Verify task is approved and unassigned
+            cursor = await conn.execute("""
+                SELECT t.server_name, t.cargo_type, t.source_name, t.destination_name,
+                       t.priority, t.coalition, t.deadline, t.created_at, t.discord_message_id,
+                       t.source_position, t.destination_position, t.status, t.assigned_ucid
+                FROM logistics_tasks t
+                WHERE t.id = %s
+            """, (task_id,))
+            task = await cursor.fetchone()
 
-                if not task:
-                    await interaction.followup.send(f"Task #{task_id} not found.", ephemeral=True)
-                    return
+            if not task:
+                await interaction.followup.send(f"Task #{task_id} not found.", ephemeral=True)
+                return
 
-                # Check configurable permission
-                server = self.bot.servers.get(task[0])
-                if server and not self._check_permission(interaction, server, 'assign'):
-                    await interaction.followup.send(
-                        "You don't have permission to assign logistics tasks. Contact an admin.",
-                        ephemeral=True
-                    )
-                    return
+            # Check configurable permission
+            server = self.bot.servers.get(task[0])
+            if server and not self._check_permission(interaction, server, 'assign'):
+                await interaction.followup.send(
+                    "You don't have permission to assign logistics tasks. Contact an admin.",
+                    ephemeral=True
+                )
+                return
 
-                if task[11] != 'approved':
-                    await interaction.followup.send(
-                        f"Task #{task_id} is not approved (status: {task[11]}). Only approved tasks can be assigned.",
-                        ephemeral=True
-                    )
-                    return
+            if task[11] != 'approved':
+                await interaction.followup.send(
+                    f"Task #{task_id} is not approved (status: {task[11]}). Only approved tasks can be assigned.",
+                    ephemeral=True
+                )
+                return
 
-                if task[12]:
-                    await interaction.followup.send(
-                        f"Task #{task_id} is already assigned to another pilot.",
-                        ephemeral=True
-                    )
-                    return
+            if task[12]:
+                await interaction.followup.send(
+                    f"Task #{task_id} is already assigned to another pilot.",
+                    ephemeral=True
+                )
+                return
 
-                # Get player name for feedback
-                cursor = await conn.execute("SELECT name FROM players WHERE ucid = %s", (player_ucid,))
-                player_row = await cursor.fetchone()
-                if not player_row:
-                    await interaction.followup.send(f"Player not found.", ephemeral=True)
-                    return
-                player_name = player_row[0]
+            # Get player name for feedback
+            cursor = await conn.execute("SELECT name FROM players WHERE ucid = %s", (player_ucid,))
+            player_row = await cursor.fetchone()
+            if not player_row:
+                await interaction.followup.send(f"Player not found.", ephemeral=True)
+                return
+            player_name = player_row[0]
 
-                # Assign the task
-                now = datetime.now(timezone.utc)
-                await conn.execute("""
-                    UPDATE logistics_tasks
-                    SET status = 'assigned', assigned_ucid = %s, assigned_at = %s, updated_at = %s
-                    WHERE id = %s
-                """, (player_ucid, now, now, task_id))
+            # Assign the task
+            now = datetime.now(timezone.utc)
+            await conn.execute("""
+                UPDATE logistics_tasks
+                SET status = 'assigned', assigned_ucid = %s, assigned_at = %s, updated_at = %s
+                WHERE id = %s
+            """, (player_ucid, now, now, task_id))
 
-                await conn.execute("""
-                    INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
-                    VALUES (%s, 'assigned', %s, %s)
-                """, (task_id, interaction.user.id, f'{{"assigned_to": "{player_ucid}", "assigned_by": "discord"}}'))
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
+                VALUES (%s, 'assigned', %s, %s)
+            """, (task_id, interaction.user.id, f'{{"assigned_to": "{player_ucid}", "assigned_by": "discord"}}'))
 
         # Create F10 markers and notify player if online
         # Wrapped in try/except to handle failures gracefully after DB commit
