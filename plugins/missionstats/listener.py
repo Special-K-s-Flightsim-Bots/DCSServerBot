@@ -37,16 +37,16 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             3: 'Bomb'
         },
         "STATIC": {
-            None: None,
-            0: 'Static Object'
+            None: 'Static Object'
         },
         "SCENERY": {
-            None: None,
-            0: 'Scenery Object'
+            None: 'Scenery Object'
         },
         "CARGO": {
-            None: None,
-            0: 'Cargo'
+            None: 'Cargo'
+        },
+        "BASE": {
+            None: 'Base'
         }
     }
 
