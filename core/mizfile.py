@@ -395,7 +395,7 @@ class MizFile:
     @accidental_failures.setter
     def accidental_failures(self, value: bool) -> None:
         if value:
-            raise NotImplemented("Setting of accidental_failures is not implemented.")
+            raise ValueError("Setting of accidental_failures is not implemented.")
         if not self.mission.get('forcedOptions'):
             self.mission['forcedOptions'] = {
                 'accidental_failures': value
