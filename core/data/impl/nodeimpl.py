@@ -189,7 +189,7 @@ class NodeImpl(Node):
         await self._post_init()
         return self
 
-    async def __aexit__(self, type, value, traceback):
+    async def __aexit__(self, _type, _value, _traceback):
         if self.heartbeat_loop.is_running():
             self.heartbeat_loop.cancel()
         await self.close_db()

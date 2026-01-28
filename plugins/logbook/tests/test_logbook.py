@@ -14,7 +14,6 @@ are not installed, but this allows the test suite to run in minimal environments
 
 import importlib
 import importlib.util
-import os
 import re
 import sys
 from pathlib import Path

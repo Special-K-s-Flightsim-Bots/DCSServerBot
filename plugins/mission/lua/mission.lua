@@ -215,7 +215,7 @@ function dcsbot.createMenu(playerID, groupID, data)
         _menuItems[groupID] = {}
     end
 
-    parsedData = net.json2lua(data)
+    local parsedData = net.json2lua(data)
 
     for _, rootMenuEntry in ipairs(parsedData) do
         for rootMenuName, rootMenuData in pairs(rootMenuEntry) do
@@ -235,7 +235,7 @@ function dcsbot.createMenu(playerID, groupID, data)
 end
 
 function dcsbot.deleteMenu(groupID)
-    menu = _menuItems[groupID]
+    local menu = _menuItems[groupID]
     if menu then
         -- Iterate through each root menu in the table and delete it
         for _, menuItem in pairs(menu) do
@@ -325,14 +325,14 @@ end
 
 function dcsbot.getAirbase(name, channel)
     env.info("dcsbot.getAirbase(" .. name .. ")")
-    local msg = {
-        command = "getAirbase",
-    }
 
     local airbase = Airbase.getByName(name)
     if not airbase or not airbase:isExist() then
-        msg.name = name
-        msg.error = "Not found."
+        local msg = {
+            command = "getAirbase",
+            name = name,
+            error = "Not found."
+        }
         dcsbot.sendBotTable(msg, channel)
         return
     end
@@ -341,7 +341,6 @@ function dcsbot.getAirbase(name, channel)
     local lat, lng = Terrain.convertMetersToLatLon(position.x, position.z)
     local alt = Terrain.GetHeight(position.x, position.z)
     local warehouse = airbase:getWarehouse()
-
 
     local msg = {
         command = "getAirbase",

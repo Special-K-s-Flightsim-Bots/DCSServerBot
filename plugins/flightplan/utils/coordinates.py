@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Optional, TYPE_CHECKING
 
-from core.utils.dcs import dms_to_dd, mgrs_to_dd
+from core.utils.dcs import mgrs_to_dd
 
 if TYPE_CHECKING:
     from core import Server
