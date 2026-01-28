@@ -393,11 +393,13 @@ class NodeImpl(Node):
         # initialize the cluster pool
         if urlparse(lpool_url).path != urlparse(cpool_url).path:
             self.log.info("- Federation detected.")
-        # create the fast cluster pool
-        self.cpool = AsyncConnectionPool(
-            conninfo=cpool_url, min_size=2, max_size=4, check=AsyncConnectionPool.check_connection,
-            max_idle=max_idle, timeout=timeout, open=False)
-        await self.cpool.open()
+            # create the fast cluster pool
+            self.cpool = AsyncConnectionPool(
+                conninfo=cpool_url, name="ClusterPool", min_size=2, max_size=4,
+                check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout, open=False)
+            await self.cpool.open()
+        else:
+            self.cpool = self.apool
 
         self.log.debug("- Database pools initialized.")
 
@@ -415,6 +417,11 @@ class NodeImpl(Node):
         if self.apool and not self.apool.closed:
             try:
                 await self.apool.close()
+            except Exception as ex:
+                self.log.exception(ex)
+        if not self.cpool.closed:
+            try:
+                await self.cpool.close()
             except Exception as ex:
                 self.log.exception(ex)
 
