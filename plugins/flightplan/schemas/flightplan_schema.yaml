@@ -21,6 +21,7 @@ schema;element_schema:
   mapping:
     enabled: {type: bool, nullable: true}
     status_channel: {type: any, nullable: true}
+    ping_role: {type: str, nullable: true}
     publish_on_file: {type: bool, nullable: true}
     publish_on_activate: {type: bool, nullable: true}
     publish_on_complete: {type: bool, nullable: true}
