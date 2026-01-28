@@ -548,8 +548,16 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 except discord.Forbidden:
                     self.log.warning(f"Cannot edit message {existing_msg_id} - permission denied")
 
-            # Send new message
-            msg = await channel.send(embed=embed)
+            # Send new message with optional role ping for new approved tasks
+            content = None
+            if status == 'approved':
+                ping_role_name = config.get('ping_role')
+                if ping_role_name and hasattr(channel, 'guild') and channel.guild:
+                    role = discord.utils.get(channel.guild.roles, name=ping_role_name)
+                    if role:
+                        content = role.mention
+
+            msg = await channel.send(content=content, embed=embed)
 
             # Store message ID in database
             try:
