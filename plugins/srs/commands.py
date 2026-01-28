@@ -91,7 +91,8 @@ class SRS(Plugin[SRSEventListener]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("No update for DCS-SRS available."))
 
-    async def _configure(self, interaction: discord.Interaction,
+    @staticmethod
+    async def _configure(interaction: discord.Interaction,
                          server: Server,
                          enabled: bool = None,
                          autoconnect: bool = None) -> dict | None:
