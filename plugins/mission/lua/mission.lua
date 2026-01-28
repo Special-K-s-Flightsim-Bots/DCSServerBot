@@ -210,14 +210,20 @@ local function buildMenu(playerID, groupID, menuTable, parentMenu)
 end
 
 function dcsbot.createMenu(playerID, groupID, data)
-    -- Always delete existing menu first to handle reslot to same group
-    dcsbot.deleteMenu(groupID)
+    -- Initialize menu tracking for this group if needed
+    if not _menuItems[groupID] then
+        _menuItems[groupID] = {}
+    end
 
     parsedData = net.json2lua(data)
-    _menuItems[groupID] = {}
 
     for _, rootMenuEntry in ipairs(parsedData) do
         for rootMenuName, rootMenuData in pairs(rootMenuEntry) do
+            -- Delete only this specific root menu if it exists (allows multiple plugins)
+            if _menuItems[groupID][rootMenuName] then
+                missionCommands.removeItemForGroup(groupID, _menuItems[groupID][rootMenuName])
+                _menuItems[groupID][rootMenuName] = nil
+            end
             -- Create the root menu
             local rootMenu = missionCommands.addSubMenuForGroup(groupID, rootMenuName)
             -- Add the root menu to _menuItems[groupID] list
