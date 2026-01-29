@@ -60,6 +60,9 @@ minidump==0.0.24; sys_platform == 'win32'
 numpy==2.3.5 ; python_version >= "3.11"
 numpy==2.2.6; python_version < "3.11"
 
+# PyNUT2: NUT client for UPS systems
+nut2==2.1.1
+
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
 openpyxl>=3.1.5
 
@@ -67,7 +70,7 @@ openpyxl>=3.1.5
 pandas>=2.3.3
 
 # Packaging: A core package providing support for PEP 440 version identifiers
-packaging==25.0
+packaging==26.0
 
 # PID: Pidfile implementation by using a Unix PID file
 pid==3.0.4
@@ -82,7 +85,7 @@ psycopg[binary]==3.3.2
 psycopg-pool==3.3.0
 
 # PSUtil: Cross-platform library to access system details and process utilities
-psutil==7.2.1
+psutil==7.2.2
 
 # pyKwalify: A Python library for YAML/JSON schema validation
 pykwalify==1.8.0
@@ -91,7 +94,7 @@ pykwalify==1.8.0
 python-Levenshtein==0.27.3
 
 # python-multipart: A library for parsing multipart/form-data input requests
-python-multipart==0.0.21
+python-multipart==0.0.22
 
 # Pywin32: Set of Python extensions for MS Windows
 pywin32==311; sys_platform == 'win32'
@@ -103,7 +106,7 @@ pywinauto==0.6.9; sys_platform == 'win32'
 requests==2.32.5
 
 # Rich: Python library for rich text and beautiful formatting in the terminal
-rich==14.2.0
+rich==14.3.1
 
 # ruamel-yaml: YAML parser/emitter supporting roundtrip comment preservation
 ruamel.yaml==0.19.1

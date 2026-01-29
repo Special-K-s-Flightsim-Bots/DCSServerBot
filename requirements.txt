@@ -52,17 +52,18 @@ mdurl==0.1.2
 mgrs==1.5.3
 minidump==0.0.24 ; sys_platform == "win32"
 miniupnpc==2.3.3 ; python_version < "3.14"
-multidict==6.7.0
+multidict==6.7.1
 numpy==2.3.5 ; python_version >= "3.11"
 numpy==2.2.6 ; python_version < "3.11"
+nut2==2.1.1
 openpyxl==3.1.5
-packaging==25.0
+packaging==26.0
 pandas==3.0.0
 pid==3.0.4
 pillow==12.1.0
 pip-tools==7.5.2
 propcache==0.4.1
-psutil==7.2.1
+psutil==7.2.2
 psycopg==3.3.2
 psycopg-binary==3.3.2
 psycopg-pool==3.3.0
@@ -77,14 +78,14 @@ pyproj==3.7.1 ; python_version < "3.11"
 pyproject-hooks==1.2.0
 python-dateutil==2.9.0.post0
 python-levenshtein==0.27.3
-python-multipart==0.0.21
+python-multipart==0.0.22
 pytz==2025.2
 pywin32==311 ; sys_platform == "win32"
 pywinauto==0.6.9 ; sys_platform == "win32"
 rapidfuzz==3.14.3
 referencing==0.37.0
 requests==2.32.5
-rich==14.2.0
+rich==14.3.1
 rpds-py==0.30.0
 ruamel-yaml==0.19.1
 seaborn==0.13.2
@@ -104,7 +105,7 @@ upnpy==1.1.8 ; python_version >= "3.14"
 urllib3==2.6.3
 uvicorn==0.40.0
 watchdog==6.0.0
-wheel==0.45.1
+wheel==0.46.3
 yarl==1.22.0
 
 # The following packages are considered to be unsafe in a requirements file:
