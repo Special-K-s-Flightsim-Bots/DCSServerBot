@@ -2435,6 +2435,9 @@ class Mission(Plugin[MissionEventListener]):
                         "command": "unban",
                         "ucid": row[0]
                     })
+                    player = server.get_player(ucid=row[0])
+                    if player:
+                        player.banned = False
                 # delete unbanned accounts from the database
                 await conn.execute("DELETE FROM bans WHERE ucid = %s", (row[0], ))
 
