@@ -2,7 +2,7 @@ import asyncio
 
 from core import Service, ServiceRegistry, Coalition, Status
 from discord.ext import tasks
-from nut2 import PyNUTClient, PyNUTError
+#from nut2 import PyNUTClient, PyNUTError
 from services.cron.actions import halt
 from services.servicebus import ServiceBus
 
