@@ -345,9 +345,8 @@ class InfoView(View):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         async with self.bot.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("INSERT INTO watchlist (player_ucid, reason, created_by) VALUES (%s, %s, %s)",
-                                   (self.ucid, 'n/a', interaction.user.display_name))
+            await conn.execute("INSERT INTO watchlist (player_ucid, reason, created_by) VALUES (%s, %s, %s)",
+                               (self.ucid, 'n/a', interaction.user.display_name))
         await interaction.followup.send("User is now on the watchlist.", ephemeral=self.ephemeral)
         self.stop()
 
@@ -355,8 +354,7 @@ class InfoView(View):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         async with self.bot.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (self.ucid, ))
+            await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (self.ucid, ))
         await interaction.followup.send("User removed from the watchlist.", ephemeral=self.ephemeral)
         name = self.player.name if self.player else self.member.display_name if isinstance(self.member, discord.Member) else self.member
         message = f'removed player {name} '

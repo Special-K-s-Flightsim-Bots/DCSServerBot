@@ -189,17 +189,16 @@ class Cloud(Plugin[CloudListener]):
             await interaction.response.send_message(_('No cloud sync configured!'), ephemeral=True)
             return
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                sql = 'UPDATE players SET synced = false'
-                if member:
-                    if isinstance(member, str):
-                        sql += ' WHERE ucid = %s'
-                    else:
-                        sql += ' WHERE discord_id = %s'
-                        member = member.id
-                    await conn.execute(sql, (member, ))
+            sql = 'UPDATE players SET synced = false'
+            if member:
+                if isinstance(member, str):
+                    sql += ' WHERE ucid = %s'
                 else:
-                    await conn.execute(sql)
+                    sql += ' WHERE discord_id = %s'
+                    member = member.id
+                await conn.execute(sql, (member, ))
+            else:
+                await conn.execute(sql)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Resync with cloud triggered.'), ephemeral=ephemeral)
 
@@ -334,18 +333,17 @@ class Cloud(Plugin[CloudListener]):
                 async with self.apool.connection() as conn:
                     cursor = await conn.execute("SELECT player_ucid FROM watchlist WHERE created_by = 'DGSA'")
                     watches = set([row[0] for row in await cursor.fetchall()])
-                    async with conn.transaction():
-                        # find watches to add
-                        for ucid in to_ban - watches:
-                            reason = dgsa_bans[ucid]['reason']
-                            await conn.execute("""
-                                INSERT INTO watchlist (player_ucid, reason, created_by) 
-                                VALUES (%s, %s, %s)
-                                ON CONFLICT (player_ucid) DO NOTHING
-                            """, (ucid, reason, 'DGSA'))
-                        # find watches to remove
-                        for ucid in watches - to_ban:
-                            await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (ucid,))
+                    # find watches to add
+                    for ucid in to_ban - watches:
+                        reason = dgsa_bans[ucid]['reason']
+                        await conn.execute("""
+                            INSERT INTO watchlist (player_ucid, reason, created_by) 
+                            VALUES (%s, %s, %s)
+                            ON CONFLICT (player_ucid) DO NOTHING
+                        """, (ucid, reason, 'DGSA'))
+                    # find watches to remove
+                    for ucid in watches - to_ban:
+                        await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (ucid,))
             if self.config.get('discord-ban', False):
                 global_bans: dict = await self.get('discord-bans')
                 global_ban_ids = {x['discord_id'] for x in global_bans}
@@ -383,41 +381,39 @@ class Cloud(Plugin[CloudListener]):
     @tasks.loop(seconds=10)
     async def cloud_sync(self):
         async with self.apool.connection() as conn:
-            cursor = await conn.execute("""
-                SELECT ucid FROM players 
-                WHERE synced IS FALSE 
-                ORDER BY last_seen DESC 
-                LIMIT 10
-            """)
-            rows = await cursor.fetchall()
-        # We do not want to block the connection pool for an unnecessary amount of time
-        for row in rows:
-            async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    async with conn.cursor(row_factory=dict_row) as cursor:
-                        await cursor.execute("""
-                            SELECT s.player_ucid, m.mission_theatre, s.slot, 
-                                   SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
-                                   SUM(ejections) as ejections, SUM(crashes) as crashes, 
-                                   SUM(teamkills) as teamkills, SUM(kills_planes) AS kills_planes, 
-                                   SUM(kills_helicopters) AS kills_helicopters, SUM(kills_ships) AS kills_ships, 
-                                   SUM(kills_sams) AS kills_sams, SUM(kills_ground) AS kills_ground, 
-                                   SUM(deaths_pvp) as deaths_pvp, SUM(deaths_planes) AS deaths_planes, 
-                                   SUM(deaths_helicopters) AS deaths_helicopters, SUM(deaths_ships) AS deaths_ships,
-                                   SUM(deaths_sams) AS deaths_sams, SUM(deaths_ground) AS deaths_ground, 
-                                   SUM(takeoffs) as takeoffs, SUM(landings) as landings, 
-                                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))))::BIGINT AS playtime 
-                            FROM statistics s, missions m 
-                            WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
-                            GROUP BY 1, 2, 3
-                        """, (row[0], ))
-                        async for line in cursor:
-                            try:
-                                line['client'] = self.client
-                                await self.post('upload', line)
-                            except TypeError as ex:
-                                self.log.warning(f"Could not replicate user {row[0]}: {ex}")
-                        await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row[0], ))
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                cursor = await conn.execute("""
+                    SELECT ucid FROM players 
+                    WHERE synced IS FALSE 
+                    ORDER BY last_seen DESC 
+                    LIMIT 10
+                """)
+                rows = await cursor.fetchall()
+
+                for row in rows:
+                    await cursor.execute("""
+                        SELECT s.player_ucid, m.mission_theatre, s.slot, 
+                               SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
+                               SUM(ejections) as ejections, SUM(crashes) as crashes, 
+                               SUM(teamkills) as teamkills, SUM(kills_planes) AS kills_planes, 
+                               SUM(kills_helicopters) AS kills_helicopters, SUM(kills_ships) AS kills_ships, 
+                               SUM(kills_sams) AS kills_sams, SUM(kills_ground) AS kills_ground, 
+                               SUM(deaths_pvp) as deaths_pvp, SUM(deaths_planes) AS deaths_planes, 
+                               SUM(deaths_helicopters) AS deaths_helicopters, SUM(deaths_ships) AS deaths_ships,
+                               SUM(deaths_sams) AS deaths_sams, SUM(deaths_ground) AS deaths_ground, 
+                               SUM(takeoffs) as takeoffs, SUM(landings) as landings, 
+                               ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))))::BIGINT AS playtime 
+                        FROM statistics s, missions m 
+                        WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
+                        GROUP BY 1, 2, 3
+                    """, (row[0], ))
+                    async for line in cursor:
+                        try:
+                            line['client'] = self.client
+                            await self.post('upload', line)
+                        except TypeError as ex:
+                            self.log.warning(f"Could not replicate user {row[0]}: {ex}")
+                    await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row[0], ))
 
     @cloud_sync.before_loop
     async def before_cloud_sync(self):

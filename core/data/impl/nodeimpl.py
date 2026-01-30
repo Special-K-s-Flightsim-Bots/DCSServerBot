@@ -189,7 +189,7 @@ class NodeImpl(Node):
         await self._post_init()
         return self
 
-    async def __aexit__(self, type, value, traceback):
+    async def __aexit__(self, _type, _value, _traceback):
         if self.heartbeat_loop.is_running():
             self.heartbeat_loop.cancel()
         await self.close_db()
@@ -393,11 +393,13 @@ class NodeImpl(Node):
         # initialize the cluster pool
         if urlparse(lpool_url).path != urlparse(cpool_url).path:
             self.log.info("- Federation detected.")
-        # create the fast cluster pool
-        self.cpool = AsyncConnectionPool(
-            conninfo=cpool_url, min_size=2, max_size=4, check=AsyncConnectionPool.check_connection,
-            max_idle=max_idle, timeout=timeout, open=False)
-        await self.cpool.open()
+            # create the fast cluster pool
+            self.cpool = AsyncConnectionPool(
+                conninfo=cpool_url, name="ClusterPool", min_size=2, max_size=4,
+                check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout, open=False)
+            await self.cpool.open()
+        else:
+            self.cpool = self.apool
 
         self.log.debug("- Database pools initialized.")
 
@@ -417,6 +419,11 @@ class NodeImpl(Node):
                 await self.apool.close()
             except Exception as ex:
                 self.log.exception(ex)
+        if not self.cpool.closed:
+            try:
+                await self.cpool.close()
+            except Exception as ex:
+                self.log.exception(ex)
 
     async def init_instances(self):
         grouped = defaultdict(list)
@@ -432,10 +439,9 @@ class NodeImpl(Node):
                 server_name, ', '.join(instances)))
         # remove all (old) instances before node start to avoid duplicates
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    DELETE FROM instances WHERE node = %s
-                """, (self.name,))
+            await conn.execute("""
+                DELETE FROM instances WHERE node = %s
+            """, (self.name,))
         # initialize the nodes
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:
@@ -468,15 +474,50 @@ class NodeImpl(Node):
         rc = 0
         # Initialize the cluster tables ...
         async with self.cpool.connection() as conn:
-            async with conn.transaction():
-                # check if there is an old database already
-                cursor = await conn.execute("""
-                    SELECT tablename FROM pg_catalog.pg_tables WHERE tablename IN ('cluster', 'nodes', 'files')
-                """)
-                tables = [x[0] async for x in cursor]
-                # initial setup
-                if len(tables) < 3:
-                    with open(os.path.join('sql', 'cluster.sql'), mode='r') as tables_sql:
+            # check if there is an old database already
+            cursor = await conn.execute("""
+                SELECT tablename FROM pg_catalog.pg_tables WHERE tablename IN ('cluster', 'nodes', 'files')
+            """)
+            tables = [x[0] async for x in cursor]
+            # initial setup
+            if len(tables) < 3:
+                with open(os.path.join('sql', 'cluster.sql'), mode='r') as tables_sql:
+                    for query in [
+                        stmt.strip()
+                        for stmt in sqlparse.split(tables_sql.read(), encoding='utf-8')
+                        if stmt.strip()
+                    ]:
+                        self.log.debug(query.rstrip())
+                        await conn.execute(query.rstrip())
+        # initialize all other tables ...
+        async with self.apool.connection() as conn:
+            # check if there is an old database already
+            cursor = await conn.execute("""
+                SELECT tablename FROM pg_catalog.pg_tables WHERE tablename IN ('version', 'plugins')
+            """)
+            tables = [x[0] async for x in cursor]
+            # initial setup
+            if len(tables) == 0:
+                self.log.info('- Creating Database ...')
+                with open(os.path.join('sql', 'tables.sql'), mode='r') as tables_sql:
+                    for query in [
+                        stmt.strip()
+                        for stmt in sqlparse.split(tables_sql.read(), encoding='utf-8')
+                        if stmt.strip()
+                    ]:
+                        self.log.debug(query.rstrip())
+                        await cursor.execute(query.rstrip())
+                self.log.info('- Database created.')
+            else:
+                # version table missing (DB version <= 1.4)
+                if 'version' not in tables:
+                    await conn.execute("CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY)")
+                    await conn.execute("INSERT INTO version (version) VALUES ('v1.4')")
+                cursor = await conn.execute('SELECT version FROM version')
+                self.db_version = (await cursor.fetchone())[0]
+                while os.path.exists(f'sql/update_{self.db_version}.sql'):
+                    old_version = self.db_version
+                    with open(os.path.join('sql', f'update_{self.db_version}.sql'), mode='r') as tables_sql:
                         for query in [
                             stmt.strip()
                             for stmt in sqlparse.split(tables_sql.read(), encoding='utf-8')
@@ -484,48 +525,11 @@ class NodeImpl(Node):
                         ]:
                             self.log.debug(query.rstrip())
                             await conn.execute(query.rstrip())
-        # initialize all other tables ...
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # check if there is an old database already
-                cursor = await conn.execute("""
-                    SELECT tablename FROM pg_catalog.pg_tables WHERE tablename IN ('version', 'plugins')
-                """)
-                tables = [x[0] async for x in cursor]
-                # initial setup
-                if len(tables) == 0:
-                    self.log.info('- Creating Database ...')
-                    with open(os.path.join('sql', 'tables.sql'), mode='r') as tables_sql:
-                        for query in [
-                            stmt.strip()
-                            for stmt in sqlparse.split(tables_sql.read(), encoding='utf-8')
-                            if stmt.strip()
-                        ]:
-                            self.log.debug(query.rstrip())
-                            await cursor.execute(query.rstrip())
-                    self.log.info('- Database created.')
-                else:
-                    # version table missing (DB version <= 1.4)
-                    if 'version' not in tables:
-                        await conn.execute("CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY)")
-                        await conn.execute("INSERT INTO version (version) VALUES ('v1.4')")
                     cursor = await conn.execute('SELECT version FROM version')
                     self.db_version = (await cursor.fetchone())[0]
-                    while os.path.exists(f'sql/update_{self.db_version}.sql'):
-                        old_version = self.db_version
-                        with open(os.path.join('sql', f'update_{self.db_version}.sql'), mode='r') as tables_sql:
-                            for query in [
-                                stmt.strip()
-                                for stmt in sqlparse.split(tables_sql.read(), encoding='utf-8')
-                                if stmt.strip()
-                            ]:
-                                self.log.debug(query.rstrip())
-                                await conn.execute(query.rstrip())
-                        cursor = await conn.execute('SELECT version FROM version')
-                        self.db_version = (await cursor.fetchone())[0]
-                        rc = await asyncio.to_thread(migrate, self.node, old_version, self.db_version)
-                        if rc != -2:
-                            self.log.info(f'- Database upgraded from {old_version} to {self.db_version}.')
+                    rc = await asyncio.to_thread(migrate, self.node, old_version, self.db_version)
+                    if rc != -2:
+                        self.log.info(f'- Database upgraded from {old_version} to {self.db_version}.')
         if rc in [-1, -2]:
             sys.exit(rc)
 
@@ -624,8 +628,7 @@ class NodeImpl(Node):
     @override
     async def upgrade(self):
         async with self.cpool.connection() as conn:
-            async with conn.transaction():
-                await self._upgrade(conn)
+            await self._upgrade(conn)
 
     @override
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
@@ -997,16 +1000,15 @@ class NodeImpl(Node):
 
     async def unregister(self):
         async with self.cpool.connection() as conn:
-            async with conn.transaction():
-                if self.master:
-                    cursor = await conn.execute("SELECT update_pending FROM cluster WHERE guild_id = %s",
-                                                (self.guild_id,))
-                    row = await cursor.fetchone()
-                    update_pending = row and row[0]
-                else:
-                    update_pending = False
-                if not update_pending:
-                    await conn.execute("DELETE FROM nodes WHERE guild_id = %s AND node = %s", (self.guild_id, self.name))
+            if self.master:
+                cursor = await conn.execute("SELECT update_pending FROM cluster WHERE guild_id = %s",
+                                            (self.guild_id,))
+                row = await cursor.fetchone()
+                update_pending = row and row[0]
+            else:
+                update_pending = False
+            if not update_pending:
+                await conn.execute("DELETE FROM nodes WHERE guild_id = %s AND node = %s", (self.guild_id, self.name))
         if 'DCS' in self.locals and self.locals['DCS'].get('autoupdate', False):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 self.autoupdate.cancel()
@@ -1141,68 +1143,67 @@ class NodeImpl(Node):
             holds_lock = row[0] if row else False
 
             async with self.cpool.connection() as conn:
-                async with conn.transaction():
-                    try:
-                        master, version, update_pending = await get_master()
-                        # upgrade is pending
-                        if update_pending:
-                            return await handle_upgrade(master)
-                        elif parse(version) > parse(__version__):
-                            # avoid update loops if we are the master
-                            if master == self.name:
-                                self._master = True
-                                self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
-                                                 "Rolling back the cluser version to my version.")
-                            await self._upgrade(conn)
-                        elif parse(version) < parse(__version__) and await is_node_alive(master, config.get('heartbeat', 30)):
-                            if master != self.name:
-                                raise FatalException(f"This node uses DCSServerBot version {__version__} "
-                                                     f"where the master uses version {version}!")
-                            await self._upgrade(conn)
+                try:
+                    master, version, update_pending = await get_master()
+                    # upgrade is pending
+                    if update_pending:
+                        return await handle_upgrade(master)
+                    elif parse(version) > parse(__version__):
+                        # avoid update loops if we are the master
+                        if master == self.name:
+                            self._master = True
+                            self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
+                                             "Rolling back the cluser version to my version.")
+                        await self._upgrade(conn)
+                    elif parse(version) < parse(__version__) and await is_node_alive(master, config.get('heartbeat', 30)):
+                        if master != self.name:
+                            raise FatalException(f"This node uses DCSServerBot version {__version__} "
+                                                 f"where the master uses version {version}!")
+                        await self._upgrade(conn)
 
-                        # We don't want to be a master
-                        if config.get('no_master', False):
-                            if not await is_node_alive(master, config.get('heartbeat', 30)):
-                                raise FatalException(f"Master node {master} is not alive, exiting.")
-                            return False
+                    # We don't want to be a master
+                    if config.get('no_master', False):
+                        if not await is_node_alive(master, config.get('heartbeat', 30)):
+                            raise FatalException(f"Master node {master} is not alive, exiting.")
+                        return False
 
-                        # I am the master
-                        elif master == self.name:
-                            if not holds_lock:
-                                # Try to grab the lock on the sticky connection
-                                cursor = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key, ))
-                                if not (await cursor.fetchone())[0]:
-                                    self.log.error("Conflict! Another node holds the master lock.")
-                                    return False
-
-                            await check_nodes()
-                            return True
-
-                        # Someone else is the master
-                        elif master:
-                            if holds_lock:
-                                # We have the lock, but the table says someone else is master
-                                await lock_conn.execute("SELECT pg_advisory_unlock(%s)", (lock_key, ))
+                    # I am the master
+                    elif master == self.name:
+                        if not holds_lock:
+                            # Try to grab the lock on the sticky connection
+                            cursor = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key, ))
+                            if not (await cursor.fetchone())[0]:
+                                self.log.error("Conflict! Another node holds the master lock.")
                                 return False
 
-                            if config.get('preferred_master', False):
-                                await take_over(block=False)
-                                return True
-
-                            if await is_node_alive(master, config.get('heartbeat', 30)):
-                                return False
-
-                        # No master or master is dead
-                        self.log.info("No master found, taking over ...")
-                        await take_over()
+                        await check_nodes()
                         return True
 
-                    finally:
-                        await conn.execute("""
-                            INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
-                            ON CONFLICT (guild_id, node) DO UPDATE 
-                            SET last_seen = (NOW() AT TIME ZONE 'UTC')
-                        """, (self.guild_id, self.name))
+                    # Someone else is the master
+                    elif master:
+                        if holds_lock:
+                            # We have the lock, but the table says someone else is master
+                            await lock_conn.execute("SELECT pg_advisory_unlock(%s)", (lock_key, ))
+                            return False
+
+                        if config.get('preferred_master', False):
+                            await take_over(block=False)
+                            return True
+
+                        if await is_node_alive(master, config.get('heartbeat', 30)):
+                            return False
+
+                    # No master or master is dead
+                    self.log.info("No master found, taking over ...")
+                    await take_over()
+                    return True
+
+                finally:
+                    await conn.execute("""
+                        INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
+                        ON CONFLICT (guild_id, node) DO UPDATE 
+                        SET last_seen = (NOW() AT TIME ZONE 'UTC')
+                    """, (self.guild_id, self.name))
         except psycopg_pool.PoolTimeout:
             current_stats = self.cpool.get_stats()
             self.log.warning(f"Pool stats: {repr(current_stats)}")
@@ -1265,13 +1266,12 @@ class NodeImpl(Node):
             return await _read_file(path)
         else:
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    cursor = await conn.execute("""
-                        INSERT INTO files (guild_id, name, data) 
-                        VALUES (%s, %s, %s)
-                        RETURNING id
-                    """, (self.guild_id, path, psycopg.Binary(await _read_file(path))))
-                    return (await cursor.fetchone())[0]
+                cursor = await conn.execute("""
+                    INSERT INTO files (guild_id, name, data) 
+                    VALUES (%s, %s, %s)
+                    RETURNING id
+                """, (self.guild_id, path, psycopg.Binary(await _read_file(path))))
+                return (await cursor.fetchone())[0]
 
     @override
     async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
@@ -1593,8 +1593,7 @@ class NodeImpl(Node):
             await self.unregister_server(instance.server)
         self.instances.pop(instance.name, None)
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("DELETE FROM instances WHERE instance = %s", (instance.name, ))
+            await conn.execute("DELETE FROM instances WHERE instance = %s", (instance.name, ))
         if remove_files:
             shutil.rmtree(instance.home, ignore_errors=True)
 
@@ -1639,11 +1638,10 @@ class NodeImpl(Node):
 
             # change the database
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("""
-                        UPDATE instances SET instance = %s 
-                        WHERE node = %s AND instance = %s
-                    """, (new_name, instance.node.name, instance.name, ))
+                await conn.execute("""
+                    UPDATE instances SET instance = %s 
+                    WHERE node = %s AND instance = %s
+                """, (new_name, instance.node.name, instance.name, ))
 
             # rename missions in the missionlist
             if instance.server:
@@ -1819,13 +1817,12 @@ class NodeImpl(Node):
             return create_image(used)
         else:
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    cursor = await conn.execute("""
-                        INSERT INTO files (guild_id, name, data) 
-                        VALUES (%s, %s, %s)
-                        RETURNING id
-                    """, (self.guild_id, 'cpuinfo', psycopg.Binary(create_image(used))))
-                    return (await cursor.fetchone())[0]
+                cursor = await conn.execute("""
+                    INSERT INTO files (guild_id, name, data) 
+                    VALUES (%s, %s, %s)
+                    RETURNING id
+                """, (self.guild_id, 'cpuinfo', psycopg.Binary(create_image(used))))
+                return (await cursor.fetchone())[0]
 
     @override
     async def info(self) -> dict:

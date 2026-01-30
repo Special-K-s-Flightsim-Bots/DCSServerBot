@@ -1,3 +1,5 @@
+import asyncio
+
 from core import EventListener, Server, Player, event, get_translation
 from datetime import datetime, timedelta, timezone
 from psycopg.rows import dict_row
@@ -51,7 +53,7 @@ class LogbookEventListener(EventListener["Logbook"]):
                 try:
                     await cursor.execute("""
                         SELECT COUNT(*) as count FROM traps
-                        WHERE player_ucid = %s AND grade IS NOT NULL
+                        WHERE player_ucid = %s
                     """, (player_ucid,))
                     row = await cursor.fetchone()
                     if row:
@@ -99,7 +101,8 @@ class LogbookEventListener(EventListener["Logbook"]):
 
         return qualifications_to_grant
 
-    def _check_requirements(self, player_stats: dict, requirements: dict) -> bool:
+    @staticmethod
+    def _check_requirements(player_stats: dict, requirements: dict) -> bool:
         """
         Check if player stats meet all requirements.
         Requirements format: {"flight_hours": 10, "carrier_landings": 5}
@@ -229,7 +232,7 @@ class LogbookEventListener(EventListener["Logbook"]):
                 try:
                     await cursor.execute("""
                         SELECT COUNT(*) as count FROM traps
-                        WHERE player_ucid = %s AND grade IS NOT NULL
+                        WHERE player_ucid = %s
                     """, (player_ucid,))
                     row = await cursor.fetchone()
                     if row:
@@ -299,7 +302,7 @@ class LogbookEventListener(EventListener["Logbook"]):
         return revoked, refreshed, granted
 
     @event(name="onMissionEnd")
-    async def on_mission_end(self, server: Server, data: dict) -> None:
+    async def on_mission_end(self, server: Server, _data: dict) -> None:
         """Check for auto-grant qualifications when mission ends."""
         config = self.get_config(server)
         if not config.get('auto_qualifications', True):
@@ -343,5 +346,7 @@ class LogbookEventListener(EventListener["Logbook"]):
             if granted:
                 messages.append(_("Congratulations! You've earned qualification(s): {}").format(", ".join(granted)))
 
+            tasks = []
             for msg in messages:
-                await player.sendChatMessage(msg)
+                tasks.append(player.sendChatMessage(msg))
+            await asyncio.gather(*tasks)

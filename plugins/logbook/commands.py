@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from discord import app_commands
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Optional
+from typing import Optional, Any
 
 from .listener import LogbookEventListener
 from .utils.ribbon import create_ribbon_rack, HAS_IMAGING
@@ -339,7 +339,7 @@ class Logbook(Plugin[LogbookEventListener]):
                     FROM logbook_squadron_members m
                     JOIN logbook_squadrons s ON m.squadron_id = s.id
                     WHERE m.player_ucid = %s
-                    ORDER BY m.joined_at ASC
+                    ORDER BY m.joined_at
                 """, (ucid,))
                 squadrons = await cursor.fetchall()
 
@@ -597,7 +597,7 @@ class Logbook(Plugin[LogbookEventListener]):
                     LEFT JOIN logbook_pilots lp ON sm.player_ucid = lp.player_ucid
                     LEFT JOIN pilot_logbook_stats pls ON sm.player_ucid = pls.ucid
                     WHERE sm.squadron_id = %s
-                    ORDER BY lp.rank NULLS LAST, sm.joined_at ASC
+                    ORDER BY lp.rank NULLS LAST, sm.joined_at
                 """, (squadron,))
                 members = await cursor.fetchall()
 
@@ -812,21 +812,25 @@ class Logbook(Plugin[LogbookEventListener]):
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                # Get player name
-                await cursor.execute("SELECT name FROM players WHERE ucid = %s", (member,))
+                # Verify member is in the squadron and get their name
+                await cursor.execute("""
+                    SELECT p.name FROM players p
+                    JOIN logbook_squadron_members lsm ON p.ucid = lsm.player_ucid
+                    WHERE lsm.squadron_id = %s AND lsm.player_ucid = %s
+                """, (squadron, member))
                 player_row = await cursor.fetchone()
 
                 if not player_row:
                     # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(_('Member not found!'), ephemeral=True)
+                    await interaction.response.send_message(_('Member not found in squadron!'), ephemeral=True)
                     return
 
-                # Update rank
+                # Update pilot's global rank in logbook_pilots (uses UPSERT)
                 await conn.execute("""
-                    UPDATE logbook_squadron_members
-                    SET rank = %s
-                    WHERE squadron_id = %s AND player_ucid = %s
-                """, (rank, squadron, member))
+                    INSERT INTO logbook_pilots (player_ucid, rank)
+                    VALUES (%s, %s)
+                    ON CONFLICT (player_ucid) DO UPDATE SET rank = EXCLUDED.rank
+                """, (member, rank))
 
         embed = discord.Embed(
             title=_('Rank Updated'),
@@ -1235,12 +1239,11 @@ class Logbook(Plugin[LogbookEventListener]):
                 if qual_row.get('valid_days'):
                     expires_at = datetime.now(timezone.utc) + timedelta(days=qual_row['valid_days'])
 
-                async with conn.transaction():
-                    await conn.execute("""
-                        INSERT INTO logbook_pilot_qualifications
-                        (player_ucid, qualification_id, granted_by, expires_at)
-                        VALUES (%s, %s, %s, %s)
-                    """, (ucid, qualification, granter_ucid, expires_at))
+                await conn.execute("""
+                    INSERT INTO logbook_pilot_qualifications
+                    (player_ucid, qualification_id, granted_by, expires_at)
+                    VALUES (%s, %s, %s, %s)
+                """, (ucid, qualification, granter_ucid, expires_at))
 
         embed = discord.Embed(
             title=_('Qualification Granted'),
@@ -1433,7 +1436,6 @@ class Logbook(Plugin[LogbookEventListener]):
 
                     now = datetime.now(timezone.utc)
                     for qual in quals:
-                        status = ""
                         if qual.get('expires_at'):
                             expires_at = qual['expires_at']
                             if expires_at.tzinfo is None:
@@ -1519,7 +1521,7 @@ class Logbook(Plugin[LogbookEventListener]):
             LEFT JOIN logbook_squadrons s ON s.id = sm.squadron_id
             WHERE pq.expires_at IS NOT NULL AND pq.expires_at <= %s
         """
-        params = [cutoff_date]
+        params: list[Any] = [cutoff_date]
 
         if squadron is not None:
             query += " AND sm.squadron_id = %s"
@@ -1715,10 +1717,11 @@ class Logbook(Plugin[LogbookEventListener]):
         if image_url:
             embed.set_thumbnail(url=image_url)
 
-        # noinspection PyUnresolvedReferences
         if file:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(embed=embed, file=file, ephemeral=ephemeral)
         else:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
         await self.bot.audit(f'created award {name}', user=interaction.user)
 
@@ -1767,10 +1770,11 @@ class Logbook(Plugin[LogbookEventListener]):
         if row.get('image_url'):
             embed.set_thumbnail(url=row['image_url'])
 
-        # noinspection PyUnresolvedReferences
         if file:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(embed=embed, file=file, ephemeral=ephemeral)
         else:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     @award.command(name='grant', description=_('Grant an award to a pilot'))
@@ -1810,12 +1814,11 @@ class Logbook(Plugin[LogbookEventListener]):
                     await interaction.response.send_message(_('Award not found!'), ephemeral=True)
                     return
 
-                async with conn.transaction():
-                    await conn.execute("""
-                        INSERT INTO logbook_pilot_awards
-                        (player_ucid, award_id, granted_by, citation)
-                        VALUES (%s, %s, %s, %s)
-                    """, (ucid, award, granter_ucid, citation))
+                await conn.execute("""
+                    INSERT INTO logbook_pilot_awards
+                    (player_ucid, award_id, granted_by, citation)
+                    VALUES (%s, %s, %s, %s)
+                """, (ucid, award, granter_ucid, citation))
 
         embed = discord.Embed(
             title=_('Award Granted'),

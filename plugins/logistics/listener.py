@@ -1,18 +1,13 @@
 import asyncio
 import discord
 import json
-import logging
-import re
 
-from core import EventListener, Server, event, chat_command, Player, Side
+from core import EventListener, Server, event, chat_command, Player
 from datetime import datetime, timezone, timedelta
-from discord.ext import tasks
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from .commands import Logistics
-
-log = logging.getLogger(__name__)
 
 
 def _normalize_airbase_name(name: str) -> str:
@@ -84,14 +79,14 @@ class LogisticsEventListener(EventListener["Logistics"]):
             self._delivery_check_task.cancel()
 
     @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
+    async def registerDCSServer(self, server: Server, _data: dict) -> None:
         """Initialize logistics state when server registers."""
-        log.debug(f"Logistics: Server {server.name} registered")
+        self.log.debug(f"Logistics: Server {server.name} registered")
 
     @event(name="onSimulationStart")
-    async def onSimulationStart(self, server: Server, data: dict) -> None:
+    async def onSimulationStart(self, server: Server, _data: dict) -> None:
         """Recreate markers for assigned tasks and clean up stale tasks when mission starts."""
-        log.info(f"Logistics: Mission started on {server.name}")
+        self.log.info(f"Logistics: Mission started on {server.name}")
 
         # Clean up stale tasks
         await self._cancel_stale_tasks(server)
@@ -143,20 +138,20 @@ class LogisticsEventListener(EventListener["Logistics"]):
         """Store marker IDs from Lua for cleanup tracking."""
         task_id = data.get('task_id')
         marker_ids = data.get('marker_ids', [])
-        log.debug(f"Logistics: Markers created for task {task_id}: {len(marker_ids)} markers")
+        self.log.debug(f"Logistics: Markers created for task {task_id}: {len(marker_ids)} markers")
         await self._store_marker_ids(server.name, task_id, marker_ids)
 
     @event(name="removeLogisticsMarkers")
-    async def onRemoveLogisticsMarkers(self, server: Server, data: dict) -> None:
+    async def onRemoveLogisticsMarkers(self, _server: Server, data: dict) -> None:
         """Handle marker removal confirmation from Lua."""
         task_id = data.get('task_id')
         removed_count = data.get('removed_count', 0)
-        log.debug(f"Logistics: Removed {removed_count} markers for task {task_id}")
+        self.log.debug(f"Logistics: Removed {removed_count} markers for task {task_id}")
 
-    @event(name="logisticsSimulationStart")
-    async def onLogisticsSimulationStart(self, server: Server, data: dict) -> None:
+    @event(name="onSimulationStart")
+    async def onSimulationStart(self, server: Server, _data: dict) -> None:
         """Handle mission start - recreate markers for assigned tasks."""
-        log.info(f"Logistics: Simulation started on {server.name}, recreating assigned task markers")
+        self.log.info(f"Logistics: Simulation started on {server.name}, recreating assigned task markers")
         await self._recreate_assigned_task_markers(server)
 
     @event(name="checkDeliveryProximity")
@@ -179,11 +174,12 @@ class LogisticsEventListener(EventListener["Logistics"]):
             if not player:
                 return
 
-            log.info(f"Logistics: Proximity check passed for task {task_id}, completing")
+            self.log.info(f"Logistics: Proximity check passed for task {task_id}, completing")
             result = await self._complete_task(server, player, task_id)
             if result['success']:
-                await player.sendChatMessage(f"Delivery confirmed! Task #{task_id} completed.")
-                await player.sendPopupMessage("DELIVERY COMPLETE\n\nTask logged to your record.", 10)
+                asyncio.create_task(player.sendChatMessage(f"Delivery confirmed! Task #{task_id} completed."))
+                asyncio.create_task(player.sendPopupMessage(
+                    "DELIVERY COMPLETE\n\nTask logged to your record.", 10))
                 # Refresh F10 menu to remove completed task
                 await self._create_logistics_menu(server, player)
 
@@ -227,7 +223,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
     # ==================== CHAT COMMANDS ====================
 
     @chat_command(name="lhelp", aliases=["logistics"], help="Show logistics commands")
-    async def lhelp_cmd(self, server: Server, player: Player, params: list[str]):
+    async def lhelp_cmd(self, _server: Server, player: Player, _params: list[str]):
         """Show logistics-specific commands."""
         msg = (
             "Logistics Commands:\n"
@@ -239,14 +235,14 @@ class LogisticsEventListener(EventListener["Logistics"]):
             f"  {self.prefix}abandon - Release your task\n"
             f"  {self.prefix}plot <all|id> - Plot tasks on F10 map"
         )
-        await player.sendChatMessage(msg)
+        asyncio.create_task(player.sendChatMessage(msg))
 
     @chat_command(name="tasks", help="List available logistics tasks")
-    async def tasks_cmd(self, server: Server, player: Player, params: list[str]):
+    async def tasks_cmd(self, server: Server, player: Player, _params: list[str]):
         """Show available tasks for player's coalition."""
         tasks = await self._get_available_tasks(server.name, player.side.value)
         if not tasks:
-            await player.sendChatMessage("No logistics tasks available.")
+            asyncio.create_task(player.sendChatMessage("No logistics tasks available."))
             return
 
         msg = "Available Logistics Tasks:\n"
@@ -257,41 +253,41 @@ class LogisticsEventListener(EventListener["Logistics"]):
         if len(tasks) > 5:
             msg += f"  ... and {len(tasks) - 5} more. Use -taskinfo <id> for details."
 
-        await player.sendChatMessage(msg)
+        asyncio.create_task(player.sendChatMessage(msg))
 
     @chat_command(name="accept", usage="<task_id>", help="Accept a logistics task")
     async def accept_cmd(self, server: Server, player: Player, params: list[str]):
         """Accept/claim a logistics task."""
         if not params:
-            await player.sendChatMessage("Usage: -accept <task_id>")
+            asyncio.create_task(player.sendChatMessage("Usage: -accept <task_id>"))
             return
 
         try:
             task_id = int(params[0])
         except ValueError:
-            await player.sendChatMessage("Invalid task ID. Use -tasks to see available tasks.")
+            asyncio.create_task(player.sendChatMessage("Invalid task ID. Use -tasks to see available tasks."))
             return
 
         result = await self._assign_task(server, player, task_id)
         if result['success']:
-            await player.sendChatMessage(f"Task #{task_id} accepted! Pickup at {result['source']}.")
-            await player.sendPopupMessage(
+            asyncio.create_task(player.sendChatMessage(f"Task #{task_id} accepted! Pickup at {result['source']}."))
+            asyncio.create_task(player.sendPopupMessage(
                 f"LOGISTICS TASK ASSIGNED\n\n"
                 f"Cargo: {result['cargo']}\n"
                 f"Pickup: {result['source']}\n"
                 f"Deliver to: {result['destination']}\n"
                 f"Deadline: {result['deadline'] or 'None'}",
                 20
-            )
+            ))
         else:
-            await player.sendChatMessage(f"Cannot accept task: {result['error']}")
+            asyncio.create_task(player.sendChatMessage(f"Cannot accept task: {result['error']}"))
 
     @chat_command(name="mytask", help="Show your current logistics task")
-    async def mytask_cmd(self, server: Server, player: Player, params: list[str]):
+    async def mytask_cmd(self, server: Server, player: Player, _params: list[str]):
         """Show the player's currently assigned task."""
         task = await self._get_assigned_task(player.ucid, server.name)
         if not task:
-            await player.sendChatMessage("You have no active logistics task.")
+            asyncio.create_task(player.sendChatMessage("You have no active logistics task."))
             return
 
         deadline_str = task['deadline'].strftime('%H:%MZ') if task['deadline'] else "None"
@@ -303,24 +299,24 @@ class LogisticsEventListener(EventListener["Logistics"]):
             f"  Deadline: {deadline_str}\n"
             f"  Status: {task['status']}"
         )
-        await player.sendChatMessage(msg)
+        asyncio.create_task(player.sendChatMessage(msg))
 
     @chat_command(name="taskinfo", usage="<task_id>", help="View details of a task")
     async def taskinfo_cmd(self, server: Server, player: Player, params: list[str]):
         """View details of any visible task."""
         if not params:
-            await player.sendChatMessage("Usage: -taskinfo <task_id>")
+            asyncio.create_task(player.sendChatMessage("Usage: -taskinfo <task_id>"))
             return
 
         try:
             task_id = int(params[0])
         except ValueError:
-            await player.sendChatMessage("Invalid task ID.")
+            asyncio.create_task(player.sendChatMessage("Invalid task ID."))
             return
 
         task = await self._get_task_by_id(task_id, server.name, player.side.value)
         if not task:
-            await player.sendChatMessage(f"Task #{task_id} not found or not visible to your coalition.")
+            asyncio.create_task(player.sendChatMessage(f"Task #{task_id} not found or not visible to your coalition."))
             return
 
         deadline_str = task['deadline'].strftime('%H:%MZ') if task['deadline'] else "None"
@@ -334,48 +330,51 @@ class LogisticsEventListener(EventListener["Logistics"]):
             f"  Deadline: {deadline_str}\n"
             f"  Assigned: {assigned}"
         )
-        await player.sendChatMessage(msg)
+        asyncio.create_task(player.sendChatMessage(msg))
 
     @chat_command(name="deliver", help="Mark current task as delivered")
-    async def deliver_cmd(self, server: Server, player: Player, params: list[str]):
+    async def deliver_cmd(self, server: Server, player: Player, _params: list[str]):
         """Manual completion option - for when auto-detect fails."""
         try:
             task = await self._get_assigned_task(player.ucid, server.name)
             if not task:
-                await player.sendChatMessage("You have no active logistics task.")
+                asyncio.create_task(player.sendChatMessage("You have no active logistics task."))
                 return
 
             result = await self._complete_task(server, player, task['id'])
             if result['success']:
-                await player.sendChatMessage(f"Task #{task['id']} marked as delivered! Well done.")
-                await player.sendPopupMessage("DELIVERY COMPLETE\n\nTask logged to your record.", 10)
+                asyncio.create_task(player.sendChatMessage(f"Task #{task['id']} marked as delivered! Well done."))
+                asyncio.create_task(player.sendPopupMessage(
+                    "DELIVERY COMPLETE\n\nTask logged to your record.", 10))
                 # Refresh F10 menu to remove completed task
                 await self._create_logistics_menu(server, player)
             else:
-                await player.sendChatMessage(f"Cannot complete task: {result['error']}")
+                asyncio.create_task(player.sendChatMessage(f"Cannot complete task: {result['error']}"))
         except Exception as e:
             self.log.exception(f"Error in deliver command for player {player.name}: {e}")
-            await player.sendChatMessage("An error occurred processing your delivery. Please try again or contact an admin.")
+            asyncio.create_task(player.sendChatMessage(
+                "An error occurred processing your delivery. Please try again or contact an admin."))
 
     @chat_command(name="abandon", help="Abandon your current logistics task")
-    async def abandon_cmd(self, server: Server, player: Player, params: list[str]):
+    async def abandon_cmd(self, server: Server, player: Player, _params: list[str]):
         """Release the task back to available pool."""
         try:
             task = await self._get_assigned_task(player.ucid, server.name)
             if not task:
-                await player.sendChatMessage("You have no active logistics task.")
+                asyncio.create_task(player.sendChatMessage("You have no active logistics task."))
                 return
 
             result = await self._abandon_task(server, player, task['id'])
             if result['success']:
-                await player.sendChatMessage(f"Task #{task['id']} abandoned. It is now available for others.")
+                asyncio.create_task(player.sendChatMessage(
+                    f"Task #{task['id']} abandoned. It is now available for others."))
                 # Refresh F10 menu to reflect task changes
                 await self._create_logistics_menu(server, player)
             else:
-                await player.sendChatMessage(f"Cannot abandon task: {result['error']}")
+                asyncio.create_task(player.sendChatMessage(f"Cannot abandon task: {result['error']}"))
         except Exception as e:
             self.log.exception(f"Error in abandon command for player {player.name}: {e}")
-            await player.sendChatMessage("An error occurred. Please try again or contact an admin.")
+            asyncio.create_task(player.sendChatMessage("An error occurred. Please try again or contact an admin."))
 
     # -request command removed - use Discord /logistics create instead
     # The interactive flow was too cumbersome for in-game chat
@@ -384,7 +383,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
     async def plot_cmd(self, server: Server, player: Player, params: list[str]):
         """Plot tasks on the F10 map. Use 'all' for all tasks or a task ID for a specific one."""
         if not params:
-            await player.sendChatMessage("Usage: -plot all  OR  -plot <task_id>")
+            asyncio.create_task(player.sendChatMessage("Usage: -plot all  OR  -plot <task_id>"))
             return
 
         arg = params[0].lower()
@@ -392,7 +391,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
         if arg == "all":
             tasks = await self._get_available_tasks_with_positions(server.name, player.side.value)
             if not tasks:
-                await player.sendChatMessage("No logistics tasks available to plot.")
+                asyncio.create_task(player.sendChatMessage("No logistics tasks available to plot."))
                 return
 
             task_ids = []
@@ -400,7 +399,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 await self._create_markers_for_task(server, task)
                 task_ids.append(task['id'])
 
-            await player.sendChatMessage(f"Plotted {len(task_ids)} task(s) on F10 map for 30 seconds.")
+            asyncio.create_task(player.sendChatMessage(f"Plotted {len(task_ids)} task(s) on F10 map for 30 seconds."))
 
             # Schedule removal after 30 seconds
             asyncio.create_task(self._remove_markers_after_delay(server, task_ids, 30))
@@ -409,16 +408,17 @@ class LogisticsEventListener(EventListener["Logistics"]):
             try:
                 task_id = int(arg)
             except ValueError:
-                await player.sendChatMessage("Invalid task ID. Use -plot all or -plot <number>")
+                asyncio.create_task(player.sendChatMessage("Invalid task ID. Use -plot all or -plot <number>"))
                 return
 
             task = await self._get_task_with_position(task_id, server.name, player.side.value)
             if not task:
-                await player.sendChatMessage(f"Task #{task_id} not found or not visible to your coalition.")
+                asyncio.create_task(player.sendChatMessage(
+                    f"Task #{task_id} not found or not visible to your coalition."))
                 return
 
             await self._create_markers_for_task(server, task)
-            await player.sendChatMessage(f"Plotted task #{task_id} on F10 map for 30 seconds.")
+            asyncio.create_task(player.sendChatMessage(f"Plotted task #{task_id} on F10 map for 30 seconds."))
 
             # Schedule removal after 30 seconds
             asyncio.create_task(self._remove_markers_after_delay(server, [task_id], 30))
@@ -444,7 +444,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
         try:
             channel = self.bot.get_channel(int(channel_id))
             if not channel:
-                log.warning(f"Logistics status channel {channel_id} not found")
+                self.log.warning(f"Logistics status channel {channel_id} not found")
                 return None
 
             # Get assigned pilot name if applicable
@@ -544,9 +544,9 @@ class LogisticsEventListener(EventListener["Logistics"]):
                     await msg.edit(embed=embed)
                     return existing_msg_id
                 except discord.NotFound:
-                    log.debug(f"Original message {existing_msg_id} not found, posting new message")
+                    self.log.debug(f"Original message {existing_msg_id} not found, posting new message")
                 except discord.Forbidden:
-                    log.warning(f"Cannot edit message {existing_msg_id} - permission denied")
+                    self.log.warning(f"Cannot edit message {existing_msg_id} - permission denied")
 
             # Send new message
             msg = await channel.send(embed=embed)
@@ -559,14 +559,14 @@ class LogisticsEventListener(EventListener["Logistics"]):
                         (msg.id, task['id'])
                     )
             except Exception as db_err:
-                log.warning(f"Failed to store Discord message ID {msg.id} for task {task['id']}: {db_err}")
+                self.log.warning(f"Failed to store Discord message ID {msg.id} for task {task['id']}: {db_err}")
                 # Message was sent but ID not stored - future updates will create new messages
                 # This is not critical, so we still return the message ID
 
             return msg.id
 
         except Exception as e:
-            log.error(f"Error publishing logistics task: {e}")
+            self.log.error(f"Error publishing logistics task: {e}")
             return None
 
     async def _get_available_tasks(self, server_name: str, coalition: int) -> list[dict]:
@@ -590,7 +590,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
                         WHEN 'normal' THEN 3
                         WHEN 'low' THEN 4
                     END,
-                    created_at ASC
+                    created_at
             """, (server_name, coalition))
             rows = await cursor.fetchall()
             tasks = [
@@ -605,9 +605,9 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 for row in rows
             ]
             if not tasks:
-                log.debug(f"No available tasks for server={server_name}, coalition={coalition}")
+                self.log.debug(f"No available tasks for server={server_name}, coalition={coalition}")
             else:
-                log.debug(f"Found {len(tasks)} available tasks for server={server_name}, coalition={coalition}: {[t['id'] for t in tasks]}")
+                self.log.debug(f"Found {len(tasks)} available tasks for server={server_name}, coalition={coalition}: {[t['id'] for t in tasks]}")
             return tasks
 
     async def _get_available_tasks_with_positions(self, server_name: str, coalition: int) -> list[dict]:
@@ -714,9 +714,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
     async def _assign_task(self, server: Server, player: Player, task_id: int) -> dict:
         """Assign a task to a player."""
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Check if task exists and get its status
-                cursor = await conn.execute("""
+            # Check if task exists and get its status
+            cursor = await conn.execute("""
                 SELECT id, cargo_type, source_name, destination_name, deadline, coalition, status, assigned_ucid
                 FROM logistics_tasks
                 WHERE id = %s AND server_name = %s
@@ -815,9 +814,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
     async def _complete_task(self, server: Server, player: Player, task_id: int) -> dict:
         """Complete a logistics task."""
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Get task details
-                cursor = await conn.execute("""
+            # Get task details
+            cursor = await conn.execute("""
                 SELECT cargo_type, source_name, destination_name
                 FROM logistics_tasks
                 WHERE id = %s AND assigned_ucid = %s AND status IN ('assigned', 'in_progress')
@@ -851,7 +849,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
                         VALUES (%s, %s, %s, %s, %s, %s)
                     """, (player.ucid, task_id, task[0], task[1], task[2], now))
                 except Exception as e:
-                    log.warning(f"Failed to credit logbook for task {task_id}: {e}")
+                    self.log.warning(f"Failed to credit logbook for task {task_id}: {e}")
 
             # Remove markers
             await self._remove_task_markers(server, task_id)
@@ -886,32 +884,31 @@ class LogisticsEventListener(EventListener["Logistics"]):
     async def _abandon_task(self, server: Server, player: Player, task_id: int) -> dict:
         """Abandon a logistics task."""
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                now = datetime.now(timezone.utc)
+            now = datetime.now(timezone.utc)
 
-                # Update task - return to approved status
-                result = await conn.execute("""
-                    UPDATE logistics_tasks
-                    SET assigned_ucid = NULL, assigned_at = NULL, status = 'approved', updated_at = %s
-                    WHERE id = %s AND assigned_ucid = %s AND status IN ('assigned', 'in_progress')
-                """, (now, task_id, player.ucid))
+            # Update task - return to approved status
+            result = await conn.execute("""
+                UPDATE logistics_tasks
+                SET assigned_ucid = NULL, assigned_at = NULL, status = 'approved', updated_at = %s
+                WHERE id = %s AND assigned_ucid = %s AND status IN ('assigned', 'in_progress')
+            """, (now, task_id, player.ucid))
 
-                if result.rowcount == 0:
-                    return {'success': False, 'error': 'Task not found or not assigned to you'}
+            if result.rowcount == 0:
+                return {'success': False, 'error': 'Task not found or not assigned to you'}
 
-                # Record history
-                await conn.execute("""
-                    INSERT INTO logistics_tasks_history (task_id, event, actor_ucid, details)
-                    VALUES (%s, 'abandoned', %s, %s)
-                """, (task_id, player.ucid, '{"action": "player_abandoned"}'))
+            # Record history
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_ucid, details)
+                VALUES (%s, 'abandoned', %s, %s)
+            """, (task_id, player.ucid, '{"action": "player_abandoned"}'))
 
-                # Get task data for Discord publish (inside transaction to ensure consistency)
-                cursor = await conn.execute("""
-                    SELECT id, cargo_type, source_name, destination_name, priority,
-                           coalition, deadline, created_at, server_name, discord_message_id
-                    FROM logistics_tasks WHERE id = %s
-                """, (task_id,))
-                pub_task = await cursor.fetchone()
+            # Get task data for Discord publish (inside transaction to ensure consistency)
+            cursor = await conn.execute("""
+                SELECT id, cargo_type, source_name, destination_name, priority,
+                       coalition, deadline, created_at, server_name, discord_message_id
+                FROM logistics_tasks WHERE id = %s
+            """, (task_id,))
+            pub_task = await cursor.fetchone()
 
         # Update markers to remove pilot name (outside transaction - non-critical)
         await self._update_markers_with_pilot(server, task_id, None)
@@ -938,22 +935,21 @@ class LogisticsEventListener(EventListener["Logistics"]):
     async def _recreate_assigned_task_markers(self, server: Server):
         """Recreate markers only for assigned/in-progress tasks on mission start."""
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Clear old marker records
-                await conn.execute("""
-                    DELETE FROM logistics_markers WHERE server_name = %s
-                """, (server.name,))
+            # Clear old marker records
+            await conn.execute("""
+                DELETE FROM logistics_markers WHERE server_name = %s
+            """, (server.name,))
 
-                # Only get tasks that are assigned or in_progress (not approved/pending)
-                cursor = await conn.execute("""
-                    SELECT t.id, t.cargo_type, t.source_name, t.source_position,
-                           t.destination_name, t.destination_position, t.coalition,
-                           t.deadline, p.name as assigned_name
-                    FROM logistics_tasks t
-                    LEFT JOIN players p ON t.assigned_ucid = p.ucid
-                    WHERE t.server_name = %s AND t.status IN ('assigned', 'in_progress')
-                """, (server.name,))
-                tasks = await cursor.fetchall()
+            # Only get tasks that are assigned or in_progress (not approved/pending)
+            cursor = await conn.execute("""
+                SELECT t.id, t.cargo_type, t.source_name, t.source_position,
+                       t.destination_name, t.destination_position, t.coalition,
+                       t.deadline, p.name as assigned_name
+                FROM logistics_tasks t
+                LEFT JOIN players p ON t.assigned_ucid = p.ucid
+                WHERE t.server_name = %s AND t.status IN ('assigned', 'in_progress')
+            """, (server.name,))
+            tasks = await cursor.fetchall()
 
         # Create markers outside the transaction (this sends to DCS)
         for task in tasks:
@@ -975,7 +971,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
         dest_pos = task.get('destination_position')
 
         if not source_pos or not dest_pos:
-            log.debug(f"Skipping markers for task {task['id']} - missing position data")
+            self.log.debug(f"Skipping markers for task {task['id']} - missing position data")
             return
 
         # Handle JSONB position data - could be dict or already parsed
@@ -984,30 +980,42 @@ class LogisticsEventListener(EventListener["Logistics"]):
         if isinstance(dest_pos, str):
             dest_pos = json.loads(dest_pos)
 
+        # Validate coordinates - must have non-None x and z values
+        # Note: .get('x', 0) returns None if key exists with None value, not 0
+        source_x = source_pos.get('x')
+        source_z = source_pos.get('z')
+        dest_x = dest_pos.get('x')
+        dest_z = dest_pos.get('z')
+
+        if source_x is None or source_z is None or dest_x is None or dest_z is None:
+            self.log.warning(f"Skipping markers for task {task['id']} - invalid coordinates: "
+                             f"source=({source_x}, {source_z}), dest=({dest_x}, {dest_z})")
+            return
+
         deadline_str = task['deadline'].strftime('%H:%MZ') if task.get('deadline') else ""
 
-        await server.send_to_dcs({
+        asyncio.create_task(server.send_to_dcs({
             "command": "createLogisticsMarkers",
             "task_id": task['id'],
             "coalition": task['coalition'],
-            "source_name": task['source_name'],
-            "source_x": source_pos.get('x', 0),
-            "source_z": source_pos.get('z', 0),
-            "dest_name": task['destination_name'],
-            "dest_x": dest_pos.get('x', 0),
-            "dest_z": dest_pos.get('z', 0),
+            "source_name": task['source_name'] or "Unknown",
+            "source_x": source_x,
+            "source_z": source_z,
+            "dest_name": task['destination_name'] or "Unknown",
+            "dest_x": dest_x,
+            "dest_z": dest_z,
             "cargo_type": task['cargo_type'],
             "pilot_name": task.get('assigned_name') or "",
             "deadline": deadline_str,
             "waypoints": "[]"  # TODO: Add waypoint support
-        })
+        }))
 
     async def _remove_task_markers(self, server: Server, task_id: int):
         """Remove markers for a task."""
-        await server.send_to_dcs({
+        asyncio.create_task(server.send_to_dcs({
             "command": "removeLogisticsMarkers",
             "task_id": task_id
-        })
+        }))
 
         async with self.apool.connection() as conn:
             await conn.execute("""
@@ -1017,15 +1025,14 @@ class LogisticsEventListener(EventListener["Logistics"]):
     async def _remove_markers_after_delay(self, server: Server, task_ids: list[int], delay: int):
         """Remove markers after a delay (for temporary plot markers)."""
         await asyncio.sleep(delay)
+        tasks = []
         for task_id in task_ids:
-            try:
-                await server.send_to_dcs({
-                    "command": "removeLogisticsMarkers",
-                    "task_id": task_id
-                })
-                log.debug(f"Logistics: Auto-removed markers for task {task_id} after {delay}s")
-            except Exception as e:
-                log.warning(f"Logistics: Failed to remove markers for task {task_id}: {e}")
+            tasks.append(server.send_to_dcs({
+                "command": "removeLogisticsMarkers",
+                "task_id": task_id
+            }))
+            self.log.debug(f"Logistics: Auto-removed markers for task {task_id} after {delay}s")
+        await asyncio.gather(*tasks)
 
     async def _update_markers_with_pilot(self, server: Server, task_id: int, pilot_name: str | None):
         """Update markers with pilot assignment."""
@@ -1055,9 +1062,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
     async def _store_marker_ids(self, server_name: str, task_id: int, marker_ids: list[dict]):
         """Store marker IDs for cleanup."""
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Clear old markers first
-                await conn.execute("""
+            # Clear old markers first
+            await conn.execute("""
                 DELETE FROM logistics_markers WHERE server_name = %s AND task_id = %s
             """, (server_name, task_id))
 
@@ -1070,10 +1076,11 @@ class LogisticsEventListener(EventListener["Logistics"]):
                     VALUES (%s, %s, %s, %s)
                 """, (server_name, task_id, marker_id, marker_type))
 
-    async def _notify_player_of_task(self, player: Player, task: dict):
+    @staticmethod
+    async def _notify_player_of_task(player: Player, task: dict):
         """Notify player of their assigned task on spawn."""
         deadline_str = task['deadline'].strftime('%H:%MZ') if task.get('deadline') else "None"
-        await player.sendPopupMessage(
+        asyncio.create_task(player.sendPopupMessage(
             f"ACTIVE LOGISTICS TASK\n\n"
             f"Task #{task['id']}\n"
             f"Cargo: {task['cargo_type']}\n"
@@ -1081,7 +1088,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
             f"To: {task['destination_name']}\n"
             f"Deadline: {deadline_str}",
             15
-        )
+        ))
 
     async def _check_delivery_on_landing(self, server: Server, data: dict):
         """Check if a landing event completes a logistics task."""
@@ -1118,11 +1125,13 @@ class LogisticsEventListener(EventListener["Logistics"]):
         if place_name and dest_name:
             # Use strict airbase name matching to avoid false positives
             if _airbase_names_match(place_name, dest_name):
-                log.info(f"Logistics: Auto-completing task {task['id']} for {player.name} at {place_name} (dest: {dest_name})")
+                self.log.info(f"Logistics: Auto-completing task {task['id']} for {player.name} at {place_name} (dest: {dest_name})")
                 result = await self._complete_task(server, player, task['id'])
                 if result['success']:
-                    await player.sendChatMessage(f"Delivery confirmed at {place_name}! Task #{task['id']} completed.")
-                    await player.sendPopupMessage("DELIVERY COMPLETE\n\nTask logged to your record.", 10)
+                    asyncio.create_task(player.sendChatMessage(
+                        f"Delivery confirmed at {place_name}! Task #{task['id']} completed."))
+                    asyncio.create_task(player.sendPopupMessage(
+                        "DELIVERY COMPLETE\n\nTask logged to your record.", 10))
                     # Refresh F10 menu to remove completed task
                     await self._create_logistics_menu(server, player)
                 return
@@ -1138,16 +1147,17 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 # Request position check from DCS
                 await self._request_proximity_check(server, task['id'], unit_name, dest_pos)
 
-    async def _request_proximity_check(self, server: Server, task_id: int, unit_name: str, dest_pos: dict):
+    @staticmethod
+    async def _request_proximity_check(server: Server, task_id: int, unit_name: str, dest_pos: dict):
         """Request proximity check from DCS."""
-        await server.send_to_dcs({
+        asyncio.create_task(server.send_to_dcs({
             "command": "checkDeliveryProximity",
             "task_id": task_id,
             "unit_name": unit_name,
             "dest_x": dest_pos.get('x', 0),
             "dest_z": dest_pos.get('z', 0),
             "threshold": 3000  # 3km default
-        })
+        }))
 
     # ==================== F10 MENU METHODS ====================
 
@@ -1157,15 +1167,15 @@ class LogisticsEventListener(EventListener["Logistics"]):
         if group_id is None:
             group_id = player.group_id
         if not group_id:
-            log.debug(f"Cannot create logistics menu for {player.name}: no group_id")
+            self.log.debug(f"Cannot create logistics menu for {player.name}: no group_id")
             return
 
         # Build dynamic menu based on available tasks
-        log.debug(f"Building logistics menu for {player.name} (ucid={player.ucid}, side={player.side.value if player.side else None})")
+        self.log.debug(f"Building logistics menu for {player.name} (ucid={player.ucid}, side={player.side.value if player.side else None})")
         tasks = await self._get_available_tasks(server.name, player.side.value)
         tasks_with_pos = await self._get_available_tasks_with_positions(server.name, player.side.value)
         assigned_task = await self._get_assigned_task(player.ucid, server.name)
-        log.debug(f"Menu build: {len(tasks)} available tasks, {len(tasks_with_pos)} plottable tasks, assigned={assigned_task is not None}")
+        self.log.debug(f"Menu build: {len(tasks)} available tasks, {len(tasks_with_pos)} plottable tasks, assigned={assigned_task is not None}")
 
         # Build menu structure
         menu = [{
@@ -1270,18 +1280,18 @@ class LogisticsEventListener(EventListener["Logistics"]):
             })
 
         # Send menu to DCS (group_id already validated at start of function)
-        await server.send_to_dcs({
+        asyncio.create_task(server.send_to_dcs({
             "command": "createMenu",
             "playerID": player.id,
             "groupID": group_id,
             "menu": menu
-        })
+        }))
 
     async def _menu_view_tasks(self, server: Server, player: Player):
         """Handle 'View Available Tasks' menu option."""
         tasks = await self._get_available_tasks(server.name, player.side.value)
         if not tasks:
-            await player.sendPopupMessage("No logistics tasks available.", 10)
+            asyncio.create_task(player.sendPopupMessage("No logistics tasks available.", 10))
             return
 
         msg = "AVAILABLE LOGISTICS TASKS\n\n"
@@ -1295,13 +1305,13 @@ class LogisticsEventListener(EventListener["Logistics"]):
         if len(tasks) > 5:
             msg += f"... and {len(tasks) - 5} more tasks"
 
-        await player.sendPopupMessage(msg, 20)
+        asyncio.create_task(player.sendPopupMessage(msg, 20))
 
     async def _menu_my_task(self, server: Server, player: Player):
         """Handle 'My Current Task' menu option."""
         task = await self._get_assigned_task(player.ucid, server.name)
         if not task:
-            await player.sendPopupMessage("You have no active logistics task.", 10)
+            asyncio.create_task(player.sendPopupMessage("You have no active logistics task.", 10))
             return
 
         deadline_str = task['deadline'].strftime('%H:%MZ') if task['deadline'] else "None"
@@ -1314,7 +1324,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
             f"To: {task['destination_name']}\n"
             f"Deadline: {deadline_str}"
         )
-        await player.sendPopupMessage(msg, 15)
+        asyncio.create_task(player.sendPopupMessage(msg, 15))
 
     async def _menu_cannot_accept(self, server: Server, player: Player):
         """Handle 'Cannot Accept' menu option - explains why player can't accept new tasks."""
@@ -1330,13 +1340,13 @@ class LogisticsEventListener(EventListener["Logistics"]):
             )
         else:
             msg = "You can now accept tasks. Refresh your F10 menu."
-        await player.sendPopupMessage(msg, 15)
+        asyncio.create_task(player.sendPopupMessage(msg, 15))
 
     async def _menu_accept_task(self, server: Server, player: Player, task_id: int):
         """Handle 'Accept Task' menu option."""
         result = await self._assign_task(server, player, task_id)
         if result['success']:
-            await player.sendPopupMessage(
+            asyncio.create_task(player.sendPopupMessage(
                 f"TASK #{task_id} ACCEPTED!\n\n"
                 f"Cargo: {result['cargo']}\n"
                 f"Pickup: {result['source']}\n"
@@ -1344,17 +1354,17 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 f"Deadline: {result['deadline'] or 'None'}\n\n"
                 f"Check your F10 map for route markers.",
                 20
-            )
+            ))
             # Refresh menu to show task actions
             await self._create_logistics_menu(server, player)
         else:
-            await player.sendPopupMessage(f"Cannot accept task:\n{result['error']}", 10)
+            asyncio.create_task(player.sendPopupMessage(f"Cannot accept task:\n{result['error']}", 10))
 
     async def _menu_plot_all(self, server: Server, player: Player):
         """Handle 'Plot All Tasks' menu option."""
         tasks = await self._get_available_tasks_with_positions(server.name, player.side.value)
         if not tasks:
-            await player.sendPopupMessage("No tasks available to plot.", 10)
+            asyncio.create_task(player.sendPopupMessage("No tasks available to plot.", 10))
             return
 
         task_ids = []
@@ -1362,7 +1372,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
             await self._create_markers_for_task(server, task)
             task_ids.append(task['id'])
 
-        await player.sendPopupMessage(f"Plotted {len(task_ids)} task(s) on F10 map.\nMarkers will disappear in 30 seconds.", 10)
+        asyncio.create_task(player.sendPopupMessage(
+            f"Plotted {len(task_ids)} task(s) on F10 map.\nMarkers will disappear in 30 seconds.", 10))
 
         # Schedule removal after 30 seconds
         asyncio.create_task(self._remove_markers_after_delay(server, task_ids, 30))
@@ -1371,11 +1382,12 @@ class LogisticsEventListener(EventListener["Logistics"]):
         """Handle 'Plot Task' menu option for a specific task."""
         task = await self._get_task_with_position(task_id, server.name, player.side.value)
         if not task:
-            await player.sendPopupMessage(f"Task #{task_id} not found or not visible.", 10)
+            asyncio.create_task(player.sendPopupMessage(f"Task #{task_id} not found or not visible.", 10))
             return
 
         await self._create_markers_for_task(server, task)
-        await player.sendPopupMessage(f"Plotted task #{task_id} on F10 map.\nMarkers will disappear in 30 seconds.", 10)
+        asyncio.create_task(player.sendPopupMessage(
+            f"Plotted task #{task_id} on F10 map.\nMarkers will disappear in 30 seconds.", 10))
 
         # Schedule removal after 30 seconds
         asyncio.create_task(self._remove_markers_after_delay(server, [task_id], 30))
@@ -1384,46 +1396,46 @@ class LogisticsEventListener(EventListener["Logistics"]):
         """Handle 'Mark Delivered' menu option."""
         task = await self._get_assigned_task(player.ucid, server.name)
         if not task:
-            await player.sendPopupMessage("You have no active task.", 10)
+            asyncio.create_task(player.sendPopupMessage("You have no active task.", 10))
             return
 
         result = await self._complete_task(server, player, task['id'])
         if result['success']:
-            await player.sendPopupMessage(
+            asyncio.create_task(player.sendPopupMessage(
                 f"DELIVERY COMPLETE!\n\n"
                 f"Task #{task['id']} completed.\n"
                 f"Logged to your pilot record.",
                 15
-            )
+            ))
             # Refresh menu
             await self._create_logistics_menu(server, player)
         else:
-            await player.sendPopupMessage(f"Cannot complete task:\n{result['error']}", 10)
+            asyncio.create_task(player.sendPopupMessage(f"Cannot complete task:\n{result['error']}", 10))
 
     async def _menu_abandon(self, server: Server, player: Player):
         """Handle 'Abandon Task' menu option."""
         task = await self._get_assigned_task(player.ucid, server.name)
         if not task:
-            await player.sendPopupMessage("You have no active task.", 10)
+            asyncio.create_task(player.sendPopupMessage("You have no active task.", 10))
             return
 
         result = await self._abandon_task(server, player, task['id'])
         if result['success']:
-            await player.sendPopupMessage(
+            asyncio.create_task(player.sendPopupMessage(
                 f"Task #{task['id']} abandoned.\n\n"
                 f"Task is now available for others.",
                 10
-            )
+            ))
             # Refresh menu
             await self._create_logistics_menu(server, player)
         else:
-            await player.sendPopupMessage(f"Cannot abandon task:\n{result['error']}", 10)
+            asyncio.create_task(player.sendPopupMessage(f"Cannot abandon task:\n{result['error']}", 10))
 
     async def _menu_task_details(self, server: Server, player: Player, task_id: int):
         """Handle 'Task Details' menu option."""
         task = await self._get_task_by_id(task_id, server.name, player.side.value)
         if not task:
-            await player.sendPopupMessage("Task not found.", 10)
+            asyncio.create_task(player.sendPopupMessage("Task not found.", 10))
             return
 
         deadline_str = task['deadline'].strftime('%H:%MZ') if task['deadline'] else "None"
@@ -1438,7 +1450,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
             f"Deadline: {deadline_str}\n"
             f"Assigned: {assigned}"
         )
-        await player.sendPopupMessage(msg, 15)
+        asyncio.create_task(player.sendPopupMessage(msg, 15))
 
     async def _cancel_stale_tasks(self, server: Server):
         """Cancel tasks that have been pending/approved for too long."""
@@ -1452,32 +1464,31 @@ class LogisticsEventListener(EventListener["Logistics"]):
         cutoff = datetime.now(timezone.utc) - timedelta(days=stale_days)
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Find stale tasks
-                cursor = await conn.execute("""
-                    SELECT id FROM logistics_tasks
-                    WHERE server_name = %s
-                    AND status IN ('pending', 'approved')
-                    AND created_at < %s
-                """, (server.name, cutoff))
-                stale_tasks = await cursor.fetchall()
+            # Find stale tasks
+            cursor = await conn.execute("""
+                SELECT id FROM logistics_tasks
+                WHERE server_name = %s
+                AND status IN ('pending', 'approved')
+                AND created_at < %s
+            """, (server.name, cutoff))
+            stale_tasks = await cursor.fetchall()
 
-                if not stale_tasks:
-                    return
+            if not stale_tasks:
+                return
 
-                task_ids = [row[0] for row in stale_tasks]
-                log.info(f"Logistics: Cancelling {len(task_ids)} stale tasks on {server.name}: {task_ids}")
+            task_ids = [row[0] for row in stale_tasks]
+            self.log.info(f"Logistics: Cancelling {len(task_ids)} stale tasks on {server.name}: {task_ids}")
 
-                # Cancel the tasks
+            # Cancel the tasks
+            await conn.execute("""
+                UPDATE logistics_tasks
+                SET status = 'cancelled', updated_at = %s
+                WHERE id = ANY(%s)
+            """, (datetime.now(timezone.utc), task_ids))
+
+            # Record history
+            for task_id in task_ids:
                 await conn.execute("""
-                    UPDATE logistics_tasks
-                    SET status = 'cancelled', updated_at = %s
-                    WHERE id = ANY(%s)
-                """, (datetime.now(timezone.utc), task_ids))
-
-                # Record history
-                for task_id in task_ids:
-                    await conn.execute("""
-                        INSERT INTO logistics_tasks_history (task_id, event, details)
-                        VALUES (%s, 'cancelled', %s)
-                    """, (task_id, json.dumps({'reason': f'stale_after_{stale_days}_days', 'auto': True})))
+                    INSERT INTO logistics_tasks_history (task_id, event, details)
+                    VALUES (%s, 'cancelled', %s)
+                """, (task_id, json.dumps({'reason': f'stale_after_{stale_days}_days', 'auto': True})))

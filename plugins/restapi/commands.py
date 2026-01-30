@@ -1463,10 +1463,9 @@ class RestAPI(Plugin):
     @tasks.loop(hours=1)
     async def refresh_views(self):
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    REFRESH MATERIALIZED VIEW CONCURRENTLY mv_serverstats;
-                """)
+            await conn.execute("""
+                REFRESH MATERIALIZED VIEW CONCURRENTLY mv_serverstats;
+            """)
 
     @refresh_views.before_loop
     async def before_refresh_views(self):

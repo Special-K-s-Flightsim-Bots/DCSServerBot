@@ -125,10 +125,9 @@ class MessageView(View):
         await interaction.response.send_modal(modal)
         if not await modal.wait():
             async with interaction.client.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("""
-                        UPDATE messages SET message = %s WHERE id = %s
-                    """, (modal.message.value, self.messages[self.index]['id']))
+                await conn.execute("""
+                    UPDATE messages SET message = %s WHERE id = %s
+                """, (modal.message.value, self.messages[self.index]['id']))
             self.messages[self.index]['message'] = modal.message.value
             await interaction.edit_original_response(embed=await self.render(), view=self)
 
@@ -138,8 +137,7 @@ class MessageView(View):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         async with interaction.client.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("DELETE FROM messages WHERE id = %s", (self.messages[self.index]['id'],))
+            await conn.execute("DELETE FROM messages WHERE id = %s", (self.messages[self.index]['id'],))
         self.messages.pop(self.index)
         if not self.messages:
             await interaction.followup.send(_("No messages left."), ephemeral=True)

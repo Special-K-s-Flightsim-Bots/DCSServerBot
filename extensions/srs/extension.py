@@ -348,7 +348,8 @@ class SRS(Extension, FileSystemEventHandler):
 
     @override
     def on_modified(self, event: FileSystemEvent) -> None:
-        if self.loop.is_running():
+        path = os.path.expandvars(self.locals['Server Settings']['CLIENT_EXPORT_FILE_PATH'])
+        if self.loop.is_running() and event.src_path == path:
             asyncio.run_coroutine_threadsafe(self.process_export_file(event.src_path), self.loop)
 
     async def process_export_file(self, path: str):
@@ -356,7 +357,7 @@ class SRS(Extension, FileSystemEventHandler):
             with open(path, mode='r', encoding='utf-8') as infile:
                 data = json.load(infile)
             for client in data.get('Clients', {}):
-                if client['Name'] == '---':
+                if client['Name'] == '---' or client['RadioInfo'] is None:
                     continue
                 target = set(int(x['freq']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6)
                 if client['ClientGuid'] not in self.clients:
@@ -395,8 +396,12 @@ class SRS(Extension, FileSystemEventHandler):
                 })
                 del self.clients[client]
                 del self.client_names[client]
-        except Exception:
+        except PermissionError:
+            # Happens if SRS writes the file again when we try to read it.
+            # Just ignore, we get the file on the next try.
             pass
+        except Exception as ex:
+            self.log.exception(ex)
 
     def start_observer(self):
         path = self.locals['Server Settings']['CLIENT_EXPORT_FILE_PATH']

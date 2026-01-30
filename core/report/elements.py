@@ -613,7 +613,7 @@ class BarChart(GraphElement):
 
 
 class SQLBarChart(BarChart):
-    async def render(self, sql: str):
+    async def render(self, sql: str, **kwargs):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
@@ -667,7 +667,7 @@ class PieChart(GraphElement):
 
 
 class SQLPieChart(PieChart):
-    async def render(self, sql: str):
+    async def render(self, sql: str, **kwargs):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)

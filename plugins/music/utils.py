@@ -52,26 +52,23 @@ class Playlist:
 
     async def add(self, item: str) -> None:
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    INSERT INTO music_playlists (name, song_id, song_file) 
-                    VALUES (%s, nextval('music_song_id_seq'), %s)
-                """, (self.playlist, item))
-                self._items.append(item)
+            await conn.execute("""
+                INSERT INTO music_playlists (name, song_id, song_file) 
+                VALUES (%s, nextval('music_song_id_seq'), %s)
+            """, (self.playlist, item))
+            self._items.append(item)
 
     async def remove(self, item: str) -> None:
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute('DELETE FROM music_playlists WHERE name = %s AND song_file = %s',
-                                   (self.playlist, item))
-                self._items.remove(item)
-                # if no item remains, make sure any server mapping to this list is deleted, too
-                if not self._items:
-                    await conn.execute('DELETE FROM music_radios WHERE playlist_name = %s', (self.playlist, ))
+            await conn.execute('DELETE FROM music_playlists WHERE name = %s AND song_file = %s',
+                               (self.playlist, item))
+            self._items.remove(item)
+            # if no item remains, make sure any server mapping to this list is deleted, too
+            if not self._items:
+                await conn.execute('DELETE FROM music_radios WHERE playlist_name = %s', (self.playlist, ))
 
     async def clear(self) -> None:
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute('DELETE FROM music_playlists WHERE name = %s ', (self.playlist,))
-                await conn.execute('DELETE FROM music_radios WHERE playlist_name = %s', (self.playlist,))
-                self._items.clear()
+            await conn.execute('DELETE FROM music_playlists WHERE name = %s ', (self.playlist,))
+            await conn.execute('DELETE FROM music_radios WHERE playlist_name = %s', (self.playlist,))
+            self._items.clear()

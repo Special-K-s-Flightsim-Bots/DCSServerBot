@@ -27,14 +27,12 @@ import asyncio
 import json
 import logging
 import os
+import psycopg
 import re
 import sqlite3
-from datetime import datetime
+
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
-
-import psycopg
 from psycopg.rows import dict_row
 
 # Configure logging

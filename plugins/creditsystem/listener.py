@@ -147,20 +147,18 @@ class CreditSystemListener(EventListener["CreditSystem"]):
         async def manage_badge(badge: dict, action: Literal['add', 'remove']):
             if action == "add":
                 async with self.apool.connection() as conn:
-                    async with conn.transaction():
-                        await conn.execute("""
-                            INSERT INTO players_badges (campaign_id, player_ucid, badge_name, badge_url) 
-                            VALUES (%s, %s, %s, %s)
-                            ON CONFLICT (campaign_id, player_ucid) DO NOTHING
-                        """, (campaign_id, player.ucid, badge['name'], badge['img']))
-                        await self.bot.audit(f"achieved the badge {badge['name']}", user=player.ucid)
+                    await conn.execute("""
+                        INSERT INTO players_badges (campaign_id, player_ucid, badge_name, badge_url) 
+                        VALUES (%s, %s, %s, %s)
+                        ON CONFLICT (campaign_id, player_ucid) DO NOTHING
+                    """, (campaign_id, player.ucid, badge['name'], badge['img']))
+                    await self.bot.audit(f"achieved the badge {badge['name']}", user=player.ucid)
             elif action == "remove":
                 async with self.apool.connection() as conn:
-                    async with conn.transaction():
-                        await conn.execute("""
-                            DELETE FROM players_badges WHERE campaign_id = %s AND player_ucid = %s
-                        """, (campaign_id, player.ucid))
-                        await self.bot.audit(f"lost the badge {badge['name']}", user=player.ucid)
+                    await conn.execute("""
+                        DELETE FROM players_badges WHERE campaign_id = %s AND player_ucid = %s
+                    """, (campaign_id, player.ucid))
+                    await self.bot.audit(f"lost the badge {badge['name']}", user=player.ucid)
 
         config: dict = self.plugin.get_config(server)
         if 'achievements' not in config:

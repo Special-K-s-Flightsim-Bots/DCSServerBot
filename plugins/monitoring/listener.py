@@ -64,14 +64,13 @@ class MonitoringListener(EventListener["Monitoring"]):
 
         mission_time = (server.current_mission.start_time + server.current_mission.mission_time) if server.current_mission else None
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    INSERT INTO serverstats (server_name, node, mission_id, users, status, mission_time, cpu, mem_total, 
-                                             mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, fps, ping) 
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (server.name, server.node.name, server.mission_id, len(server.get_active_players()),
-                      server.status.name, mission_time, cpu, data['mem_total'], data['mem_ram'], data['read_bytes'],
-                      data['write_bytes'], data['bytes_sent'], data['bytes_recv'], fps, ping))
+            await conn.execute("""
+                INSERT INTO serverstats (server_name, node, mission_id, users, status, mission_time, cpu, mem_total, 
+                                         mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, fps, ping) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (server.name, server.node.name, server.mission_id, len(server.get_active_players()),
+                  server.status.name, mission_time, cpu, data['mem_total'], data['mem_ram'], data['read_bytes'],
+                  data['write_bytes'], data['bytes_sent'], data['bytes_recv'], fps, ping))
 
         # check RAM
         config = self.get_config(server).get('thresholds', {}).get('RAM', {})

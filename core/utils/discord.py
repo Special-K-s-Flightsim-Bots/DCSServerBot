@@ -1855,10 +1855,9 @@ class DatabaseModal(Modal):
 
         # Execute query
         async with self.node.apool.connection() as conn:
-            async with conn.transaction():
-                async with conn.cursor(row_factory=dict_row) as cur:
-                    await cur.execute(query, list(validated_data.values()))
-                    self.response = await cur.fetchone()
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(query, list(validated_data.values()))
+                self.response = await cur.fetchone()
 
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(

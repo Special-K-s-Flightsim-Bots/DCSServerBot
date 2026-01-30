@@ -52,6 +52,30 @@ end
 function dcsbot.createLogisticsMarkers(task_id, coalitionNum, source_name, source_pos, dest_name, dest_pos, cargo_type, pilot_name, deadline, waypoints_json, channel, timeout)
     env.info('DCSServerBot - Logistics: createLogisticsMarkers(' .. task_id .. ')')
 
+    -- Validate position data to prevent crashes from nil coordinates
+    if not source_pos or source_pos.x == nil or source_pos.z == nil then
+        env.error('DCSServerBot - Logistics: Invalid source_pos for task ' .. task_id)
+        local msg = {
+            command = "createLogisticsMarkers",
+            task_id = task_id,
+            success = false,
+            error = "Invalid source position"
+        }
+        dcsbot.sendBotTable(msg, channel)
+        return
+    end
+    if not dest_pos or dest_pos.x == nil or dest_pos.z == nil then
+        env.error('DCSServerBot - Logistics: Invalid dest_pos for task ' .. task_id)
+        local msg = {
+            command = "createLogisticsMarkers",
+            task_id = task_id,
+            success = false,
+            error = "Invalid destination position"
+        }
+        dcsbot.sendBotTable(msg, channel)
+        return
+    end
+
     -- Remove any existing markers for this task first
     dcsbot.removeLogisticsMarkersInternal(task_id)
 
@@ -152,7 +176,7 @@ function dcsbot.createLogisticsMarkers(task_id, coalitionNum, source_name, sourc
     -- Schedule auto-removal if timeout is set
     if timeout and timeout > 0 then
         local tid = task_id  -- capture for closure
-        timer.scheduleFunction(function(args, time)
+        timer.scheduleFunction(function(_args, _time)
             dcsbot.removeLogisticsMarkersInternal(tid)
             env.info('DCSServerBot - Logistics: Auto-removed markers for task ' .. tid .. ' after timeout')
             return nil
@@ -308,12 +332,3 @@ function dcsbot.checkDeliveryProximity(unit_name, task_id, dest_pos, threshold, 
 
     dcsbot.sendBotTable(msg, channel)
 end
-
--- Send popup message to coalition
-function dcsbot.logisticsPopup(coalitionNum, message, time)
-    env.info('DCSServerBot - Logistics: logisticsPopup()')
-    local coal = getCoalition(coalitionNum)
-    trigger.action.outTextForCoalition(coal, message, time or 10)
-end
-
-env.info("DCSServerBot - Logistics: mission.lua loaded.")

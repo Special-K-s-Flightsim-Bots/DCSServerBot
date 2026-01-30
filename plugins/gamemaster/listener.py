@@ -135,9 +135,8 @@ class GameMasterEventListener(EventListener["GameMaster"]):
                             self.prefix)
                         self.tasks[player.ucid] = self.loop.call_later(30, self.boot_player, player)
                     await player.sendUserMessage(message, timeout=30)
-                    async with conn.transaction():
-                        await conn.execute("DELETE FROM messages WHERE player_ucid = %s AND ack IS FALSE",
-                                           (player.ucid, ))
+                    await conn.execute("DELETE FROM messages WHERE player_ucid = %s AND ack IS FALSE",
+                                       (player.ucid, ))
 
     def boot_player(self, player: Player):
         task = self.tasks.pop(player.ucid, None)
@@ -171,54 +170,53 @@ class GameMasterEventListener(EventListener["GameMaster"]):
                        description: str | None = None, image_url: str | None = None,
                        start: datetime | None = None, end: datetime | None = None):
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                if command == 'add':
-                    await conn.execute("""
-                        INSERT INTO campaigns (name, description, image_url, start, stop) 
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (name, description, image_url, start, end))
-                    if servers:
-                        cursor = await conn.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
-                        campaign_id = (await cursor.fetchone())[0]
-                        for server in servers:
-                            # add this server to the server list
-                            await conn.execute("""
-                                INSERT INTO campaigns_servers 
-                                VALUES (%s, %s) 
-                                ON CONFLICT DO NOTHING
-                            """, (campaign_id, server.name))
-                elif command == 'start':
+            if command == 'add':
+                await conn.execute("""
+                    INSERT INTO campaigns (name, description, image_url, start, stop) 
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (name, description, image_url, start, end))
+                if servers:
+                    cursor = await conn.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
+                    campaign_id = (await cursor.fetchone())[0]
+                    for server in servers:
+                        # add this server to the server list
+                        await conn.execute("""
+                            INSERT INTO campaigns_servers 
+                            VALUES (%s, %s) 
+                            ON CONFLICT DO NOTHING
+                        """, (campaign_id, server.name))
+            elif command == 'start':
+                cursor = await conn.execute("""
+                    SELECT id FROM campaigns WHERE name ILIKE %s 
+                    AND (now() AT TIME ZONE 'utc') BETWEEN start 
+                    AND COALESCE(stop, (now() AT TIME ZONE 'utc'))
+                """, (name,))
+                if cursor.rowcount == 0:
+                    await conn.execute('INSERT INTO campaigns (name) VALUES (%s)', (name,))
+                else:
+                    raise ValueError(f"Campaign {name} is already active!")
+                if servers:
                     cursor = await conn.execute("""
                         SELECT id FROM campaigns WHERE name ILIKE %s 
                         AND (now() AT TIME ZONE 'utc') BETWEEN start 
                         AND COALESCE(stop, (now() AT TIME ZONE 'utc'))
                     """, (name,))
-                    if cursor.rowcount == 0:
-                        await conn.execute('INSERT INTO campaigns (name) VALUES (%s)', (name,))
-                    else:
-                        raise ValueError(f"Campaign {name} is already active!")
-                    if servers:
-                        cursor = await conn.execute("""
-                            SELECT id FROM campaigns WHERE name ILIKE %s 
-                            AND (now() AT TIME ZONE 'utc') BETWEEN start 
-                            AND COALESCE(stop, (now() AT TIME ZONE 'utc'))
-                        """, (name,))
-                        # don't use currval() in here, as we can't rely on the sequence name
-                        campaign_id = (await cursor.fetchone())[0]
-                        for server in servers:
-                            await conn.execute("INSERT INTO campaigns_servers VALUES (%s, %s) ON CONFLICT DO NOTHING",
-                                               (campaign_id, server.name,))
-                elif command == 'stop':
-                    await conn.execute("""
-                        UPDATE campaigns SET stop = (now() AT TIME ZONE 'utc') WHERE name ILIKE %s 
-                        AND (now() AT TIME ZONE 'utc') BETWEEN start 
-                        AND COALESCE(stop, (now() AT TIME ZONE 'utc') )
-                    """, (name,))
-                elif command == 'delete':
-                    cursor = await conn.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
+                    # don't use currval() in here, as we can't rely on the sequence name
                     campaign_id = (await cursor.fetchone())[0]
-                    await conn.execute('DELETE FROM campaigns_servers WHERE campaign_id = %s', (campaign_id,))
-                    await conn.execute('DELETE FROM campaigns WHERE id = %s', (campaign_id,))
+                    for server in servers:
+                        await conn.execute("INSERT INTO campaigns_servers VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                                           (campaign_id, server.name,))
+            elif command == 'stop':
+                await conn.execute("""
+                    UPDATE campaigns SET stop = (now() AT TIME ZONE 'utc') WHERE name ILIKE %s 
+                    AND (now() AT TIME ZONE 'utc') BETWEEN start 
+                    AND COALESCE(stop, (now() AT TIME ZONE 'utc') )
+                """, (name,))
+            elif command == 'delete':
+                cursor = await conn.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
+                campaign_id = (await cursor.fetchone())[0]
+                await conn.execute('DELETE FROM campaigns_servers WHERE campaign_id = %s', (campaign_id,))
+                await conn.execute('DELETE FROM campaigns WHERE id = %s', (campaign_id,))
 
     @event(name="startCampaign")
     async def startCampaign(self, server: Server, data: dict) -> None:
@@ -264,16 +262,15 @@ class GameMasterEventListener(EventListener["GameMaster"]):
             return
         # update the database
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # set the new coalition
-                await conn.execute("""
-                    INSERT INTO coalitions (server_name, player_ucid, coalition, coalition_join) 
-                    VALUES (%s, %s, %s, NOW() AT TIME ZONE 'UTC') 
-                    ON CONFLICT (server_name, player_ucid) DO UPDATE 
-                    SET coalition = excluded.coalition, 
-                        coalition_join = excluded.coalition_join
-                """, (server.name, player.ucid, coalition))
-                player.coalition = Coalition(coalition)
+            # set the new coalition
+            await conn.execute("""
+                INSERT INTO coalitions (server_name, player_ucid, coalition, coalition_join) 
+                VALUES (%s, %s, %s, NOW() AT TIME ZONE 'UTC') 
+                ON CONFLICT (server_name, player_ucid) DO UPDATE 
+                SET coalition = excluded.coalition, 
+                    coalition_join = excluded.coalition_join
+            """, (server.name, player.ucid, coalition))
+            player.coalition = Coalition(coalition)
 
         # welcome them in DCS
         password = await self.get_coalition_password(server, player.coalition)
@@ -295,22 +292,21 @@ class GameMasterEventListener(EventListener["GameMaster"]):
             "blue": self.bot.get_role(server.locals['coalitions']['blue_role'])
         }
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                cursor = await conn.execute("""
-                    SELECT coalition 
-                    FROM coalitions 
-                    WHERE player_ucid = %s
-                      AND server_name = %s 
-                      AND coalition IS NOT NULL
-                """, (player.ucid, server.name))
-                row = await cursor.fetchone()
-                if player.member:
-                    try:
-                        await player.member.remove_roles(roles[row[0]])
-                    except discord.Forbidden:
-                        await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
-                await cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
-                                     (server.name, player.ucid))
+            cursor = await conn.execute("""
+                SELECT coalition 
+                FROM coalitions 
+                WHERE player_ucid = %s
+                  AND server_name = %s 
+                  AND coalition IS NOT NULL
+            """, (player.ucid, server.name))
+            row = await cursor.fetchone()
+            if player.member:
+                try:
+                    await player.member.remove_roles(roles[row[0]])
+                except discord.Forbidden:
+                    await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+            await cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
+                                 (server.name, player.ucid))
         await server.send_to_dcs({"command": "resetUserCoalition", "id": player.id})
 
     async def reset_coalitions(self, server: Server, discord_roles: bool):
@@ -320,23 +316,22 @@ class GameMasterEventListener(EventListener["GameMaster"]):
             "blue": self.bot.get_role(server.locals['coalitions']['blue_role'])
         }
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                cursor = await conn.execute("""
-                    SELECT p.ucid, p.discord_id, c.coalition 
-                    FROM players p, coalitions c 
-                    WHERE p.ucid = c.player_ucid AND c.server_name = %s AND c.coalition IS NOT NULL
-                """, (server.name,))
-                rows = await cursor.fetchall()
-                for row in rows:
-                    if discord_roles and row[1] != -1:
-                        member = guild.get_member(row[1])
-                        if member:
-                            try:
-                                await member.remove_roles(roles[row[2]])
-                            except discord.Forbidden:
-                                await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
-                    await cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
-                                         (server.name, row[0]))
+            cursor = await conn.execute("""
+                SELECT p.ucid, p.discord_id, c.coalition 
+                FROM players p, coalitions c 
+                WHERE p.ucid = c.player_ucid AND c.server_name = %s AND c.coalition IS NOT NULL
+            """, (server.name,))
+            rows = await cursor.fetchall()
+            for row in rows:
+                if discord_roles and row[1] != -1:
+                    member = guild.get_member(row[1])
+                    if member:
+                        try:
+                            await member.remove_roles(roles[row[2]])
+                        except discord.Forbidden:
+                            await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+                await cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
+                                     (server.name, row[0]))
         await server.send_to_dcs({"command": "resetUserCoalitions"})
 
     @event(name="resetUserCoalitions")
@@ -422,13 +417,12 @@ class GameMasterEventListener(EventListener["GameMaster"]):
     @chat_command(name="ack", help=_("acknowledge a user message"))
     async def ack(self, server: Server, player: Player, _params: list[str]):
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                cursor = await conn.execute("""
-                    DELETE FROM messages m WHERE m.player_ucid = %s RETURNING id
-                """, (player.ucid, ))
-                if cursor.rowcount == 0:
-                    await player.sendChatMessage(_("No message found."))
-                    return
+            cursor = await conn.execute("""
+                DELETE FROM messages m WHERE m.player_ucid = %s RETURNING id
+            """, (player.ucid, ))
+            if cursor.rowcount == 0:
+                await player.sendChatMessage(_("No message found."))
+                return
         task = self.tasks.pop(player.ucid, None)
         if task:
             task.cancel()

@@ -237,9 +237,8 @@ class DCSServerBot(commands.Bot):
     async def on_ready(self):
         async def register_guild_name():
             async with self.node.cpool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("UPDATE cluster SET guild_name = %s WHERE guild_id = %s",
-                                       (self.guilds[0].name, self.guilds[0].id))
+                await conn.execute("UPDATE cluster SET guild_name = %s WHERE guild_id = %s",
+                                   (self.guilds[0].name, self.guilds[0].id))
 
         try:
             await self.wait_until_ready()
@@ -351,7 +350,10 @@ class DCSServerBot(commands.Bot):
             elif isinstance(error, discord.app_commands.TransformerError):
                 await send(error, ephemeral=True)
             elif isinstance(error, discord.app_commands.CommandInvokeError):
-                await send(repr(error), ephemeral=True)
+                if error.original:
+                    await send(repr(error.original), ephemeral=True)
+                else:
+                    await send(repr(error), ephemeral=True)
                 self.log.exception(error)
             elif isinstance(error, discord.NotFound):
                 await send("Command not found. Did you try it too early?", ephemeral=True)
@@ -431,13 +433,12 @@ class DCSServerBot(commands.Bot):
                 self.log.warning("Audit message discarded due to connection issue: " + message)
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    INSERT INTO audit (node, event, server_name, discord_id, ucid)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (node.name, message, server.name if server else None,
-                      user.id if isinstance(user, discord.Member) else None,
-                      user if isinstance(user, str) else None))
+            await conn.execute("""
+                INSERT INTO audit (node, event, server_name, discord_id, ucid)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (node.name, message, server.name if server else None,
+                  user.id if isinstance(user, discord.Member) else None,
+                  user if isinstance(user, str) else None))
 
     def get_admin_channel(self, server: "Server | None" = None) -> discord.TextChannel | None:
         admin_channel = self.locals.get('channels', {}).get('admin')
@@ -623,11 +624,10 @@ class DCSServerBot(commands.Bot):
                     message = await channel.send(embed=embed, file=file)
                     thread = None
                 async with self.apool.connection() as conn:
-                    async with conn.transaction():
-                        await conn.execute("""
-                            INSERT INTO message_persistence (server_name, embed_name, embed, thread) 
-                            VALUES (%s, %s, %s, %s) 
-                            ON CONFLICT ON CONSTRAINT uq_message_persistence_norm 
-                            DO UPDATE SET embed=excluded.embed, thread=excluded.thread
-                        """, (server.name if server else None, embed_name, message.id,
-                              thread.id if thread else None))
+                    await conn.execute("""
+                        INSERT INTO message_persistence (server_name, embed_name, embed, thread) 
+                        VALUES (%s, %s, %s, %s) 
+                        ON CONFLICT ON CONSTRAINT uq_message_persistence_norm 
+                        DO UPDATE SET embed=excluded.embed, thread=excluded.thread
+                    """, (server.name if server else None, embed_name, message.id,
+                          thread.id if thread else None))

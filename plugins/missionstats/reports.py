@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 
 from core import report, ReportEnv, utils, Side, Coalition, get_translation, df_to_table

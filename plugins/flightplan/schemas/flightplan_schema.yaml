@@ -5,6 +5,15 @@ schema;openaip_schema:
     api_key: {type: str, nullable: true}
     cache_hours: {type: int, nullable: true}
 
+schema;auto_lifecycle_schema:
+  type: map
+  nullable: true
+  mapping:
+    activate_on_takeoff: {type: bool, nullable: true}
+    complete_on_landing: {type: bool, nullable: true}
+    require_departure_match: {type: bool, nullable: true}
+    proximity_threshold: {type: int, nullable: true}
+
 schema;element_schema:
   type: map
   func: is_element
@@ -21,6 +30,8 @@ schema;element_schema:
     marker_timeout: {type: int, nullable: true}
     openaip:
       include: 'openaip_schema'
+    auto_lifecycle:
+      include: 'auto_lifecycle_schema'
 
 type: map
 func: check_main_structure

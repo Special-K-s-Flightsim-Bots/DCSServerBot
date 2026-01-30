@@ -9,10 +9,10 @@ from datetime import datetime, timedelta, timezone
 from discord import app_commands
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Literal, Optional
+from typing import Optional
 
 from .listener import FlightPlanEventListener
-from .utils import parse_waypoint_input, WaypointType, calculate_flight_plan_eta
+from .utils import parse_waypoint_input, calculate_flight_plan_eta
 
 
 # Theater bounding boxes for OpenAIP queries (minLon, minLat, maxLon, maxLat)
@@ -249,7 +249,7 @@ async def waypoints_corridor_autocomplete(interaction: discord.Interaction, curr
     Supports multiple waypoints - type comma to add more (e.g., "KBL,KDH,BASTN").
     """
     try:
-        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace._server)
         if not server or not server.current_mission:
             return []
 
@@ -466,15 +466,38 @@ async def waypoint_autocomplete(interaction: discord.Interaction, current: str) 
 
 
 async def nav_fix_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    """Autocomplete for navigation fixes."""
+    """Autocomplete for navigation fixes, filtered by server's theater if available."""
     try:
+        # Try to get server context for theater filtering
+        theater = None
+        if hasattr(interaction.namespace, '_server') and interaction.namespace._server:
+            try:
+                server: Server = await utils.ServerTransformer().transform(
+                    interaction, interaction.namespace._server
+                )
+                if server and server.current_mission:
+                    theater = get_theater_name(server.current_mission.map)
+            except Exception:
+                pass  # Fall back to showing all theaters
+
         async with interaction.client.apool.connection() as conn:
-            cursor = await conn.execute("""
-                SELECT identifier, name, fix_type, map_theater
-                FROM flightplan_navigation_fixes
-                WHERE identifier ILIKE %s OR name ILIKE %s
-                ORDER BY identifier LIMIT 25
-            """, ('%' + current + '%', '%' + current + '%'))
+            if theater:
+                # Filter by server's theater
+                cursor = await conn.execute("""
+                    SELECT identifier, name, fix_type, map_theater
+                    FROM flightplan_navigation_fixes
+                    WHERE map_theater = %s AND (identifier ILIKE %s OR name ILIKE %s)
+                    ORDER BY identifier LIMIT 25
+                """, (theater, '%' + current + '%', '%' + current + '%'))
+            else:
+                # No server context - show all theaters
+                cursor = await conn.execute("""
+                    SELECT identifier, name, fix_type, map_theater
+                    FROM flightplan_navigation_fixes
+                    WHERE identifier ILIKE %s OR name ILIKE %s
+                    ORDER BY identifier LIMIT 25
+                """, ('%' + current + '%', '%' + current + '%'))
+
             return [
                 app_commands.Choice(
                     name=f"{row[0]} - {row[1] or row[2]} ({row[3]})",
@@ -582,9 +605,9 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
     @flightplan.command(name='file', description=_('File a flight plan'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
-    @app_commands.rename(departure_idx='departure', destination_idx='destination', alternate_idx='alternate')
+    @app_commands.rename(_server='server', departure_idx='departure', destination_idx='destination', alternate_idx='alternate')
     @app_commands.describe(
-        server=_('Server for this flight plan'),
+        _server=_('Server for this flight plan'),
         callsign=_('Your callsign for this flight'),
         aircraft_type=_('Aircraft type (e.g., F-16C, F/A-18C)'),
         departure_idx=_('Departure airfield, FARP, or ship'),
@@ -600,7 +623,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
     async def flightplan_file(
         self,
         interaction: discord.Interaction,
-        server: app_commands.Transform[Server, utils.ServerTransformer],
+        _server: app_commands.Transform[Server, utils.ServerTransformer],
         callsign: str,
         aircraft_type: str,
         departure_idx: int,
@@ -622,13 +645,13 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
             return
 
         # Get airbases from server
-        if not server.current_mission or not server.current_mission.airbases:
+        if not _server.current_mission or not _server.current_mission.airbases:
             await interaction.followup.send(_('Server has no mission loaded or no airbases available.'), ephemeral=True)
             return
 
         try:
-            dep_airbase = server.current_mission.airbases[departure_idx]
-            dest_airbase = server.current_mission.airbases[destination_idx]
+            dep_airbase = _server.current_mission.airbases[departure_idx]
+            dest_airbase = _server.current_mission.airbases[destination_idx]
         except IndexError:
             await interaction.followup.send(_('Invalid airbase selection.'), ephemeral=True)
             return
@@ -646,14 +669,14 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
         alt_position = None
         if alternate_idx is not None:
             try:
-                alt_airbase = server.current_mission.airbases[alternate_idx]
+                alt_airbase = _server.current_mission.airbases[alternate_idx]
                 alternate = alt_airbase['name']
                 alt_position = alt_airbase.get('position')
             except IndexError:
                 pass
 
         # Get theater from server
-        theater = get_theater_name(server.current_mission.map) if server.current_mission else None
+        theater = get_theater_name(_server.current_mission.map) if _server.current_mission else None
 
         async with self.apool.connection() as conn:
 
@@ -661,7 +684,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
             parsed_waypoints = []
             if waypoints:
                 from .utils.coordinates import parse_waypoint_list
-                wp_list = await parse_waypoint_list(waypoints, server, conn, theater)
+                wp_list = await parse_waypoint_list(waypoints, _server, conn, theater)
                 parsed_waypoints = [wp.to_dict() for wp in wp_list]
 
             # Parse cruise altitude (accepts FL300 or 30000)
@@ -698,7 +721,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
                     return
 
             # Get config for stale calculation
-            config = self.get_config(server)
+            config = self.get_config(_server)
             stale_hours = config.get('stale_hours', 24)
             filed_at = datetime.now(timezone.utc)
             stale_at = _calculate_stale_at(etd_dt, filed_at, stale_hours)
@@ -715,7 +738,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
 
             # Get coalition from player if they're online, otherwise default to 0
             coalition = 0
-            player = server.get_player(ucid=ucid, active=True)
+            player = _server.get_player(ucid=ucid, active=True)
             if player and player.side:
                 coalition = player.side.value
 
@@ -727,7 +750,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
-                ucid, server.name, callsign, aircraft_type, departure, destination,
+                ucid, _server.name, callsign, aircraft_type, departure, destination,
                 alternate, None, remarks,
                 json.dumps(parsed_waypoints) if parsed_waypoints else None,
                 json.dumps(dep_position) if dep_position else None,
@@ -739,13 +762,13 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
             plan_id = result[0]
 
             # Publish to status channel if configured
-            config = self.get_config(server)
+            config = self.get_config(_server)
             if config.get('publish_on_file', True):
                 # Build flight plan dict for publishing
                 fp_data = {
                     'id': plan_id,
                     'player_ucid': ucid,
-                    'server_name': server.name,
+                    'server_name': _server.name,
                     'callsign': callsign,
                     'aircraft_type': aircraft_type,
                     'departure': departure,

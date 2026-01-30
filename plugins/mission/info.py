@@ -118,7 +118,7 @@ class UCIDs(report.EmbedElement):
 
 class History(report.EmbedElement):
     async def render(self, member: discord.Member | str, ruler_length: int):
-        sql = 'SELECT name, max(time) AS time FROM players_hist p WHERE p.ucid '
+        sql = 'SELECT name, min(time) AS time FROM players_hist p WHERE p.ucid '
         if isinstance(member, discord.Member):
             sql += f"IN (SELECT ucid FROM players WHERE discord_id = {member.id})"
         else:

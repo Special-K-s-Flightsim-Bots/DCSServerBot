@@ -52,13 +52,12 @@ class TrapModal(Modal):
             ucid = self.user
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    INSERT INTO traps (mission_id, player_ucid, unit_type, grade, comment, place, night, points, wire, 
-                                       trapcase) 
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (-1, ucid, self.unit_type, self.grade.value, self.comment.value, 'n/a', night,
-                      self.config['grades'][grade]['rating'], self.wire.value, self.case.value))
+            await conn.execute("""
+                INSERT INTO traps (mission_id, player_ucid, unit_type, grade, comment, place, night, points, wire, 
+                                   trapcase) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (-1, ucid, self.unit_type, self.grade.value, self.comment.value, 'n/a', night,
+                  self.config['grades'][grade]['rating'], self.wire.value, self.case.value))
             self.success = True
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
