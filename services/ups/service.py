@@ -30,10 +30,10 @@ class UPSService(Service):
     async def monitoring(self):
         def get_ups_status() -> dict:
             client = PyNUTClient(
-                config['host'],
-                config.get('port', 3493),
-                config.get('username'),
-                config.get('password')
+                host=config['host'],
+                port=config.get('port', 3493),
+                login=config.get('username'),
+                password=config.get('password')
             )
             return client.list_vars(config['device'])
 

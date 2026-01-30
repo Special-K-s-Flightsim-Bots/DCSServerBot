@@ -61,7 +61,7 @@ class PyNUTClient(object):
         """
 
         _LOGGER.debug("NUT Class initialization, Host/Port: %s:%s,"
-                      " Login: %s/%s", host, port, login, password)
+                      " Login: %s", host, port, login)
 
         self._host = host
         self._port = port
