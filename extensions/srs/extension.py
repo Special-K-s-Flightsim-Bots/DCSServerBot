@@ -21,6 +21,7 @@ from core import (Extension, utils, ServiceRegistry, Autoexec, get_translation, 
                   ServerMaintenanceManager, PortType, Port, ProcessManager)
 from discord.ext import tasks
 from io import BytesIO
+from json import JSONDecodeError
 from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
@@ -396,7 +397,7 @@ class SRS(Extension, FileSystemEventHandler):
                 })
                 del self.clients[client]
                 del self.client_names[client]
-        except PermissionError:
+        except (PermissionError, JSONDecodeError):
             # Happens if SRS writes the file again when we try to read it.
             # Just ignore, we get the file on the next try.
             pass
