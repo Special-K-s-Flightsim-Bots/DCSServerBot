@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -806,7 +806,9 @@ class AirbaseInfoResponse(BaseModel):
                             "width": 60
                         }
                     ],
-                    "radio_silent": True
+                    "radio_silent": True,
+                    "mgrs": "37 S BA 56617 27553",
+                    "magVar": 5.6234159795293
                 }
             }
         }
