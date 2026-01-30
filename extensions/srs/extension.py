@@ -348,7 +348,8 @@ class SRS(Extension, FileSystemEventHandler):
 
     @override
     def on_modified(self, event: FileSystemEvent) -> None:
-        if self.loop.is_running():
+        path = os.path.expandvars(self.locals['Server Settings']['CLIENT_EXPORT_FILE_PATH'])
+        if self.loop.is_running() and event.src_path == path:
             asyncio.run_coroutine_threadsafe(self.process_export_file(event.src_path), self.loop)
 
     async def process_export_file(self, path: str):
