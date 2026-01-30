@@ -344,6 +344,11 @@ class RestAPI(Plugin):
         # Get airbase info using the same logic as mission/commands.py get_airbase
         airbase_data = await server.send_to_dcs_sync({"command": "getAirbase", "name": airbase_name}, timeout=60)
 
+        airbase = next((x for x in server.current_mission.airbases if x['name'] == airbase_name), None)
+        if airbase:
+            airbase_data['mgrs'] = airbase['mgrs']
+            airbase_data['magVar'] = airbase['magVar']
+
         # Return all information on the airbase
         return {
             "airbase": airbase_data,
