@@ -1204,23 +1204,29 @@ class NodeImpl(Node):
                         ON CONFLICT (guild_id, node) DO UPDATE 
                         SET last_seen = (NOW() AT TIME ZONE 'UTC')
                     """, (self.guild_id, self.name))
-        except psycopg_pool.PoolTimeout:
-            current_stats = self.cpool.get_stats()
-            self.log.warning(f"Pool stats: {repr(current_stats)}")
-            raise
-        except FatalException as ex:
-            self.log.critical(ex)
-            exit(SHUTDOWN)
         except InFailedSqlTransaction:
             # we should only be here when the CLUSTER table does not exist yet
             return True
-        except Exception as ex:
-            self.log.exception(ex)
-            raise
 
     @tasks.loop(seconds=5.0)
     async def heartbeat_loop(self):
-        self._master = await self.heartbeat()
+        try:
+            self._master = await self.heartbeat()
+            if self.heartbeat_loop.seconds == 10.0:
+                self.heartbeat_loop.change_interval(seconds=5.0)
+        except psycopg_pool.PoolTimeout:
+            current_stats = self.cpool.get_stats()
+            self.log.warning(f"Pool stats: {repr(current_stats)}")
+            if self.heartbeat_loop.seconds == 5.0:
+                self.heartbeat_loop.change_interval(seconds=10.0)
+            else:
+                await self.restart()
+        except FatalException as ex:
+            self.log.critical(ex)
+            exit(SHUTDOWN)
+        except Exception as ex:
+            self.log.exception(ex)
+            await self.restart()
 
     async def get_active_nodes(self) -> list[str]:
         async with self.cpool.connection() as conn:
