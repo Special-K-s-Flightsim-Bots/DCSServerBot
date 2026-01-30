@@ -93,6 +93,7 @@ six==1.17.0
 smmap==5.0.2
 sqlparse==0.5.5
 starlette==0.50.0
+telnetlib3==2.0.8
 tomli==2.3.0 ; python_version < "3.11"
 tomli-w==1.2.0
 trueskill==0.4.5
