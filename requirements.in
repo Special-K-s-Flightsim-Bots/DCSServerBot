@@ -61,7 +61,7 @@ numpy==2.3.5 ; python_version >= "3.11"
 numpy==2.2.6; python_version < "3.11"
 
 # PyNUT2: NUT client for UPS systems
-nut2==2.1.1
+#nut2==2.1.1
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
 openpyxl>=3.1.5
