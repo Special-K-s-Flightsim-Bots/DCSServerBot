@@ -5,6 +5,7 @@ schema;element_schema:
   mapping:
     enabled: {type: bool, nullable: false}
     status_channel: {type: any, nullable: true}
+    ping_role: {type: str, nullable: true}
     publish_on_create: {type: bool, nullable: true}
     publish_on_assign: {type: bool, nullable: true}
     publish_on_complete: {type: bool, nullable: true}
