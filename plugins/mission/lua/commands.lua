@@ -582,13 +582,27 @@ function dcsbot.sendChatMessage(json)
 end
 
 function dcsbot.sendPopupMessage(json)
-	log.write('DCSServerBot', log.DEBUG, 'Mission: sendPopupMessage()')
-	local message = json.message
-	if (json.from) then
-		message = json.from .. ': ' .. message
-	end
-	local time = json.time or 10
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.sendPopupMessage2("' .. json.to .. '", "' .. json.id ..'", ' .. utils.basicSerialize(message) .. ', ' .. tostring(time) ..')') .. ')')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: sendPopupMessage()')
+
+    local message = json.message
+    if json.from then
+        message = json.from .. ': ' .. message
+    end
+
+    local time = json.time or 10
+
+    -- serialize each argument individually
+    local code = string.format(
+        [[dcsbot.sendPopupMessage2(%s, %s, %s, %s)]],
+        utils.basicSerialize(json.to),
+        utils.basicSerialize(json.id),
+        utils.basicSerialize(message),
+        tostring(time)
+    )
+
+    -- now serialize the whole call that will be executed in the mission env
+    net.dostring_in('mission',
+        'a_do_script(' .. utils.basicSerialize(code) .. ')')
 end
 
 function dcsbot.playSound(json)
