@@ -829,7 +829,7 @@ end
 function dcsbot.convertLatLonToMeters(json)
     local x, y = Terrain.convertLatLonToMeters(json.lat, json.lon)
     local msg = {
-        command = "convertMetersToLatLon",
+        command = "convertLatLonToMeters",
         x = x,
         y = y
     }
