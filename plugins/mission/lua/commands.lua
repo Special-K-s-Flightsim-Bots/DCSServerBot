@@ -815,3 +815,23 @@ function dcsbot.endMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: endMission()')
 	net.dostring_in('mission', 'a_end_mission(' .. utils.basicSerialize(json.winner or '') .. ',' .. utils.basicSerialize(json.message or '') .. ',' .. (json.time or 0) .. ')')
 end
+
+function dcsbot.convertMetersToLatLon(json)
+    local lat, lon = Terrain.convertMetersToLatLon(json.x, json.y)
+    local msg = {
+        command = "convertMetersToLatLon",
+        lat = lat,
+        lon = lon
+    }
+    utils.sendBotTable(msg, json.channel)
+end
+
+function dcsbot.convertLatLonToMeters(json)
+    local x, y = Terrain.convertLatLonToMeters(json.lat, json.lon)
+    local msg = {
+        command = "convertMetersToLatLon",
+        x = x,
+        y = y
+    }
+    utils.sendBotTable(msg, json.channel)
+end
