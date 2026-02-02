@@ -22,7 +22,7 @@ from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, Us
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
                      PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats, 
                      AirbasesResponse, AirbaseInfoResponse, AirbaseWarehouseResponse, AirbaseSetWarehouseItemResponse,
-                     AirbaseCaptureResponse)
+                     AirbaseCaptureResponse, ConvertLatLonToMeters)
 from ..srs.commands import SRS
 
 app: FastAPI | None = None
@@ -317,11 +317,44 @@ class RestAPI(Plugin):
             summary = "Player Squadrons",
             tags = ["Info"]
         )
+        self.router.add_api_route(
+            "/convert_latlon_to_meters", self.convert_latlon_to_meters,
+            methods = ["GET"],
+            response_model = ConvertLatLonToMeters,
+            description = "Convert latitude and longitude to meters",
+            summary = "Convert Lat/Lon to Meters",
+            tags = ["Utilities"]
+        )
         self.app.include_router(self.router)
 
     def get_endpoint_config(self, endpoint: str):
         return self.get_config().get('endpoints', {}).get(endpoint, {})
 
+    async def convert_latlon_to_meters(self, server_name: str = Query(...), latitude: float = Query(...), longitude: float = Query(...)):
+        """Return all meters for a given lat/lon on a server."""
+        # Resolve server
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        # Prepare command dict with correct command name
+        command = {
+            "command": "convertLatLonToMeters",  # fixed command name to match Lua
+            "lat": latitude,
+            "lon": longitude
+        }
+        # If a channel is required, add it here. Example:
+        # if hasattr(server, 'channel'):
+        #     command["channel"] = server.channel
+
+        meters = await server.send_to_dcs_sync(command, timeout=60)
+
+        # Only return x and y from the response
+        return {
+            "x": meters["x"],
+            "y": meters["y"]
+        }
+        
     async def airbases(self, server_name: str = Query(...)):
         """Return all airbases for a given server."""
         # Resolve server

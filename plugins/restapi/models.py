@@ -881,3 +881,17 @@ class AirbaseCaptureResponse(BaseModel):
             }
         }
     }
+    
+class ConvertLatLonToMeters(BaseModel):
+        
+    x: float = Field(..., description="X coordinate in meters")
+    y: float = Field(..., description="Y coordinate in meters")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "x": -63197.599144637,
+                "y": -690506.64333276
+            }
+        }
+    }
