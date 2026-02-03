@@ -235,6 +235,7 @@ class Logistics(Plugin[LogisticsEventListener]):
     @app_commands.rename(_server='server', source_idx='source', dest_idx='destination')
     @app_commands.describe(source_idx='Pickup location (airbase/FARP/carrier)')
     @app_commands.describe(dest_idx='Delivery location')
+    @app_commands.describe(remarks='Additional instructions or notes for the pilot')
     @app_commands.autocomplete(source_idx=utils.airbase_autocomplete, dest_idx=utils.airbase_autocomplete)
     async def create(self, interaction: discord.Interaction,
                      _server: app_commands.Transform[Server, utils.ServerTransformer],
@@ -243,7 +244,8 @@ class Logistics(Plugin[LogisticsEventListener]):
                      cargo: str,
                      priority: Literal['low', 'normal', 'high', 'urgent'] = 'normal',
                      coalition: Literal['red', 'blue'] = 'blue',
-                     deadline: Optional[str] = None):
+                     deadline: Optional[str] = None,
+                     remarks: Optional[str] = None):
         """
         Create a logistics task directly (pre-approved).
 
@@ -256,6 +258,7 @@ class Logistics(Plugin[LogisticsEventListener]):
         priority: Task priority (affects sorting)
         coalition: Which coalition can see/accept the task
         deadline: Optional deadline in HH:MM format (UTC)
+        remarks: Additional instructions or notes for the pilot
         """
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
@@ -311,8 +314,8 @@ class Logistics(Plugin[LogisticsEventListener]):
                 INSERT INTO logistics_tasks
                 (server_name, created_by_ucid, status, priority, cargo_type,
                  source_name, source_position, destination_name, destination_position,
-                 coalition, deadline, approved_by, approved_at, created_at, updated_at)
-                VALUES (%s, %s, 'approved', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 coalition, deadline, approved_by, approved_at, remarks, created_at, updated_at)
+                VALUES (%s, %s, 'approved', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 _server.name,
@@ -327,6 +330,7 @@ class Logistics(Plugin[LogisticsEventListener]):
                 deadline_dt,
                 str(interaction.user.id),
                 now,
+                remarks,
                 now,
                 now
             ))
@@ -352,6 +356,7 @@ class Logistics(Plugin[LogisticsEventListener]):
                 'coalition': coalition_id,
                 'deadline': deadline_dt,
                 'status': 'approved',
+                'remarks': remarks,
                 'created_at': now,
                 'discord_message_id': None
             }
@@ -509,6 +514,9 @@ class Logistics(Plugin[LogisticsEventListener]):
         embed.add_field(name="Created By", value=task['created_by_name'] or 'Admin', inline=True)
         embed.add_field(name="Assigned To", value=task['assigned_name'] or 'Unassigned', inline=True)
         embed.add_field(name="Server", value=task['server_name'], inline=True)
+
+        if task.get('remarks'):
+            embed.add_field(name="Remarks", value=task['remarks'], inline=False)
 
         if task['notes']:
             embed.add_field(name="Notes", value=task['notes'], inline=False)

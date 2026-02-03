@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS logistics_tasks (
     assigned_at TIMESTAMP,
     completed_at TIMESTAMP,
     notes TEXT,
+    remarks TEXT,                            -- Additional pilot instructions (from creator)
     created_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
     updated_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
     approved_by TEXT,                        -- Discord user ID who approved
