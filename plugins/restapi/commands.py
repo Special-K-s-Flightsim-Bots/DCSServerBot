@@ -507,8 +507,16 @@ class RestAPI(Plugin):
 
         airbase = next((x for x in server.current_mission.airbases if x['name'] == airbase_name), None)
         if airbase:
-            airbase_data['mgrs'] = airbase['mgrs']
-            airbase_data['magVar'] = airbase['magVar']
+            # Safely assign 'mgrs', generate if missing
+            mgrs_val = airbase.get('mgrs')
+            if not mgrs_val:
+                try:
+                    mgrs_val = utils.dd_to_mgrs(airbase_data['lat'], airbase_data['lon'])
+                except Exception:
+                    mgrs_val = None
+                    
+            airbase_data['mgrs'] = mgrs_val
+            airbase_data['magVar'] = airbase.get('magVar')
 
         # Return all information on the airbase
         return {
