@@ -148,6 +148,8 @@ def migrate_squadrons(mayfly_data: dict, target_conn, dry_run: bool) -> dict:
         abbreviation = name.split()[0] if ' ' in name else name  # e.g., "801" from "801 NAS"
         description = sq.get('squadron_motto')
         co_ucid = sq.get('squadron_commanding_officer')
+        # Derive service from squadron name patterns (RN squadrons are numbered, RAF use letters)
+        service = 'RN' if name[0].isdigit() else None
 
         print(f"  Squadron: {name} (CO: {co_ucid or 'None'})")
 
@@ -160,22 +162,33 @@ def migrate_squadrons(mayfly_data: dict, target_conn, dry_run: bool) -> dict:
                         print(f"    WARNING: CO {co_ucid} not in players table, setting to NULL")
                         co_ucid = None
 
+                # Insert into shared squadrons table
                 cur.execute("""
-                    INSERT INTO logbook_squadrons (name, abbreviation, description, co_ucid)
-                    VALUES (%s, %s, %s, %s)
+                    INSERT INTO squadrons (name, description, co_ucid, locked)
+                    VALUES (%s, %s, %s, FALSE)
                     ON CONFLICT (name) DO UPDATE SET
-                        abbreviation = EXCLUDED.abbreviation,
-                        description = EXCLUDED.description
+                        description = COALESCE(EXCLUDED.description, squadrons.description),
+                        co_ucid = COALESCE(EXCLUDED.co_ucid, squadrons.co_ucid)
                     RETURNING id
-                """, (name, abbreviation, description, co_ucid))
+                """, (name, description, co_ucid))
                 result = cur.fetchone()
                 if result:
                     squadron_map[name] = result['id']
                 else:
                     # Get existing ID if upsert didn't return
-                    cur.execute("SELECT id FROM logbook_squadrons WHERE name = %s", (name,))
+                    cur.execute("SELECT id FROM squadrons WHERE name = %s", (name,))
                     result = cur.fetchone()
                     squadron_map[name] = result['id']
+
+                # Insert logbook-specific metadata (abbreviation, service)
+                if abbreviation or service:
+                    cur.execute("""
+                        INSERT INTO logbook_squadron_metadata (squadron_id, abbreviation, service)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (squadron_id) DO UPDATE SET
+                            abbreviation = COALESCE(EXCLUDED.abbreviation, logbook_squadron_metadata.abbreviation),
+                            service = COALESCE(EXCLUDED.service, logbook_squadron_metadata.service)
+                    """, (squadron_map[name], abbreviation, service))
         else:
             squadron_map[name] = f"<new-id-for-{name}>"
 
@@ -208,6 +221,11 @@ def migrate_pilots(mayfly_data: dict, target_conn, squadron_map: dict, dry_run: 
 
         if not dry_run:
             with target_conn.cursor() as cur:
+                # Validate UCID format (must be hex string)
+                if not ucid or not all(c in '0123456789abcdefABCDEF' for c in ucid):
+                    print(f"    WARNING: Invalid UCID '{ucid}', skipping pilot")
+                    continue
+
                 # Ensure pilot exists in players table
                 cur.execute("""
                     INSERT INTO players (ucid, name)
@@ -224,12 +242,12 @@ def migrate_pilots(mayfly_data: dict, target_conn, squadron_map: dict, dry_run: 
                         rank = EXCLUDED.rank
                 """, (ucid, service, rank))
 
-                # Add squadron memberships (rank is now in logbook_pilots, not here)
+                # Add squadron memberships to shared table
                 for sq_name in squadrons:
                     if sq_name in squadron_map:
                         sq_id = squadron_map[sq_name]
                         cur.execute("""
-                            INSERT INTO logbook_squadron_members (squadron_id, player_ucid)
+                            INSERT INTO squadron_members (squadron_id, player_ucid)
                             VALUES (%s, %s)
                             ON CONFLICT (squadron_id, player_ucid) DO NOTHING
                         """, (sq_id, ucid))

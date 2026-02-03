@@ -5,33 +5,16 @@ CREATE TABLE IF NOT EXISTS logbook_pilots (
     FOREIGN KEY (player_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS logbook_squadrons (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    abbreviation TEXT,
-    service TEXT,
-    description TEXT,
-    logo_url TEXT,
-    co_ucid TEXT,
-    xo_ucid TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    FOREIGN KEY (co_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE SET NULL,
-    FOREIGN KEY (xo_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE SET NULL
-);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_logbook_squadrons_name ON logbook_squadrons (name);
-CREATE INDEX IF NOT EXISTS idx_logbook_squadrons_co_ucid ON logbook_squadrons (co_ucid);
-CREATE INDEX IF NOT EXISTS idx_logbook_squadrons_xo_ucid ON logbook_squadrons (xo_ucid);
+-- NOTE: Squadron tables (squadrons, squadron_members) are managed by the userstats plugin.
+-- Logbook commands operate on those shared tables directly.
+-- See update_v1.5.sql for the migration that moved data from logbook_squadrons to shared tables.
 
-CREATE TABLE IF NOT EXISTS logbook_squadron_members (
-    squadron_id INTEGER NOT NULL,
-    player_ucid TEXT NOT NULL,
-    position TEXT,
-    joined_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    PRIMARY KEY (squadron_id, player_ucid),
-    FOREIGN KEY (squadron_id) REFERENCES logbook_squadrons (id) ON DELETE CASCADE,
-    FOREIGN KEY (player_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE
+-- Logbook-specific squadron metadata (abbreviation, service) that isn't in the shared schema
+CREATE TABLE IF NOT EXISTS logbook_squadron_metadata (
+    squadron_id INTEGER PRIMARY KEY REFERENCES squadrons(id) ON DELETE CASCADE,
+    abbreviation TEXT,
+    service TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_logbook_squadron_members_ucid ON logbook_squadron_members (player_ucid);
 
 CREATE TABLE IF NOT EXISTS logbook_qualifications (
     id SERIAL PRIMARY KEY,
@@ -86,23 +69,6 @@ CREATE INDEX IF NOT EXISTS idx_logbook_pilot_awards_award_id ON logbook_pilot_aw
 
 -- NOTE: Flight plans are managed by the dedicated flightplan plugin.
 -- See plugins/flightplan/db/tables.sql for the flightplan_plans table.
-
-CREATE TABLE IF NOT EXISTS logbook_stores_requests (
-    id SERIAL PRIMARY KEY,
-    squadron_id INTEGER NOT NULL,
-    requested_by TEXT NOT NULL,
-    requested_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    items JSONB,
-    status TEXT NOT NULL DEFAULT 'pending',
-    approved_by TEXT,
-    approved_at TIMESTAMP,
-    FOREIGN KEY (squadron_id) REFERENCES logbook_squadrons (id) ON DELETE CASCADE,
-    FOREIGN KEY (requested_by) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY (approved_by) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE SET NULL
-);
-CREATE INDEX IF NOT EXISTS idx_logbook_stores_requests_squadron ON logbook_stores_requests (squadron_id);
-CREATE INDEX IF NOT EXISTS idx_logbook_stores_requests_status ON logbook_stores_requests (status);
-CREATE INDEX IF NOT EXISTS idx_logbook_stores_requests_requested_by ON logbook_stores_requests (requested_by);
 
 CREATE TABLE IF NOT EXISTS logbook_historical_hours (
     player_ucid TEXT NOT NULL,
