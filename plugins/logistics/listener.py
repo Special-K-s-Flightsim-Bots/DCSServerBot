@@ -219,6 +219,9 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 await self._menu_task_details(server, player, task_id)
         elif action == 'cannot_accept':
             await self._menu_cannot_accept(server, player)
+        elif action == 'accept_page':
+            page = params.get('page', 0)
+            await self._create_logistics_menu(server, player, accept_page=page)
 
     # ==================== CHAT COMMANDS ====================
 
@@ -1169,8 +1172,16 @@ class LogisticsEventListener(EventListener["Logistics"]):
 
     # ==================== F10 MENU METHODS ====================
 
-    async def _create_logistics_menu(self, server: Server, player: Player, group_id: int = None):
-        """Create F10 menu for logistics operations."""
+    async def _create_logistics_menu(self, server: Server, player: Player, group_id: int = None,
+                                       accept_page: int = 0):
+        """Create F10 menu for logistics operations.
+
+        Args:
+            server: The DCS server
+            player: The player to create menu for
+            group_id: Optional group ID (falls back to player.group_id)
+            accept_page: Page number for Accept Task pagination (0-indexed)
+        """
         # Use provided group_id or fall back to player object
         if group_id is None:
             group_id = player.group_id
@@ -1184,6 +1195,9 @@ class LogisticsEventListener(EventListener["Logistics"]):
         tasks_with_pos = await self._get_available_tasks_with_positions(server.name, player.side.value)
         assigned_task = await self._get_assigned_task(player.ucid, server.name)
         self.log.debug(f"Menu build: {len(tasks)} available tasks, {len(tasks_with_pos)} plottable tasks, assigned={assigned_task is not None}")
+
+        # Pagination constants
+        TASKS_PER_PAGE = 5
 
         # Build menu structure
         menu = [{
@@ -1206,7 +1220,15 @@ class LogisticsEventListener(EventListener["Logistics"]):
         # Add accept task submenu if tasks available and player has no task
         if tasks and not assigned_task:
             accept_menu = []
-            for task in tasks[:5]:  # Limit to 5 tasks in menu
+            total_tasks = len(tasks)
+            total_pages = (total_tasks + TASKS_PER_PAGE - 1) // TASKS_PER_PAGE  # Ceiling division
+
+            # Get tasks for current page
+            start_idx = accept_page * TASKS_PER_PAGE
+            end_idx = start_idx + TASKS_PER_PAGE
+            page_tasks = tasks[start_idx:end_idx]
+
+            for task in page_tasks:
                 priority_marker = "!" if task['priority'] == 'urgent' else ""
                 label = f"#{task['id']}{priority_marker}: {task['cargo_type'][:20]}"
                 accept_menu.append({
@@ -1215,6 +1237,27 @@ class LogisticsEventListener(EventListener["Logistics"]):
                         "params": {"action": "accept", "task_id": task['id']}
                     }
                 })
+
+            # Add pagination controls if needed
+            if total_pages > 1:
+                # Add "Previous" if not on first page
+                if accept_page > 0:
+                    accept_menu.append({
+                        f"<< Previous ({accept_page}/{total_pages})": {
+                            "command": "logistics",
+                            "params": {"action": "accept_page", "page": accept_page - 1}
+                        }
+                    })
+
+                # Add "Next" if not on last page
+                if accept_page < total_pages - 1:
+                    accept_menu.append({
+                        f"Next ({accept_page + 2}/{total_pages}) >>": {
+                            "command": "logistics",
+                            "params": {"action": "accept_page", "page": accept_page + 1}
+                        }
+                    })
+
             menu[0]["Logistics"].append({"Accept Task": accept_menu})
         elif tasks and assigned_task:
             # Show disabled menu item explaining why Accept Task is unavailable
@@ -1302,16 +1345,17 @@ class LogisticsEventListener(EventListener["Logistics"]):
             asyncio.create_task(player.sendPopupMessage("No logistics tasks available.", 10))
             return
 
-        msg = "AVAILABLE LOGISTICS TASKS\n\n"
-        for task in tasks[:5]:
+        msg = f"AVAILABLE LOGISTICS TASKS ({len(tasks)} total)\n\n"
+        # Show up to 8 tasks in popup (more space than menu)
+        for task in tasks[:8]:
             priority_marker = "[!] " if task['priority'] == 'urgent' else ""
             deadline_str = task['deadline'].strftime('%H:%MZ') if task['deadline'] else "None"
             msg += f"{priority_marker}#{task['id']}: {task['cargo_type']}\n"
             msg += f"    {task['source_name']} -> {task['destination_name']}\n"
             msg += f"    Deadline: {deadline_str}\n\n"
 
-        if len(tasks) > 5:
-            msg += f"... and {len(tasks) - 5} more tasks"
+        if len(tasks) > 8:
+            msg += f"... and {len(tasks) - 8} more. Use -tasks chat command for full list."
 
         asyncio.create_task(player.sendPopupMessage(msg, 20))
 
