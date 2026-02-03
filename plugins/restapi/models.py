@@ -882,16 +882,24 @@ class AirbaseCaptureResponse(BaseModel):
         }
     }
     
-class ConvertLatLonToMeters(BaseModel):
-        
-    x: float = Field(..., description="X coordinate in meters")
-    y: float = Field(..., description="Y coordinate in meters")
+class ConvertCoordinates(BaseModel):
+    latlon: str = Field(..., description="Latitude and Longitude in decimal degrees")
+    mgrs: str = Field(..., description="Cooridnate provided, converted to MGRS")
+    dms: str = Field(..., description="Cooridnate provided, converted to Decimal, Minutes, Seconds")
+    ddm: str = Field(..., description="Cooridnate provided, converted to Degrees and Decimal Minutes")
+    meters: dict = Field(..., description="Cooridnate provided, converted to DCS Meters")
 
     model_config = {
         "json_schema_extra": {
             "example": {
-                "x": -63197.599144637,
-                "y": -690506.64333276
+                "latlon": "35.40556, 35.94889",
+                "mgrs": "36S YE 67795 22013",
+                "dms": "N 35°24'20.00\" E 035°56'56.00\"",
+                "ddm": "N35°24.33333 E35°56.93333",
+                "meters": {
+                    "x": 42430,
+                    "y": 5719
+                }
             }
         }
     }
