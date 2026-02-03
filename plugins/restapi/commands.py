@@ -437,7 +437,7 @@ class RestAPI(Plugin):
             meters = {"x": x, "y": y}
 
         else:
-            raise HTTPException(status_code=404, detail=f"Coordinate string is not valid")
+            raise HTTPException(status_code=400, detail=f"Coordinate string is not valid")
 
         # Now, generate all output formats from latitude/longitude
         d, m, s, f = utils.dd_to_dms(latitude)
