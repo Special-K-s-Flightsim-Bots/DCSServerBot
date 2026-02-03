@@ -2,7 +2,7 @@ import asyncio
 import discord
 import json
 
-from core import EventListener, Server, event, chat_command, Player
+from core import EventListener, Server, event, chat_command, Player, Status
 from datetime import datetime, timezone, timedelta
 from typing import TYPE_CHECKING, Optional
 
@@ -73,10 +73,61 @@ class LogisticsEventListener(EventListener["Logistics"]):
     def __init__(self, plugin: "Logistics"):
         super().__init__(plugin)
         self._delivery_check_task = None
+        self._menu_refresh_pending: dict[tuple[str, int], asyncio.Task] = {}
 
     async def shutdown(self):
         if self._delivery_check_task:
             self._delivery_check_task.cancel()
+        # Cancel any pending menu refresh tasks
+        for task in self._menu_refresh_pending.values():
+            task.cancel()
+        self._menu_refresh_pending.clear()
+
+    async def broadcast_menu_update(self, server: Server, coalition: int):
+        """
+        Notify all spawned players in a coalition of menu changes.
+
+        Uses debouncing to batch rapid task creations - waits 1.5 seconds
+        before actually sending updates. If called again during the wait,
+        the timer resets.
+        """
+        key = (server.name, coalition)
+
+        # Cancel any pending refresh for this coalition
+        if key in self._menu_refresh_pending:
+            self._menu_refresh_pending[key].cancel()
+
+        async def do_refresh():
+            try:
+                await asyncio.sleep(1.5)  # Debounce window
+
+                if server.status != Status.RUNNING:
+                    self.log.debug(f"Skipping menu broadcast - server {server.name} not running")
+                    return
+
+                count = 0
+                # Copy to list to avoid mutation during iteration
+                for player in list(server.players.values()):
+                    if (player.active and player.side and
+                            player.side.value == coalition and
+                            player.group_id and player.id > 1):
+                        try:
+                            await self._create_logistics_menu(server, player)
+                            count += 1
+                        except Exception as e:
+                            self.log.warning(f"Failed to refresh menu for {player.name}: {e}")
+
+                if count > 0:
+                    self.log.debug(f"Broadcast menu refresh to {count} player(s) in coalition {coalition} on {server.name}")
+
+            except asyncio.CancelledError:
+                pass  # Superseded by newer refresh request
+            finally:
+                # Only delete if this is still the active task for this key
+                if self._menu_refresh_pending.get(key) is asyncio.current_task():
+                    del self._menu_refresh_pending[key]
+
+        self._menu_refresh_pending[key] = asyncio.create_task(do_refresh())
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, _data: dict) -> None:
@@ -222,6 +273,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
         elif action == 'accept_page':
             page = params.get('page', 0)
             await self._create_logistics_menu(server, player, accept_page=page)
+        elif action == 'refresh_menu':
+            await self._menu_refresh(server, player)
 
     # ==================== CHAT COMMANDS ====================
 
@@ -1341,6 +1394,14 @@ class LogisticsEventListener(EventListener["Logistics"]):
                 }
             })
 
+        # Add refresh menu option at the end
+        menu[0]["Logistics"].append({
+            "Refresh Menu": {
+                "command": "logistics",
+                "params": {"action": "refresh_menu"}
+            }
+        })
+
         # Send menu to DCS (group_id already validated at start of function)
         asyncio.create_task(server.send_to_dcs({
             "command": "createMenu",
@@ -1518,6 +1579,11 @@ class LogisticsEventListener(EventListener["Logistics"]):
         if task.get('remarks'):
             msg += f"\n\nRemarks: {task['remarks']}"
         asyncio.create_task(player.sendPopupMessage(msg, 15))
+
+    async def _menu_refresh(self, server: Server, player: Player):
+        """Handle 'Refresh Menu' F10 option."""
+        await self._create_logistics_menu(server, player)
+        asyncio.create_task(player.sendChatMessage("Logistics menu refreshed."))
 
     async def _cancel_stale_tasks(self, server: Server):
         """Cancel tasks that have been pending/approved for too long."""

@@ -362,6 +362,10 @@ class Logistics(Plugin[LogisticsEventListener]):
             }
             await self.eventlistener.publish_logistics_task(task_data, 'approved')
 
+        # Notify in-game players of new task (with debouncing)
+        if _server.status == Status.RUNNING:
+            await self.eventlistener.broadcast_menu_update(_server, coalition_id)
+
         # Markers are created when a player accepts the task or uses -plot command
 
         embed = discord.Embed(
@@ -628,6 +632,10 @@ class Logistics(Plugin[LogisticsEventListener]):
                     'deadline': task[7],
                     'assigned_name': None
                 })
+
+        # Notify in-game players of newly approved task
+        if server and server.status == Status.RUNNING:
+            await self.eventlistener.broadcast_menu_update(server, task[6])  # task[6] is coalition
 
         embed = discord.Embed(
             title="Task Approved",
