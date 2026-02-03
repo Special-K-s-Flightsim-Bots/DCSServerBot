@@ -55,6 +55,13 @@ if %ERRORLEVEL% EQU -1 (
     )
     SET PROGRAM=run.py
     goto loop
+) else if %ERRORLEVEL% EQU -1073740791 (
+    IF NOT %restarted% == true (
+        SET restarted=true
+        SET ARGS=%* --restarted
+    )
+    SET PROGRAM=run.py
+    goto loop
 ) else if %ERRORLEVEL% EQU -3 (
     SET PROGRAM=update.py
     goto loop
