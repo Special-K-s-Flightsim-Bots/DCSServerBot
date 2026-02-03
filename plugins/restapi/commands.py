@@ -343,9 +343,6 @@ class RestAPI(Plugin):
             "lat": latitude,
             "lon": longitude
         }
-        # If a channel is required, add it here. Example:
-        # if hasattr(server, 'channel'):
-        #     command["channel"] = server.channel
 
         meters = await server.send_to_dcs_sync(command, timeout=60)
 
