@@ -459,8 +459,6 @@ class RestAPI(Plugin):
 
         # Round lat/lon to 5 decimals
         latlon_str = f"{round(latitude, 5)}, {round(longitude, 5)}"
-        # Round meters to whole numbers
-        meters_rounded = {"x": round(x) if x is not None else None, "y": round(y) if y is not None else None}
 
         # DDM rounding: round minutes to 5 decimals
         def dd_to_dmm_5(lat, lon):
@@ -478,7 +476,10 @@ class RestAPI(Plugin):
             "mgrs": mgrs,
             "dms": f"{lat_dms} {lon_dms}",
             "ddm": ddm_val,
-            "meters": meters_rounded,
+            "meters": {
+                "x": x,
+                "y": y
+                },
         }
         return rtnArray
 
