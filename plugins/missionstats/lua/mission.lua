@@ -1,5 +1,7 @@
-local base	= _G
-dcsbot 		= base.dcsbot
+local base	    = _G
+local Terrain   = base.require('terrain')
+
+dcsbot 		    = base.dcsbot
 
 local GROUP_CATEGORY = {
 	[Group.Category.AIRPLANE] = 'Airplanes',
@@ -24,11 +26,38 @@ world.event.S_EVENT_ECW_TROOP_KILL   = world.event.S_EVENT_MAX + 1051
 world.event.S_EVENT_ECW_TROOP_PICKUP = world.event.S_EVENT_MAX + 1052
 
 dcsbot.mission_stats_enabled = false
-
 dcsbot.eventHandler = dcsbot.eventHandler or {}
 
 local event_by_id = {}
 
+local function is_on_runway(runway, pos)
+    local dx            = pos.x - runway.position.x
+    local dz            = pos.z - runway.position.z
+
+    local course_rad    = math.rad(runway.course)
+    local proj          = dx * math.sin(course_rad) + dz * math.cos(course_rad)
+    local lateral       = -dx * math.cos(course_rad) + dz * math.sin(course_rad)
+
+    local half_len      = runway.length / 2.0
+    local half_wid      = runway.width  / 2.0
+
+    local on_length     = math.abs(proj) <= half_len
+    local on_width      = math.abs(lateral) <= half_wid
+
+    return on_length and on_width
+end
+
+function getDistance(point1, point2)
+    local y1, y2
+
+    if point1.z ~= nil then y1 = point1.z else y1 = point1.y end
+    if point2.z ~= nil then y2 = point2.z else y2 = point2.y end
+
+    local dx = point2.x - point1.x
+    local dy = y2 - y1
+
+    return math.sqrt(dx * dx + dy * dy)
+end
 
 function dcsbot.eventHandler:onEvent(event)
 	status, err = pcall(onMissionEvent, event)
@@ -68,6 +97,37 @@ function onMissionEvent(event)
             msg.initiator.coalition = msg.initiator.unit:getCoalition()
             msg.initiator.unit_type = msg.initiator.unit:getTypeName()
             msg.initiator.category = msg.initiator.unit:getDesc().category
+            local point = msg.initiator.unit:getPosition().p
+            local lat, lon = Terrain.convertMetersToLatLon(point.x, point.z)
+            msg.initiator.position = {
+                point = point,
+                lat = lat,
+                lon = lon
+            }
+            if event.id == world.event.S_EVENT_RUNWAY_TAKEOFF then
+                if not event.place then
+                    msg['eventName'] = 'S_EVENT_GROUND_TAKEOFF'
+                else
+                    local airbase = Airbase.getByName(event.place:getName())
+                    if airbase:getDesc().category ~= Airbase.Category.SHIP then
+                        local runways = airbase:getRunways()
+                        local on_runway = false
+                        for _, runway in pairs(runways) do
+                            if is_on_runway(runway, point) then
+                                on_runway = true
+                                break
+                            end
+                        end
+                        if not on_runway then
+                            -- ignore unnecessary events for helicopters
+                            if msg.initiator.category ~= Group.Category.AIRPLANE then
+                                return
+                            end
+                            msg['eventName'] = 'S_EVENT_TAXIWAY_TAKEOFF'
+                        end
+                    end
+                end
+            end
         elseif category == Object.Category.WEAPON then
             msg.initiator.type = 'WEAPON'
             msg.initiator.unit = event.initiator

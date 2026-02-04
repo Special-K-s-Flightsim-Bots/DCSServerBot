@@ -177,6 +177,7 @@ function dcsbot.getAirbases(json)
                 airbase.name = airdrome.names.en
             end
             airbase.id = airdrome.id
+            airbase.type = airdrome.airbaseType or 'Airbase'
             airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(airdrome.reference_point.x, airdrome.reference_point.y)
             airbase.alt = Terrain.GetHeight(airdrome.reference_point.x, airdrome.reference_point.y)
             airbase.mgrs =  Terrain.GetMGRScoordinates(airdrome.reference_point.x, airdrome.reference_point.y)

@@ -91,8 +91,18 @@ class PunishmentEventListener(EventListener["Punishment"]):
             pass
 
     async def _punish(self, data: dict):
+        server: Server = self.bot.servers[data['server_name']]
+        config = self.plugin.get_config(server)
+
         initiator = data['initiator']
         target = data.get('target')
+        penalty = next(item for item in config['penalties'] if item['event'] == data['eventName'])
+
+        # do we have to fire an immediate action?
+        if 'action' in penalty:
+            asyncio.create_task(
+                self.plugin.punish(server, initiator.ucid, penalty, penalty['reason']))
+
         async with self.apool.connection() as conn:
             await conn.execute("""
                 INSERT INTO pu_events (init_id, target_id, server_name, event, points) 
@@ -391,6 +401,18 @@ class PunishmentEventListener(EventListener["Punishment"]):
             if ((s_event['eventName'] == 'S_EVENT_SHOT' and delta_time < config.get('reslot_window', 60)) or
                     (s_event['eventName'] == 'S_EVENT_HIT' and delta_time < config.get('survival_window', 300))):
                 asyncio.create_task(self._give_kill(server, s_event))
+
+        elif data['eventName'] == 'S_EVENT_TAXIWAY_TAKEOFF':
+            player = server.get_player(name=data.get('initiator', {}).get('name'))
+            if not player or player.sub_slot > 0:
+                return
+
+            evt = {
+                "server_name": server.name,
+                "initiator": player,
+                "eventName": "taxiway_takeoff"
+            }
+            asyncio.create_task(self._check_punishment(evt))
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:

@@ -37,6 +37,10 @@ DEFAULT:
   - event: reslot           # If you re-slotted when being shot at, you get 30 points (you stole a kill)
     default: 30
     reason: Respawning when being shot at
+  - event: taxiway_takeoff
+    default: 10
+    action: kick
+    reason: Illegal taxiway takeoff
   forgive: 30               # People can forgive others in-between of 30 seconds (default) with the .forgive in-game chat command.
   punishments:              # list of punishments, based on the user's penalty points
   - points: 100             # we temp-ban the player when they reached 100 points.
