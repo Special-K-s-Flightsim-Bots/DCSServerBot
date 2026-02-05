@@ -22,7 +22,7 @@ from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, Us
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
                      PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats, 
                      AirbasesResponse, AirbaseInfoResponse, AirbaseWarehouseResponse, AirbaseSetWarehouseItemResponse,
-                     AirbaseCaptureResponse)
+                     AirbaseCaptureResponse, ConvertCoordinates)
 from ..srs.commands import SRS
 
 app: FastAPI | None = None
@@ -317,11 +317,173 @@ class RestAPI(Plugin):
             summary = "Player Squadrons",
             tags = ["Info"]
         )
+        
+        self.router.add_api_route(
+            "/convertCoordinates", self.convertCoordinates,
+            methods = ["GET"],
+            response_model = ConvertCoordinates,
+            description = "Convert provided coordinate string into other formats.",
+            summary = "Converts the provided coordinate into multiple formats.",
+            tags = ["Utilities"]
+        )
         self.app.include_router(self.router)
 
     def get_endpoint_config(self, endpoint: str):
         return self.get_config().get('endpoints', {}).get(endpoint, {})
 
+    ## convertCoordinates Function
+    ## ----------------------------------------------
+    ## string: convertable
+    ## enum: mgrs | latlon | meters
+    ## ----------------------------------------------
+
+    async def convertCoordinates(self, server_name: str = Query(...), coordinates: str = Query(...)):
+        """Return all meters for a given lat/lon on a server."""
+        # Resolve server
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        # Remove leading/trailing whitespace
+        coordinates = coordinates.strip()
+
+        latitude = longitude = None
+        meters = None
+        x = y = None
+        ddm_input = None
+
+        # Lat/Lon (decimal degrees)
+        if re.match(r'^-?\d{1,3}\.\d{3,},\s*-?\d{1,3}\.\d{3,}$', coordinates):
+            lat_str, lon_str = [x.strip() for x in coordinates.split(",")]
+            latitude = float(lat_str)
+            longitude = float(lon_str)
+            convertLatLonToMeters = {
+                "command": "convertLatLonToMeters",
+                "lat": latitude,
+                "lon": longitude
+            }
+            meters = await server.send_to_dcs_sync(convertLatLonToMeters, timeout=60)
+            x = meters['x']
+            y = meters['y']
+
+        # DMS (N53°37'38" E10°00'10")
+        elif re.match(r'^([NS])(\d{1,3})°(\d{1,2})\'(\d{1,2})"\s*([EW])(\d{1,3})°(\d{1,2})\'(\d{1,2})"$', coordinates):
+            dms_match = re.match(r'^([NS])(\d{1,3})°(\d{1,2})\'(\d{1,2})"\s*([EW])(\d{1,3})°(\d{1,2})\'(\d{1,2})"$', coordinates)
+            lat_hem, lat_deg, lat_min, lat_sec, lon_hem, lon_deg, lon_min, lon_sec = dms_match.groups()
+            latitude = int(lat_deg) + int(lat_min)/60 + float(lat_sec)/3600
+            if lat_hem == 'S':
+                latitude = -latitude
+            longitude = int(lon_deg) + int(lon_min)/60 + float(lon_sec)/3600
+            if lon_hem == 'W':
+                longitude = -longitude
+            convertLatLonToMeters = {
+                "command": "convertLatLonToMeters",
+                "lat": latitude,
+                "lon": longitude
+            }
+            meters = await server.send_to_dcs_sync(convertLatLonToMeters, timeout=60)
+            x = meters['x']
+            y = meters['y']
+
+        # DDM (N53°37.633 E010°0.173)
+        elif re.match(r'^([NS])(\d{1,3})°(\d{1,2}\.\d{1,5})\s*([EW])(\d{1,3})°(\d{1,2}\.\d{1,5})$', coordinates):
+            ddm_match = re.match(r'^([NS])(\d{1,3})°(\d{1,2}\.\d{1,5})\s*([EW])(\d{1,3})°(\d{1,2}\.\d{1,5})$', coordinates)
+            lat_hem, lat_deg, lat_min, lon_hem, lon_deg, lon_min = ddm_match.groups()
+            latitude = int(lat_deg) + float(lat_min)/60
+            if lat_hem == 'S':
+                latitude = -latitude
+            longitude = int(lon_deg) + float(lon_min)/60
+            if lon_hem == 'W':
+                longitude = -longitude
+            convertLatLonToMeters = {
+                "command": "convertLatLonToMeters",
+                "lat": latitude,
+                "lon": longitude
+            }
+            meters = await server.send_to_dcs_sync(convertLatLonToMeters, timeout=60)
+            x = meters['x']
+            y = meters['y']
+            ddm_input = coordinates
+
+        # MGRS (with or without spaces)
+        elif re.match(r'^\d{1,2}[C-HJ-NP-X][A-Z]{2}\s?\d{1,5}\s?\d{1,5}$', coordinates.replace(' ', '')):
+            mgrs_clean = coordinates.replace(' ', '')
+            try:
+                latitude, longitude = utils.mgrs_to_dd(mgrs_clean)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Invalid MGRS coordinate: {coordinates}. Error: {str(e)}")
+            convertLatLonToMeters = {
+                "command": "convertLatLonToMeters",
+                "lat": latitude,
+                "lon": longitude
+            }
+            meters = await server.send_to_dcs_sync(convertLatLonToMeters, timeout=60)
+            x = meters['x']
+            y = meters['y']
+
+        # Meters (x, y)
+        elif re.match(r'^-?\d+,\s*-?\d+$', coordinates):
+            x_str, y_str = [x.strip() for x in coordinates.split(",")]
+            x = int(x_str)
+            y = int(y_str)
+            convertMetersToLatLon = {
+                "command": "convertMetersToLatLon",
+                "x": x,
+                "y": y
+            }
+            latlon = await server.send_to_dcs_sync(convertMetersToLatLon, timeout=60)
+            latitude = latlon["lat"]
+            longitude = latlon["lon"]
+            meters = {"x": x, "y": y}
+
+        else:
+            raise HTTPException(status_code=400, detail=f"Coordinate string is not valid")
+
+        # Now, generate all output formats from latitude/longitude
+        d, m, s, f = utils.dd_to_dms(latitude)
+        lat_dms = (f"{'N' if d > 0 else 'S'} {int(abs(d)):02d}°{int(abs(m)):02d}'{int(abs(s)):02d}.{int(abs(f)):02d}\"")
+        d, m, s, f = utils.dd_to_dms(longitude)
+        lon_dms = (f"{'E' if d > 0 else 'W'} {int(abs(d)):03d}°{int(abs(m)):02d}'{int(abs(s)):02d}.{int(abs(f)):02d}\"")
+
+        mgrs_raw = utils.dd_to_mgrs(latitude, longitude)
+        def format_mgrs(mgrs):
+            if len(mgrs) < 10:
+                return mgrs
+            zone = mgrs[:2]
+            band = mgrs[2]
+            sq = mgrs[3:5]
+            easting = mgrs[5:10]
+            northing = mgrs[10:]
+            return f"{zone}{band} {sq} {easting} {northing}"
+        mgrs = format_mgrs(mgrs_raw)
+
+        # Round lat/lon to 5 decimals
+        latlon_str = f"{round(latitude, 5)}, {round(longitude, 5)}"
+
+        # DDM rounding: round minutes to 5 decimals
+        def dd_to_dmm_5(lat, lon):
+            def dmm(val, hemi_pos, hemi_neg):
+                hemi = hemi_pos if val >= 0 else hemi_neg
+                deg = int(abs(val))
+                min_ = round((abs(val) - deg) * 60, 5)
+                return f"{hemi}{deg:02d}°{min_:0.5f}"
+            return f"{dmm(lat, 'N', 'S')} {dmm(lon, 'E', 'W')}"
+
+        ddm_val = ddm_input if ddm_input else dd_to_dmm_5(latitude, longitude)
+
+        rtnArray = {
+            "latlon": latlon_str,
+            "mgrs": mgrs,
+            "dms": f"{lat_dms} {lon_dms}",
+            "ddm": ddm_val,
+            "meters": {
+                "x": x,
+                "y": y
+                },
+        }
+        return rtnArray
+
+        
     async def airbases(self, server_name: str = Query(...)):
         """Return all airbases for a given server."""
         # Resolve server
@@ -346,8 +508,16 @@ class RestAPI(Plugin):
 
         airbase = next((x for x in server.current_mission.airbases if x['name'] == airbase_name), None)
         if airbase:
-            airbase_data['mgrs'] = airbase['mgrs']
-            airbase_data['magVar'] = airbase['magVar']
+            # Safely assign 'mgrs', generate if missing
+            mgrs_val = airbase.get('mgrs')
+            if not mgrs_val:
+                try:
+                    mgrs_val = utils.dd_to_mgrs(airbase_data['lat'], airbase_data['lon'])
+                except Exception:
+                    mgrs_val = None
+                    
+            airbase_data['mgrs'] = mgrs_val
+            airbase_data['magVar'] = airbase.get('magVar')
 
         # Return all information on the airbase
         return {
