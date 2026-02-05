@@ -31,20 +31,20 @@ dcsbot.eventHandler = dcsbot.eventHandler or {}
 local event_by_id = {}
 
 local function is_on_runway(runway, pos)
-    local dx            = pos.x - runway.position.x
-    local dz            = pos.z - runway.position.z
+    local dx = pos.x - runway.position.x
+    local dz = pos.z - runway.position.z
 
-    local course_rad    = math.rad(runway.course)
-    local proj          = dx * math.sin(course_rad) + dz * math.cos(course_rad)
-    local lateral       = -dx * math.cos(course_rad) + dz * math.sin(course_rad)
+    -- Convert DCS runway.course to a "heading" used for x/z rotation
+    local heading = -runway.course
 
-    local half_len      = runway.length / 2.0
-    local half_wid      = runway.width  / 2.0
+    -- Rotate world (dx,dz) into runway-local coordinates
+    local proj    = dx * math.cos(heading) + dz * math.sin(heading)
+    local lateral = -dx * math.sin(heading) + dz * math.cos(heading)
 
-    local on_length     = math.abs(proj) <= half_len
-    local on_width      = math.abs(lateral) <= half_wid
+    local half_len = runway.length / 2.0
+    local half_wid = runway.width  / 2.0
 
-    return on_length and on_width
+    return math.abs(proj) <= half_len and math.abs(lateral) <= half_wid
 end
 
 -- Detect whether a velocity vector is a vertical or normal take‑off.
@@ -135,6 +135,7 @@ function onMissionEvent(event)
                         local runways = airbase:getRunways()
                         local on_runway = false
                         for _, runway in pairs(runways) do
+                            env.info("### " .. net.lua2json(runway))
                             if is_on_runway(runway, point) then
                                 on_runway = true
                                 break

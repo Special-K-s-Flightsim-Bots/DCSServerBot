@@ -103,12 +103,13 @@ class PunishmentEventListener(EventListener["Punishment"]):
             asyncio.create_task(
                 self.plugin.punish(server, initiator.ucid, penalty, penalty['reason']))
 
-        async with self.apool.connection() as conn:
-            await conn.execute("""
-                INSERT INTO pu_events (init_id, target_id, server_name, event, points) 
-                VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING
-            """, (initiator.ucid, target.ucid if target else None, data['server_name'], data['eventName'],
-                  data['points']))
+        if data.get('points', 0) > 0:
+            async with self.apool.connection() as conn:
+                await conn.execute("""
+                    INSERT INTO pu_events (init_id, target_id, server_name, event, points) 
+                    VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING
+                """, (initiator.ucid, target.ucid if target else None, data['server_name'], data['eventName'],
+                      data['points']))
 
     async def _check_punishment(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
