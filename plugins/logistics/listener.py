@@ -299,6 +299,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
             f"  Deadline: {deadline_str}\n"
             f"  Status: {task['status']}"
         )
+        if task.get('remarks'):
+            msg += f"\n  Remarks: {task['remarks']}"
         asyncio.create_task(player.sendChatMessage(msg))
 
     @chat_command(name="taskinfo", usage="<task_id>", help="View details of a task")
@@ -330,6 +332,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
             f"  Deadline: {deadline_str}\n"
             f"  Assigned: {assigned}"
         )
+        if task.get('remarks'):
+            msg += f"\n  Remarks: {task['remarks']}"
         asyncio.create_task(player.sendChatMessage(msg))
 
     @chat_command(name="deliver", help="Mark current task as delivered")
@@ -509,6 +513,9 @@ class LogisticsEventListener(EventListener["Logistics"]):
                     deadline_str = str(deadline)
                 embed.add_field(name='Deadline', value=deadline_str, inline=True)
 
+            if task.get('remarks'):
+                embed.add_field(name='Remarks', value=task['remarks'][:200], inline=False)
+
             if task.get('notes'):
                 embed.add_field(name='Notes', value=task['notes'][:200], inline=False)
 
@@ -677,7 +684,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
         """Get task assigned to a player."""
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
-                SELECT id, cargo_type, source_name, destination_name, deadline, status, priority
+                SELECT id, cargo_type, source_name, destination_name, deadline, status, priority, remarks
                 FROM logistics_tasks
                 WHERE assigned_ucid = %s AND server_name = %s
                 AND status IN ('assigned', 'in_progress')
@@ -691,7 +698,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
                     'destination_name': row[3],
                     'deadline': row[4],
                     'status': row[5],
-                    'priority': row[6]
+                    'priority': row[6],
+                    'remarks': row[7]
                 }
             return None
 
@@ -700,7 +708,7 @@ class LogisticsEventListener(EventListener["Logistics"]):
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT t.id, t.cargo_type, t.source_name, t.destination_name,
-                       t.deadline, t.status, t.priority, p.name as assigned_name
+                       t.deadline, t.status, t.priority, p.name as assigned_name, t.remarks
                 FROM logistics_tasks t
                 LEFT JOIN players p ON t.assigned_ucid = p.ucid
                 WHERE t.id = %s AND t.server_name = %s AND t.coalition = %s
@@ -715,7 +723,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
                     'deadline': row[4],
                     'status': row[5],
                     'priority': row[6],
-                    'assigned_name': row[7]
+                    'assigned_name': row[7],
+                    'remarks': row[8]
                 }
             return None
 
@@ -1088,15 +1097,17 @@ class LogisticsEventListener(EventListener["Logistics"]):
     async def _notify_player_of_task(player: Player, task: dict):
         """Notify player of their assigned task on spawn."""
         deadline_str = task['deadline'].strftime('%H:%MZ') if task.get('deadline') else "None"
-        asyncio.create_task(player.sendPopupMessage(
+        msg = (
             f"ACTIVE LOGISTICS TASK\n\n"
             f"Task #{task['id']}\n"
             f"Cargo: {task['cargo_type']}\n"
             f"From: {task['source_name']}\n"
             f"To: {task['destination_name']}\n"
-            f"Deadline: {deadline_str}",
-            15
-        ))
+            f"Deadline: {deadline_str}"
+        )
+        if task.get('remarks'):
+            msg += f"\n\nRemarks: {task['remarks']}"
+        asyncio.create_task(player.sendPopupMessage(msg, 15))
 
     async def _check_delivery_on_landing(self, server: Server, data: dict):
         """Check if a landing event completes a logistics task."""
@@ -1332,6 +1343,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
             f"To: {task['destination_name']}\n"
             f"Deadline: {deadline_str}"
         )
+        if task.get('remarks'):
+            msg += f"\n\nRemarks: {task['remarks']}"
         asyncio.create_task(player.sendPopupMessage(msg, 15))
 
     async def _menu_cannot_accept(self, server: Server, player: Player):
@@ -1458,6 +1471,8 @@ class LogisticsEventListener(EventListener["Logistics"]):
             f"Deadline: {deadline_str}\n"
             f"Assigned: {assigned}"
         )
+        if task.get('remarks'):
+            msg += f"\n\nRemarks: {task['remarks']}"
         asyncio.create_task(player.sendPopupMessage(msg, 15))
 
     async def _cancel_stale_tasks(self, server: Server):
