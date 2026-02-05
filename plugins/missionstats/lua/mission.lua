@@ -229,7 +229,7 @@ function onMissionEvent(event)
                 lat = lat,
                 lon = lon
             }
-            if msg.initiator.position ~= nil then
+            if msg.initiator ~= nil and msg.initiator.position ~= nil then
                 msg.distance = get_distance(msg.initiator.position.point, msg.target.position.point)
             end
         elseif category == Object.Category.WEAPON then
