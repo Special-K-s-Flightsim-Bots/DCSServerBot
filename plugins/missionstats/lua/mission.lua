@@ -47,7 +47,28 @@ local function is_on_runway(runway, pos)
     return on_length and on_width
 end
 
-function getDistance(point1, point2)
+-- Detect whether a velocity vector is a vertical or normal take‑off.
+-- velocity   : table {x = …, y = …, z = …}  (m/s)
+-- threshold  : horizontal‑speed threshold in m/s (default 15)
+-- returns    : true  if vertical, false if normal
+local function is_vertical_takeoff(velocity, threshold)
+    threshold = threshold or 15
+
+    -- horizontal speed (ground‑plane component)
+    local vh = math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z)
+
+    -- also check the ratio (vertical / horizontal)
+    if vh == 0 then
+        -- no horizontal motion at all – definitely vertical
+        return true
+    end
+
+    local ratio = velocity.y / vh
+
+    return vh < threshold or ratio > 2
+end
+
+local function get_distance(point1, point2)
     local y1, y2
 
     if point1.z ~= nil then y1 = point1.z else y1 = point1.y end
@@ -109,7 +130,8 @@ function onMissionEvent(event)
                     msg['eventName'] = 'S_EVENT_GROUND_TAKEOFF'
                 else
                     local airbase = Airbase.getByName(event.place:getName())
-                    if airbase:getDesc().category ~= Airbase.Category.SHIP then
+                    -- ignore takeoffs from ships and FARPs
+                    if airbase:getDesc().category == Airbase.Category.AIRDROME then
                         local runways = airbase:getRunways()
                         local on_runway = false
                         for _, runway in pairs(runways) do
@@ -121,6 +143,10 @@ function onMissionEvent(event)
                         if not on_runway then
                             -- ignore unnecessary events for helicopters
                             if msg.initiator.category ~= Group.Category.AIRPLANE then
+                                return
+                            end
+                            -- check for vertical takeoffs
+                            if is_vertical_takeoff(msg.initiator.unit:getVelocity()) then
                                 return
                             end
                             msg['eventName'] = 'S_EVENT_TAXIWAY_TAKEOFF'
@@ -196,6 +222,16 @@ function onMissionEvent(event)
             msg.target.coalition = msg.target.unit:getCoalition()
             msg.target.unit_type = msg.target.unit:getTypeName()
             msg.target.category = msg.target.unit:getDesc().category
+            local point = msg.target.unit:getPosition().p
+            local lat, lon = Terrain.convertMetersToLatLon(point.x, point.z)
+            msg.target.position = {
+                point = point,
+                lat = lat,
+                lon = lon
+            }
+            if msg.initiator.position ~= nil then
+                msg.distance = get_distance(msg.initiator.position.point, msg.target.position.point)
+            end
         elseif category == Object.Category.WEAPON then
             msg.target.type = 'WEAPON'
             msg.target.unit = event.target
