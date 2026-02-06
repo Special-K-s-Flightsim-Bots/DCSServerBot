@@ -29,7 +29,6 @@ dcsbot.mission_stats_enabled = false
 dcsbot.eventHandler = dcsbot.eventHandler or {}
 
 local event_by_id = {}
-local marker_num = 1
 
 local function is_on_runway(runway, pos)
     local dx = pos.x - runway.position.x
@@ -136,7 +135,6 @@ function onMissionEvent(event)
                         local runways = airbase:getRunways()
                         local on_runway = false
                         for _, runway in pairs(runways) do
-                            env.info("### " .. net.lua2json(runway))
                             if is_on_runway(runway, point) then
                                 on_runway = true
                                 break
@@ -167,8 +165,6 @@ function onMissionEvent(event)
                                 return
                             end
                             msg['eventName'] = 'S_EVENT_TAXIWAY_TAKEOFF'
-                            trigger.action.markToAll(marker_num, "Takeoff", point, false, '')
-                            marker_num = marker_num + 1
                         end
                     end
                 end
