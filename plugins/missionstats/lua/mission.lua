@@ -41,7 +41,7 @@ local function is_on_runway(runway, pos)
     local proj    = dx * math.cos(heading) + dz * math.sin(heading)
     local lateral = -dx * math.sin(heading) + dz * math.cos(heading)
 
-    local length_threshold = runway.length * 1.2 / 2.0  -- add 20% to the runway length as threshold
+    local length_threshold = runway.length * 1.3 / 2.0  -- add 30% to the runway length as threshold
     local width_threshold = runway.width * 2.0 / 2.0    -- take 2x the runway as threashold
     return math.abs(proj) <= length_threshold and math.abs(lateral) <= width_threshold
 end
