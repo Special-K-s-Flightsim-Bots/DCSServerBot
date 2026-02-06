@@ -29,6 +29,7 @@ dcsbot.mission_stats_enabled = false
 dcsbot.eventHandler = dcsbot.eventHandler or {}
 
 local event_by_id = {}
+local marker_num = 1
 
 local function is_on_runway(runway, pos)
     local dx = pos.x - runway.position.x
@@ -41,10 +42,9 @@ local function is_on_runway(runway, pos)
     local proj    = dx * math.cos(heading) + dz * math.sin(heading)
     local lateral = -dx * math.sin(heading) + dz * math.cos(heading)
 
-    local half_len = runway.length / 2.0
-    local half_wid = runway.width  / 2.0
-
-    return math.abs(proj) <= half_len and math.abs(lateral) <= half_wid
+    local length_threshold = runway.length * 1.2 / 2.0  -- add 20% to the runway length as threshold
+    local width_threshold = runway.width * 2.0 / 2.0    -- take 2x the runway as threashold
+    return math.abs(proj) <= length_threshold and math.abs(lateral) <= width_threshold
 end
 
 -- Detect whether a velocity vector is a vertical or normal take‑off.
@@ -129,7 +129,8 @@ function onMissionEvent(event)
                 if not event.place then
                     msg['eventName'] = 'S_EVENT_GROUND_TAKEOFF'
                 else
-                    local airbase = Airbase.getByName(event.place:getName())
+                    local place = event.place:getName()
+                    local airbase = Airbase.getByName(place)
                     -- ignore takeoffs from ships and FARPs
                     if airbase:getDesc().category == Airbase.Category.AIRDROME then
                         local runways = airbase:getRunways()
@@ -141,6 +142,21 @@ function onMissionEvent(event)
                                 break
                             end
                         end
+                        -- special handling for Tblisi
+                        if not on_runway and place == 'Tbilisi-Lochini' then
+                            on_runway = is_on_runway(
+                                {
+                                    course=-2.181661564992912,
+                                    Name="13L",
+                                    position={
+                                        y=479,7552,
+                                        x=-315401,
+                                        z=896638
+                                    },
+                                    length=2463,16,
+                                    width=54
+                                    }, point)
+                        end
                         if not on_runway then
                             -- ignore unnecessary events for helicopters
                             if msg.initiator.category ~= Group.Category.AIRPLANE then
@@ -151,6 +167,8 @@ function onMissionEvent(event)
                                 return
                             end
                             msg['eventName'] = 'S_EVENT_TAXIWAY_TAKEOFF'
+                            trigger.action.markToAll(marker_num, "Takeoff", point, false, '')
+                            marker_num = marker_num + 1
                         end
                     end
                 end
