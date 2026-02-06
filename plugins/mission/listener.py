@@ -1177,6 +1177,18 @@ class MissionEventListener(EventListener["Mission"]):
             server.move_to_spectators(delinquent, reason),
             f'User {delinquent.display_name} moved to spectators'))
 
+    @chat_command(name="mute", roles=['DCS Admin'], usage="<name>", help="mutes a user")
+    async def mute(self, server: Server, player: Player, params: list[str]):
+        await self._handle_command(server, player, params, self.spec.name, lambda delinquent, reason: (
+            delinquent.mute(),
+            f'User {delinquent.display_name} muted'))
+
+    @chat_command(name="unmute", roles=['DCS Admin'], usage="<name>", help="unmutes a user")
+    async def unmute(self, server: Server, player: Player, params: list[str]):
+        await self._handle_command(server, player, params, self.spec.name, lambda delinquent, reason: (
+            delinquent.unmute(),
+            f'User {delinquent.display_name} unmuted'))
+
     async def _handle_command(self, server: Server, player: Player, params: list[str],
                               cmd: str, action: Callable[[Player, str], tuple[Coroutine, str]]):
         if not params:

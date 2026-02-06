@@ -744,6 +744,16 @@ function dcsbot.unlock_player(json)
 	dcsbot.locked[json.ucid] = nil
 end
 
+function dcsbot.mute_player(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: mute_player()')
+	dcsbot.muted[json.ucid] = true
+end
+
+function dcsbot.unmute_player(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: unmute_player()')
+	dcsbot.muted[json.ucid] = nil
+end
+
 function dcsbot.lock_server(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: lock_server()')
     dcsbot.server_locked = true

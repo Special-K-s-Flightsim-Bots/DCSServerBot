@@ -7,6 +7,7 @@ local textutil  = base.require('textutil')
 
 dcsbot.banList = dcsbot.banList or {}
 dcsbot.locked = dcsbot.locked or {}
+dcsbot.muted = dcsbot.muted or {}
 dcsbot.userInfo = dcsbot.userInfo or {}
 dcsbot.red_slots = dcsbot.red_slots or {}
 dcsbot.blue_slots = dcsbot.blue_slots or {}
@@ -95,6 +96,10 @@ local function isLocked(ucid)
     return dcsbot.locked[ucid] ~= nil
 end
 
+local function isMuted(ucid)
+    return dcsbot.muted[ucid] ~= nil
+end
+
 function mission.onPlayerTryConnect(addr, name, ucid, _playerID)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTryConnect()')
     if dcsbot.params == nil then
@@ -112,7 +117,7 @@ function mission.onPlayerTryConnect(addr, name, ucid, _playerID)
     end
     local name2 = name:gsub("[\r\n%z]", "")
     -- local name2 = name:gsub("[%c]", "")
-    if name ~= name2 then
+    if name ~= name2 or #name < 3 then
         return false, config.messages.message_player_username
     end
     -- check bans including the SMART ban system
@@ -496,6 +501,11 @@ function mission.onPlayerTrySendChat(from, message, to)
             to = to
         }
         utils.sendBotTable(msg)
+        return ''
+    end
+    local ucid = net.get_player_info(from, 'ucid')
+    if isMuted(ucid) then
+        net.send_chat_to('You have been muted by an admin.', from)
         return ''
     end
     if config.profanity_filter then

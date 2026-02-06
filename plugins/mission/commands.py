@@ -1546,6 +1546,28 @@ class Mission(Plugin[MissionEventListener]):
         await interaction.response.send_message(_("Player has been unlocked."),
                                                 ephemeral=utils.get_ephemeral(interaction))
 
+    @player.command(description=_('Mutes a player'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def mute(self, interaction: discord.Interaction,
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                   player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
+        await player.mute()
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(_("Player {} has been muted.").format(player.display_name),
+                                                ephemeral=utils.get_ephemeral(interaction))
+
+    @player.command(description=_('Unmutes a player'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def unmute(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                     player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
+        await player.unmute()
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(_("Player has been unmuted."),
+                                                ephemeral=utils.get_ephemeral(interaction))
+
     @player.command(description=_('Moves a player to spectators\n'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')

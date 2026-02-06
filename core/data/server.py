@@ -90,7 +90,7 @@ class Server(DataObject, ABC):
                 "greeting_message_unmatched": "{player.name}, please use /linkme in our Discord, if you want to see your user stats!",
                 "message_server_locked": "This server is currently locked and cannot be joined.",
                 "message_player_default_username": "Please change your default player name at the top right of the multiplayer selection list to an individual one!",
-                "message_player_username": "Your player name contains invalid characters. Please change your name to join our server.",
+                "message_player_username": "Please change your name to join our server.",
                 "message_player_inappropriate_username": "Your username contains a curseword. It needs to be changed to join this server.",
                 "message_ban": "You are banned from this server. Reason: {}",
                 "message_reserved": "This server is locked for specific users.\nPlease contact a server admin.",

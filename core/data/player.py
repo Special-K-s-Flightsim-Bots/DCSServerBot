@@ -354,3 +354,15 @@ class Player(DataObject):
             "command": "unlock_player",
             "ucid": self.ucid
         })
+
+    async def mute(self) -> None:
+        await self.server.send_to_dcs({
+            "command": "mute_player",
+            "ucid": self.ucid
+        })
+
+    async def unmute(self) -> None:
+        await self.server.send_to_dcs({
+            "command": "unmute_player",
+            "ucid": self.ucid
+        })
