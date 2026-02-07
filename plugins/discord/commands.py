@@ -26,9 +26,9 @@ class Discord(Plugin):
                 self.log.warning(f"{self.__class__.__name__}: Role {role_id} not found.")
         if 'ping_everyone' in config:
             if config['ping_everyone'].get('kick', False) and not self.bot.member.guild_permissions.kick_members:
-                self.log.warning(f"{self.__class__.__name__}: Bot is missing permission to kick members.")
+                self.log.warning(f"{self.__class__.__name__}: Bot is missing permission to kick members!")
             if config['ping_everyone'].get('timeout', False) and not self.bot.member.guild_permissions.moderate_members:
-                self.log.warning(f"{self.__class__.__name__}: Bot is missing permission to timeout members.")
+                self.log.warning(f"{self.__class__.__name__}: Bot is missing permission to timeout members!")
         if 'reaction' in config:
             channel = self.bot.get_channel(config['reaction']['channel'])
             message = await self.bot.fetch_embed('reaction', channel)
@@ -40,6 +40,8 @@ class Discord(Plugin):
                 embed.set_thumbnail(url=self.bot.guilds[0].icon.url)
                 embed.description = config['reaction'].get('message', 'Please react to give yourself a role!') + '\n'
                 if config['reaction'].get('bot_trap', False):
+                    if not self.bot.member.guild_permissions.kick_members:
+                        self.log.warning(f"{self.__class__.__name__}: Bot is missing permission to kick members!")
                     embed.description += "🤖 | Bot Trap, DO NOT PRESS!\n"
                 for emoji, desc in config['reaction']['roles'].items():
                     embed.description += f"{emoji} | {desc['message']}\n"
@@ -245,7 +247,10 @@ class Discord(Plugin):
             self.log.warning(f"Member {payload.member.display_name} fell into the bot trap!")
             if payload.member.id != self.bot.owner_id:
                 await self.bot.audit(f"Kicked for falling into the bot trap.", member=payload.member)
-                await payload.member.kick(reason="Bot user")
+                try:
+                    await payload.member.kick(reason="Bot user")
+                except discord.Forbidden:
+                    self.log.error('DCSServerBot is missing permission "Kick, Approve and Reject Members"!')
             else:
                 self.log.warning("You tried to kick yourself! Aborted.")
             return
@@ -254,8 +259,11 @@ class Discord(Plugin):
             if config:
                 role = self.bot.get_role(config.get('role'))
                 if role:
-                    await payload.member.add_roles(role)
-                    self.log.info(f"Added role {role.name} to {payload.member.display_name}")
+                    try:
+                        await payload.member.add_roles(role)
+                        self.log.info(f"Added role {role.name} to {payload.member.display_name}")
+                    except discord.Forbidden:
+                        self.log.warning('DCSServerBot is missing permission "Manage Roles"!')
                 else:
                     self.log.warning(f"Role {config['role']} not found for emoji {payload.emoji.name}")
             else:
@@ -275,8 +283,11 @@ class Discord(Plugin):
         role = self.bot.get_role(config.get('role'))
         if role:
             member = self.bot.guilds[0].get_member(int(payload.user_id))
-            await member.remove_roles(role)
-            self.log.info(f"Removed role {role.name} from {member.display_name}")
+            try:
+                await member.remove_roles(role)
+                self.log.info(f"Removed role {role.name} from {member.display_name}")
+            except discord.Forbidden:
+                self.log.warning('DCSServerBot is missing permission "Manage Roles"!')
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
