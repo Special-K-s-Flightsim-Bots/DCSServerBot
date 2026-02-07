@@ -29,6 +29,7 @@ dcsbot.mission_stats_enabled = false
 dcsbot.eventHandler = dcsbot.eventHandler or {}
 
 local event_by_id = {}
+-- local marker_num = 1
 
 local function is_on_runway(runway, pos)
     local dx = pos.x - runway.position.x
@@ -41,8 +42,8 @@ local function is_on_runway(runway, pos)
     local proj    = dx * math.cos(heading) + dz * math.sin(heading)
     local lateral = -dx * math.sin(heading) + dz * math.cos(heading)
 
-    local length_threshold = runway.length * 1.3 / 2.0  -- add 30% to the runway length as threshold
-    local width_threshold = runway.width * 2.0 / 2.0    -- take 2x the runway as threashold
+    local length_threshold = runway.length * 1.25 / 2.0 -- add 25% to the runway length as threshold
+    local width_threshold = runway.width * 2.0 / 2.0    -- take 2x the runway width as threshold
     return math.abs(proj) <= length_threshold and math.abs(lateral) <= width_threshold
 end
 
@@ -134,16 +135,23 @@ function onMissionEvent(event)
                     if airbase:getDesc().category == Airbase.Category.AIRDROME then
                         local runways = airbase:getRunways()
                         local on_runway = false
-                        for _, runway in pairs(runways) do
-                            if is_on_runway(runway, point) then
+
+                        -- workaround DCS bug
+                        if place == 'Tbilisi-Lochini' then
+                            if is_on_runway({
+                                course=-2.2334115505219,
+                                Name=13,
+                                position={
+                                    y=479.7552,
+                                    x=-315553,
+                                    z=896476
+                                },
+                                length=3000,
+                                width=60
+                            }, point) then
                                 on_runway = true
-                                break
-                            end
-                        end
-                        -- special handling for Tblisi
-                        if not on_runway and place == 'Tbilisi-Lochini' then
-                            on_runway = is_on_runway(
-                                {
+                            -- and add the abandoned runway as a real one
+                            elseif is_on_runway({
                                     course=-2.181661564992912,
                                     Name="13L",
                                     position={
@@ -153,7 +161,17 @@ function onMissionEvent(event)
                                     },
                                     length=2463,16,
                                     width=54
-                                    }, point)
+                            }, point) then
+                                on_runway = true
+                            end
+                        else
+                            for _, runway in pairs(runways) do
+--                                env.info("### runway=" .. net.lua2json(runway) .. " / takeoff-point=" .. net.lua2json(point))
+                                if is_on_runway(runway, point) then
+                                    on_runway = true
+                                    break
+                                end
+                            end
                         end
                         if not on_runway then
                             -- ignore unnecessary events for helicopters
@@ -165,6 +183,12 @@ function onMissionEvent(event)
                                 return
                             end
                             msg['eventName'] = 'S_EVENT_TAXIWAY_TAKEOFF'
+--[[
+                            if msg.initiator.name then
+                                trigger.action.markToAll(marker_num, "Takeoff " .. msg.initiator.name, point, true, '')
+                                marker_num = marker_num + 1
+                            end
+]]--
                         end
                     end
                 end
