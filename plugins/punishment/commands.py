@@ -55,9 +55,7 @@ class Punishment(Plugin[PunishmentEventListener]):
             await self.bus.ban(ucid, self.plugin_name, reason, punishment.get('days', 3))
             if member:
                 message = _("Member {member} banned by {banned_by} for {reason}.").format(
-                    member=utils.escape_string(member.display_name),
-                    banned_by=utils.escape_string(self.bot.member.name),
-                    reason=reason)
+                    member=member.name, banned_by=self.bot.member.name, reason=reason)
                 with suppress(Exception):
                     guild = self.bot.guilds[0]
                     channel = await member.create_dm()
@@ -67,7 +65,7 @@ class Punishment(Plugin[PunishmentEventListener]):
                                                                               days=punishment.get('days', 3)))
             elif player:
                 message = _("Player {player} (ucid={ucid}) banned by {banned_by} for {reason}.").format(
-                    player=player.display_name, ucid=player.ucid, banned_by=self.bot.member.name, reason=reason)
+                    player=player.name, ucid=player.ucid, banned_by=self.bot.member.name, reason=reason)
             else:
                 message = _("Player with ucid {ucid} banned by {banned_by} for {reason}.").format(
                     ucid=ucid, banned_by=self.bot.member.name, reason=reason)
@@ -86,7 +84,7 @@ class Punishment(Plugin[PunishmentEventListener]):
             self.eventlistener.pending_kill.pop(ucid, None)
             await server.kick(player, reason)
             message = _("Player {player} (ucid={ucid}) kicked by {kicked_by} for {reason}.").format(
-                player=player.display_name, ucid=player.ucid, kicked_by=self.bot.member.name, reason=reason)
+                player=player.name, ucid=player.ucid, kicked_by=self.bot.member.name, reason=reason)
 
         elif punishment['action'] == 'move_to_spec':
             # we must not punish for reslots here
@@ -94,7 +92,7 @@ class Punishment(Plugin[PunishmentEventListener]):
             await server.move_to_spectators(player)
             await player.sendUserMessage(_("You've been kicked back to spectators because of: {}.").format(reason))
             message = _("Player {player} (ucid={ucid}) moved to spectators by {spec_by} for {reason}.").format(
-                player=player.display_name, ucid=player.ucid, spec_by=self.bot.member.name, reason=reason)
+                player=player.name, ucid=player.ucid, spec_by=self.bot.member.name, reason=reason)
 
         elif punishment['action'] == 'credits' and type(player).__name__ == 'CreditPlayer':
             player: CreditPlayer = cast(CreditPlayer, player)
@@ -106,7 +104,7 @@ class Punishment(Plugin[PunishmentEventListener]):
                   "Your current credit points are: {points}").format(
                     name=player.name, reason=reason, points=player.points))
             message = _("Player {player} (ucid={ucid}) punished with credits by {punished_by} for {reason}.").format(
-                player=player.display_name, ucid=player.ucid, punished_by=self.bot.member.name, reason=reason)
+                player=player.name, ucid=player.ucid, punished_by=self.bot.member.name, reason=reason)
 
         elif punishment['action'] == 'warn':
             await player.sendUserMessage(_("{name}, you have been punished for: {reason}!").format(name=player.name,
