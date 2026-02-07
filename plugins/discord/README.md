@@ -10,22 +10,35 @@ opt_plugins:
 You can configure the plugin with an optional `config\plugins\discord.yaml`:
 ```yaml
 DEFAULT:
-  on_join:
+  ping_everyone:                # Handling of @everyone or @here pings
+    report: true                # create an audit report (default: true)
+    timeout: 60                 # optional: timeout for 60 minutes (default: 60 minutes, 0 to disable)
+    kick: false                 # optional: kick member on mentioning (default: false)
+  on_join:                      # Auto-generate a welcome message for a user
     message: Welcome {name} to this server!
     mention: 9988776655443322   # Optional: Role id to mention (in addition to the user itself, if configured)
     channel: 1199228833774466   # -1 for DM, see also greeting_dm in bot.yaml!
-  roles:
-    1122334455667788:   # role id of role "Sample"
+  roles:                        # Auto-generate a message if a user gets or loses a specific role
+    1122334455667788:           # role name or id
       on_add:
-      message: '{mention}, welcome to the Sample role!'
-      mention: '@here'                  # Optional: Role to mention (in addition to the user itself, if configured)
-      channel: 9988776655443322         # -1 for DM
-    on_remove:
-      message: You lost the Sample role!
-      channel: -1                       # -1 for DM
-    on_leave:
-      message: '{name}, see you next time!'
-      channel: -1                       # -1 for DM
+        message: '{mention}, welcome to the Sample role!'
+        mention: '@here'                  # Optional: Role to mention (in addition to the user itself, if configured)
+        channel: 9988776655443322         # -1 for DM
+      on_remove:
+        message: You lost the Sample role!
+        channel: -1                       # -1 for DM
+      on_leave:
+        message: '{name}, see you next time!'
+        channel: -1                       # -1 for DM
+  reaction:                               # Auto-generate a reaction message to give roles to people
+    channel: 1122334455667788             # The channel id to hold the reaction message
+    title: Welcome to {guild}!
+    message: |
+      Please react to give yourself a role!
+    bot_trap: true                        # If true, a bot trap will be generated to auto-kick bot users that klick this role
+    roles:
+      '🇹': Test Role                      # Sample role can be a name or id 
+      '🇦': Application Role               # Sample role can be a name or id
 ```
 
 
