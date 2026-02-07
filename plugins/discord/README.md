@@ -37,10 +37,19 @@ DEFAULT:
       Please react to give yourself a role!
     bot_trap: true                        # If true, a bot trap will be generated to auto-kick bot users that klick this role
     roles:
-      '🇹': Test Role                      # Sample role can be a name or id 
-      '🇦': Application Role               # Sample role can be a name or id
+      '🇹':
+        role: Tester                      # can be a role or id
+        message: Test Role                # message to be displayed to users 
+      '🇦': 
+        role: 11223344556677
+        message: Application Role
 ```
 
+> [!IMPORTANT]
+> You need to give DCSServerBot the following additional permissions:
+> - Manage Roles (you need that for other plugins also already)
+> - Time out members (if you enable timeout on everyone / here pings)
+> - Kick, Approve and Reject Members (if you want to enable member kicking)
 
 ## Discord Commands
 
