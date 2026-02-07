@@ -263,6 +263,10 @@ class ServiceBus(Service):
         from core import NodeProxy
         from ..bot.service import BotService
 
+        # in case of a race condition during master takeovers, ignore this registration
+        if name == self.node.name:
+            return
+
         self.log.info(f"- Registering remote node {name} ...")
         node = NodeProxy(self.node, name, public_ip, dcs_version)
         self.node.all_nodes[node.name] = node
@@ -273,8 +277,8 @@ class ServiceBus(Service):
         await self.register_remote_servers(node)
 
     async def unregister_remote_node(self, node: Node):
-        # unregister event for a non-registered node received, ignoring
-        if not node:
+        # unregister event for a non-registered node received or for myself in case of a race condition, ignoring
+        if not node or node.name == self.node.name:
             return
         self.log.info(f"- Unregistering remote node {node.name} and all its servers ...")
         for server_name, server in list(self.servers.items()):
