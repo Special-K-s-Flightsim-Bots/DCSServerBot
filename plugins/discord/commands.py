@@ -269,6 +269,9 @@ class Discord(Plugin):
             return
 
         config = self.get_config()['reaction'].get('roles', {}).get(payload.emoji.name)
+        # ignore unknown reactions
+        if not config:
+            return
         role = self.bot.get_role(config.get('role'))
         if role:
             member = self.bot.guilds[0].get_member(int(payload.user_id))
