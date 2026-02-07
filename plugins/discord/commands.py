@@ -40,7 +40,7 @@ class Discord(Plugin):
                 if config['reaction'].get('bot_trap', False):
                     embed.description += "🤖 | Bot Trap, DO NOT PRESS!\n"
                 for emoji, desc in config['reaction']['roles'].items():
-                    embed.description += f"{emoji} | {desc}\n"
+                    embed.description += f"{emoji} | {desc['message']}\n"
                 message = await self.bot.setEmbed(embed_name='reaction', embed=embed, channel_id=channel.id)
                 if config['reaction'].get('bot_trap', False):
                     await message.add_reaction('🤖')
@@ -177,11 +177,14 @@ class Discord(Plugin):
                 self.log.warning("You tried to kick yourself! Aborted.")
             return
         else:
-            config = self.get_config()['reaction']
-            role = self.bot.get_role(config.get('roles', {}).get(payload.emoji.name))
-            if role:
-                await payload.member.add_roles(role)
-                self.log.info(f"Added role {role.name} to {payload.member.display_name}")
+            config = self.get_config()['reaction'].get('roles', {}).get(payload.emoji.name)
+            if config:
+                role = self.bot.get_role(config.get('role'))
+                if role:
+                    await payload.member.add_roles(role)
+                    self.log.info(f"Added role {role.name} to {payload.member.display_name}")
+                else:
+                    self.log.warning(f"Role {config['role']} not found for emoji {payload.emoji.name}")
             else:
                 message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
                 await message.remove_reaction(payload.emoji, payload.member)
@@ -192,12 +195,12 @@ class Discord(Plugin):
         if payload.message_id != self.reaction_message_id:
             return
 
-        config = self.get_config()['reaction']
-        role = self.bot.get_role(config.get('roles', {}).get(payload.emoji.name))
+        config = self.get_config()['reaction'].get('roles', {}).get(payload.emoji.name)
+        role = self.bot.get_role(config.get('role'))
         if role:
             member = self.bot.guilds[0].get_member(int(payload.user_id))
             await member.remove_roles(role)
-            self.log.info(f"Removed role {role.name} from {payload.member.display_name}")
+            self.log.info(f"Removed role {role.name} from {member.display_name}")
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):

@@ -43,7 +43,12 @@ schema;element_schema:
           type: map
           nullable: false
           mapping:
-            regex;(.+): {type: text, nullable: false}
+            regex;(.+):
+              type: map
+              nullable: false
+              mapping:
+                role: {type: text, nullable: false, required: true}
+                message: {type: str, nullable: false, required: true}
 
 type: map
 func: check_main_structure
