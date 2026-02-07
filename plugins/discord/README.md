@@ -10,7 +10,7 @@ opt_plugins:
 You can configure the plugin with an optional `config\plugins\discord.yaml`:
 ```yaml
 DEFAULT:
-  ping_everyone:                # Handling of @everyone or @here pings
+  ping_everyone:                # Handling of unauthorized @everyone or @here pings
     report: true                # create an audit report (default: true)
     timeout: 60                 # optional: timeout for 60 minutes (default: 60 minutes, 0 to disable)
     kick: false                 # optional: kick member on mentioning (default: false)
@@ -51,10 +51,21 @@ DEFAULT:
 > - Time out members (if you enable timeout on everyone / here pings)
 > - Kick, Approve and Reject Members (if you want to enable member kicking)
 
+> [!NOTE]
+> To have DCSServerBot give roles to users, you need to make sure that the bot's own role is above each of the roles
+> it should give or take.
+> 
+> Also, DCSServerBot can _not_ detect an "@everyone" or here "@ping" if the user has the permission to do so.
+> This means you need to secure your Discord server properly on your own.
+
 ## Discord Commands
 
-| Command  | Parameter                                              | Channel | Role      | Description                                                                |
-|----------|--------------------------------------------------------|---------|-----------|----------------------------------------------------------------------------|
-| /addrole | member role                                            | all     | Admin     | Allow DCS Admins to add roles to people that are below the bots role.      |
-| /delrole | member role                                            | all     | Admin     | Allow DCS Admins to remove roles from people that are below the bots role. |
-| /clear   | [channel] [older_than] [ignore] [after_id] [before_id] | all     | Admin     | Purge a channel (default: current).                                        |
+| Command              | Parameter                                              | Channel | Role  | Description                                                                |
+|----------------------|--------------------------------------------------------|---------|-------|----------------------------------------------------------------------------|
+| /addrole             | member role                                            | all     | Admin | Allow DCS Admins to add roles to people that are below the bots role.      |
+| /delrole             | member role                                            | all     | Admin | Allow DCS Admins to remove roles from people that are below the bots role. |
+| /clear               | [channel] [older_than] [ignore] [after_id] [before_id] | all     | Admin | Purge a channel (default: current).                                        |
+| /discord healthcheck |                                                        | all     | Admin | Checks your Discord server for potential security issues.                  |
+
+> [!NOTE]
+> You need to give DCSServerBot (temporary) admin permissions to run `/discord healthcheck`

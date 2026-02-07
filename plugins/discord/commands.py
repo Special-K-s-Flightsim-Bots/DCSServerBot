@@ -1,9 +1,11 @@
 import discord
 
-from core import Plugin, command, utils, get_translation
+from core import Plugin, command, utils, get_translation, Group
 from datetime import timedelta
-from discord import app_commands
+from discord import app_commands, Permissions
 from discord.ext import commands
+
+from plugins.discord.views import HealthcheckView
 from services.bot import DCSServerBot
 from services.cron.actions import purge_channel
 
@@ -125,6 +127,77 @@ class Discord(Plugin):
         channel_id = config.get('channel', -1)
         channel = self.bot.get_channel(channel_id) if channel_id != -1 else member
         await channel.send(message.format(name=member.display_name, mention=member.mention))
+
+    disc = Group(name='discord', description="Discord commands")
+
+    @disc.command(name='healthcheck', description="Run a healthcheck of your discord server")
+    @app_commands.guild_only()
+    @app_commands.default_permissions(administrator=True)
+    async def healthcheck(self, interaction: discord.Interaction):
+        if not self.bot.member.guild_permissions.administrator:
+            await interaction.response.send_message(
+                "Please give the bot temporary administrative permissions to run this command.", ephemeral=True)
+            return
+
+        # check roles
+        guild = self.bot.guilds[0]
+        admin_roles = []
+        admins = []
+        elevated_roles = []
+        elevated = []
+        everyone_ping = []
+        external_apps = []
+        for role in guild.roles:
+            if role.permissions.administrator:
+                admin_roles.append(role)
+                admins.extend(role.members)
+            elif role.permissions.value & Permissions.elevated().value > 0:
+                elevated_roles.append(role)
+                elevated.extend(role.members)
+            else:
+                if role.permissions.mention_everyone:
+                    everyone_ping.append(role)
+                if role.permissions.use_external_apps:
+                    external_apps.append(role)
+        all_bots = [x for x in guild.members if x.bot]
+
+        # check channels
+        channels_for_everyone = []
+        for channel in guild.channels:
+            if channel.permissions_for(guild.default_role).view_channel:
+                channels_for_everyone.append(channel)
+
+        embed = discord.Embed(colour=discord.Colour.blue())
+        embed.title = f"Healthcheck for {guild.name}"
+        # Roles
+        embed.add_field(name="Admin Roles", value='\n'.join([x.name for x in admin_roles]))
+        embed.add_field(name="Members", value='\n'.join([
+            x.display_name + (' (🤖)' if x in all_bots else '') for x in admins
+        ]))
+        embed.add_field(name=utils.print_ruler(header="Elevated Roles"), value='_ _', inline=False)
+        embed.add_field(name="Elevated Roles", value='\n'.join([x.name for x in elevated_roles]))
+        embed.add_field(name="Members", value='\n'.join([
+            x.display_name + (' (🤖)' if x in all_bots else '') for x in elevated
+        ]))
+        embed.add_field(name=utils.print_ruler(header="⚠️ Critical Roles ⚠️"), value='_ _', inline=False)
+        if everyone_ping or external_apps:
+            embed.add_field(name="Everyone Ping", value='\n'.join([x.name for x in everyone_ping]))
+            embed.add_field(name="External Apps", value='\n'.join([x.name for x in external_apps]))
+            embed.set_footer(text="🤖 = Discord Bot")
+            view = HealthcheckView(everyone_ping, external_apps)
+        else:
+            embed.add_field(name='_ _', value="No critical permissions found.", inline=False)
+            view = None
+        # Channels
+        if len(channels_for_everyone) > 1:
+            embed.add_field(name=utils.print_ruler(header="Channels"), value='_ _', inline=False)
+            embed.add_field(name=f"You allow everyone to view {len(channels_for_everyone)} channels.",
+                            value="The recommended approach is to have one landing channel and a role for users.")
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        try:
+            await view.wait()
+        finally:
+            await interaction.delete_original_response()
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
