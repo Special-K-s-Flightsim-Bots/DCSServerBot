@@ -259,7 +259,14 @@ class PunishmentEventListener(EventListener["Punishment"]):
         initiator = server.get_player(name=s_event.get('initiator', {}).get('name'))
         target = server.get_player(name=s_event.get('target', {}).get('name'))
         if not initiator or not target:
-            self.log.warning("Could not create kill event as initiator or target is None!")
+            message = "Could not create kill event: "
+            parts = []
+            if not initiator:
+                parts.append(f"Initiator {s_event.get('initiator', {}).get('name', 'n/a')} not found.")
+            if not target:
+                parts.append(f"Target {s_event.get('target', {}).get('name', 'n/a')} not found.")
+            message = message + ", ".join(parts)
+            self.log.warning(message)
             return
 
         categories = {
