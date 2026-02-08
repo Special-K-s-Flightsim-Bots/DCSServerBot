@@ -268,7 +268,11 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                    channel: discord.TextChannel | None = None):
         async with interaction.client.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("SELECT name, role, description FROM squadrons WHERE id = %s", (squadron_id, ))
+                await cursor.execute("""
+                    SELECT name, role, description
+                    FROM squadrons 
+                    WHERE id = %s
+                """, (squadron_id, ))
                 row = await cursor.fetchone()
                 # TODO: role changes
                 # TODO: role assignment on late add
@@ -277,24 +281,25 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 name = row['name']
                 description = row['description']
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_modal(SquadronModal(self, name, role=role, channel=channel, 
-                                                            description=description))
+        await interaction.response.send_modal(
+            SquadronModal(
+                self, name,
+                role=role,
+                channel=channel,
+                description=description
+            )
+        )
 
     @squadron.command(description='Add a user to a squadron')
     @app_commands.guild_only()
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.rename(squadron_id="squadron")
+    @app_commands.describe(rank="Rank of the user in the squadron. Put CO or XO in here to set the CO / XO of the squadron.")
     @utils.squadron_role_check()
     async def add(self, interaction: discord.Interaction, squadron_id: int,
                   user: app_commands.Transform[discord.Member | str, utils.UserTransformer],
-                  admin: bool | None = False):
+                  rank: str | None = None, position: str | None = None):
         ephemeral = utils.get_ephemeral(interaction)
-        # only DCS Admin can add admin users
-        if admin and not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message("You're not allowed to add another squadron admin.",
-                                                    ephemeral=True)
-            return
 
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -317,17 +322,23 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 prefix = f"Member {member.display_name}"
 
             # add the user to the database
-            try:
+            await conn.execute("""
+                INSERT INTO squadron_members (squadron_id, player_ucid, rank, position) 
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (squadron_id, player_ucid) DO UPDATE
+                SET rank = EXCLUDED.rank, position = EXCLUDED.position
+            """, (squadron_id, ucid, rank, position))
+            if rank.upper() == 'CO':
                 await conn.execute("""
-                    INSERT INTO squadron_members (squadron_id, player_ucid, admin) 
-                    VALUES (%s, %s, %s)
-                """, (squadron_id, ucid, admin))
-                await interaction.followup.send(f"{prefix} added to the squadron.", ephemeral=ephemeral)
-                if self.get_config().get('squadrons', {}).get('persist_list', False):
-                    await self.persist_squadron_list(squadron_id)
-            except UniqueViolation:
-                await interaction.followup.send(f"{prefix} is a member of this or another squadron already!",
-                                                ephemeral=True)
+                    UPDATE squadrons SET co_ucid = %s WHERE id = %s
+                """, (ucid, squadron_id))
+            elif rank.upper() == 'XO':
+                await conn.execute("""
+                    UPDATE squadrons SET xo_ucid = %s WHERE id = %s
+                """, (ucid, squadron_id))
+            await interaction.followup.send(f"{prefix} added / updated.", ephemeral=ephemeral)
+            if self.get_config().get('squadrons', {}).get('persist_list', False):
+                await self.persist_squadron_list(squadron_id)
 
             # check if the user needs a role
             if role:
@@ -372,7 +383,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             if (user == interaction.user and
                     not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user)):
                 # noinspection PyUnresolvedReferences
-                await interaction.response.send_message("Admins can't delete themseleves from a squadron.",
+                await interaction.response.send_message("CO/XO can't delete themseleves from a squadron.",
                                                         ephemeral=True)
                 return
             message = "Do you really want to delete this user from this squadron?"
@@ -685,11 +696,14 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
     async def render_squadron_list(self, squadron_id: int):
         embed = discord.Embed(color=discord.Color.blue())
-        discord_ids = dcs_names = admins = ""
+        discord_ids = dcs_names = ranks = ""
         async with self.node.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("SELECT name, description, image_url FROM squadrons WHERE id = %s",
-                                     (squadron_id, ))
+                await cursor.execute("""
+                    SELECT name, description, image_url, co_ucid, xo_ucid 
+                    FROM squadrons 
+                    WHERE id = %s
+                """, (squadron_id, ))
                 row = await cursor.fetchone()
                 if not row:
                     embed.title = "Squadron Not Found"
@@ -699,31 +713,31 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 embed.description = row['description'] or MISSING
                 embed.set_thumbnail(url=row['image_url'])
                 async for row in await cursor.execute("""
-                    SELECT DISTINCT p.discord_id, p.name, m.admin
+                    SELECT DISTINCT p.discord_id, p.name, m.rank, m.position
                     FROM players p JOIN squadron_members m
                     ON p.ucid = m.player_ucid
                     AND m.squadron_id = %s
-                    ORDER BY m.admin DESC, p.name
+                    ORDER BY p.name
                 """, (squadron_id, )):
                     new_discord_id = f"<@{row['discord_id']}>\n" if row['discord_id'] != -1 else 'not linked\n'
                     new_dcs_name = row['name'] + '\n'
-                    new_admin = 'Yes\n' if row['admin'] else 'No\n'
+                    new_ranks = (row['rank'] or 'n/a') + '\n'
                     if len(discord_ids + new_discord_id) > 1024 or len(dcs_names + new_dcs_name) > 1024:
                         embed.add_field(name="Member", value=discord_ids)
                         embed.add_field(name="DCS Name", value=dcs_names)
-                        embed.add_field(name='Admin', value=admins)
+                        embed.add_field(name='Rank', value=ranks)
                         discord_ids = new_discord_id
                         dcs_names = new_dcs_name
-                        admins = new_admin
+                        ranks = new_ranks
                     else:
                         discord_ids += new_discord_id
                         dcs_names += new_dcs_name
-                        admins += new_admin
+                        ranks += new_ranks
         if discord_ids.strip():
             embed.add_field(name="Member", value=discord_ids)
             embed.add_field(name="DCS Name", value=dcs_names)
-            embed.add_field(name='Admin', value=admins)
-        embed.set_footer(text="Admin users can add or remove members from a squadron, as well as lock or unlock it.")
+            embed.add_field(name='Rank', value=ranks)
+        embed.set_footer(text="The CO and XO can add or remove members from a squadron, as well as lock or unlock it.")
         return embed
 
     async def persist_squadron_list(self, squadron_id: int):

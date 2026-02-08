@@ -42,7 +42,7 @@ class Discord(Plugin):
                 if config['reaction'].get('bot_trap', False):
                     if not self.bot.member.guild_permissions.kick_members:
                         self.log.warning(f"{self.__class__.__name__}: Bot is missing permission to kick members!")
-                    embed.description += "🤖 | Bot Trap, DO NOT PRESS!\n"
+                    embed.description += "🤖 | Bot Trap, **DO NOT PRESS!**\n"
                 for emoji, desc in config['reaction']['roles'].items():
                     embed.description += f"{emoji} | {desc['message']}\n"
                 message = await self.bot.setEmbed(embed_name='reaction', embed=embed, channel_id=channel.id)
@@ -63,7 +63,6 @@ class Discord(Plugin):
                     after_id: str | None = None, before_id: str | None = None):
         if not channel:
             channel = interaction.channel
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=utils.get_ephemeral(interaction))
         msg = await interaction.followup.send(_("Deleting messages ..."))
         await purge_channel(node=self.node, channel=channel.id, older_than=older_than,
@@ -77,19 +76,16 @@ class Discord(Plugin):
     async def addrole(self, interaction: discord.Interaction, member: discord.Member, role: discord.Role):
         ephemeral = utils.get_ephemeral(interaction)
         if role in member.roles:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Member {member} already has role {role}.").format(
                     member=member.display_name, role=role.name), ephemeral=True)
             return
         try:
             await member.add_roles(role)
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Role {role} added to {member}.").format(role=role.name, member=member.display_name),
                 ephemeral=ephemeral)
         except discord.Forbidden:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("You don't have permission to add role {role} to {member}.").format(
                     role=role.name, member=member.display_name), ephemeral=True)
@@ -100,19 +96,16 @@ class Discord(Plugin):
     async def delrole(self, interaction: discord.Interaction, member: discord.Member, role: discord.Role):
         ephemeral = utils.get_ephemeral(interaction)
         if role not in member.roles:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Member {member} doesn't have role {role}.").format(
                     member=member.display_name, role=role.name), ephemeral=True)
             return
         try:
             await member.remove_roles(role)
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Role {role} removed from {member}.").format(role=role.name, member=member.display_name),
                 ephemeral=ephemeral)
         except discord.Forbidden:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("You don't have permission to remove role {role} from {member}.").format(
                     role=role.name, member=member.display_name), ephemeral=True)

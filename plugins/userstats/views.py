@@ -49,7 +49,8 @@ class SquadronModal(Modal):
                     ucid = await interaction.client.get_ucid_by_member(member, verified=True)
                     if ucid:
                         await conn.execute("""
-                            INSERT INTO squadron_members VALUES (%s, %s)
+                            INSERT INTO squadron_members (squadron_id, player_ucid) 
+                            VALUES (%s, %s)
                             ON CONFLICT (squadron_id, player_ucid) DO NOTHING
                         """, (squadron_id, ucid))
         if self.plugin.get_config().get('squadrons', {}).get('persist_list', False):
