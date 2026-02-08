@@ -97,6 +97,12 @@ class ServiceBus(Service):
         from ..bot.service import BotService
 
         if self.master:
+            # wait for the bot service to be started
+            while self.master and not ServiceRegistry.get(BotService):
+                await asyncio.sleep(1)
+            # in the unlikely event of not being the master anymore, switch again
+            if not self.master:
+                return await self.switch()
             self.bot = ServiceRegistry.get(BotService).bot
             while not self.bot:
                 await asyncio.sleep(1)
