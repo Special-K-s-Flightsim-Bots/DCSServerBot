@@ -23,7 +23,7 @@ async def logbook_squadron_autocomplete(interaction: discord.Interaction, curren
     try:
         async with interaction.client.apool.connection() as conn:
             cursor = await conn.execute(
-                "SELECT id, name FROM logbook_squadrons WHERE name ILIKE %s ORDER BY name LIMIT 25",
+                "SELECT id, name FROM squadrons WHERE name ILIKE %s ORDER BY name LIMIT 25",
                 ('%' + current + '%',)
             )
             return [
@@ -44,13 +44,13 @@ async def logbook_squadron_admin_autocomplete(interaction: discord.Interaction, 
                 if not ucid:
                     return []
                 cursor = await conn.execute("""
-                    SELECT id, name FROM logbook_squadrons
+                    SELECT id, name FROM squadrons
                     WHERE (co_ucid = %s OR xo_ucid = %s) AND name ILIKE %s
                     ORDER BY name LIMIT 25
                 """, (ucid, ucid, '%' + current + '%'))
             else:
                 cursor = await conn.execute(
-                    "SELECT id, name FROM logbook_squadrons WHERE name ILIKE %s ORDER BY name LIMIT 25",
+                    "SELECT id, name FROM squadrons WHERE name ILIKE %s ORDER BY name LIMIT 25",
                     ('%' + current + '%',)
                 )
             return [
@@ -71,7 +71,7 @@ async def squadron_member_autocomplete(interaction: discord.Interaction, current
         async with interaction.client.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT p.name, sm.player_ucid
-                FROM logbook_squadron_members sm
+                FROM squadron_members sm
                 JOIN players p ON sm.player_ucid = p.ucid
                 WHERE sm.squadron_id = %s AND p.name ILIKE %s
                 ORDER BY p.name LIMIT 25
@@ -92,7 +92,7 @@ async def unassigned_player_autocomplete(interaction: discord.Interaction, curre
             cursor = await conn.execute("""
                 SELECT p.name, p.ucid
                 FROM players p
-                WHERE p.ucid NOT IN (SELECT player_ucid FROM logbook_squadron_members)
+                WHERE p.ucid NOT IN (SELECT player_ucid FROM squadron_members)
                 AND p.name ILIKE %s
                 ORDER BY p.name LIMIT 25
             """, ('%' + current + '%',))
@@ -336,8 +336,8 @@ class Logbook(Plugin[LogbookEventListener]):
                 # Get all squadron memberships
                 await cursor.execute("""
                     SELECT s.name as squadron_name
-                    FROM logbook_squadron_members m
-                    JOIN logbook_squadrons s ON m.squadron_id = s.id
+                    FROM squadron_members m
+                    JOIN squadrons s ON m.squadron_id = s.id
                     WHERE m.player_ucid = %s
                     ORDER BY m.joined_at
                 """, (ucid,))
@@ -483,24 +483,35 @@ class Logbook(Plugin[LogbookEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
 
         async with self.apool.connection() as conn:
-            # Use INSERT ... ON CONFLICT to avoid race condition
-            cursor = await conn.execute("""
-                INSERT INTO logbook_squadrons (name, abbreviation, service, description)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (name) DO NOTHING
-                RETURNING id
-            """, (name, abbreviation, service.upper(), description))
-            result = await cursor.fetchone()
+            async with conn.transaction():
+                # Insert into shared squadrons table (no abbreviation/service)
+                cursor = await conn.execute("""
+                    INSERT INTO squadrons (name, description, locked)
+                    VALUES (%s, %s, FALSE)
+                    ON CONFLICT (name) DO NOTHING
+                    RETURNING id
+                """, (name, description))
+                result = await cursor.fetchone()
 
-            if not result:
-                # Squadron already exists
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(
-                    _('Squadron "{}" already exists!').format(name),
-                    ephemeral=True
-                )
-                return
-            squadron_id = result[0]
+                if not result:
+                    # Squadron already exists
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(
+                        _('Squadron "{}" already exists!').format(name),
+                        ephemeral=True
+                    )
+                    return
+                squadron_id = result[0]
+
+                # Insert logbook-specific metadata (abbreviation/service)
+                if abbreviation or service:
+                    await conn.execute("""
+                        INSERT INTO logbook_squadron_metadata (squadron_id, abbreviation, service)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (squadron_id) DO UPDATE SET
+                            abbreviation = EXCLUDED.abbreviation,
+                            service = EXCLUDED.service
+                    """, (squadron_id, abbreviation, service.upper() if service else None))
 
         embed = discord.Embed(
             title=_('Squadron Created'),
@@ -527,13 +538,14 @@ class Logbook(Plugin[LogbookEventListener]):
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                # Get squadron details
+                # Get squadron details with metadata
                 await cursor.execute("""
-                    SELECT s.*,
+                    SELECT s.*, m.abbreviation, m.service,
                            co.name as co_name,
                            xo.name as xo_name,
-                           (SELECT COUNT(*) FROM logbook_squadron_members WHERE squadron_id = s.id) as member_count
-                    FROM logbook_squadrons s
+                           (SELECT COUNT(*) FROM squadron_members WHERE squadron_id = s.id) as member_count
+                    FROM squadrons s
+                    LEFT JOIN logbook_squadron_metadata m ON s.id = m.squadron_id
                     LEFT JOIN players co ON s.co_ucid = co.ucid
                     LEFT JOIN players xo ON s.xo_ucid = xo.ucid
                     WHERE s.id = %s
@@ -560,8 +572,8 @@ class Logbook(Plugin[LogbookEventListener]):
         if row.get('xo_name'):
             embed.add_field(name=_('Executive Officer'), value=row['xo_name'], inline=True)
 
-        if row.get('logo_url'):
-            embed.set_thumbnail(url=row['logo_url'])
+        if row.get('image_url'):
+            embed.set_thumbnail(url=row['image_url'])
 
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
@@ -576,7 +588,7 @@ class Logbook(Plugin[LogbookEventListener]):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 # Get squadron name
-                await cursor.execute("SELECT name FROM logbook_squadrons WHERE id = %s", (squadron,))
+                await cursor.execute("SELECT name FROM squadrons WHERE id = %s", (squadron,))
                 squadron_row = await cursor.fetchone()
                 if not squadron_row:
                     # noinspection PyUnresolvedReferences
@@ -592,7 +604,7 @@ class Logbook(Plugin[LogbookEventListener]):
                         p.name,
                         sm.joined_at,
                         COALESCE(pls.total_hours, 0) as total_hours
-                    FROM logbook_squadron_members sm
+                    FROM squadron_members sm
                     JOIN players p ON sm.player_ucid = p.ucid
                     LEFT JOIN logbook_pilots lp ON sm.player_ucid = lp.player_ucid
                     LEFT JOIN pilot_logbook_stats pls ON sm.player_ucid = pls.ucid
@@ -660,7 +672,7 @@ class Logbook(Plugin[LogbookEventListener]):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 # Get squadron name
-                await cursor.execute("SELECT name FROM logbook_squadrons WHERE id = %s", (squadron,))
+                await cursor.execute("SELECT name FROM squadrons WHERE id = %s", (squadron,))
                 squadron_row = await cursor.fetchone()
                 if not squadron_row:
                     # noinspection PyUnresolvedReferences
@@ -669,7 +681,7 @@ class Logbook(Plugin[LogbookEventListener]):
 
                 # Check if already assigned to this squadron
                 await cursor.execute("""
-                    SELECT squadron_id FROM logbook_squadron_members
+                    SELECT squadron_id FROM squadron_members
                     WHERE player_ucid = %s AND squadron_id = %s
                 """, (ucid, squadron))
                 existing = await cursor.fetchone()
@@ -684,7 +696,7 @@ class Logbook(Plugin[LogbookEventListener]):
 
                 # Add to squadron (pilots can be in multiple squadrons)
                 await conn.execute("""
-                    INSERT INTO logbook_squadron_members (squadron_id, player_ucid, position)
+                    INSERT INTO squadron_members (squadron_id, player_ucid, position)
                     VALUES (%s, %s, %s)
                 """, (squadron, ucid, position))
 
@@ -765,7 +777,7 @@ class Logbook(Plugin[LogbookEventListener]):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 # Get squadron and player names
-                await cursor.execute("SELECT name FROM logbook_squadrons WHERE id = %s", (squadron,))
+                await cursor.execute("SELECT name FROM squadrons WHERE id = %s", (squadron,))
                 squadron_row = await cursor.fetchone()
 
                 await cursor.execute("SELECT name FROM players WHERE ucid = %s", (member,))
@@ -778,7 +790,7 @@ class Logbook(Plugin[LogbookEventListener]):
 
                 # Remove membership
                 await conn.execute("""
-                    DELETE FROM logbook_squadron_members
+                    DELETE FROM squadron_members
                     WHERE squadron_id = %s AND player_ucid = %s
                 """, (squadron, member))
 
@@ -815,7 +827,7 @@ class Logbook(Plugin[LogbookEventListener]):
                 # Verify member is in the squadron and get their name
                 await cursor.execute("""
                     SELECT p.name FROM players p
-                    JOIN logbook_squadron_members lsm ON p.ucid = lsm.player_ucid
+                    JOIN squadron_members lsm ON p.ucid = lsm.player_ucid
                     WHERE lsm.squadron_id = %s AND lsm.player_ucid = %s
                 """, (squadron, member))
                 player_row = await cursor.fetchone()
@@ -859,7 +871,7 @@ class Logbook(Plugin[LogbookEventListener]):
                 await cursor.execute("SELECT name FROM players WHERE ucid = %s", (member,))
                 player_row = await cursor.fetchone()
 
-                await cursor.execute("SELECT name FROM logbook_squadrons WHERE id = %s", (squadron,))
+                await cursor.execute("SELECT name FROM squadrons WHERE id = %s", (squadron,))
                 squadron_row = await cursor.fetchone()
 
                 if not player_row or not squadron_row:
@@ -868,7 +880,7 @@ class Logbook(Plugin[LogbookEventListener]):
                     return
 
                 await conn.execute(
-                    "UPDATE logbook_squadrons SET co_ucid = %s WHERE id = %s",
+                    "UPDATE squadrons SET co_ucid = %s WHERE id = %s",
                     (member, squadron)
                 )
 
@@ -899,7 +911,7 @@ class Logbook(Plugin[LogbookEventListener]):
                 await cursor.execute("SELECT name FROM players WHERE ucid = %s", (member,))
                 player_row = await cursor.fetchone()
 
-                await cursor.execute("SELECT name FROM logbook_squadrons WHERE id = %s", (squadron,))
+                await cursor.execute("SELECT name FROM squadrons WHERE id = %s", (squadron,))
                 squadron_row = await cursor.fetchone()
 
                 if not player_row or not squadron_row:
@@ -908,7 +920,7 @@ class Logbook(Plugin[LogbookEventListener]):
                     return
 
                 await conn.execute(
-                    "UPDATE logbook_squadrons SET xo_ucid = %s WHERE id = %s",
+                    "UPDATE squadrons SET xo_ucid = %s WHERE id = %s",
                     (member, squadron)
                 )
 
@@ -934,9 +946,10 @@ class Logbook(Plugin[LogbookEventListener]):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
-                    SELECT s.id, s.name, s.abbreviation,
-                           (SELECT COUNT(*) FROM logbook_squadron_members WHERE squadron_id = s.id) as member_count
-                    FROM logbook_squadrons s
+                    SELECT s.id, s.name, m.abbreviation,
+                           (SELECT COUNT(*) FROM squadron_members WHERE squadron_id = s.id) as member_count
+                    FROM squadrons s
+                    LEFT JOIN logbook_squadron_metadata m ON s.id = m.squadron_id
                     ORDER BY s.name
                 """)
                 squadrons = await cursor.fetchall()
@@ -974,7 +987,7 @@ class Logbook(Plugin[LogbookEventListener]):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 # Use DELETE ... RETURNING to atomically delete and get the name
                 await cursor.execute(
-                    "DELETE FROM logbook_squadrons WHERE id = %s RETURNING name",
+                    "DELETE FROM squadrons WHERE id = %s RETURNING name",
                     (squadron,)
                 )
                 squadron_row = await cursor.fetchone()
@@ -1027,7 +1040,7 @@ class Logbook(Plugin[LogbookEventListener]):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 # Get current squadron info
-                await cursor.execute("SELECT * FROM logbook_squadrons WHERE id = %s", (squadron,))
+                await cursor.execute("SELECT * FROM squadrons WHERE id = %s", (squadron,))
                 squadron_row = await cursor.fetchone()
 
                 if not squadron_row:
@@ -1037,33 +1050,38 @@ class Logbook(Plugin[LogbookEventListener]):
 
                 old_name = squadron_row['name']
 
-                # Build dynamic update query
-                updates = []
-                params = []
+                async with conn.transaction():
+                    # Update shared squadrons table (name, description, image_url)
+                    squad_updates = []
+                    squad_params = []
 
-                if name:
-                    updates.append("name = %s")
-                    params.append(name)
-                if abbreviation:
-                    updates.append("abbreviation = %s")
-                    params.append(abbreviation)
-                if service:
-                    updates.append("service = %s")
-                    params.append(service.upper())
-                if description:
-                    updates.append("description = %s")
-                    params.append(description)
-                if logo_url:
-                    updates.append("logo_url = %s")
-                    params.append(logo_url)
+                    if name:
+                        squad_updates.append("name = %s")
+                        squad_params.append(name)
+                    if description:
+                        squad_updates.append("description = %s")
+                        squad_params.append(description)
+                    if logo_url:
+                        squad_updates.append("image_url = %s")
+                        squad_params.append(logo_url)
 
-                params.append(squadron)
+                    if squad_updates:
+                        squad_params.append(squadron)
+                        await conn.execute(f"""
+                            UPDATE squadrons
+                            SET {', '.join(squad_updates)}
+                            WHERE id = %s
+                        """, tuple(squad_params))
 
-                await conn.execute(f"""
-                    UPDATE logbook_squadrons
-                    SET {', '.join(updates)}
-                    WHERE id = %s
-                """, tuple(params))
+                    # Update logbook metadata table (abbreviation, service)
+                    if abbreviation or service:
+                        await conn.execute("""
+                            INSERT INTO logbook_squadron_metadata (squadron_id, abbreviation, service)
+                            VALUES (%s, %s, %s)
+                            ON CONFLICT (squadron_id) DO UPDATE SET
+                                abbreviation = COALESCE(EXCLUDED.abbreviation, logbook_squadron_metadata.abbreviation),
+                                service = COALESCE(EXCLUDED.service, logbook_squadron_metadata.service)
+                        """, (squadron, abbreviation, service.upper() if service else None))
 
         embed = discord.Embed(
             title=_('Squadron Updated'),
@@ -1517,8 +1535,8 @@ class Logbook(Plugin[LogbookEventListener]):
             FROM logbook_pilot_qualifications pq
             JOIN players p ON pq.player_ucid = p.ucid
             JOIN logbook_qualifications q ON pq.qualification_id = q.id
-            LEFT JOIN logbook_squadron_members sm ON sm.player_ucid = p.ucid
-            LEFT JOIN logbook_squadrons s ON s.id = sm.squadron_id
+            LEFT JOIN squadron_members sm ON sm.player_ucid = p.ucid
+            LEFT JOIN squadrons s ON s.id = sm.squadron_id
             WHERE pq.expires_at IS NOT NULL AND pq.expires_at <= %s
         """
         params: list[Any] = [cutoff_date]
@@ -1542,7 +1560,7 @@ class Logbook(Plugin[LogbookEventListener]):
                 squadron_name = None
                 qual_name = None
                 if squadron is not None:
-                    await cursor.execute("SELECT name FROM logbook_squadrons WHERE id = %s", (squadron,))
+                    await cursor.execute("SELECT name FROM squadrons WHERE id = %s", (squadron,))
                     row = await cursor.fetchone()
                     if row:
                         squadron_name = row['name']

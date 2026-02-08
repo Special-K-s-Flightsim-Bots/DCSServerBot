@@ -353,15 +353,15 @@ class TestSQLSyntax:
 
     def test_expected_tables_exist(self, sql_content):
         """Test that expected tables are defined."""
-        # Note: logbook_flight_plans is now in the dedicated flightplan plugin
+        # Note: Squadron tables are now in the shared userstats plugin (squadrons, squadron_members)
+        # Logbook only defines metadata and pilot-specific tables
         expected_tables = [
-            'logbook_squadrons',
-            'logbook_squadron_members',
+            'logbook_pilots',
+            'logbook_squadron_metadata',
             'logbook_qualifications',
             'logbook_pilot_qualifications',
             'logbook_awards',
             'logbook_pilot_awards',
-            'logbook_stores_requests',
             'logbook_historical_hours',
         ]
 
@@ -375,9 +375,10 @@ class TestSQLSyntax:
         references = re.findall(fk_pattern, sql_content)
 
         # Known tables from DCSServerBot core and this plugin
+        # Squadron tables are now in userstats (squadrons, squadron_members)
         known_tables = {
             'players',
-            'logbook_squadrons',
+            'squadrons',
             'logbook_qualifications',
             'logbook_awards',
         }
@@ -394,11 +395,12 @@ class TestSQLSyntax:
     def test_indexes_created(self, sql_content):
         """Test that indexes are created for performance."""
         # Should have at least several indexes
+        # Note: Reduced count after squadron tables moved to userstats
         index_count = sql_content.count('CREATE INDEX IF NOT EXISTS')
         index_count += sql_content.count('CREATE UNIQUE INDEX IF NOT EXISTS')
 
-        assert index_count >= 10, \
-            f"Expected at least 10 indexes, found {index_count}"
+        assert index_count >= 6, \
+            f"Expected at least 6 indexes, found {index_count}"
 
     def test_no_sql_injection_patterns(self, sql_content):
         """Test for potentially dangerous SQL patterns."""

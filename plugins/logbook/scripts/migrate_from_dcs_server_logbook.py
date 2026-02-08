@@ -242,21 +242,37 @@ class LogbookMigrator:
         async with pg_conn.cursor() as pg_cursor:
             for row in cursor:
                 co_ucid = self.pilot_mapping.get(row['squadron_commanding_officer'])
+                abbreviation = row['squadron_id'][:8] if row['squadron_id'] else None
+                service = row['squadron_service']
 
+                # Insert into shared squadrons table
                 await pg_cursor.execute("""
-                    INSERT INTO logbook_squadrons
-                    (name, abbreviation, description, co_ucid)
-                    VALUES (%s, %s, %s, %s)
+                    INSERT INTO squadrons
+                    (name, description, co_ucid, locked)
+                    VALUES (%s, %s, %s, FALSE)
                     ON CONFLICT (name) DO UPDATE SET
-                        description = EXCLUDED.description,
-                        co_ucid = EXCLUDED.co_ucid
+                        description = COALESCE(EXCLUDED.description, squadrons.description),
+                        co_ucid = COALESCE(EXCLUDED.co_ucid, squadrons.co_ucid)
                     RETURNING id
                 """, (
                     row['squadron_id'],
-                    row['squadron_id'][:8] if row['squadron_id'] else None,
                     row['squadron_motto'],
                     co_ucid
                 ))
+                result = await pg_cursor.fetchone()
+                squadron_id = result[0] if result else None
+
+                # Insert logbook-specific metadata (abbreviation/service)
+                if squadron_id and (abbreviation or service):
+                    await pg_cursor.execute("""
+                        INSERT INTO logbook_squadron_metadata
+                        (squadron_id, abbreviation, service)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (squadron_id) DO UPDATE SET
+                            abbreviation = COALESCE(EXCLUDED.abbreviation, logbook_squadron_metadata.abbreviation),
+                            service = COALESCE(EXCLUDED.service, logbook_squadron_metadata.service)
+                    """, (squadron_id, abbreviation, service))
+
                 self.report.squadrons_imported += 1
 
             await pg_conn.commit()
@@ -492,8 +508,8 @@ class LogbookMigrator:
         """)
 
         async with pg_conn.cursor(row_factory=dict_row) as pg_cursor:
-            # Get squadron ID mapping
-            await pg_cursor.execute("SELECT id, name FROM logbook_squadrons")
+            # Get squadron ID mapping from shared table
+            await pg_cursor.execute("SELECT id, name FROM squadrons")
             squadron_map = {row['name']: row['id'] for row in await pg_cursor.fetchall()}
 
             count = 0
@@ -507,12 +523,14 @@ class LogbookMigrator:
                     continue
 
                 try:
+                    # Insert into shared squadron_members table
+                    # Note: rank is stored in logbook_pilots, position is the role in squadron
                     await pg_cursor.execute("""
-                        INSERT INTO logbook_squadron_members
-                        (squadron_id, player_ucid, rank, position)
-                        VALUES (%s, %s, %s, %s)
-                        ON CONFLICT DO NOTHING
-                    """, (squadron_id, ucid, row['pilot_rank'], row['pilot_service']))
+                        INSERT INTO squadron_members
+                        (squadron_id, player_ucid, position)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (squadron_id, player_ucid) DO NOTHING
+                    """, (squadron_id, ucid, row['pilot_service']))
                     count += 1
                 except Exception as e:
                     self.report.errors.append(f"Squadron member import error: {e}")
