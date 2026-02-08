@@ -6,9 +6,8 @@ schema;instance_schema:
     regex;(.+):
       include: 'element_schema'
 
-schema;element_schema:
+schema;default_schema:
   type: map
-  func: is_element
   nullable: false
   mapping:
     install: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
@@ -21,12 +20,25 @@ schema;element_schema:
     bomb_board: {type: bool, nullable: false}
     bomb_channel: {type: int, nullable: false}
 
+schema;element_schema:
+  type: map
+  func: is_element
+  nullable: false
+  mapping:
+    CHANNELID_MAIN: {type: text, nullable: false}    # TODO: change this to int some day
+    CHANNELID_RANGE: {type: text, nullable: false}   # s.s.
+    CHANNELID_AIRBOSS: {type: text, nullable: false} # s.s.
+    strafe_board: {type: bool, nullable: false}
+    strafe_channel: {type: int, nullable: false}
+    bomb_board: {type: bool, nullable: false}
+    bomb_channel: {type: int, nullable: false}
+
 type: map
 func: check_main_structure
 nullable: false
 mapping:
   DEFAULT:
-    include: 'element_schema'
+    include: 'default_schema'
   regex;(.+):
     type: any
     func: any_of
