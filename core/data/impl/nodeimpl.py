@@ -1173,7 +1173,7 @@ class NodeImpl(Node):
                             # Try to grab the lock on the sticky connection
                             cursor = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key, ))
                             if not (await cursor.fetchone())[0]:
-                                self.log.error("Conflict! Another node holds the master lock.")
+                                self.log.warning("Conflict! Another node holds the master lock, trying next loop ...")
                                 return False
 
                         await check_nodes()
@@ -1187,8 +1187,7 @@ class NodeImpl(Node):
                             return False
 
                         if config.get('preferred_master', False):
-                            await take_over(block=False)
-                            return True
+                            return await take_over(block=False)
 
                         if await is_node_alive(master, config.get('heartbeat', 30)):
                             return False
