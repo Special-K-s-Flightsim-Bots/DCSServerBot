@@ -173,16 +173,14 @@ class Main:
         async with ServiceRegistry(node=self.node) as registry:
             self.log.info("DCSServerBot {} started.".format("MASTER" if self.node.master else "AGENT"))
             try:
-                is_master = self.node.master
                 while not self.node.is_shutdown.is_set():
-                    if self.node.master == is_master:
+                    if self.node.claimed_master == self.node.master:
                         await asyncio.sleep(1)
                         continue
 
                     # switch master
-                    is_master = not is_master
                     tasks = []
-                    if self.node.master:
+                    if self.node.claimed_master:
                         self.log.info("Taking over as the MASTER node ...")
                         # start all the master-only services
                         for cls in [x for x in registry.services().keys() if registry.master_only(x)]:
@@ -203,6 +201,7 @@ class Main:
                                 if service:
                                     tasks.append(service.switch())
                     await asyncio.gather(*tasks)
+                    self.node.commit_claimed_master()
                     self.log.info(f"I am the {'MASTER' if self.node.master else 'AGENT'} now.")
             except OperationalError:
                 db_available = False

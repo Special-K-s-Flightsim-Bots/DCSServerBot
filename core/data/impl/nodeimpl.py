@@ -118,6 +118,16 @@ class NodeImpl(Node):
         self.cpool: AsyncConnectionPool | None = None
         self._heartbeat_conn: psycopg.AsyncConnection | None = None
         self._master = None
+        self._claimed_master =None
+
+    @property
+    def claimed_master(self) -> bool:
+        # Observed role from heartbeat/election: may change before services are switched.
+        return self._claimed_master
+
+    def commit_claimed_master(self) -> None:
+        # Publish the new role atomically to the rest of the process (services).
+        self._master = self._claimed_master
 
     def _check_branch_version(self):
         try:
@@ -154,11 +164,13 @@ class NodeImpl(Node):
         await self.init_db()
         # Do we have a cluster?
         if len(self.all_nodes) > 1:
-            self._master = await self.heartbeat()
+            self._claimed_master = await self.heartbeat()
+            self.commit_claimed_master()
             self.heartbeat_loop.start()
-            self.log.info("- Starting as {} ...".format("Single / Master" if self._master else "Agent"))
+            self.log.info("- Starting as {} ...".format("Master" if self._master else "Agent"))
         else:
-            self._master = True
+            self._claimed_master = True
+            self.commit_claimed_master()
         if self._master:
             try:
                 await self.update_db()
@@ -1025,8 +1037,11 @@ class NodeImpl(Node):
                 )
             return self._heartbeat_conn
 
-        async def handle_upgrade(master: str) -> bool:
+        async def handle_upgrade(master: str, *, holds_lock: bool) -> bool:
             if master == self.name:
+                if not holds_lock:
+                    self.log.debug("Heartbeat: master claim present, but lock not held yet (switch-over in progress).")
+                    return False
                 self.log.debug("Upgrade: Master => trigger agent upgrades")
                 # let all other nodes upgrade themselve
                 for node in await self.get_active_nodes():
@@ -1147,11 +1162,10 @@ class NodeImpl(Node):
                     master, version, update_pending = await get_master()
                     # upgrade is pending
                     if update_pending:
-                        return await handle_upgrade(master)
+                        return await handle_upgrade(master, holds_lock=holds_lock)
                     elif parse(version) > parse(__version__):
                         # avoid update loops if we are the master
-                        if master == self.name:
-                            self._master = True
+                        if master == self.name and holds_lock:
                             self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
                                              "Rolling back the cluser version to my version.")
                         await self._upgrade(conn)
@@ -1173,7 +1187,7 @@ class NodeImpl(Node):
                             # Try to grab the lock on the sticky connection
                             cursor = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key, ))
                             if not (await cursor.fetchone())[0]:
-                                self.log.warning("Conflict! Another node holds the master lock, trying next loop ...")
+                                self.log.info("  => Another node still holds the master lock, waiting ...")
                                 return False
 
                         await check_nodes()
@@ -1210,7 +1224,7 @@ class NodeImpl(Node):
     @tasks.loop(seconds=5.0)
     async def heartbeat_loop(self):
         try:
-            self._master = await self.heartbeat()
+            self._claimed_master = await self.heartbeat()
             if self.heartbeat_loop.seconds == 10.0:
                 self.heartbeat_loop.change_interval(seconds=5.0)
         except psycopg_pool.PoolTimeout:
