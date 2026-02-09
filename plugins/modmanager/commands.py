@@ -145,7 +145,6 @@ class ModManager(Plugin):
 
     @mods.command(description=_('manage mods'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted_check)
     @utils.app_has_roles(['Admin'])
     async def manage(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
