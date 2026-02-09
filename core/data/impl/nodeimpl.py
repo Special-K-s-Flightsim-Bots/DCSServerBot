@@ -1040,8 +1040,11 @@ class NodeImpl(Node):
         async def handle_upgrade(master: str, *, holds_lock: bool) -> bool:
             if master == self.name:
                 if not holds_lock:
-                    self.log.debug("Heartbeat: master claim present, but lock not held yet (switch-over in progress).")
-                    return False
+                    cursor = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key,))
+                    holds_lock = (await cursor.fetchone())[0]
+                    if not holds_lock:
+                        self.log.debug("Heartbeat: master claim present, but lock not held yet (switch-over in progress).")
+                        return False
                 self.log.debug("Upgrade: Master => trigger agent upgrades")
                 # let all other nodes upgrade themselve
                 for node in await self.get_active_nodes():
