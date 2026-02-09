@@ -263,8 +263,10 @@ class Help(Plugin[HelpListener]):
 
     async def discord_commands_to_df(self, interaction: discord.Interaction, *,
                                      use_mention: bool | None = False) -> pd.DataFrame:
-        df = pd.DataFrame(columns=['Plugin', 'Command', 'Parameter', 'Roles', 'Description'])
+        df = pd.DataFrame(columns=['Plugin', 'Command', 'Parameter', 'Roles', 'Description', 'Restricted'])
         for cmd in sorted((await get_commands(interaction)).values(), key=lambda x: x.qualified_name):
+            restricted = False
+            roles = []
             for check in cmd.checks:
                 try:
                     if 'has_role.' in check.__qualname__:
@@ -273,24 +275,17 @@ class Help(Plugin[HelpListener]):
                     elif 'has_roles.' in check.__qualname__:
                         # noinspection PyUnresolvedReferences
                         roles = check.roles
-                    else:
-                        continue
-                    plugin = cmd.binding.__cog_name__ if cmd.binding else ''
-                    # noinspection PyUnresolvedReferences
-                    data_df = pd.DataFrame(
-                        [(plugin, f"/{cmd.qualified_name}" if not use_mention else cmd.mention,
-                          get_usage(cmd), ','.join(roles), cmd.description.strip('\n'))],
-                        columns=df.columns)
-                    df = pd.concat([df, data_df], ignore_index=True)
-                    break
+                    elif 'restricted_check' in check.__qualname__:
+                        restricted = True
                 except AttributeError as ex:
                     self.log.error("Name: {} has no attribute '{}'".format(cmd.name, ex.name))
-            else:
-                plugin = cmd.binding.__cog_name__  if cmd.binding else ''
-                data_df = pd.DataFrame(
-                    [(plugin, '/' + cmd.qualified_name, get_usage(cmd), '', cmd.description.strip('\n'))],
-                    columns=df.columns)
-                df = pd.concat([df, data_df], ignore_index=True)
+            plugin = cmd.binding.__cog_name__  if cmd.binding else ''
+            # noinspection PyUnresolvedReferences
+            data_df = pd.DataFrame(
+                [(plugin, f"/{cmd.qualified_name}" if not use_mention else cmd.mention,
+                  get_usage(cmd), ','.join(roles), cmd.description.strip('\n'), restricted)],
+                columns=df.columns)
+            df = pd.concat([df, data_df], ignore_index=True)
         return df
 
     async def ingame_commands_to_df(self) -> pd.DataFrame:
