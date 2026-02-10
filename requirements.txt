@@ -29,7 +29,7 @@ discord-py==2.6.4
 docopt==0.6.2
 et-xmlfile==2.0.0
 eyed3==0.9.9
-fastapi==0.128.0
+fastapi==0.128.7
 filetype==1.2.0
 fonttools==4.61.1
 frozenlist==1.8.0
@@ -49,7 +49,7 @@ markdown-it-py==4.0.0
 markupsafe==3.0.3
 matplotlib==3.10.8
 mdurl==0.1.2
-mgrs==1.5.3
+mgrs==1.5.4
 minidump==0.0.24 ; sys_platform == "win32"
 miniupnpc==2.3.3 ; python_version < "3.14"
 multidict==6.7.1
@@ -84,7 +84,7 @@ pywinauto==0.6.9 ; sys_platform == "win32"
 rapidfuzz==3.14.3
 referencing==0.37.0
 requests==2.32.5
-rich==14.3.1
+rich==14.3.2
 rpds-py==0.30.0
 ruamel-yaml==0.19.1
 seaborn==0.13.2
@@ -92,8 +92,8 @@ shapely==2.1.2
 six==1.17.0
 smmap==5.0.2
 sqlparse==0.5.5
-starlette==0.50.0
-telnetlib3==2.0.8
+starlette==0.52.1
+telnetlib3==2.4.0
 tomli==2.3.0 ; python_version < "3.11"
 tomli-w==1.2.0
 trueskill==0.4.5
@@ -105,6 +105,7 @@ upnpy==1.1.8 ; python_version >= "3.14"
 urllib3==2.6.3
 uvicorn==0.40.0
 watchdog==6.0.0
+wcwidth==0.6.0
 wheel==0.46.3
 yarl==1.22.0
 

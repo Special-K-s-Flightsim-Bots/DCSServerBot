@@ -112,12 +112,12 @@ class FunkManEventListener(EventListener["FunkMan"]):
         plt.close(fig)
         return filename, buffer
 
-    async def send_fig(self, fig: matplotlib.figure.Figure, channel: discord.TextChannel):
+    async def send_fig(self, fig: matplotlib.figure.Figure, channel: discord.abc.Messageable):
         try:
             filename, buffer = self.save_fig(fig)
             with buffer:
                 await channel.send(file=discord.File(fp=buffer, filename=filename),
-                                   delete_after=self.config.get('delete_after'))
+                                   delete_after=self.bot.locals.get('message_autodelete'))
         except Exception as ex:
             self.log.exception(ex)
 
@@ -146,7 +146,7 @@ class FunkManEventListener(EventListener["FunkMan"]):
         config = self.get_config(server)
         for name in ['CHANNELID_MAIN', 'CHANNELID_RANGE', 'CHANNELID_AIRBOSS']:
             if name in config:
-                self.bot.check_channel(int(self.config[name]))
+                self.bot.check_channel(int(config[name]))
 
     @event(name="moose_text")
     async def moose_text(self, server: Server, data: dict) -> None:
@@ -154,7 +154,7 @@ class FunkManEventListener(EventListener["FunkMan"]):
         channel = self.bot.get_channel(int(config.get('CHANNELID_MAIN', -1)))
         if not channel:
             return
-        await channel.send(data['text'], delete_after=self.config.get('delete_after'))
+        await channel.send(data['text'], delete_after=self.bot.locals.get('message_autodelete'))
 
     @event(name="moose_bomb_result")
     async def moose_bomb_result(self, server: Server, data: dict) -> None:
@@ -214,6 +214,6 @@ class FunkManEventListener(EventListener["FunkMan"]):
                 embed = self.create_lso_embed(data)
                 embed.set_image(url=f"attachment://{filename}")
                 await channel.send(embed=embed, file=discord.File(fp=buffer, filename=filename),
-                                   delete_after=self.config.get('delete_after'))
+                                   delete_after=self.bot.locals.get('message_autodelete'))
         except (ValueError, TypeError):
             self.log.warning("No or invalid trapsheet data received from DCS!")

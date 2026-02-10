@@ -261,7 +261,6 @@ class Mission(Plugin[MissionEventListener]):
     @utils.app_has_role('DCS')
     async def mission_info(self, interaction: Interaction, server: app_commands.Transform[Server, utils.ServerTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         report = Report(self.bot, self.plugin_name, 'serverStatus.json')
         env: ReportEnv = await report.render(server=server)
@@ -279,7 +278,6 @@ class Mission(Plugin[MissionEventListener]):
                        status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])]):
         view = ServerView(server)
         embed = await view.render(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, view=view, ephemeral=utils.get_ephemeral(interaction))
         try:
             await view.wait()
@@ -300,11 +298,9 @@ class Mission(Plugin[MissionEventListener]):
                 return {"blue": row[0], "red": row[1]}
 
         if server.status not in [Status.RUNNING, Status.PAUSED]:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
                                                     ephemeral=True)
             return
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         mission_info = await server.send_to_dcs_sync({
             "command": "getMissionDetails"
@@ -347,7 +343,6 @@ class Mission(Plugin[MissionEventListener]):
         }
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Can't restart server {server} as it is {status}!").format(server=server.display_name,
                                                                              status=server.status.name), ephemeral=True)
@@ -377,9 +372,7 @@ class Mission(Plugin[MissionEventListener]):
                 return
 
         server.restart_pending = True
-        # noinspection PyUnresolvedReferences
         if not interaction.response.is_done():
-            # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=ephemeral)
         if server.is_populated():
             if delay > 0:
@@ -422,7 +415,6 @@ class Mission(Plugin[MissionEventListener]):
                     run_extensions: bool | None = False, use_orig: bool | None = True):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Can't load mission on server {server} as it is {status}!").format(
                     server=server.display_name, status=server.status.name), ephemeral=True)
@@ -447,9 +439,7 @@ class Mission(Plugin[MissionEventListener]):
         else:
             result = "yes"
 
-        # noinspection PyUnresolvedReferences
         if not interaction.response.is_done():
-            # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=ephemeral)
         if isinstance(mission, int):
             mission_id = mission
@@ -545,7 +535,6 @@ class Mission(Plugin[MissionEventListener]):
                   server: app_commands.Transform[Server, utils.ServerTransformer], path: str,
                   autostart: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
 
         path = os.path.normpath(os.path.join(await server.get_missions_dir(), path))
@@ -568,7 +557,6 @@ class Mission(Plugin[MissionEventListener]):
                      server: app_commands.Transform[Server, utils.ServerTransformer],
                      mission_id: int):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         missions = await server.getMissionList()
         if mission_id >= len(missions):
@@ -621,13 +609,11 @@ class Mission(Plugin[MissionEventListener]):
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status == Status.RUNNING:
-            # noinspection PyUnresolvedReferences
             await interaction.response.defer(thinking=True, ephemeral=ephemeral)
             await server.current_mission.pause()
             await interaction.followup.send(_('Mission on server "{}" paused.').format(server.display_name),
                                             ephemeral=ephemeral)
         else:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_('Server {} is not running.').format(server.display_name),
                                                     ephemeral=ephemeral)
 
@@ -638,17 +624,14 @@ class Mission(Plugin[MissionEventListener]):
                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.PAUSED])]):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status == Status.PAUSED:
-            # noinspection PyUnresolvedReferences
             await interaction.response.defer(thinking=True, ephemeral=ephemeral)
             await server.current_mission.unpause()
             await interaction.followup.send(_('Mission on server "{}" resumed.').format(server.display_name),
                                             ephemeral=ephemeral)
         elif server.status == Status.RUNNING:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_('Server "{}" is not paused.').format(server.display_name),
                                                     ephemeral=ephemeral)
         else:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Server {server} is {status}, can't unpause.").format(server=server.display_name,
                                                                         status=server.status.name),
@@ -732,12 +715,10 @@ class Mission(Plugin[MissionEventListener]):
             with open(presets_file, mode='r', encoding='utf-8') as infile:
                 presets = yaml.load(infile)
         except FileNotFoundError:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _('No presets available, please configure them in {}.').format(presets_file), ephemeral=True)
             return
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         try:
             try:
@@ -850,7 +831,6 @@ class Mission(Plugin[MissionEventListener]):
                               status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
                           name: str):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         miz = await asyncio.to_thread(MizFile, server.current_mission.filename)
         config_file = os.path.join(self.node.config_dir, 'presets.yaml')
@@ -880,7 +860,6 @@ class Mission(Plugin[MissionEventListener]):
         }
         with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(presets, outfile)
-        # noinspection PyUnresolvedReferences
         await interaction.followup.send(_('Preset "{}" added.').format(name), ephemeral=ephemeral)
 
     @mission.command(description=_('Rollback to the original mission file after any modifications'))
@@ -891,7 +870,6 @@ class Mission(Plugin[MissionEventListener]):
     async def rollback(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer], mission_id: int):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         missions = await server.getMissionList()
         if mission_id >= len(missions):
@@ -938,7 +916,6 @@ class Mission(Plugin[MissionEventListener]):
                   thickness: app_commands.Range[int, 0, 5000] | None = None,
                   visibility: app_commands.Range[int, 0, 100000] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if thickness is None and visibility is None:
             ret = await server.send_to_dcs_sync({
@@ -975,7 +952,6 @@ class Mission(Plugin[MissionEventListener]):
             with open(presets_file, mode='r', encoding='utf-8') as infile:
                 presets = yaml.load(infile)
         except FileNotFoundError:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _('No presets available, please configure them in {}.').format(presets_file), ephemeral=True)
             return
@@ -987,7 +963,6 @@ class Mission(Plugin[MissionEventListener]):
                    (v['fog'].get('mode', None) == 'manual' or all(isinstance(y, int) for y in v['fog'].keys()))
             ]
         except AttributeError:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("There is an error in your {}. Please check the file structure.").format(presets_file),
                 ephemeral=True)
@@ -995,18 +970,15 @@ class Mission(Plugin[MissionEventListener]):
         if len(options) > 25:
             self.log.warning("You have more than 25 presets created, you can only choose from 25!")
         elif not options:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("There is no manual fog preset in your {}").format(presets_file),
                                                     ephemeral=True)
             return
 
         # select a preset
         view = PresetView(options[:25], multi=False)
-        # noinspection PyUnresolvedReferences
         if interaction.response.is_done():
             msg = await interaction.followup.send(view=view, ephemeral=ephemeral)
         else:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(view=view, ephemeral=ephemeral)
             msg = await interaction.original_response()
         try:
@@ -1036,7 +1008,6 @@ class Mission(Plugin[MissionEventListener]):
     async def persistence(self, interaction: discord.Interaction,
                           server: app_commands.Transform[Server, utils.ServerTransformer], mission_id: int):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         missions = await server.getMissionList()
         if mission_id >= len(missions):
@@ -1078,12 +1049,10 @@ class Mission(Plugin[MissionEventListener]):
                                status=[Status.RUNNING, Status.PAUSED])],
                            idx: int):
         if _server.status not in [Status.RUNNING, Status.PAUSED]:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
+            await interaction.response.send_message(_("Server {} is not running.").format(_server.display_name),
                                                     ephemeral=True)
             return
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=utils.get_ephemeral(interaction))
         airbase = _server.current_mission.airbases[idx]
         data = await _server.send_to_dcs_sync({
@@ -1129,11 +1098,9 @@ class Mission(Plugin[MissionEventListener]):
                        status=[Status.RUNNING, Status.PAUSED])],
                    idx: int):
         if _server.status not in [Status.RUNNING, Status.PAUSED]:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
+            await interaction.response.send_message(_("Server {} is not running.").format(_server.display_name),
                                                     ephemeral=True)
             return
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         airbase = _server.current_mission.airbases[idx]
         data = await _server.send_to_dcs_sync({
@@ -1158,12 +1125,10 @@ class Mission(Plugin[MissionEventListener]):
                           status=[Status.RUNNING, Status.PAUSED])],
                       idx: int, coalition: Literal['Red', 'Blue', 'Neutral']):
         if server.status not in [Status.RUNNING, Status.PAUSED]:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
                                                     ephemeral=True)
             return
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=utils.get_ephemeral(interaction))
         airbase = server.current_mission.airbases[idx]
         data = await server.send_to_dcs_sync({
@@ -1233,12 +1198,10 @@ class Mission(Plugin[MissionEventListener]):
     async def _manage_warehouse(interaction: discord.Interaction, _server: Server, idx: int,
                                 category: str | None = None, item: str | None = None, value: int | None = None) -> None:
         if _server.status not in [Status.RUNNING, Status.PAUSED]:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
+            await interaction.response.send_message(_("Server {} is not running.").format(_server.display_name),
                                                     ephemeral=True)
             return
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         airbase = _server.current_mission.airbases[idx]
         data = await _server.send_to_dcs_sync({
@@ -1373,7 +1336,6 @@ class Mission(Plugin[MissionEventListener]):
         buffer.seek(0)
         try:
             code = utils.slugify(airbase.get('code', '') or airbase.get('name', 'XXXX'))
-            # noinspection PyUnresolvedReferences
             await interaction.followup.send(
                 file=discord.File(fp=buffer, filename=f"warehouse-{code.lower()}.xlsx"), ephemeral=True
             )
@@ -1392,12 +1354,10 @@ class Mission(Plugin[MissionEventListener]):
                          status=[Status.RUNNING, Status.PAUSED])],
                      idx: int):
         if _server.status not in [Status.RUNNING, Status.PAUSED]:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
+            await interaction.response.send_message(_("Server {} is not running.").format(_server.display_name),
                                                     ephemeral=True)
             return
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=utils.get_ephemeral(interaction))
         airbase = _server.current_mission.airbases[idx]
         data = await _server.send_to_dcs_sync({
@@ -1414,12 +1374,10 @@ class Mission(Plugin[MissionEventListener]):
                       _server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED])]):
         if _server.status not in [Status.RUNNING, Status.PAUSED]:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
+            await interaction.response.send_message(_("Server {} is not running.").format(_server.display_name),
                                                     ephemeral=True)
             return
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=utils.get_ephemeral(interaction))
         sheet_titles = {
             "aircraft": "Aircraft",
@@ -1452,7 +1410,6 @@ class Mission(Plugin[MissionEventListener]):
 
         buffer.seek(0)
         try:
-            # noinspection PyUnresolvedReferences
             await interaction.followup.send(
                 file=discord.File(fp=buffer, filename=f"warehouse-items.xlsx"), ephemeral=True
             )
@@ -1468,13 +1425,11 @@ class Mission(Plugin[MissionEventListener]):
     async def _list(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
         if server.status != Status.RUNNING:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
                                                     ephemeral=True)
             return
         report = Report(self.bot, self.plugin_name, 'players.json')
         env = await report.render(server=server, sides=utils.get_sides(interaction.client, interaction, server))
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
     @player.command(description=_('Kicks a player\n'))
@@ -1485,12 +1440,10 @@ class Mission(Plugin[MissionEventListener]):
                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
                    reason: str | None = 'n/a') -> None:
         if not player:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
             return
         await server.kick(player, reason)
         await self.bot.audit(f'kicked player {player.display_name} with reason "{reason}"', user=interaction.user)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(
             _("Player {name} (ucid={ucid}) kicked.").format(name=player.display_name, ucid=player.ucid),
             ephemeral=utils.get_ephemeral(interaction))
@@ -1503,10 +1456,8 @@ class Mission(Plugin[MissionEventListener]):
                   player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
 
         if not player:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
             return
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(BanModal(player.ucid))
 
     @player.command(description=_('Locks a player'))
@@ -1516,7 +1467,6 @@ class Mission(Plugin[MissionEventListener]):
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
         await player.lock()
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Player {} has been locked.").format(player.display_name),
                                                 ephemeral=utils.get_ephemeral(interaction))
 
@@ -1534,7 +1484,6 @@ class Mission(Plugin[MissionEventListener]):
             ucid = user
 
         if not ucid:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
             return
 
@@ -1542,7 +1491,6 @@ class Mission(Plugin[MissionEventListener]):
             "command": "unlock_player",
             "ucid": ucid
         })
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Player has been unlocked."),
                                                 ephemeral=utils.get_ephemeral(interaction))
 
@@ -1553,7 +1501,6 @@ class Mission(Plugin[MissionEventListener]):
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
         await player.mute()
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Player {} has been muted.").format(player.display_name),
                                                 ephemeral=utils.get_ephemeral(interaction))
 
@@ -1564,7 +1511,6 @@ class Mission(Plugin[MissionEventListener]):
                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                      player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
         await player.unmute()
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Player has been unmuted."),
                                                 ephemeral=utils.get_ephemeral(interaction))
 
@@ -1576,7 +1522,6 @@ class Mission(Plugin[MissionEventListener]):
                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
                    reason: str | None = 'n/a') -> None:
         if not player:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
             return
         await server.move_to_spectators(player)
@@ -1584,7 +1529,6 @@ class Mission(Plugin[MissionEventListener]):
             await player.sendChatMessage(_("You have been moved to spectators. Reason: {}").format(reason),
                                          interaction.user.display_name)
         await self.bot.audit(f'moved player {player.name} to spectators with reason "{reason}".', user=interaction.user)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Player "{}" moved to spectators.').format(player.name),
                                                 ephemeral=utils.get_ephemeral(interaction))
 
@@ -1595,12 +1539,10 @@ class Mission(Plugin[MissionEventListener]):
                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                   minutes: int | None = 10):
         if server.status != Status.RUNNING:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
                                                     ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         afk: list[Player] = list()
         for s in self.bot.servers.values():
@@ -1686,11 +1628,9 @@ class Mission(Plugin[MissionEventListener]):
                     player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
                     message: str, time: Range[int, 1, 30] | None = -1):
         if not player:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
             return
         await player.sendPopupMessage(message, time, interaction.user.display_name)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Message sent.'), ephemeral=utils.get_ephemeral(interaction))
 
     @player.command(description=_('Sends a chat message to a player\n'))
@@ -1700,11 +1640,9 @@ class Mission(Plugin[MissionEventListener]):
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)], message: str):
         if not player:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
             return
         await player.sendChatMessage(message, interaction.user.display_name)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Message sent.'), ephemeral=utils.get_ephemeral(interaction))
 
     @player.command(description=_('Take a screenshot'))
@@ -1714,15 +1652,12 @@ class Mission(Plugin[MissionEventListener]):
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]) -> None:
         if not player:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
             return
         if not server.settings.get('advanced', {}).get('server_can_screenshot'):
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server can not take screenshots."), ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         msg = await interaction.followup.send(_("Requesting screenshot ..."), ephemeral=ephemeral)
         try:
@@ -1770,14 +1705,12 @@ class Mission(Plugin[MissionEventListener]):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name),
                                                         ephemeral=True)
                 return
         elif utils.is_ucid(user):
             ucid = user
         else:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("User not found."), ephemeral=True)
             return
 
@@ -1785,12 +1718,10 @@ class Mission(Plugin[MissionEventListener]):
             async with self.apool.connection() as conn:
                 await conn.execute("INSERT INTO watchlist (player_ucid, reason, created_by) VALUES (%s, %s, %s)",
                                    (ucid, reason, interaction.user.display_name))
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player {} is now on the watchlist.").format(
                 user.display_name if isinstance(user, discord.Member) else ucid),
                 ephemeral=utils.get_ephemeral(interaction))
         except psycopg.errors.UniqueViolation:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Player {} was already on the watchlist.").format(
                     user.display_name if isinstance(user, discord.Member) else ucid),
@@ -1806,14 +1737,12 @@ class Mission(Plugin[MissionEventListener]):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
                 # we should never be here
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name))
                 return
         else:
             ucid = user
         async with self.apool.connection() as conn:
             await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (ucid, ))
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(
             _("Player {} removed from the watchlist.").format(
                 user.display_name if isinstance(user, discord.Member) else user),
@@ -1831,7 +1760,6 @@ class Mission(Plugin[MissionEventListener]):
             """)
             watches = await cursor.fetchall()
         if not watches:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("The watchlist is currently empty."), ephemeral=ephemeral)
             return
         embed = discord.Embed(colour=discord.Colour.blue())
@@ -1844,7 +1772,6 @@ class Mission(Plugin[MissionEventListener]):
         embed.add_field(name=_("Name"), value=names)
         embed.add_field(name=_('UCID'), value=ucids)
         embed.add_field(name=_("Created by"), value=created_by)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed)
 
     # New command group "/group"
@@ -1858,7 +1785,6 @@ class Mission(Plugin[MissionEventListener]):
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                     group: str, message: str, time: Range[int, 1, 30] | None = -1):
         await server.sendPopupMessage(group, message, time, interaction.user.display_name)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Message sent.'), ephemeral=utils.get_ephemeral(interaction))
 
     @command(description=_("Links a member to a DCS user"))
@@ -1869,7 +1795,6 @@ class Mission(Plugin[MissionEventListener]):
                        sel_type=PlayerType.PLAYER, linked=False)]
                    ):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         _member = DataObjectFactory().new(Member, name=member.name, node=self.node, member=member)
         if isinstance(user, discord.Member):
@@ -1975,7 +1900,6 @@ class Mission(Plugin[MissionEventListener]):
             })
 
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         async with self.apool.connection() as conn:
             if isinstance(user, discord.Member):
@@ -2006,7 +1930,6 @@ class Mission(Plugin[MissionEventListener]):
 
     async def _find(self, interaction: discord.Interaction, name: str):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
@@ -2048,16 +1971,13 @@ class Mission(Plugin[MissionEventListener]):
 
     async def _info(self, interaction: discord.Interaction, member: discord.Member | str):
         if not member:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("This user does not exist. Try {} to find them in the historic data.").format(
                     (await utils.get_command(self.bot, name=self.find.name)).mention
                 ), ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         if not interaction.response.is_done():
-            # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=ephemeral)
         if isinstance(member, str):
             ucid = member
@@ -2092,7 +2012,6 @@ class Mission(Plugin[MissionEventListener]):
                           player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
         report = Report(self.bot, 'mission', 'player-info.json')
         env = await report.render(player=player)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
     @command(description=_('Shows player information'))
@@ -2121,7 +2040,6 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def linkcheck(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -2170,7 +2088,6 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def mislinks(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -2231,7 +2148,6 @@ class Mission(Plugin[MissionEventListener]):
                   "**The TOKEN will expire in 2 days!**").format(token=token, prefix=self.eventlistener.prefix),
                 ephemeral=True)
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         member = DataObjectFactory().new(Member, name=interaction.user.name, node=self.node, member=interaction.user)
         if member.ucid and not utils.is_ucid(member.ucid):
@@ -2273,7 +2189,6 @@ class Mission(Plugin[MissionEventListener]):
                        number: Range[int, 1]):
         report = Report(self.bot, self.plugin_name, 'inactive.json')
         env = await report.render(period=f"{number} {period}")
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
     @player.command(description=_('Analyses two suspects of being the same person'))
@@ -2282,7 +2197,6 @@ class Mission(Plugin[MissionEventListener]):
     async def compare(self, interaction: discord.Interaction,
                       player1: app_commands.Transform[discord.Member | str, utils.UserTransformer],
                       player2: app_commands.Transform[discord.Member | str, utils.UserTransformer]):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         ephemeral = utils.get_ephemeral(interaction)
         if isinstance(player1, discord.Member):
@@ -2376,7 +2290,6 @@ class Mission(Plugin[MissionEventListener]):
     async def validate(self, interaction: discord.Interaction):
         menu_file = os.path.join(self.node.config_dir, 'menus.yaml')
         if os.path.exists(menu_file):
-            # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=True)
             try:
                 utils.validate(menu_file, ['schemas/menus_schema.yaml'], raise_exception=True)
@@ -2386,7 +2299,6 @@ class Mission(Plugin[MissionEventListener]):
                 message = traceback.format_exc()
                 await interaction.followup.send(message[:2000])
         else:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("No menus.yaml found."), ephemeral=True)
 
     @command(description=_('Convert values'))
@@ -2401,15 +2313,12 @@ class Mission(Plugin[MissionEventListener]):
                       mgrs: str | None = None):
         if mode == 'Lat/Lon => MGRS':
             if not lat or not lon:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message("Latitude and longitude must be provided", ephemeral=True)
                 return
             mgrs = utils.dd_to_mgrs(lat, lon)
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"**MGRS**: {mgrs}")
         elif mode == 'MGRS => Lat/Lon':
             if not mgrs:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message("MGRS must be provided", ephemeral=True)
                 return
             mgrs = mgrs.replace(' ', '')
@@ -2420,12 +2329,10 @@ class Mission(Plugin[MissionEventListener]):
             d, m, s, f = utils.dd_to_dms(lon)
             lon_dms = ('E' if d > 0 else 'W') + ' {:03d}°{:02d}\'{:02d}.{:02d}"'.format(
                 int(abs(d)), int(abs(m)), int(abs(s)), int(abs(f)))
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"**DD**: {lat:.7f}, {lon:.7f}\n"
                                                     f"**DMS**: {lat_dms}, {lon_dms}\n"
                                                     f"**DDM**: {utils.dd_to_dmm(lat, lon)}")
         else:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("Invalid conversion mode", ephemeral=True)
 
     @tasks.loop(hours=1)
@@ -2833,28 +2740,40 @@ class Mission(Plugin[MissionEventListener]):
                         "command": "uploadWhitelist",
                         "name": name
                     })
-            # noinspection PyUnresolvedReferences
             await interaction.response.edit_message(view=None)
             await interaction.message.add_reaction('✅')
+
         elif custom_id.startswith('ban_'):
             config = self.get_config()
             if custom_id.startswith('ban_profanity_'):
                 ucid = custom_id[len('ban_profanity_'):]
                 await self.bus.ban(
                     ucid, interaction.user.display_name,
-                    config.get('messages', {}).get('ban_username', 'Inappropriate username.')
+                    config.get('messages', {}).get('ban_username',
+                                                   'Inappropriate username, please contact an admin.')
                 )
             elif custom_id.startswith('ban_evade_'):
                 ucid = custom_id[len('ban_evade_'):]
                 await self.bus.ban(
                     ucid, interaction.user.display_name,
-                    config.get('messages', {}).get('ban_evasion', 'Trying to evade a ban with a 2nd account.')
+                    config.get('messages', {}).get('ban_evasion',
+                                                   'Trying to evade a ban with a 2nd account.')
                 )
-            # noinspection PyUnresolvedReferences
             await interaction.response.edit_message(view=None)
             await interaction.message.add_reaction('🚫')
+
+        elif custom_id.startswith('message_profanity_'):
+            ucid = custom_id[len('message_profanity_'):]
+            async with self.apool.connection() as conn:
+                await conn.execute("""
+                    INSERT INTO messages (sender, player_ucid, message, ack)
+                    VALUES (%s, %s, %s, %s)
+                """, (interaction.user.display_name, ucid,
+                      'Please change your playername to something more appropriate.', True))
+            await interaction.response.edit_message(view=None)
+            await interaction.message.add_reaction('✉️')
+
         elif custom_id == 'cancel':
-            # noinspection PyUnresolvedReferences
             await interaction.response.edit_message(view=None)
 
 

@@ -547,7 +547,7 @@ class MissionEventListener(EventListener["Mission"]):
     async def onSimulationStart(self, server: Server, _: dict) -> None:
         server.status = Status.PAUSED
         self.restart_pending[server.name] = False
-        # If the server is PAUSED and smooth_pause is configured, start it for some seconds and pause it again,
+        # If the server is PAUSED and smooth_pause is configured, start it for some seconds and pause it again
         # to let all scripts load properly.
         if server.settings.get('advanced', {}).get('resume_mode', 0) == 2:
             smooth_pause = server.locals.get('smooth_pause', 0)
@@ -697,7 +697,7 @@ class MissionEventListener(EventListener["Mission"]):
             if server.locals.get('force_voice', False):
                 # we do not check DCS Admin users
                 if not utils.check_roles(self.bot.roles['DCS Admin'], player.member):
-                    voice: discord.VoiceChannel = self.bot.get_channel(server.channels.get(Channel.VOICE, -1))
+                    voice = cast(discord.VoiceChannel, self.bot.get_channel(server.channels.get(Channel.VOICE, -1)))
                     if not voice:
                         self.log.error(
                             f"force_voice is enabled for server {server.name}, but no voice channel is configured!")
@@ -726,13 +726,12 @@ class MissionEventListener(EventListener["Mission"]):
                 data['name'], data['ucid'])
 
         view = View(timeout=None)
-        # noinspection PyTypeChecker
         button = Button(label="Whitelist", style=ButtonStyle.primary, custom_id=f"whitelist_{data['name']}")
         view.add_item(button)
-        # noinspection PyTypeChecker
         button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_profanity_{data['ucid']}")
         view.add_item(button)
-        # noinspection PyTypeChecker
+        button = Button(label="Message", style=ButtonStyle.green, custom_id=f"message_profanity_{data['ucid']}")
+        view.add_item(button)
         button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
         view.add_item(button)
         await admin_channel.send(f"```{message}```", view=view)
@@ -761,10 +760,8 @@ class MissionEventListener(EventListener["Mission"]):
             old_ucid=data['old_ucid'], reason=data['reason']
         )
         view = View(timeout=None)
-        # noinspection PyTypeChecker
         button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_evade_{data['ucid']}")
         view.add_item(button)
-        # noinspection PyTypeChecker
         button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
         view.add_item(button)
         await admin_channel.send(f"```{message}```", view=view)
@@ -945,7 +942,7 @@ class MissionEventListener(EventListener["Mission"]):
 
     @event(name="onMemberLinked")
     async def onMemberLinked(self, server: Server, data: dict) -> None:
-        # as an exception, server might be empty here
+        # as an exception, "server" might be empty here
         if not server:
             return
         player = server.get_player(ucid=data['ucid'])
@@ -954,7 +951,7 @@ class MissionEventListener(EventListener["Mission"]):
 
     @event(name="onMemberUnlinked")
     async def onMemberUnlinked(self, server: Server, data: dict) -> None:
-        # as an exception, server might be empty here
+        # as an exception, "server" might be empty here
         if not server:
             return
         player = server.get_player(ucid=data['ucid'])
@@ -1008,7 +1005,7 @@ class MissionEventListener(EventListener["Mission"]):
             if not initiator or not target:
                 return
 
-            # do not report AI vs AI
+            # do not report AI vs. AI
             if not initiator.get('name') and not target.get('name'):
                 return
 
@@ -1027,7 +1024,7 @@ class MissionEventListener(EventListener["Mission"]):
             if not initiator or not target:
                 return
 
-            # do not report AI vs AI
+            # do not report AI vs. AI
             if not initiator.get('name') and not target.get('name'):
                 return
 

@@ -256,13 +256,15 @@ class DCSServerBot(commands.Bot):
                         self.log.warning(f'    - {guild.name}')
                     self.log.warning(f'  => Remove it from {len(self.guilds) - 1} Discord servers and restart the bot.')
                     raise FatalException()
-                elif not self.guilds:
-                    raise FatalException("You need to invite your bot to a Discord server.")
                 elif self.node.guild_id != self.guilds[0].id:
                     raise FatalException(f"Change your guild_id in main.yaml to {self.guilds[0].id}!")
                 self.member = self.guilds[0].get_member(self.user.id)
                 if not self.member:
                     raise FatalException("Can't access the bots user. Check your Discord server settings.")
+                elif self.member.guild_permissions.administrator:
+                    self.log.critical("DCSServerBot is running with administrative permissions! "
+                                      "This is NOT recommended.")
+
                 self.log.debug('  => Checking Roles & Channels ...')
                 roles = set()
                 for role in ['Admin', 'DCS Admin', 'Alert', 'DCS', 'GameMaster']:

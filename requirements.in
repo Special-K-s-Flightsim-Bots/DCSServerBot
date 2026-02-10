@@ -27,7 +27,7 @@ discord.py==2.6.4
 eyeD3==0.9.9
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.128.0
+fastapi==0.128.7
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -51,7 +51,7 @@ lupa==2.6
 matplotlib==3.10.8
 
 # MGRS: Python library for handling MGRS conversions
-mgrs>=1.5.3
+mgrs==1.5.4
 
 # Minidump: Windows Minidump file reader
 minidump==0.0.24; sys_platform == 'win32'
@@ -103,7 +103,7 @@ pywinauto==0.6.9; sys_platform == 'win32'
 requests==2.32.5
 
 # Rich: Python library for rich text and beautiful formatting in the terminal
-rich==14.3.1
+rich==14.3.2
 
 # ruamel-yaml: YAML parser/emitter supporting roundtrip comment preservation
 ruamel.yaml==0.19.1
@@ -115,7 +115,7 @@ seaborn==0.13.2
 sqlparse==0.5.5
 
 # Telnetlib3: Connect to telnet services (for NUT)
-telnetlib3==2.0.8
+telnetlib3==2.4.0
 
 # TimetoneFinder: Find the right timezones for a given coordinate
 tzfpy[tzdata]==1.1.1
