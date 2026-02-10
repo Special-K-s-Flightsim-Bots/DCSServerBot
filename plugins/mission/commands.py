@@ -1366,7 +1366,7 @@ class Mission(Plugin[MissionEventListener]):
         }, timeout=60)
         await self.download_warehouse(interaction, airbase, data)
 
-    @warehouse.command(name="list", description=_('Export all possible wstypes'))
+    @warehouse.command(name="wstypes", description=_('Export all possible wstypes'))
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     @app_commands.guild_only()
     @app_commands.rename(_server='server')
@@ -1387,8 +1387,8 @@ class Mission(Plugin[MissionEventListener]):
 
         dataframes = {}
         for key, title in sheet_titles.items():
-            dataframes[title] = pd.DataFrame.from_dict(_server.resources.get(key),
-                                                       orient='index', columns=['wsType', 'Name'])
+            dataframes[title] = (pd.DataFrame.from_records(_server.resources.get(key), columns=['wstype', 'name'])
+                                 .rename(columns={'wstype': 'wsType', 'name': 'Name'}))
 
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
