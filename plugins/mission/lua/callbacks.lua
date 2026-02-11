@@ -1,17 +1,17 @@
-local base               = _G
+local base          = _G
 
-local dcsbot             = base.dcsbot
-local utils              = base.require("DCSServerBotUtils")
-local Censorship         = base.require('censorship')
-local textutil           = base.require('textutil')
+local dcsbot        = base.dcsbot
+local utils 	    = base.require("DCSServerBotUtils")
+local Censorship    = base.require('censorship')
+local textutil      = base.require('textutil')
 
-dcsbot.banList = dcsbot.banList or {}
-dcsbot.locked = dcsbot.locked or {}
-dcsbot.muted = dcsbot.muted or {}
-dcsbot.userInfo = dcsbot.userInfo or {}
-dcsbot.red_slots = dcsbot.red_slots or {}
-dcsbot.blue_slots = dcsbot.blue_slots or {}
-dcsbot.whitelist = dcsbot.whitelist or {}
+dcsbot.banList      = dcsbot.banList or {}
+dcsbot.locked       = dcsbot.locked or {}
+dcsbot.muted        = dcsbot.muted or {}
+dcsbot.userInfo     = dcsbot.userInfo or {}
+dcsbot.red_slots    = dcsbot.red_slots or {}
+dcsbot.blue_slots   = dcsbot.blue_slots or {}
+dcsbot.whitelist    = dcsbot.whitelist or {}
 
 local mission            = mission or {}
 mission.last_landing     = {}
