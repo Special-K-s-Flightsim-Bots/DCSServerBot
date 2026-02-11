@@ -19,6 +19,10 @@ world.event.S_EVENT_NEW_ZONE_GOAL = world.event.S_EVENT_MAX + 1004
 world.event.S_EVENT_DELETE_ZONE_GOAL = world.event.S_EVENT_MAX + 1005
 world.event.S_EVENT_REMOVE_UNIT = world.event.S_EVENT_MAX + 1006
 world.event.S_EVENT_PLAYER_ENTER_AIRCRAFT = world.event.S_EVENT_MAX + 1007
+world.event.S_EVENT_NEW_DYNAMIC_CARGO = world.event.S_EVENT_MAX + 1008
+world.event.S_EVENT_DYNAMIC_CARGO_LOADED = world.event.S_EVENT_MAX + 1009
+world.event.S_EVENT_DYNAMIC_CARGO_UNLOADED = world.event.S_EVENT_MAX + 1010
+world.event.S_EVENT_DYNAMIC_CARGO_REMOVED = world.event.S_EVENT_MAX + 1011
 
 -- ECW
 world.event.S_EVENT_ECW_TROOP_DROP   = world.event.S_EVENT_MAX + 1050
@@ -31,7 +35,25 @@ dcsbot.eventHandler = dcsbot.eventHandler or {}
 local event_by_id = {}
 -- local marker_num = 1
 
+local function get_distance(point1, point2)
+    local y1, y2
+
+    if point1.z ~= nil then y1 = point1.z else y1 = point1.y end
+    if point2.z ~= nil then y2 = point2.z else y2 = point2.y end
+
+    local dx = point2.x - point1.x
+    local dy = y2 - y1
+
+    return math.sqrt(dx * dx + dy * dy)
+end
+
 local function is_on_runway(runway, pos)
+--[[
+    -- ignore rubber banding
+    if get_distance(runway.position, pos) > 10000 then
+        return true
+    end
+]]--
     local dx = pos.x - runway.position.x
     local dz = pos.z - runway.position.z
 
@@ -66,18 +88,6 @@ local function is_vertical_takeoff(velocity, threshold)
     local ratio = velocity.y / vh
 
     return vh < threshold or ratio > 2
-end
-
-local function get_distance(point1, point2)
-    local y1, y2
-
-    if point1.z ~= nil then y1 = point1.z else y1 = point1.y end
-    if point2.z ~= nil then y2 = point2.z else y2 = point2.y end
-
-    local dx = point2.x - point1.x
-    local dy = y2 - y1
-
-    return math.sqrt(dx * dx + dy * dy)
 end
 
 function dcsbot.eventHandler:onEvent(event)
@@ -138,7 +148,7 @@ function onMissionEvent(event)
 
                         -- workaround DCS bug
                         if place == 'Tbilisi-Lochini' then
-                            if is_on_runway({
+                            on_runway = is_on_runway({
                                 course=-2.2334115505219,
                                 Name=13,
                                 position={
@@ -148,10 +158,10 @@ function onMissionEvent(event)
                                 },
                                 length=3000,
                                 width=60
-                            }, point) then
-                                on_runway = true
+                            }, point)
+                            if not on_runway then
                             -- and add the abandoned runway as a real one
-                            elseif is_on_runway({
+                                on_runway = is_on_runway({
                                     course=-2.181661564992912,
                                     Name="13L",
                                     position={
@@ -161,8 +171,7 @@ function onMissionEvent(event)
                                     },
                                     length=2463,16,
                                     width=54
-                            }, point) then
-                                on_runway = true
+                                }, point)
                             end
                         else
                             for _, runway in pairs(runways) do
