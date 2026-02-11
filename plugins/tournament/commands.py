@@ -21,7 +21,7 @@ from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from time import time
-from typing import Type
+from typing import Type, cast
 
 from .const import TOURNAMENT_PHASE
 from .listener import TournamentEventListener
@@ -1832,7 +1832,7 @@ class Tournament(Plugin[TournamentEventListener]):
         await msg.edit(embed=embed)
         # inform everyone
         for side in ['blue', 'red']:
-            channel: TextChannel = self.bot.get_channel(channels[side])
+            channel = self.bot.get_channel(channels[side])
             embed = discord.Embed(color=discord.Color.blue(), title=_("The match is starting NOW!"))
             if squadrons[side]['image_url']:
                 embed.set_thumbnail(url=squadrons[side]['image_url'])
@@ -1907,7 +1907,7 @@ class Tournament(Plugin[TournamentEventListener]):
     async def open_channel(self, match_id: int, server: Server) -> dict[str, int]:
         config = self.get_config(server)
         match = await self.get_match(match_id)
-        category: CategoryChannel = self.bot.get_channel(config['channels']['category'])
+        category = cast(CategoryChannel, self.bot.get_channel(config['channels']['category']))
         channels = {}
         for side in ['blue', 'red']:
             squadron = utils.get_squadron(self.node, squadron_id=match[f'squadron_{side}'])
