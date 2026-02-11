@@ -1,8 +1,9 @@
 import asyncio
 import os
+import psutil
 import subprocess
 
-from core import Server, Status, Coalition, utils
+from core import Server, Status, Coalition, utils, ProcessManager
 from packaging.version import parse
 from threading import Thread
 from services.music.radios.base import RadioInitError, Radio
@@ -13,7 +14,7 @@ class SRSRadio(Radio):
 
     def __init__(self, name: str, server: Server):
         super().__init__(name, server)
-        self.process: subprocess.Popen | None = None
+        self.process: psutil.Process | None = None
 
     async def play(self, file: str) -> None:
         if self.current and self.process:
@@ -39,7 +40,7 @@ class SRSRadio(Radio):
                 else:
                     return os.path.join(srs_inst, "DCS-SR-ExternalAudio.exe")
 
-            def run_subprocess() -> subprocess.Popen:
+            def run_subprocess() -> psutil.Process:
                 def _log_output(p: subprocess.Popen):
                     for line in iter(p.stdout.readline, b''):
                         self.log.debug(line.decode('utf-8', errors='replace').rstrip())
@@ -60,7 +61,14 @@ class SRSRadio(Radio):
                 ]
                 if debug:
                     self.log.debug(f"Running {' '.join(args)}")
-                p = subprocess.Popen(args, stdout=out, stderr=err)
+                p = ProcessManager().launch_process(
+                    args,
+                    min_cores=self.config.get('auto_affinity', {}).get('min_cores', 1),
+                    max_cores=self.config.get('auto_affinity', {}).get('max_cores', 1),
+                    quality=self.config.get('auto_affinity', {}).get('quality', 1),
+                    instance=self.server.instance.name,
+                    stdout=out, stderr=err
+                )
                 if debug:
                     Thread(target=_log_output, args=(p,), daemon=True).start()
                 return p
@@ -83,7 +91,7 @@ class SRSRadio(Radio):
             self.process = None
 
     async def skip(self) -> None:
-        if self.process and self.process.poll() is None:
+        if self.process and self.process.is_running():
             self.process.terminate()
             self.current = None
             self.process = None

@@ -6,18 +6,19 @@ import shlex
 
 from copy import deepcopy
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Player, Coalition, \
-    Channel, DataObjectFactory, event, chat_command, ServiceRegistry, ChatCommand, get_translation
+    Channel, DataObjectFactory, event, chat_command, ChatCommand, get_translation
 from datetime import datetime, timezone
 from discord import ButtonStyle
 from discord.ext import tasks
 from discord.ui import View, Button
+from functools import partial
 from pathlib import Path
 from psycopg.rows import dict_row
-from services.servicebus import ServiceBus
 from services.bot.dummy import DummyBot
-from typing import TYPE_CHECKING, Callable, Coroutine
+from typing import TYPE_CHECKING, Callable, Coroutine, cast
 
 from .menu import read_menu_config, filter_menu
+from ..missionstats.commands import MissionStatistics
 
 if TYPE_CHECKING:
     from core import Server
@@ -89,6 +90,7 @@ class MissionEventListener(EventListener["Mission"]):
         self.mission_embeds: dict[str, bool] = {}
         self.alert_fired: dict[str, bool] = {}
         self.whitelist: set[str] = set()
+        self.restart_pending: dict[str, bool] = {}
         # start schedulers
         self.print_queue.start()
         self.update_player_embed.start()
@@ -345,6 +347,7 @@ class MissionEventListener(EventListener["Mission"]):
         await server.send_to_dcs({
             'command': 'uploadUserRoles',
             'ucid': player.ucid,
+            'discord_id': player.member.id if player.member else None,
             'roles': roles
         })
 
@@ -394,7 +397,7 @@ class MissionEventListener(EventListener["Mission"]):
         self._update_mission(server, data)
         if data['channel'].startswith('sync-'):
             if not data.get('players'):
-                server.players.clear()
+                server.clear_players()
                 server.status = Status.STOPPED
                 return
             asyncio.create_task(self._update_bans(server))
@@ -404,10 +407,9 @@ class MissionEventListener(EventListener["Mission"]):
             # get the airbases async (if not filled already)
             if not data.get('airbases'):
                 asyncio.create_task(server.send_to_dcs({"command": "getAirbases"}))
+
         server.afk.clear()
-        # all players are inactive for now
-        for p in server.players.values():
-            p.active = False
+        server.players_by_id.clear()
         for p in data['players']:
             if p['id'] == 1:
                 continue
@@ -422,17 +424,28 @@ class MissionEventListener(EventListener["Mission"]):
                 server.add_player(player)
             else:
                 await player.update(p)
+            player.connected = True
+
+            # autorole
             if player.member:
                 autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
                 if autorole:
                     asyncio.create_task(player.add_role(autorole))
 
             asyncio.create_task(self._upload_user_roles(server, player))
+
+            # initialize AFK check
             if Side(p['side']) == Side.NEUTRAL:
                 server.afk[player.ucid] = datetime.now(timezone.utc)
-        # cleanup inactive players
-        for player_id in [p.id for p in server.players.values() if not p.active and p.id != 1]:
-            del server.players[player_id]
+
+        # clean up inactive players
+        active_ucids = [p['ucid'] for p in data['players'] if p['active']]
+        for player in [p for p in server.players.values()]:
+            if player.id == 1 or player.ucid in active_ucids:
+                continue
+            if player.is_connected():
+                await self._disconnect(server, player)
+
         # check if we are idle
         if not server.is_populated():
             server.idle_since = datetime.now(tz=timezone.utc)
@@ -468,6 +481,24 @@ class MissionEventListener(EventListener["Mission"]):
             return
         server.current_mission.airbases = data.get('airbases')
 
+        # if missionstats is enabled ...
+        mstats: MissionStatistics = cast(MissionStatistics, self.bot.cogs.get('MissionStatistics'))
+        if not mstats:
+            return
+
+        # ... set the coalitions
+        _data = mstats.eventlistener.mission_stats.get(server.name, {})
+        if not _data:
+            return
+
+        for airbase in server.current_mission.airbases:
+            for coalition in [Side.BLUE, Side.RED]:
+                if airbase['name'] in _data.get('coalitions', {}).get(coalition.name, {}).get('airbases', []):
+                    airbase['coalition'] = coalition.value
+                    break
+            else:
+                airbase['coalition'] = Side.NEUTRAL.value
+
     @event(name="getWarehouseResources")
     async def getWarehouseResources(self, server: Server, data: dict):
         server.resources = {
@@ -479,6 +510,11 @@ class MissionEventListener(EventListener["Mission"]):
     @event(name="onMissionLoadBegin")
     async def onMissionLoadBegin(self, server: Server, data: dict) -> None:
         server.status = Status.LOADING
+        lock_on_load = server.locals.get('lock_on_load', 0)
+        if lock_on_load:
+            self.log.info("  => Locking server on mission start for {}".format(utils.format_time(lock_on_load)))
+            asyncio.create_task(server.lock(_('A new mission is being set up. Try again in a bit.')))
+            self.loop.call_later(delay=lock_on_load, callback=partial(asyncio.create_task, server.unlock()))
         self._update_mission(server, data)
         if server.settings:
             self.display_mission_embed(server)
@@ -510,7 +546,8 @@ class MissionEventListener(EventListener["Mission"]):
     @event(name="onSimulationStart")
     async def onSimulationStart(self, server: Server, _: dict) -> None:
         server.status = Status.PAUSED
-        # If the server is PAUSED and smooth_pause is configured, start it for some seconds and pause it again,
+        self.restart_pending[server.name] = False
+        # If the server is PAUSED and smooth_pause is configured, start it for some seconds and pause it again
         # to let all scripts load properly.
         if server.settings.get('advanced', {}).get('resume_mode', 0) == 2:
             smooth_pause = server.locals.get('smooth_pause', 0)
@@ -531,11 +568,18 @@ class MissionEventListener(EventListener["Mission"]):
         server.current_mission.real_time = data['real_time']
         self.display_mission_embed(server)
 
+    @event(name="onMissionRestart")
+    async def onMissionRestart(self, server: Server, _data: dict) -> None:
+        self.restart_pending[server.name] = True
+
     @event(name="onSimulationStop")
-    async def onSimulationStop(self, server: Server, _: dict) -> None:
+    async def onSimulationStop(self, server: Server, _data: dict) -> None:
         server.status = Status.STOPPED
         for p in server.get_active_players():
-            p.side = Side.NEUTRAL
+            if server.locals.get('lock_on_load'):
+                asyncio.create_task(server.kick(p, reason=_("The server will be locked for a mission restart.")))
+            else:
+                p.side = Side.NEUTRAL
         self.alert_fired.pop(server.name, None)
         self.display_mission_embed(server)
         self.display_player_embed(server)
@@ -554,6 +598,20 @@ class MissionEventListener(EventListener["Mission"]):
     async def onPlayerConnect(self, server: Server, data: dict) -> None:
         if data['id'] == 1:
             return
+
+        # create the pseudo-event "S_EVENT_CONNECT"
+        asyncio.create_task(self.bus.send_to_node(
+            {
+                "command": "onMissionEvent",
+                "eventName": "S_EVENT_CONNECT",
+                "initiator": {
+                    "name": data['name'],
+                    "type": "UNIT"
+                },
+                "comment": "auto-generated",
+                "server_name": server.name
+            }
+        ))
         if 'connect' not in self.get_config(server).get('event_filter', []):
             self.send_dcs_event(server, Side.NEUTRAL, self.EVENT_TEXTS[Side.NEUTRAL]['connect'].format(
                 data['name'], server.name))
@@ -566,6 +624,8 @@ class MissionEventListener(EventListener["Mission"]):
             server.add_player(player)
         else:
             await player.update(data)
+        player.connected = True
+
         # if the first player joined, the server is considered non-idle
         if server.idle_since:
             server.idle_since = None
@@ -598,6 +658,8 @@ class MissionEventListener(EventListener["Mission"]):
                     "reason": messages['message_reserved']
                 }))
                 return
+
+        # create the player object (should have been created through onPlayerConnect already)
         player: Player = server.get_player(ucid=data['ucid'])
         if not player:
             player = DataObjectFactory().new(
@@ -606,10 +668,13 @@ class MissionEventListener(EventListener["Mission"]):
             server.add_player(player)
         else:
             await player.update(data)
+        player.connected = True
+
         # security check, if a banned player somehow managed to get here (should never happen)
         if player.is_banned():
             asyncio.create_task(server.kick(player, messages['message_ban'].format('n/a')))
             return
+
         # greet the player
         if not player.member:
             # only warn for unknown users if it is a non-public server and automatch is on
@@ -632,7 +697,7 @@ class MissionEventListener(EventListener["Mission"]):
             if server.locals.get('force_voice', False):
                 # we do not check DCS Admin users
                 if not utils.check_roles(self.bot.roles['DCS Admin'], player.member):
-                    voice: discord.VoiceChannel = self.bot.get_channel(server.channels.get(Channel.VOICE, -1))
+                    voice = cast(discord.VoiceChannel, self.bot.get_channel(server.channels.get(Channel.VOICE, -1)))
                     if not voice:
                         self.log.error(
                             f"force_voice is enabled for server {server.name}, but no voice channel is configured!")
@@ -642,6 +707,7 @@ class MissionEventListener(EventListener["Mission"]):
                         return
                     else:
                         asyncio.create_task(player.member.move_to(voice))
+
         # add the player to the afk list
         server.afk[player.ucid] = datetime.now(timezone.utc)
         self.display_mission_embed(server)
@@ -660,13 +726,12 @@ class MissionEventListener(EventListener["Mission"]):
                 data['name'], data['ucid'])
 
         view = View(timeout=None)
-        # noinspection PyTypeChecker
         button = Button(label="Whitelist", style=ButtonStyle.primary, custom_id=f"whitelist_{data['name']}")
         view.add_item(button)
-        # noinspection PyTypeChecker
         button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_profanity_{data['ucid']}")
         view.add_item(button)
-        # noinspection PyTypeChecker
+        button = Button(label="Message", style=ButtonStyle.green, custom_id=f"message_profanity_{data['ucid']}")
+        view.add_item(button)
         button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
         view.add_item(button)
         await admin_channel.send(f"```{message}```", view=view)
@@ -695,10 +760,8 @@ class MissionEventListener(EventListener["Mission"]):
             old_ucid=data['old_ucid'], reason=data['reason']
         )
         view = View(timeout=None)
-        # noinspection PyTypeChecker
         button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_evade_{data['ucid']}")
         view.add_item(button)
-        # noinspection PyTypeChecker
         button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
         view.add_item(button)
         await admin_channel.send(f"```{message}```", view=view)
@@ -713,7 +776,7 @@ class MissionEventListener(EventListener["Mission"]):
         # if the last player left, the server is considered idle
         if not server.is_populated():
             server.idle_since = datetime.now(tz=timezone.utc)
-            await self.bot.bus.send_to_node({"command": "onServerEmpty", "server_name": server.name})
+            await self.bus.send_to_node({"command": "onServerEmpty", "server_name": server.name})
         if player.member:
             autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
             if autorole:
@@ -730,37 +793,53 @@ class MissionEventListener(EventListener["Mission"]):
     async def onPlayerStop(self, server: Server, data: dict) -> None:
         if data['id'] == 1:
             return
-        if 'ucid' in data:
-            player = server.get_player(ucid=data['ucid'])
-        else:
-            # this should never happen
-            player = server.get_player(id=data['id'])
+        player = server.get_player(ucid=data['ucid'])
         if player:
-            asyncio.create_task(self._stop_player(server, player))
+            if not self.restart_pending.get(server.name, False):
+                await self._disconnect(server, player)
+            else:
+                await self._stop_player(server, player)
 
     async def _disconnect(self, server: Server, player: Player):
-        if not player or not player.active:
+        if not player or player.connected is False:
             return
+
         try:
+            player.connected = False
+            # create the pseudo-event "S_EVENT_DISCONNECT"
+            asyncio.create_task(self.bus.send_to_node(
+                {
+                    "command": "onMissionEvent",
+                    "eventName": "S_EVENT_DISCONNECT",
+                    "initiator": {
+                        "name": player.name,
+                        "type": "UNIT"
+                    },
+                    "comment": "auto-generated",
+                    "server_name": server.name
+                }
+            ))
             if 'disconnect' not in self.get_config(server).get('event_filter', []):
                 self.send_dcs_event(server, player.side,
                                     self.EVENT_TEXTS[player.side]['disconnect'].format(player.name, server.name))
         finally:
-            await self._stop_player(server, player)
+            if player.active:
+                await self._stop_player(server, player)
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
-        # Workaround for missing disconnect events
-        if 'side' not in data:
-            asyncio.create_task(self._disconnect(server, server.get_player(id=data['id'], active=True)))
-            return
-        player: Player = server.get_player(ucid=data['ucid'], active=True)
+        player: Player = server.get_player(id=data['id'], active=True)
         if not player:
             return
+
+        # Workaround for missing disconnect events
+        if 'side' not in data:
+            await self._disconnect(server, player)
+            return
+
         try:
             if Side(data['side']) != Side.NEUTRAL:
-                if player.ucid in server.afk:
-                    del server.afk[player.ucid]
+                server.afk.pop(player.ucid, None)
                 if 'change_slot' not in self.get_config(server).get('event_filter', []):
                     side = Side(data['side'])
                     self.send_dcs_event(server, side, self.EVENT_TEXTS[side]['change_slot'].format(player.side.name,
@@ -785,7 +864,9 @@ class MissionEventListener(EventListener["Mission"]):
         elif data['eventName'] == 'disconnect':
             if data['arg1'] == 1:
                 return
-            asyncio.create_task(self._disconnect(server, server.get_player(id=data['arg1'], active=True)))
+            player = server.get_player(id=data['arg1'], active=True)
+            await self._disconnect(server, player)
+            return
 
         # check the event filter first
         if data['eventName'] in self.get_config(server).get('event_filter', []):
@@ -861,7 +942,7 @@ class MissionEventListener(EventListener["Mission"]):
 
     @event(name="onMemberLinked")
     async def onMemberLinked(self, server: Server, data: dict) -> None:
-        # as an exception, server might be empty here
+        # as an exception, "server" might be empty here
         if not server:
             return
         player = server.get_player(ucid=data['ucid'])
@@ -870,7 +951,7 @@ class MissionEventListener(EventListener["Mission"]):
 
     @event(name="onMemberUnlinked")
     async def onMemberUnlinked(self, server: Server, data: dict) -> None:
-        # as an exception, server might be empty here
+        # as an exception, "server" might be empty here
         if not server:
             return
         player = server.get_player(ucid=data['ucid'])
@@ -887,6 +968,9 @@ class MissionEventListener(EventListener["Mission"]):
             player = server.get_player(name=_player)
             if not player:
                 return
+
+            # remove pending
+            player.pending = False
 
             # Send ATIS information (if configured)
             place = data.get('place', {}).get('name')
@@ -921,7 +1005,7 @@ class MissionEventListener(EventListener["Mission"]):
             if not initiator or not target:
                 return
 
-            # do not report AI vs AI
+            # do not report AI vs. AI
             if not initiator.get('name') and not target.get('name'):
                 return
 
@@ -940,7 +1024,7 @@ class MissionEventListener(EventListener["Mission"]):
             if not initiator or not target:
                 return
 
-            # do not report AI vs AI
+            # do not report AI vs. AI
             if not initiator.get('name') and not target.get('name'):
                 return
 
@@ -990,7 +1074,7 @@ class MissionEventListener(EventListener["Mission"]):
         asyncio.create_task(self.do_change_mission(server, player, params))
 
     @chat_command(name='pause', help='pause the mission', roles=['DCS Admin', 'GameMaster'])
-    async def pause(self, server: Server, player: Player, params: list[str]):
+    async def pause(self, server: Server, player: Player, _params: list[str]):
         if server.status == Status.PAUSED:
             await player.sendChatMessage("Mission is paused already.")
         else:
@@ -998,7 +1082,7 @@ class MissionEventListener(EventListener["Mission"]):
             await player.sendChatMessage("Mission paused.")
 
     @chat_command(name='unpause', help='unpause the mission', roles=['DCS Admin', 'GameMaster'])
-    async def unpause(self, server: Server, player: Player, params: list[str]):
+    async def unpause(self, server: Server, player: Player, _params: list[str]):
         if server.status == Status.RUNNING:
             await player.sendChatMessage("Mission is running already.")
         else:
@@ -1075,7 +1159,7 @@ class MissionEventListener(EventListener["Mission"]):
     @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 3 days")
     async def ban(self, server: Server, player: Player, params: list[str]):
         await self._handle_command(server, player, params, self.ban.name, lambda delinquent, reason: (
-            ServiceRegistry.get(ServiceBus).ban(delinquent.ucid, player.name, reason, 3),
+            self.bus.ban(delinquent.ucid, player.name, reason, 3),
             f'User {delinquent.display_name} banned for 3 days'))
 
     @chat_command(name="kick", roles=['DCS Admin'], usage="<name> [reason]", help="kick a user")
@@ -1089,6 +1173,18 @@ class MissionEventListener(EventListener["Mission"]):
         await self._handle_command(server, player, params, self.spec.name, lambda delinquent, reason: (
             server.move_to_spectators(delinquent, reason),
             f'User {delinquent.display_name} moved to spectators'))
+
+    @chat_command(name="mute", roles=['DCS Admin'], usage="<name>", help="mutes a user")
+    async def mute(self, server: Server, player: Player, params: list[str]):
+        await self._handle_command(server, player, params, self.spec.name, lambda delinquent, reason: (
+            delinquent.mute(),
+            f'User {delinquent.display_name} muted'))
+
+    @chat_command(name="unmute", roles=['DCS Admin'], usage="<name>", help="unmutes a user")
+    async def unmute(self, server: Server, player: Player, params: list[str]):
+        await self._handle_command(server, player, params, self.spec.name, lambda delinquent, reason: (
+            delinquent.unmute(),
+            f'User {delinquent.display_name} unmuted'))
 
     async def _handle_command(self, server: Server, player: Player, params: list[str],
                               cmd: str, action: Callable[[Player, str], tuple[Coroutine, str]]):
@@ -1142,40 +1238,39 @@ class MissionEventListener(EventListener["Mission"]):
         player.member = member
         player.verified = True
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # now check if there was an old validated mapping for this discord_id (meaning the UCID has changed)
-                cursor = await conn.execute("SELECT ucid FROM players WHERE discord_id = %s and ucid != %s",
-                                            (discord_id, player.ucid))
-                row = await cursor.fetchone()
-                if row:
-                    old_ucid = row[0]
-                    await cursor.execute("UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s",
-                                         (old_ucid, ))
-                    for plugin in self.bot.cogs.values():  # type: Plugin
-                        await plugin.update_ucid(conn, old_ucid, player.ucid)
-                    await self.bot.audit(f'updated their UCID from {old_ucid} to {player.ucid}.',
-                                         user=player.member)
-                    await player.sendChatMessage('Your account has been updated.')
-                    # unlink the member from the old ucid
-                    await self.bot.bus.send_to_node({
-                        "command": "rpc",
-                        "service": "ServiceBus",
-                        "method": "propagate_event",
-                        "params": {
-                            "command": "onMemberUnlinked",
-                            "server": server.name,
-                            "data": {
-                                "ucid": old_ucid,
-                                "discord_id": discord_id
-                            }
+            # now check if there was an old validated mapping for this discord_id (meaning the UCID has changed)
+            cursor = await conn.execute("SELECT ucid FROM players WHERE discord_id = %s and ucid != %s",
+                                        (discord_id, player.ucid))
+            row = await cursor.fetchone()
+            if row:
+                old_ucid = row[0]
+                await cursor.execute("UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s",
+                                     (old_ucid, ))
+                for plugin in self.bot.cogs.values():  # type: Plugin
+                    await plugin.update_ucid(conn, old_ucid, player.ucid)
+                await self.bot.audit(f'updated their UCID from {old_ucid} to {player.ucid}.',
+                                     user=player.member)
+                await player.sendChatMessage('Your account has been updated.')
+                # unlink the member from the old ucid
+                await self.bus.send_to_node({
+                    "command": "rpc",
+                    "service": "ServiceBus",
+                    "method": "propagate_event",
+                    "params": {
+                        "command": "onMemberUnlinked",
+                        "server": server.name,
+                        "data": {
+                            "ucid": old_ucid,
+                            "discord_id": discord_id
                         }
-                    })
-                else:
-                    await self.bot.audit(f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
-                                         user=player.member)
-                    await player.sendChatMessage('Your account has been linked.')
+                    }
+                })
+            else:
+                await self.bot.audit(f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
+                                     user=player.member)
+                await player.sendChatMessage('Your account has been linked.')
 
-        await self.bot.bus.send_to_node({
+        await self.bus.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
             "method": "propagate_event",

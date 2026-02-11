@@ -86,7 +86,7 @@ def proxy(_func: Callable[..., Any] | None = None, *, timeout: float = 60):
             # If the node is remote, send the call synchronously
             if node.is_remote:
                 data = await self.bus.send_to_node_sync(call, node=node.name, timeout=timeout)
-                return data.get('return')
+                return data
 
             # Otherwise, call the original function directly
             return await original_function(self, *args, **kwargs)

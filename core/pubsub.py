@@ -113,8 +113,6 @@ class PubSub:
             async for row in cursor:
                 try:
                     asyncio.create_task(self.handler(row[1]))
-                except Exception as ex:
-                    self.log.exception(ex)
                 finally:
                     ids_to_delete.append(row[0])
             if ids_to_delete:

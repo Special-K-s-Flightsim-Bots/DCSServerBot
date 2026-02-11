@@ -151,14 +151,14 @@ class SchedulerListener(EventListener["Scheduler"]):
     async def onGameEvent(self, server: Server, data: dict) -> None:
         if data['eventName'] == 'mission_end':
             if data['arg1'] != 'TODO':
-                asyncio.create_task(self.bot.bus.send_to_node({
+                asyncio.create_task(self.bus.send_to_node({
                     "command": "onMissionEnd",
                     "arg1": data['arg1'],
                     "arg2": data['arg2'],
                     "server_name": server.name
                 }))
             else:
-                asyncio.create_task(self.bot.bus.send_to_node({
+                asyncio.create_task(self.bus.send_to_node({
                     "command": "onServerStop",
                     "server_name": server.name
                 }))
@@ -255,7 +255,7 @@ class SchedulerListener(EventListener["Scheduler"]):
             await player.sendChatMessage("Maintenance mode wasn't enabled.")
 
     @chat_command(name="timeleft", help="Time to the next restart")
-    async def timeleft(self, server: Server, player: Player, params: list[str]):
+    async def timeleft(self, server: Server, player: Player, _params: list[str]):
         action = self.get_config(server).get('action')
         if not action:
             await player.sendChatMessage("No action configured for this server.")

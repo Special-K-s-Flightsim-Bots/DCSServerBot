@@ -18,14 +18,6 @@ class SRSEventListener(EventListener["SRS"]):
         self.mission: Mission = cast(Mission, self.bot.cogs['Mission'])
         self.srs_users: dict[str, dict[str, dict]] = {}
 
-    @staticmethod
-    def _get_player(server: Server, data: dict) -> Player | None:
-        if data['unit_id'] in range(100000000, 100000099):
-            player = server.get_player(name=data['player_name'])
-        else:
-            player = server.get_player(unit_id=data['unit_id'])
-        return player
-
     def _add_or_update_srs_user(self, server: Server, data: dict) -> None:
         if server.name not in self.srs_users:
             self.srs_users[server.name] = {}
@@ -52,7 +44,7 @@ class SRSEventListener(EventListener["SRS"]):
         if data['id'] == 1 or 'ucid' not in data:
             return
         if self.get_config(server).get('enforce_srs', False):
-            player: Player = server.get_player(ucid=data['ucid'])
+            player: Player = server.get_player(ucid=data['ucid'], active=True)
             if player.name not in self.srs_users.get(server.name, {}):
                 asyncio.create_task(server.send_to_dcs({"command": "disableSRS", "name": player.name}))
 

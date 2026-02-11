@@ -21,6 +21,19 @@ mapping:
           no_master: {type: bool, nullable: false}
           heartbeat: {type: int, range: {min: 10}, nullable: false}
           cloud_drive: {type: bool, nullable: false}
+      auto_affinity:
+        type: map
+        nullable: false
+        mapping:
+          enabled: {type: bool, nullable: false}
+          excluded_cores:
+            type: seq
+            nullable: false
+            sequence:
+              - {type: int, range: {min: 0}}
+          min_cores: {type: int, nullable: false, range: {min: 1, max: 2}}
+          max_cores: {type: int, nullable: false, range: {min: 1, max: 2}}
+          quality: {type: int, nullable: false, range: {min: 0, max: 2}}
       database:
         type: map
         nullable: false
@@ -80,16 +93,23 @@ mapping:
             type: map
             nullable: false
             mapping:
+              bot_port: {type: int, nullable: false, func: unique_port, required: true}
+              webgui_port: {type: int, nullable: false, func: unique_port, required: true}
+              dcs_port: {type: int, nullable: false, func: unique_port, required: true}
               home: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
               missions_dir: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
               mission_rewrite: {type: bool, nullable: false}
               autoscan: {type: bool, nullable: false}
-              bot_port: {type: int, required: true, nullable: false, func: unique_port}
-              webgui_port: {type: int, nullable: false, func: unique_port}
-              dcs_port: {type: int, nullable: false, func: unique_port}
               server_user: {type: str, nullable: false, range: {min: 1}}
               max_hung_minutes: {type: int, range: {min: 0}, nullable: false}
-              affinity: {type: any, nullable: false, func: int_csv_or_list}
+              affinity: {type: any, nullable: false, func: deprecated, enum: ['Use "auto_affinity" instead!']}
+              auto_affinity:
+                type: map
+                nullable: false
+                mapping:
+                  min_cores: {type: int, nullable: false, range: {min: 1, max: 2}}
+                  max_cores: {type: int, nullable: false, range: {min: 1, max: 2}}
+                  quality: {type: int, nullable: false, range: {min: 1, max: 3}}
               priority: {type: str, enum: ['below_normal', 'normal', 'above_normal', 'high', 'realtime'], nullable: false}
               extensions:
                 include: 'instance_extensions_schema'

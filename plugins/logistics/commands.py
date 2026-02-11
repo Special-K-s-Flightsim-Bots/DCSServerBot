@@ -1,0 +1,1135 @@
+import discord
+import json
+import logging
+
+from core import Plugin, utils, Server, Status, Group, get_translation
+from datetime import datetime, timezone
+from discord import app_commands
+from psycopg.rows import dict_row
+from services.bot import DCSServerBot
+from typing import Literal, Optional
+
+from .listener import LogisticsEventListener
+
+log = logging.getLogger(__name__)
+_ = get_translation(__name__.split('.')[1])
+
+
+# ==================== AUTOCOMPLETE FUNCTIONS ====================
+
+async def logistics_task_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    """Autocomplete for logistics tasks, filtered by server if available."""
+    try:
+        # Try to get server context for filtering
+        server_name = None
+        if hasattr(interaction.namespace, '_server') and interaction.namespace._server:
+            try:
+                server: Server = await utils.ServerTransformer().transform(
+                    interaction, interaction.namespace._server
+                )
+                if server:
+                    server_name = server.name
+            except Exception:
+                pass  # Fall back to showing all servers
+
+        async with interaction.client.apool.connection() as conn:
+            if server_name:
+                cursor = await conn.execute("""
+                    SELECT t.id, t.cargo_type, t.destination_name, t.status
+                    FROM logistics_tasks t
+                    WHERE t.server_name = %s
+                    AND (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
+                    ORDER BY t.created_at DESC LIMIT 25
+                """, (server_name, '%' + current + '%', '%' + current + '%', '%' + current + '%'))
+            else:
+                cursor = await conn.execute("""
+                    SELECT t.id, t.cargo_type, t.destination_name, t.status
+                    FROM logistics_tasks t
+                    WHERE (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
+                    ORDER BY t.created_at DESC LIMIT 25
+                """, ('%' + current + '%', '%' + current + '%', '%' + current + '%'))
+            return [
+                app_commands.Choice(
+                    name=f"#{row[0]} - {row[1][:30]} -> {row[2]} ({row[3]})",
+                    value=row[0]
+                )
+                async for row in cursor
+            ]
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
+        return []
+
+
+async def pending_task_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    """Autocomplete for pending logistics tasks, filtered by server if available."""
+    try:
+        # Try to get server context for filtering
+        server_name = None
+        if hasattr(interaction.namespace, '_server') and interaction.namespace._server:
+            try:
+                server: Server = await utils.ServerTransformer().transform(
+                    interaction, interaction.namespace._server
+                )
+                if server:
+                    server_name = server.name
+            except Exception:
+                pass
+
+        async with interaction.client.apool.connection() as conn:
+            if server_name:
+                cursor = await conn.execute("""
+                    SELECT t.id, t.cargo_type, t.destination_name, p.name
+                    FROM logistics_tasks t
+                    JOIN players p ON t.created_by_ucid = p.ucid
+                    WHERE t.server_name = %s AND t.status = 'pending'
+                    AND (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
+                    ORDER BY t.created_at LIMIT 25
+                """, (server_name, '%' + current + '%', '%' + current + '%', '%' + current + '%'))
+            else:
+                cursor = await conn.execute("""
+                    SELECT t.id, t.cargo_type, t.destination_name, p.name
+                    FROM logistics_tasks t
+                    JOIN players p ON t.created_by_ucid = p.ucid
+                    WHERE t.status = 'pending'
+                    AND (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
+                    ORDER BY t.created_at LIMIT 25
+                """, ('%' + current + '%', '%' + current + '%', '%' + current + '%'))
+            return [
+                app_commands.Choice(
+                    name=f"#{row[0]} - {row[1][:25]} (by {row[3]})",
+                    value=row[0]
+                )
+                async for row in cursor
+            ]
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
+        return []
+
+
+async def approved_task_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    """Autocomplete for approved (unassigned) logistics tasks, filtered by server if available."""
+    try:
+        # Try to get server context for filtering
+        server_name = None
+        if hasattr(interaction.namespace, '_server') and interaction.namespace._server:
+            try:
+                server: Server = await utils.ServerTransformer().transform(
+                    interaction, interaction.namespace._server
+                )
+                if server:
+                    server_name = server.name
+            except Exception:
+                pass
+
+        async with interaction.client.apool.connection() as conn:
+            if server_name:
+                cursor = await conn.execute("""
+                    SELECT t.id, t.cargo_type, t.source_name, t.destination_name
+                    FROM logistics_tasks t
+                    WHERE t.server_name = %s AND t.status = 'approved' AND t.assigned_ucid IS NULL
+                    AND (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
+                    ORDER BY t.created_at DESC LIMIT 25
+                """, (server_name, '%' + current + '%', '%' + current + '%', '%' + current + '%'))
+            else:
+                cursor = await conn.execute("""
+                    SELECT t.id, t.cargo_type, t.source_name, t.destination_name
+                    FROM logistics_tasks t
+                    WHERE t.status = 'approved' AND t.assigned_ucid IS NULL
+                    AND (CAST(t.id AS TEXT) LIKE %s OR t.cargo_type ILIKE %s OR t.destination_name ILIKE %s)
+                    ORDER BY t.created_at DESC LIMIT 25
+                """, ('%' + current + '%', '%' + current + '%', '%' + current + '%'))
+            return [
+                app_commands.Choice(
+                    name=f"#{row[0]} - {row[1][:20]} ({row[2]} -> {row[3]})",
+                    value=row[0]
+                )
+                async for row in cursor
+            ]
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
+        return []
+
+
+async def player_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    """Autocomplete for players."""
+    try:
+        async with interaction.client.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT name, ucid FROM players
+                WHERE name ILIKE %s
+                ORDER BY last_seen DESC NULLS LAST, name
+                LIMIT 25
+            """, ('%' + current + '%',))
+            return [
+                app_commands.Choice(name=row[0], value=row[1])
+                async for row in cursor
+            ]
+    except Exception as e:
+        log.warning(f"Autocomplete error: {e}")
+        return []
+
+
+
+
+class Logistics(Plugin[LogisticsEventListener]):
+    """
+    Logistics mission system plugin.
+
+    Provides comprehensive logistics task management with in-game integration:
+    - Create and manage logistics delivery tasks
+    - In-game chat commands for pilots to accept/complete tasks
+    - F10 map markers showing routes
+    - Warehouse inventory queries
+    - Integration with pilot logbook
+    """
+
+    # Command group "/logistics"
+    logistics = Group(name="logistics", description=_("Logistics mission management"))
+
+    # Warehouse commands are now under /logistics to avoid conflict with mission plugin's /warehouse
+
+    # Default permission roles (can be overridden in config)
+    DEFAULT_PERMISSIONS = {
+        'create': ['DCS Admin'],           # Create tasks (auto-approved)
+        'approve': ['DCS Admin'],          # Approve/deny pending tasks
+        'assign': ['DCS Admin'],           # Assign tasks to pilots
+        'cancel': ['DCS Admin'],           # Cancel any task
+    }
+
+    def _check_permission(self, interaction: discord.Interaction, server: Server, permission: str) -> bool:
+        """
+        Check if user has permission based on config or defaults.
+
+        Config format in logistics.yaml:
+            permissions:
+              create:
+                - DCS Admin
+                - Logistics Officer
+              approve:
+                - DCS Admin
+        """
+        config = self.get_config(server)
+        permissions = config.get('permissions', {})
+
+        # Get roles for this permission (from config or defaults)
+        allowed_roles = permissions.get(permission, self.DEFAULT_PERMISSIONS.get(permission, ['DCS Admin']))
+
+        # Map DCSServerBot role names to Discord role names using bot's role mapping
+        # e.g., 'DCS' -> ['JSW'], 'DCS Admin' -> ['HQ', 'Server Admin']
+        discord_roles = []
+        for role in allowed_roles:
+            if role in interaction.client.roles:
+                discord_roles.extend(interaction.client.roles[role])
+            else:
+                # If not a mapped role, use as-is (might be a direct Discord role name)
+                discord_roles.append(role)
+
+        # Check if user has any of the allowed Discord roles
+        return utils.check_roles(discord_roles, interaction.user)
+
+    # ==================== LOGISTICS COMMANDS ====================
+
+    @logistics.command(description=_('Create a new logistics task'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.rename(_server='server', source_idx='source', dest_idx='destination')
+    @app_commands.describe(source_idx='Pickup location (airbase/FARP/carrier)')
+    @app_commands.describe(dest_idx='Delivery location')
+    @app_commands.describe(remarks='Additional instructions or notes for the pilot')
+    @app_commands.autocomplete(source_idx=utils.airbase_autocomplete, dest_idx=utils.airbase_autocomplete)
+    async def create(self, interaction: discord.Interaction,
+                     _server: app_commands.Transform[Server, utils.ServerTransformer],
+                     source_idx: int,
+                     dest_idx: int,
+                     cargo: str,
+                     priority: Literal['low', 'normal', 'high', 'urgent'] = 'normal',
+                     coalition: Literal['red', 'blue'] = 'blue',
+                     deadline: Optional[str] = None,
+                     remarks: Optional[str] = None):
+        """
+        Create a logistics task directly (pre-approved).
+
+        Parameters
+        ----------
+        _server: The server to create the task on
+        source_idx: Pickup location (airbase/FARP/carrier)
+        dest_idx: Delivery location
+        cargo: Description of cargo to deliver
+        priority: Task priority (affects sorting)
+        coalition: Which coalition can see/accept the task
+        deadline: Optional deadline in HH:MM format (UTC)
+        remarks: Additional instructions or notes for the pilot
+        """
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        # Check configurable permission
+        if not self._check_permission(interaction, _server, 'create'):
+            await interaction.followup.send(
+                "You don't have permission to create logistics tasks. Contact an admin.",
+                ephemeral=True
+            )
+            return
+
+        # Get airbase names from indices
+        if not _server.current_mission or not _server.current_mission.airbases:
+            await interaction.followup.send("Server has no mission loaded or no airbases available.", ephemeral=True)
+            return
+
+        try:
+            source_airbase = _server.current_mission.airbases[source_idx]
+            dest_airbase = _server.current_mission.airbases[dest_idx]
+        except IndexError:
+            await interaction.followup.send("Invalid airbase selection.", ephemeral=True)
+            return
+
+        source = source_airbase['name']
+        destination = dest_airbase['name']
+        # Serialize positions to JSON for JSONB columns
+        source_position = json.dumps(source_airbase.get('position')) if source_airbase.get('position') else None
+        dest_position = json.dumps(dest_airbase.get('position')) if dest_airbase.get('position') else None
+
+        coalition_id = 1 if coalition == 'red' else 2
+
+        # Parse deadline if provided
+        deadline_dt = None
+        if deadline:
+            try:
+                now = datetime.now(timezone.utc)
+                deadline_dt = datetime.strptime(deadline, '%H:%M').replace(
+                    year=now.year, month=now.month, day=now.day, tzinfo=timezone.utc
+                )
+                # If time has passed today, assume tomorrow
+                if deadline_dt < now:
+                    from datetime import timedelta
+                    deadline_dt += timedelta(days=1)
+            except ValueError:
+                await interaction.followup.send("Invalid deadline format. Use HH:MM (UTC).", ephemeral=True)
+                return
+
+        async with self.apool.connection() as conn:
+            now = datetime.now(timezone.utc)
+            cursor = await conn.execute("""
+                INSERT INTO logistics_tasks
+                (server_name, created_by_ucid, status, priority, cargo_type,
+                 source_name, source_position, destination_name, destination_position,
+                 coalition, deadline, approved_by, approved_at, remarks, created_at, updated_at)
+                VALUES (%s, %s, 'approved', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                _server.name,
+                None,  # NULL for admin-created tasks (no player UCID)
+                priority,
+                cargo,
+                source,
+                source_position,
+                destination,
+                dest_position,
+                coalition_id,
+                deadline_dt,
+                str(interaction.user.id),
+                now,
+                remarks,
+                now,
+                now
+            ))
+            row = await cursor.fetchone()
+            task_id = row[0]
+
+            # Record history
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
+                VALUES (%s, 'created', %s, %s)
+            """, (task_id, interaction.user.id, '{"source": "discord_admin", "auto_approved": true}'))
+
+        # Publish to status channel if configured (outside transaction)
+        config = self.get_config(_server)
+        if config.get('publish_on_create', True):
+            task_data = {
+                'id': task_id,
+                'server_name': _server.name,
+                'cargo_type': cargo,
+                'source_name': source,
+                'destination_name': destination,
+                'priority': priority,
+                'coalition': coalition_id,
+                'deadline': deadline_dt,
+                'status': 'approved',
+                'remarks': remarks,
+                'created_at': now,
+                'discord_message_id': None
+            }
+            await self.eventlistener.publish_logistics_task(task_data, 'approved')
+
+        # Notify in-game players of new task (with debouncing)
+        if _server.status == Status.RUNNING:
+            await self.eventlistener.broadcast_menu_update(_server, coalition_id)
+
+        # Markers are created when a player accepts the task or uses -plot command
+
+        embed = discord.Embed(
+            title="Logistics Task Created",
+            description=f"Task #{task_id} is now available for pilots.",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Cargo", value=cargo, inline=True)
+        embed.add_field(name="From", value=source, inline=True)
+        embed.add_field(name="To", value=destination, inline=True)
+        embed.add_field(name="Priority", value=priority.upper(), inline=True)
+        embed.add_field(name="Coalition", value=coalition.upper(), inline=True)
+        if deadline_dt:
+            embed.add_field(name="Deadline", value=deadline_dt.strftime('%H:%M UTC'), inline=True)
+
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+    @logistics.command(description=_('List logistics tasks'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.rename(_server='server')
+    @app_commands.describe(_server='Server to list tasks for')
+    @app_commands.describe(status='Filter by task status')
+    async def list(self, interaction: discord.Interaction,
+                   _server: app_commands.Transform[Server, utils.ServerTransformer],
+                   status: Literal['all', 'pending', 'approved', 'assigned', 'completed'] = 'approved'):
+        """
+        List logistics tasks with optional filtering.
+
+        Parameters
+        ----------
+        _server: Server to list tasks for
+        status: Filter by status
+        """
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        async with self.apool.connection() as conn:
+            # Server is required for multi-server support
+            if status == 'all':
+                status_filter = "WHERE t.server_name = %s"
+                params = [_server.name]
+            else:
+                status_filter = "WHERE t.status = %s AND t.server_name = %s"
+                params = [status, _server.name]
+
+            cursor = await conn.execute(f"""
+                SELECT t.id, t.cargo_type, t.source_name, t.destination_name,
+                       t.status, t.priority, t.deadline, t.server_name,
+                       p.name as assigned_name
+                FROM logistics_tasks t
+                LEFT JOIN players p ON t.assigned_ucid = p.ucid
+                {status_filter}
+                ORDER BY t.created_at DESC
+                LIMIT 20
+            """, params)
+            tasks = await cursor.fetchall()
+
+        if not tasks:
+            await interaction.followup.send("No logistics tasks found.", ephemeral=ephemeral)
+            return
+
+        embed = discord.Embed(
+            title="Logistics Tasks",
+            color=discord.Color.blue()
+        )
+
+        for task in tasks:
+            priority_emoji = {
+                'urgent': '!',
+                'high': '^',
+                'normal': '-',
+                'low': 'v'
+            }.get(task[5], '-')
+
+            deadline_str = task[6].strftime('%H:%MZ') if task[6] else "None"
+            assigned = task[8] or "Unassigned"
+
+            embed.add_field(
+                name=f"{priority_emoji} #{task[0]} - {task[4].upper()}",
+                value=f"**Cargo:** {task[1][:40]}\n"
+                      f"**Route:** {task[2]} → {task[3]}\n"
+                      f"**Assigned:** {assigned}\n"
+                      f"**Deadline:** {deadline_str}",
+                inline=True
+            )
+
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+    @logistics.command(description=_('View details of a logistics task'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.autocomplete(task_id=logistics_task_autocomplete)
+    async def view(self, interaction: discord.Interaction, task_id: int):
+        """View detailed task information including history."""
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT t.*, p1.name as created_by_name, p2.name as assigned_name
+                    FROM logistics_tasks t
+                    LEFT JOIN players p1 ON t.created_by_ucid = p1.ucid
+                    LEFT JOIN players p2 ON t.assigned_ucid = p2.ucid
+                    WHERE t.id = %s
+                """, (task_id,))
+                task = await cursor.fetchone()
+
+                if not task:
+                    await interaction.followup.send(f"Task #{task_id} not found.", ephemeral=True)
+                    return
+
+                # Get history
+                await cursor.execute("""
+                    SELECT event, created_at, details
+                    FROM logistics_tasks_history
+                    WHERE task_id = %s
+                    ORDER BY created_at DESC
+                    LIMIT 10
+                """, (task_id,))
+                history = await cursor.fetchall()
+
+        status_colors = {
+            'pending': discord.Color.yellow(),
+            'approved': discord.Color.blue(),
+            'assigned': discord.Color.purple(),
+            'in_progress': discord.Color.orange(),
+            'completed': discord.Color.green(),
+            'failed': discord.Color.red(),
+            'cancelled': discord.Color.greyple()
+        }
+
+        embed = discord.Embed(
+            title=f"Logistics Task #{task_id}",
+            color=status_colors.get(task['status'], discord.Color.blue())
+        )
+        embed.add_field(name="Status", value=task['status'].upper(), inline=True)
+        embed.add_field(name="Priority", value=task['priority'].upper(), inline=True)
+        embed.add_field(name="Coalition", value="RED" if task['coalition'] == 1 else "BLUE", inline=True)
+        embed.add_field(name="Cargo", value=task['cargo_type'], inline=False)
+        embed.add_field(name="Source", value=task['source_name'], inline=True)
+        embed.add_field(name="Destination", value=task['destination_name'], inline=True)
+
+        if task['deadline']:
+            embed.add_field(name="Deadline", value=task['deadline'].strftime('%Y-%m-%d %H:%M UTC'), inline=True)
+
+        embed.add_field(name="Created By", value=task['created_by_name'] or 'Admin', inline=True)
+        embed.add_field(name="Assigned To", value=task['assigned_name'] or 'Unassigned', inline=True)
+        embed.add_field(name="Server", value=task['server_name'], inline=True)
+
+        if task.get('remarks'):
+            embed.add_field(name="Remarks", value=task['remarks'], inline=False)
+
+        if task['notes']:
+            embed.add_field(name="Notes", value=task['notes'], inline=False)
+
+        # Add history
+        if history:
+            history_text = "\n".join([
+                f"• {h['event']} at {h['created_at'].strftime('%H:%M UTC')}"
+                for h in history[:5]
+            ])
+            embed.add_field(name="Recent History", value=history_text, inline=False)
+
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+    @logistics.command(description=_('Approve a pending logistics request'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.autocomplete(task_id=pending_task_autocomplete)
+    async def approve(self, interaction: discord.Interaction,
+                      task_id: int,
+                      source: Optional[str] = None,
+                      notes: Optional[str] = None):
+        """
+        Approve a pending task - makes it available for in-game acceptance.
+
+        Parameters
+        ----------
+        task_id: The task to approve
+        source: Pickup location (if not already set)
+        notes: Optional approval notes
+        """
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        async with self.apool.connection() as conn:
+            # Get task
+            cursor = await conn.execute("""
+                SELECT id, status, source_name, server_name, destination_name,
+                       cargo_type, coalition, deadline
+                FROM logistics_tasks WHERE id = %s
+            """, (task_id,))
+            task = await cursor.fetchone()
+
+            if not task:
+                await interaction.followup.send(f"Task #{task_id} not found.", ephemeral=True)
+                return
+
+            # Check configurable permission
+            server = self.bot.servers.get(task[3])  # task[3] is server_name
+            if server and not self._check_permission(interaction, server, 'approve'):
+                await interaction.followup.send(
+                    "You don't have permission to approve logistics tasks. Contact an admin.",
+                    ephemeral=True
+                )
+                return
+
+            if task[1] != 'pending':
+                await interaction.followup.send(f"Task #{task_id} is not pending (status: {task[1]}).", ephemeral=True)
+                return
+
+            # Update source if provided
+            final_source = source if source else task[2]
+            if final_source == 'TBD':
+                await interaction.followup.send("Please specify a source location for this task.", ephemeral=True)
+                return
+
+            now = datetime.now(timezone.utc)
+
+            # Get source position
+            server = self.bot.servers.get(task[3])
+            source_pos = None
+            if server and server.current_mission:
+                for ab in server.current_mission.airbases:
+                    if ab['name'] == final_source:
+                        source_pos = ab.get('position')
+                        break
+
+            await conn.execute("""
+                UPDATE logistics_tasks
+                SET status = 'approved', source_name = %s, source_position = %s,
+                    approved_by = %s, approved_at = %s, notes = %s, updated_at = %s
+                WHERE id = %s
+            """, (final_source, source_pos, str(interaction.user.id), now, notes, now, task_id))
+
+            # Record history
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
+                VALUES (%s, 'approved', %s, %s)
+            """, (task_id, interaction.user.id, f'{{"notes": "{notes or ""}"}}'))
+
+        # Create markers if server is running
+        if server and server.status == Status.RUNNING and source_pos:
+            dest_pos = None
+            for ab in server.current_mission.airbases:
+                if ab['name'] == task[4]:
+                    dest_pos = ab.get('position')
+                    break
+
+            if dest_pos:
+                await self.eventlistener._create_markers_for_task(server, {
+                    'id': task_id,
+                    'cargo_type': task[5],
+                    'source_name': final_source,
+                    'source_position': source_pos,
+                    'destination_name': task[4],
+                    'destination_position': dest_pos,
+                    'coalition': task[6],
+                    'deadline': task[7],
+                    'assigned_name': None
+                })
+
+        # Notify in-game players of newly approved task
+        if server and server.status == Status.RUNNING:
+            await self.eventlistener.broadcast_menu_update(server, task[6])  # task[6] is coalition
+
+        embed = discord.Embed(
+            title="Task Approved",
+            description=f"Task #{task_id} is now available for pilots to accept.",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Source", value=final_source, inline=True)
+        embed.add_field(name="Destination", value=task[4], inline=True)
+
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+    @logistics.command(description=_('Deny a pending logistics request'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.autocomplete(task_id=pending_task_autocomplete)
+    async def deny(self, interaction: discord.Interaction,
+                   task_id: int,
+                   reason: str):
+        """
+        Deny a pending request.
+
+        Parameters
+        ----------
+        task_id: The task to deny
+        reason: Reason for denial
+        """
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        async with self.apool.connection() as conn:
+            # First fetch task to check permission
+            cursor = await conn.execute(
+                "SELECT server_name FROM logistics_tasks WHERE id = %s AND status = 'pending'",
+                (task_id,)
+            )
+            task = await cursor.fetchone()
+            if not task:
+                await interaction.followup.send(f"Task #{task_id} not found or not pending.", ephemeral=True)
+                return
+
+            # Check configurable permission
+            server = self.bot.servers.get(task[0])
+            if server and not self._check_permission(interaction, server, 'approve'):
+                await interaction.followup.send(
+                    "You don't have permission to deny logistics tasks. Contact an admin.",
+                    ephemeral=True
+                )
+                return
+
+            now = datetime.now(timezone.utc)
+
+            result = await conn.execute("""
+                UPDATE logistics_tasks
+                SET status = 'cancelled', notes = %s, updated_at = %s
+                WHERE id = %s AND status = 'pending'
+            """, (f"Denied: {reason}", now, task_id))
+
+            if result.rowcount == 0:
+                await interaction.followup.send(f"Task #{task_id} not found or not pending.", ephemeral=True)
+                return
+
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
+                VALUES (%s, 'denied', %s, %s)
+            """, (task_id, interaction.user.id, f'{{"reason": "{reason}"}}'))
+
+        await interaction.followup.send(f"Task #{task_id} has been denied.", ephemeral=ephemeral)
+
+    @logistics.command(description=_('Cancel an active logistics task'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.autocomplete(task_id=logistics_task_autocomplete)
+    async def cancel(self, interaction: discord.Interaction,
+                     task_id: int,
+                     reason: Optional[str] = None):
+        """
+        Cancel a task (any status except completed).
+
+        Parameters
+        ----------
+        task_id: The task to cancel
+        reason: Optional reason for cancellation
+        """
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        async with self.apool.connection() as conn:
+            # Get task for server info, permission check, and publishing
+            cursor = await conn.execute("""
+                SELECT server_name, cargo_type, source_name, destination_name, priority,
+                       coalition, deadline, created_at, discord_message_id
+                FROM logistics_tasks WHERE id = %s AND status != 'completed'
+            """, (task_id,))
+            task = await cursor.fetchone()
+
+            if not task:
+                await interaction.followup.send(f"Task #{task_id} not found or already completed.", ephemeral=True)
+                return
+
+            # Check configurable permission
+            server = self.bot.servers.get(task[0])
+            if server and not self._check_permission(interaction, server, 'cancel'):
+                await interaction.followup.send(
+                    "You don't have permission to cancel logistics tasks. Contact an admin.",
+                    ephemeral=True
+                )
+                return
+
+            now = datetime.now(timezone.utc)
+
+            await conn.execute("""
+                UPDATE logistics_tasks
+                SET status = 'cancelled', notes = %s, updated_at = %s
+                WHERE id = %s
+            """, (f"Cancelled: {reason or 'No reason given'}", now, task_id))
+
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
+                VALUES (%s, 'cancelled', %s, %s)
+            """, (task_id, interaction.user.id, f'{{"reason": "{reason or ""}"}}'))
+
+        # Remove markers
+        server = self.bot.servers.get(task[0])
+        if server:
+            await self.eventlistener._remove_task_markers(server, task_id)
+
+            # Publish cancellation to status channel
+            config = self.get_config(server)
+            if config.get('publish_on_cancel', True):
+                await self.eventlistener.publish_logistics_task({
+                    'id': task_id,
+                    'cargo_type': task[1],
+                    'source_name': task[2],
+                    'destination_name': task[3],
+                    'priority': task[4],
+                    'coalition': task[5],
+                    'deadline': task[6],
+                    'created_at': task[7],
+                    'notes': f"Cancelled: {reason or 'No reason given'}",
+                    'server_name': task[0],
+                    'discord_message_id': task[8]
+                }, 'cancelled')
+
+        await interaction.followup.send(f"Task #{task_id} has been cancelled.", ephemeral=ephemeral)
+
+    @logistics.command(description=_('Assign a logistics task to a pilot'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.autocomplete(task_id=approved_task_autocomplete, player_ucid=player_autocomplete)
+    async def assign(self, interaction: discord.Interaction,
+                     task_id: int,
+                     player_ucid: str):
+        """
+        Assign an approved task to a specific pilot.
+
+        Parameters
+        ----------
+        task_id: The task to assign
+        player_ucid: The pilot to assign the task to
+        """
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        async with self.apool.connection() as conn:
+            # Verify task is approved and unassigned
+            cursor = await conn.execute("""
+                SELECT t.server_name, t.cargo_type, t.source_name, t.destination_name,
+                       t.priority, t.coalition, t.deadline, t.created_at, t.discord_message_id,
+                       t.source_position, t.destination_position, t.status, t.assigned_ucid
+                FROM logistics_tasks t
+                WHERE t.id = %s
+            """, (task_id,))
+            task = await cursor.fetchone()
+
+            if not task:
+                await interaction.followup.send(f"Task #{task_id} not found.", ephemeral=True)
+                return
+
+            # Check configurable permission
+            server = self.bot.servers.get(task[0])
+            if server and not self._check_permission(interaction, server, 'assign'):
+                await interaction.followup.send(
+                    "You don't have permission to assign logistics tasks. Contact an admin.",
+                    ephemeral=True
+                )
+                return
+
+            if task[11] != 'approved':
+                await interaction.followup.send(
+                    f"Task #{task_id} is not approved (status: {task[11]}). Only approved tasks can be assigned.",
+                    ephemeral=True
+                )
+                return
+
+            if task[12]:
+                await interaction.followup.send(
+                    f"Task #{task_id} is already assigned to another pilot.",
+                    ephemeral=True
+                )
+                return
+
+            # Get player name for feedback
+            cursor = await conn.execute("SELECT name FROM players WHERE ucid = %s", (player_ucid,))
+            player_row = await cursor.fetchone()
+            if not player_row:
+                await interaction.followup.send(f"Player not found.", ephemeral=True)
+                return
+            player_name = player_row[0]
+
+            # Assign the task
+            now = datetime.now(timezone.utc)
+            await conn.execute("""
+                UPDATE logistics_tasks
+                SET status = 'assigned', assigned_ucid = %s, assigned_at = %s, updated_at = %s
+                WHERE id = %s
+            """, (player_ucid, now, now, task_id))
+
+            await conn.execute("""
+                INSERT INTO logistics_tasks_history (task_id, event, actor_discord_id, details)
+                VALUES (%s, 'assigned', %s, %s)
+            """, (task_id, interaction.user.id, f'{{"assigned_to": "{player_ucid}", "assigned_by": "discord"}}'))
+
+        # Create F10 markers and notify player if online
+        # Wrapped in try/except to handle failures gracefully after DB commit
+        marker_error = None
+        server = self.bot.servers.get(task[0])
+        if server:
+            player = server.get_player(ucid=player_ucid, active=True)
+            if player and player.side:
+                try:
+                    # Create markers for the assigned task
+                    # Note: psycopg3 auto-deserializes JSON columns to dicts
+                    source_pos = task[9] if isinstance(task[9], dict) else json.loads(task[9]) if task[9] else None
+                    dest_pos = task[10] if isinstance(task[10], dict) else json.loads(task[10]) if task[10] else None
+
+                    if source_pos and dest_pos:
+                        await server.send_to_dcs({
+                            'command': 'createLogisticsMarkers',
+                            'task_id': task_id,
+                            'player_ucid': player_ucid,
+                            'coalition': player.side.value,
+                            'cargo_type': task[1],
+                            'source_name': task[2],
+                            'source_x': source_pos.get('x'),
+                            'source_z': source_pos.get('z'),
+                            'destination_name': task[3],
+                            'destination_x': dest_pos.get('x'),
+                            'destination_z': dest_pos.get('z'),
+                            'deadline': task[6].isoformat() if task[6] else None,
+                            'priority': task[4]
+                        })
+
+                    # Notify player in-game
+                    await player.sendPopupMessage(
+                        f"LOGISTICS TASK ASSIGNED\n\n"
+                        f"Task #{task_id}: {task[1]}\n"
+                        f"From: {task[2]}\n"
+                        f"To: {task[3]}\n"
+                        f"Deadline: {task[6].strftime('%H:%MZ') if task[6] else 'None'}\n\n"
+                        f"Check your F10 map for route markers.",
+                        20
+                    )
+
+                    # Refresh the player's F10 menu to show their assigned task
+                    await self.eventlistener._create_logistics_menu(server, player)
+                except Exception as e:
+                    self.log.warning(f"Failed to create markers/notify player for task {task_id}: {e}")
+                    marker_error = str(e)
+
+            # Publish to status channel
+            try:
+                config = self.get_config(server)
+                if config.get('publish_on_assign', True):
+                    await self.eventlistener.publish_logistics_task({
+                        'id': task_id,
+                        'cargo_type': task[1],
+                        'source_name': task[2],
+                        'destination_name': task[3],
+                        'priority': task[4],
+                        'coalition': task[5],
+                        'deadline': task[6],
+                        'created_at': task[7],
+                        'assigned_ucid': player_ucid,
+                        'assigned_name': player_name,
+                        'assigned_at': now,
+                        'server_name': task[0],
+                        'discord_message_id': task[8]
+                    }, 'assigned')
+            except Exception as e:
+                self.log.warning(f"Failed to publish task {task_id} to Discord: {e}")
+
+        # Provide feedback with any warnings
+        if marker_error:
+            await interaction.followup.send(
+                f"Task #{task_id} has been assigned to **{player_name}**.\n"
+                f"Note: F10 markers could not be created (player may need to respawn to see them).",
+                ephemeral=ephemeral
+            )
+        else:
+            await interaction.followup.send(
+                f"Task #{task_id} has been assigned to **{player_name}**.",
+                ephemeral=ephemeral
+            )
+
+    # ==================== WAREHOUSE COMMANDS ====================
+
+    @logistics.command(name='warehouse-status', description=_('Query warehouse inventory at a location'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.rename(_server='server', airbase_idx='airbase')
+    @app_commands.describe(airbase_idx='Airbase or carrier to query')
+    @app_commands.autocomplete(airbase_idx=utils.airbase_autocomplete)
+    async def warehouse_status(self, interaction: discord.Interaction,
+                     _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                     airbase_idx: int,
+                     category: Literal['all', 'aircraft', 'weapon', 'liquids'] = 'all'):
+        """
+        Query warehouse inventory at an airbase or carrier.
+
+        Parameters
+        ----------
+        _server: The server to query
+        airbase_idx: Airbase or carrier to query
+        category: Filter by category
+        """
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        # Get airbase name from index
+        if not _server.current_mission or not _server.current_mission.airbases:
+            await interaction.followup.send("Server has no mission loaded or no airbases available.", ephemeral=True)
+            return
+
+        try:
+            airbase_data = _server.current_mission.airbases[airbase_idx]
+            airbase = airbase_data['name']
+        except IndexError:
+            await interaction.followup.send("Invalid airbase selection.", ephemeral=True)
+            return
+
+        try:
+            data = await _server.send_to_dcs_sync({
+                "command": "getAirbase",
+                "name": airbase
+            }, timeout=60)
+        except Exception as e:
+            self.log.exception(f"Failed to query warehouse for {airbase}: {e}")
+            await interaction.followup.send(
+                f"Failed to query {airbase} warehouse. Please try again or contact an admin.",
+                ephemeral=True
+            )
+            return
+
+        if not data or 'warehouse' not in data:
+            await interaction.followup.send(f"No warehouse data for {airbase}.", ephemeral=True)
+            return
+
+        warehouse = data['warehouse']
+        unlimited = data.get('unlimited', {})
+
+        embed = discord.Embed(
+            title=f"Warehouse: {airbase}",
+            description=f"Server: {_server.name}",
+            color=discord.Color.blue()
+        )
+
+        # Liquids
+        if category in ('all', 'liquids') and 'liquids' in warehouse:
+            liquid_names = {0: 'Jet Fuel', 1: 'Avgas', 2: 'MW-50', 3: 'Diesel'}
+            liquids_text = ""
+            for lid, amount in warehouse['liquids'].items():
+                name = liquid_names.get(int(lid), f"Liquid {lid}")
+                amount_kg = amount / 1000  # Convert to tons
+                liquids_text += f"• {name}: {amount_kg:.1f}t\n"
+
+            if unlimited.get('liquids'):
+                liquids_text += "\n*Unlimited*"
+
+            if liquids_text:
+                embed.add_field(name="Liquids", value=liquids_text[:1024], inline=False)
+
+        # Weapons
+        if category in ('all', 'weapon') and 'weapon' in warehouse:
+            weapons_text = ""
+            items = list(warehouse['weapon'].items())[:15]  # Limit to 15
+            for wtype, qty in items:
+                # Simplify weapon name
+                short_name = wtype.split('.')[-1].replace('_', ' ')
+                weapons_text += f"• {short_name}: {qty}\n"
+
+            if len(warehouse['weapon']) > 15:
+                weapons_text += f"\n... and {len(warehouse['weapon']) - 15} more"
+
+            if unlimited.get('weapon'):
+                weapons_text += "\n*Unlimited*"
+
+            if weapons_text:
+                embed.add_field(name="Weapons", value=weapons_text[:1024], inline=False)
+
+        # Aircraft
+        if category in ('all', 'aircraft') and 'aircraft' in warehouse:
+            aircraft_text = ""
+            for atype, qty in warehouse['aircraft'].items():
+                aircraft_text += f"• {atype}: {qty}\n"
+
+            if unlimited.get('aircraft'):
+                aircraft_text += "\n*Unlimited*"
+
+            if aircraft_text:
+                embed.add_field(name="Aircraft", value=aircraft_text[:1024], inline=False)
+
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+    @logistics.command(name='warehouse-compare', description=_('Compare inventory between two locations'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.rename(_server='server', source_idx='source', dest_idx='destination')
+    @app_commands.describe(source_idx='First location to compare')
+    @app_commands.describe(dest_idx='Second location to compare')
+    @app_commands.autocomplete(source_idx=utils.airbase_autocomplete, dest_idx=utils.airbase_autocomplete)
+    async def warehouse_compare(self, interaction: discord.Interaction,
+                      _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                      source_idx: int,
+                      dest_idx: int):
+        """
+        Compare warehouse inventories between two locations.
+
+        Parameters
+        ----------
+        _server: The server to query
+        source_idx: First location to compare
+        dest_idx: Second location to compare
+        """
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        # Get airbase names from indices
+        if not _server.current_mission or not _server.current_mission.airbases:
+            await interaction.followup.send("Server has no mission loaded or no airbases available.", ephemeral=True)
+            return
+
+        try:
+            source = _server.current_mission.airbases[source_idx]['name']
+            destination = _server.current_mission.airbases[dest_idx]['name']
+        except IndexError:
+            await interaction.followup.send("Invalid airbase selection.", ephemeral=True)
+            return
+
+        try:
+            source_data = await _server.send_to_dcs_sync({
+                "command": "getAirbase",
+                "name": source
+            }, timeout=60)
+            dest_data = await _server.send_to_dcs_sync({
+                "command": "getAirbase",
+                "name": destination
+            }, timeout=60)
+        except Exception as e:
+            await interaction.followup.send(f"Failed to query warehouses: {e}", ephemeral=True)
+            return
+
+        embed = discord.Embed(
+            title="Warehouse Comparison",
+            description=f"{source} vs {destination}",
+            color=discord.Color.blue()
+        )
+
+        # Compare liquids
+        liquid_names = {0: 'Jet Fuel', 1: 'Avgas', 2: 'MW-50', 3: 'Diesel'}
+        source_liquids = source_data.get('warehouse', {}).get('liquids', {})
+        dest_liquids = dest_data.get('warehouse', {}).get('liquids', {})
+
+        liquids_text = ""
+        for lid in set(list(source_liquids.keys()) + list(dest_liquids.keys())):
+            name = liquid_names.get(int(lid), f"Liquid {lid}")
+            src_amt = source_liquids.get(lid, 0) / 1000
+            dst_amt = dest_liquids.get(lid, 0) / 1000
+            liquids_text += f"• {name}: {src_amt:.1f}t / {dst_amt:.1f}t\n"
+
+        if liquids_text:
+            embed.add_field(name="Liquids (Source / Dest)", value=liquids_text, inline=False)
+
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+
+async def setup(bot: DCSServerBot):
+    from core import PluginRequiredError
+    if 'missionstats' not in bot.plugins:
+        raise PluginRequiredError('missionstats')
+    if 'logbook' not in bot.plugins:
+        log.warning("Logistics: logbook plugin not found - pilot completion tracking disabled")
+    await bot.add_cog(Logistics(bot, LogisticsEventListener))

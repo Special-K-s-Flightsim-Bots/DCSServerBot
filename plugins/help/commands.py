@@ -18,10 +18,15 @@ _ = get_translation(__name__.split('.')[1])
 async def get_commands(interaction: discord.Interaction) -> dict[str, app_commands.Command]:
     cmds: dict[str, app_commands.Command] = dict()
     for cmd in interaction.client.tree.get_commands(guild=interaction.guild):
-        if isinstance(cmd, app_commands.Group):
-            for inner in cmd.commands:
-                if await inner._check_can_run(interaction):
+        async def _process_group(group: app_commands.Group):
+            for inner in group.commands:
+                if isinstance(inner, app_commands.Group):
+                    await _process_group(inner)
+                elif await inner._check_can_run(interaction):
                     cmds[inner.qualified_name] = inner
+
+        if isinstance(cmd, app_commands.Group):
+            await _process_group(cmd)
         elif await cmd._check_can_run(interaction):
             cmds[cmd.name] = cmd
     ctx = await interaction.client.get_context(interaction)
@@ -258,8 +263,10 @@ class Help(Plugin[HelpListener]):
 
     async def discord_commands_to_df(self, interaction: discord.Interaction, *,
                                      use_mention: bool | None = False) -> pd.DataFrame:
-        df = pd.DataFrame(columns=['Plugin', 'Command', 'Parameter', 'Roles', 'Description'])
+        df = pd.DataFrame(columns=['Plugin', 'Command', 'Parameter', 'Roles', 'Description', 'Restricted'])
         for cmd in sorted((await get_commands(interaction)).values(), key=lambda x: x.qualified_name):
+            restricted = False
+            roles = []
             for check in cmd.checks:
                 try:
                     if 'has_role.' in check.__qualname__:
@@ -268,24 +275,17 @@ class Help(Plugin[HelpListener]):
                     elif 'has_roles.' in check.__qualname__:
                         # noinspection PyUnresolvedReferences
                         roles = check.roles
-                    else:
-                        continue
-                    plugin = cmd.binding.__cog_name__ if cmd.binding else ''
-                    # noinspection PyUnresolvedReferences
-                    data_df = pd.DataFrame(
-                        [(plugin, f"/{cmd.qualified_name}" if not use_mention else cmd.mention,
-                          get_usage(cmd), ','.join(roles), cmd.description.strip('\n'))],
-                        columns=df.columns)
-                    df = pd.concat([df, data_df], ignore_index=True)
-                    break
+                    elif 'restricted_check' in check.__qualname__:
+                        restricted = True
                 except AttributeError as ex:
                     self.log.error("Name: {} has no attribute '{}'".format(cmd.name, ex.name))
-            else:
-                plugin = cmd.binding.__cog_name__  if cmd.binding else ''
-                data_df = pd.DataFrame(
-                    [(plugin, '/' + cmd.qualified_name, get_usage(cmd), '', cmd.description.strip('\n'))],
-                    columns=df.columns)
-                df = pd.concat([df, data_df], ignore_index=True)
+            plugin = cmd.binding.__cog_name__  if cmd.binding else ''
+            # noinspection PyUnresolvedReferences
+            data_df = pd.DataFrame(
+                [(plugin, f"/{cmd.qualified_name}" if not use_mention else cmd.mention,
+                  get_usage(cmd), ','.join(roles), cmd.description.strip('\n'), restricted)],
+                columns=df.columns)
+            df = pd.concat([df, data_df], ignore_index=True)
         return df
 
     async def ingame_commands_to_df(self) -> pd.DataFrame:
@@ -460,7 +460,7 @@ _ _
         await interaction.followup.send(file=discord.File(fp=output, filename='ServerInfo.xlsx'), ephemeral=True)
         output.close()
 
-    async def generate_firewall_rules(self, interaction: discord.Interaction, node: Node) -> str:
+    async def generate_firewall_rules(self, node: Node) -> str:
         ports: list[Port] = []
         for server in self.bot.servers.values():
             ports.append(server.instance.dcs_port)
@@ -515,7 +515,7 @@ _ _
                                        if x is not None
                                    ])
             if idx:
-                rules = await self.generate_firewall_rules(interaction, all_nodes[int(idx)])
+                rules = await self.generate_firewall_rules(all_nodes[int(idx)])
                 file = discord.File(fp=BytesIO(rules.encode('utf-8')), filename='firewall_rules.ps1')
                 # noinspection PyUnresolvedReferences
                 if not interaction.response.is_done():

@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS traps (
     points DECIMAL,
     trapsheet BYTEA,
     time TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
-    FOREIGN KEY (mission_id) REFERENCES missions (id) ON DELETE CASCADE,
     FOREIGN KEY (player_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_traps_ucid ON traps(player_ucid);

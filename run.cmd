@@ -55,6 +55,14 @@ if %ERRORLEVEL% EQU -1 (
     )
     SET PROGRAM=run.py
     goto loop
+) else if %ERRORLEVEL% LSS -1000000000 (
+    echo A Windows error occured: %ERRORLEVEL%
+    IF NOT %restarted% == true (
+        SET restarted=true
+        SET ARGS=%* --restarted
+    )
+    SET PROGRAM=run.py
+    goto loop
 ) else if %ERRORLEVEL% EQU -3 (
     SET PROGRAM=update.py
     goto loop

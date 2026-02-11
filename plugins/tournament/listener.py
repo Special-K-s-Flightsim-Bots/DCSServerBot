@@ -328,11 +328,10 @@ class TournamentEventListener(EventListener["Tournament"]):
                 match = await self.plugin.get_match(match_id)
                 squadron_id = match[f'squadron_{initiator.coalition.value}']
                 async with self.apool.connection() as conn:
-                    async with conn.transaction():
-                        await conn.execute("""
-                            INSERT INTO tm_persistent_choices (match_id, squadron_id, preset, config)
-                            VALUES (%s, %s, %s, %s)
-                        """, (match_id, squadron_id, 'disable_group', Json({"group": initiator.group_name})))
+                    await conn.execute("""
+                        INSERT INTO tm_persistent_choices (match_id, squadron_id, preset, config)
+                        VALUES (%s, %s, %s, %s)
+                    """, (match_id, squadron_id, 'disable_group', Json({"group": initiator.group_name})))
                 asyncio.create_task(server.sendPopupMessage(
                     initiator.coalition, _("Unit {} is lost and will be permanently removed from the match.").format(
                         initiator.unit_name)))
@@ -397,9 +396,8 @@ class TournamentEventListener(EventListener["Tournament"]):
         if winner_id:
             # update the database
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("UPDATE tm_matches SET winner_squadron_id = %s WHERE match_id = %s",
-                                       (winner_id, match_id))
+                await conn.execute("UPDATE tm_matches SET winner_squadron_id = %s WHERE match_id = %s",
+                                   (winner_id, match_id))
             # inform people
             squadron = utils.get_squadron(self.node, squadron_id=winner_id)
             asyncio.create_task(self.plugin.render_info_embed(tournament['tournament_id'],
@@ -462,14 +460,13 @@ class TournamentEventListener(EventListener["Tournament"]):
             loser = 'blue' if winner == 'red' else 'red'
             coalition = Coalition.RED if winner == 'red' else Coalition.BLUE
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    cursor = await conn.execute(f"""
-                        UPDATE tm_matches 
-                        SET squadron_{winner}_rounds_won = squadron_{winner}_rounds_won + 1
-                        WHERE match_id = %s
-                        RETURNING tournament_id, squadron_{winner}, squadron_{loser}, round_number
-                    """, (match_id,))
-                    tournament_id, winner_id, loser_id, round_number = await cursor.fetchone()
+                cursor = await conn.execute(f"""
+                    UPDATE tm_matches 
+                    SET squadron_{winner}_rounds_won = squadron_{winner}_rounds_won + 1
+                    WHERE match_id = %s
+                    RETURNING tournament_id, squadron_{winner}, squadron_{loser}, round_number
+                """, (match_id,))
+                tournament_id, winner_id, loser_id, round_number = await cursor.fetchone()
             winner_squadron = await self.plugin.get_squadron(tournament_id, winner_id)
             loser_squadron = await self.plugin.get_squadron(tournament_id, loser_id)
             message = _("Squadron {name} won round {round}!").format(name=winner_squadron.name, round=round_number)
@@ -509,14 +506,13 @@ class TournamentEventListener(EventListener["Tournament"]):
         while time < time_to_choose and (not finished["red"] or not finished["blue"]):
             async with self.apool.connection() as conn:
                 for side in ['blue', 'red']:
-                    async with conn.transaction():
-                        cursor = await conn.execute(f"""
-                            SELECT choices_{side}_ack FROM tm_matches WHERE match_id = %s
-                        """, (match_id,))
-                        row = await cursor.fetchone()
-                        if not row:
-                            raise ValueError("Match aborted!")
-                        finished[side] = row[0]
+                    cursor = await conn.execute(f"""
+                        SELECT choices_{side}_ack FROM tm_matches WHERE match_id = %s
+                    """, (match_id,))
+                    row = await cursor.fetchone()
+                    if not row:
+                        raise ValueError("Match aborted!")
+                    finished[side] = row[0]
             if time_to_choose - time in [300, 180, 60]:
                 await self.inform_squadrons(
                     server,
@@ -527,7 +523,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             time += 1
 
     async def next_round(self, server: Server, match: dict):
-        await asyncio.create_task(server.sendPopupMessage(
+        asyncio.create_task(server.sendPopupMessage(
             Coalition.ALL, _("You will be moved back to spectators in 60 seconds ...")))
         await asyncio.sleep(60)
         # move all players back to spectators
@@ -545,7 +541,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             squadron = await self.plugin.get_squadron(tournament_id, match[f'squadron_{side}'])
             coalition = Coalition.RED if side == 'red' else Coalition.BLUE
             if squadron.points >= min_costs:
-                await asyncio.create_task(server.sendPopupMessage(
+                asyncio.create_task(server.sendPopupMessage(
                     coalition, _("Squadron admins, you can now choose your weapons for the next round!")))
                 channel = self.bot.get_channel(match[f'squadron_{side}_channel'])
                 if channel:
@@ -560,14 +556,13 @@ class TournamentEventListener(EventListener["Tournament"]):
 
         # Start the next round
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                cursor = await conn.execute("""
-                    UPDATE tm_matches SET round_number = round_number + 1
-                    WHERE match_id = %s
-                    RETURNING round_number
-                """, (match_id, ))
-                row = await cursor.fetchone()
-                round_number = row[0]
+            cursor = await conn.execute("""
+                UPDATE tm_matches SET round_number = round_number + 1
+                WHERE match_id = %s
+                RETURNING round_number
+            """, (match_id, ))
+            row = await cursor.fetchone()
+            round_number = row[0]
         new_mission = await self.plugin.prepare_mission(server, match_id, round_number)
         await server.sendPopupMessage(Coalition.ALL, _("The next round will start in 10s!"))
         await asyncio.sleep(10)
@@ -608,21 +603,20 @@ class TournamentEventListener(EventListener["Tournament"]):
 
             # else, if auto_join is enabled, make them a member of the squadron
             elif config.get('auto_join', False):
-                async with conn.transaction():
-                    await conn.execute("""
-                        INSERT INTO squadron_members (squadron_id, player_ucid) VALUES (%s, %s)
-                    """, (squadron['id'], player.ucid))
-                    campaign_id, campaign_name = utils.get_running_campaign(self.node, server)
-                    # assign the squadron to the player
-                    player.squadron = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
-                                                              campaign_id=campaign_id)
-                    # we need to give the member the role
-                    if player.member and 'role' in squadron:
-                        try:
-                            await player.member.add_roles(self.bot.get_role(squadron['role']))
-                        except discord.Forbidden:
-                            await self.bot.audit('permission "Manage Roles" missing.',
-                                                 user=self.bot.member)
+                await conn.execute("""
+                    INSERT INTO squadron_members (squadron_id, player_ucid) VALUES (%s, %s)
+                """, (squadron['id'], player.ucid))
+                campaign_id, campaign_name = utils.get_running_campaign(self.node, server)
+                # assign the squadron to the player
+                player.squadron = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                                          campaign_id=campaign_id)
+                # we need to give the member the role
+                if player.member and 'role' in squadron:
+                    try:
+                        await player.member.add_roles(self.bot.get_role(squadron['role']))
+                    except discord.Forbidden:
+                        await self.bot.audit('permission "Manage Roles" missing.',
+                                             user=self.bot.member)
             else:
                 asyncio.create_task(server.kick(player, _("You are not a squadron member.\n"
                                                           "Please ask your squadron leader to add you.")))

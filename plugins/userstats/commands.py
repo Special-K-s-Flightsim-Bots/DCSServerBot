@@ -136,16 +136,15 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                if _server:
-                    await conn.execute('DELETE FROM missions WHERE server_name = %s', (_server.name,))
-                    await interaction.followup.send(f'Statistics for server "{_server.display_name}" have been wiped.',
-                                                    ephemeral=ephemeral)
-                    await self.bot.audit('reset statistics', user=interaction.user, server=_server)
-                else:
-                    await conn.execute("TRUNCATE TABLE missions CASCADE")
-                    await interaction.followup.send(f'Statistics for ALL servers have been wiped.', ephemeral=ephemeral)
-                    await self.bot.audit('reset statistics of ALL servers', user=interaction.user)
+            if _server:
+                await conn.execute('DELETE FROM missions WHERE server_name = %s', (_server.name,))
+                await interaction.followup.send(f'Statistics for server "{_server.display_name}" have been wiped.',
+                                                ephemeral=ephemeral)
+                await self.bot.audit('reset statistics', user=interaction.user, server=_server)
+            else:
+                await conn.execute("TRUNCATE TABLE missions CASCADE")
+                await interaction.followup.send(f'Statistics for ALL servers have been wiped.', ephemeral=ephemeral)
+                await self.bot.audit('reset statistics of ALL servers', user=interaction.user)
 
     @command(description='Shows player statistics')
     @app_commands.guild_only()
@@ -226,11 +225,11 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 interaction, _('I\'m going to **DELETE ALL STATISTICS** of user "{}".\n\nAre you sure?').format(name),
                 ephemeral=ephemeral):
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid,))
-                    await conn.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid,))
-                await interaction.followup.send(_('Statistics for user "{}" have been wiped.').format(name),
-                                                ephemeral=ephemeral)
+                await conn.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid,))
+                await conn.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid,))
+
+            await interaction.followup.send(_('Statistics for user "{}" have been wiped.').format(name),
+                                            ephemeral=ephemeral)
 
     # New command group "/squadron"
     squadron = Group(name="squadron", description="Commands to manage squadrons")
@@ -269,7 +268,11 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                    channel: discord.TextChannel | None = None):
         async with interaction.client.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("SELECT name, role, description FROM squadrons WHERE id = %s", (squadron_id, ))
+                await cursor.execute("""
+                    SELECT name, role, description
+                    FROM squadrons 
+                    WHERE id = %s
+                """, (squadron_id, ))
                 row = await cursor.fetchone()
                 # TODO: role changes
                 # TODO: role assignment on late add
@@ -278,83 +281,89 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 name = row['name']
                 description = row['description']
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_modal(SquadronModal(self, name, role=role, channel=channel, 
-                                                            description=description))
+        await interaction.response.send_modal(
+            SquadronModal(
+                self, name,
+                role=role,
+                channel=channel,
+                description=description
+            )
+        )
 
     @squadron.command(description='Add a user to a squadron')
     @app_commands.guild_only()
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.rename(squadron_id="squadron")
+    @app_commands.describe(rank="Rank of the user in the squadron. Put CO or XO in here to set the CO / XO of the squadron.")
     @utils.squadron_role_check()
     async def add(self, interaction: discord.Interaction, squadron_id: int,
                   user: app_commands.Transform[discord.Member | str, utils.UserTransformer],
-                  admin: bool | None = False):
+                  rank: str | None = None, position: str | None = None):
         ephemeral = utils.get_ephemeral(interaction)
-        # only DCS Admin can add admin users
-        if admin and not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message("You're not allowed to add another squadron admin.",
-                                                    ephemeral=True)
-            return
 
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         async with interaction.client.apool.connection() as conn:
-            async with conn.transaction():
-                cursor = await conn.execute("SELECT role FROM squadrons WHERE id = %s", (squadron_id,))
-                role = (await cursor.fetchone())[0]
-                if isinstance(user, str):
-                    member = self.bot.get_member_by_ucid(ucid=user, verified=True)
-                    ucid = user
-                else:
-                    member = user
-                    ucid = await self.bot.get_ucid_by_member(member, verified=True)
-                    if not ucid:
-                        await interaction.followup.send(
-                            f"Member {member.display_name} needs to be linked to join this squadron!", ephemeral=True)
-                        return
+            cursor = await conn.execute("SELECT role FROM squadrons WHERE id = %s", (squadron_id,))
+            role = (await cursor.fetchone())[0]
+            if isinstance(user, str):
+                member = self.bot.get_member_by_ucid(ucid=user, verified=True)
+                ucid = user
+            else:
+                member = user
+                ucid = await self.bot.get_ucid_by_member(member, verified=True)
+                if not ucid:
+                    await interaction.followup.send(
+                        f"Member {member.display_name} needs to be linked to join this squadron!", ephemeral=True)
+                    return
+            if not member:
+                prefix = f"User {ucid}"
+            else:
+                prefix = f"Member {member.display_name}"
+
+            # add the user to the database
+            await conn.execute("""
+                INSERT INTO squadron_members (squadron_id, player_ucid, rank, position) 
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (squadron_id, player_ucid) DO UPDATE
+                SET rank = EXCLUDED.rank, position = EXCLUDED.position
+            """, (squadron_id, ucid, rank, position))
+            if rank.upper() == 'CO':
+                await conn.execute("""
+                    UPDATE squadrons SET co_ucid = %s WHERE id = %s
+                """, (ucid, squadron_id))
+            elif rank.upper() == 'XO':
+                await conn.execute("""
+                    UPDATE squadrons SET xo_ucid = %s WHERE id = %s
+                """, (ucid, squadron_id))
+            await interaction.followup.send(f"{prefix} added / updated.", ephemeral=ephemeral)
+            if self.get_config().get('squadrons', {}).get('persist_list', False):
+                await self.persist_squadron_list(squadron_id)
+
+            # check if the user needs a role
+            if role:
                 if not member:
-                    prefix = f"User {ucid}"
-                else:
-                    prefix = f"Member {member.display_name}"
-
-                # add the user to the database
-                try:
-                    await conn.execute("""
-                        INSERT INTO squadron_members (squadron_id, player_ucid, admin) 
-                        VALUES (%s, %s, %s)
-                    """, (squadron_id, ucid, admin))
-                    await interaction.followup.send(f"{prefix} added to the squadron.", ephemeral=ephemeral)
-                    if self.get_config().get('squadrons', {}).get('persist_list', False):
-                        await self.persist_squadron_list(squadron_id)
-                except UniqueViolation:
-                    await interaction.followup.send(f"{prefix} is a member of this or another squadron already!",
-                                                    ephemeral=True)
-
-                # check if the user needs a role
-                if role:
-                    if not member:
-                        if not await utils.yn_question(interaction,
-                                                       f"{prefix} is not linked, but auto-role is configured for this "
-                                                       f"squadron. Are you sure you want to add them?",
-                                                       ephemeral=ephemeral):
-                            await interaction.followup.send("Aborted", ephemeral=ephemeral)
-                            return
-                    elif role not in [x.id for x in member.roles]:
-                        _role = self.bot.get_role(role)
-                        if not await utils.yn_question(interaction,
-                                                       f"{prefix} needs to have the \"{_role.name}\" role to join "
-                                                       f"this squadron.\n"
-                                                       f"Do you want to give them the role?", ephemeral=True):
-                            await interaction.followup.send("Aborted", ephemeral=ephemeral)
-                            return
-                        try:
-                            # auto-role will make them a member
-                            await member.add_roles(self.bot.get_role(role))
-                        except discord.Forbidden:
-                            await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
-                        await interaction.followup.send(f"{prefix} added to the squadron.", ephemeral=ephemeral)
+                    if not await utils.yn_question(interaction,
+                                                   f"{prefix} is not linked, but auto-role is configured for this "
+                                                   f"squadron. Are you sure you want to add them?",
+                                                   ephemeral=ephemeral):
+                        await interaction.followup.send("Aborted", ephemeral=ephemeral)
                         return
+                elif role not in [x.id for x in member.roles]:
+                    _role = self.bot.get_role(role)
+                    if not await utils.yn_question(interaction,
+                                                   f"{prefix} needs to have the \"{_role.name}\" role to join "
+                                                   f"this squadron.\n"
+                                                   f"Do you want to give them the role?", ephemeral=True):
+                        await interaction.followup.send("Aborted", ephemeral=ephemeral)
+                        return
+                    try:
+                        # auto-role will make them a member
+                        await member.add_roles(self.bot.get_role(role))
+                    except discord.Forbidden:
+                        await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+                    await interaction.followup.send(f"{prefix} added to the squadron.", ephemeral=ephemeral)
+                    return
 
     @squadron.command(description='Deletes users from squadrons')
     @app_commands.guild_only()
@@ -374,7 +383,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             if (user == interaction.user and
                     not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user)):
                 # noinspection PyUnresolvedReferences
-                await interaction.response.send_message("Admins can't delete themseleves from a squadron.",
+                await interaction.response.send_message("CO/XO can't delete themseleves from a squadron.",
                                                         ephemeral=True)
                 return
             message = "Do you really want to delete this user from this squadron?"
@@ -389,25 +398,24 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         if user:
             sql += " AND m.player_ucid = %(user)s"
         async with interaction.client.apool.connection() as conn:
-            async with conn.transaction():
-                async for row in await conn.execute(sql, {"squadron_id": squadron_id, "user": user}):
-                    if row[1]:
-                        member = self.bot.get_member_by_ucid(row[0], verified=True)
-                        role = self.bot.get_role(row[1])
-                        if member:
-                            try:
-                                await member.remove_roles(role)
-                            except discord.Forbidden:
-                                await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
-                    else:
-                        await conn.execute("DELETE FROM squadron_members WHERE squadron_id = %s AND player_ucid = %s",
-                                           (squadron_id, row[0]))
-                if not user:
-                    await conn.execute("DELETE FROM squadron_members WHERE squadron_id = %s", (squadron_id, ))
-                    await conn.execute("DELETE FROM squadrons WHERE id = %s", (squadron_id, ))
-                    await interaction.followup.send('Squadron deleted.', ephemeral=ephemeral)
+            async for row in await conn.execute(sql, {"squadron_id": squadron_id, "user": user}):
+                if row[1]:
+                    member = self.bot.get_member_by_ucid(row[0], verified=True)
+                    role = self.bot.get_role(row[1])
+                    if member:
+                        try:
+                            await member.remove_roles(role)
+                        except discord.Forbidden:
+                            await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
                 else:
-                    await interaction.followup.send('User removed from squadron.', ephemeral=ephemeral)
+                    await conn.execute("DELETE FROM squadron_members WHERE squadron_id = %s AND player_ucid = %s",
+                                       (squadron_id, row[0]))
+            if not user:
+                await conn.execute("DELETE FROM squadron_members WHERE squadron_id = %s", (squadron_id, ))
+                await conn.execute("DELETE FROM squadrons WHERE id = %s", (squadron_id, ))
+                await interaction.followup.send('Squadron deleted.', ephemeral=ephemeral)
+            else:
+                await interaction.followup.send('User removed from squadron.', ephemeral=ephemeral)
 
         if self.get_config().get('squadrons', {}).get('persist_list', False):
             await self.persist_squadron_list(squadron_id)
@@ -420,8 +428,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     async def lock(self, interaction: discord.Interaction, squadron_id: int):
         ephemeral = utils.get_ephemeral(interaction)
         async with interaction.client.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("UPDATE squadrons SET locked=TRUE WHERE id = %s", (squadron_id, ))
+            await conn.execute("UPDATE squadrons SET locked=TRUE WHERE id = %s", (squadron_id, ))
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message("Squadron locked.", ephemeral=ephemeral)
 
@@ -433,8 +440,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     async def unlock(self, interaction: discord.Interaction, squadron_id: int):
         ephemeral = utils.get_ephemeral(interaction)
         async with interaction.client.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("UPDATE squadrons SET locked=FALSE WHERE id = %s", (squadron_id, ))
+            await conn.execute("UPDATE squadrons SET locked=FALSE WHERE id = %s", (squadron_id, ))
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message("Squadron unlocked.", ephemeral=ephemeral)
 
@@ -452,32 +458,31 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             return
         try:
             async with interaction.client.apool.connection() as conn:
-                async with conn.transaction():
-                    cursor = await conn.execute("SELECT name, role, locked FROM squadrons WHERE id = %s", (squadron_id, ))
-                    row = await cursor.fetchone()
-                    if row:
-                        if not row[2]:
-                            await conn.execute(
-                                "INSERT INTO squadron_members (squadron_id, player_ucid) VALUES (%s, %s)",
-                                (squadron_id, ucid))
-                            message = f"You have joined squadron {row[0]}"
-                            if row[1]:
-                                role = self.bot.get_role(row[1])
-                                try:
-                                    await interaction.user.add_roles(role)
-                                    message += f" and got the {role.name} role"
-                                except discord.Forbidden:
-                                    await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
-                            # noinspection PyUnresolvedReferences
-                            await interaction.response.send_message(message, ephemeral=True)
-                            if self.get_config().get('squadrons', {}).get('persist_list', False):
-                                await self.persist_squadron_list(squadron_id)
-                        else:
-                            # noinspection PyUnresolvedReferences
-                            await interaction.response.send_message("This squadron is locked.", ephemeral=True)
+                cursor = await conn.execute("SELECT name, role, locked FROM squadrons WHERE id = %s", (squadron_id, ))
+                row = await cursor.fetchone()
+                if row:
+                    if not row[2]:
+                        await conn.execute(
+                            "INSERT INTO squadron_members (squadron_id, player_ucid) VALUES (%s, %s)",
+                            (squadron_id, ucid))
+                        message = f"You have joined squadron {row[0]}"
+                        if row[1]:
+                            role = self.bot.get_role(row[1])
+                            try:
+                                await interaction.user.add_roles(role)
+                                message += f" and got the {role.name} role"
+                            except discord.Forbidden:
+                                await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+                        # noinspection PyUnresolvedReferences
+                        await interaction.response.send_message(message, ephemeral=True)
+                        if self.get_config().get('squadrons', {}).get('persist_list', False):
+                            await self.persist_squadron_list(squadron_id)
                     else:
                         # noinspection PyUnresolvedReferences
-                        await interaction.response.send_message("This squadron does not exist.", ephemeral=True)
+                        await interaction.response.send_message("This squadron is locked.", ephemeral=True)
+                else:
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message("This squadron does not exist.", ephemeral=True)
         except UniqueViolation:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message("You are a member of this squadron already.", ephemeral=True)
@@ -495,31 +500,30 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                                                     ephemeral=True)
             return
         async with interaction.client.apool.connection() as conn:
-            async with conn.transaction():
-                cursor = await conn.execute("SELECT name, role, locked FROM squadrons WHERE id = %s", (squadron_id, ))
-                row = await cursor.fetchone()
-                if row:
-                    if not row[2]:
-                        await conn.execute("DELETE FROM squadron_members where squadron_id= %s and player_ucid = %s",
-                                           (squadron_id, ucid))
-                        message = f"You have left squadron {row[0]}"
-                        if row[1]:
-                            role = self.bot.get_role(row[1])
-                            try:
-                                await interaction.user.remove_roles(role)
-                                message += f" and lost the {role.name} role"
-                            except discord.Forbidden:
-                                await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
-                        # noinspection PyUnresolvedReferences
-                        await interaction.response.send_message(message, ephemeral=True)
-                        if self.get_config().get('squadrons', {}).get('persist_list', False):
-                            await self.persist_squadron_list(squadron_id)
-                    else:
-                        # noinspection PyUnresolvedReferences
-                        await interaction.response.send_message("This squadron is locked.", ephemeral=True)
+            cursor = await conn.execute("SELECT name, role, locked FROM squadrons WHERE id = %s", (squadron_id, ))
+            row = await cursor.fetchone()
+            if row:
+                if not row[2]:
+                    await conn.execute("DELETE FROM squadron_members where squadron_id= %s and player_ucid = %s",
+                                       (squadron_id, ucid))
+                    message = f"You have left squadron {row[0]}"
+                    if row[1]:
+                        role = self.bot.get_role(row[1])
+                        try:
+                            await interaction.user.remove_roles(role)
+                            message += f" and lost the {role.name} role"
+                        except discord.Forbidden:
+                            await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(message, ephemeral=True)
+                    if self.get_config().get('squadrons', {}).get('persist_list', False):
+                        await self.persist_squadron_list(squadron_id)
                 else:
                     # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message("This squadron does not exist.", ephemeral=True)
+                    await interaction.response.send_message("This squadron is locked.", ephemeral=True)
+            else:
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message("This squadron does not exist.", ephemeral=True)
 
     @squadron.command(name='list', description='List members of a squadron')
     @app_commands.guild_only()
@@ -692,41 +696,48 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
     async def render_squadron_list(self, squadron_id: int):
         embed = discord.Embed(color=discord.Color.blue())
-        discord_ids = dcs_names = admins = ""
+        discord_ids = dcs_names = ranks = ""
         async with self.node.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("SELECT name, description, image_url FROM squadrons WHERE id = %s",
-                                     (squadron_id, ))
+                await cursor.execute("""
+                    SELECT name, description, image_url, co_ucid, xo_ucid 
+                    FROM squadrons 
+                    WHERE id = %s
+                """, (squadron_id, ))
                 row = await cursor.fetchone()
+                if not row:
+                    embed.title = "Squadron Not Found"
+                    embed.description = f"No squadron found with ID {squadron_id}"
+                    return embed
                 embed.title = f"Members of Squadron \"{row['name']}\""
                 embed.description = row['description'] or MISSING
                 embed.set_thumbnail(url=row['image_url'])
                 async for row in await cursor.execute("""
-                    SELECT DISTINCT p.discord_id, p.name, m.admin
+                    SELECT DISTINCT p.discord_id, p.name, m.rank, m.position
                     FROM players p JOIN squadron_members m
                     ON p.ucid = m.player_ucid
                     AND m.squadron_id = %s
-                    ORDER BY m.admin DESC, p.name
+                    ORDER BY p.name
                 """, (squadron_id, )):
                     new_discord_id = f"<@{row['discord_id']}>\n" if row['discord_id'] != -1 else 'not linked\n'
                     new_dcs_name = row['name'] + '\n'
-                    new_admin = 'Yes\n' if row['admin'] else 'No\n'
+                    new_ranks = (row['rank'] or 'n/a') + '\n'
                     if len(discord_ids + new_discord_id) > 1024 or len(dcs_names + new_dcs_name) > 1024:
                         embed.add_field(name="Member", value=discord_ids)
                         embed.add_field(name="DCS Name", value=dcs_names)
-                        embed.add_field(name='Admin', value=admins)
+                        embed.add_field(name='Rank', value=ranks)
                         discord_ids = new_discord_id
                         dcs_names = new_dcs_name
-                        admins = new_admin
+                        ranks = new_ranks
                     else:
                         discord_ids += new_discord_id
                         dcs_names += new_dcs_name
-                        admins += new_admin
+                        ranks += new_ranks
         if discord_ids.strip():
             embed.add_field(name="Member", value=discord_ids)
             embed.add_field(name="DCS Name", value=dcs_names)
-            embed.add_field(name='Admin', value=admins)
-        embed.set_footer(text="Admin users can add or remove members from a squadron, as well as lock or unlock it.")
+            embed.add_field(name='Rank', value=ranks)
+        embed.set_footer(text="The CO and XO can add or remove members from a squadron, as well as lock or unlock it.")
         return embed
 
     async def persist_squadron_list(self, squadron_id: int):
@@ -747,7 +758,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                         row2 = await cursor.fetchone()
                         if row2:
                             try:
-                                ch: discord.TextChannel = self.bot.get_channel(channel)
+                                ch = self.bot.get_channel(channel)
                                 message = await ch.fetch_message(row2['embed'])
                                 if message:
                                     await message.delete()
@@ -800,10 +811,9 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @tasks.loop(hours=1)
     async def refresh_views(self):
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    REFRESH MATERIALIZED VIEW CONCURRENTLY mv_statistics;
-                """)
+            await conn.execute("""
+                REFRESH MATERIALIZED VIEW CONCURRENTLY mv_statistics;
+            """)
 
     @refresh_views.before_loop
     async def before_refresh_views(self):
@@ -813,9 +823,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     async def on_member_remove(self, member):
         if self.get_config().get('wipe_stats_on_leave', True):
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    self.bot.log.debug(f'- Deleting their statistics due to wipe_stats_on_leave')
-                    await conn.execute('DELETE FROM players WHERE discord_id = %s', (member.id,))
+                self.bot.log.debug(f'- Deleting their statistics due to wipe_stats_on_leave')
+                await conn.execute('DELETE FROM players WHERE discord_id = %s', (member.id,))
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
@@ -831,21 +840,20 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         try:
             # get possible squadron roles
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    async for row in await conn.execute('SELECT id, role FROM squadrons WHERE role IS NOT NULL'):
-                        # do we have to add the member to a squadron?
-                        if row[1] in new_roles:
-                            await conn.execute("""
-                                INSERT INTO squadron_members VALUES (%s, %s) 
-                                ON CONFLICT (squadron_id, player_ucid) DO NOTHING
-                            """, (row[0], ucid))
-                        # do we have to remove the member from a squadron?
-                        elif row[1] in removed_roles:
-                            await conn.execute("""
-                                DELETE FROM squadron_members WHERE squadron_id = %s and player_ucid = %s
-                            """, (row[0], ucid))
-                        if self.get_config().get('squadrons', {}).get('persist_list', False):
-                            await self.persist_squadron_list(row[0])
+                async for row in await conn.execute('SELECT id, role FROM squadrons WHERE role IS NOT NULL'):
+                    # do we have to add the member to a squadron?
+                    if row[1] in new_roles:
+                        await conn.execute("""
+                            INSERT INTO squadron_members VALUES (%s, %s) 
+                            ON CONFLICT (squadron_id, player_ucid) DO NOTHING
+                        """, (row[0], ucid))
+                    # do we have to remove the member from a squadron?
+                    elif row[1] in removed_roles:
+                        await conn.execute("""
+                            DELETE FROM squadron_members WHERE squadron_id = %s and player_ucid = %s
+                        """, (row[0], ucid))
+                    if self.get_config().get('squadrons', {}).get('persist_list', False):
+                        await self.persist_squadron_list(row[0])
         except Exception as ex:
             self.log.exception(ex)
 

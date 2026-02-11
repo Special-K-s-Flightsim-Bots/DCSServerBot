@@ -43,7 +43,7 @@ class Cloud(Plugin[CloudListener]):
 
     @property
     def session(self):
-        if not self._session:
+        if not self._session or self._session.closed:
             headers = {
                 "Content-type": "application/json"
             }
@@ -108,15 +108,36 @@ class Cloud(Plugin[CloudListener]):
 
     async def get(self, request: str) -> Any:
         url = f"{self.base_url}/{request}"
-        async with self.session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
-            return await response.json()
+        try:
+            async with self.session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                return await response.json()
+        except (aiohttp.ClientError, asyncio.TimeoutError):
+            # If the session is closed, stale, or timed out, reset it
+            if self._session and not self._session.closed:
+                await self._session.close()
+            self._session = None
+
+            # Retry once with a fresh session (re-initialized via the property)
+            async with self.session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                return await response.json()
 
     async def post(self, request: str, data: Any) -> Any:
         async def send(element: dict):
             url = f"{self.base_url}/{request}/"
-            async with self.session.post(
-                    url, json=element, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
-                return await response.json()
+            try:
+                async with self.session.post(
+                        url, json=element, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                    return await response.json()
+            except (aiohttp.ClientError, asyncio.TimeoutError):
+                # Reset the session if it's broken
+                if self._session and not self._session.closed:
+                    await self._session.close()
+                self._session = None
+
+                # Retry the POST once with a fresh session
+                async with self.session.post(
+                        url, json=element, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                    return await response.json()
 
         if isinstance(data, list):
             for line in data:
@@ -168,17 +189,16 @@ class Cloud(Plugin[CloudListener]):
             await interaction.response.send_message(_('No cloud sync configured!'), ephemeral=True)
             return
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                sql = 'UPDATE players SET synced = false'
-                if member:
-                    if isinstance(member, str):
-                        sql += ' WHERE ucid = %s'
-                    else:
-                        sql += ' WHERE discord_id = %s'
-                        member = member.id
-                    await conn.execute(sql, (member, ))
+            sql = 'UPDATE players SET synced = false'
+            if member:
+                if isinstance(member, str):
+                    sql += ' WHERE ucid = %s'
                 else:
-                    await conn.execute(sql)
+                    sql += ' WHERE discord_id = %s'
+                    member = member.id
+                await conn.execute(sql, (member, ))
+            else:
+                await conn.execute(sql)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Resync with cloud triggered.'), ephemeral=ephemeral)
 
@@ -227,7 +247,7 @@ class Cloud(Plugin[CloudListener]):
     @utils.app_has_role('DCS Admin') # TODO: change that to DCS
     async def serverlist(self, interaction: discord.Interaction, search: str | None = None):
 
-        def format_servers(servers: list[dict], marker, marker_emoji) -> discord.Embed:
+        def format_servers(servers: list[dict], _marker, _marker_emoji) -> discord.Embed:
             embed = discord.Embed(title=_('DCS Servers'), color=discord.Color.blue())
             for idx, server in enumerate(servers):
                 name = chr(0x31 + idx) + '\u20E3' + f" {utils.escape_string(server['server_name'])} [{server['num_players']}/{server['max_players']}]"
@@ -283,8 +303,12 @@ class Cloud(Plugin[CloudListener]):
                 banlist = None
             if self.config.get('dcs-ban', False):
                 dgsa_bans = {item['ucid']: item for item in await self.get('bans')}
-                local_bans = {
+                all_local_bans = {
                     item['ucid']: item for item in await self.bus.bans(expired=True)
+                    if item['banned_by'] == self.plugin_name
+                }
+                active_local_bans = {
+                    item['ucid']: item for item in await self.bus.bans()
                     if item['banned_by'] == self.plugin_name
                 }
                 # filter bans by scope
@@ -292,12 +316,12 @@ class Cloud(Plugin[CloudListener]):
                     ucid for ucid, ban in dgsa_bans.items()
                     if (ban['scope'] == 'Both' or not banlist or ban['scope'].lower() == banlist)
                 }
-                # find UCIDs to ban (in DGsA bans but not in local bans)
-                for ucid in to_ban - local_bans.keys():
+                # find UCIDs to ban (in DGSA bans but not in local bans incl the ones we unbanned)
+                for ucid in to_ban - all_local_bans.keys():
                     reason = dgsa_bans[ucid]['reason']
                     await self.bus.ban(ucid=ucid, reason='DGSA: ' + reason, banned_by=self.plugin_name)
-                # find UCIDs to unban (in local bans but not in DGSA bans)
-                for ucid in local_bans.keys() - to_ban:
+                # find UCIDs to unban (in local bans but not in DGSA bans excluding the ones we unbanned already)
+                for ucid in active_local_bans.keys() - to_ban:
                     await self.bus.unban(ucid)
             elif self.config.get('watchlist_only', False):
                 dgsa_bans = {item['ucid']: item for item in await self.get('bans')}
@@ -309,18 +333,17 @@ class Cloud(Plugin[CloudListener]):
                 async with self.apool.connection() as conn:
                     cursor = await conn.execute("SELECT player_ucid FROM watchlist WHERE created_by = 'DGSA'")
                     watches = set([row[0] for row in await cursor.fetchall()])
-                    async with conn.transaction():
-                        # find watches to add
-                        for ucid in to_ban - watches:
-                            reason = dgsa_bans[ucid]['reason']
-                            await conn.execute("""
-                                INSERT INTO watchlist (player_ucid, reason, created_by) 
-                                VALUES (%s, %s, %s)
-                                ON CONFLICT (player_ucid) DO NOTHING
-                            """, (ucid, reason, 'DGSA'))
-                        # find watches to remove
-                        for ucid in watches - to_ban:
-                            await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (ucid,))
+                    # find watches to add
+                    for ucid in to_ban - watches:
+                        reason = dgsa_bans[ucid]['reason']
+                        await conn.execute("""
+                            INSERT INTO watchlist (player_ucid, reason, created_by) 
+                            VALUES (%s, %s, %s)
+                            ON CONFLICT (player_ucid) DO NOTHING
+                        """, (ucid, reason, 'DGSA'))
+                    # find watches to remove
+                    for ucid in watches - to_ban:
+                        await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (ucid,))
             if self.config.get('discord-ban', False):
                 global_bans: dict = await self.get('discord-bans')
                 global_ban_ids = {x['discord_id'] for x in global_bans}
@@ -358,41 +381,39 @@ class Cloud(Plugin[CloudListener]):
     @tasks.loop(seconds=10)
     async def cloud_sync(self):
         async with self.apool.connection() as conn:
-            cursor = await conn.execute("""
-                SELECT ucid FROM players 
-                WHERE synced IS FALSE 
-                ORDER BY last_seen DESC 
-                LIMIT 10
-            """)
-            rows = await cursor.fetchall()
-        # We do not want to block the connection pool for an unnecessary amount of time
-        for row in rows:
-            async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    async with conn.cursor(row_factory=dict_row) as cursor:
-                        await cursor.execute("""
-                            SELECT s.player_ucid, m.mission_theatre, s.slot, 
-                                   SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
-                                   SUM(ejections) as ejections, SUM(crashes) as crashes, 
-                                   SUM(teamkills) as teamkills, SUM(kills_planes) AS kills_planes, 
-                                   SUM(kills_helicopters) AS kills_helicopters, SUM(kills_ships) AS kills_ships, 
-                                   SUM(kills_sams) AS kills_sams, SUM(kills_ground) AS kills_ground, 
-                                   SUM(deaths_pvp) as deaths_pvp, SUM(deaths_planes) AS deaths_planes, 
-                                   SUM(deaths_helicopters) AS deaths_helicopters, SUM(deaths_ships) AS deaths_ships,
-                                   SUM(deaths_sams) AS deaths_sams, SUM(deaths_ground) AS deaths_ground, 
-                                   SUM(takeoffs) as takeoffs, SUM(landings) as landings, 
-                                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))))::BIGINT AS playtime 
-                            FROM statistics s, missions m 
-                            WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
-                            GROUP BY 1, 2, 3
-                        """, (row[0], ))
-                        async for line in cursor:
-                            try:
-                                line['client'] = self.client
-                                await self.post('upload', line)
-                            except TypeError as ex:
-                                self.log.warning(f"Could not replicate user {row[0]}: {ex}")
-                        await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row[0], ))
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                cursor = await conn.execute("""
+                    SELECT ucid FROM players 
+                    WHERE synced IS FALSE 
+                    ORDER BY last_seen DESC 
+                    LIMIT 10
+                """)
+                rows = await cursor.fetchall()
+
+                for row in rows:
+                    await cursor.execute("""
+                        SELECT s.player_ucid, m.mission_theatre, s.slot, 
+                               SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
+                               SUM(ejections) as ejections, SUM(crashes) as crashes, 
+                               SUM(teamkills) as teamkills, SUM(kills_planes) AS kills_planes, 
+                               SUM(kills_helicopters) AS kills_helicopters, SUM(kills_ships) AS kills_ships, 
+                               SUM(kills_sams) AS kills_sams, SUM(kills_ground) AS kills_ground, 
+                               SUM(deaths_pvp) as deaths_pvp, SUM(deaths_planes) AS deaths_planes, 
+                               SUM(deaths_helicopters) AS deaths_helicopters, SUM(deaths_ships) AS deaths_ships,
+                               SUM(deaths_sams) AS deaths_sams, SUM(deaths_ground) AS deaths_ground, 
+                               SUM(takeoffs) as takeoffs, SUM(landings) as landings, 
+                               ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))))::BIGINT AS playtime 
+                        FROM statistics s, missions m 
+                        WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
+                        GROUP BY 1, 2, 3
+                    """, (row[0], ))
+                    async for line in cursor:
+                        try:
+                            line['client'] = self.client
+                            await self.post('upload', line)
+                        except TypeError as ex:
+                            self.log.warning(f"Could not replicate user {row[0]}: {ex}")
+                    await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row[0], ))
 
     @cloud_sync.before_loop
     async def before_cloud_sync(self):
@@ -417,6 +438,25 @@ class Cloud(Plugin[CloudListener]):
                 _, dcs_version = await self.node.get_dcs_branch_and_version()
             else:
                 dcs_version = ""
+
+            nodes = []
+            for node in self.node.all_nodes.values():
+                if not node:
+                    continue
+                node_data = await node.info()
+                nodes.append({
+                    "node": node_data['Node'],
+                    "ip_addr": node_data['Public IP'],
+                    "os": node_data['OS'],
+                    "os_release": node_data['OS Release'],
+                    "cpu_name": node_data['CPU Name'],
+                    "cpu_count": node_data['CPU Count'],
+                    "total_ram": node_data['Total RAM'],
+                    "python_version": node_data['Python Version'],
+                    "dcs_version": node_data['DCS Version'],
+                    "num_servers": len([x for x in self.bus.servers.values() if x.node == node])
+                })
+
             # noinspection PyUnresolvedReferences
             bot = {
                 "guild_id": self.bot.guilds[0].id,
@@ -424,7 +464,7 @@ class Cloud(Plugin[CloudListener]):
                 "bot_version": f"{self.bot.version}.{self.bot.sub_version}",
                 "variant": "DCSServerBot" if not isinstance(self.bot, DummyBot) else "No Bot",
                 "dcs_version": dcs_version,
-                "python_version": '.'.join(platform.python_version_tuple()),
+                "python_version": platform.python_version(),
                 "num_bots": num_bots,
                 "num_servers": num_servers,
                 "plugins": [
@@ -432,7 +472,8 @@ class Cloud(Plugin[CloudListener]):
                         "name": p.plugin_name,
                         "version": p.plugin_version
                     } for p in self.bot.cogs.values()
-                ]
+                ],
+                "nodes": nodes
             }
             self.log.debug("Updating registration with this data: " + str(bot))
             await self.post('register', bot)

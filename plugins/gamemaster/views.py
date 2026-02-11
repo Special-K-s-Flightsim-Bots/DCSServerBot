@@ -125,21 +125,19 @@ class MessageView(View):
         await interaction.response.send_modal(modal)
         if not await modal.wait():
             async with interaction.client.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("""
-                        UPDATE messages SET message = %s WHERE id = %s
-                    """, (modal.message.value, self.messages[self.index]['id']))
+                await conn.execute("""
+                    UPDATE messages SET message = %s WHERE id = %s
+                """, (modal.message.value, self.messages[self.index]['id']))
             self.messages[self.index]['message'] = modal.message.value
             await interaction.edit_original_response(embed=await self.render(), view=self)
 
     # noinspection PyTypeChecker
     @discord.ui.button(emoji='🚮', style=ButtonStyle.primary)
-    async def on_delete(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def on_delete(self, interaction: discord.Interaction, _button: discord.ui.Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         async with interaction.client.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("DELETE FROM messages WHERE id = %s", (self.messages[self.index]['id'],))
+            await conn.execute("DELETE FROM messages WHERE id = %s", (self.messages[self.index]['id'],))
         self.messages.pop(self.index)
         if not self.messages:
             await interaction.followup.send(_("No messages left."), ephemeral=True)

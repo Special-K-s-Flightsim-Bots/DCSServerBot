@@ -47,7 +47,7 @@ class ZoneDistribution(report.PieChart):
                 neutral[name] = zone
         return {"blue": blue, "neutral": neutral, "red": red}
 
-    async def render(self, data: dict):
+    async def render(self, data: dict, **kwargs):
         zones = data["zones"]
         if not zones.get('blue') and not zones.get('red') and not zones.get('neutral'):
             zones = self.normalize_zones(zones)

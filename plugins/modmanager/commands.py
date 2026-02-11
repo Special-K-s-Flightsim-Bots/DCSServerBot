@@ -2,8 +2,10 @@ import aiohttp
 import discord
 import os
 
-from core import Status, Plugin, utils, Server, ServiceRegistry, PluginInstallationError, Group, get_translation
+from core import Status, Plugin, utils, Server, ServiceRegistry, PluginInstallationError, Group, get_translation, \
+    ServerUploadHandler
 from discord import SelectOption, app_commands, ButtonStyle, TextStyle
+from discord.ext import commands
 from discord.ui import View, Select, Button, Modal, TextInput
 from services.bot import DCSServerBot
 from services.modmanager import ModManagerService, Folder
@@ -143,7 +145,6 @@ class ModManager(Plugin):
 
     @mods.command(description=_('manage mods'))
     @app_commands.guild_only()
-    @app_commands.check(utils.restricted_check)
     @utils.app_has_roles(['Admin'])
     async def manage(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
@@ -181,9 +182,11 @@ class ModManager(Plugin):
                             update += latest + '\n'
                         else:
                             update += '_ _\n'
-                    derived.embed.add_field(name=_('Mod'), value=packages)
-                    derived.embed.add_field(name=_('Version'), value=versions)
-                    derived.embed.add_field(name=_('Update'), value=update)
+                    derived.embed.add_field(name=_('Mod'), value=packages[:1024])
+                    derived.embed.add_field(name=_('Version'), value=versions[:1024])
+                    derived.embed.add_field(name=_('Update'), value=update[:1024])
+                    if len(packages) > 1024 or len(versions) > 1024 or len(update) > 1024:
+                        derived.embed.set_footer(text=_("List was truncated."))
                 else:
                     derived.embed.add_field(name='_ _', value=_('There are no mods installed.'), inline=False)
 
@@ -451,7 +454,7 @@ class ModManager(Plugin):
                 embed.add_field(name=_("Mod"), value='\n'.join([x[0] for x in installed[folder]]))
                 embed.add_field(name=_("Version"), value='\n'.join([x[1] for x in installed[folder]]))
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     @mods.command(description=_('Download a mod'))
     @app_commands.guild_only()
@@ -509,6 +512,38 @@ class ModManager(Plugin):
             await msg.edit(content=_("{file} downloaded. Use {command} to install it.").format(
                 file=filename, command=(await utils.get_command(self.bot, group=self.mods.name,
                                                                 name=self._install.name)).mention))
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        pattern = ['.zip']
+        if not ServerUploadHandler.is_valid(message, pattern=pattern, roles=self.bot.roles['DCS Admin']):
+            return
+        try:
+            server = await ServerUploadHandler.get_server(message)
+            if not server:
+                return
+
+            ctx = await self.bot.get_context(message)
+            folder = await utils.selection(
+                ctx,
+                title="Where do you want to upload the mod?",
+                options=[
+                    SelectOption(label="SavedGames", value="SavedGames"),
+                    SelectOption(label="RootFolder", value="RootFolder"),
+                ]
+            )
+            if not folder:
+                await message.channel.send(_("Aborted."))
+                return
+
+            handler = ServerUploadHandler(server=server, message=message, pattern=pattern)
+            config = self.service.get_config(server)
+            base_dir = os.path.expandvars(config[folder])
+            await handler.upload(base_dir)
+        except Exception as ex:
+            self.log.exception(ex)
+        finally:
+            await message.delete()
 
 
 async def setup(bot: DCSServerBot):

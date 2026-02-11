@@ -208,7 +208,8 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
                                   ], ephemeral=ephemeral)
         if n:
             report = PaginationReport(interaction, self.plugin_name, 'lsoRating.json', keep_image=True)
-            await report.render(landings=landings, start_index=int(n), formatter=format_landing)
+            await report.render(landings=landings, start_index=int(n), formatter=format_landing,
+                                config=self.get_config())
 
     @traps.command(description=_('Display the current Greenieboard'))
     @utils.app_has_role('DCS')

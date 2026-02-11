@@ -91,7 +91,7 @@ class Backup(Plugin):
                 "service": BackupService.__name__,
                 "method": f"backup_{what}"
             }, node=node.name, timeout=300)
-            assert rc['return'] is True
+            assert rc is True
             await msg.edit(content=_("Backup of {} completed.").format(what.title()))
         except Exception:
             await msg.edit(content=_("Backup of {} failed. Please check log for details.").format(what.title()))

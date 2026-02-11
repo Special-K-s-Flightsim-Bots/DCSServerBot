@@ -163,7 +163,7 @@ class LotAtcEventListener(EventListener["LotAtc"]):
             asyncio.create_task(self.del_gci(server, gci))
 
     @chat_command(name="gcis", help=_("Shows active GCIs"))
-    async def gcis(self, server: Server, player: Player, params: list[str]):
+    async def gcis(self, server: Server, player: Player, _params: list[str]):
         if player.side == Side.NEUTRAL:
             await player.sendChatMessage(_("You need to join a side to show their GCIs"))
             return

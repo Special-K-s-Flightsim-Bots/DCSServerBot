@@ -36,12 +36,11 @@ class Battleground(Plugin):
             done = True
             screenshots = [att.url for att in [screenshot]]  # TODO: add multiple ones
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("""
-                        INSERT INTO bg_geometry(id, type, name, posmgrs, screenshot, discordname, avatar, side, server) 
-                        VALUES (nextval('bg_geometry_id_seq'), 'recon', %s, %s, %s, %s, %s, %s, %s)
-                    """, (name, mgrs, screenshots, interaction.user.name, interaction.user.display_avatar.url,
-                          side, server.name))
+                await conn.execute("""
+                    INSERT INTO bg_geometry(id, type, name, posmgrs, screenshot, discordname, avatar, side, server) 
+                    VALUES (nextval('bg_geometry_id_seq'), 'recon', %s, %s, %s, %s, %s, %s, %s)
+                """, (name, mgrs, screenshots, interaction.user.name, interaction.user.display_avatar.url,
+                      side, server.name))
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Recon data added - {side} side - {server}").format(side=side, server=server.name),

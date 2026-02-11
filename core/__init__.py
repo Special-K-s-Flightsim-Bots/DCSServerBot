@@ -16,6 +16,7 @@ from core.data.proxy.nodeproxy import *
 
 from core.autoexec import *
 from core.commandline import *
+from core.process import *
 from core.pubsub import *
 from core.const import *
 from core.extension import *

@@ -91,7 +91,8 @@ class SRS(Plugin[SRSEventListener]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("No update for DCS-SRS available."))
 
-    async def _configure(self, interaction: discord.Interaction,
+    @staticmethod
+    async def _configure(interaction: discord.Interaction,
                          server: Server,
                          enabled: bool = None,
                          autoconnect: bool = None) -> dict | None:
@@ -148,7 +149,6 @@ class SRS(Plugin[SRSEventListener]):
     async def repair(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.LOADING, Status.STOPPED, Status.RUNNING, Status.PAUSED])]):
-        ephemeral = utils.get_ephemeral(interaction)
         try:
             data = await server.run_on_extension(extension='SRS', method='render')
         except ValueError:

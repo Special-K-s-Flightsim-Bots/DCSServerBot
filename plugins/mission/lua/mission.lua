@@ -1,10 +1,11 @@
-local base        = _G
-local Terrain     = base.require('terrain')
-dcsbot            = base.dcsbot
+local base          = _G
+local Terrain       = base.require('terrain')
+dcsbot              = base.dcsbot
 
-local _menuItems  = {}
-local _roles      = {}
-local _extensions = {}
+local _menuItems    = {}
+local _roles        = {}
+local _extensions   = {}
+local _discord_ids  = {}
 
 -- deprecated
 function dcsbot.sendPopupMessage(to, message, time)
@@ -209,25 +210,32 @@ local function buildMenu(playerID, groupID, menuTable, parentMenu)
 end
 
 function dcsbot.createMenu(playerID, groupID, data)
+    -- Initialize menu tracking for this group if needed
     if not _menuItems[groupID] then
-        parsedData = net.json2lua(data)
         _menuItems[groupID] = {}
+    end
 
-        for _, rootMenuEntry in ipairs(parsedData) do
-            for rootMenuName, rootMenuData in pairs(rootMenuEntry) do
-                -- Create the root menu
-                local rootMenu = missionCommands.addSubMenuForGroup(groupID, rootMenuName)
-                -- Add the root menu to _menuItems[groupID] list
-                _menuItems[groupID][rootMenuName] = rootMenu
-                -- Process all children of the root menu recursively
-                buildMenu(playerID, groupID, rootMenuData, rootMenu)
+    local parsedData = net.json2lua(data)
+
+    for _, rootMenuEntry in ipairs(parsedData) do
+        for rootMenuName, rootMenuData in pairs(rootMenuEntry) do
+            -- Delete only this specific root menu if it exists (allows multiple plugins)
+            if _menuItems[groupID][rootMenuName] then
+                missionCommands.removeItemForGroup(groupID, _menuItems[groupID][rootMenuName])
+                _menuItems[groupID][rootMenuName] = nil
             end
+            -- Create the root menu
+            local rootMenu = missionCommands.addSubMenuForGroup(groupID, rootMenuName)
+            -- Add the root menu to _menuItems[groupID] list
+            _menuItems[groupID][rootMenuName] = rootMenu
+            -- Process all children of the root menu recursively
+            buildMenu(playerID, groupID, rootMenuData, rootMenu)
         end
     end
 end
 
 function dcsbot.deleteMenu(groupID)
-    menu = _menuItems[groupID]
+    local menu = _menuItems[groupID]
     if menu then
         -- Iterate through each root menu in the table and delete it
         for _, menuItem in pairs(menu) do
@@ -245,6 +253,15 @@ end
 
 function dcsbot.getUserRoles(user)
     return _roles[user]
+end
+
+-- Don't call this function, it's for internal use only!
+function dcsbot._setDiscordID(user, discord_id)
+    _discord_ids[user] = discord_id
+end
+
+function dcsbot.getDiscordID(user)
+    return _discord_ids[user]
 end
 
 function dcsbot._clearExtensions()
@@ -308,14 +325,14 @@ end
 
 function dcsbot.getAirbase(name, channel)
     env.info("dcsbot.getAirbase(" .. name .. ")")
-    local msg = {
-        command = "getAirbase",
-    }
 
     local airbase = Airbase.getByName(name)
     if not airbase or not airbase:isExist() then
-        msg.name = name
-        msg.error = "Not found."
+        local msg = {
+            command = "getAirbase",
+            name = name,
+            error = "Not found."
+        }
         dcsbot.sendBotTable(msg, channel)
         return
     end
@@ -324,7 +341,6 @@ function dcsbot.getAirbase(name, channel)
     local lat, lng = Terrain.convertMetersToLatLon(position.x, position.z)
     local alt = Terrain.GetHeight(position.x, position.z)
     local warehouse = airbase:getWarehouse()
-
 
     local msg = {
         command = "getAirbase",

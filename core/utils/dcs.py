@@ -1,17 +1,12 @@
 import filecmp
 import luadata
 import math
+import mgrs
 import os
 import re
 import shutil
 import stat
 import sys
-
-# import the correct mgrs library
-if sys.version_info < (3, 13):
-    import mgrs
-else:
-    from pymgrs.mgrs import LLtoUTM, encode, UTMtoLL, decode
 
 from contextlib import suppress
 from core.const import SAVED_GAMES
@@ -294,21 +289,13 @@ def dms_to_dd(dms: str) -> float:
 
 
 def dd_to_mgrs(lat: float, lon: float, prec: int = 5) -> str:
-    if sys.version_info < (3, 13):
-        mgrs_converter = mgrs.MGRS()
-        return mgrs_converter.toMGRS(lat, lon, MGRSPrecision=prec)
-    else:
-        ll_coords = LLtoUTM(lat, lon)
-        return encode(ll_coords, 5)
+    mgrs_converter = mgrs.MGRS()
+    return mgrs_converter.toMGRS(lat, lon, MGRSPrecision=prec)
 
 
 def mgrs_to_dd(value: str) -> tuple[float, float]:
-    if sys.version_info < (3, 13):
-        mgrs_converter = mgrs.MGRS()
-        return mgrs_converter.toLatLon(value, inDegrees=True)
-    else:
-        ll_coords = UTMtoLL(decode(value))
-        return ll_coords['lat'], ll_coords['lon']
+    mgrs_converter = mgrs.MGRS()
+    return mgrs_converter.toLatLon(value, inDegrees=True)
 
 
 def rad_to_heading(rad: float) -> float:

@@ -1,7 +1,7 @@
 # Plugin Punishment
 The DCSServerBot auto-ban, auto-kick, auto-move-back-to-spectators module, based on the player's behavior and the 
 configuration described in here.<br>
-The ideas of this plugin are based on [Slmod](https://github.com/mrSkortch/DCS-SLmod). Thanks to Speed for his awesome solution!
+Some ideas of this plugin are based on [Slmod](https://github.com/mrSkortch/DCS-SLmod). Thanks to Speed for his awesome solution!
 
 ## Configuration
 As Punishment is an optional plugin, you need to activate it in main.yaml first like so:
@@ -13,9 +13,11 @@ opt_plugins:
 The plugin itself is configured with a file named config/plugins/punishment.yaml. You'll find a sample in ./samples:
 ```yaml
 DEFAULT:
-  channel: 1122334455667788 # Optional: Channel where to post who was punished for what (default: admin channel, disable: -1).
-  penalties:                # These are the penalty points to use.
-  - event: kill             # If you team-kill a human player, you get 30 points, 18 in the case of an AI.
+  reslot_window: 60           # If you reslot or reconnect in-between this time in seconds (default: 60) after being shot at, a reslot event will be triggered.
+  survival_window: 300        # If you survived this time in seconds (default: 300) after being shot at, the opponent will not get a kill.
+  channel: 1122334455667788   # Optional: Channel where to post who was punished for what (default: admin channel, disable: -1).
+  penalties:                  # These are the penalty points to use.
+  - event: kill               # If you team-kill a human player, you get 30 points, 18 in the case of an AI.
     human: 30
     AI: 18
     action: move_to_spec
@@ -35,6 +37,10 @@ DEFAULT:
   - event: reslot           # If you re-slotted when being shot at, you get 30 points (you stole a kill)
     default: 30
     reason: Respawning when being shot at
+  - event: taxiway_takeoff
+    default: 10
+    action: kick
+    reason: Illegal taxiway takeoff
   forgive: 30               # People can forgive others in-between of 30 seconds (default) with the .forgive in-game chat command.
   punishments:              # list of punishments, based on the user's penalty points
   - points: 100             # we temp-ban the player when they reached 100 points.
@@ -75,23 +81,21 @@ DCS.dcs_serverrelease:
       - 'Moderators'          # Do not punish your own moderators (Discord role, not bot role!) on this server
 ```
 ### Penalties
-The number of penalty points that a player "earns" is configured here. 
-Collisions are hits where the player's aircraft is being used as a weapon.
-You can add your own events that you can use from inside the mission environment (see below), like the example here 
-with "zone-bombing".<br/>
-If you use the inline "action"-element, you can already trigger any action like a "move_to_spec" or "credits" when 
-someone FFs or kills a team member.
+Here, the configuration for the penalty points assigned to a player is set. 
+Collisions refer to instances where a player's aircraft is used as a weapon against others. 
+Inside the mission environment, you can create custom events, such as "zone-bombing" in the example provided.
 
+If you incorporate the inline "action"-element, you can immediately initiate actions like "move_to_spec" or "credits" 
+when friendly fire occurs or a team member is killed.
 > [!NOTE]
 > Multiple events that happen in-between a minute are calculated as a single event. 
-> This is on purpose, to avoid too many punishments when a user unintentionally dropped a CBU onto something or 
-> strafed multiple targets in one run.
+> This is on purpose to avoid too many punishments when a user dropped a CBU or strafed multiple targets in one run.
 
 ### Punishments
 Each point level can trigger a specific action. When the user hits this limit by gathering penalties, the specific 
 action is being triggered. Actions are triggered at least every minute. So there might be a slight delay in being a bad 
 pilot and getting punished. That allows victims to `-forgive` the dedicated act. 
-A ban is temporary, and punishment points can decay over time (see below).<br/>
+A ban is temporary, and punishment points can decay over time (see below).
 
 In conjunction with the [CreditSystem](../creditsystem/README.md) plugin, you can use "credits" as a punishment and take away credit points 
 from players if they misbehave. A campaign has to be running for this to happen.
@@ -119,6 +123,35 @@ Decay can only be configured once, so there is no need for a server-specific con
 > DELETE FROM pu_events;
 > ```
 > After that, every new punishment will decay, according to your new decay function.
+
+## Crash / Ejection Handling
+A common issue of DCS World PvP is that players do not get kills if others crash or eject after being shot at.
+DCSServerBot fixes this. If you got shot at and crash or eject in `reslot_window` seconds afterwards, 
+the opponent will get the kill. 
+If you got hit and crash or eject in-between `survival_window` seconds, the opponent will get the kill also.
+
+## Reslot / Disconnect Handling
+When a player reslots or disconnects in the middle of an engagement (they got shot at or even hit), the plugin will
+treat these incidents according to the probability of kill.<br>
+The current implementation is like so:
+- If you reslot in-between `reslot_window` seconds after being shot at or hit, you get punished with a `reslot` event. 
+  The kill will be given to the opponent.
+- If you reslot in-between `survival_window` seconds after being hit, you will not get punished but the opponent will
+  get the kill.
+- If you disconnect in-between `reslot_window` seconds after being shot at or in-between `survival_window` seconds 
+  after being hit, the opponent will get the kill.
+- If you then re-connect again in-between `reslot_window` seconds after diconnecting, you get also punished with a 
+  reslot event.
+
+| Condition                                                                         | Decision                                                                                                                                    |
+|-----------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| Player got shot at and disconnects in-between the MAX_MISSILE_TIME.               | The plugin will send a message to the admin channel, informing about the incident only, as the player could have a bad internet connection. |
+| Player got shot at and reslots in-between the MAX_MISSILE_TIME.                   | The player will be punished with a "reslot" event. The opponent will be rewarded with the kill.                                             |
+| Player got hit and either reslots or disconnects in-between the MAX_MISSILE_TIME. | The player will be punished with a "reslot" event. The opponent will be rewarded with the kill.                                             |
+| Player crashed in-between the MAX_MISSILE_TIME after being hit.                   | The opponent will be rewarded with the kill.                                                                                                |
+
+> [!NOTE]
+> MAX_MISSILE_TIME is hard-coded to 60 seconds for now.
 
 ## Discord Commands
 | Command      | Parameter | Channel | Role            | Description                                                                                                              |

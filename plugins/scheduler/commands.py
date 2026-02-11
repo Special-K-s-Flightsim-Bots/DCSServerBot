@@ -318,7 +318,7 @@ class Scheduler(Plugin[SchedulerListener]):
             await asyncio.sleep(min(restart_in, min(warn_times)))
 
     async def teardown_dcs(self, server: Server, member: discord.Member | None = None):
-        await self.bot.bus.send_to_node({"command": "onShutdown", "server_name": server.name})
+        await self.bus.send_to_node({"command": "onShutdown", "server_name": server.name})
         await asyncio.sleep(1)
         await server.shutdown()
         if not member:
@@ -468,11 +468,15 @@ class Scheduler(Plugin[SchedulerListener]):
                                    f"Mission {rconf['mission_file']} cannot be loaded on server {server.name}!")
                     return
         else:
-            new_mission = int(server.settings.get('listStartIndex', 1))
+            new_mission = int(await server.getStartIndex())
             if method == 'rotate':
                 new_mission += 1
                 if new_mission > len(mission_list):
                     new_mission = 1
+
+                # set the new start index if the server is shut down
+                if server.status == Status.SHUTDOWN:
+                    await server.setStartIndex(new_mission)
 
         # do we change the running mission?
         if server.status in [Status.RUNNING, Status.PAUSED] and server.current_mission:
@@ -481,15 +485,15 @@ class Scheduler(Plugin[SchedulerListener]):
         else:
             is_running_mission = False
 
-        # set the new start index if the server is shut down
-        if server.status == Status.SHUTDOWN:
-            await server.setStartIndex(new_mission)
-
         # apply presets if configured
         if rconf.get('settings'):
             await self._run_with_presets(server, rconf, new_mission, is_running_mission)
         else:
             await self._run_without_presets(server, rconf, new_mission)
+
+        # change password if configured
+        if 'password' in rconf:
+            await server.setPassword(rconf.get('password'))
 
         mission_name = server.current_mission.display_name if server.current_mission else ""
         await self.bot.audit(
@@ -621,7 +625,7 @@ class Scheduler(Plugin[SchedulerListener]):
     # Individual rule handlers – each returns `restart_in` or `None`
     # ------------------------------------------------------------------ #
     @staticmethod
-    def _handle_times(server: Server, config: dict, rconf: dict, warn_time: int) -> int | None:
+    def _handle_times(_server: Server, config: dict, rconf: dict, warn_time: int) -> int | None:
         """
         *times* – the mission has to restart when the *restart_time*
         falls into any of the supplied time intervals.
@@ -646,7 +650,7 @@ class Scheduler(Plugin[SchedulerListener]):
         return None
 
     @staticmethod
-    def _handle_mission_time(server: Server, config: dict, rconf: dict, warn_time: int) -> int | None:
+    def _handle_mission_time(server: Server, _config: dict, rconf: dict, warn_time: int) -> int | None:
         """
         *mission_time* – check the maximum duration a mission is allowed
         to run.  If the current mission would exceed that duration,
@@ -671,7 +675,7 @@ class Scheduler(Plugin[SchedulerListener]):
         return None
 
     @staticmethod
-    def _handle_real_time(server: Server, config: dict, rconf: dict, warn_time: int) -> int | None:
+    def _handle_real_time(server: Server, _config: dict, rconf: dict, warn_time: int) -> int | None:
         """
         *real_time* – similar to *mission_time* but uses the mission’s
         real‑time counter instead of the internal mission timer.
@@ -689,7 +693,7 @@ class Scheduler(Plugin[SchedulerListener]):
         return None
 
     @staticmethod
-    def _handle_idle_time(server: Server, config: dict, rconf: dict) -> int | None:
+    def _handle_idle_time(server: Server, _config: dict, rconf: dict) -> int | None:
         """
         *idle_time* – if the server has been idle longer than the
         configured threshold, trigger a 0‑second restart.
@@ -700,7 +704,7 @@ class Scheduler(Plugin[SchedulerListener]):
         return None
 
     @staticmethod
-    def _handle_cron(server: Server, config: dict, rconf: dict, warn_time: int) -> int | None:
+    def _handle_cron(_server: Server, config: dict, rconf: dict, warn_time: int) -> int | None:
         """
         *cron* – evaluate the cron expression at the *restart_time* that would occur after *warn_time* seconds.
         """
@@ -937,6 +941,10 @@ class Scheduler(Plugin[SchedulerListener]):
             embed.description += f"\n- Maintenance flag set."
 
         try:
+            if server.on_empty:
+                server.on_empty.clear()
+                embed.description += "\n- Deleted pending on-empty trigger."
+
             if force:
                 embed.description += "\n- Killing the DCS server, please wait ..."
                 embed.set_thumbnail(url=TRAFFIC_LIGHTS['green'])
@@ -1040,7 +1048,7 @@ class Scheduler(Plugin[SchedulerListener]):
         try:
             await self._shutdown(interaction, embed=embed, server=server, maintenance=maintenance, force=force,
                                  ephemeral=ephemeral)
-        except TimeoutError as ex:
+        except TimeoutError:
             self.log.error(f"Timeout while shutting down server {server.name}.")
         except Exception as ex:
             self.log.error(ex)
@@ -1095,7 +1103,7 @@ class Scheduler(Plugin[SchedulerListener]):
             if delay > 0:
                 message = _("!!! Server will restart in {} !!!").format(utils.format_time(delay))
                 await server.sendPopupMessage(Coalition.ALL, message)
-                embed.description += '- Restart is delayed for {}. Waiting ...'.format(utils.format_time(delay))
+                embed.description += '\n- Restart is delayed for {}. Waiting ...'.format(utils.format_time(delay))
                 await msg.edit(embed=embed)
                 await asyncio.sleep(delay)
             else:
@@ -1106,7 +1114,7 @@ class Scheduler(Plugin[SchedulerListener]):
             await self._shutdown(interaction, embed=embed, server=server, msg=msg, maintenance=None, force=force)
             await self._startup(interaction, embed=embed, server=server, msg=msg, maintenance=None,
                                 run_extensions=run_extensions, use_orig=use_orig, mission_id=mission_id)
-        except TimeoutError as ex:
+        except TimeoutError:
             self.log.error(f"Timeout while restarting server {server.name}.")
         except Exception as ex:
             self.log.error(ex)

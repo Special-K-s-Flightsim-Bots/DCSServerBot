@@ -157,6 +157,7 @@ startup:
 | run_extensions   | If true, extensions will be applied to the mission prior to the restart / rotation (default: true) .                                                                                |
 | use_orig         | Use the original mission as a reference.                                                                                                                                            |
 | no_reload        | load only: Do not reload an already running mission.                                                                                                                                |
+| password         | Set a new mission password, usually in combination with cron.                                                                                                                       |
 
 > [!NOTE]
 > "local_times" and "utc_times" are deprecated now and no longer mentioned in here.
@@ -312,25 +313,26 @@ instance3:
   schedule:                                       # server "instance3" will run every day from noon to midnight
     00-12: NNNNNNN
     12-24: YYYYYYY
-  action:                                        # It will restart with a DCS server shutdown after 480 mins of mission time ...
+  action:                                         # It will restart with a DCS server shutdown after 480 mins of mission time ...
     method: restart
     shutdown: true
     mission_time: 480
     populated: false                              # ... only if nobody is on the server (or as soon as that happens afterward)
 
 instance4:
-  schedule:                                      # server "instance4" will run 24x7
+  schedule:                                       # server "instance4" will run 24x7
     00-24: YYYYYYY
   action:                                        
     - method: load
-      cron: '0 */6 * * 1-5'                      # every Mo-Fr at every 6 hrs starting from 00:00, load mission number 1
+      cron: '0 */6 * * 1-5'                       # every Mo-Fr at every 6 hrs starting from 00:00, load mission number 1
       mission_id: 1
-      presets:                                   # Optional: presets file(s) to be used
+      presets:                                    # Optional: presets file(s) to be used
         - config/presets.yaml
-      settings:                                  # MizEdit settings to be applied (overrides what's set in your nodes.yaml)
+      password: Secret                            # Set "Secret" as the new password.
+      settings:                                   # MizEdit settings to be applied (overrides what's set in your nodes.yaml)
         - NoMods
     - method: load
-      cron: '0 */4 * * 0,6'                      # every Sa-Su at every 4 hrs starting from 00:00, load mission number 2
+      cron: '0 */4 * * 0,6'                       # every Sa-Su at every 4 hrs starting from 00:00, load mission number 2
       mission_id: 2
       shutdown: true
 

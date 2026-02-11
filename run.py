@@ -7,6 +7,7 @@ import discord
 import faulthandler
 import logging
 import os
+import psutil
 import psycopg
 import sys
 import time
@@ -21,8 +22,8 @@ from typing import Any, Coroutine
 try:
     from core import (
         NodeImpl, ServiceRegistry, ServiceInstallationError, utils, YAMLError, FatalException, COMMAND_LINE_ARGS,
-        CloudRotatingFileHandler, wait_for_internet
-)
+        CloudRotatingFileHandler, wait_for_internet, ProcessManager
+    )
     from pid import PidFile, PidFileError
     from rich import print
     from rich.console import Console
@@ -127,6 +128,13 @@ class Main:
             print(f"{key}: {utils.get_password(key, config_dir)}")
         print("\n[red]DO NOT SHARE THESE SECRET KEYS![/]")
 
+    async def start_service(self, registry: ServiceRegistry, cls: Any) -> None:
+        try:
+            await registry.new(cls).start()
+        except Exception as ex:
+            self.log.error(f"  - {ex.__str__()}")
+            self.log.error(f"  => {cls.__name__} NOT loaded.")
+
     async def run(self):
         # check for updates
         if self.no_autoupdate:
@@ -149,42 +157,51 @@ class Main:
             self.log.warning(
                 "New update for DCSServerBot available!\nUse /node upgrade or enable autoupdate to apply it.")
 
+        me = psutil.Process(os.getpid())
+        ProcessManager(
+            auto_affinity=self.node.locals.get('auto_affinity', {}).get('enabled', False),
+            excluded_cores=self.node.locals.get('auto_affinity', {}).get('excluded_cores', [])
+        ).assign_process(
+            me,
+            min_cores=self.node.locals.get('auto_affinity', {}).get('min_cores', 1),
+            max_cores=self.node.locals.get('auto_affinity', {}).get('max_cores', 2),
+            quality=self.node.locals.get('auto_affinity', {}).get('quality', 1),
+            instance='DCSServerBot'
+        )
         await self.node.register()
         db_available = True
         async with ServiceRegistry(node=self.node) as registry:
             self.log.info("DCSServerBot {} started.".format("MASTER" if self.node.master else "AGENT"))
             try:
-                while True:
-                    # wait until the master changes
-                    while self.node.master == await self.node.heartbeat():
-                        if self.node.is_shutdown.is_set():
-                            return
-                        await asyncio.sleep(5)
+                while not self.node.is_shutdown.is_set():
+                    if self.node.claimed_master == self.node.master:
+                        await asyncio.sleep(1)
+                        continue
+
                     # switch master
-                    self.node.master = not self.node.master
-                    if self.node.master:
+                    tasks = []
+                    if self.node.claimed_master:
                         self.log.info("Taking over as the MASTER node ...")
                         # start all the master-only services
                         for cls in [x for x in registry.services().keys() if registry.master_only(x)]:
-                            try:
-                                await registry.new(cls).start()
-                            except Exception as ex:
-                                self.log.error(f"  - {ex.__str__()}")
-                                self.log.error(f"  => {cls.__name__} NOT loaded.")
+                            tasks.append(self.start_service(registry, cls))
                         # now switch all others
                         for cls in [x for x in registry.services().keys() if not registry.master_only(x)]:
                             service = registry.get(cls)
                             if service:
-                                await service.switch()
+                                tasks.append(service.switch())
                     else:
                         self.log.info("Second MASTER found, stepping back to AGENT configuration.")
+
                         for cls in registry.services().keys():
                             if registry.master_only(cls):
-                                await registry.get(cls).stop()
+                                tasks.append(registry.get(cls).stop())
                             else:
                                 service = registry.get(cls)
                                 if service:
-                                    await service.switch()
+                                    tasks.append(service.switch())
+                    await asyncio.gather(*tasks)
+                    self.node.commit_claimed_master()
                     self.log.info(f"I am the {'MASTER' if self.node.master else 'AGENT'} now.")
             except OperationalError:
                 db_available = False
@@ -238,9 +255,11 @@ async def run_node(name, config_dir=None, no_autoupdate=False) -> int:
 async def restore_node(name: str, config_dir: str, restarted: bool) -> int:
     from restore import Restore
 
-    print("[blink][red]***********************\n"
+    print("[blink][red]"
+          "***********************\n"
           "*** RESTORE PROCESS ***\n"
-          "***********************\n[/red][/blink]")
+          "***********************\n"
+          "[/red][/blink]")
     print("")
     print("Processing ...")
     restore = Restore(name, config_dir, quiet=restarted)

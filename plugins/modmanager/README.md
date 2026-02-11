@@ -14,6 +14,6 @@ packages (aka mods) into your DCS World servers. Read there for further details.
 
 > [!NOTE]
 > If `restricted_commands` is set to `true` in your nodes.yaml, you can only install and uninstall mods that are 
-> in the SavedGames folder of your MoodManager directory.
+> in the SavedGames folder of your ModManager directory.
 > This is to allow hosters to open mod commands to DCS Admin users without them being able to break the main
 > DCS installation.

@@ -23,16 +23,14 @@ import time
 import traceback
 import unicodedata
 
-# for eval
-import random
-import math
-
 from collections.abc import Mapping
 from copy import deepcopy
+from core.data.const import Port
 from croniter import croniter
 from datetime import datetime, timedelta, timezone, tzinfo
 from difflib import unified_diff
 from importlib import import_module
+from lupa.lua51 import LuaSyntaxError
 from pathlib import Path
 from typing import TYPE_CHECKING, Generator, Iterable, Callable, Any
 from urllib.parse import urlparse
@@ -84,6 +82,7 @@ __all__ = [
     "for_each",
     "YAMLError",
     "DictWrapper",
+    "default_serializer",
     "format_dict_pretty",
     "show_dict_diff",
     "to_valid_pyfunc_name",
@@ -798,7 +797,15 @@ class SettingsDict(dict):
         data = None
         if self.path.lower().endswith('.lua'):
             try:
-                data = luadata.read(self.path, encoding='utf-8')
+                ex = None
+                for i in range(0, 3):
+                    try:
+                        data = luadata.read(self.path, encoding='utf-8')
+                        break
+                    except LuaSyntaxError as ex:
+                        time.sleep(0.5)
+                else:
+                    raise ex
             except Exception as ex:
                 self.log.debug(f"Exception while reading {self.path}:\n{ex}")
                 data = alternate_parse_settings(self.path)
@@ -1074,6 +1081,9 @@ def evaluate(value: str | int | float | bool | list | dict, **kwargs) -> str | i
              If the input value is a string starting with '$', it will be evaluated with placeholders replaced by keyword arguments.
     """
     def _evaluate(value, **kwargs):
+        import random
+        import math
+
         if isinstance(value, (int, float, bool)) or not value.startswith('$'):
             return value
         value = format_string(value[1:], **kwargs)
@@ -1288,11 +1298,14 @@ class DictWrapper:
         return DictWrapper(deepcopy(self.to_dict()))
 
 
+def default_serializer(obj):
+    if isinstance(obj, Port):
+        return repr(obj)
+    return str(obj)
+
+
 def format_dict_pretty(d: dict) -> str:
     """Convert dictionary to pretty-printed JSON string with indentation."""
-
-    def default_serializer(obj):
-        return str(obj)
 
     # Convert to string keys and sort manually
     items = sorted(d.items(), key=lambda x: str(x[0]))

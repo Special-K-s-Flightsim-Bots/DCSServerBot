@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -7,37 +8,35 @@ from pydantic import BaseModel, Field
 class UserEntry(BaseModel):
     nick: str = Field(..., description="Player nickname")
     date: datetime = Field(..., description="Last seen timestamp")
-    current_server: str | None = Field(None, description="Current server")
+    current_server: Optional[str] = Field(None, description="Current server")
 
-    model_config = {
-        "json_encoders": {
+    class Config:
+        json_encoders = {
             datetime: lambda v: v.isoformat()
-        },
-        "json_schema_extra": {
+        }
+        json_schema_extra = {
             "example": {
                 "nick": "Player1",
                 "date": "2025-08-07T12:00:00",
                 "current_server": "My Fancy Server",
             }
         }
-    }
 
 
 class DailyPlayers(BaseModel):
     date: datetime
     player_count: int
 
-    model_config = {
-            "json_encoders": {
-                datetime: lambda v: v.isoformat()
-            },
-            "json_schema_extra": {
-                "example": {
-                    "date": "2025-08-07T12:00:00",
-                    "player_count": 100
-                }
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+        json_schema_extra = {
+            "example": {
+                "date": "2025-08-07T12:00:00",
+                "player_count": 100
             }
-    }
+        }
 
 
 class ServerStats(BaseModel):
@@ -72,11 +71,11 @@ class MissionInfo(BaseModel):
     uptime: int
     date_time: str
     theatre: str
-    blue_slots: int | None = None
-    blue_slots_used: int | None = None
-    red_slots: int | None = None
-    red_slots_used: int | None = None
-    restart_time: int | None = None
+    blue_slots: Optional[int] = None
+    blue_slots_used: Optional[int] = None
+    red_slots: Optional[int] = None
+    red_slots_used: Optional[int] = None
+    restart_time: Optional[int] = None
 
     model_config = {
         "json_schema_extra": {
@@ -355,6 +354,38 @@ class PlayerStats(BaseModel):
         }
     }
 
+class WeatherInfo(BaseModel):
+    temperature: float | None = Field(None, description="Temperature in Celsius")
+    wind_speed: float | None = Field(None, description="Wind speed in m/s")
+    wind_direction: int | None = Field(None, description="Wind direction in degrees")
+    pressure: float | None = Field(None, description="Atmospheric pressure in mmHg")
+    visibility: int | None = Field(None, description="Visibility in meters")
+    clouds_base: int | None = Field(None, description="Cloud base altitude in feet")
+    clouds_density: int | None = Field(None, description="Cloud density (0-10)")
+    precipitation: int | None = Field(None, description="Precipitation type (0=none, 1=rain, 2=thunderstorm, 3=snow)")
+    fog_enabled: bool | None = Field(None, description="Fog enabled")
+    fog_visibility: int | None = Field(None, description="Fog visibility in meters")
+    dust_enabled: bool | None = Field(None, description="Dust storm enabled")
+    dust_visibility: int | None = Field(None, description="Dust storm visibility in meters")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "temperature": 15.5,
+                "wind_speed": 5.2,
+                "wind_direction": 270,
+                "pressure": 760.0,
+                "visibility": 9999,
+                "clouds_base": 8000,
+                "clouds_density": 4,
+                "precipitation": 0,
+                "fog_enabled": False,
+                "fog_visibility": None,
+                "dust_enabled": False,
+                "dust_visibility": None
+            }
+        }
+    }
 
 class PlayerEntry(BaseModel):
     nick: str = Field(..., description="Player name")
@@ -373,6 +404,7 @@ class ServerInfo(BaseModel):
     mission: MissionInfo | None = Field(None, description="Mission info")
     extensions: list[ExtensionInfo] = Field(default_factory=list)
     players: list[PlayerEntry] = Field(default_factory=list)
+    weather: WeatherInfo | None = Field(None, description="Current weather information")
 
     model_config = {
         "json_encoders": {
@@ -402,7 +434,19 @@ class ServerInfo(BaseModel):
                         "version": "1.9.0.0",
                         "value": "127.0.0.1:5002"
                     }
-                ]
+                ],
+                "weather": {
+                    "temperature": 15.5,
+                    "wind_speed": 5.2,
+                    "wind_direction": 270,
+                    "pressure": 760.0,
+                    "visibility": 9999,
+                    "clouds_base": 8000,
+                    "clouds_density": 4,
+                    "precipitation": 0,
+                    "fog_enabled": False,
+                    "dust_enabled": False
+                }
             }
         }
     }
@@ -512,5 +556,350 @@ class LinkMeResponse(BaseModel):
     }
 
 
+class TopTheatre(BaseModel):
+    theatre: str
+    playtime_hours: int
+
+class TopMission(BaseModel):
+    mission_name: str
+    playtime_hours: int
+
+class TopModule(BaseModel):
+    module: str
+    playtime_hours: int
+    unique_players: int
+    total_uses: int
+
+class ServerAttendanceStats(BaseModel):
+    """Server attendance statistics using monitoring plugin patterns"""
+    current_players: int = Field(..., description="Current number of active players")
+    
+    # Statistics for different periods (24h, 7d, 30d) following monitoring plugin patterns
+    unique_players_24h: int = Field(..., description="Unique players in last 24 hours")
+    total_playtime_hours_24h: float = Field(..., description="Total playtime hours in last 24 hours")
+    discord_members_24h: int = Field(..., description="Discord members who played in last 24 hours")
+    
+    unique_players_7d: int = Field(..., description="Unique players in last 7 days") 
+    total_playtime_hours_7d: float = Field(..., description="Total playtime hours in last 7 days")
+    discord_members_7d: int = Field(..., description="Discord members who played in last 7 days")
+    
+    unique_players_30d: int = Field(..., description="Unique players in last 30 days")
+    total_playtime_hours_30d: float = Field(..., description="Total playtime hours in last 30 days") 
+    discord_members_30d: int = Field(..., description="Discord members who played in last 30 days")
+    
+    # Daily trend for the last week
+    daily_trend: list[dict] = Field(default_factory=list, description="Daily unique player counts for trend analysis")
+    
+    # Enhanced statistics from the Discord /serverstats command
+    top_theatres: list[TopTheatre] = Field(default_factory=list, description="Top theatres by playtime")
+    top_missions: list[TopMission] = Field(default_factory=list, description="Top missions by playtime") 
+    top_modules: list[TopModule] = Field(default_factory=list, description="Top modules by playtime and usage")
+    
+    # Additional server metrics from mv_serverstats
+    total_sorties: int | None = Field(None, description="Total sorties flown")
+    total_kills: int | None = Field(None, description="Total kills")
+    total_deaths: int | None = Field(None, description="Total deaths")
+    total_pvp_kills: int | None = Field(None, description="Total PvP kills")
+    total_pvp_deaths: int | None = Field(None, description="Total PvP deaths")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "current_players": 8,
+                "unique_players_24h": 15,
+                "total_playtime_hours_24h": 45.5,
+                "discord_members_24h": 12,
+                "unique_players_7d": 35,
+                "total_playtime_hours_7d": 180.2,
+                "discord_members_7d": 28,
+                "unique_players_30d": 85,
+                "total_playtime_hours_30d": 720.8,
+                "discord_members_30d": 65,
+                "daily_trend": [
+                    {"date": "2025-12-24", "unique_players": 15},
+                    {"date": "2025-12-25", "unique_players": 18}
+                ],
+                "top_theatres": [{"theatre": "Caucasus", "playtime_hours": 2500}, {"theatre": "Syria", "playtime_hours": 347}],
+                "top_missions": [{"mission_name": "Training Map", "playtime_hours": 1200}, {"mission_name": "Combat Mission", "playtime_hours": 800}],
+                "top_modules": [{"module": "F/A-18C", "playtime_hours": 800, "unique_players": 45, "total_uses": 127}],
+                "total_sorties": 1245,
+                "total_kills": 892,
+                "total_deaths": 567,
+                "total_pvp_kills": 234,
+                "total_pvp_deaths": 189
+            }
+        }
+    }
+
+
 class ErrorResponse(BaseModel):
     error: str = Field(..., description="Error message")
+
+
+class Position(BaseModel):
+    y: float
+    x: float
+    z: float
+
+
+class FrequencyListItem(BaseModel):
+    # each frequency entry is a two‑element list: [frequency, value]
+    frequency: int
+    value: int
+
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate_tuple
+
+    @classmethod
+    def validate_tuple(cls, v):
+        if not (isinstance(v, (list, tuple)) and len(v) == 2):
+            raise TypeError('frequency entry must be a 2‑item list')
+        return v
+
+
+class Dynamic(BaseModel):
+    dynamicSpawnAvailable: bool
+    allowHotSpawn: bool
+
+
+class Airbase(BaseModel):
+    alt: float
+    code: str | None = None
+    id: str | None = None
+    lat: float
+    rwy_heading: int | None = None
+    lng: float
+    name: str
+    position: Position
+    frequencyList: list[list[int]] | list[tuple[int, int]] | dict | None = None
+    dynamic: Dynamic
+    runwayList: list[str] | dict | None = None
+    coalition: str | int | None = None
+
+
+class AirbasesResponse(BaseModel):
+    airbases: list[Airbase] = Field(..., description="Airbases data")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "airbases": [
+                    {
+                        "alt": 250.00025,
+                        "code": "ICAO",
+                        "id": "Airbase_Name",
+                        "lat": 35.732306452624,
+                        "rwy_heading": 274,
+                        "lng": 37.104127964423,
+                        "name": "Airbase Name",
+                        "position": {
+                            "y": 250.00025,
+                            "x": 76048.957031,
+                            "z": 111344.925781
+                        },
+                        "frequencyList": [
+                            [
+                                38950000,
+                                0
+                            ],
+                            [
+                                122200000,
+                                0
+                            ],
+                            [
+                                250500000,
+                                0
+                            ],
+                            [
+                                4025000,
+                                0
+                            ]
+                        ],
+                        "dynamic": {
+                            "dynamicSpawnAvailable": True,
+                            "allowHotSpawn": False
+                        },
+                        "runwayList": [
+                            "09",
+                            "27"
+                        ],
+                        "coalition": 1
+                    }
+                ]
+            }
+        }
+    }
+
+
+class AirbaseInfoResponse(BaseModel):
+    airbase: dict = Field(..., description="Airbase data")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "airbase": {
+                    "alt": 69.475785112923,
+                    "channel": "...",
+                    "server_name": "Server Name",
+                    "auto_capture": True,
+                    "lat": 36.371269972814,
+                    "unlimited": {
+                    "weapon": False,
+                    "liquids": True,
+                    "aircraft": False
+                    },
+                    "parking": [
+                        {
+                            "Term_Index": 9,
+                            "vTerminalPos": {
+                            "y": 69.475784301758,
+                            "x": 147715.125,
+                            "z": 38939.109375
+                            },
+                            "TO_AC": False,
+                            "Term_Index_0": -1,
+                            "Term_Type": 104,
+                            "fDistToRW": 1641.8400878906
+                        }
+                    ],
+                    "coalition": 2,
+                    "lng": 36.298090184913,
+                    "name": "Airbase Name",
+                    "position": {
+                    "y": 69.475784301758,
+                    "x": 148653.765625,
+                    "z": 40403.9453125
+                    },
+                    "command": "getAirbase",
+                    "warehouse": {
+                    "liquids": {
+                        "0": 324730.28125,
+                        "1": 500000,
+                        "2": 500000,
+                        "3": 500000
+                    },
+                    "weapon": {
+                        "weapons.missiles.AGM_154": 50,
+                        "weapons.nurs.HYDRA_70_M151_M433": 100,
+                        "weapons.bombs.BEER_BOMB": 50,
+                        "weapons.containers.LANTIRN": 1000,
+                        "weapons.droptanks.Spitfire_tank_1": 1000
+                    },
+                    "aircraft": {
+                        "OH58D": 1,
+                        "CH-47Fbl1": 1,
+                        "A-10C_2": 1,
+                        "F-14B": 1
+                    }
+                    },
+                    "runways": [
+                        {
+                            "course": 2.3682391643524,
+                            "Name": 22,
+                            "position": {
+                            "y": 69.475784301758,
+                            "x": 147687.484375,
+                            "z": 39418.7421875
+                            },
+                            "length": 2759.2866210938,
+                            "width": 60
+                        }
+                    ],
+                    "radio_silent": True,
+                    "mgrs": "37 S BA 56617 27553",
+                    "magVar": 5.6234159795293
+                }
+            }
+        }
+    }
+
+class AirbaseWarehouseResponse(BaseModel):
+    warehouse: dict = Field(..., description="Warehouse data")
+    unlimited: dict = Field(..., description="Unlimited flags")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "warehouse": {
+                    "liquids": {
+                        "0": 500000,
+                        "1": 500000,
+                        "2": 500000,
+                        "3": 500000
+                    },
+                    "weapon": {
+                        "weapons.missiles.AGM_154": 100,
+                        "weapons.nurs.HYDRA_70_M151_M433": 100,
+                        "weapons.bombs.GBU_38": 100,
+                        "weapons.containers.F-15E_AXQ-14_DATALINK": 100,
+                        "weapons.droptanks.FuelTank_350L": 100
+                    },
+                    "aircraft": {
+                        "F-16C_50": 1,
+                        "A6E": 100,
+                        "AH-64D_BLK_II": 5
+                    }
+                },
+                "unlimited": {
+                    "weapon": False,
+                    "liquids": True,
+                    "aircraft": False
+                }
+            }
+        }
+    }
+    
+class AirbaseSetWarehouseItemResponse(BaseModel):
+        
+    item: str = Field(..., description="Warehouse item name")
+    server_name: str = Field(..., description="Server name")
+    value: int = Field(..., description="Quantity value")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "item": "weapons.bombs.GBU_38",
+                "value": 50,
+                "server_name": "Server Name"
+            }
+        }
+    }
+
+class AirbaseCaptureResponse(BaseModel):
+        
+    server_name: str = Field(..., description="Server name")
+    airbase_name: str = Field(..., description="Airbase name")
+    coalition: int = Field(..., description="Coalition capturing the airbase")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "server_name": "Server Name",
+                "airbase": "Airbase Name",
+                "coalition": 0
+            }
+        }
+    }
+    
+class ConvertCoordinates(BaseModel):
+    latlon: str = Field(..., description="Latitude and Longitude in decimal degrees")
+    mgrs: str = Field(..., description="Cooridnate provided, converted to MGRS")
+    dms: str = Field(..., description="Cooridnate provided, converted to Decimal, Minutes, Seconds")
+    ddm: str = Field(..., description="Cooridnate provided, converted to Degrees and Decimal Minutes")
+    meters: dict = Field(..., description="Cooridnate provided, converted to DCS Meters")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "latlon": "35.40556, 35.94889",
+                "mgrs": "36S YE 67795 22013",
+                "dms": "N 35°24'20.00\" E 035°56'56.00\"",
+                "ddm": "N35°24.33333 E35°56.93333",
+                "meters": {
+                    "x": 42430,
+                    "y": 5719
+                }
+            }
+        }
+    }

@@ -1,7 +1,7 @@
 import asyncio
 
 from core import EventListener, PersistentReport, Server, Coalition, Channel, event, Report, get_translation, \
-    ThreadSafeDict
+    ThreadSafeDict, Side
 from discord.ext import tasks
 from typing import TYPE_CHECKING, Counter
 
@@ -76,6 +76,15 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
         self.mission_stats[server.name] = data
         self.update[server.name] = True
 
+        # set airbase coalitions
+        for airbase in server.current_mission.airbases:
+            for coalition in [Side.BLUE, Side.RED]:
+                if airbase['name'] in data.get('coalitions', {}).get(coalition.name, {}).get('airbases', []):
+                    airbase['coalition'] = coalition.value
+                    break
+            else:
+                airbase['coalition'] = Side.NEUTRAL.value
+
     async def _toggle_mission_stats(self, server: Server):
         if self.plugin.get_config(server).get('enabled', True):
             await server.send_to_dcs({
@@ -104,7 +113,10 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
     async def onSimulationStart(self, server: Server, _: dict) -> None:
         asyncio.create_task(self._toggle_mission_stats(server))
 
-    async def _update_database(self, server: Server, config: dict, data: dict):
+    async def _update_database(self, server: Server, data: dict):
+        if data['eventName'] == 'S_EVENT_BASE_CAPTURED':
+            pass
+
         def get_value(values: dict, index1, index2):
             if index1 not in values:
                 return None
@@ -112,6 +124,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                 return None
             return values[index1][index2]
 
+        config = self.get_config(server)
         if not config.get('persistence', True) or server.mission_id == -1:
             return
         player = get_value(data, 'initiator', 'name')
@@ -151,15 +164,14 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             }
             try:
                 async with self.apool.connection() as conn:
-                    async with conn.transaction():
-                        await conn.execute("""
-                            INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, init_cat, 
-                                                      target_id, target_side, target_type, target_cat, weapon, place, 
-                                                      comment) 
-                            VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, %(init_type)s, %(init_cat)s, 
-                                    %(target_id)s, %(target_side)s, %(target_type)s, %(target_cat)s, %(weapon)s, 
-                                    %(place)s, %(comment)s)
-                        """, dataset)
+                    await conn.execute("""
+                        INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, init_cat, 
+                                                  target_id, target_side, target_type, target_cat, weapon, place, 
+                                                  comment) 
+                        VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, %(init_type)s, %(init_cat)s, 
+                                %(target_id)s, %(target_side)s, %(target_type)s, %(target_cat)s, %(weapon)s, 
+                                %(place)s, %(comment)s)
+                    """, dataset)
             except Exception as ex:
                 self.log.warning(str(ex) + ' / ignoring event')
 
@@ -167,7 +179,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if config.get('persistence', True):
-            asyncio.create_task(self._update_database(server, config, data))
+            asyncio.create_task(self._update_database(server, data))
         if not data['server_name'] in self.mission_stats or not data.get('initiator'):
             return
 
@@ -267,6 +279,14 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                 message = self.EVENT_TEXTS[win_coalition]['capture_from'].format(name)
             else:
                 message = self.EVENT_TEXTS[win_coalition]['capture'].format(name)
+
+            # update the internal airbase table
+            try:
+                airbase = next(x for x in server.current_mission.airbases if x['name'] == name)
+                airbase['coalition'] = 1 if win_coalition == Coalition.RED else 2
+            except StopIteration:
+                pass
+
             update = True
             events_channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
             if events_channel:

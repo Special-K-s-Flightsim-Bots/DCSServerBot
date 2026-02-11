@@ -1,3 +1,9 @@
 DEFAULT:
-  prexix: stats # Optional: add a prefix for the WebService / REST API
+  prefix: stats # Optional: add a prefix for the WebService / REST API
   api_key: 23n<2z23irgqwdgnqw7r2djhck # some sample API key (you can use any that you like to secure your API)
+  endpoints:
+    servers:
+      include_weather: true  # Include weather information in /servers endpoint (default: true)
+    server_attendance:
+      # Configuration options for the /server_attendance endpoint if needed in the future
+      enabled: true

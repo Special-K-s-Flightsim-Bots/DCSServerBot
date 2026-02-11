@@ -21,7 +21,7 @@ from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from time import time
-from typing import Type
+from typing import Type, cast
 
 from .const import TOURNAMENT_PHASE
 from .listener import TournamentEventListener
@@ -120,7 +120,7 @@ async def valid_squadron_autocomplete(interaction: discord.Interaction, current:
     return await squadron_autocomplete(interaction, current, 'accepted')
 
 
-async def stage_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+async def stage_autocomplete(interaction: discord.Interaction, _current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     tournament_id = interaction.namespace.tournament
@@ -209,7 +209,7 @@ async def active_matches_autocomplete(interaction: discord.Interaction, current:
         return choices[:25]
 
 
-async def match_squadrons_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+async def match_squadrons_autocomplete(interaction: discord.Interaction, _current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     match_id = interaction.namespace.match
@@ -240,7 +240,7 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
     return []
 
 
-async def date_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+async def date_autocomplete(_interaction: discord.Interaction, _current: str) -> list[app_commands.Choice[str]]:
     now = int(time())
     day_start = now - (now % 86400)
     return [
@@ -252,7 +252,7 @@ async def date_autocomplete(interaction: discord.Interaction, current: str) -> l
     ]
 
 
-async def time_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+async def time_autocomplete(interaction: discord.Interaction, _current: str) -> list[app_commands.Choice[int]]:
     tournament_id = interaction.namespace.tournament
     async with interaction.client.apool.connection() as conn:
         choices: list[app_commands.Choice[int]] = [
@@ -332,7 +332,7 @@ class Tournament(Plugin[TournamentEventListener]):
         if not self._info_channel:
             config = self.get_config()
             channel_id = config.get('channels', {}).get('info')
-            if channel_id and self.bot.check_channel(channel_id):
+            if channel_id and self.bot.check_channel(int(channel_id)):
                 self._info_channel = self.bot.get_channel(channel_id)
         return self._info_channel
 
@@ -633,7 +633,7 @@ class Tournament(Plugin[TournamentEventListener]):
             await interaction.followup.send(modal.error, ephemeral=ephemeral)
             return
 
-        campaign_details = await utils.get_campaign(self, campaign)
+        campaign_details = await utils.get_campaign(self.node, campaign)
         if campaign_details['stop']:
             await interaction.followup.send(_("Error: This campaign is already stopped!"), ephemeral=True)
             return
@@ -645,19 +645,17 @@ class Tournament(Plugin[TournamentEventListener]):
 
         try:
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    cursor = await conn.execute("""
-                        INSERT INTO tm_tournaments (campaign, rounds, num_players) 
-                        VALUES (%s, %s, %s)
-                        RETURNING tournament_id
-                    """, (campaign, modal.num_rounds, modal.num_players))
-                    tournament_id = (await cursor.fetchone())[0]
-                    for time in modal.times:
-                        async with conn.transaction():
-                            await conn.execute("""
-                                INSERT INTO tm_available_times (tournament_id, start_time)
-                                VALUES (%s, %s::time)
-                            """, (tournament_id, time))
+                cursor = await conn.execute("""
+                    INSERT INTO tm_tournaments (campaign, rounds, num_players) 
+                    VALUES (%s, %s, %s)
+                    RETURNING tournament_id
+                """, (campaign, modal.num_rounds, modal.num_players))
+                tournament_id = (await cursor.fetchone())[0]
+                for time in modal.times:
+                    await conn.execute("""
+                        INSERT INTO tm_available_times (tournament_id, start_time)
+                        VALUES (%s, %s::time)
+                    """, (tournament_id, time))
             await self.bot.audit(f"created tournament {campaign}.", user=interaction.user)
             await interaction.followup.send(_("Tournament {} created.").format(campaign), ephemeral=ephemeral)
         except UniqueViolation:
@@ -722,15 +720,14 @@ class Tournament(Plugin[TournamentEventListener]):
             # close campaign
             messages.append(_("Closing the underlying campaign ..."))
             await msg.edit(content='\n'.join(messages))
-            async with conn.transaction():
-                cursor = await conn.execute("""
-                    UPDATE campaigns SET stop = NOW() AT TIME ZONE 'UTC' 
-                    WHERE name = (
-                        SELECT name FROM tm_tournaments WHERE tournament_id = %s
-                    )
-                    RETURNING name
-                """, (tournament_id,))
-                name = (await cursor.fetchone())[0]
+            cursor = await conn.execute("""
+                UPDATE campaigns SET stop = NOW() AT TIME ZONE 'UTC' 
+                WHERE name = (
+                    SELECT name FROM tm_tournaments WHERE tournament_id = %s
+                )
+                RETURNING name
+            """, (tournament_id,))
+            name = (await cursor.fetchone())[0]
 
         await self.bot.audit(f"finished tournament {name} and closed the underlying campaign.",
                              user=interaction.user)
@@ -749,28 +746,27 @@ class Tournament(Plugin[TournamentEventListener]):
             return
         try:
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    async with conn.cursor(row_factory=dict_row) as cursor:
-                        # delete all temp channels
-                        async for row in await cursor.execute("""
-                            SELECT squadron_blue_channel, squadron_red_channel 
-                            FROM tm_matches
-                            WHERE tournament_id = %s
-                        """, (tournament_id,)):
-                            for side in ['blue', 'red']:
-                                try:
-                                    channel = self.bot.get_channel(row[f'squadron_{side}_channel'])
-                                    if channel:
-                                        await channel.delete()
-                                except NotFound:
-                                    pass
-                        # delete all data
-                        await cursor.execute("""
-                            DELETE FROM tm_tournaments 
-                            WHERE tournament_id = %s
-                            RETURNING *
-                        """, (tournament_id, ))
-                        row = await cursor.fetchone()
+                async with conn.cursor(row_factory=dict_row) as cursor:
+                    # delete all temp channels
+                    async for row in await cursor.execute("""
+                        SELECT squadron_blue_channel, squadron_red_channel 
+                        FROM tm_matches
+                        WHERE tournament_id = %s
+                    """, (tournament_id,)):
+                        for side in ['blue', 'red']:
+                            try:
+                                channel = self.bot.get_channel(row[f'squadron_{side}_channel'])
+                                if channel:
+                                    await channel.delete()
+                            except NotFound:
+                                pass
+                    # delete all data
+                    await cursor.execute("""
+                        DELETE FROM tm_tournaments 
+                        WHERE tournament_id = %s
+                        RETURNING *
+                    """, (tournament_id, ))
+                    row = await cursor.fetchone()
 
             # delete the info embed
             for what in ['status', 'info']:
@@ -854,20 +850,19 @@ class Tournament(Plugin[TournamentEventListener]):
                     await interaction.followup.send(_("Aborted."), ephemeral=True)
                     return
 
-                async with conn.transaction():
+                await conn.execute("""
+                    INSERT INTO tm_squadrons(tournament_id, squadron_id, application) VALUES (%s, %s, %s)
+                """, (tournament_id, squadron_id, modal.application_text.value if modal else None))
+                for value in view.times:
                     await conn.execute("""
-                        INSERT INTO tm_squadrons(tournament_id, squadron_id, application) VALUES (%s, %s, %s)
-                    """, (tournament_id, squadron_id, modal.application_text.value if modal else None))
-                    for value in view.times:
-                        await conn.execute("""
-                            INSERT INTO tm_squadron_time_preferences (tournament_id, squadron_id, available_time_id)
-                            VALUES (%s, %s, %s)
-                        """, (tournament_id, squadron_id, int(value)))
-                    for value in view.terrains:
-                        await conn.execute("""
-                            INSERT INTO tm_squadron_terrain_preferences (tournament_id, squadron_id, terrain)
-                            VALUES (%s, %s, %s)
-                        """, (tournament_id, squadron_id, value))
+                        INSERT INTO tm_squadron_time_preferences (tournament_id, squadron_id, available_time_id)
+                        VALUES (%s, %s, %s)
+                    """, (tournament_id, squadron_id, int(value)))
+                for value in view.terrains:
+                    await conn.execute("""
+                        INSERT INTO tm_squadron_terrain_preferences (tournament_id, squadron_id, terrain)
+                        VALUES (%s, %s, %s)
+                    """, (tournament_id, squadron_id, value))
             # noinspection PyUnresolvedReferences
             await interaction.followup.send(
                 _("Squadron application handed in for tournament {}.").format(tournament['name']), ephemeral=True)
@@ -907,23 +902,22 @@ class Tournament(Plugin[TournamentEventListener]):
                     squadron['name'], tournament['name']))
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    UPDATE tm_squadrons SET status = 'WITHDRAW' 
-                    WHERE tournament_id = %s AND squadron_id = %s
-                    """, (tournament_id, squadron_id))
-                for side in ['red', 'blue']:
-                    opposite = 'blue' if side == 'red' else 'red'
-                    cursor = await conn.execute(f"""
-                        UPDATE tm_matches SET winner_squadron_id = squadron_{opposite} 
-                        WHERE tournament_id = %s AND squadron_{side} = %s AND winner_squadron_id IS NULL
-                        RETURNING match_id, winner_squadron_id
-                    """, (tournament_id, squadron_id))
-                    for match_id, winner_squadron_id  in await cursor.fetchall():
-                        if admin_channel:
-                            winner_squadron = utils.get_squadron(self.node, squadron_id=winner_squadron_id)
-                            await admin_channel.send(_("- Match {} vs {} was marked as won by {} due to a forfeit.").format(
-                                squadron['name'], winner_squadron['name'], winner_squadron['name']))
+            await conn.execute("""
+                UPDATE tm_squadrons SET status = 'WITHDRAW' 
+                WHERE tournament_id = %s AND squadron_id = %s
+                """, (tournament_id, squadron_id))
+            for side in ['red', 'blue']:
+                opposite = 'blue' if side == 'red' else 'red'
+                cursor = await conn.execute(f"""
+                    UPDATE tm_matches SET winner_squadron_id = squadron_{opposite} 
+                    WHERE tournament_id = %s AND squadron_{side} = %s AND winner_squadron_id IS NULL
+                    RETURNING match_id, winner_squadron_id
+                """, (tournament_id, squadron_id))
+                for match_id, winner_squadron_id  in await cursor.fetchall():
+                    if admin_channel:
+                        winner_squadron = utils.get_squadron(self.node, squadron_id=winner_squadron_id)
+                        await admin_channel.send(_("- Match {} vs {} was marked as won by {} due to a forfeit.").format(
+                            squadron['name'], winner_squadron['name'], winner_squadron['name']))
 
         await self.bot.audit(f"withdrew squadron {squadron['name']} from tournament {tournament['name']}.",
                              user=interaction.user)
@@ -1185,7 +1179,7 @@ class Tournament(Plugin[TournamentEventListener]):
 
         return create_group_matches(groups)
 
-    async def generate_elimination_stage(self, interaction: discord.Interaction, tournament_id: int,
+    async def generate_elimination_stage(self, _interaction: discord.Interaction, tournament_id: int,
                                          level: int) -> list[tuple[int, int]]:
         async with self.apool.connection() as conn:
             cursor = await conn.execute("SELECT COUNT(DISTINCT(group_number)) FROM tm_squadrons WHERE tournament_id = %s",
@@ -1316,64 +1310,63 @@ class Tournament(Plugin[TournamentEventListener]):
                         phase = TOURNAMENT_PHASE.START_ELIMINATION_PHASE
                         matches = await self.generate_elimination_stage(interaction, tournament_id, 0)
 
-                async with conn.transaction():
-                    # delete old matches
-                    cursor = await conn.execute("""
-                        DELETE FROM tm_matches WHERE tournament_id = %s AND winner_squadron_id IS NULL
-                        RETURNING *
-                    """, (tournament_id, ))
-                    # we have not deleted anything, so we are creating a new stage
-                    if cursor.rowcount == 0:
-                        level += 1
+                # delete old matches
+                cursor = await conn.execute("""
+                    DELETE FROM tm_matches WHERE tournament_id = %s AND winner_squadron_id IS NULL
+                    RETURNING *
+                """, (tournament_id, ))
+                # we have not deleted anything, so we are creating a new stage
+                if cursor.rowcount == 0:
+                    level += 1
 
-                    # store new matches in the database
-                    for idx, match in enumerate(matches):
-                        server = servers[idx % len(servers)]
-                        await conn.execute("""
-                           INSERT INTO tm_matches(tournament_id, stage, server_name, squadron_red, squadron_blue)
-                           VALUES (%s, %s, %s, %s, %s)
-                        """, (tournament_id, level, server, match[0], match[1]))
+                # store new matches in the database
+                for idx, match in enumerate(matches):
+                    server = servers[idx % len(servers)]
+                    await conn.execute("""
+                       INSERT INTO tm_matches(tournament_id, stage, server_name, squadron_red, squadron_blue)
+                       VALUES (%s, %s, %s, %s, %s)
+                    """, (tournament_id, level, server, match[0], match[1]))
 
-                    if level > 1:
-                        # check for eliminations
-                        async for row in await conn.execute(f"""
-                            WITH active_squadrons AS (
-                                SELECT DISTINCT squadron_id
-                                FROM (
-                                    SELECT squadron_blue AS squadron_id
-                                    FROM tm_matches
-                                    WHERE tournament_id = %(tournament_id)s
-                                    AND winner_squadron_id IS NULL
-                                    UNION ALL
-                                    SELECT squadron_red AS squadron_id
-                                    FROM tm_matches
-                                    WHERE tournament_id = %(tournament_id)s
-                                    AND winner_squadron_id IS NULL
-                                ) all_active
-                            ),
-                            previous_stage_squadrons AS (
-                                SELECT DISTINCT squadron_id
-                                FROM (
-                                    SELECT squadron_blue AS squadron_id
-                                    FROM tm_matches
-                                    WHERE tournament_id = %(tournament_id)s
-                                    AND winner_squadron_id IS NOT NULL
-                                    UNION ALL
-                                    SELECT squadron_red AS squadron_id
-                                    FROM tm_matches
-                                    WHERE tournament_id = %(tournament_id)s
-                                    AND winner_squadron_id IS NOT NULL
-                                ) all_previous
-                            )
-                            SELECT squadron_id 
-                            FROM previous_stage_squadrons
-                            WHERE squadron_id NOT IN (SELECT squadron_id FROM active_squadrons)
-                        """, {"tournament_id": tournament_id}):
-                            embed = discord.Embed(title=_("You have been eliminated!"), color=discord.Color.blue())
-                            embed.set_thumbnail(url="https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/Uncle_Sam_%28pointing_finger%29.png/960px-Uncle_Sam_%28pointing_finger%29.png")
-                            embed.description = _("You have been eliminated from the tournament {}.\n"
-                                                  "Thank you for your participation!").format(tournament['name'])
-                            await self.inform_squadron(tournament_id=tournament_id, squadron_id=row[0], embed=embed)
+                if level > 1:
+                    # check for eliminations
+                    async for row in await conn.execute(f"""
+                        WITH active_squadrons AS (
+                            SELECT DISTINCT squadron_id
+                            FROM (
+                                SELECT squadron_blue AS squadron_id
+                                FROM tm_matches
+                                WHERE tournament_id = %(tournament_id)s
+                                AND winner_squadron_id IS NULL
+                                UNION ALL
+                                SELECT squadron_red AS squadron_id
+                                FROM tm_matches
+                                WHERE tournament_id = %(tournament_id)s
+                                AND winner_squadron_id IS NULL
+                            ) all_active
+                        ),
+                        previous_stage_squadrons AS (
+                            SELECT DISTINCT squadron_id
+                            FROM (
+                                SELECT squadron_blue AS squadron_id
+                                FROM tm_matches
+                                WHERE tournament_id = %(tournament_id)s
+                                AND winner_squadron_id IS NOT NULL
+                                UNION ALL
+                                SELECT squadron_red AS squadron_id
+                                FROM tm_matches
+                                WHERE tournament_id = %(tournament_id)s
+                                AND winner_squadron_id IS NOT NULL
+                            ) all_previous
+                        )
+                        SELECT squadron_id 
+                        FROM previous_stage_squadrons
+                        WHERE squadron_id NOT IN (SELECT squadron_id FROM active_squadrons)
+                    """, {"tournament_id": tournament_id}):
+                        embed = discord.Embed(title=_("You have been eliminated!"), color=discord.Color.blue())
+                        embed.set_thumbnail(url="https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/Uncle_Sam_%28pointing_finger%29.png/960px-Uncle_Sam_%28pointing_finger%29.png")
+                        embed.description = _("You have been eliminated from the tournament {}.\n"
+                                              "Thank you for your participation!").format(tournament['name'])
+                        await self.inform_squadron(tournament_id=tournament_id, squadron_id=row[0], embed=embed)
 
                 await self.bot.audit(f"generated matches for tournament {tournament['name']}.",
                                      user=interaction.user)
@@ -1402,11 +1395,10 @@ class Tournament(Plugin[TournamentEventListener]):
                      server_name: str, squadron_blue: int, squadron_red: int, day: int, time: int):
         match_time = datetime.fromtimestamp(day, tz=timezone.utc) + timedelta(seconds=time)
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    INSERT INTO tm_matches(tournament_id, stage, match_time, server_name, squadron_red, squadron_blue) 
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (tournament_id, stage, match_time, server_name, squadron_red, squadron_blue))
+            await conn.execute("""
+                INSERT INTO tm_matches(tournament_id, stage, match_time, server_name, squadron_red, squadron_blue) 
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (tournament_id, stage, match_time, server_name, squadron_red, squadron_blue))
 
         tournament = await self.get_tournament(tournament_id)
         blue = utils.get_squadron(self.node, squadron_id=squadron_blue)
@@ -1561,16 +1553,15 @@ class Tournament(Plugin[TournamentEventListener]):
         embed.description += _("\n- Assigning coalitions ...")
         await msg.edit(embed=embed)
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("DELETE FROM coalitions WHERE server_name = %s", (server.name, ))
-                for coalition in ['blue', 'red']:
-                    await conn.execute(f"""
-                        INSERT INTO coalitions(server_name, player_ucid, coalition) 
-                            SELECT %s, s.player_ucid, '{coalition}' 
-                            FROM squadron_members s JOIN tm_matches m ON s.squadron_id = m.squadron_{coalition}
-                            WHERE m.match_id = %s
-                        ON CONFLICT (server_name, player_ucid) DO UPDATE SET coalition = '{coalition}'
-                    """, (server.name, match['match_id']))
+            await conn.execute("DELETE FROM coalitions WHERE server_name = %s", (server.name, ))
+            for coalition in ['blue', 'red']:
+                await conn.execute(f"""
+                    INSERT INTO coalitions(server_name, player_ucid, coalition) 
+                        SELECT %s, s.player_ucid, '{coalition}' 
+                        FROM squadron_members s JOIN tm_matches m ON s.squadron_id = m.squadron_{coalition}
+                        WHERE m.match_id = %s
+                    ON CONFLICT (server_name, player_ucid) DO UPDATE SET coalition = '{coalition}'
+                """, (server.name, match['match_id']))
 
     async def prepare_mission(self, server: Server, match_id: int, round_number: int,
                               mission_id: int | None = None) -> str:
@@ -1615,41 +1606,40 @@ class Tournament(Plugin[TournamentEventListener]):
                 )
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # apply the squadron presets
-                for side in ['blue', 'red']:
-                    # apply persistent presets
-                    async for row in await conn.execute(f"""
-                        SELECT preset, config FROM tm_persistent_choices c
-                        JOIN tm_matches m ON c.match_id = m.match_id AND c.squadron_id = m.squadron_{side}
-                        WHERE m.match_id = %s 
-                    """, (match_id,)):
-                        self.log.debug(f"Applying persistent preset for side {side}: {row[0]} ...")
-                        await asyncio.to_thread(
-                            miz.apply_preset,
-                            utils.get_preset(self.node, row[0], filename=preset_file),
-                            side=side, **row[1]
-                        )
-                    # apply choices
-                    async for row in await conn.execute(f"""
-                        SELECT preset, config FROM tm_choices c 
-                        JOIN tm_matches m ON c.match_id = m.match_id AND c.squadron_id = m.squadron_{side}
-                        WHERE m.match_id = %(match_id)s AND m.choices_{side}_ack = TRUE
-                    """, {"match_id": match_id}):
-                        self.log.debug(f"Applying custom preset for side {side}: {row[0]} ...")
-                        await asyncio.to_thread(
-                            miz.apply_preset,
-                            utils.get_preset(self.node, row[0], filename=preset_file),
-                            side=side, **row[1]
-                        )
+            # apply the squadron presets
+            for side in ['blue', 'red']:
+                # apply persistent presets
+                async for row in await conn.execute(f"""
+                    SELECT preset, config FROM tm_persistent_choices c
+                    JOIN tm_matches m ON c.match_id = m.match_id AND c.squadron_id = m.squadron_{side}
+                    WHERE m.match_id = %s 
+                """, (match_id,)):
+                    self.log.debug(f"Applying persistent preset for side {side}: {row[0]} ...")
+                    await asyncio.to_thread(
+                        miz.apply_preset,
+                        utils.get_preset(self.node, row[0], filename=preset_file),
+                        side=side, **row[1]
+                    )
+                # apply choices
+                async for row in await conn.execute(f"""
+                    SELECT preset, config FROM tm_choices c 
+                    JOIN tm_matches m ON c.match_id = m.match_id AND c.squadron_id = m.squadron_{side}
+                    WHERE m.match_id = %(match_id)s AND m.choices_{side}_ack = TRUE
+                """, {"match_id": match_id}):
+                    self.log.debug(f"Applying custom preset for side {side}: {row[0]} ...")
+                    await asyncio.to_thread(
+                        miz.apply_preset,
+                        utils.get_preset(self.node, row[0], filename=preset_file),
+                        side=side, **row[1]
+                    )
 
-                # delete the choices from the database and update the acknoledgement
-                await conn.execute("DELETE FROM tm_choices WHERE match_id = %s", (match_id,))
-                await conn.execute("""
-                    UPDATE tm_matches 
-                    SET choices_blue_ack=FALSE, choices_red_ack=FALSE 
-                    WHERE match_id = %s
-                """, (match_id,))
+            # delete the choices from the database and update the acknoledgement
+            await conn.execute("DELETE FROM tm_choices WHERE match_id = %s", (match_id,))
+            await conn.execute("""
+                UPDATE tm_matches 
+                SET choices_blue_ack=FALSE, choices_red_ack=FALSE 
+                WHERE match_id = %s
+            """, (match_id,))
 
         miz.save(new_filename)
         if new_filename != filename:
@@ -1729,15 +1719,14 @@ class Tournament(Plugin[TournamentEventListener]):
 
         # Start the next round
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    UPDATE tm_matches 
-                    SET round_number = %s, 
-                        match_time = NOW() AT TIME ZONE 'UTC',
-                        choices_blue_ack = FALSE, 
-                        choices_red_ack = FALSE
-                    WHERE match_id = %s
-                """, (round_number, match_id))
+            await conn.execute("""
+                UPDATE tm_matches 
+                SET round_number = %s, 
+                    match_time = NOW() AT TIME ZONE 'UTC',
+                    choices_blue_ack = FALSE, 
+                    choices_red_ack = FALSE
+                WHERE match_id = %s
+            """, (round_number, match_id))
 
         channel_id = self.get_config(server).get('channels', {}).get('admin')
         channel = self.bot.get_channel(channel_id) or self.bot.get_admin_channel(server)
@@ -1764,19 +1753,18 @@ class Tournament(Plugin[TournamentEventListener]):
         config = self.get_config(server)
         min_costs = min(choice['costs'] for choice in config['presets']['choices'].values())
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                for side in ['blue', 'red']:
-                    squadron = await self.get_squadron(tournament_id, squadrons[side]['id'])
-                    if squadron.points >= min_costs:
-                        channel = self.bot.get_channel(channels[side])
-                        await channel.send(_("You can now use {} to chose your customizations!\n"
-                                             "If you do not want to change anything, "
-                                             "please run it and say 'Skip this round'").format(
-                            (await utils.get_command(self.bot, group=self.match.name,
-                                                     name=self.customize.name)).mention))
-                    else:
-                        await conn.execute(f"UPDATE tm_matches SET choices_{side}_ack = TRUE WHERE match_id = %s",
-                                           (match_id,))
+            for side in ['blue', 'red']:
+                squadron = await self.get_squadron(tournament_id, squadrons[side]['id'])
+                if squadron.points >= min_costs:
+                    channel = self.bot.get_channel(channels[side])
+                    await channel.send(_("You can now use {} to chose your customizations!\n"
+                                         "If you do not want to change anything, "
+                                         "please run it and say 'Skip this round'").format(
+                        (await utils.get_command(self.bot, group=self.match.name,
+                                                 name=self.customize.name)).mention))
+                else:
+                    await conn.execute(f"UPDATE tm_matches SET choices_{side}_ack = TRUE WHERE match_id = %s",
+                                       (match_id,))
 
         # wait until all choices are finished
         await self.eventlistener.wait_until_choices_finished(server)
@@ -1844,7 +1832,7 @@ class Tournament(Plugin[TournamentEventListener]):
         await msg.edit(embed=embed)
         # inform everyone
         for side in ['blue', 'red']:
-            channel: TextChannel = self.bot.get_channel(channels[side])
+            channel = self.bot.get_channel(channels[side])
             embed = discord.Embed(color=discord.Color.blue(), title=_("The match is starting NOW!"))
             if squadrons[side]['image_url']:
                 embed.set_thumbnail(url=squadrons[side]['image_url'])
@@ -1919,7 +1907,7 @@ class Tournament(Plugin[TournamentEventListener]):
     async def open_channel(self, match_id: int, server: Server) -> dict[str, int]:
         config = self.get_config(server)
         match = await self.get_match(match_id)
-        category: CategoryChannel = self.bot.get_channel(config['channels']['category'])
+        category = cast(CategoryChannel, self.bot.get_channel(config['channels']['category']))
         channels = {}
         for side in ['blue', 'red']:
             squadron = utils.get_squadron(self.node, squadron_id=match[f'squadron_{side}'])
@@ -1954,11 +1942,10 @@ class Tournament(Plugin[TournamentEventListener]):
                     except discord.Forbidden:
                         raise PermissionError("You need to give the bot the Manage Roles permission!")
 
-                    async with conn.transaction():
-                        await conn.execute(f"""
-                            UPDATE tm_matches SET squadron_{side}_channel = %s 
-                            WHERE match_id = %s
-                        """, (channel_id, match_id))
+                    await conn.execute(f"""
+                        UPDATE tm_matches SET squadron_{side}_channel = %s 
+                        WHERE match_id = %s
+                    """, (channel_id, match_id))
 
             channels[side] = channel_id
 
@@ -2027,29 +2014,28 @@ class Tournament(Plugin[TournamentEventListener]):
             await interaction.followup.send(_("Invalid date format. Use yyyy-mm-dd hh:mm:ss."), ephemeral=True)
             return
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    UPDATE tm_matches 
-                    SET squadron_blue_rounds_won = %s, squadron_red_rounds_won = %s, match_time = %s 
-                    WHERE match_id = %s
-                """, (modal.value.get('squadron_blue_rounds_won'),
-                      modal.value.get('squadron_red_rounds_won'),
-                      match_time, match_id))
+            await conn.execute("""
+                UPDATE tm_matches 
+                SET squadron_blue_rounds_won = %s, squadron_red_rounds_won = %s, match_time = %s 
+                WHERE match_id = %s
+            """, (modal.value.get('squadron_blue_rounds_won'),
+                  modal.value.get('squadron_red_rounds_won'),
+                  match_time, match_id))
 
-                if winner_squadron_id:
-                    squadron = utils.get_squadron(self.node, squadron_id=winner_squadron_id)
-                    if await utils.yn_question(
-                            interaction, _("Do you really want to finish the match and make {} the winner?").format(
-                                squadron['name']), ephemeral=True):
-                        cursor = await conn.execute("""
-                            UPDATE tm_matches SET winner_squadron_id = %s WHERE match_id = %s
-                            RETURNING server_name
-                        """, (winner_squadron_id, match_id))
-                        server_name = (await cursor.fetchone())[0]
-                        server = self.bot.servers[server_name]
-                        self.reset_serversettings(server)
-                    else:
-                        await interaction.followup.send(_("Winner not updated."), ephemeral=True)
+            if winner_squadron_id:
+                squadron = utils.get_squadron(self.node, squadron_id=winner_squadron_id)
+                if await utils.yn_question(
+                        interaction, _("Do you really want to finish the match and make {} the winner?").format(
+                            squadron['name']), ephemeral=True):
+                    cursor = await conn.execute("""
+                        UPDATE tm_matches SET winner_squadron_id = %s WHERE match_id = %s
+                        RETURNING server_name
+                    """, (winner_squadron_id, match_id))
+                    server_name = (await cursor.fetchone())[0]
+                    server = self.bot.servers[server_name]
+                    self.reset_serversettings(server)
+                else:
+                    await interaction.followup.send(_("Winner not updated."), ephemeral=True)
 
         if match['winner_squadron_id'] != winner_squadron_id \
             or match['squadron_blue_rounds_won'] != modal.value.get('squadron_blue_rounds_won') \
@@ -2145,22 +2131,21 @@ class Tournament(Plugin[TournamentEventListener]):
                 return
 
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("""
-                        UPDATE tm_matches
-                        SET 
-                            choices_blue_ack = CASE
-                                WHEN squadron_blue = %(squadron_id)s THEN true
-                                ELSE choices_blue_ack
-                            END,
-                            choices_red_ack  = CASE
-                                WHEN squadron_red = %(squadron_id)s THEN true
-                                ELSE choices_red_ack
-                            END
-                        WHERE 
-                            (squadron_blue = %(squadron_id)s OR squadron_red = %(squadron_id)s)
-                            AND match_id = %(match_id)s
-                    """, {"match_id": match_id, "squadron_id": squadron_id})
+                await conn.execute("""
+                    UPDATE tm_matches
+                    SET 
+                        choices_blue_ack = CASE
+                            WHEN squadron_blue = %(squadron_id)s THEN true
+                            ELSE choices_blue_ack
+                        END,
+                        choices_red_ack  = CASE
+                            WHEN squadron_red = %(squadron_id)s THEN true
+                            ELSE choices_red_ack
+                        END
+                    WHERE 
+                        (squadron_blue = %(squadron_id)s OR squadron_red = %(squadron_id)s)
+                        AND match_id = %(match_id)s
+                """, {"match_id": match_id, "squadron_id": squadron_id})
             if not view.acknowledged:
                 await interaction.followup.send(_("You decided to not buy any customizations in this round."))
             else:
@@ -2250,21 +2235,20 @@ class Tournament(Plugin[TournamentEventListener]):
                     await interaction.followup.send(_("Aborted"))
                     return
 
-                async with conn.transaction():
-                    cursor = await cursor.execute("""
-                        UPDATE tm_tickets SET ticket_count = ticket_count - 1
-                        WHERE tournament_id = %s 
-                          AND squadron_id = %s
-                          AND ticket_name = %s
-                        RETURNING ticket_count
+                cursor = await cursor.execute("""
+                    UPDATE tm_tickets SET ticket_count = ticket_count - 1
+                    WHERE tournament_id = %s 
+                      AND squadron_id = %s
+                      AND ticket_name = %s
+                    RETURNING ticket_count
+                """, (tournament_id, squadron_id, ticket_name))
+                ticket_count = (await cursor.fetchone())['ticket_count']
+                if ticket_count == 0:
+                    await conn.execute("""
+                        DELETE FROM tm_tickets WHERE tournament_id = %s AND squadron_id = %s AND ticket_name = %s
                     """, (tournament_id, squadron_id, ticket_name))
-                    ticket_count = (await cursor.fetchone())['ticket_count']
-                    if ticket_count == 0:
-                        await conn.execute("""
-                            DELETE FROM tm_tickets WHERE tournament_id = %s AND squadron_id = %s AND ticket_name = %s
-                        """, (tournament_id, squadron_id, ticket_name))
-                    squadron.points += credits
-                    squadron.audit(event='Ticket sale', points=credits, remark=f"{ticket_name} sold")
+                squadron.points += credits
+                squadron.audit(event='Ticket sale', points=credits, remark=f"{ticket_name} sold")
             # noinspection PyUnresolvedReferences
             await interaction.followup.send(
                 _("You sold a ticket of type {} and got {} credits back.\n"
@@ -2455,23 +2439,22 @@ class Tournament(Plugin[TournamentEventListener]):
 
         try:
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    # Process each row in the DataFrame
-                    for _, row in match_df.iterrows():
-                        # Extract values for the update in the correct order
-                        update_values = []
-                        for col in columns_to_update:
-                            if col == 'match_time':
-                                # Handle NaT values for datetime column
-                                value = None if pd.isna(row[col]) else row[col]
-                            else:
-                                value = row[col]
-                            update_values.append(value)
+                # Process each row in the DataFrame
+                for _, row in match_df.iterrows():
+                    # Extract values for the update in the correct order
+                    update_values = []
+                    for col in columns_to_update:
+                        if col == 'match_time':
+                            # Handle NaT values for datetime column
+                            value = None if pd.isna(row[col]) else row[col]
+                        else:
+                            value = row[col]
+                        update_values.append(value)
 
-                        # Add match_id and tournament_id for the WHERE clause
-                        update_values.extend([row['match_id'], tournament_id])
+                    # Add match_id and tournament_id for the WHERE clause
+                    update_values.extend([row['match_id'], tournament_id])
 
-                        await conn.execute(query, tuple(update_values))
+                    await conn.execute(query, tuple(update_values))
 
         except Exception as e:
             raise ValueError(f"Failed to update tournament data: {str(e)}")

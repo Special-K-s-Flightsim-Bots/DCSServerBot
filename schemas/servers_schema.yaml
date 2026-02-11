@@ -136,6 +136,7 @@ mapping:
       validate_missions: {type: bool, nullable: false}
       autorole: {type: text, nullable: false}
       smooth_pause: {type: int, nullable: false}
+      lock_on_load: {type: int, nullable: false}
       force_voice: {type: bool, nullable: false}
       rules: {type: str, nullable: false, range: {min: 1}}
       accept_rules_on_join: {type: bool, nullable: false}

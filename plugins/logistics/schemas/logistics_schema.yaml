@@ -1,0 +1,56 @@
+schema;element_schema:
+  type: map
+  func: is_element
+  nullable: false
+  mapping:
+    enabled: {type: bool, nullable: false}
+    status_channel: {type: any, nullable: true}
+    ping_role: {type: str, nullable: true}
+    publish_on_create: {type: bool, nullable: true}
+    publish_on_assign: {type: bool, nullable: true}
+    publish_on_complete: {type: bool, nullable: true}
+    publish_on_abandon: {type: bool, nullable: true}
+    publish_on_cancel: {type: bool, nullable: true}
+    marker_timeout: {type: int, nullable: true}
+    delivery:
+      type: map
+      nullable: true
+      mapping:
+        proximity_threshold: {type: int, nullable: true}
+        require_landing: {type: bool, nullable: true}
+        check_interval: {type: int, nullable: true}
+    markers:
+      type: map
+      nullable: true
+      mapping:
+        enabled: {type: bool, nullable: true}
+        show_deadline: {type: bool, nullable: true}
+    tasks:
+      type: map
+      nullable: true
+      mapping:
+        auto_approve: {type: bool, nullable: true}
+        timeout_hours: {type: int, nullable: true}
+        stale_days: {type: int, nullable: true}
+        max_per_player: {type: int, nullable: true}
+    permissions:
+      type: map
+      nullable: true
+      mapping:
+        create: {type: seq, nullable: true, sequence: [{type: str}]}
+        approve: {type: seq, nullable: true, sequence: [{type: str}]}
+        assign: {type: seq, nullable: true, sequence: [{type: str}]}
+        cancel: {type: seq, nullable: true, sequence: [{type: str}]}
+
+type: map
+func: check_main_structure
+nullable: false
+mapping:
+  DEFAULT:
+    include: 'element_schema'
+  commands:
+    include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
+  regex;(.+):
+    include: 'element_schema'

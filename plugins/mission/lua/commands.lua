@@ -2,6 +2,7 @@ local base 	= _G
 local Terrain   = base.require('terrain')
 local UC   	= base.require("utils_common")
 local Weather   = base.require('Weather')
+local magvar    = base.require("magvar")
 local dcsbot	= base.dcsbot
 local config	= base.require("DCSServerBotConfig")
 local utils 	= base.require("DCSServerBotUtils")
@@ -176,8 +177,11 @@ function dcsbot.getAirbases(json)
                 airbase.name = airdrome.names.en
             end
             airbase.id = airdrome.id
+            airbase.type = airdrome.airbaseType or 'Airbase'
             airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(airdrome.reference_point.x, airdrome.reference_point.y)
             airbase.alt = Terrain.GetHeight(airdrome.reference_point.x, airdrome.reference_point.y)
+            airbase.mgrs =  Terrain.GetMGRScoordinates(airdrome.reference_point.x, airdrome.reference_point.y)
+            airbase.magVar = UC.toDegrees(magvar.get_mag_decl(airbase.lat, airbase.lng), true)
             airbase.position = {}
             airbase.position.x = airdrome.reference_point.x
             airbase.position.y = airbase.alt
@@ -400,7 +404,8 @@ function dcsbot.startNextMission(json)
 	if json.result == true then
         local mission_list = net.missionlist_get()
 		utils.saveSettings({
-			listStartIndex=mission_list.listStartIndex
+			listStartIndex = mission_list.listStartIndex,
+			current = mission_list.listStartIndex
 		})
 	end
 	utils.sendBotTable(json, json.channel)
@@ -425,8 +430,7 @@ end
 function dcsbot.setStartIndex(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: setStartIndex()')
 	utils.saveSettings({
-		listStartIndex = json.id,
-		current = json.id
+		listStartIndex = json.id
     })
 end
 
@@ -579,13 +583,27 @@ function dcsbot.sendChatMessage(json)
 end
 
 function dcsbot.sendPopupMessage(json)
-	log.write('DCSServerBot', log.DEBUG, 'Mission: sendPopupMessage()')
-	local message = json.message
-	if (json.from) then
-		message = json.from .. ': ' .. message
-	end
-	local time = json.time or 10
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.sendPopupMessage2("' .. json.to .. '", "' .. json.id ..'", ' .. utils.basicSerialize(message) .. ', ' .. tostring(time) ..')') .. ')')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: sendPopupMessage()')
+
+    local message = json.message
+    if json.from then
+        message = json.from .. ': ' .. message
+    end
+
+    local time = json.time or 10
+
+    -- serialize each argument individually
+    local code = string.format(
+        [[dcsbot.sendPopupMessage2(%s, %s, %s, %s)]],
+        utils.basicSerialize(json.to),
+        utils.basicSerialize(json.id),
+        utils.basicSerialize(message),
+        tostring(time)
+    )
+
+    -- now serialize the whole call that will be executed in the mission env
+    net.dostring_in('mission',
+        'a_do_script(' .. utils.basicSerialize(code) .. ')')
 end
 
 function dcsbot.playSound(json)
@@ -605,7 +623,11 @@ local function setUserRoles(json)
         end
     end
     if name then
-        local script = 'dcsbot._setUserRoles(' .. utils.basicSerialize(name) .. ', ' .. utils.basicSerialize(net.lua2json(json.roles)) .. ')'
+        local script = ''
+        if json.discord_id then
+            script = script .. 'dcsbot._setDiscordID(' .. utils.basicSerialize(name) .. ', "' .. json.discord_id .. '")\n'
+        end
+        script = script .. 'dcsbot._setUserRoles(' .. utils.basicSerialize(name) .. ', ' .. utils.basicSerialize(net.lua2json(json.roles)) .. ')'
         net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
     end
 end
@@ -722,6 +744,16 @@ function dcsbot.unlock_player(json)
 	dcsbot.locked[json.ucid] = nil
 end
 
+function dcsbot.mute_player(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: mute_player()')
+	dcsbot.muted[json.ucid] = true
+end
+
+function dcsbot.unmute_player(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: unmute_player()')
+	dcsbot.muted[json.ucid] = nil
+end
+
 function dcsbot.lock_server(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: lock_server()')
     dcsbot.server_locked = true
@@ -793,4 +825,24 @@ end
 function dcsbot.endMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: endMission()')
 	net.dostring_in('mission', 'a_end_mission(' .. utils.basicSerialize(json.winner or '') .. ',' .. utils.basicSerialize(json.message or '') .. ',' .. (json.time or 0) .. ')')
+end
+
+function dcsbot.convertMetersToLatLon(json)
+    local lat, lon = Terrain.convertMetersToLatLon(json.x, json.y)
+    local msg = {
+        command = "convertMetersToLatLon",
+        lat = lat,
+        lon = lon
+    }
+    utils.sendBotTable(msg, json.channel)
+end
+
+function dcsbot.convertLatLonToMeters(json)
+    local x, y = Terrain.convertLatLonToMeters(json.lat, json.lon)
+    local msg = {
+        command = "convertLatLonToMeters",
+        x = x,
+        y = y
+    }
+    utils.sendBotTable(msg, json.channel)
 end

@@ -1,5 +1,7 @@
-local base	= _G
-dcsbot 		= base.dcsbot
+local base	    = _G
+local Terrain   = base.require('terrain')
+
+dcsbot 		    = base.dcsbot
 
 local GROUP_CATEGORY = {
 	[Group.Category.AIRPLANE] = 'Airplanes',
@@ -17,6 +19,10 @@ world.event.S_EVENT_NEW_ZONE_GOAL = world.event.S_EVENT_MAX + 1004
 world.event.S_EVENT_DELETE_ZONE_GOAL = world.event.S_EVENT_MAX + 1005
 world.event.S_EVENT_REMOVE_UNIT = world.event.S_EVENT_MAX + 1006
 world.event.S_EVENT_PLAYER_ENTER_AIRCRAFT = world.event.S_EVENT_MAX + 1007
+world.event.S_EVENT_NEW_DYNAMIC_CARGO = world.event.S_EVENT_MAX + 1008
+world.event.S_EVENT_DYNAMIC_CARGO_LOADED = world.event.S_EVENT_MAX + 1009
+world.event.S_EVENT_DYNAMIC_CARGO_UNLOADED = world.event.S_EVENT_MAX + 1010
+world.event.S_EVENT_DYNAMIC_CARGO_REMOVED = world.event.S_EVENT_MAX + 1011
 
 -- ECW
 world.event.S_EVENT_ECW_TROOP_DROP   = world.event.S_EVENT_MAX + 1050
@@ -24,11 +30,65 @@ world.event.S_EVENT_ECW_TROOP_KILL   = world.event.S_EVENT_MAX + 1051
 world.event.S_EVENT_ECW_TROOP_PICKUP = world.event.S_EVENT_MAX + 1052
 
 dcsbot.mission_stats_enabled = false
-
 dcsbot.eventHandler = dcsbot.eventHandler or {}
 
 local event_by_id = {}
+-- local marker_num = 1
 
+local function get_distance(point1, point2)
+    local y1, y2
+
+    if point1.z ~= nil then y1 = point1.z else y1 = point1.y end
+    if point2.z ~= nil then y2 = point2.z else y2 = point2.y end
+
+    local dx = point2.x - point1.x
+    local dy = y2 - y1
+
+    return math.sqrt(dx * dx + dy * dy)
+end
+
+local function is_on_runway(runway, pos)
+--[[
+    -- ignore rubber banding
+    if get_distance(runway.position, pos) > 10000 then
+        return true
+    end
+]]--
+    local dx = pos.x - runway.position.x
+    local dz = pos.z - runway.position.z
+
+    -- Convert DCS runway.course to a "heading" used for x/z rotation
+    local heading = -runway.course
+
+    -- Rotate world (dx,dz) into runway-local coordinates
+    local proj    = dx * math.cos(heading) + dz * math.sin(heading)
+    local lateral = -dx * math.sin(heading) + dz * math.cos(heading)
+
+    local length_threshold = runway.length * 1.25 / 2.0 -- add 25% to the runway length as threshold
+    local width_threshold = runway.width * 2.0 / 2.0    -- take 2x the runway width as threshold
+    return math.abs(proj) <= length_threshold and math.abs(lateral) <= width_threshold
+end
+
+-- Detect whether a velocity vector is a vertical or normal take‑off.
+-- velocity   : table {x = …, y = …, z = …}  (m/s)
+-- threshold  : horizontal‑speed threshold in m/s (default 15)
+-- returns    : true  if vertical, false if normal
+local function is_vertical_takeoff(velocity, threshold)
+    threshold = threshold or 15
+
+    -- horizontal speed (ground‑plane component)
+    local vh = math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z)
+
+    -- also check the ratio (vertical / horizontal)
+    if vh == 0 then
+        -- no horizontal motion at all – definitely vertical
+        return true
+    end
+
+    local ratio = velocity.y / vh
+
+    return vh < threshold or ratio > 2
+end
 
 function dcsbot.eventHandler:onEvent(event)
 	status, err = pcall(onMissionEvent, event)
@@ -68,6 +128,80 @@ function onMissionEvent(event)
             msg.initiator.coalition = msg.initiator.unit:getCoalition()
             msg.initiator.unit_type = msg.initiator.unit:getTypeName()
             msg.initiator.category = msg.initiator.unit:getDesc().category
+            local point = msg.initiator.unit:getPosition().p
+            local lat, lon = Terrain.convertMetersToLatLon(point.x, point.z)
+            msg.initiator.position = {
+                point = point,
+                lat = lat,
+                lon = lon
+            }
+            if event.id == world.event.S_EVENT_RUNWAY_TAKEOFF then
+                if not event.place then
+                    msg['eventName'] = 'S_EVENT_GROUND_TAKEOFF'
+                else
+                    local place = event.place:getName()
+                    local airbase = Airbase.getByName(place)
+                    -- ignore takeoffs from ships and FARPs
+                    if airbase:getDesc().category == Airbase.Category.AIRDROME then
+                        local runways = airbase:getRunways()
+                        local on_runway = false
+
+                        -- workaround DCS bug
+                        if place == 'Tbilisi-Lochini' then
+                            on_runway = is_on_runway({
+                                course=-2.2334115505219,
+                                Name=13,
+                                position={
+                                    y=479.7552,
+                                    x=-315553,
+                                    z=896476
+                                },
+                                length=3000,
+                                width=60
+                            }, point)
+                            if not on_runway then
+                            -- and add the abandoned runway as a real one
+                                on_runway = is_on_runway({
+                                    course=-2.181661564992912,
+                                    Name="13L",
+                                    position={
+                                        y=479,7552,
+                                        x=-315401,
+                                        z=896638
+                                    },
+                                    length=2463,16,
+                                    width=54
+                                }, point)
+                            end
+                        else
+                            for _, runway in pairs(runways) do
+--                                env.info("### runway=" .. net.lua2json(runway) .. " / takeoff-point=" .. net.lua2json(point))
+                                if is_on_runway(runway, point) then
+                                    on_runway = true
+                                    break
+                                end
+                            end
+                        end
+                        if not on_runway then
+                            -- ignore unnecessary events for helicopters
+                            if msg.initiator.category ~= Group.Category.AIRPLANE then
+                                return
+                            end
+                            -- check for vertical takeoffs
+                            if is_vertical_takeoff(msg.initiator.unit:getVelocity()) then
+                                return
+                            end
+                            msg['eventName'] = 'S_EVENT_TAXIWAY_TAKEOFF'
+--[[
+                            if msg.initiator.name then
+                                trigger.action.markToAll(marker_num, "Takeoff " .. msg.initiator.name, point, true, '')
+                                marker_num = marker_num + 1
+                            end
+]]--
+                        end
+                    end
+                end
+            end
         elseif category == Object.Category.WEAPON then
             msg.initiator.type = 'WEAPON'
             msg.initiator.unit = event.initiator
@@ -136,6 +270,16 @@ function onMissionEvent(event)
             msg.target.coalition = msg.target.unit:getCoalition()
             msg.target.unit_type = msg.target.unit:getTypeName()
             msg.target.category = msg.target.unit:getDesc().category
+            local point = msg.target.unit:getPosition().p
+            local lat, lon = Terrain.convertMetersToLatLon(point.x, point.z)
+            msg.target.position = {
+                point = point,
+                lat = lat,
+                lon = lon
+            }
+            if msg.initiator ~= nil and msg.initiator.position ~= nil then
+                msg.distance = get_distance(msg.initiator.position.point, msg.target.position.point)
+            end
         elseif category == Object.Category.WEAPON then
             msg.target.type = 'WEAPON'
             msg.target.unit = event.target
@@ -225,7 +369,7 @@ function fillCoalitionsData(color)
                 coalitionColor.units[category] = {}
             end
             for _, unit in pairs(Group.getUnits(group)) do
-                if unit:isActive() and unit:isExist() then
+                if unit:isExist() and unit:isActive() then
                     table.insert(coalitionColor.units[category], unit:getName())
                 end
             end

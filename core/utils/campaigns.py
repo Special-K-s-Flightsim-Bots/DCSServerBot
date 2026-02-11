@@ -37,13 +37,13 @@ def get_running_campaign(node: Node, server: Server | None = None) -> tuple[Any,
                 return None, None
 
 
-def get_all_campaigns(self) -> list[str]:
-    with self.pool.connection() as conn:
+def get_all_campaigns(node: Node) -> list[str]:
+    with node.pool.connection() as conn:
         return [x[0] for x in conn.execute('SELECT name FROM campaigns')]
 
 
-async def get_campaign(self, campaign: str) -> dict:
-    async with self.apool.connection() as conn:
+async def get_campaign(node: Node, campaign: str) -> dict:
+    async with node.apool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cursor:
             await cursor.execute("""
                 SELECT id, name, description, image_url, 
@@ -64,7 +64,7 @@ async def campaign_autocomplete(interaction: discord.Interaction, current: str) 
             choices.append(app_commands.Choice(name=name, value=name))
         choices.extend([
             app_commands.Choice(name=x, value=x)
-            for x in get_all_campaigns(interaction.client)
+            for x in get_all_campaigns(interaction.client.node)
             if x != name and current.casefold() in x.casefold()
         ])
         return choices[:25]

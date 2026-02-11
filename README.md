@@ -81,8 +81,11 @@ from time to time, but you as a community member can also create your own plugin
 | DBExporter    | Export the DCSServerBot database or singular tables as json.                                    |   yes    |                                       | [README](./plugins/dbexporter/README.md)    |
 | Debug         | Enables debug logging of DCS Hook- and MSE-events into the dcs.log or extra logfiles.           |   yes    |                                       | [README](./plugins/debug/README.md)         |
 | Discord       | Discord helper commands.                                                                        |   yes    |                                       | [README](./plugins/discord/README.md)       |
+| FlightPlan    | IFR-style flight planning with F10 map visualization and navigation fix support.                |   yes    |                                       | [README](./plugins/flightplan/README.md)    |
 | FunkMan       | Support for [FunkMan](https://github.com/funkyfranky/FunkMan)                                   |   yes    |                                       | [README](./plugins/funkman/README.md)       |
 | GreenieBoard  | Greenieboard and LSO quality mark analysis (Super Carrier and Moose.AIRBOSS / FunkMan)          |   yes    | Missionstats                          | [README](./plugins/greenieboard/README.md)  |
+| Logbook       | Pilot logbook with squadrons, qualifications, awards, and ribbon rack images.                   |   yes    | Userstats                             | [README](./plugins/logbook/README.md)       |
+| Logistics     | Cargo delivery missions with F10 map markers and in-game task management.                       |   yes    | MissionStats                          | [README](./plugins/logistics/README.md)     |
 | LotAtc        | Upload LotAtc Transponder files to your servers.                                                |   yes    |                                       | [README](./plugins/lotatc/README.md)        |
 | MOTD          | Message for players on join or when they jump in a module.                                      |   yes    | Mission, MissionStats                 | [README](./plugins/motd/README.md)          |
 | Music         | Upload and play music over SRS.                                                                 |   yes    |                                       | [README](./plugins/music/README.md)         |
@@ -371,6 +374,12 @@ NODENAME:                       # this will usually be your hostname
     no_master: false            # Cluster only: this node should never be a master node (default: false)
     heartbeat: 30               # Cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
     cloud_drive: true           # Cluster only: set this to false if you do not have the bot installed on a cloud drive (default and recommended: true) 
+  auto_affinity:                # Optional / Experimental: auto-affinity settings
+    enabled: true               # Enabled auto-affinity **for the whole node** (default = false)
+    excluded_cores: [0, 1]      # Optional: exclude cores from auto-affinity.
+    min_cores: 1                # Min number of cores to be used for the bot itself (default: 1)
+    max_cores: 2                # Max number of cores to be used for the bot itself (default: 2)
+    quality: 1                  # Quality of the requested CPU cores (0 = low, 1 = medium, 2 = high, default: 1)
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.
@@ -412,7 +421,11 @@ NODENAME:                       # this will usually be your hostname
       webgui_port: 8088         # The port of the WebGUI (default: 8088)
       dcs_port: 10308           # The DCS port of this instance (default: 10308)
       max_hung_minutes: 3       # Let DCSServerBot kill your server if it is unresponsive for more than x minutes. Default is 3. Disable it with 0.
-      affinity: 2,3             # Optional: set the CPU-affinity for the DCS_Server.exe.
+      affinity: 2,3             # Deprecated: set the CPU-affinity for the DCS_Server.exe (use auto_affinity instead)
+      auto_affinity:            # Optional: configure CPU affinity
+        min_cores: 1            # Min. number of cores to be used (default: 1)
+        max_cores: 2            # Max. number of cores to be used (default: 2)
+        quality: 3              # Core quality (1 = normal, 2 = high, 3 = reserved for DCS only, default: 3)
       priority: normal          # Optional: set the process priority (low, normal, high, realtime) for the DCS_Server.exe
       extensions:               # See the extension documentation for more detailed information on what to set here.
         SRS:
@@ -467,17 +480,18 @@ My Fancy Server:                # Your server name, as displayed in the server l
     admin: 1188227733664455     # Optional: The channel where you can fire admin commands to this server. You can decide if you want to have a central admin channel or server-specific ones. See bot.yaml for more.
     voice: 1827364518273645     # Optional: The voice channel, where people need to connect to (mandatory if force_voice is true). 
     audit: 9182736459182736     # Optional: a server-specific audit channel (for those of you who like channels, all others can use the global one)
-  server_user: Admin            # Name of the server user #1 (technical user), default is "Admin".
-  show_passwords: true          # Do you want the password to be displayed in the server status embed? (default: true)
-  smooth_pause: 5               # Servers that are configured to PAUSE on startup will run for this number of seconds until they are paused again (default 0 = off)
-  ping_admin_on_crash: true     # Ping DCS Admin role in discord, when the server crashed. Default: true
-  autoscan: false               # Enable autoscan for new missions (and auto-add them to the mission list). Default: false
-  autoadd: true                 # Enable auto-adding of uploaded missions (default: true)
-  validate_missions: true       # Check if your missions can be loaded or not (missing maps, etc.). Default: true.
+  server_user: Admin            # Optional Name of the server user #1 (technical user), default is "Admin".
+  show_passwords: true          # Optional: Do you want the password to be displayed in the server status embed? (default: true)
+  smooth_pause: 5               # Optional: Servers that are configured to PAUSE on startup will run for this number of seconds until they are paused again (default 0 = off)
+  lock_on_load: 120             # Optional: Schedule a time for server lockdown during mission restarts, allowing for complete initialization before users can re-enter.
+  ping_admin_on_crash: true     # Optional: Ping DCS Admin role in discord, when the server crashed. Default: true
+  autoscan: false               # Optional: Enable autoscan for new missions (and auto-add them to the mission list). Default: false
+  autoadd: true                 # Optional: Enable auto-adding of uploaded missions (default: true)
+  validate_missions: true       # Optional: Check if your missions can be loaded or not (missing maps, etc.). Default: true.
   ignore_dirs:                  # Optional: ignore directories from mission upload / mission add (already ignored are .dcssb, Scripts and Saves)
     - archive
   autorole: Fancy Players       # Optional: give people this role if they are online on this server (overwrites autorole/online in bot.yaml!).
-  show_atis: true               # Optional: show ATIS information on BIRTH
+  show_atis: true               # Optional: show ATIS information on BIRTH (default: false)
   force_voice: false            # Optional: enforce the usage of a voice channel (users need to be linked!) - default: false
   discord:                      # Optional: specify discord roles that are allowed to use this server
     - '@everyone'               # Attention: people cannot self-link on these servers and have to be liked properly already!
@@ -486,7 +500,7 @@ My Fancy Server:                # Your server name, as displayed in the server l
   chat_log:
     count: 10                   # A log file that holds the in-game chat to check for abuse. Tells how many files will be kept, default is 10.
     size: 1048576               # Max logfile size, default is 1 MB. 
-  no_coalition_chat: true       # Do not replicate red and blue chats to the Discord chat replication (default: false)
+  no_coalition_chat: true       # Optional: Do not replicate red and blue chats to the Discord chat replication (default: false)
   afk:                          # Optional: AFK check
     message: '{player.name}, you have been kicked for being AFK for more than {time}.'  # default message for AFK users
     afk_time: 300               # Time in seconds after which a player on spectators is considered being AFK. Default: -1, which is disabled
@@ -504,8 +518,8 @@ My Fancy Server:                # Your server name, as displayed in the server l
     message: You have been kicked for slot spamming! # default message for slot spamming
     check_time: 5       # number of seconds to test
     slot_changes: 5     # number of slot changes in these numbers of seconds that are allowed
-  smart_bans: true      # Used to disable the smart ban system (usually enabled). Servers that see people getting banned by a high amount of IPv4 re-usage (in CN, for instance) you want to say false here.
-  serverSettings:       # Overwrite the serverSettings.lua with these values
+  smart_bans: true      # Optional: Used to disable the smart ban system (default: enabled). Servers that see people getting banned by a high amount of IPv4 re-usage (in CN, for instance) you want to say false here.
+  serverSettings:       # Optional: Overwrite the serverSettings.lua with these values
     port: 10308
     advanced:
       resume_mode: 0
@@ -642,6 +656,9 @@ The bot uses the following **internal** roles to apply specific permissions to c
 You can map your Discord roles to these internal roles as described in the example above or, for the non-Discord
 variant, you add your UCIDs as a list below each group.<br>
 Non-Discord installations usually only need the "Admin" and "DCS Admin" roles.
+
+> [!NOTE]
+> The owner of the bot (owner_id in bot.yaml) can run _any_ command, independently of the role.
 
 | Role            | Description                                                                                                                                          |
 |:----------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|
