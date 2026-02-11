@@ -262,7 +262,7 @@ class DCSServerBot(commands.Bot):
                 if not self.member:
                     raise FatalException("Can't access the bots user. Check your Discord server settings.")
                 elif self.member.guild_permissions.administrator:
-                    self.log.critical("DCSServerBot is running with administrative permissions! "
+                    self.log.critical("DCSServerBot is running with administrative Discord-permissions! "
                                       "This is NOT recommended.")
 
                 self.log.debug('  => Checking Roles & Channels ...')
