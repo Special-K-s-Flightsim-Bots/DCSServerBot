@@ -102,7 +102,8 @@ class ServiceBus(Service):
                 await asyncio.sleep(1)
             # in the unlikely event of not being the master anymore, switch again
             if not self.master:
-                return await self.switch()
+                await self.switch()
+                return
             self.bot = ServiceRegistry.get(BotService).bot
             while not self.bot:
                 await asyncio.sleep(1)

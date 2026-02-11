@@ -39,7 +39,7 @@ def install_requirements() -> subprocess.CompletedProcess:
     return subprocess.run(cmd)
 
 
-def do_update_git() -> int:
+def do_update_git() -> int | None:
     import git
 
     try:

@@ -128,7 +128,7 @@ def load_combined_stats(path: str) -> dict:
     return pilot_hours
 
 
-def epoch_to_datetime(epoch: int) -> datetime:
+def epoch_to_datetime(epoch: int) -> datetime | None:
     """Convert Unix epoch to datetime"""
     if epoch is None:
         return None

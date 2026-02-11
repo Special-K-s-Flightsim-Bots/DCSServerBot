@@ -743,7 +743,7 @@ def run_all_tests():
     for test in tests:
         try:
             result = test()
-            if result is True:
+            if result:
                 passed += 1
             elif result is False:
                 failed += 1

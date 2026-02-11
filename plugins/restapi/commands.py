@@ -441,9 +441,9 @@ class RestAPI(Plugin):
 
         # Now, generate all output formats from latitude/longitude
         d, m, s, f = utils.dd_to_dms(latitude)
-        lat_dms = (f"{'N' if d > 0 else 'S'} {int(abs(d)):02d}°{int(abs(m)):02d}'{int(abs(s)):02d}.{int(abs(f)):02d}\"")
+        lat_dms = f"{'N' if d > 0 else 'S'} {int(abs(d)):02d}°{int(abs(m)):02d}'{int(abs(s)):02d}.{int(abs(f)):02d}\""
         d, m, s, f = utils.dd_to_dms(longitude)
-        lon_dms = (f"{'E' if d > 0 else 'W'} {int(abs(d)):03d}°{int(abs(m)):02d}'{int(abs(s)):02d}.{int(abs(f)):02d}\"")
+        lon_dms = f"{'E' if d > 0 else 'W'} {int(abs(d)):03d}°{int(abs(m)):02d}'{int(abs(s)):02d}.{int(abs(f)):02d}\""
 
         mgrs_raw = utils.dd_to_mgrs(latitude, longitude)
         def format_mgrs(mgrs):

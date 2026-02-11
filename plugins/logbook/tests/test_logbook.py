@@ -39,7 +39,7 @@ def module_available(module_name: str) -> bool:
 # Local copies of pure functions for testing without heavy dependencies
 # =============================================================================
 
-def format_hours(seconds: float) -> str:
+def format_hours(seconds: float | None) -> str:
     """
     Format seconds as hours with 1 decimal place.
     This is a copy of the function from commands.py for testing without discord.
@@ -50,7 +50,7 @@ def format_hours(seconds: float) -> str:
     return f"{hours:.1f}h"
 
 
-def normalize_name(name: str) -> str:
+def normalize_name(name: str | None) -> str:
     """
     Normalize pilot name for fuzzy matching.
     Removes rank prefixes, squadron tags, and normalizes case.

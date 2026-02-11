@@ -758,7 +758,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                         row2 = await cursor.fetchone()
                         if row2:
                             try:
-                                ch: discord.TextChannel = self.bot.get_channel(channel)
+                                ch = self.bot.get_channel(channel)
                                 message = await ch.fetch_message(row2['embed'])
                                 if message:
                                     await message.delete()
