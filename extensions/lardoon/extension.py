@@ -99,7 +99,7 @@ class Lardoon(Extension):
                         instance = None
                     else:
                         instance = self.server.instance.name
-                        cwd = os.path.join(instance, 'Config')
+                        cwd = os.path.join(self.server.instance.home, 'Config')
                     out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
                     cmd = os.path.basename(self.config['cmd'])
                     self.log.debug(f"Launching Lardoon server with {cmd} serve --bind {self.config['bind']}")
