@@ -22,7 +22,9 @@ from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, Us
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
                      PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats, 
                      AirbasesResponse, AirbaseInfoResponse, AirbaseWarehouseResponse, AirbaseSetWarehouseItemResponse,
-                     AirbaseCaptureResponse, ConvertCoordinates)
+                     AirbaseCaptureResponse, ConvertCoordinates, MissionRestartResponse, MissionLoadResponse,
+                     MissionPauseResponse, MissionUnpauseResponse, MissionsResponse, ServerStartResponse,
+                     ServerStopResponse, ServerRestartResponse)
 from ..srs.commands import SRS
 
 app: FastAPI | None = None
@@ -326,10 +328,313 @@ class RestAPI(Plugin):
             summary = "Converts the provided coordinate into multiple formats.",
             tags = ["Utilities"]
         )
+        
+        
+        
+        self.router.add_api_route(
+            "/instance/start", self.instance_start,
+            methods = ["POST"],
+            response_model = ServerStartResponse,
+            description = "Start a server.",
+            summary = "Start a server instance.",
+            tags = ["Instance Control"]
+        )
+        
+        self.router.add_api_route(
+            "/instance/stop", self.instance_stop,
+            methods = ["POST"],
+            response_model = ServerStopResponse,
+            description = "Stop a server.",
+            summary = "Stop a server instance.",
+            tags = ["Instance Control"]
+        )
+        
+        self.router.add_api_route(
+            "/instance/restart", self.instance_restart,
+            methods = ["POST"],
+            response_model = ServerRestartResponse,
+            description = "Restart a server.",
+            summary = "Restart a server instance.",
+            tags = ["Instance Control"]
+        )
+        self.router.add_api_route(
+            "/instance/missions", self.instance_missions,
+            methods = ["GET"],
+            response_model = MissionsResponse,
+            description = "Return all missions for a given server.",
+            summary = "Mission listing for a server instance.",
+            tags = ["Mission Control"]
+        )
+        
+        self.router.add_api_route(
+            "/instance/mission/pause", self.instance_mission_pause,
+            methods = ["POST"],
+            response_model = MissionPauseResponse,
+            description = "Pause the mission on a given server.",
+            summary = "Pause mission for a server instance.",
+            tags = ["Mission Control"]
+        )
+        
+        self.router.add_api_route(
+            "/instance/mission/unpause", self.instance_mission_unpause,
+            methods = ["POST"],
+            response_model = MissionUnpauseResponse,
+            description = "Unpause the mission on a given server.",
+            summary = "Unpause mission for a server instance.",
+            tags = ["Mission Control"]
+        )
+        
+        self.router.add_api_route(
+            "/instance/mission/restart", self.instance_mission_restart,
+            methods = ["POST"],
+            response_model = MissionRestartResponse,
+            description = "Restart the mission on a given server.",
+            summary = "Restart mission for a server instance.",
+            tags = ["Mission Control"]
+        )
+        
+        self.router.add_api_route(
+            "/instance/mission/load", self.instance_mission_load,
+            methods = ["POST"],
+            response_model = MissionLoadResponse,
+            description = "Load a mission on a given server.",
+            summary = "Load mission for a server instance.",
+            tags = ["Mission Control"]
+        )
+        
         self.app.include_router(self.router)
 
     def get_endpoint_config(self, endpoint: str):
         return self.get_config().get('endpoints', {}).get(endpoint, {})
+
+    # Start a server based on the provided name.
+    # Endpoint:   /instance/start
+    # Method:     [POST]
+    # Params:     - server_name   [required]
+    async def instance_start(self, server_name: str = Query(...)):
+        """Start a server."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status != Status.STOPPED:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not stopped.")
+
+        try:
+            await server.start()
+            return {
+                "status": "success",
+                "message": f"Server '{resolved_server_name}' started."
+            }
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout while starting server.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to start server: {str(ex)}")
+
+    # Stop a server based on the provided name.
+    # Endpoint:   /instance/stop
+    # Method:     [POST]
+    # Params:     - server_name   [required]
+    async def instance_stop(self, server_name: str = Query(...)):
+        """Stop a server."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not running or paused.")
+
+        try:
+            await server.stop()
+            return {
+                "status": "success",
+                "message": f"Server '{resolved_server_name}' stopped."
+            }
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout while stopping server.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to stop server: {str(ex)}")
+
+    # Restart a server based on the provided name.
+    # Endpoint:   /instance/restart
+    # Method:     [POST]
+    # Params:     - server_name   [required]
+    async def instance_restart(self, server_name: str = Query(...)):
+        """Restart a server."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is in {server.status.name} state.")
+
+        try:
+            if server.status in [Status.RUNNING, Status.PAUSED]:
+                await server.stop()
+            await server.start()
+            return {
+                "status": "success",
+                "message": f"Server '{resolved_server_name}' restarted."
+            }
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout while restarting server.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to restart server: {str(ex)}")
+    
+
+    # Return a listing of available missions
+    # Endpoint:   /instance/missions
+    # Method:     [GET]
+    # Params:     - server_name   [required]
+    async def instance_missions(self, server_name: str = Query(...)):
+        """Return all missions for a given server."""
+        # Resolve server
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        try:
+            base_dir = await server.get_missions_dir()
+            ignore = ['.dcssb']
+            if server.locals.get('ignore_dirs'):
+                ignore.extend(server.locals['ignore_dirs'])
+            installed_missions = [os.path.expandvars(x) for x in await utils.get_cached_mission_list(server)]
+            exp_base, file_list = await server.node.list_directory(
+                base_dir, pattern=['*.miz', '*.sav'], traverse=True, ignore=ignore
+            )
+            missions = [
+                {
+                    "name": os.path.relpath(x, exp_base)[:-4],
+                    "path": os.path.relpath(x, exp_base),
+                    "installed": x in installed_missions or os.path.join(
+                        os.path.dirname(x), '.dcssb', os.path.basename(x)
+                    ) in installed_missions
+                }
+                for x in file_list
+            ]
+            return {
+                "missions": missions,
+                "count": len(missions)
+            }
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve mission list: {str(ex)}")
+
+    # Pause the mission on the provided server.
+    # Endpoint:   /instance/mission/pause
+    # Method:     [POST]
+    # Params:     - server_name   [required]
+    async def instance_mission_pause(self, server_name: str = Query(...)):
+        """Pause the mission on the provided server."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status != Status.RUNNING:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not running.")
+
+        try:
+            await server.current_mission.pause()
+            return {
+                "status": "success",
+                "message": f"Mission on server '{resolved_server_name}' paused."
+            }
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to pause mission: {str(ex)}")
+
+    # Unpause the mission on the provided server.
+    # Endpoint:   /instance/mission/unpause
+    # Method:     [POST]
+    # Params:     - server_name   [required]
+    async def instance_mission_unpause(self, server_name: str = Query(...)):
+        """Unpause the mission on the provided server."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status != Status.PAUSED:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not paused.")
+
+        try:
+            await server.current_mission.unpause()
+            return {
+                "status": "success",
+                "message": f"Mission on server '{resolved_server_name}' resumed."
+            }
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to unpause mission: {str(ex)}")
+
+    # Restart the mission on the provided server.
+    # Endpoint:   /instance/mission/restart
+    # Method:     [POST]
+    # Params:     - server_name   [required]
+    async def instance_mission_restart(self, server_name: str = Query(...)):
+        """Restart the mission on the provided server."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is in {server.status.name} state.")
+
+        try:
+            await server.restart(modify_mission=False)
+            return {
+                "status": "success",
+                "message": f"Mission on server '{resolved_server_name}' restarted."
+            }
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout while restarting mission.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to restart mission: {str(ex)}")
+
+    # Load the provided mission on the provided server.
+    # Endpoint:   /instance/mission/load
+    # Method:     [POST]
+    # Params:     - server_name   [required]
+    #            - mission_name  [required]
+    async def instance_mission_load(self, server_name: str = Query(...), mission_name: str = Query(...)):
+        """Load a mission on the provided server."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is in {server.status.name} state.")
+
+        try:
+            mission_path = os.path.join(await server.get_missions_dir(), mission_name)
+            missions = await server.getMissionList()
+            
+            # Try to find the mission in the mission list
+            mission_idx = None
+            for idx, mission in enumerate(missions):
+                if mission.endswith(mission_name) or os.path.normpath(mission) == os.path.normpath(mission_path):
+                    mission_idx = idx
+                    break
+            
+            if mission_idx is None:
+                raise HTTPException(status_code=404, detail=f"Mission '{mission_name}' not found in mission list.")
+            
+            await server.loadMission(missions[mission_idx], modify_mission=False)
+            return {
+                "status": "success",
+                "message": f"Mission '{mission_name}' loaded on server '{resolved_server_name}'."
+            }
+        except HTTPException:
+            raise
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout while loading mission.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to load mission: {str(ex)}")
+    
 
     ## convertCoordinates Function
     ## ----------------------------------------------
