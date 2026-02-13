@@ -131,7 +131,8 @@ class Discord(Plugin):
     async def healthcheck(self, interaction: discord.Interaction):
         if not self.bot.member.guild_permissions.administrator:
             await interaction.response.send_message(
-                "Please give the bot temporary administrative permissions to run this command.", ephemeral=True)
+                "Please give the bot __temporary__ administrative permissions in this "
+                "Discord server to run this command.", ephemeral=True)
             return
 
         # check roles
@@ -159,6 +160,8 @@ class Discord(Plugin):
         # check channels
         channels_for_everyone = []
         for channel in guild.channels:
+            if channel.type == discord.ChannelType.category:
+                continue
             if channel.permissions_for(guild.default_role).view_channel:
                 channels_for_everyone.append(channel)
 
@@ -170,9 +173,9 @@ class Discord(Plugin):
             x.display_name + (' (🤖)' if x in all_bots else '') for x in admins
         ]))
         embed.add_field(name=utils.print_ruler(header="Elevated Roles"), value='_ _', inline=False)
-        embed.add_field(name="Elevated Roles", value='\n'.join([x.name for x in elevated_roles]))
+        embed.add_field(name="Elevated Roles", value='\n'.join([x.mention for x in elevated_roles]))
         embed.add_field(name="Members", value='\n'.join([
-            x.display_name + (' (🤖)' if x in all_bots else '') for x in elevated
+            x.mention + (' (🤖)' if x in all_bots else '') for x in elevated
         ]))
         embed.add_field(name=utils.print_ruler(header="⚠️ Critical Roles ⚠️"), value='_ _', inline=False)
         if everyone_ping or external_apps:
@@ -186,8 +189,12 @@ class Discord(Plugin):
         # Channels
         if len(channels_for_everyone) > 1:
             embed.add_field(name=utils.print_ruler(header="Channels"), value='_ _', inline=False)
-            embed.add_field(name=f"You allow everyone to view {len(channels_for_everyone)} channels.",
-                            value="The recommended approach is to have one landing channel and a role for users.")
+            if len(channels_for_everyone) > 10:
+                embed.add_field(name=f"You allow everyone to view {len(channels_for_everyone)} channels.",
+                                value="The recommended approach is to have one landing channel and a role for users.")
+            else:
+                embed.add_field(name="Public Channels", value='\n'.join(x.mention for x in channels_for_everyone),
+                                inline=False)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         try:
             await view.wait()

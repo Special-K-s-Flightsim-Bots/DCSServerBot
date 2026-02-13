@@ -11,6 +11,7 @@ The configuration is held in config/plugins/missionstats.yaml:
 DCS.dcs_serverrelease:
   enabled: true                   # false: disable mission statistics gathering (default: true)
   display: true                   # false: don't show mission statistics in your status channel (default: true)
+  channel: 998877665544332211     # Optional: channel to display the missionstats embed in (default: Status channel)
   persistence: true               # false: don't persist the mission statistics to database (default: true)
   persist_ai_statistics: false    # true: persist AI statistics to the database (default: false)
   event_filter:                   # Optional: do not receive these events (the events listed is the default list and will always be ignored unless defined differently!)
