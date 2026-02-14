@@ -15,7 +15,7 @@ MyNode:
   # [...]
   extensions:
     RealWeather:
-      installation: '%USERPROFILE%\Documents\realweather_v1.9.0-rc2'
+      installation: '%USERPROFILE%\Documents\realweather_v2.5.0'
 ```
 This can be used to enable the RealWeather [extension](../../extensions/realweather/README.md) also.
 

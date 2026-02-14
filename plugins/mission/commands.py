@@ -2762,6 +2762,19 @@ class Mission(Plugin[MissionEventListener]):
             await interaction.response.edit_message(view=None)
             await interaction.message.add_reaction('🚫')
 
+        elif custom_id.startswith('kick_profanity_'):
+            ucid = custom_id[len('kick_profanity_'):]
+            for server in self.bus.servers:
+                player = server.get_player(ucid=ucid, active=True)
+                if player:
+                    await server.kick(player, reason="Please change your playername to something more appropriate.")
+                    break
+            else:
+                await interaction.response.send_message('Player not active anymore.', ephemeral=True)
+                return
+            await interaction.response.edit_message(view=None)
+            await interaction.message.add_reaction('⏏️')
+
         elif custom_id.startswith('message_profanity_'):
             ucid = custom_id[len('message_profanity_'):]
             async with self.apool.connection() as conn:

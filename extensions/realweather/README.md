@@ -4,70 +4,16 @@ Download the release zip and unzip it to a directory of your choice on your syst
 DCSServerBot. 
 
 > [!IMPORTANT]
-> DCSServerBot only supports DCS Real Weather Updater versions from 1.9.0 upwards.
-> It is highly recommended to use version 2 or above because of issues in former versions.
+> DCSServerBot only supports DCS Real Weather Updater versions from 2.0.0 upwards.
 
 ## Configuration
-The configuration for RealWeather goes into your nodes.yaml. There are 2 versions available at the moment, v1.x.x and 
-v2.x.x. Both differ in their configuration, which is why I added 2 examples in here:
-
-### Version 1.x
+The configuration for RealWeather goes into your nodes.yaml:
 ```yaml
 MyNode:
   # [...]
   extensions:
     RealWeather:
-      installation: '%USERPROFILE%\Documents\realweather_v1.14.0'
-      autoupdate: true  # enable autoupdate via GitHub
-  # [...]
-  instances:
-    DCS.dcs_serverrelease:
-      # [...]
-      extensions:
-        RealWeather:
-          enabled: true         # optional to disable the extension, default: true
-          debug: true           # see outputs of RealWeather, default: false
-          ignore_errors: true   # continue with other extensions like MizEdit, even if RW errors out
-          metar:
-            icao: URMM
-            runway-elevation: 50
-            add-to-brief: true
-          options:
-            update-time: true
-            update-weather: true
-            wind:
-              minimum: 0
-              maximum: 5
-              gust-minimum: 0
-              gust-maximum: 10
-              stability: 0.143
-            clouds:
-              disallowed-presets:
-                - Preset10
-                - RainyPreset1
-                - RainyPreset2
-                - RainyPreset3
-            fog:
-              enable: true
-              thickness-minimum: 0
-              thickness-maximum: 100
-              visibility-minimum: 1000
-              visibility-maximum: 4000
-            dust:
-              enable: true
-              visibility-minimum: 300
-              visibility-maximum: 2000
-```
-> [!NOTE]
-> You can find a list of supported parameters in the config.json provided by DCS-real-weather.
-
-### Version 2.x
-```yaml
-MyNode:
-  # [...]
-  extensions:
-    RealWeather:
-      installation: '%USERPROFILE%\Documents\realweather_v2.0.0'
+      installation: '%USERPROFILE%\Documents\realweather_v2.5.0'
   # [...]
   instances:
     DCS.dcs_serverrelease:

@@ -24,7 +24,9 @@ class HealthCheckModal(Modal):
             x.update(mention_everyone=False, use_external_apps=False)
             tasks.append(role.edit(permissions=x))
         await asyncio.gather(*tasks)
-        await interaction.followup.send(content="Permissions fixed successfully!", ephemeral=True)
+        await interaction.followup.send(content="Permissions fixed successfully!\n"
+                                                "Do not forget to remove the administrative permissions from the bot.",
+                                        ephemeral=True)
 
 
 class HealthcheckView(View):

@@ -206,6 +206,9 @@ class Main:
             except OperationalError:
                 db_available = False
                 raise
+            except Exception as ex:
+                self.log.exception(ex)
+                raise
             finally:
                 self.log.warning("Aborting the main loop ...")
                 if db_available:

@@ -730,6 +730,8 @@ class MissionEventListener(EventListener["Mission"]):
         view.add_item(button)
         button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_profanity_{data['ucid']}")
         view.add_item(button)
+        button = Button(label="Kick", style=ButtonStyle.red, custom_id=f"kick_profanity_{data['ucid']}")
+        view.add_item(button)
         button = Button(label="Message", style=ButtonStyle.green, custom_id=f"message_profanity_{data['ucid']}")
         view.add_item(button)
         button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")

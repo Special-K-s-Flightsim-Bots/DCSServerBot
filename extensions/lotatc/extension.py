@@ -287,8 +287,8 @@ class LotAtc(Extension, FileSystemEventHandler):
                 await self.install()
                 return True
             else:
-                self.log.info(f"  => {self.name}: Instance {self.server.instance.name} is running version "
-                              f"{self.version}, where {version} is available!")
+                self.log.warning(f"  => {self.name}: Instance {self.server.instance.name} is running version "
+                                 f"{self.version}, where {version} is available!")
         return False
 
     @override

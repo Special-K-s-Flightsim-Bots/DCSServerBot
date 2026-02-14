@@ -81,7 +81,9 @@ class SRS(Extension, FileSystemEventHandler):
         self.exe_name = None
         self.clients: dict[str, set[int]] = {}
         self.client_names: dict[str, str] = {}
+        self._missing_loops: dict[str, int] = {}  # consecutive "not in export" counts per ClientGuid
         super().__init__(server, config)
+        self.disconnect_grace_loops: int = int(self.config.get('disconnect_grace_loops', 3))
 
     def get_config_path(self) -> str:
         config_path = self.config.get('config')
@@ -357,13 +359,18 @@ class SRS(Extension, FileSystemEventHandler):
         try:
             with open(path, mode='r', encoding='utf-8') as infile:
                 data = json.load(infile)
+
             for client in data.get('Clients', {}):
                 if client['Name'] == '---' or client['RadioInfo'] is None:
                     continue
+
+                guid = client['ClientGuid']
+                self._missing_loops.pop(guid, None)  # seen this loop => not missing anymore
+
                 target = set(int(x['freq']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6)
-                if client['ClientGuid'] not in self.clients:
-                    self.clients[client['ClientGuid']] = target
-                    self.client_names[client['ClientGuid']] = client['Name']
+                if guid not in self.clients:
+                    self.clients[guid] = target
+                    self.client_names[guid] = client['Name']
                     await self.bus.send_to_node({
                         "command": "onSRSConnect",
                         "server_name": self.server.name,
@@ -371,12 +378,12 @@ class SRS(Extension, FileSystemEventHandler):
                         "side": client['Coalition'],
                         "unit": client['RadioInfo']['unit'],
                         "unit_id": client['RadioInfo']['unitId'],
-                        "radios": list(self.clients[client['ClientGuid']])
+                        "radios": list(self.clients[guid])
                     })
                 else:
-                    actual = self.clients[client['ClientGuid']]
+                    actual = self.clients[guid]
                     if actual != target:
-                        self.clients[client['ClientGuid']] = target
+                        self.clients[guid] = target
                         await self.bus.send_to_node({
                             "command": "onSRSUpdate",
                             "server_name": self.server.name,
@@ -384,19 +391,28 @@ class SRS(Extension, FileSystemEventHandler):
                             "side": client['Coalition'],
                             "unit": client['RadioInfo']['unit'],
                             "unit_id": client['RadioInfo']['unitId'],
-                            "radios": list(self.clients[client['ClientGuid']])
+                            "radios": list(self.clients[guid])
                         })
+
             all_clients = set(self.clients.keys())
-            active_clients = set([x['ClientGuid'] for x in data['Clients']])
-            # any clients disconnected?
-            for client in all_clients - active_clients:
+            active_clients = set(x['ClientGuid'] for x in data.get('Clients', []))
+
+            # any clients disconnected? (with grace)
+            missing_now = all_clients - active_clients
+            for guid in missing_now:
+                self._missing_loops[guid] = self._missing_loops.get(guid, 0) + 1
+                if self._missing_loops[guid] < self.disconnect_grace_loops:
+                    continue
+
                 await self.bus.send_to_node({
                     "command": "onSRSDisconnect",
                     "server_name": self.server.name,
-                    "player_name": self.client_names[client]
+                    "player_name": self.client_names[guid]
                 })
-                del self.clients[client]
-                del self.client_names[client]
+                del self.clients[guid]
+                del self.client_names[guid]
+                self._missing_loops.pop(guid, None)
+
         except (PermissionError, JSONDecodeError):
             # Happens if SRS writes the file again when we try to read it.
             # Just ignore, we get the file on the next try.
@@ -422,6 +438,7 @@ class SRS(Extension, FileSystemEventHandler):
             self.observer = None
             self.clients.clear()
             self.client_names.clear()
+            self._missing_loops.clear()
 
     @override
     def is_running(self) -> bool:
