@@ -908,6 +908,19 @@ class MissionLoadResponse(BaseModel):
         }
     }
 
+class MissionUploadResponse(BaseModel):
+    status: str = Field(..., description="Status of the operation")
+    message: str = Field(..., description="Status message")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "success",
+                "message": "Mission 'Training Mission.miz' uploaded to server 'DCS Server'."
+            }
+        }
+    }
+
 class MissionPauseResponse(BaseModel):
     status: str = Field(..., description="Status of the operation")
     message: str = Field(..., description="Status message")
