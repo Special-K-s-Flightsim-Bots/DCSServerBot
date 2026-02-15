@@ -16,6 +16,7 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 from psycopg import OperationalError
+from pykwalify.errors import SchemaError
 from typing import Any, Coroutine
 
 # DCSServerBot imports
@@ -139,7 +140,7 @@ class Main:
         # check for updates
         if self.no_autoupdate:
             autoupdate = False
-            # remove the exec parameter, to allow restart/update of the node
+            # remove the exec parameter to allow restart/update of the node
             if '--x' in sys.argv:
                 sys.argv.remove('--x')
             elif '--noupdate' in sys.argv:
@@ -247,11 +248,11 @@ def handle_exception(loop, context):
         f.write(f"{'=' * 50}\n")
 
 
-async def run_node(name, config_dir=None, no_autoupdate=False) -> int:
+async def run_node(name, config_dir=None, no_autoupdate=False, restarted=False) -> int:
     loop = asyncio.get_running_loop()
     loop.set_exception_handler(handle_exception)
 
-    async with NodeImpl(name=name, config_dir=config_dir) as node:
+    async with NodeImpl(name=name, config_dir=config_dir, restarted=restarted) as node:
         await Main(node, no_autoupdate=no_autoupdate).run()
         return node.rc
 
@@ -344,12 +345,22 @@ WARNING: DCSServerBot will drop support for Pyton 3.10 soon.
 
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
-                rc = myasyncio_run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
+                rc = myasyncio_run(run_node(
+                    name=args.node,
+                    config_dir=args.config,
+                    no_autoupdate=args.noupdate,
+                    restarted=args.restarted
+                ))
             except FatalException:
                 from install import Install
 
                 Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
-                rc = myasyncio_run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
+                rc = myasyncio_run(run_node(
+                    name=args.node,
+                    config_dir=args.config,
+                    no_autoupdate=args.noupdate,
+                    restarted=args.restarted
+                ))
     except PermissionError as ex:
         log.error(f"There is a permission error: {ex}", exc_info=True)
         # do not restart again
@@ -375,6 +386,9 @@ WARNING: DCSServerBot will drop support for Pyton 3.10 soon.
         log.exception(ex)
         # try again on Database errors
         rc = -1
+    except SchemaError as ex:
+        log.error(ex)
+        rc = -2
     except SystemExit as ex:
         rc = ex.code
         if rc not in [0, -1, -2]:

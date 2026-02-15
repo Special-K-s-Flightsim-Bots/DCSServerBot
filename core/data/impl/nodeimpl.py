@@ -98,8 +98,8 @@ DEFAULT_PLUGINS = [
 
 class NodeImpl(Node):
 
-    def __init__(self, name: str, config_dir: str | None = 'config'):
-        super().__init__(name, config_dir)
+    def __init__(self, name: str, config_dir: str | None = 'config', restarted: bool = False):
+        super().__init__(name, config_dir, restarted)
         self.node = self  # to be able to address self.node
         self._public_ip: str | None = None
         self.bot_version = __version__[:__version__.rfind('.')]
@@ -616,20 +616,20 @@ class NodeImpl(Node):
             self.log.debug('- No update found for DCSServerBot.')
         return rc
 
-    async def _upgrade(self, conn: psycopg.AsyncConnection):
+    async def _upgrade(self, master: bool, conn: psycopg.AsyncConnection):
         # We do not want to run an upgrade if we are on a cloud drive. Just restart in this case.
-        if not self.master and self.locals.get('cluster', {}).get('cloud_drive', True):
+        if not master and self.locals.get('cluster', {}).get('cloud_drive', True):
             self.log.debug("Upgrade: restart agent after master upgrade.")
             await self.restart()
         elif await self.upgrade_pending():
-            if self.master:
+            if master:
                 self.log.debug("Upgrade: set update pending to TRUE.")
                 await conn.execute("""
                     UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s
                 """, (self.guild_id, ))
             self.log.debug("Upgrade: launch update.py")
             await self.shutdown(UPDATE)
-        elif self.master:
+        elif master:
             self.log.debug("Upgrade: reset update pending to FALSE.")
             await conn.execute("""
                UPDATE cluster
@@ -1166,17 +1166,6 @@ class NodeImpl(Node):
                     # upgrade is pending
                     if update_pending:
                         return await handle_upgrade(master, holds_lock=holds_lock)
-                    elif parse(version) > parse(__version__):
-                        # avoid update loops if we are the master
-                        if master == self.name and holds_lock:
-                            self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
-                                             "Rolling back the cluser version to my version.")
-                        await self._upgrade(conn)
-                    elif parse(version) < parse(__version__) and await is_node_alive(master, config.get('heartbeat', 30)):
-                        if master != self.name:
-                            raise FatalException(f"This node uses DCSServerBot version {__version__} "
-                                                 f"where the master uses version {version}!")
-                        await self._upgrade(conn)
 
                     # We don't want to be a master
                     if config.get('no_master', False):
@@ -1193,6 +1182,12 @@ class NodeImpl(Node):
                                 self.log.info("  => Another node still holds the master lock, waiting ...")
                                 return False
 
+                        if parse(version) != parse(__version__):
+                            if parse(version) > parse(__version__):
+                                self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
+                                                 "Rolling back the cluster version to my version.")
+                            await self._upgrade(True, conn)
+
                         await check_nodes()
                         return True
 
@@ -1201,7 +1196,11 @@ class NodeImpl(Node):
                         if holds_lock:
                             # We have the lock, but the table says someone else is master
                             await lock_conn.execute("SELECT pg_advisory_unlock(%s)", (lock_key, ))
-                            return False
+
+                        if parse(version) != parse(__version__):
+                            self.log.warning(f"This node uses DCSServerBot version {__version__} "
+                                             f"where the master uses version {version}!")
+                            await self._upgrade(False, conn)
 
                         if config.get('preferred_master', False):
                             return await take_over(block=False)
@@ -1209,11 +1208,12 @@ class NodeImpl(Node):
                         if await is_node_alive(master, config.get('heartbeat', 30)):
                             return False
 
-                    # No master or master is dead
-                    self.log.info("No master found, taking over ...")
-                    await take_over()
-                    return True
-
+                    # No master or master is dead => try to take over
+                    if await take_over(block=False):
+                        self.log.info("No master found, taking over ...")
+                        return True
+                    else:
+                        return False
                 finally:
                     await conn.execute("""
                         INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
