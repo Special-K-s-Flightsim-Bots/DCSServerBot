@@ -57,22 +57,22 @@ class FunkManEventListener(EventListener["FunkMan"]):
         color = 0x00ff00
         urlIm = "https://i.imgur.com/1bWgcV7.png"
         if isinstance(points, int) or isinstance(points, float):
-            if points == 0:
+            if points >= 0 and points < 1:
                 color = 0x000000  # black
                 urlIm = "https://i.imgur.com/rZpu9c0.png"
-            elif points == 1:
+            elif points >= 1 and points < 2:
                 color = 0xff0000  # red
                 urlIm = "https://i.imgur.com/LXgD2Op.png"
-            elif points == 2:
+            elif points >= 2 and points < 2.5:
                 color = 0xFFA500  # orange
                 urlIm = "https://i.imgur.com/EjviMBk.png"
-            elif points == 2.5:
+            elif points >= 2.5 and points < 3:
                 color = 0xB47E59  # brown
                 urlIm = "https://i.imgur.com/nYWrL4Z.png"
-            elif points == 3:
+            elif points >= 3 and points < 4:
                 color = 0xFFFF00  # yellow
                 urlIm = "https://i.imgur.com/wH0Gjqx.png"
-            elif points == 4:
+            elif points >= 4 and points < 5:
                 color = 0x00FF00  # green
                 urlIm = "https://i.imgur.com/1bWgcV7.png"
             elif points == 5:
