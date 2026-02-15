@@ -16,6 +16,7 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 from psycopg import OperationalError
+from pykwalify.errors import SchemaError
 from typing import Any, Coroutine
 
 # DCSServerBot imports
@@ -375,6 +376,9 @@ WARNING: DCSServerBot will drop support for Pyton 3.10 soon.
         log.exception(ex)
         # try again on Database errors
         rc = -1
+    except SchemaError as ex:
+        log.error(ex)
+        rc = -2
     except SystemExit as ex:
         rc = ex.code
         if rc not in [0, -1, -2]:
