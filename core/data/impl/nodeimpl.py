@@ -640,7 +640,7 @@ class NodeImpl(Node):
     @override
     async def upgrade(self):
         async with self.cpool.connection() as conn:
-            await self._upgrade(conn)
+            await self._upgrade(self.master, conn)
 
     @override
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
