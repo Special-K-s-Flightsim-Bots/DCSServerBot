@@ -703,7 +703,8 @@ class MissionEventListener(EventListener["Mission"]):
                             f"force_voice is enabled for server {server.name}, but no voice channel is configured!")
                         return
                     if not player.member.voice:
-                        asyncio.create_task(server.kick(player, reason=messages['message_no_voice'].format(voice.name)))
+                        asyncio.create_task(server.kick(player, reason=messages['message_no_voice'].format(
+                            utils.escape_string(voice.name))))
                         return
                     else:
                         asyncio.create_task(player.member.move_to(voice))
