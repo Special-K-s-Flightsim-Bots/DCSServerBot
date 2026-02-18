@@ -38,7 +38,7 @@ from migrate import migrate
 from packaging.version import parse
 from pathlib import Path
 from psycopg import sql
-from psycopg.errors import InFailedSqlTransaction, ConnectionTimeout, UniqueViolation, UndefinedTable
+from psycopg.errors import InFailedSqlTransaction, ConnectionTimeout, UniqueViolation, UndefinedTable, UndefinedColumn
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
 from typing import Awaitable, Callable, Any
@@ -1235,7 +1235,7 @@ class NodeImpl(Node):
                         return True
                     return False
 
-                except UndefinedTable:
+                except (UndefinedTable, UndefinedColumn):
                     raise
                 except Exception as ex:
                     self.log.exception(ex)
