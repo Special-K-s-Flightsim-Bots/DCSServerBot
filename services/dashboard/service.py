@@ -289,7 +289,7 @@ class Dashboard(Service):
         self.console.clear()
         await super().stop()
 
-    async def switch(self):
+    async def switch(self, master: bool):
         await self.stop()
         await self.start()
 

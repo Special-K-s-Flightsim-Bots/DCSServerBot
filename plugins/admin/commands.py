@@ -290,7 +290,6 @@ class Admin(Plugin[AdminEventListener]):
                 if isinstance(derived.user, discord.Member):
                     ucid = await self.bot.get_ucid_by_member(derived.user)
                     if not ucid:
-                        # noinspection PyUnresolvedReferences
                         await interaction.response.send_message(
                             _("Member {} is not linked!").format(derived.user.display_name), ephemeral=True)
                         return
@@ -304,12 +303,10 @@ class Admin(Plugin[AdminEventListener]):
                     elif not name:
                         name = ucid
                 else:
-                    # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(_("{} is not a valid UCID!").format(user), 
+                    await interaction.response.send_message(_("{} is not a valid UCID!").format(user),
                                                             ephemeral=ephemeral)
                     return
                 await self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days)
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(_("Player {} banned on all servers").format(name) +
                                                         (_(" for {} days.").format(days) if days else "."),
                                                         ephemeral=ephemeral)
@@ -319,7 +316,6 @@ class Admin(Plugin[AdminEventListener]):
             async def on_error(derived, _: discord.Interaction, error: Exception) -> None:
                 self.log.exception(error)
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(BanModal(user))
 
     @dcs.command(description=_('Unbans a user by name or ucid'))
@@ -334,7 +330,6 @@ class Admin(Plugin[AdminEventListener]):
             name = name.display_name
         elif not name:
             name = ucid
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Player {} unbanned on all servers.").format(name),
                                                 ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f'unbanned player {name} (ucid={ucid})', user=interaction.user)
@@ -347,7 +342,6 @@ class Admin(Plugin[AdminEventListener]):
         try:
             ban = next(x for x in await self.bus.bans() if x['ucid'] == user)
         except StopIteration:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("User with UCID {} is not banned.").format(user), ephemeral=True)
             return
         embed = discord.Embed(title=_('Ban Information'), color=discord.Color.blue())
@@ -368,7 +362,6 @@ class Admin(Plugin[AdminEventListener]):
                         value=until)
         embed.add_field(name=_('Reason'),
                         value=ban['reason'])
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
     @dcs.command(description=_('Update your DCS installations'))
@@ -386,7 +379,6 @@ class Admin(Plugin[AdminEventListener]):
                      version: str | None = None,
                      force: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         _branch, old_version = await node.get_dcs_branch_and_version()
         if not branch:
@@ -461,7 +453,6 @@ class Admin(Plugin[AdminEventListener]):
                      slow: bool | None = False, check_extra_files: bool | None = False,
                      warn_time: app_commands.Range[int, 0] = 60):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         await self.bot.audit(f"started a repair of DCS World on node {node.name}.", user=interaction.user)
         msg = await interaction.followup.send(_("Repairing DCS World, please wait ..."), ephemeral=ephemeral)
@@ -524,7 +515,6 @@ class Admin(Plugin[AdminEventListener]):
     async def _install(self, interaction: discord.Interaction,
                        node: app_commands.Transform[Node, utils.NodeTransformer], module: str):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         num_servers = len([x for x in node.instances.values() if x.server and x.server.status != Status.SHUTDOWN])
         if num_servers and not await utils.yn_question(
@@ -547,7 +537,6 @@ class Admin(Plugin[AdminEventListener]):
     async def _uninstall(self, interaction: discord.Interaction,
                          node: app_commands.Transform[Node, utils.NodeTransformer], module: str):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         num_servers = len([x for x in node.instances.values() if x.server and x.server.status != Status.SHUTDOWN])
         if num_servers and not await utils.yn_question(
@@ -565,7 +554,6 @@ class Admin(Plugin[AdminEventListener]):
     async def info(self, interaction: discord.Interaction,
                    node: app_commands.Transform[Node, utils.NodeTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         modules = await node.get_installed_modules()
         if not modules:
@@ -585,7 +573,6 @@ class Admin(Plugin[AdminEventListener]):
                        server: app_commands.Transform[Server, utils.ServerTransformer],
                        what: str, filename: str) -> None:
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         config = next(x for x in self.get_config(server)['downloads'] if x['label'] == what)
         # double-check if that user can really download these files
@@ -682,7 +669,6 @@ class Admin(Plugin[AdminEventListener]):
             embed.description = _("You are going to delete data from your database. Be advised.\n\n"
                                   "Please select the data to be pruned:")
             view = CleanupView()
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
             try:
                 await view.wait()
@@ -774,7 +760,6 @@ class Admin(Plugin[AdminEventListener]):
     @utils.app_has_role('DCS Admin')
     async def _list(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         embed = discord.Embed(title=_("DCSServerBot Cluster Overview"), color=discord.Color.blue())
         for name, node in self.node.all_nodes.items():
@@ -847,7 +832,6 @@ class Admin(Plugin[AdminEventListener]):
     async def shutdown(self, interaction: discord.Interaction,
                        node: app_commands.Transform[Node, utils.NodeTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         await self.run_on_nodes(interaction, "shutdown", node, ephemeral=ephemeral)
 
@@ -858,7 +842,6 @@ class Admin(Plugin[AdminEventListener]):
     async def restart(self, interaction: discord.Interaction,
                       node: app_commands.Transform[Node, utils.NodeTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         await self.run_on_nodes(interaction, "restart", node, ephemeral=ephemeral)
 
@@ -885,7 +868,6 @@ class Admin(Plugin[AdminEventListener]):
             await self.bot.audit(f"took node {node_name} offline.", user=interaction.user)
 
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
 
         if shutdown:
@@ -938,7 +920,6 @@ class Admin(Plugin[AdminEventListener]):
             await self.bot.audit(f"took node {node_name} online.", user=interaction.user)
 
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
         startup_delay = self.get_config(plugin_name='scheduler').get('startup_delay', 10)
         if node:
@@ -955,7 +936,6 @@ class Admin(Plugin[AdminEventListener]):
     async def upgrade(self, interaction: discord.Interaction,
                       node: app_commands.Transform[Node, utils.NodeTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if not node:
             node = self.node
@@ -982,7 +962,6 @@ class Admin(Plugin[AdminEventListener]):
                     node: app_commands.Transform[Node, utils.NodeTransformer],
                     cmd: str, timeout: app_commands.Range[int, 10, 300] | None = 60):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         try:
             await self.bot.audit(f"ran a shell command:\n```cmd\n{cmd}\n```", user=interaction.user)
@@ -1009,7 +988,6 @@ class Admin(Plugin[AdminEventListener]):
                            node: app_commands.Transform[Node, utils.NodeTransformer], name: str,
                            template: app_commands.Transform[Instance, utils.InstanceTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         instance = await node.add_instance(name, template=template.name if template else "")
         if instance:
@@ -1102,7 +1080,6 @@ Please make sure you forward the following ports:
                               instance: app_commands.Transform[Instance, utils.InstanceTransformer], new_name: str):
         ephemeral = utils.get_ephemeral(interaction)
         if instance.server and instance.server.status in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Server {} has to be shut down before renaming the instance!").format(instance.server.name),
                 ephemeral=ephemeral)
@@ -1144,10 +1121,33 @@ Please make sure you forward the following ports:
     async def cpuinfo(self, interaction: discord.Interaction,
                       node: app_commands.Transform[Node, utils.NodeTransformer],
                       used: bool = True):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         image = await node.get_cpu_info(used)
         await interaction.followup.send(file=discord.File(fp=BytesIO(image), filename='cpuinfo.png'))
+
+    @node_group.command(description=_("Make a node master"))
+    @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
+    @utils.app_has_role('Admin')
+    async def master(self, interaction: discord.Interaction,
+                     node: app_commands.Transform[Node, utils.NodeTransformer] | None = None):
+        if not node:
+            if self.node.master:
+                master = self.node
+            else:
+                master = next(x for x in self.node.all_nodes.values() if x.master)
+            await interaction.response.send_message(_("Node {} is the current master.").format(master.name))
+            return
+
+        if node.master:
+            await interaction.response.send_message(_("Node {} is master already").format(node.name))
+            return
+
+        await interaction.response.defer()
+        async with self.node.cpool.connection() as conn:
+            await conn.execute("UPDATE cluster SET takeover_requested_by = %s WHERE guild_id = %s",
+                               (node.name, node.guild_id))
+        await interaction.followup.send(_("Requested master for node {}.").format(node.name))
 
     plug = Group(name="plugin", description=_("Commands to manage your DCSServerBot plugins"))
 
@@ -1158,7 +1158,6 @@ Please make sure you forward the following ports:
     @utils.app_has_role('Admin')
     async def _install(self, interaction: discord.Interaction, plugin: str):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if not await self.node.install_plugin(plugin):
             await interaction.followup.send(
@@ -1176,7 +1175,6 @@ Please make sure you forward the following ports:
     @utils.app_has_role('Admin')
     async def _uninstall(self, interaction: discord.Interaction, plugin: str):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if not await self.node.uninstall_plugin(plugin):
             await interaction.followup.send(
@@ -1194,7 +1192,6 @@ Please make sure you forward the following ports:
     @app_commands.autocomplete(plugin=plugins_autocomplete)
     async def reload(self, interaction: discord.Interaction, plugin: str | None):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if plugin:
             if await self.bot.reload(plugin):
@@ -1221,11 +1218,9 @@ Please make sure you forward the following ports:
     async def stop(self, interaction: discord.Interaction, plugin: str | None):
         ephemeral = utils.get_ephemeral(interaction)
         if plugin not in [x.lower() for x in self.bot.cogs.keys()]:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_('Plugin {} is not running.').format(plugin), ephemeral=True)
             return
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if await self.bot.unload_plugin(plugin):
             await interaction.followup.send(_('Plugin {} stopped.').format(plugin), ephemeral=ephemeral)
@@ -1242,11 +1237,9 @@ Please make sure you forward the following ports:
     async def start(self, interaction: discord.Interaction, plugin: str | None):
         ephemeral = utils.get_ephemeral(interaction)
         if plugin in [x.lower() for x in self.bot.cogs.keys()]:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_('Plugin {} is already started.').format(plugin), ephemeral=True)
             return
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if await self.bot.load_plugin(plugin):
             await interaction.followup.send(_('Plugin {} started.').format(plugin), ephemeral=ephemeral)
@@ -1264,7 +1257,6 @@ Please make sure you forward the following ports:
     async def enable(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer], extension: str):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         await interaction.followup.send(_("Enabling extension {}...").format(extension), ephemeral=ephemeral)
         # set enabled in the nodes.yaml
@@ -1314,7 +1306,6 @@ Please make sure you forward the following ports:
     async def disable(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer], extension: str):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         await interaction.followup.send(_("Disabling extension {}...").format(extension), ephemeral=ephemeral)
         # unset enabled in the nodes.yaml
