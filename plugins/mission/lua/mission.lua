@@ -146,11 +146,11 @@ function dcsbot.updateEmbed(id, title, description, img, fields, footer, channel
 end
 
 function dcsbot.setFog(visibility, thickness, channel)
-    if visibility ~= -1 then
-        world.weather.setFogVisibilityDistance(visibility)
-    end
     if thickness ~= -1 then
         world.weather.setFogThickness(thickness)
+    end
+    if visibility ~= -1 then
+        world.weather.setFogVisibilityDistance(visibility)
     end
     local msg = {
         command = 'setFog',
