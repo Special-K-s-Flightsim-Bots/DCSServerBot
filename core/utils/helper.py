@@ -178,7 +178,7 @@ def format_string(string_: str, default_: str | None = None, **kwargs) -> str:
             elif isinstance(value, dict):
                 value = json.dumps(value)
             elif isinstance(value, bool):
-                value = str(value).lower()
+                value = str(value)
             elif isinstance(value, datetime) and value.tzinfo:
                 value = value.astimezone(timezone.utc).replace(tzinfo=None)
             return super().format_field(value, spec)
