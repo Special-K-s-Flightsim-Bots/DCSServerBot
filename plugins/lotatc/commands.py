@@ -1,3 +1,4 @@
+import aiofiles
 import aiohttp
 import discord
 import json
@@ -248,8 +249,8 @@ class LotAtc(Plugin[LotAtcEventListener]):
                 return
 
             handler = ServerUploadHandler(server=server, message=message, pattern=pattern)
-            with open('plugins/lotatc/schemas/lotatc_schema.json', mode='r') as infile:
-                schema = json.load(infile)
+            async with aiofiles.open('plugins/lotatc/schemas/lotatc_schema.json', mode='r') as infile:
+                schema = json.loads(await infile.read())
 
             for attachment in message.attachments:
                 async with aiohttp.ClientSession() as session:
@@ -269,6 +270,7 @@ class LotAtc(Plugin[LotAtcEventListener]):
                 await handler.upload(base_dir)
         except Exception as ex:
             self.log.exception(ex)
+            await message.channel.send("Error while uploading. Check the DCSServerBot log.")
         finally:
             await message.delete()
 
