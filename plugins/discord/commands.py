@@ -261,7 +261,7 @@ class Discord(Plugin):
                 if role:
                     try:
                         await payload.member.add_roles(role)
-                        self.log.info(f"Added role {role.name} to {payload.member.display_name}")
+                        self.log.debug(f"Added role {role.name} to {payload.member.display_name}")
                     except discord.Forbidden:
                         self.log.warning('DCSServerBot is missing permission "Manage Roles"!')
                 else:

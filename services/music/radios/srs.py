@@ -1,11 +1,15 @@
 import asyncio
 import os
+from typing import cast
+
 import psutil
 import subprocess
 
 from core import Server, Status, Coalition, utils, ProcessManager
 from packaging.version import parse
 from threading import Thread
+
+from extensions.srs import SRS
 from services.music.radios.base import RadioInitError, Radio
 from plugins.music.utils import get_tag
 
@@ -22,58 +26,16 @@ class SRSRadio(Radio):
         if self.server.status != Status.RUNNING:
             await self.stop()
             return
+
         self.log.debug(f"Playing {file} ...")
 
+        extension = cast(SRS, self.server.extensions.get('SRS'))
+        if not extension:
+            self.log.error("SRS extension not found, can't play music.")
+            return
+
         try:
-            try:
-                srs_inst = os.path.expandvars(
-                    self.server.extensions['SRS'].config.get('installation',
-                                                             '%ProgramFiles%\\DCS-SimpleRadio-Standalone'))
-                srs_port = self.server.extensions['SRS'].locals['Server Settings']['SERVER_PORT']
-            except KeyError:
-                raise RadioInitError("You need to set the SRS path in your nodes.yaml!")
-            self.current = file
-
-            def exe_path() -> str:
-                if parse(self.server.extensions['SRS'].version) >= parse('2.2.0.0'):
-                    return os.path.join(srs_inst, "ExternalAudio", "DCS-SR-ExternalAudio.exe")
-                else:
-                    return os.path.join(srs_inst, "DCS-SR-ExternalAudio.exe")
-
-            def run_subprocess() -> psutil.Process:
-                def _log_output(p: subprocess.Popen):
-                    for line in iter(p.stdout.readline, b''):
-                        self.log.debug(line.decode('utf-8', errors='replace').rstrip())
-
-                debug = self.service.get_config().get('debug', False)
-                out = subprocess.PIPE if debug else subprocess.DEVNULL
-                err = subprocess.PIPE if debug else subprocess.DEVNULL
-
-                args = [
-                    exe_path(),
-                    "-f", str(self.config['frequency']),
-                    "-m", self.config['modulation'],
-                    "-c", str(self.config['coalition']),
-                    "-v", str(self.config.get('volume', 1.0)),
-                    "-p", str(srs_port),
-                    "-n", self.config.get('display_name', 'DCSSB MusicBox'),
-                    "-i", file
-                ]
-                if debug:
-                    self.log.debug(f"Running {' '.join(args)}")
-                p = ProcessManager().launch_process(
-                    args,
-                    min_cores=self.config.get('auto_affinity', {}).get('min_cores', 1),
-                    max_cores=self.config.get('auto_affinity', {}).get('max_cores', 1),
-                    quality=self.config.get('auto_affinity', {}).get('quality', 1),
-                    instance=self.server.instance.name,
-                    stdout=out, stderr=err
-                )
-                if debug:
-                    Thread(target=_log_output, args=(p,), daemon=True).start()
-                return p
-
-            self.process = await asyncio.to_thread(run_subprocess)
+            self.process = await extension.play_external_audio(self.config, file=file)
             coalition = Coalition.BLUE if int(self.config['coalition']) == 2 else Coalition.RED
             if 'popup' in self.config:
                 kwargs = self.config.copy()

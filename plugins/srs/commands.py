@@ -1,7 +1,7 @@
 import discord
 
 from core import (Plugin, PluginRequiredError, PluginInstallationError, Group, get_translation, utils, Server,
-                  Coalition, Status)
+                  Coalition, Status, Player)
 from discord import app_commands
 from extensions.srs import SRS as SRSExt
 from services.bot import DCSServerBot
@@ -175,6 +175,54 @@ class SRS(Plugin[SRSEventListener]):
             await interaction.followup.send(_("DCS-SRS repaired on node {}.").format(server.node.name))
         except Exception:
             await interaction.followup.send(_("Failed to update DCS-SRS. See log for defails."))
+
+    @srs.command(description=_('Send a TTS message'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def tts(self, interaction: discord.Interaction,
+                  server: app_commands.Transform[Server, utils.ServerTransformer(
+                      status=[Status.LOADING, Status.STOPPED, Status.RUNNING, Status.PAUSED])],
+                  text: str,
+                  player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)] | None = None,
+                  coalition: Literal['blue', 'red', 'neutral'] | None = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
+        try:
+            if player:
+                data = next(
+                    (x for x in self.eventlistener.srs_users[server.name].values() if x['player_name'] == player.name),
+                    None
+                )
+                if data is None:
+                    await interaction.followup.send(_("Player {} is not on SRS.").format(player.display_name),
+                                                    ephemeral=True)
+
+                frequency = (data['radios'][0] / 1000000.0) if len(data['radios']) > 0 else None
+                if frequency is None:
+                    await interaction.followup.send(_("Player {} is not on radio.").format(player.display_name),
+                                                    ephemeral=True)
+
+                frequencies = [frequency]
+                coalitions = [1 if player.coalition == Coalition.RED else 2]
+            else:
+                frequencies = [243.0, 121.5] # Guard
+                if coalition:
+                    coalitions = [1 if coalition == 'red' else 2]
+                else:
+                    coalitions = [1, 2]
+
+            for coalition in coalitions:
+                for frequency in frequencies:
+                    config = {
+                        "frequency": frequency,
+                        "modulation": 'AM' if frequency > 108.0 else 'FM',
+                        "coalition": coalition
+                    }
+                    await server.run_on_extension(extension='SRS', method='play_external_audio', config=config, text=text)
+            await interaction.followup.send(_("Message sent."), ephemeral=ephemeral)
+        except Exception as ex:
+            self.log.exception(ex)
+            await interaction.followup.send(_("Failed to send TTS message."), ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):

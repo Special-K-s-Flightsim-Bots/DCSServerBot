@@ -76,3 +76,24 @@ class SRSEventListener(EventListener["SRS"]):
                     asyncio.create_task(server.move_to_spectators(player, reason=self.get_config(server).get(
                         'message_no_srs', 'You need to use SRS to play on this server!')))
         self.mission.eventlistener.display_player_embed(server)
+
+    @event(name="onTTSMessage")
+    async def onTTSMessage(self, server: Server, data: dict) -> None:
+        frequency = data['frequency']
+        if frequency > 100000:
+            frequency /= 1000000
+        config = {
+            "frequency": frequency,
+            "modulation": 'AM' if frequency > 108.0 else 'FM',
+            "coalition": data['coalition']
+        }
+        if 'lat' in data:
+            config['lat'] = data['lat']
+            config['lon'] = data['lon']
+            config['alt'] = data['alt']
+        asyncio.create_task(server.run_on_extension(
+            extension='SRS',
+            method='play_external_audio',
+            config=config,
+            text=data['text'])
+        )

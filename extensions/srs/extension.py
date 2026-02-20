@@ -503,6 +503,56 @@ class SRS(Extension, FileSystemEventHandler):
             self.exe_name = 'SR-Server.exe'
             return os.path.join(self.get_inst_path(), self.exe_name)
 
+    def get_ext_audio_exe_path(self) -> str:
+        if parse(self.server.extensions['SRS'].version) >= parse('2.2.0.0'):
+            return os.path.join(self.get_inst_path(), "ExternalAudio", "DCS-SR-ExternalAudio.exe")
+        else:
+            return os.path.join(self.get_inst_path(), "DCS-SR-ExternalAudio.exe")
+
+    async def play_external_audio(self, config: dict, *, file: str | None = None, text: str | None = None) -> psutil.Process:
+        def run_subprocess() -> psutil.Process:
+            def _log_output(p: subprocess.Popen):
+                for line in iter(p.stdout.readline, b''):
+                    self.log.debug(line.decode('utf-8', errors='replace').rstrip())
+
+            debug = config.get('debug', False)
+            out = subprocess.PIPE if debug else subprocess.DEVNULL
+            err = subprocess.PIPE if debug else subprocess.DEVNULL
+
+            args = [
+                self.get_ext_audio_exe_path(),
+                "-f", str(config['frequency']),
+                "-m", config['modulation'],
+                "-c", str(config['coalition']),
+                "-v", str(config.get('volume', 1.0)),
+                "-p", str(self.locals['Server Settings']['SERVER_PORT']),
+                "-n", config.get('display_name', 'DCSSB')
+            ]
+            if 'lat' in config:
+                args.extend(["-L", str(config['lat'])])
+                args.extend(["-O", str(config['lon'])])
+                args.extend(["-A", str(config['alt'])])
+            if file:
+                args.extend(["-i", file])
+            elif text:
+                args.extend(["-t", '"' + text + '"'])
+
+            if debug:
+                self.log.debug(f"Running {' '.join(args)}")
+            p = ProcessManager().launch_process(
+                args,
+                min_cores=config.get('auto_affinity', {}).get('min_cores', 1),
+                max_cores=config.get('auto_affinity', {}).get('max_cores', 1),
+                quality=config.get('auto_affinity', {}).get('quality', 1),
+                instance=self.server.instance.name,
+                stdout=out, stderr=err
+            )
+            if debug:
+                Thread(target=_log_output, args=(p,), daemon=True).start()
+            return p
+
+        return await asyncio.to_thread(run_subprocess)
+
     @override
     @property
     def version(self) -> str | None:
