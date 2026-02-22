@@ -19,6 +19,7 @@ DEFAULT:
   enforce_srs: true   # Block slots until SRS is activated. People cannot use slots if not on SRS!
   move_to_spec: true  # Move people back to spectators if they leave SRS (only if enforce is true, default: false)
   enforce_atc: true   # Enforce ATC frequencies for SRS users (default: false)
+  atis: true          # Optional: Send ATIS messages to players
   atc_frequencies:    # Optional: default is airbase frequencies, according to the mission
     blue:
       'CVN*': 252000AM
@@ -35,16 +36,12 @@ DEFAULT:
 ## Discord Commands
 The following Discord commands are available through the SRS plugin:
 
-| Command     | Parameter                        | Channel | Role      | Description                                                           |
-|-------------|----------------------------------|---------|-----------|-----------------------------------------------------------------------|
-| /srs list   |                                  | all     | DCS       | Shows active users on SRS with their connected radios.                |
-| /srs tts    | server text [player] [coalition] | all     | DCS Admin | Send a TTS message to a server (optional to a coalition or a player). |
-| /srs update | server                           | all     | DCS Admin | Updates SRS on the respective node.                                   |
-| /srs repair | server                           | all     | DCS Admin | Repairs (re-installs) SRS on the respective node.                     |
-
-> [!NOTE]
-> If a TTS message is sent to a coalition or a server, the message will be sent to the guard channels.
-> If a TTS message is sent to a player, it will be sent to the first radio of that player.
+| Command     | Parameter                        | Channel | Role      | Description                                                                                     |
+|-------------|----------------------------------|---------|-----------|-------------------------------------------------------------------------------------------------|
+| /srs list   |                                  | all     | DCS       | Shows active users on SRS with their connected radios.                                          |
+| /srs tts    | server text [player] [coalition] | all     | DCS Admin | Send a TTS message to a specific frequency. Chose coalition or player to limit the frequencies. |
+| /srs update | server                           | all     | DCS Admin | Updates SRS on the respective node.                                                             |
+| /srs repair | server                           | all     | DCS Admin | Repairs (re-installs) SRS on the respective node.                                               |
 
 ## Mission-Scripting - Text To Speech
 If you want to use TTS (text-to-speech) in your mission, you can do it like so:

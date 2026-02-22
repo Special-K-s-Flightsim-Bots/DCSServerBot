@@ -11,6 +11,44 @@ from .listener import SRSEventListener
 
 _ = get_translation(__name__.split('.')[1])
 
+async def frequency_autocomplete(interaction: discord.Interaction, _current: float) -> list[app_commands.Choice[float]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    try:
+        eventlistener = interaction.client.cogs.get("SRS").eventlistener
+        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
+        player: Player | None = await utils.PlayerTransformer().transform(interaction, interaction.namespace.player)
+        coalition: int | None = 1 if interaction.namespace.coalition == 'red' else 2 if interaction.namespace.coalition == 'blue' else None
+        if not server:
+            return []
+        if player:
+            return [
+                app_commands.Choice(name="{:.2f} {}".format(x/1000000, 'AM' if x/1000000 > 108 else 'FM'),
+                                    value=x/1000000)
+                for p in eventlistener.srs_users[server.name].values()
+                if p['player_name'] == player.name
+                for x in sorted(p['radios'])
+            ]
+        elif coalition:
+            return [
+                app_commands.Choice(name="{:.2f} {}".format(x/1000000, 'AM' if x/1000000 > 108 else 'FM'),
+                                    value=x/1000000)
+                for x in sorted({
+                    radio
+                    for p in eventlistener.srs_users[server.name].values()
+                    if p['side'] == coalition
+                    for radio in p['radios']
+                })
+            ]
+        else:
+            return [
+                app_commands.Choice(name="Guard 121.5", value=121.5),
+                app_commands.Choice(name="Guard 243.0", value=243.0)
+            ]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+        return []
+
 
 class SRS(Plugin[SRSEventListener]):
 
@@ -179,46 +217,36 @@ class SRS(Plugin[SRSEventListener]):
     @srs.command(description=_('Send a TTS message'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
+    @app_commands.describe(server="The server to send the TTS message to")
+    @app_commands.describe(text="The message to send")
+    @app_commands.describe(player="Limit the frequencies to this player")
+    @app_commands.describe(coalition="Limit the frequencies to this coalition")
+    @app_commands.describe(frequency="The frequency to send the message to")
+    @app_commands.autocomplete(frequency=frequency_autocomplete)
     async def tts(self, interaction: discord.Interaction,
                   server: app_commands.Transform[Server, utils.ServerTransformer(
                       status=[Status.LOADING, Status.STOPPED, Status.RUNNING, Status.PAUSED])],
                   text: str,
                   player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)] | None = None,
-                  coalition: Literal['blue', 'red', 'neutral'] | None = None):
+                  coalition: Literal['blue', 'red', 'neutral'] | None = None,
+                  frequency: float | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
         try:
             if player:
-                data = next(
-                    (x for x in self.eventlistener.srs_users[server.name].values() if x['player_name'] == player.name),
-                    None
-                )
-                if data is None:
-                    await interaction.followup.send(_("Player {} is not on SRS.").format(player.display_name),
-                                                    ephemeral=True)
-
-                frequency = (data['radios'][0] / 1000000.0) if len(data['radios']) > 0 else None
-                if frequency is None:
-                    await interaction.followup.send(_("Player {} is not on radio.").format(player.display_name),
-                                                    ephemeral=True)
-
-                frequencies = [frequency]
                 coalitions = [1 if player.coalition == Coalition.RED else 2]
+            elif coalition:
+                coalitions = [1 if coalition == 'red' else 2]
             else:
-                frequencies = [243.0, 121.5] # Guard
-                if coalition:
-                    coalitions = [1 if coalition == 'red' else 2]
-                else:
-                    coalitions = [1, 2]
+                coalitions = [1, 2]
 
             for coalition in coalitions:
-                for frequency in frequencies:
-                    config = {
-                        "frequency": frequency,
-                        "modulation": 'AM' if frequency > 108.0 else 'FM',
-                        "coalition": coalition
-                    }
-                    await server.run_on_extension(extension='SRS', method='play_external_audio', config=config, text=text)
+                config = {
+                    "frequency": frequency,
+                    "modulation": 'AM' if frequency > 108.0 else 'FM',
+                    "coalition": coalition
+                }
+                await server.run_on_extension(extension='SRS', method='play_external_audio', config=config, text=text)
             await interaction.followup.send(_("Message sent."), ephemeral=ephemeral)
         except Exception as ex:
             self.log.exception(ex)

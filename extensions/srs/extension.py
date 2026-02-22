@@ -79,7 +79,7 @@ class SRS(Extension, FileSystemEventHandler):
         self.first_run = True
         self._inst_path: str | None = None
         self.exe_name = None
-        self.clients: dict[str, set[int]] = {}
+        self.clients: dict[str, dict] = {}
         self.client_names: dict[str, str] = {}
         self._missing_loops: dict[str, int] = {}  # consecutive "not in export" counts per ClientGuid
         super().__init__(server, config)
@@ -367,32 +367,28 @@ class SRS(Extension, FileSystemEventHandler):
                 guid = client['ClientGuid']
                 self._missing_loops.pop(guid, None)  # seen this loop => not missing anymore
 
-                target = set(int(x['freq']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6)
+                target = {
+                    "player_name": client['Name'],
+                    "side": client['Coalition'],
+                    "unit": client['RadioInfo']['unit'],
+                    "unit_id": client['RadioInfo']['unitId'],
+                    "radios": list(set(int(x['freq']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6))
+                }
                 if guid not in self.clients:
                     self.clients[guid] = target
                     self.client_names[guid] = client['Name']
                     await self.bus.send_to_node({
                         "command": "onSRSConnect",
-                        "server_name": self.server.name,
-                        "player_name": client['Name'],
-                        "side": client['Coalition'],
-                        "unit": client['RadioInfo']['unit'],
-                        "unit_id": client['RadioInfo']['unitId'],
-                        "radios": list(self.clients[guid])
-                    })
+                        "server_name": self.server.name
+                    } | target)
                 else:
                     actual = self.clients[guid]
                     if actual != target:
                         self.clients[guid] = target
                         await self.bus.send_to_node({
                             "command": "onSRSUpdate",
-                            "server_name": self.server.name,
-                            "player_name": client['Name'],
-                            "side": client['Coalition'],
-                            "unit": client['RadioInfo']['unit'],
-                            "unit_id": client['RadioInfo']['unitId'],
-                            "radios": list(self.clients[guid])
-                        })
+                            "server_name": self.server.name
+                        } | target)
 
             all_clients = set(self.clients.keys())
             active_clients = set(x['ClientGuid'] for x in data.get('Clients', []))
