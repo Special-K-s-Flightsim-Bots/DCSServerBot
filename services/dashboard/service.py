@@ -71,7 +71,8 @@ class ServersWidget:
         if self.service.node.master and self.service.is_multinode():
             table.add_column("Node", justify="left", min_width=8)
         for server_name, server in self.bus.servers.items():
-            if config.get('hide_remote_servers', False) and server.is_remote:
+            # do not show remote servers on agents or if hide_remote_servers is set
+            if (not self.node.master or config.get('hide_remote_servers', False)) and server.is_remote:
                 continue
             name = re.sub(self.bus.filter['server_name'], '', server.name).strip()
             mission_name = re.sub(self.bus.filter['mission_name'], '',

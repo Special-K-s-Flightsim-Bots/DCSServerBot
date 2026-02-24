@@ -1059,6 +1059,11 @@ class Mission(Plugin[MissionEventListener]):
             "command": "getAirbase",
             "name": airbase['name']
         }, timeout=60)
+
+        if 'errors' in data:
+            await interaction.followup.send(_("Error: {}").format(data['error']), ephemeral=True)
+            return
+
         colors = {
             0: "dark_gray",
             1: "red",
