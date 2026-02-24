@@ -572,7 +572,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        pattern = ['.lua', '.json']
+        pattern = [r'\.lua$', r'\.json$']
 
         if GameMasterUploadHandler.is_valid(message, pattern=pattern, roles=self.bot.roles['DCS Admin']):
             server = await GameMasterUploadHandler.get_server(message)

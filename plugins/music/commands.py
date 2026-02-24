@@ -288,7 +288,7 @@ class Music(Plugin[MusicEventListener]):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        pattern =  ['.mp3', '.ogg']
+        pattern =  [r'\.mp3$', r'\.ogg$']
         if not NodeUploadHandler.is_valid(message, pattern, self.bot.roles['DCS Admin']):
             return
         admin_channels = []

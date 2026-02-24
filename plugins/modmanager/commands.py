@@ -515,7 +515,7 @@ class ModManager(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        pattern = ['.zip']
+        pattern = [r'^(?P<package>.+?)_v(?P<version>\d+(?:\.\d+)+)\.\w+$']
         if not ServerUploadHandler.is_valid(message, pattern=pattern, roles=self.bot.roles['DCS Admin']):
             return
         try:

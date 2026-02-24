@@ -1578,14 +1578,48 @@ class NodeUploadHandler:
         self.overwrite = False
 
     @staticmethod
-    def is_valid(message: discord.Message, pattern: list[str], roles: list[int | str]) -> bool:
-        # ignore bot messages or messages that do not contain miz attachments
-        if (message.author.bot or not message.attachments or
-                not any(att.filename.lower().endswith(ext) for ext in pattern for att in message.attachments)):
+    def is_valid(
+        message: discord.Message,
+        pattern: list[str | re.Pattern[str]],   # list of regexes (string or compiled)
+        roles: list[int | str]
+    ) -> bool:
+        """
+        Return True if *message* is a user‑sent message that contains at least
+        one attachment whose filename matches any of the supplied regular‑
+        expressions, and the author has at least one of the required *roles*.
+
+        Parameters
+        ----------
+        message : discord.Message
+            The message to validate.
+        pattern : list[str | re.Pattern]
+            Regex patterns to match against the attachment filenames.
+            Strings are compiled on‑the‑fly with ``re.IGNORECASE``.
+        roles : list[int | str]
+            Role IDs or names that are allowed to upload.
+
+        Returns
+        -------
+        bool
+            True if the message passes all checks, False otherwise.
+        """
+        if message.author.bot or not message.attachments:
             return False
-        # check if the user has the correct role to upload, defaults to DCS Admin
+
+        compiled_patterns: list[re.Pattern[str]] = [
+            re.compile(p, flags=re.IGNORECASE) if isinstance(p, str) else p
+            for p in pattern
+        ]
+
+        if not any(
+            any(p.search(att.filename) for p in compiled_patterns)
+            for att in message.attachments
+        ):
+            return False
+
         if not utils.check_roles(roles, message.author):
             return False
+
         return True
 
     async def render(self, directory: str, ignore_list: list[str] | None = None) -> str | None:
