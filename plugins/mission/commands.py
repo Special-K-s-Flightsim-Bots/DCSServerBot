@@ -2496,7 +2496,7 @@ class Mission(Plugin[MissionEventListener]):
                 self.log.debug(f"=> Member {member.display_name} is linked and got the {role.name} role.")
 
     async def handle_miz_uploads(self, message: discord.Message):
-        pattern = [r'\.miz$%', r'\.sav$']
+        pattern = [r'\.miz$', r'\.sav$']
         config = self.get_config().get('uploads', {})
         if not MissionUploadHandler.is_valid(message, pattern, config.get('discord', self.bot.roles['DCS Admin'])):
             return
