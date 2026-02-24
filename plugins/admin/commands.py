@@ -1143,6 +1143,12 @@ Please make sure you forward the following ports:
             await interaction.response.send_message(_("Node {} is master already").format(node.name))
             return
 
+        for node in self.node.all_nodes.values():
+            if node.locals.get('preferred_master'):
+                await interaction.response.send_message(
+                    _("Cannot change master, node {} has preferred master set.").format(node.name))
+                return
+
         await interaction.response.defer()
         async with self.node.cpool.connection() as conn:
             await conn.execute("UPDATE cluster SET takeover_requested_by = %s WHERE guild_id = %s",
