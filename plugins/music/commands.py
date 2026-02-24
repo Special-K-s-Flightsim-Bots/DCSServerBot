@@ -288,8 +288,8 @@ class Music(Plugin[MusicEventListener]):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        pattern =  [r'\.mp3$', r'\.ogg$']
-        if not NodeUploadHandler.is_valid(message, pattern, self.bot.roles['DCS Admin']):
+        patterns =  [r'\.mp3$', r'\.ogg$']
+        if not NodeUploadHandler.is_valid(message, patterns, self.bot.roles['DCS Admin']):
             return
         admin_channels = []
         if self.bot.locals.get('channels', {}).get('admin'):
@@ -300,7 +300,7 @@ class Music(Plugin[MusicEventListener]):
         if message.channel.id not in admin_channels:
             return
         try:
-            handler = NodeUploadHandler(self.node, message, pattern)
+            handler = NodeUploadHandler(self.node, message, patterns)
             base_dir = await self.service.get_music_dir()
             await handler.upload(base_dir)
         except Exception as ex:

@@ -2496,9 +2496,9 @@ class Mission(Plugin[MissionEventListener]):
                 self.log.debug(f"=> Member {member.display_name} is linked and got the {role.name} role.")
 
     async def handle_miz_uploads(self, message: discord.Message):
-        pattern = [r'\.miz$', r'\.sav$']
+        patterns = [r'\.miz$', r'\.sav$']
         config = self.get_config().get('uploads', {})
-        if not MissionUploadHandler.is_valid(message, pattern, config.get('discord', self.bot.roles['DCS Admin'])):
+        if not MissionUploadHandler.is_valid(message, patterns, config.get('discord', self.bot.roles['DCS Admin'])):
             return
         # check if upload is enabled
         if not config.get('enabled', True):
@@ -2545,7 +2545,7 @@ class Mission(Plugin[MissionEventListener]):
 
         try:
             self.log.debug(f"Uploading mission {message.attachments[0].filename} to server {server.name} ...")
-            handler = MissionUploadHandler(plugin=self, server=server, message=message, pattern=pattern)
+            handler = MissionUploadHandler(plugin=self, server=server, message=message, patterns=patterns)
             base_dir = await handler.server.get_missions_dir()
             ignore = ['.dcssb', 'Saves', 'Scripts']
             if server.locals.get('ignore_dirs'):

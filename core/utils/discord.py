@@ -361,7 +361,7 @@ class PopulatedQuestionView(View):
 async def populated_question(ctx: commands.Context | discord.Interaction, question: str, message: str | None = None,
                              ephemeral: bool | None = True) -> str | None:
     """
-    Same as yn_question, but adds an option "Later". The usual use-case of this function would be
+    Same as yn_question, but adds an option "Later". The usual use-case of this function is
     if people are flying atm, and you want to ask to trigger an action that would affect their experience (aka stop
     the server).
 
@@ -1566,7 +1566,7 @@ class UploadView(DirectoryPicker):
 
 class NodeUploadHandler:
 
-    def __init__(self, node: Node, message: discord.Message, pattern: list[str]):
+    def __init__(self, node: Node, message: discord.Message, patterns: list[str]):
         from services.bot import BotService
 
         self.node = node
@@ -1574,13 +1574,16 @@ class NodeUploadHandler:
         self.channel = message.channel
         self.log = node.log
         self.bot = ServiceRegistry.get(BotService).bot
-        self.pattern = pattern
+        self.patterns: list[re.Pattern[str]] = [
+            re.compile(p, flags=re.IGNORECASE) if isinstance(p, str) else p
+            for p in patterns
+        ]
         self.overwrite = False
 
     @staticmethod
     def is_valid(
         message: discord.Message,
-        pattern: list[str | re.Pattern[str]],   # list of regexes (string or compiled)
+        patterns: list[str | re.Pattern[str]],   # list of regexes (string or compiled)
         roles: list[int | str]
     ) -> bool:
         """
@@ -1592,7 +1595,7 @@ class NodeUploadHandler:
         ----------
         message : discord.Message
             The message to validate.
-        pattern : list[str | re.Pattern]
+        patterns : list[str | re.Pattern]
             Regex patterns to match against the attachment filenames.
             Strings are compiled on‑the‑fly with ``re.IGNORECASE``.
         roles : list[int | str]
@@ -1608,7 +1611,7 @@ class NodeUploadHandler:
 
         compiled_patterns: list[re.Pattern[str]] = [
             re.compile(p, flags=re.IGNORECASE) if isinstance(p, str) else p
-            for p in pattern
+            for p in patterns
         ]
 
         if not any(
@@ -1683,7 +1686,7 @@ class NodeUploadHandler:
 
         attachments = [
             att for att in self.message.attachments
-            if any(att.filename.lower().endswith(ext) for ext in self.pattern)
+            if any(p.search(att.filename) for p in self.patterns)
         ]
         # run all uploads in parallel
         tasks = [self.handle_attachment(directory, att) for att in attachments]
@@ -1702,8 +1705,8 @@ class NodeUploadHandler:
 
 class ServerUploadHandler(NodeUploadHandler):
 
-    def __init__(self, server: Server, message: discord.Message, pattern: list[str]):
-        super().__init__(server.node, message, pattern)
+    def __init__(self, server: Server, message: discord.Message, patterns: list[str]):
+        super().__init__(server.node, message, patterns)
         self.server = server
 
     @staticmethod

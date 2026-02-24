@@ -515,8 +515,8 @@ class ModManager(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        pattern = [r'^(?P<package>.+?)_v(?P<version>\d+(?:\.\d+)+)\.\w+$']
-        if not ServerUploadHandler.is_valid(message, pattern=pattern, roles=self.bot.roles['DCS Admin']):
+        patterns = [r'^(?P<package>.+?)_v(?P<version>\d+(?:\.\d+)+)\.\w+$']
+        if not ServerUploadHandler.is_valid(message, patterns=patterns, roles=self.bot.roles['DCS Admin']):
             return
         try:
             server = await ServerUploadHandler.get_server(message)
@@ -536,7 +536,7 @@ class ModManager(Plugin):
                 await message.channel.send(_("Aborted."))
                 return
 
-            handler = ServerUploadHandler(server=server, message=message, pattern=pattern)
+            handler = ServerUploadHandler(server=server, message=message, patterns=patterns)
             config = self.service.get_config(server)
             base_dir = os.path.expandvars(config[folder])
             await handler.upload(base_dir)
