@@ -1558,7 +1558,7 @@ class NodeImpl(Node):
                     if int(instance['bot_port']) > max_bot_port:
                         max_bot_port = int(instance['bot_port'])
                     if 'dcs_port' in instance and int(instance['dcs_port']) > max_dcs_port:
-                        max_dcs_port = int(instance.dcs_port)
+                        max_dcs_port = int(instance['dcs_port'])
                     if 'webgui_port' in instance and int(instance['webgui_port']) > max_webgui_port:
                         max_webgui_port = int(instance['webgui_port'])
 

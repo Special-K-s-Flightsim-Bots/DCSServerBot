@@ -1248,7 +1248,7 @@ class Scheduler(Plugin[SchedulerListener]):
                 return
 
         view = ConfigView(self.bot, server)
-        embed = discord.Embed(title=f'Please edit the configuration of server\n"{server.display_name}"')
+        embed = view.render()
         msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
         try:
             if not await view.wait() and not view.cancelled:

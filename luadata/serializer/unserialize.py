@@ -377,6 +377,8 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
     # noinspection PyArgumentList
     lua = LuaRuntime(unpack_returned_tuples=multival, encoding=encoding, max_memory=0)
     lua.execute(raw)
+    if isinstance(raw, bytes):
+        raw = raw.decode(encoding)
     variable = raw.split("=")[0].strip()
     lua_table = lua.globals()[variable]
     return _lua_table_to_dict(lua_table)

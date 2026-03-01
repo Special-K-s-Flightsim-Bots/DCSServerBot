@@ -15,7 +15,7 @@ astral==3.2
 attrs==25.4.0
 audioop-lts==0.2.2 ; python_version >= "3.13"
 build==1.4.0
-certifi==2026.1.4
+certifi==2026.2.25
 charset-normalizer==3.4.4
 click==8.3.1
 colorama==0.4.6
@@ -25,11 +25,11 @@ contourpy==1.3.2 ; python_version < "3.11"
 croniter==6.0.0
 cycler==0.12.1
 deprecation==2.1.0
-discord-py==2.6.4
+discord-py==2.7.0
 docopt==0.6.2
 et-xmlfile==2.0.0
 eyed3==0.9.9
-fastapi==0.128.8
+fastapi==0.134.0
 filetype==1.2.0
 fonttools==4.61.1
 frozenlist==1.8.0
@@ -57,14 +57,14 @@ numpy==2.3.5 ; python_version >= "3.11"
 numpy==2.2.6 ; python_version < "3.11"
 openpyxl==3.1.5
 packaging==26.0
-pandas==3.0.0
+pandas==3.0.1
 pid==3.0.4
 pillow==12.1.1
 pip-tools==7.5.3
 propcache==0.4.1
 psutil==7.2.2
-psycopg==3.3.2
-psycopg-binary==3.3.2
+psycopg==3.3.3
+psycopg-binary==3.3.3
 psycopg-pool==3.3.0
 pydantic==2.12.5
 pydantic-core==2.41.5
@@ -84,7 +84,7 @@ pywinauto==0.6.9 ; sys_platform == "win32"
 rapidfuzz==3.14.3
 referencing==0.37.0
 requests==2.32.5
-rich==14.3.2
+rich==14.3.3
 rpds-py==0.30.0
 ruamel-yaml==0.19.1
 seaborn==0.13.2
@@ -93,7 +93,7 @@ six==1.17.0
 smmap==5.0.2
 sqlparse==0.5.5
 starlette==0.52.1
-telnetlib3==2.4.0
+telnetlib3==3.0.0
 tomli==2.3.0 ; python_version < "3.11"
 tomli-w==1.2.0
 trueskill==0.4.5
@@ -103,7 +103,7 @@ tzdata==2025.3
 tzfpy==1.1.1
 upnpy==1.1.8 ; python_version >= "3.14"
 urllib3==2.6.3
-uvicorn==0.40.0
+uvicorn==0.41.0
 watchdog==6.0.0
 wcwidth==0.6.0
 wheel==0.46.3
