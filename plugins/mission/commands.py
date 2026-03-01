@@ -511,9 +511,12 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(mission_id="mission")
-    @app_commands.describe(use_orig="Change the mission based on the original uploaded mission file.")
+    @app_commands.describe(use_orig="Change the mission based on the original uploaded mission file")
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
+    @app_commands.describe(mission_id="Mission to load from your mission list")
     @app_commands.autocomplete(alt_mission=mizfile_autocomplete)
+    @app_commands.describe(alt_mission="Alternate mission to load from your file system")
+    @app_commands.describe(run_extensions="Apply extensions (MizEdit, RealWeather, ...)")
     async def load(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],

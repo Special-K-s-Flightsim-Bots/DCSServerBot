@@ -1,7 +1,6 @@
 import aiohttp
 import asyncio
 import certifi
-import json
 import os
 import re
 import shutil

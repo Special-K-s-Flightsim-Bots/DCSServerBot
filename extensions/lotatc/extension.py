@@ -46,6 +46,29 @@ class LotAtc(Extension, FileSystemEventHandler):
             "placeholder": _("Unique port number for LotAtc"),
             "required": True,
             "default": 10310
+        },
+        "jsonserver_port": {
+            "type": int,
+            "label": _("JSON Server Port"),
+            "placeholder": _("Unique port number for LotAtc"),
+            "required": False,
+            "default": 8081
+        },
+        "host": {
+            "type": str,
+            "label": _("Hostname Override"),
+            "placeholder": _("Put your DNS name in here, if you have one"),
+            "required": False,
+        },
+        "autoupdate": {
+            "type": bool,
+            "label": _("Auto-update LotAtc"),
+            "default": True
+        },
+        "show_passwords": {
+            "type": bool,
+            "label": _("Show passwords"),
+            "default": True
         }
     }
 

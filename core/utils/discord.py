@@ -1352,18 +1352,44 @@ class ConfigModal(Modal):
         self.ephemeral = ephemeral
         self.value = None
         self.config = config
-        if not old_values:
-            old_values = {}
+        self.setup(old_values or {})
+
+    def setup(self, old_values: dict):
         for k, v in self.config.items():
-            self.add_item(TextInput(
-                custom_id=k,
-                label=v.get('label'),
-                style=discord.TextStyle(v.get('style', 1)),
-                placeholder=v.get('placeholder'),
-                default=self.parse(old_values.get(k)) if old_values.get(k) is not None else self.parse(v.get('default', '')),
-                required=v.get('required', False),
-                min_length=v.get('min_length'),
-                max_length=v.get('max_length')))
+            if v.get('type') in [int, str, float]:
+                component = discord.ui.TextInput(
+                    custom_id=k,
+                    style=discord.TextStyle(v.get('style', 1)),
+                    placeholder=v.get('placeholder'),
+                    default=self.parse(old_values.get(k)) if old_values.get(k) is not None else self.parse(v.get('default', '')),
+                    required=v.get('required', False),
+                    min_length=v.get('min_length'),
+                    max_length=v.get('max_length')
+                )
+            elif v.get('type') == list:
+                component = discord.ui.Select(
+                    custom_id=k,
+                    placeholder=v.get('placeholder'),
+                    options=[
+                        SelectOption(label=x, value=y, default=(old_values.get(k, v.get('default')) == y))
+                        for x, y in v.get('options', [])
+                    ],
+                    min_values=v.get('min_values', 1),
+                    max_values=v.get('max_values', 1),
+                    required=v.get('required', False)
+                )
+            elif v.get('type') == bool:
+                component = discord.ui.Checkbox(
+                    custom_id=k,
+                    default=old_values.get(k, v.get('default', False))
+                )
+            else:
+                raise ValueError(f"{v.get('type')} is not a valid config type!")
+
+            self.add_item(discord.ui.Label(
+                text=v.get('label'),
+                component=component
+            ))
 
     @staticmethod
     def parse(value: Any) -> str:

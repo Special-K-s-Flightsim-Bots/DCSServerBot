@@ -67,6 +67,16 @@ class SRS(Extension, FileSystemEventHandler):
             "placeholder": _("Password for red GCI, . for none"),
             "required": True,
             "default": "red"
+        },
+        "gui_server": {
+            "type": bool,
+            "label": _("GUI Server"),
+            "default": False
+        },
+        "autoconnect": {
+            "type": bool,
+            "label": _("Autoconnect"),
+            "default": True
         }
     }
 
@@ -372,7 +382,7 @@ class SRS(Extension, FileSystemEventHandler):
                     "side": client['Coalition'],
                     "unit": client['RadioInfo']['unit'],
                     "unit_id": client['RadioInfo']['unitId'],
-                    "radios": list(set(int(x['freq']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6))
+                    "radios": [(x['freq'], x['modulation']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6]
                 }
                 if guid not in self.clients:
                     self.clients[guid] = target
