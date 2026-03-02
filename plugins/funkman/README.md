@@ -39,6 +39,7 @@ DEFAULT:
   CHANNELID_RANGE: 8877665544332211
   CHANNELID_AIRBOSS: 1188227733664455
   IMAGEPATH: ../FunkMan/funkpics/
+  message_autodelete: 300 # Optional, delete range or trap sheets after this amount of seconds
 ```
 
 If you want to use different channels for your different servers, you can add a section for each server:

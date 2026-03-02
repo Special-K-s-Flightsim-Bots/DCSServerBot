@@ -19,6 +19,7 @@ schema;default_schema:
     strafe_channel: {type: int, nullable: false}
     bomb_board: {type: bool, nullable: false}
     bomb_channel: {type: int, nullable: false}
+    message_autodelete: {type: int, nullable: false}
 
 schema;element_schema:
   type: map
@@ -32,6 +33,7 @@ schema;element_schema:
     strafe_channel: {type: int, nullable: false}
     bomb_board: {type: bool, nullable: false}
     bomb_channel: {type: int, nullable: false}
+    message_autodelete: {type: int, nullable: false}
 
 type: map
 func: check_main_structure

@@ -117,7 +117,7 @@ class FunkManEventListener(EventListener["FunkMan"]):
             filename, buffer = self.save_fig(fig)
             with buffer:
                 await channel.send(file=discord.File(fp=buffer, filename=filename),
-                                   delete_after=self.bot.locals.get('message_autodelete'))
+                                   delete_after=self.get_config().get('message_autodelete'))
         except Exception as ex:
             self.log.exception(ex)
 
@@ -154,7 +154,7 @@ class FunkManEventListener(EventListener["FunkMan"]):
         channel = self.bot.get_channel(int(config.get('CHANNELID_MAIN', -1)))
         if not channel:
             return
-        await channel.send(data['text'], delete_after=self.bot.locals.get('message_autodelete'))
+        await channel.send(data['text'], delete_after=self.get_config(server).get('message_autodelete'))
 
     @event(name="moose_bomb_result")
     async def moose_bomb_result(self, server: Server, data: dict) -> None:
@@ -214,6 +214,6 @@ class FunkManEventListener(EventListener["FunkMan"]):
                 embed = self.create_lso_embed(data)
                 embed.set_image(url=f"attachment://{filename}")
                 await channel.send(embed=embed, file=discord.File(fp=buffer, filename=filename),
-                                   delete_after=self.bot.locals.get('message_autodelete'))
+                                   delete_after=self.get_config(server).get('message_autodelete'))
         except (ValueError, TypeError):
             self.log.warning("No or invalid trapsheet data received from DCS!")
