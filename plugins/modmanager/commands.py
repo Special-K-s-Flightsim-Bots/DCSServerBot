@@ -6,7 +6,7 @@ from core import Status, Plugin, utils, Server, ServiceRegistry, PluginInstallat
     ServerUploadHandler
 from discord import SelectOption, app_commands, ButtonStyle, TextStyle
 from discord.ext import commands
-from discord.ui import View, Select, Button, Modal, TextInput
+from discord.ui import View, Select, Button, Modal, TextInput, Label
 from services.bot import DCSServerBot
 from services.modmanager import ModManagerService, Folder
 
@@ -136,7 +136,7 @@ class ModManager(Plugin):
             self.log.warning(
                 f"  => ModManager: your modmanager.yaml belongs into {self.node.config_dir}/services/modmanager.yaml, "
                 f"not in {self.node.config_dir}/plugins!")
-        self.service = ServiceRegistry.get(ModManagerService)
+        self.service: ModManagerService = ServiceRegistry.get(ModManagerService)
         if not self.service:
             raise PluginInstallationError(plugin=self.plugin_name, reason='ModManager service not loaded.')
 
@@ -292,49 +292,76 @@ class ModManager(Plugin):
 
             async def download(derived, interaction: discord.Interaction):
                 class UploadModal(Modal, title=_("Download a new Mod")):
-                    # noinspection PyTypeChecker
-                    url = TextInput(label=_("URL / GitHub Repo"), placeholder='https://github.com/...',
-                                    style=TextStyle.short, required=True)
-                    # noinspection PyTypeChecker
-                    dest = TextInput(label=_("Destination (S=Saved Games / R=Root Folder)"), style=TextStyle.short,
-                                     required=True, min_length=1, max_length=1)
-                    # noinspection PyTypeChecker
-                    version = TextInput(label=_("Version"), style=TextStyle.short, required=False, default='latest')
+                    url = Label(
+                        text=_("URL / GitHub Repo"),
+                        component=TextInput(
+                            placeholder='https://github.com/...',
+                            style=TextStyle.short,
+                            required=True
+                        )
+                    )
+                    dest = Label(
+                        text=_("Destination"),
+                        component=Select(
+                            options=[
+                                SelectOption(label='Saved Games', value='S', default=True),
+                                SelectOption(label='Root Folder', value='R')
+                            ]
+                        )
+                    )
+                    version = Label(
+                        text=_("Version"),
+                        component=TextInput(
+                            style=TextStyle.short,
+                            required=False,
+                            default='latest'
+                        )
+                    )
 
                     async def on_submit(_, interaction: discord.Interaction) -> None:
-                        # noinspection PyUnresolvedReferences
                         await interaction.response.defer()
 
                 async def download(modal: UploadModal):
-                    if utils.is_valid_url(modal.url.value):
-                        folder = Folder.RootFolder if modal.dest.value == 'R' else Folder.SavedGames
-                        if utils.is_github_repo(modal.url.value):
-                            await self.service.download_from_repo(modal.url.value, folder, version=modal.version.value)
+                    url = modal.url.component.value
+                    version = modal.version.component.value
+
+                    if utils.is_valid_url(url):
+                        folder = Folder.RootFolder if modal.dest.component.values[0] == 'R' else Folder.SavedGames
+                        if utils.is_github_repo(url):
+                            if await self.service.download_from_repo(url, folder, version=version):
+                                raise ValueError(_("Multiple returns, use /{group} {name} instead.").format(
+                                    group=self.mods.name,
+                                    name=self.download.name
+                                ))
                         else:
-                            await self.service.download(modal.url.value, folder)
+                            await self.service.download(url, folder, "")
                     else:
                         raise ValueError(_("Not a valid URL!"))
 
                 modal = UploadModal()
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_modal(modal)
                 if not await modal.wait():
-                    if not utils.is_valid_url(modal.url.value):
-                        derived.embed.set_footer(text=_("{} is not a valid URL!").format(modal.url.value),
+                    url = modal.url.component.value
+                    if not utils.is_valid_url(url):
+                        derived.embed.set_footer(text=_("{} is not a valid URL!").format(url),
                                                  icon_url=WARNING_ICON)
                     else:
-                        derived.embed.set_footer(text=_("Downloading {} , please wait ...").format(modal.url.value))
+                        derived.embed.set_footer(text=_("Downloading {}, please wait ...").format(
+                            os.path.basename(url)))
                         for child in derived.children:
                             child.disabled = True
                         await interaction.edit_original_response(embed=derived.embed, view=derived)
                         try:
                             await download(modal)
                             embed.remove_footer()
-                            derived.available = get_available_mods(interaction, self.service, server)
+                            derived.available = await get_available_mods(interaction, self.service, server)
                         except aiohttp.client_exceptions.ClientResponseError as ex:
-                            self.log.error(f"{ex.code}: {modal.url.value} {ex.message}")
+                            self.log.error(f"{ex.code}: {url} {ex.message}")
                             embed.set_footer(text=f"{ex.code}: {ex.message}", icon_url=WARNING_ICON)
+                        except ValueError as ex:
+                            embed.set_footer(text=_("Error: {}").format(str(ex)), icon_url=WARNING_ICON)
                         except Exception as ex:
+                            self.log.exception(ex)
                             embed.set_footer(text=_("Error: {}").format(ex.__class__.__name__), icon_url=WARNING_ICON)
                         for child in derived.children:
                             child.disabled = False
@@ -484,7 +511,22 @@ class ModManager(Plugin):
                 _("Downloading {mod}_v{version} from GitHub ...").format(mod=package_name, version=version),
                 ephemeral=ephemeral)
             try:
-                await self.service.download_from_repo(url, folder, version=version)
+                urls = await self.service.download_from_repo(url, folder, version=version)
+                if urls:
+                    download = await utils.selection(
+                        interaction,
+                        title='Select a download',
+                        options=[
+                            SelectOption(label=os.path.basename(url), value=os.path.basename(url))
+                            for url in urls
+                        ]
+                    )
+                    if not download:
+                        await interaction.followup.send(_("Aborted."))
+                        return
+
+                    # download the file
+                    await self.service.download_from_repo(url, folder, version=version, package_name=download[:-4])
             except FileExistsError:
                 if not await utils.yn_question(interaction, _("File exists. Do you want to overwrite it?"),
                                                ephemeral=ephemeral):
@@ -503,12 +545,12 @@ class ModManager(Plugin):
             filename = url.split('/')[-1]
             msg = await interaction.followup.send(_("Downloading {} ...").format(filename), ephemeral=ephemeral)
             try:
-                await self.service.download(url, folder)
+                await self.service.download(url, folder, version)
             except FileExistsError:
                 if not await utils.yn_question(interaction, _("File exists. Do you want to overwrite it?"),
                                                ephemeral=ephemeral):
                     return
-                await self.service.download_from_repo(url, folder, version=version, force=True)
+                await self.service.download(url, folder, version, force=True)
             await msg.edit(content=_("{file} downloaded. Use {command} to install it.").format(
                 file=filename, command=(await utils.get_command(self.bot, group=self.mods.name,
                                                                 name=self._install.name)).mention))
