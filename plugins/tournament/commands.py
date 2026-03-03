@@ -108,6 +108,7 @@ async def squadron_autocomplete(interaction: discord.Interaction, current: str,
         ]
         return choices[:25]
 
+
 async def all_squadron_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     return await squadron_autocomplete(interaction, current, 'all')
 

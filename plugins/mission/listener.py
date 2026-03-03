@@ -623,7 +623,7 @@ class MissionEventListener(EventListener["Mission"]):
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'], ipaddr=data.get('ipaddr'))
             server.add_player(player)
         else:
-            await player.update(data)
+            await player.update(data | {'slot': 0, 'sub_slot': 0})
         player.connected = True
 
         # if the first player joined, the server is considered non-idle
@@ -667,7 +667,7 @@ class MissionEventListener(EventListener["Mission"]):
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'], ipaddr=data.get('ipaddr'))
             server.add_player(player)
         else:
-            await player.update(data)
+            await player.update(data | {'slot': 0, 'sub_slot': 0})
         player.connected = True
 
         # security check, if a banned player somehow managed to get here (should never happen)
