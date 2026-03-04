@@ -58,11 +58,11 @@ class Punishment(Plugin[PunishmentEventListener]):
                     member=member.name, banned_by=self.bot.member.name, reason=reason)
                 with suppress(Exception):
                     guild = self.bot.guilds[0]
-                    channel = await member.create_dm()
-                    await channel.send(_("You have been banned from the DCS servers on {guild} for {reason} for "
-                                         "the amount of {days} days.").format(guild=utils.escape_string(guild.name),
-                                                                              reason=reason,
-                                                                              days=punishment.get('days', 3)))
+                    dm_channel = await member.create_dm()
+                    await dm_channel.send(_("You have been banned from the DCS servers on {guild} for {reason} for "
+                                            "the amount of {days} days.").format(guild=utils.escape_string(guild.name),
+                                                                                 reason=reason,
+                                                                                 days=punishment.get('days', 3)))
             elif player:
                 message = _("Player {player} (ucid={ucid}) banned by {banned_by} for {reason}.").format(
                     player=player.name, ucid=player.ucid, banned_by=self.bot.member.name, reason=reason)
