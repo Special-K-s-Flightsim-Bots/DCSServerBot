@@ -21,4 +21,4 @@ DEFAULT:
 > Do NOT enable debug for normal operations, especially if you expose the port to the outside world.
 
 > [!IMPORTANT]
-> It is advisable to use a reverse proxy like nginx and maybe SSL encryption to secure the webservice. 
+> It is advisable to use a reverse proxy like nginx or caddy and maybe SSL encryption to secure the webservice. 

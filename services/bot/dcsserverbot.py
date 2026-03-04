@@ -440,7 +440,7 @@ class DCSServerBot(commands.Bot):
             if kwargs:
                 for name, value in kwargs.items():
                     embed.add_field(name=name.title(),
-                                    value=value.mention if isinstance(value, discord.Member) else value,
+                                    value=value.mention if isinstance(value, discord.Member) else value[:1024],
                                     inline=False)
             embed.set_footer(text=datetime.now(timezone.utc).strftime("%y-%m-%d %H:%M:%S"))
             try:
