@@ -217,6 +217,8 @@ class LogAnalyser(Extension):
                     else:
                         marked_lines.append(f"{i}: {line.rstrip()}")
                 code_content = "\n".join(marked_lines)
+                # make sure we do not exceed 1024 characters
+                code_content = code_content[:1013]
                 kwargs['code'] = f"```lua\n{code_content}\n```"
             except PermissionError:
                 self.log.debug(f"Can't open file {filename} for reading!")
