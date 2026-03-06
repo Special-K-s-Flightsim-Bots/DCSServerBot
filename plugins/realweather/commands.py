@@ -22,25 +22,7 @@ class RealWeather(Plugin[RealWeatherEventListener]):
         self.version = utils.get_windows_version(os.path.join(os.path.expandvars(self.installation), 'realweather.exe'))
 
     @staticmethod
-    def generate_config_1_0(airbase: dict, config: dict) -> dict:
-        return {
-            "metar": {
-                "icao": airbase['code']
-            },
-            "options": {
-                "update-weather": True,
-                "update-time": config['time'],
-                "fog": {
-                    "enable": config['fog']
-                },
-                "dust": {
-                    "enable": config['dust']
-                }
-            }
-        }
-
-    @staticmethod
-    def generate_config_2_0(airbase: dict, config: dict) -> dict:
+    def generate_config(airbase: dict, config: dict) -> dict:
         return {
             "options": {
                 "weather": {
@@ -70,12 +52,6 @@ class RealWeather(Plugin[RealWeatherEventListener]):
                 }
             }
         }
-
-    def generate_config(self, airbase: dict, config: dict) -> dict:
-        if self.version.split('.')[0] == '1':
-            return self.generate_config_1_0(airbase, config)
-        else:
-            return self.generate_config_2_0(airbase, config)
 
     @command(description='Modify mission with a preset')
     @app_commands.guild_only()

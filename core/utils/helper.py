@@ -178,7 +178,7 @@ def format_string(string_: str, default_: str | None = None, **kwargs) -> str:
             elif isinstance(value, dict):
                 value = json.dumps(value)
             elif isinstance(value, bool):
-                value = str(value).lower()
+                value = str(value)
             elif isinstance(value, datetime) and value.tzinfo:
                 value = value.astimezone(timezone.utc).replace(tzinfo=None)
             return super().format_field(value, spec)
@@ -1088,6 +1088,10 @@ def evaluate(value: str | int | float | bool | list | dict, **kwargs) -> str | i
             return value
         value = format_string(value[1:], **kwargs)
         namespace = {k: v for k, v in globals().items() if not k.startswith("__")}
+        namespace |= {
+            'random': random,
+            'math': math
+        }
         try:
             return eval(value, namespace, kwargs) if value else False
         except Exception:

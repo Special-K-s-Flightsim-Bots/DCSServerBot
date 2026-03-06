@@ -53,9 +53,9 @@ class MyService(Service):
             await super().stop()
             # do something on service stop
 
-        async def switch(self):
-            await super().switch()
-            # called when a master switch happened
+        async def switch(self, master: bool):
+            await super().switch(master)
+            # called when a master/agent switch happened
 
         def get_config(self, server: Server | None = None, **kwargs) -> dict:
             # you can overwrite the get_config() method to implement your own config-reader.

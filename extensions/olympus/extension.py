@@ -40,6 +40,12 @@ class Olympus(Extension):
             "placeholder": _("Backend Port"),
             "required": True
         },
+        "frontend_port": {
+            "type": int,
+            "label": _("Frontend Port"),
+            "placeholder": _("Frontend Port"),
+            "required": True
+        },
         "gameMasterPassword": {
             type: str,
             "label": _("Game Master Password")
@@ -51,12 +57,6 @@ class Olympus(Extension):
         "redCommanderPassword": {
             type: str,
             "label": _("Red Commander Password")
-        },
-        "frontend_port": {
-            "type": int,
-            "label": _("Frontend Port"),
-            "placeholder": _("Frontend Port"),
-            "required": True
         }
     }
 

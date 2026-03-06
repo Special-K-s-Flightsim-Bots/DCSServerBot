@@ -67,6 +67,16 @@ class SRS(Extension, FileSystemEventHandler):
             "placeholder": _("Password for red GCI, . for none"),
             "required": True,
             "default": "red"
+        },
+        "gui_server": {
+            "type": bool,
+            "label": _("GUI Server"),
+            "default": False
+        },
+        "autoconnect": {
+            "type": bool,
+            "label": _("Autoconnect"),
+            "default": True
         }
     }
 
@@ -79,9 +89,11 @@ class SRS(Extension, FileSystemEventHandler):
         self.first_run = True
         self._inst_path: str | None = None
         self.exe_name = None
-        self.clients: dict[str, set[int]] = {}
+        self.clients: dict[str, dict] = {}
         self.client_names: dict[str, str] = {}
+        self._missing_loops: dict[str, int] = {}  # consecutive "not in export" counts per ClientGuid
         super().__init__(server, config)
+        self.disconnect_grace_loops: int = int(self.config.get('disconnect_grace_loops', 3))
 
     def get_config_path(self) -> str:
         config_path = self.config.get('config')
@@ -357,46 +369,56 @@ class SRS(Extension, FileSystemEventHandler):
         try:
             with open(path, mode='r', encoding='utf-8') as infile:
                 data = json.load(infile)
+
             for client in data.get('Clients', {}):
                 if client['Name'] == '---' or client['RadioInfo'] is None:
                     continue
-                target = set(int(x['freq']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6)
-                if client['ClientGuid'] not in self.clients:
-                    self.clients[client['ClientGuid']] = target
-                    self.client_names[client['ClientGuid']] = client['Name']
+
+                guid = client['ClientGuid']
+                self._missing_loops.pop(guid, None)  # seen this loop => not missing anymore
+
+                target = {
+                    "player_name": client['Name'],
+                    "side": client['Coalition'],
+                    "unit": client['RadioInfo']['unit'],
+                    "unit_id": client['RadioInfo']['unitId'],
+                    "radios": [(x['freq'], x['modulation']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6]
+                }
+                if guid not in self.clients:
+                    self.clients[guid] = target
+                    self.client_names[guid] = client['Name']
                     await self.bus.send_to_node({
                         "command": "onSRSConnect",
-                        "server_name": self.server.name,
-                        "player_name": client['Name'],
-                        "side": client['Coalition'],
-                        "unit": client['RadioInfo']['unit'],
-                        "unit_id": client['RadioInfo']['unitId'],
-                        "radios": list(self.clients[client['ClientGuid']])
-                    })
+                        "server_name": self.server.name
+                    } | target)
                 else:
-                    actual = self.clients[client['ClientGuid']]
+                    actual = self.clients[guid]
                     if actual != target:
-                        self.clients[client['ClientGuid']] = target
+                        self.clients[guid] = target
                         await self.bus.send_to_node({
                             "command": "onSRSUpdate",
-                            "server_name": self.server.name,
-                            "player_name": client['Name'],
-                            "side": client['Coalition'],
-                            "unit": client['RadioInfo']['unit'],
-                            "unit_id": client['RadioInfo']['unitId'],
-                            "radios": list(self.clients[client['ClientGuid']])
-                        })
+                            "server_name": self.server.name
+                        } | target)
+
             all_clients = set(self.clients.keys())
-            active_clients = set([x['ClientGuid'] for x in data['Clients']])
-            # any clients disconnected?
-            for client in all_clients - active_clients:
+            active_clients = set(x['ClientGuid'] for x in data.get('Clients', []))
+
+            # any clients disconnected? (with grace)
+            missing_now = all_clients - active_clients
+            for guid in missing_now:
+                self._missing_loops[guid] = self._missing_loops.get(guid, 0) + 1
+                if self._missing_loops[guid] < self.disconnect_grace_loops:
+                    continue
+
                 await self.bus.send_to_node({
                     "command": "onSRSDisconnect",
                     "server_name": self.server.name,
-                    "player_name": self.client_names[client]
+                    "player_name": self.client_names[guid]
                 })
-                del self.clients[client]
-                del self.client_names[client]
+                del self.clients[guid]
+                del self.client_names[guid]
+                self._missing_loops.pop(guid, None)
+
         except (PermissionError, JSONDecodeError):
             # Happens if SRS writes the file again when we try to read it.
             # Just ignore, we get the file on the next try.
@@ -422,6 +444,7 @@ class SRS(Extension, FileSystemEventHandler):
             self.observer = None
             self.clients.clear()
             self.client_names.clear()
+            self._missing_loops.clear()
 
     @override
     def is_running(self) -> bool:
@@ -485,6 +508,56 @@ class SRS(Extension, FileSystemEventHandler):
         else:
             self.exe_name = 'SR-Server.exe'
             return os.path.join(self.get_inst_path(), self.exe_name)
+
+    def get_ext_audio_exe_path(self) -> str:
+        if parse(self.server.extensions['SRS'].version) >= parse('2.2.0.0'):
+            return os.path.join(self.get_inst_path(), "ExternalAudio", "DCS-SR-ExternalAudio.exe")
+        else:
+            return os.path.join(self.get_inst_path(), "DCS-SR-ExternalAudio.exe")
+
+    async def play_external_audio(self, config: dict, *, file: str | None = None, text: str | None = None) -> psutil.Process:
+        def run_subprocess() -> psutil.Process:
+            def _log_output(p: subprocess.Popen):
+                for line in iter(p.stdout.readline, b''):
+                    self.log.debug(line.decode('utf-8', errors='replace').rstrip())
+
+            debug = config.get('debug', False)
+            out = subprocess.PIPE if debug else subprocess.DEVNULL
+            err = subprocess.PIPE if debug else subprocess.DEVNULL
+
+            args = [
+                self.get_ext_audio_exe_path(),
+                "-f", str(config['frequency']),
+                "-m", config['modulation'],
+                "-c", str(config['coalition']),
+                "-v", str(config.get('volume', 1.0)),
+                "-p", str(self.locals['Server Settings']['SERVER_PORT']),
+                "-n", config.get('display_name', 'DCSSB')
+            ]
+            if 'lat' in config:
+                args.extend(["-L", str(config['lat'])])
+                args.extend(["-O", str(config['lon'])])
+                args.extend(["-A", str(config['alt'])])
+            if file:
+                args.extend(["-i", file])
+            elif text:
+                args.extend(["-t", '"' + text + '"'])
+
+            if debug:
+                self.log.debug(f"Running {' '.join(args)}")
+            p = ProcessManager().launch_process(
+                args,
+                min_cores=config.get('auto_affinity', {}).get('min_cores', 1),
+                max_cores=config.get('auto_affinity', {}).get('max_cores', 1),
+                quality=config.get('auto_affinity', {}).get('quality', 1),
+                instance=self.server.instance.name,
+                stdout=out, stderr=err
+            )
+            if debug:
+                Thread(target=_log_output, args=(p,), daemon=True).start()
+            return p
+
+        return await asyncio.to_thread(run_subprocess)
 
     @override
     @property

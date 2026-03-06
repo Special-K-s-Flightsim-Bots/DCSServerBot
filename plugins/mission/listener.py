@@ -623,7 +623,7 @@ class MissionEventListener(EventListener["Mission"]):
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'], ipaddr=data.get('ipaddr'))
             server.add_player(player)
         else:
-            await player.update(data)
+            await player.update(data | {'slot': 0, 'sub_slot': 0})
         player.connected = True
 
         # if the first player joined, the server is considered non-idle
@@ -667,7 +667,7 @@ class MissionEventListener(EventListener["Mission"]):
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'], ipaddr=data.get('ipaddr'))
             server.add_player(player)
         else:
-            await player.update(data)
+            await player.update(data | {'slot': 0, 'sub_slot': 0})
         player.connected = True
 
         # security check, if a banned player somehow managed to get here (should never happen)
@@ -703,7 +703,8 @@ class MissionEventListener(EventListener["Mission"]):
                             f"force_voice is enabled for server {server.name}, but no voice channel is configured!")
                         return
                     if not player.member.voice:
-                        asyncio.create_task(server.kick(player, reason=messages['message_no_voice'].format(voice.name)))
+                        asyncio.create_task(server.kick(player, reason=messages['message_no_voice'].format(
+                            utils.escape_string(voice.name))))
                         return
                     else:
                         asyncio.create_task(player.member.move_to(voice))
@@ -729,6 +730,8 @@ class MissionEventListener(EventListener["Mission"]):
         button = Button(label="Whitelist", style=ButtonStyle.primary, custom_id=f"whitelist_{data['name']}")
         view.add_item(button)
         button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_profanity_{data['ucid']}")
+        view.add_item(button)
+        button = Button(label="Kick", style=ButtonStyle.red, custom_id=f"kick_profanity_{data['ucid']}")
         view.add_item(button)
         button = Button(label="Message", style=ButtonStyle.green, custom_id=f"message_profanity_{data['ucid']}")
         view.add_item(button)

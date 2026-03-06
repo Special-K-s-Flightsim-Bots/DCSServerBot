@@ -30,24 +30,24 @@ DEFAULT:
 ## RestAPI
 The following commands are available through the API
 
-| API               | GET / POST | Parameters                                            | Description                                                                           |
-|-------------------|------------|-------------------------------------------------------|---------------------------------------------------------------------------------------|
-| /serverstats      | GET        |                                                       | A comprehensive statistic for your whole setup.                                       |
-| /servers          | GET        |                                                       | Status for each server, including weather information if enabled.                     |
-| /server_attendance| GET        | [server_name: string]                                 | Comprehensive server attendance statistics, top theatres/missions/modules, and daily trends. |
-| /getuser          | POST       | nick: string                                          | Return a list of players ordered by last seen that match this nick.                   |
-| /stats            | POST       | nick: string, date: date                              | Statistics of this player                                                             |
-| /highscore        | GET        | [server_name: string], [period: string], [limit: int] | Highscore output                                                                      |
-| /topkills         | GET        | [limit: int]                                          | Top x of players ordered by kills descending.                                         |
-| /topkdr           | GET        | [limit: int]                                          | Same as /topkills but ordered by AAKDR descending.                                    |
-| /trueskill        | GET        | [limit: int]                                          | Top x trueskill ratings.                                                              |
-| /weaponpk         | POST       | nick: string, date: date                              | Probability of kill for each weapon per given user.                                   |
-| /credits          | POST       | nick: string, date: date, [campaign]                  | Credits of a specific player.                                                         |
-| /traps            | POST       | nick: string, date: string, [limit: int]              | Lists the traps of that user.                                                         |
-| /squadrons        | GET        |                                                       | Lists all squadrons.                                                                  |
-| /squadron_members | POST       | name: string                                          | Lists the members of the squadron with that name.                                     |
-| /squadron_credits | POST       | name: string, [campaign]                              | Lists the members of the squadron with that name.                                     |
-| /linkme           | POST       | discord_id: string, force: bool                       | Same as /linkme in discord. Returns a new token that can be used in the in-game chat. |
+| API                | GET / POST | Parameters                                            | Description                                                                                  |
+|--------------------|------------|-------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| /serverstats       | GET        |                                                       | A comprehensive statistic for your whole setup.                                              |
+| /servers           | GET        |                                                       | Status for each server, including weather information if enabled.                            |
+| /server_attendance | GET        | [server_name: string]                                 | Comprehensive server attendance statistics, top theatres/missions/modules, and daily trends. |
+| /getuser           | POST       | nick: string                                          | Return a list of players ordered by last seen that match this nick.                          |
+| /stats             | POST       | nick: string, date: date                              | Statistics of this player                                                                    |
+| /highscore         | GET        | [server_name: string], [period: string], [limit: int] | Highscore output                                                                             |
+| /topkills          | GET        | [limit: int]                                          | Top x of players ordered by kills descending.                                                |
+| /topkdr            | GET        | [limit: int]                                          | Same as /topkills but ordered by AAKDR descending.                                           |
+| /trueskill         | GET        | [limit: int]                                          | Top x trueskill ratings.                                                                     |
+| /weaponpk          | POST       | nick: string, date: date                              | Probability of kill for each weapon per given user.                                          |
+| /credits           | POST       | nick: string, date: date, [campaign]                  | Credits of a specific player.                                                                |
+| /traps             | POST       | nick: string, date: string, [limit: int]              | Lists the traps of that user.                                                                |
+| /squadrons         | GET        |                                                       | Lists all squadrons.                                                                         |
+| /squadron_members  | POST       | name: string                                          | Lists the members of the squadron with that name.                                            |
+| /squadron_credits  | POST       | name: string, [campaign]                              | Lists the members of the squadron with that name.                                            |
+| /linkme            | POST       | discord_id: string, force: bool                       | Same as /linkme in discord. Returns a new token that can be used in the in-game chat.        |
 
 > [!NOTE]
 > To get more detailled API documentation, please enable debug in your WebService config and 

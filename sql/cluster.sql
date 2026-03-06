@@ -2,8 +2,9 @@ CREATE TABLE IF NOT EXISTS cluster (
     guild_id BIGINT PRIMARY KEY,
     guild_name TEXT,
     master TEXT NOT NULL,
+    takeover_requested_by TEXT NULL,
     version TEXT NOT NULL,
-    UPDATE_PENDING BOOLEAN NOT NULL DEFAULT FALSE
+    update_pending BOOLEAN NOT NULL DEFAULT FALSE
 );
 CREATE TABLE IF NOT EXISTS nodes (
     guild_id BIGINT NOT NULL,

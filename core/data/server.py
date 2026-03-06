@@ -219,6 +219,8 @@ class Server(DataObject, ABC):
                 return player
             return None
         elif 'id' in kwargs:
+            if kwargs['id'] == -1:
+                return None
             player = self.players_by_id.get(kwargs['id'])
             if player and (kwargs.get('active') is None or player.active == kwargs['active']):
                 return player

@@ -328,11 +328,11 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 ON CONFLICT (squadron_id, player_ucid) DO UPDATE
                 SET rank = EXCLUDED.rank, position = EXCLUDED.position
             """, (squadron_id, ucid, rank, position))
-            if rank.upper() == 'CO':
+            if rank and rank.upper() == 'CO':
                 await conn.execute("""
                     UPDATE squadrons SET co_ucid = %s WHERE id = %s
                 """, (ucid, squadron_id))
-            elif rank.upper() == 'XO':
+            elif rank and rank.upper() == 'XO':
                 await conn.execute("""
                     UPDATE squadrons SET xo_ucid = %s WHERE id = %s
                 """, (ucid, squadron_id))

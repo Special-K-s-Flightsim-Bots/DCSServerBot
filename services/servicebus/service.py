@@ -87,23 +87,20 @@ class ServiceBus(Service):
             asyncio.create_task(self.intercom_channel.subscribe())
             asyncio.create_task(self.broadcasts_channel.subscribe())
             # check master
-            await self.switch()
+            await self.switch(self.master)
 
         except Exception as ex:
             # we can't run without the servicebus, so better restart
             raise FatalException(repr(ex)) from ex
 
-    async def switch(self):
+    async def switch(self, master: bool):
         from ..bot.service import BotService
 
-        if self.master:
+        if master:
             # wait for the bot service to be started
-            while self.master and not ServiceRegistry.get(BotService):
+            while not ServiceRegistry.get(BotService):
                 await asyncio.sleep(1)
-            # in the unlikely event of not being the master anymore, switch again
-            if not self.master:
-                await self.switch()
-                return
+
             self.bot = ServiceRegistry.get(BotService).bot
             while not self.bot:
                 await asyncio.sleep(1)
@@ -114,7 +111,10 @@ class ServiceBus(Service):
                 await self.send_to_node({
                     "command": "rpc",
                     "service": self.__class__.__name__,
-                    "method": "switch"
+                    "method": "switch",
+                    "params": {
+                        "master": False
+                    }
                 }, node=node)
         else:
             await self.send_to_node({

@@ -1,3 +1,4 @@
+import aiofiles
 import aiohttp
 import discord
 import json
@@ -238,8 +239,8 @@ class LotAtc(Plugin[LotAtcEventListener]):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        pattern = ['.json']
-        if not ServerUploadHandler.is_valid(message, pattern=pattern, roles=self.bot.roles['DCS Admin']):
+        patterns = [r'\.json$']
+        if not ServerUploadHandler.is_valid(message, patterns=patterns, roles=self.bot.roles['DCS Admin']):
             return
         try:
             server = await ServerUploadHandler.get_server(message, filter_func=self.lotatc_server_filter)
@@ -247,9 +248,9 @@ class LotAtc(Plugin[LotAtcEventListener]):
                 await message.channel.send(_("LotAtc is not configured on any server."))
                 return
 
-            handler = ServerUploadHandler(server=server, message=message, pattern=pattern)
-            with open('plugins/lotatc/schemas/lotatc_schema.json', mode='r') as infile:
-                schema = json.load(infile)
+            handler = ServerUploadHandler(server=server, message=message, patterns=patterns)
+            async with aiofiles.open('plugins/lotatc/schemas/lotatc_schema.json', mode='r') as infile:
+                schema = json.loads(await infile.read())
 
             for attachment in message.attachments:
                 async with aiohttp.ClientSession() as session:
@@ -269,6 +270,7 @@ class LotAtc(Plugin[LotAtcEventListener]):
                 await handler.upload(base_dir)
         except Exception as ex:
             self.log.exception(ex)
+            await message.channel.send("Error while uploading. Check the DCSServerBot log.")
         finally:
             await message.delete()
 

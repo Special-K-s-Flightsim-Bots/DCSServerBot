@@ -13,7 +13,16 @@
             "items": {
                 "type": "object",
                 "properties": {
+                    "mode1": {
+                        "type": "string"
+                    },
+                    "mode2": {
+                        "type": "string"
+                    },
                     "mode3": {
+                        "type": "string"
+                    },
+                    "modeS": {
                         "type": "string"
                     },
                     "name": {
@@ -25,11 +34,14 @@
                     "callsign": {
                         "type": "string"
                     },
-                    "mode1": {
+                    "onboard": {
                         "type": "string"
                     },
                     "comment": {
                         "type": "string"
+                    },
+                    "force_classification": {
+                        "type": "boolean"
                     },
                     "classification": {
                         "type": "object",
@@ -44,7 +56,7 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["classification", "dimension", "sub_dimension"]
+                        "required": ["classification"]
                     }
                 },
                 "additionalProperties": false

@@ -434,20 +434,21 @@ local eventHandlers = {
             if ((utils.isWithinInterval(mission.last_collision[arg1], 10) and mission.last_victim[arg1] == arg3)) or ((utils.isWithinInterval(mission.last_collision[arg3], 10) and mission.last_victim[arg3] == arg1)) then
                 return false
             else
-                mission.last_collision[arg1] = os.clock()
-                mission.last_collision[arg3] = os.clock()
+                local now = os.clock()
+                mission.last_collision[arg1] = now
+                mission.last_collision[arg3] = now
                 mission.last_victim[arg1] = arg3
                 mission.last_victim[arg3] = arg1
             end
         end
     end,
-    kill = function(arg1, _arg2, arg3, _arg4, _arg5, _arg6, arg7)
+    kill = function(arg1, _arg2, _arg3, arg4, _arg5, _arg6, arg7)
         local _unit_type, slot, _sub_slot = utils.getMulticrewAllParameters(arg1)
         local display_name = Sim.getUnitTypeAttribute(Sim.getUnitType(slot), "DisplayName")
         -- do we have collision kill (weapon == unit name)
         if display_name == arg7 then
             -- ignore "spawn on top"
-            if utils.isWithinInterval(mission.last_change_slot[arg1], 60) or utils.isWithinInterval(mission.last_change_slot[arg3], 60) then
+            if utils.isWithinInterval(mission.last_change_slot[arg1], 60) or utils.isWithinInterval(mission.last_change_slot[arg4], 60) then
                 return false
             end
         end
@@ -457,11 +458,11 @@ local eventHandlers = {
     end
 }
 
-function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
+function mission.onGameEvent(eventName, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onGameEvent(' .. eventName .. ')')
     -- Call the appropriate handler based on the eventName
     if eventHandlers[eventName] then
-        local result = eventHandlers[eventName](arg1,arg2,arg3,arg4,arg5,arg6,arg7)
+        local result = eventHandlers[eventName](arg1, arg2, arg3, arg4, arg5, arg6, arg7)
         if result == false then
             return
         end

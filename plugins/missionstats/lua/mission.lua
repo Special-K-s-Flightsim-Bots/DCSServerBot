@@ -48,12 +48,11 @@ local function get_distance(point1, point2)
 end
 
 local function is_on_runway(runway, pos)
---[[
     -- ignore rubber banding
-    if get_distance(runway.position, pos) > 10000 then
+    if get_distance(runway.position, pos) > 3500 then
         return true
     end
-]]--
+
     local dx = pos.x - runway.position.x
     local dz = pos.z - runway.position.z
 

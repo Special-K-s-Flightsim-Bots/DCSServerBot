@@ -361,7 +361,7 @@ class PopulatedQuestionView(View):
 async def populated_question(ctx: commands.Context | discord.Interaction, question: str, message: str | None = None,
                              ephemeral: bool | None = True) -> str | None:
     """
-    Same as yn_question, but adds an option "Later". The usual use-case of this function would be
+    Same as yn_question, but adds an option "Later". The usual use-case of this function is
     if people are flying atm, and you want to ask to trigger an action that would affect their experience (aka stop
     the server).
 
@@ -1352,18 +1352,44 @@ class ConfigModal(Modal):
         self.ephemeral = ephemeral
         self.value = None
         self.config = config
-        if not old_values:
-            old_values = {}
+        self.setup(old_values or {})
+
+    def setup(self, old_values: dict):
         for k, v in self.config.items():
-            self.add_item(TextInput(
-                custom_id=k,
-                label=v.get('label'),
-                style=discord.TextStyle(v.get('style', 1)),
-                placeholder=v.get('placeholder'),
-                default=self.parse(old_values.get(k)) if old_values.get(k) is not None else self.parse(v.get('default', '')),
-                required=v.get('required', False),
-                min_length=v.get('min_length'),
-                max_length=v.get('max_length')))
+            if v.get('type') in [int, str, float]:
+                component = discord.ui.TextInput(
+                    custom_id=k,
+                    style=discord.TextStyle(v.get('style', 1)),
+                    placeholder=v.get('placeholder'),
+                    default=self.parse(old_values.get(k)) if old_values.get(k) is not None else self.parse(v.get('default', '')),
+                    required=v.get('required', False),
+                    min_length=v.get('min_length'),
+                    max_length=v.get('max_length')
+                )
+            elif v.get('type') == list:
+                component = discord.ui.Select(
+                    custom_id=k,
+                    placeholder=v.get('placeholder'),
+                    options=[
+                        SelectOption(label=x, value=y, default=(old_values.get(k, v.get('default')) == y))
+                        for x, y in v.get('options', [])
+                    ],
+                    min_values=v.get('min_values', 1),
+                    max_values=v.get('max_values', 1),
+                    required=v.get('required', False)
+                )
+            elif v.get('type') == bool:
+                component = discord.ui.Checkbox(
+                    custom_id=k,
+                    default=old_values.get(k, v.get('default', False))
+                )
+            else:
+                raise ValueError(f"{v.get('type')} is not a valid config type!")
+
+            self.add_item(discord.ui.Label(
+                text=v.get('label'),
+                component=component
+            ))
 
     @staticmethod
     def parse(value: Any) -> str:
@@ -1566,7 +1592,7 @@ class UploadView(DirectoryPicker):
 
 class NodeUploadHandler:
 
-    def __init__(self, node: Node, message: discord.Message, pattern: list[str]):
+    def __init__(self, node: Node, message: discord.Message, patterns: list[str]):
         from services.bot import BotService
 
         self.node = node
@@ -1574,18 +1600,55 @@ class NodeUploadHandler:
         self.channel = message.channel
         self.log = node.log
         self.bot = ServiceRegistry.get(BotService).bot
-        self.pattern = pattern
+        self.patterns: list[re.Pattern[str]] = [
+            re.compile(p, flags=re.IGNORECASE) if isinstance(p, str) else p
+            for p in patterns
+        ]
         self.overwrite = False
 
     @staticmethod
-    def is_valid(message: discord.Message, pattern: list[str], roles: list[int | str]) -> bool:
-        # ignore bot messages or messages that do not contain miz attachments
-        if (message.author.bot or not message.attachments or
-                not any(att.filename.lower().endswith(ext) for ext in pattern for att in message.attachments)):
+    def is_valid(
+        message: discord.Message,
+        patterns: list[str | re.Pattern[str]],   # list of regexes (string or compiled)
+        roles: list[int | str]
+    ) -> bool:
+        """
+        Return True if *message* is a user‑sent message that contains at least
+        one attachment whose filename matches any of the supplied regular‑
+        expressions, and the author has at least one of the required *roles*.
+
+        Parameters
+        ----------
+        message : discord.Message
+            The message to validate.
+        patterns : list[str | re.Pattern]
+            Regex patterns to match against the attachment filenames.
+            Strings are compiled on‑the‑fly with ``re.IGNORECASE``.
+        roles : list[int | str]
+            Role IDs or names that are allowed to upload.
+
+        Returns
+        -------
+        bool
+            True if the message passes all checks, False otherwise.
+        """
+        if message.author.bot or not message.attachments:
             return False
-        # check if the user has the correct role to upload, defaults to DCS Admin
+
+        compiled_patterns: list[re.Pattern[str]] = [
+            re.compile(p, flags=re.IGNORECASE) if isinstance(p, str) else p
+            for p in patterns
+        ]
+
+        if not any(
+            any(p.search(att.filename) for p in compiled_patterns)
+            for att in message.attachments
+        ):
+            return False
+
         if not utils.check_roles(roles, message.author):
             return False
+
         return True
 
     async def render(self, directory: str, ignore_list: list[str] | None = None) -> str | None:
@@ -1649,7 +1712,7 @@ class NodeUploadHandler:
 
         attachments = [
             att for att in self.message.attachments
-            if any(att.filename.lower().endswith(ext) for ext in self.pattern)
+            if any(p.search(att.filename) for p in self.patterns)
         ]
         # run all uploads in parallel
         tasks = [self.handle_attachment(directory, att) for att in attachments]
@@ -1668,8 +1731,8 @@ class NodeUploadHandler:
 
 class ServerUploadHandler(NodeUploadHandler):
 
-    def __init__(self, server: Server, message: discord.Message, pattern: list[str]):
-        super().__init__(server.node, message, pattern)
+    def __init__(self, server: Server, message: discord.Message, patterns: list[str]):
+        super().__init__(server.node, message, patterns)
         self.server = server
 
     @staticmethod

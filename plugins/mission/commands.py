@@ -511,9 +511,12 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(mission_id="mission")
-    @app_commands.describe(use_orig="Change the mission based on the original uploaded mission file.")
+    @app_commands.describe(use_orig="Change the mission based on the original uploaded mission file")
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
+    @app_commands.describe(mission_id="Mission to load from your mission list")
     @app_commands.autocomplete(alt_mission=mizfile_autocomplete)
+    @app_commands.describe(alt_mission="Alternate mission to load from your file system")
+    @app_commands.describe(run_extensions="Apply extensions (MizEdit, RealWeather, ...)")
     async def load(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
@@ -1059,6 +1062,11 @@ class Mission(Plugin[MissionEventListener]):
             "command": "getAirbase",
             "name": airbase['name']
         }, timeout=60)
+
+        if 'errors' in data:
+            await interaction.followup.send(_("Error: {}").format(data['error']), ephemeral=True)
+            return
+
         colors = {
             0: "dark_gray",
             1: "red",
@@ -2491,9 +2499,9 @@ class Mission(Plugin[MissionEventListener]):
                 self.log.debug(f"=> Member {member.display_name} is linked and got the {role.name} role.")
 
     async def handle_miz_uploads(self, message: discord.Message):
-        pattern = ['.miz', '.sav']
+        patterns = [r'\.miz$', r'\.sav$']
         config = self.get_config().get('uploads', {})
-        if not MissionUploadHandler.is_valid(message, pattern, config.get('discord', self.bot.roles['DCS Admin'])):
+        if not MissionUploadHandler.is_valid(message, patterns, config.get('discord', self.bot.roles['DCS Admin'])):
             return
         # check if upload is enabled
         if not config.get('enabled', True):
@@ -2540,7 +2548,7 @@ class Mission(Plugin[MissionEventListener]):
 
         try:
             self.log.debug(f"Uploading mission {message.attachments[0].filename} to server {server.name} ...")
-            handler = MissionUploadHandler(plugin=self, server=server, message=message, pattern=pattern)
+            handler = MissionUploadHandler(plugin=self, server=server, message=message, patterns=patterns)
             base_dir = await handler.server.get_missions_dir()
             ignore = ['.dcssb', 'Saves', 'Scripts']
             if server.locals.get('ignore_dirs'):
@@ -2761,6 +2769,19 @@ class Mission(Plugin[MissionEventListener]):
                 )
             await interaction.response.edit_message(view=None)
             await interaction.message.add_reaction('🚫')
+
+        elif custom_id.startswith('kick_profanity_'):
+            ucid = custom_id[len('kick_profanity_'):]
+            for server in self.bus.servers:
+                player = server.get_player(ucid=ucid, active=True)
+                if player:
+                    await server.kick(player, reason="Please change your playername to something more appropriate.")
+                    break
+            else:
+                await interaction.response.send_message('Player not active anymore.', ephemeral=True)
+                return
+            await interaction.response.edit_message(view=None)
+            await interaction.message.add_reaction('⏏️')
 
         elif custom_id.startswith('message_profanity_'):
             ucid = custom_id[len('message_profanity_'):]

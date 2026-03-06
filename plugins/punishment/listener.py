@@ -5,6 +5,7 @@ from contextlib import suppress
 from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel, \
     ThreadSafeDict, Coalition, Side
 from plugins.competitive.commands import Competitive
+from psycopg.types.json import Json
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -110,6 +111,17 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING
                 """, (initiator.ucid, target.ucid if target else None, data['server_name'], data['eventName'],
                       data['points']))
+            await self.plugin.trigger.publish({
+                "guild_id": self.node.guild_id,
+                "node": "Master",
+                "data": Json({
+                    'init_id': initiator.ucid,
+                    'target_id': target.ucid if target else None,
+                    'server_name': data['server_name'],
+                    'event': data['eventName'],
+                    'points': data['points']
+                })
+            })
 
     async def _check_punishment(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]

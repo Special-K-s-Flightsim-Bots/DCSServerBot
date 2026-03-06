@@ -135,7 +135,7 @@ class Service(ABC):
         self.running = False
         self.log.info(f'  => Service {self.name} stopped.')
 
-    async def switch(self):
+    async def switch(self, master: bool):
         ...
 
     def is_running(self) -> bool:

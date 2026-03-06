@@ -52,13 +52,16 @@ class FatalException(Exception):
 
 class Node(ABC):
 
-    def __init__(self, name: str, config_dir: str | None = 'config'):
+    def __init__(self, name: str, config_dir: str | None = 'config', restarted: bool = False):
         self.name = name
         self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.config_dir = config_dir
         self.instances: dict[str, Instance] = {}
         self.locals = None
         self.config = self.read_config(os.path.join(config_dir, 'main.yaml'))
+        # (temporarily) disable validation on restarts (due to updates)
+        if restarted:
+            self.config['validation'] = 'none'
         self.guild_id: int = int(self.config['guild_id'])
         self.dcs_version = None
         self.slow_system: bool = False
