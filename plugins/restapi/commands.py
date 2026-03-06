@@ -27,7 +27,7 @@ from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, Us
                      AirbasesResponse, AirbaseInfoResponse, AirbaseWarehouseResponse, AirbaseSetWarehouseItemResponse,
                      AirbaseCaptureResponse, ConvertCoordinates, MissionRestartResponse, MissionLoadResponse,
                      MissionPauseResponse, MissionUnpauseResponse, MissionsResponse, ServerStartResponse,
-                     ServerStopResponse, ServerRestartResponse, MissionUploadResponse)
+                     ServerStopResponse, ServerRestartResponse, MissionUploadResponse, GroupWaypointsResponse)
 from ..srs.commands import SRS
 
 app: FastAPI | None = None
@@ -330,6 +330,14 @@ class RestAPI(Plugin):
             description = "Convert provided coordinate string into other formats.",
             summary = "Converts the provided coordinate into multiple formats.",
             tags = ["Utilities"]
+        )
+        self.router.add_api_route(
+            "/mission/group/waypoints", self.group_waypoints,
+            methods=["GET"],
+            response_model=GroupWaypointsResponse,
+            description="Get the lat/lon waypoints for a named group in the current mission.",
+            summary="Group Waypoints",
+            tags=["Mission"]
         )
         
         
@@ -843,6 +851,51 @@ class RestAPI(Plugin):
                 },
         }
         return rtnArray
+
+    # Get waypoints for a named group in the current mission.
+    # Endpoint:   /mission/group/waypoints
+    # Method:     [GET]
+    # Params:     - server_name   [required]
+    #             - group_name    [required]
+    #             - group_type    [required]  plane | helicopter | vehicle | ship | static
+    async def group_waypoints(
+        self,
+        server_name: str = Query(..., description="Name of the server"),
+        group_name: str = Query(..., description="Name of the group to retrieve waypoints for"),
+        group_type: Literal["plane", "helicopter", "vehicle", "ship", "static"] = Query(..., description="Category of the group")
+    ) -> GroupWaypointsResponse:
+        """Return the lat/lon waypoints for a named group in the current mission."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not running or paused.")
+
+        try:
+            result = await server.send_to_dcs_sync(
+                {"command": "getGroupWaypoints", "name": group_name, "group_type": group_type},
+                timeout=60
+            )
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout waiting for DCS response.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve waypoints: {str(ex)}")
+
+        if result.get("error"):
+            raise HTTPException(status_code=404, detail=result["error"])
+
+        raw_waypoints = result.get("waypoints", {})
+        sorted_waypoints = dict(
+            sorted(raw_waypoints.items(), key=lambda item: int(item[0][2:]))
+        )
+
+        return GroupWaypointsResponse(
+            group_name=group_name,
+            group_type=group_type,
+            waypoints=sorted_waypoints
+        )
 
         
     async def airbases(self, server_name: str = Query(...)):
