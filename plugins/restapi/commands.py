@@ -3,12 +3,15 @@ import os
 import psycopg
 import random
 import re
+import aiofiles
+from fastapi import UploadFile
+from typing import Optional
 
 from core import Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, PluginInstallationError, \
     Server, async_cache
 from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
-from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends
+from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, File
 from fastapi.security import APIKeyHeader
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
@@ -16,7 +19,7 @@ from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.servicebus import ServiceBus
 from services.webservice import WebService
-from typing import Any, Literal, cast
+from typing import Any, Literal, cast, Optional
 
 from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
@@ -24,7 +27,7 @@ from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, Us
                      AirbasesResponse, AirbaseInfoResponse, AirbaseWarehouseResponse, AirbaseSetWarehouseItemResponse,
                      AirbaseCaptureResponse, ConvertCoordinates, MissionRestartResponse, MissionLoadResponse,
                      MissionPauseResponse, MissionUnpauseResponse, MissionsResponse, ServerStartResponse,
-                     ServerStopResponse, ServerRestartResponse)
+                     ServerStopResponse, ServerRestartResponse, MissionUploadResponse, GroupWaypointsResponse)
 from ..srs.commands import SRS
 
 app: FastAPI | None = None
@@ -328,6 +331,14 @@ class RestAPI(Plugin):
             summary = "Converts the provided coordinate into multiple formats.",
             tags = ["Utilities"]
         )
+        self.router.add_api_route(
+            "/mission/group/waypoints", self.group_waypoints,
+            methods=["GET"],
+            response_model=GroupWaypointsResponse,
+            description="Get the lat/lon waypoints for a named group in the current mission.",
+            summary="Group Waypoints",
+            tags=["Mission"]
+        )
         
         
         
@@ -402,7 +413,17 @@ class RestAPI(Plugin):
             tags = ["Mission Control"]
         )
         
+        self.router.add_api_route(
+            "/mission/upload", self.mission_upload,
+            methods=["POST"],
+            response_model=MissionUploadResponse,
+            description="Upload a .miz mission file to the server.",
+            summary="Upload mission file",
+            tags=["Mission Control"]
+        )
         self.app.include_router(self.router)
+
+    
 
     def get_endpoint_config(self, endpoint: str):
         return self.get_config().get('endpoints', {}).get(endpoint, {})
@@ -635,6 +656,49 @@ class RestAPI(Plugin):
             self.log.exception(ex)
             raise HTTPException(status_code=500, detail=f"Failed to load mission: {str(ex)}")
     
+    # Upload a mission file to the provided server.
+    # Endpoint:   /instance/mission/load
+    # Method:     [POST]
+    # Params:     - server_name   [required]
+    
+    async def mission_upload(self,
+        server_name: str = Query(..., description="Name of the server to upload the mission to"),
+        file: UploadFile = File(..., description="Mission file (.miz)"),
+        filename: str = Form(..., description="Filename for the mission file (required)"),
+        load_after: bool = Form(..., description="Load mission after upload (default: False)")
+    ) -> MissionUploadResponse:
+        """Upload a .miz mission file to the specified server. Optionally rename and load after upload."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+        if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is in {server.status.name} state.")
+        # Determine filename: use provided filename or fallback to upload filename
+        use_filename = filename
+        if not use_filename or not use_filename.lower().endswith('.miz'):
+            raise HTTPException(status_code=400, detail="Only .miz files are allowed.")
+        try:
+            base_dir = await server.get_missions_dir()
+            dest_path = os.path.join(base_dir, use_filename)
+            # Save the uploaded file
+            contents = await file.read()
+            async with aiofiles.open(dest_path, 'wb') as f:
+                await f.write(contents)
+            
+            # Add mission to the list
+            await server.addMission(dest_path)
+            
+            msg = f"Mission '{use_filename}' uploaded to server '{resolved_server_name}'."
+            if load_after:
+                await server.loadMission(dest_path, modify_mission=False)
+                msg += f" Mission loaded."
+            return MissionUploadResponse.model_validate({
+                "status": "success",
+                "message": msg
+            })
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to upload mission: {str(ex)}")
 
     ## convertCoordinates Function
     ## ----------------------------------------------
@@ -787,6 +851,51 @@ class RestAPI(Plugin):
                 },
         }
         return rtnArray
+
+    # Get waypoints for a named group in the current mission.
+    # Endpoint:   /mission/group/waypoints
+    # Method:     [GET]
+    # Params:     - server_name   [required]
+    #             - group_name    [required]
+    #             - group_type    [required]  plane | helicopter | vehicle | ship | static
+    async def group_waypoints(
+        self,
+        server_name: str = Query(..., description="Name of the server"),
+        group_name: str = Query(..., description="Name of the group to retrieve waypoints for"),
+        group_type: Literal["plane", "helicopter", "vehicle", "ship", "static"] = Query(..., description="Category of the group")
+    ) -> GroupWaypointsResponse:
+        """Return the lat/lon waypoints for a named group in the current mission."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not running or paused.")
+
+        try:
+            result = await server.send_to_dcs_sync(
+                {"command": "getGroupWaypoints", "name": group_name, "group_type": group_type},
+                timeout=60
+            )
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout waiting for DCS response.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve waypoints: {str(ex)}")
+
+        if result.get("error"):
+            raise HTTPException(status_code=404, detail=result["error"])
+
+        raw_waypoints = result.get("waypoints", {})
+        sorted_waypoints = dict(
+            sorted(raw_waypoints.items(), key=lambda item: int(item[0][2:]))
+        )
+
+        return GroupWaypointsResponse(
+            group_name=group_name,
+            group_type=group_type,
+            waypoints=sorted_waypoints
+        )
 
         
     async def airbases(self, server_name: str = Query(...)):

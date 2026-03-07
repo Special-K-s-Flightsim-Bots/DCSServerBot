@@ -567,6 +567,79 @@ function dcsbot.getWeatherInfo(json)
 	utils.sendBotTable(msg, json.channel)
 end
 
+function dcsbot.getGroupWaypoints(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getGroupWaypoints()')
+    local msg = {
+        command = 'getGroupWaypoints'
+    }
+
+    local targetGroupName = json.name
+    local groupType = json.group_type
+    local allowedTypes = { plane = true, helicopter = true, vehicle = true, ship = true, static = true }
+
+    if type(targetGroupName) ~= "string" or targetGroupName == "" then
+        msg.error = "Missing or invalid group name. Must be a non-empty string."
+        utils.sendBotTable(msg, json.channel)
+        return
+    end
+
+    if type(groupType) ~= "string" or not allowedTypes[groupType] then
+        msg.error = string.format("Invalid group type '%s'. Must be 'plane', 'helicopter', 'vehicle', 'ship', or 'static'.", tostring(groupType))
+        utils.sendBotTable(msg, json.channel)
+        return
+    end
+
+    local mission = Sim.getCurrentMission()
+    if not mission then
+        msg.error = "No mission is currently loaded."
+        utils.sendBotTable(msg, json.channel)
+        return
+    end
+
+    local groupFound = false
+    local routePoints = nil
+
+    for _, coa_data in pairs(mission.mission.coalition) do
+        if type(coa_data) == 'table' and coa_data.country then
+            for _, country in ipairs(coa_data.country) do
+                if country[groupType] and country[groupType].group then
+                    for _, group in ipairs(country[groupType].group) do
+                        if group.name == targetGroupName then
+                            groupFound = true
+                            if group.route and group.route.points then
+                                routePoints = group.route.points
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if not groupFound then
+        msg.error = string.format("Group '%s' was not found under the '%s' category.", targetGroupName, groupType)
+        utils.sendBotTable(msg, json.channel)
+        return
+    end
+
+    if not routePoints then
+        msg.error = string.format("Group '%s' was found but has no route data (static object or no waypoints assigned).", targetGroupName)
+        utils.sendBotTable(msg, json.channel)
+        return
+    end
+
+    msg.waypoints = {}
+    for i, wp in ipairs(routePoints) do
+        local lat, lon = Terrain.convertMetersToLatLon(wp.x, wp.y)
+        msg.waypoints["wp" .. i] = {
+            lat = lat,
+            lon = lon
+        }
+    end
+
+    utils.sendBotTable(msg, json.channel)
+end
+
 function dcsbot.sendChatMessage(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: sendChatMessage()')
 	local message = json.message
