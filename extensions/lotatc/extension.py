@@ -29,6 +29,7 @@ from watchdog.observers import Observer
 _ = get_translation(__name__.split('.')[1])
 
 UPDATER_CODE = '4dctdtna'
+MISSION_SCRIPTING = 'dofile(lfs.writedir().."Mods\\services\\LotAtc\\lua utils\\lotatcMissionServer.lua")'
 
 __all__ = [
     "LotAtc"
@@ -155,14 +156,32 @@ class LotAtc(Extension, FileSystemEventHandler):
             return False
         else:
             type(self)._ports[port] = self.server.name
-        json_port = self.locals.get('jsonserver_port', 8081)
-        if type(self)._json_ports.get(json_port, self.server.name) != self.server.name:
-            self.log.error(
-                f"  => {self.server.name}: {self.name} jsonserver_port {json_port} already in use by "
-                f"server {type(self)._json_ports[json_port]}!")
-            return False
-        else:
+
+        if self.locals.get('use_jsonserver', False):
+            json_port = self.locals.get('jsonserver_port', 8081)
+            if type(self)._json_ports.get(json_port, self.server.name) != self.server.name:
+                self.log.error(
+                    f"  => {self.server.name}: {self.name} jsonserver_port {json_port} already in use by "
+                    f"server {type(self)._json_ports[json_port]}!")
+                return False
+
             type(self)._json_ports[json_port] = self.server.name
+            filename = os.path.join(self.node.installation, 'Scripts', 'MissionScripting.lua')
+            with open(filename, mode='r', encoding='utf-8') as infile:
+                orig = infile.readlines()
+            update_needed = True
+            start = -1
+            for idx, line in enumerate(orig):
+                if "dofile('Scripts/ScriptingSystem.lua')" in line:
+                    start = idx
+                elif MISSION_SCRIPTING in line:
+                    update_needed = False
+
+            if update_needed:
+                orig.insert(start + 1, MISSION_SCRIPTING + "\n")
+                with open(filename, mode='w', encoding='utf-8') as outfile:
+                    outfile.writelines(orig)
+                self.log.info(f"  => {self.name}: MissionScripting.lua amended.")
 
         return await super().prepare()
 

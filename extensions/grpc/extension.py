@@ -13,6 +13,8 @@ __all__ = [
     "gRPC"
 ]
 
+MISSION_SCRIPTING = r"dofile(lfs.writedir()..[[Scripts\DCS-gRPC\grpc-mission.lua]])"
+
 
 class gRPC(Extension):
 
@@ -82,17 +84,20 @@ class gRPC(Extension):
         filename = os.path.join(self.node.installation, 'Scripts', 'MissionScripting.lua')
         with open(filename, mode='r', encoding='utf-8') as infile:
             orig = infile.readlines()
-        dirty = False
+        update_needed = True
+        start = -1
         for idx, line in enumerate(orig):
-            if ("dofile('Scripts/ScriptingSystem.lua')" in line and
-                    r"dofile(lfs.writedir()..[[Scripts\DCS-gRPC\grpc-mission.lua]])" not in orig[idx+1]):
-                orig.insert(idx+1, r"dofile(lfs.writedir()..[[Scripts\DCS-gRPC\grpc-mission.lua]])")
-                dirty = True
-                break
-        if dirty:
+            if "dofile('Scripts/ScriptingSystem.lua')" in line:
+                start = idx
+            elif MISSION_SCRIPTING in line:
+                update_needed = False
+
+        if update_needed:
+            orig.insert(start+1, MISSION_SCRIPTING + "\n")
             with open(filename, mode='w', encoding='utf-8') as outfile:
                 outfile.writelines(orig)
             self.log.info(f"  => {self.name}: MissionScripting.lua amended.")
+
         if 'enabled' in config:
             del config['enabled']
         if len(config):
