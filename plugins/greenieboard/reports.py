@@ -15,7 +15,7 @@ from psycopg.rows import dict_row
 from typing import cast
 
 from . import ERRORS, DISTANCE_MARKS, GRADES
-from ..userstats.highscore import get_sides, compute_font_size
+from ..userstats.highscore import compute_font_size
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -144,10 +144,6 @@ class HighscoreTraps(report.GraphElement):
         if server_name:
             sql += "AND m.server_name = %(server_name)s"
             self.env.embed.description = utils.escape_string(server_name)
-            if server_name in self.bot.servers:
-                sql += ' AND s.side in (' + ','.join([
-                    str(x) for x in get_sides(interaction, self.bot.servers[server_name])
-                ]) + ')'
         if not include_bolters:
             sql += " AND g.grade <> 'B'"
         if not include_waveoffs:
