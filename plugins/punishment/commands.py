@@ -162,6 +162,7 @@ class Punishment(Plugin[PunishmentEventListener]):
                     f"No penalty or reason configured for event {data['event']}.")
                 reason = data['event']
             await self.punish(server, data['init_id'], punishment, reason, points)
+            break
 
     @tasks.loop(hours=1.0)
     async def decay(self):
