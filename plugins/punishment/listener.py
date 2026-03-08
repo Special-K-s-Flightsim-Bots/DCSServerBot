@@ -81,7 +81,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                                         (player.ucid, ))
             return (await cursor.fetchone())[0]
 
-    async def _provide_forgiveness_window(self, data: dict, window: int):
+    async def _provide_forgiveness_window(self, data: dict, window: int, key: tuple[str, str]) -> None:
         try:
             # wait for a '-forgive' to happen
             await asyncio.sleep(window)
@@ -90,6 +90,15 @@ class PunishmentEventListener(EventListener["Punishment"]):
         except asyncio.CancelledError:
             # it did happen -> do nothing
             pass
+        finally:
+            current = asyncio.current_task()
+            if current:
+                async with self.lock:
+                    tasks = self.pending_forgiveness.get(key)
+                    if tasks and current in tasks:
+                        tasks.remove(current)
+                        if not tasks:
+                            self.pending_forgiveness.pop(key, None)
 
     async def _punish(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
@@ -166,7 +175,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     if not tasks:
                         inform_victim = True
                         tasks = self.pending_forgiveness[key] = []
-                    tasks.append(asyncio.create_task(self._provide_forgiveness_window(data, window)))
+                    tasks.append(asyncio.create_task(self._provide_forgiveness_window(data, window, key)))
 
                 if inform_victim:
                     asyncio.create_task(target.sendUserMessage(
