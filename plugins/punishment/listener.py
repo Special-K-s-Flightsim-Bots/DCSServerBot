@@ -175,7 +175,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     if not tasks:
                         inform_victim = True
                         tasks = self.pending_forgiveness[key] = []
-                    tasks.append(asyncio.create_task(self._provide_forgiveness_window(data, window, key)))
+                    tasks.append(asyncio.create_task(self._provide_forgiveness_window(data.copy(), window, key)))
 
                 if inform_victim:
                     asyncio.create_task(target.sendUserMessage(
@@ -186,7 +186,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                             prefix=self.prefix, time=window)))
 
             else:
-                asyncio.create_task(self._punish(data))
+                asyncio.create_task(self._punish(data.copy()))
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict):

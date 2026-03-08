@@ -55,7 +55,7 @@ class Punishment(Plugin[PunishmentEventListener]):
             # we must not punish for reslots here
             self.eventlistener.pending_kill.pop(ucid, None)
             # do not create doubled bans on multiple events
-            if self.bus.is_banned(ucid):
+            if await self.bus.is_banned(ucid):
                 return
 
             await self.bus.ban(ucid, self.plugin_name, reason, punishment.get('days', 3))

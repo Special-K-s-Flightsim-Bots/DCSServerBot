@@ -55,7 +55,7 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                             'discord_id': row[1],
                             'roles': [x.id for x in member.roles]
                         })
-                    # upload the VIP-users in batches of 25
+                    # upload the VIP users in batches of 25
                     if len(batch) >= 25:
                         await server.send_to_dcs({
                             'command': 'uploadUserRoles',
@@ -63,7 +63,7 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                         })
                         batch = []
 
-                # Send remaining VIP-users, if any
+                # Send remaining VIP users, if any
                 if batch:
                     await server.send_to_dcs({
                         'command': 'uploadUserRoles',
@@ -208,7 +208,7 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
             return
         if data['eventName'] == 'S_EVENT_BIRTH':
             initiator = data['initiator']
-            # check, if they are a human player
+            # check if they are a human player
             if 'name' not in initiator:
                 return
             player: CreditPlayer = cast(CreditPlayer, server.get_player(name=initiator['name'], active=True))
