@@ -908,6 +908,19 @@ class MissionLoadResponse(BaseModel):
         }
     }
 
+class MissionUploadResponse(BaseModel):
+    status: str = Field(..., description="Status of the operation")
+    message: str = Field(..., description="Status message")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "success",
+                "message": "Mission 'Training Mission.miz' uploaded to server 'DCS Server'."
+            }
+        }
+    }
+
 class MissionPauseResponse(BaseModel):
     status: str = Field(..., description="Status of the operation")
     message: str = Field(..., description="Status message")
@@ -1019,6 +1032,25 @@ class ConvertCoordinates(BaseModel):
                 "meters": {
                     "x": 42430,
                     "y": 5719
+                }
+            }
+        }
+    }
+
+
+class GroupWaypointsResponse(BaseModel):
+    group_name: str = Field(..., description="Name of the group")
+    group_type: str = Field(..., description="Type of the group")
+    waypoints: dict = Field(..., description="Keyed waypoint dictionary (wp1, wp2, ...) with lat/lon per waypoint")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "group_name": "Tanker-1",
+                "group_type": "plane",
+                "waypoints": {
+                    "wp1": {"lat": 36.00001, "lon": 36.00001},
+                    "wp2": {"lat": 36.50000, "lon": 36.50000}
                 }
             }
         }
