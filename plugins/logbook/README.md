@@ -43,26 +43,26 @@ DEFAULT:
 
 ### Logbook Commands (`/logbook`)
 
-| Command                                      | Description                                        | Role      |
-|----------------------------------------------|----------------------------------------------------|-----------|
-| `/logbook stats [user]`                      | Show pilot flight statistics                       | DCS       |
-| `/logbook pilot [user]`                      | Show unified pilot info (service, rank, squadrons, qualifications, awards, ribbon rack) | DCS |
-| `/logbook setpilot <user> <service> <rank>`  | Set or update pilot service and rank               | DCS Admin |
+| Command                                     | Description                                                                             |   Role    |
+|---------------------------------------------|-----------------------------------------------------------------------------------------|:---------:|
+| `/logbook stats [user]`                     | Show pilot flight statistics                                                            |    DCS    |
+| `/logbook pilot [user]`                     | Show unified pilot info (service, rank, squadrons, qualifications, awards, ribbon rack) |    DCS    |
+| `/logbook setpilot <user> <service> <rank>` | Set or update pilot service and rank                                                    | DCS Admin |
 
 ### Squadron Commands (`/logbook squadron`)
 
-| Command                                                                 | Description                     | Role      |
-|-------------------------------------------------------------------------|---------------------------------|-----------|
-| `/logbook squadron list`                                                | List all squadrons              | DCS       |
-| `/logbook squadron info <squadron>`                                     | Show squadron details           | DCS       |
-| `/logbook squadron roster <squadron>`                                   | Show squadron roster with stats | DCS       |
-| `/logbook squadron create <name> <service> [abbreviation] [description]`| Create a new squadron           | DCS Admin |
-| `/logbook squadron edit <squadron> [name] [abbreviation] [service] [description] [logo_url]` | Edit squadron details | DCS Admin |
-| `/logbook squadron delete <squadron>`                                   | Delete a squadron               | DCS Admin |
-| `/logbook squadron assign <squadron> <user> [position]`                 | Assign pilot to squadron        | DCS Admin |
-| `/logbook squadron remove <squadron> <member>`                          | Remove pilot from squadron      | DCS Admin |
-| `/logbook squadron setco <squadron> <member>`                           | Set Commanding Officer          | DCS Admin |
-| `/logbook squadron setxo <squadron> <member>`                           | Set Executive Officer           | DCS Admin |
+| Command                                                                                      | Description                     |   Role    |
+|----------------------------------------------------------------------------------------------|---------------------------------|:---------:|
+| `/logbook squadron list`                                                                     | List all squadrons              |    DCS    |
+| `/logbook squadron info <squadron>`                                                          | Show squadron details           |    DCS    |
+| `/logbook squadron roster <squadron>`                                                        | Show squadron roster with stats |    DCS    |
+| `/logbook squadron create <name> <service> [abbreviation] [description]`                     | Create a new squadron           | DCS Admin |
+| `/logbook squadron edit <squadron> [name] [abbreviation] [service] [description] [logo_url]` | Edit squadron details           | DCS Admin |
+| `/logbook squadron delete <squadron>`                                                        | Delete a squadron               | DCS Admin |
+| `/logbook squadron assign <squadron> <user> [position]`                                      | Assign pilot to squadron        | DCS Admin |
+| `/logbook squadron remove <squadron> <member>`                                               | Remove pilot from squadron      | DCS Admin |
+| `/logbook squadron setco <squadron> <member>`                                                | Set Commanding Officer          | DCS Admin |
+| `/logbook squadron setxo <squadron> <member>`                                                | Set Executive Officer           | DCS Admin |
 
 > **Note:** Pilots can be assigned to multiple squadrons. Service and rank are properties of the pilot (set via `/logbook setpilot`), not the squadron assignment.
 

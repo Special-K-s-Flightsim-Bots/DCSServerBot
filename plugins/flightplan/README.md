@@ -83,63 +83,63 @@ DEFAULT:
 
 ### Flight Plan Commands (`/flightplan`)
 
-| Command | Description | Role |
-|---------|-------------|------|
-| `/flightplan file <server> <callsign> <aircraft> <departure> <destination> [options]` | File a new flight plan | DCS |
-| `/flightplan view <plan>` | View flight plan details | DCS |
-| `/flightplan list [status] [user]` | List flight plans with filters | DCS |
-| `/flightplan activate <plan>` | Activate a filed flight plan | DCS |
-| `/flightplan complete <plan>` | Mark flight plan as completed | DCS |
-| `/flightplan cancel <plan>` | Cancel a flight plan | DCS |
-| `/flightplan plot <plan> [duration]` | Plot flight plan on F10 map | DCS |
-| `/flightplan publish <plan>` | Publish flight plan to Discord | DCS |
-| `/flightplan stale [hours]` | Cancel stale flight plans | DCS Admin |
+| Command                                                                               | Description                    |   Role    |
+|---------------------------------------------------------------------------------------|--------------------------------|:---------:|
+| `/flightplan file <server> <callsign> <aircraft> <departure> <destination> [options]` | File a new flight plan         |    DCS    |
+| `/flightplan view <plan>`                                                             | View flight plan details       |    DCS    |
+| `/flightplan list [status] [user]`                                                    | List flight plans with filters |    DCS    |
+| `/flightplan activate <plan>`                                                         | Activate a filed flight plan   |    DCS    |
+| `/flightplan complete <plan>`                                                         | Mark flight plan as completed  |    DCS    |
+| `/flightplan cancel <plan>`                                                           | Cancel a flight plan           |    DCS    |
+| `/flightplan plot <plan> [duration]`                                                  | Plot flight plan on F10 map    |    DCS    |
+| `/flightplan publish <plan>`                                                          | Publish flight plan to Discord |    DCS    |
+| `/flightplan stale [hours]`                                                           | Cancel stale flight plans      | DCS Admin |
 
 #### File Command Options
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `server` | Target server (required) | `My Server` |
-| `callsign` | Your callsign (required) | `Viper11` |
-| `aircraft_type` | Aircraft type (required) | `F-16C` |
-| `departure` | Departure airfield (required) | Autocompletes from mission |
-| `destination` | Destination airfield (required) | Autocompletes from mission |
-| `alternate` | Alternate airfield (optional) | Autocompletes from mission |
-| `waypoints` | Comma-separated waypoints (optional) | `ADLER,38TLN1234,@MYPOINT` |
-| `cruise_altitude` | Cruise altitude (optional) | `FL300` or `30000` |
-| `cruise_speed` | Cruise speed in knots (optional) | `450` |
-| `etd` | Estimated departure time UTC (optional) | `14:30` or `1430` |
-| `remarks` | Additional remarks (optional) | `Training flight` |
+| Option            | Description                             | Example                    |
+|-------------------|-----------------------------------------|----------------------------|
+| `server`          | Target server (required)                | `My Server`                |
+| `callsign`        | Your callsign (required)                | `Viper11`                  |
+| `aircraft_type`   | Aircraft type (required)                | `F-16C`                    |
+| `departure`       | Departure airfield (required)           | Autocompletes from mission |
+| `destination`     | Destination airfield (required)         | Autocompletes from mission |
+| `alternate`       | Alternate airfield (optional)           | Autocompletes from mission |
+| `waypoints`       | Comma-separated waypoints (optional)    | `ADLER,38TLN1234,@MYPOINT` |
+| `cruise_altitude` | Cruise altitude (optional)              | `FL300` or `30000`         |
+| `cruise_speed`    | Cruise speed in knots (optional)        | `450`                      |
+| `etd`             | Estimated departure time UTC (optional) | `14:30` or `1430`          |
+| `remarks`         | Additional remarks (optional)           | `Training flight`          |
 
 ### Waypoint Commands (`/flightplan waypoint`)
 
-| Command | Description | Role |
-|---------|-------------|------|
-| `/flightplan waypoint add <name> <coordinates> <theater> [altitude] [description]` | Create a user waypoint | DCS |
-| `/flightplan waypoint list [theater]` | List user waypoints | DCS |
-| `/flightplan waypoint delete <name>` | Delete a waypoint | DCS |
+| Command                                                                            | Description            | Role  |
+|------------------------------------------------------------------------------------|------------------------|:-----:|
+| `/flightplan waypoint add <name> <coordinates> <theater> [altitude] [description]` | Create a user waypoint |  DCS  |
+| `/flightplan waypoint list [theater]`                                              | List user waypoints    |  DCS  |
+| `/flightplan waypoint delete <name>`                                               | Delete a waypoint      |  DCS  |
 
 ### Navigation Fix Commands (`/flightplan fix`)
 
-| Command | Description | Role |
-|---------|-------------|------|
-| `/flightplan fix list [theater]` | List navigation fixes | DCS |
-| `/flightplan fix count` | Count fixes by theater | DCS |
-| `/flightplan fix add <identifier> <lat> <lon> <type> <theater> [name] [freq]` | Add a navigation fix | DCS Admin |
-| `/flightplan fix delete <identifier> <theater>` | Delete a navigation fix | DCS Admin |
-| `/flightplan fix sync <theater>` | Sync fixes from OpenAIP | DCS Admin |
-| `/flightplan fix seed` | Load bundled seed data | DCS Admin |
+| Command                                                                       | Description             |   Role    |
+|-------------------------------------------------------------------------------|-------------------------|:---------:|
+| `/flightplan fix list [theater]`                                              | List navigation fixes   |    DCS    |
+| `/flightplan fix count`                                                       | Count fixes by theater  |    DCS    |
+| `/flightplan fix add <identifier> <lat> <lon> <type> <theater> [name] [freq]` | Add a navigation fix    | DCS Admin |
+| `/flightplan fix delete <identifier> <theater>`                               | Delete a navigation fix | DCS Admin |
+| `/flightplan fix sync <theater>`                                              | Sync fixes from OpenAIP | DCS Admin |
+| `/flightplan fix seed`                                                        | Load bundled seed data  | DCS Admin |
 
 ## In-Game Chat Commands
 
-| Command | Aliases | Description |
-|---------|---------|-------------|
-| `-flightplan` | `-fp` | Show your active flight plan |
-| `-plotfp [id]` | | Plot flight plan on F10 map for 30 seconds |
-| `-fileplan <dep> <dest> [aircraft]` | | Quick file a flight plan |
-| `-activatefp [id]` | | Activate your filed flight plan |
-| `-completefp` | | Complete your active flight plan |
-| `-cancelfp` | | Cancel your flight plan |
+| Command                             | Aliases  | Description                                |
+|-------------------------------------|----------|--------------------------------------------|
+| `-flightplan`                       | `-fp`    | Show your active flight plan               |
+| `-plotfp [id]`                      |          | Plot flight plan on F10 map for 30 seconds |
+| `-fileplan <dep> <dest> [aircraft]` |          | Quick file a flight plan                   |
+| `-activatefp [id]`                  |          | Activate your filed flight plan            |
+| `-completefp`                       |          | Complete your active flight plan           |
+| `-cancelfp`                         |          | Cancel your flight plan                    |
 
 ### Examples
 
@@ -223,33 +223,33 @@ PANTH                     # Intersection
 
 ## Altitude Formats
 
-| Format | Example | Result |
-|--------|---------|--------|
-| Flight Level | `FL300` | 30,000 ft |
-| Flight Level with space | `FL 300` | 30,000 ft |
-| Feet (plain) | `30000` | 30,000 ft |
-| Feet with suffix | `30000ft` | 30,000 ft |
-| With comma | `30,000` | 30,000 ft |
+| Format                  | Example   | Result    |
+|-------------------------|-----------|-----------|
+| Flight Level            | `FL300`   | 30,000 ft |
+| Flight Level with space | `FL 300`  | 30,000 ft |
+| Feet (plain)            | `30000`   | 30,000 ft |
+| Feet with suffix        | `30000ft` | 30,000 ft |
+| With comma              | `30,000`  | 30,000 ft |
 
 ## Speed Formats
 
 Cruise speed is specified in knots as a plain number:
 
-| Example | Description |
-|---------|-------------|
-| `450` | 450 knots TAS |
-| `350` | 350 knots TAS |
+| Example   | Description   |
+|-----------|---------------|
+| `450`     | 450 knots TAS |
+| `350`     | 350 knots TAS |
 
 ## ETD Time Formats
 
 Estimated Time of Departure in UTC:
 
-| Format | Example | Description |
-|--------|---------|-------------|
-| With colon | `14:30` | 14:30 UTC |
-| Without colon | `1430` | 14:30 UTC |
-| With Z suffix | `14:30Z` | 14:30 UTC |
-| Mixed | `1430Z` | 14:30 UTC |
+| Format        | Example  | Description  |
+|---------------|----------|--------------|
+| With colon    | `14:30`  | 14:30 UTC    |
+| Without colon | `1430`   | 14:30 UTC    |
+| With Z suffix | `14:30Z` | 14:30 UTC    |
+| Mixed         | `1430Z`  | 14:30 UTC    |
 
 If the specified time has already passed today, it is assumed to be tomorrow.
 
@@ -273,19 +273,19 @@ The plugin can sync real-world navigation data from [OpenAIP](https://www.openai
 
 ### Supported Theaters
 
-| Theater | Region |
-|---------|--------|
-| Caucasus | Georgia, South Russia |
-| Syria | Syria, Lebanon, Cyprus, Turkey |
-| PersianGulf | UAE, Iran, Oman |
-| Nevada | Nevada, California |
-| Normandy | Northern France |
-| TheChannel | English Channel |
-| MarianaIslands | Guam, Mariana Islands |
-| SouthAtlantic | Falkland Islands |
-| Sinai | Egypt, Sinai Peninsula |
-| Afghanistan | Afghanistan region |
-| Kola | Northern Russia, Norway |
+| Theater        | Region                         |
+|----------------|--------------------------------|
+| Caucasus       | Georgia, South Russia          |
+| Syria          | Syria, Lebanon, Cyprus, Turkey |
+| PersianGulf    | UAE, Iran, Oman                |
+| Nevada         | Nevada, California             |
+| Normandy       | Northern France                |
+| TheChannel     | English Channel                |
+| MarianaIslands | Guam, Mariana Islands          |
+| SouthAtlantic  | Falkland Islands               |
+| Sinai          | Egypt, Sinai Peninsula         |
+| Afghanistan    | Afghanistan region             |
+| Kola           | Northern Russia, Norway        |
 
 ## Database Schema
 
@@ -294,69 +294,69 @@ The plugin creates the following tables:
 ### flightplan_plans
 Main flight plan storage.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | SERIAL | Primary key |
-| player_ucid | TEXT | Player's unique ID |
-| server_name | TEXT | Associated server |
-| callsign | TEXT | Flight callsign |
-| aircraft_type | TEXT | Aircraft type |
-| departure | TEXT | Departure location name |
-| destination | TEXT | Destination location name |
-| alternate | TEXT | Alternate location name |
-| waypoints | JSONB | Array of parsed waypoints |
-| cruise_altitude | INTEGER | Altitude in feet |
-| cruise_speed | INTEGER | Speed in knots |
-| etd | TIMESTAMP | Estimated departure time |
-| status | TEXT | filed/active/completed/cancelled |
-| departure_position | JSONB | DCS coordinates {x, z, lat, lon} |
-| destination_position | JSONB | DCS coordinates {x, z, lat, lon} |
-| alternate_position | JSONB | DCS coordinates {x, z, lat, lon} |
-| discord_message_id | BIGINT | Published Discord message ID |
-| stale_at | TIMESTAMP | When plan becomes stale |
+| Column               | Type      | Description                      |
+|----------------------|-----------|----------------------------------|
+| id                   | SERIAL    | Primary key                      |
+| player_ucid          | TEXT      | Player's unique ID               |
+| server_name          | TEXT      | Associated server                |
+| callsign             | TEXT      | Flight callsign                  |
+| aircraft_type        | TEXT      | Aircraft type                    |
+| departure            | TEXT      | Departure location name          |
+| destination          | TEXT      | Destination location name        |
+| alternate            | TEXT      | Alternate location name          |
+| waypoints            | JSONB     | Array of parsed waypoints        |
+| cruise_altitude      | INTEGER   | Altitude in feet                 |
+| cruise_speed         | INTEGER   | Speed in knots                   |
+| etd                  | TIMESTAMP | Estimated departure time         |
+| status               | TEXT      | filed/active/completed/cancelled |
+| departure_position   | JSONB     | DCS coordinates {x, z, lat, lon} |
+| destination_position | JSONB     | DCS coordinates {x, z, lat, lon} |
+| alternate_position   | JSONB     | DCS coordinates {x, z, lat, lon} |
+| discord_message_id   | BIGINT    | Published Discord message ID     |
+| stale_at             | TIMESTAMP | When plan becomes stale          |
 
 ### flightplan_waypoints
 User-defined named waypoints.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | SERIAL | Primary key |
-| name | TEXT | Waypoint name (e.g., PANTHER) |
-| created_by_ucid | TEXT | Creator's player ID |
-| position_x | DOUBLE | DCS X coordinate |
-| position_z | DOUBLE | DCS Z coordinate |
-| latitude | DOUBLE | Latitude in decimal degrees |
-| longitude | DOUBLE | Longitude in decimal degrees |
-| altitude | INTEGER | Optional altitude in feet |
-| map_theater | TEXT | Theater restriction |
-| is_public | BOOLEAN | Visible to all players |
+| Column          | Type    | Description                   |
+|-----------------|---------|-------------------------------|
+| id              | SERIAL  | Primary key                   |
+| name            | TEXT    | Waypoint name (e.g., PANTHER) |
+| created_by_ucid | TEXT    | Creator's player ID           |
+| position_x      | DOUBLE  | DCS X coordinate              |
+| position_z      | DOUBLE  | DCS Z coordinate              |
+| latitude        | DOUBLE  | Latitude in decimal degrees   |
+| longitude       | DOUBLE  | Longitude in decimal degrees  |
+| altitude        | INTEGER | Optional altitude in feet     |
+| map_theater     | TEXT    | Theater restriction           |
+| is_public       | BOOLEAN | Visible to all players        |
 
 ### flightplan_navigation_fixes
 Navigation aids and fixes.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | SERIAL | Primary key |
-| identifier | TEXT | Fix identifier (e.g., ADLER) |
-| name | TEXT | Full name |
-| fix_type | TEXT | VOR/NDB/TACAN/DME/WYP/INT |
-| latitude | DOUBLE | Latitude |
-| longitude | DOUBLE | Longitude |
-| map_theater | TEXT | Associated theater |
-| frequency | TEXT | Radio frequency (if applicable) |
-| source | TEXT | Data source (openaip/user/seed) |
+| Column      | Type   | Description                     |
+|-------------|--------|---------------------------------|
+| id          | SERIAL | Primary key                     |
+| identifier  | TEXT   | Fix identifier (e.g., ADLER)    |
+| name        | TEXT   | Full name                       |
+| fix_type    | TEXT   | VOR/NDB/TACAN/DME/WYP/INT       |
+| latitude    | DOUBLE | Latitude                        |
+| longitude   | DOUBLE | Longitude                       |
+| map_theater | TEXT   | Associated theater              |
+| frequency   | TEXT   | Radio frequency (if applicable) |
+| source      | TEXT   | Data source (openaip/user/seed) |
 
 ### flightplan_markers
 F10 marker tracking for cleanup.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | SERIAL | Primary key |
-| server_name | TEXT | Server instance |
-| flight_plan_id | INTEGER | Associated flight plan |
-| marker_id | INTEGER | DCS marker ID |
-| marker_type | TEXT | Marker type identifier |
-| expires_at | TIMESTAMP | When marker should be removed |
+| Column         | Type      | Description                   |
+|----------------|-----------|-------------------------------|
+| id             | SERIAL    | Primary key                   |
+| server_name    | TEXT      | Server instance               |
+| flight_plan_id | INTEGER   | Associated flight plan        |
+| marker_id      | INTEGER   | DCS marker ID                 |
+| marker_type    | TEXT      | Marker type identifier        |
+| expires_at     | TIMESTAMP | When marker should be removed |
 
 ## Flight Plan Workflow
 

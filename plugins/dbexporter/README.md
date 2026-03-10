@@ -5,7 +5,7 @@ processing, if needed.
 > [!WARNING]
 > This plugin is deprecated and will be removed at some point.
 > The amount of data that will be written by this plugin can be enormous.
-> Please use [Backup](/service/backup/README.md) or [RestAPI](/service/restapi/README.md) instead.
+> Please use [Backup](../../services/backup/README.md) or [RestAPI](../restapi/README.md) instead.
 
 ## Configuration
 As DBExporter is an optional plugin, you need to activate it in main.yaml first like so:

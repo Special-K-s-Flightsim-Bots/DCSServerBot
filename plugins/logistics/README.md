@@ -95,13 +95,13 @@ The plugin can post task status updates to a designated Discord channel, providi
 
 The status board posts are updated in-place (same Discord message) as task status changes:
 
-| Event | Published When | Default |
-|-------|----------------|---------|
-| `publish_on_create` | Task is created by admin | true |
-| `publish_on_assign` | Pilot accepts/is assigned the task | true |
-| `publish_on_complete` | Task is successfully completed | true |
-| `publish_on_abandon` | Pilot abandons the task | true |
-| `publish_on_cancel` | Admin cancels the task | true |
+| Event                 | Published When                     | Default  |
+|-----------------------|------------------------------------|:--------:|
+| `publish_on_create`   | Task is created by admin           |   true   |
+| `publish_on_assign`   | Pilot accepts/is assigned the task |   true   |
+| `publish_on_complete` | Task is successfully completed     |   true   |
+| `publish_on_abandon`  | Pilot abandons the task            |   true   |
+| `publish_on_cancel`   | Admin cancels the task             |   true   |
 
 Each post shows the task ID, cargo, route, assigned pilot, and current status with color-coded embeds.
 
