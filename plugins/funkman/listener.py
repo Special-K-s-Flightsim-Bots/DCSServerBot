@@ -167,15 +167,15 @@ class FunkManEventListener(EventListener["FunkMan"]):
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
                       data['distance'], BombQuality[data['quality']].value))
-            asyncio.create_task(self.update_rangeboard(server, 'bomb'))
         channel = self.bot.get_channel(int(config.get('CHANNELID_RANGE', -1)))
         if not channel:
             return
         fig, _ = (await self.get_funkplot()).PlotBombRun(data)
         if not fig:
-            self.log.error("Bomb result could not be plotted (due to missing data?)")
+            self.log.warning("Bomb result could not be plotted (due to missing data?)")
             return
         asyncio.create_task(self.send_fig(fig, channel))
+        asyncio.create_task(self.update_rangeboard(server, 'bomb'))
 
     @event(name="moose_strafe_result")
     async def moose_strafe_result(self, server: Server, data: dict) -> None:
@@ -188,15 +188,15 @@ class FunkManEventListener(EventListener["FunkMan"]):
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
                       data['strafeAccuracy'], StrafeQuality[data['roundsQuality'].replace(' ', '_')].value if not data.get('invalid', False) else None))
-            asyncio.create_task(self.update_rangeboard(server, 'strafe'))
         channel = self.bot.get_channel(int(config.get('CHANNELID_RANGE', -1)))
         if not channel:
             return
         fig, _ = (await self.get_funkplot()).PlotStrafeRun(data)
         if not fig:
-            self.log.error("Strafe result could not be plotted (due to missing data?)")
+            self.log.warning("Strafe result could not be plotted (due to missing data?)")
             return
         asyncio.create_task(self.send_fig(fig, channel))
+        asyncio.create_task(self.update_rangeboard(server, 'strafe'))
 
     @event(name="moose_lso_grade")
     async def moose_lso_grade(self, server: Server, data: dict) -> None:
@@ -207,7 +207,7 @@ class FunkManEventListener(EventListener["FunkMan"]):
         try:
             fig, _ = (await self.get_funkplot()).PlotTrapSheet(data)
             if not fig:
-                self.log.error("Trapsheet could not be plotted (due to missing data?)")
+                self.log.warning("Trapsheet could not be plotted (due to missing data?)")
                 return
             filename, buffer = self.save_fig(fig)
             with buffer:

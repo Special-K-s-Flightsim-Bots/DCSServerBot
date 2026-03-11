@@ -103,8 +103,7 @@ class GameMasterEventListener(EventListener["GameMaster"]):
                       AND coalition_join > (NOW() AT TIME ZONE 'UTC' - interval '{lock_time}')
                 """, (server.name, player.ucid))
                 coalition = (await cursor.fetchone())[0] if cursor.rowcount == 1 else None
-                if coalition:
-                    player.coalition = Coalition(coalition)
+                player.coalition = Coalition(coalition) if coalition else None
         return player.coalition
 
     async def get_coalition_password(self, server: Server, coalition: Coalition) -> str | None:
