@@ -514,6 +514,11 @@ class Scheduler(Plugin[SchedulerListener]):
             server.on_mission_end = rconf.copy()
             server.restart_pending = True
             return
+        elif rconf.get('coalition_win', False):
+            self.log.debug(f"{self.__cog_name__}: setting coalition_win trigger (server={server.name}).")
+            server.on_coalition_win = rconf.copy()
+            server.restart_pending = True
+            return
 
         # check if the server is populated
         if server.is_populated():
@@ -785,7 +790,6 @@ class Scheduler(Plugin[SchedulerListener]):
     @utils.app_has_role('DCS')
     async def _list(self, interaction: discord.Interaction):
         if not self.bot.servers:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("No servers registered.", ephemeral=True)
             return
         embed = discord.Embed(title=f"All Servers", color=discord.Color.blue())
@@ -803,7 +807,6 @@ class Scheduler(Plugin[SchedulerListener]):
             embed.add_field(name='Server', value='\n'.join(names))
             embed.add_field(name='Status', value='\n'.join(status))
             embed.add_field(name='Players', value='\n'.join(players))
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
     async def _startup(self, interaction: discord.Interaction, embed: discord.Embed, server: Server, *,
@@ -901,7 +904,6 @@ class Scheduler(Plugin[SchedulerListener]):
                       use_orig: bool | None = True, mission_id: int | None = None):
 
         if server.status == Status.STOPPED:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 "DCS server \"{name}\" is stopped.\nPlease use {command} instead.".format(
                     name=server.display_name,
@@ -909,7 +911,6 @@ class Scheduler(Plugin[SchedulerListener]):
                 ephemeral=True)
             return
         elif server.status in [Status.LOADING, Status.SHUTTING_DOWN]:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 "DCS server \"{name}\" is {status}.\nPlease wait or use {command} force instead.".format(
                     name=server.display_name, status=server.status.value.lower(),
@@ -918,13 +919,11 @@ class Scheduler(Plugin[SchedulerListener]):
                 ephemeral=True)
             return
         elif server.status in [Status.RUNNING, Status.PAUSED]:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"DCS server \"{server.display_name}\" is started already.",
                                                     ephemeral=True)
             return
 
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
 
         embed = discord.Embed(title=f"Launching DCS Server \"{server.display_name}\"", color=discord.Color.blue())
@@ -1010,7 +1009,6 @@ class Scheduler(Plugin[SchedulerListener]):
                            ])], force: bool | None = False, maintenance: bool | None = True):
 
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if server.status == Status.SHUTDOWN:
             await interaction.followup.send(f"DCS server \"{server.display_name}\" is already shut down.",
@@ -1068,7 +1066,6 @@ class Scheduler(Plugin[SchedulerListener]):
                       use_orig: bool | None = True, mission_id: int | None = None):
 
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
 
         question = f"Do you want to restart DCS server \"{server.display_name}\"?"
@@ -1095,6 +1092,7 @@ class Scheduler(Plugin[SchedulerListener]):
             server.restart_pending = False
             server.on_empty.clear()
             server.on_mission_end.clear()
+            server.on_coalition_win.clear()
             embed.description += "\n- Already pending restart was cancelled."
             await msg.edit(embed=embed)
 
@@ -1131,7 +1129,6 @@ class Scheduler(Plugin[SchedulerListener]):
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.STOPPED])]):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status == Status.STOPPED:
-            # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=ephemeral, thinking=True)
             try:
                 if not await server.start():
@@ -1151,15 +1148,12 @@ class Scheduler(Plugin[SchedulerListener]):
             await interaction.followup.send(f"Server {server.display_name} started.", ephemeral=ephemeral)
             await self.bot.audit('started the server', server=server, user=interaction.user)
         elif server.status == Status.SHUTDOWN:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 f"Server {server.display_name} is shut down. Use /server startup to start it up.", ephemeral=ephemeral)
         elif server.status in [Status.RUNNING, Status.PAUSED]:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Server {server.display_name} is already started.",
                                                     ephemeral=ephemeral)
         else:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 f"Server {server.display_name} is still {server.status.name}, please wait ...", ephemeral=ephemeral)
 
@@ -1170,7 +1164,6 @@ class Scheduler(Plugin[SchedulerListener]):
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.RUNNING, Status.PAUSED])]):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if server.is_populated() and \
                 not await utils.yn_question(interaction, "People are flying on this server atm.\n"
@@ -1204,13 +1197,11 @@ class Scheduler(Plugin[SchedulerListener]):
                        server: app_commands.Transform[Server, utils.ServerTransformer],
                        coalition: Literal['red', 'blue'] | None = None):
         class PasswordModal(Modal, title="Enter Password"):
-            # noinspection PyTypeChecker
             password = TextInput(label="New Password" + (f" for coalition {coalition}:" if coalition else ":"),
                                  style=TextStyle.short, required=False)
 
             async def on_submit(derived, interaction: discord.Interaction):
                 ephemeral = utils.get_ephemeral(interaction)
-                # noinspection PyUnresolvedReferences
                 await interaction.response.defer(ephemeral=ephemeral)
                 if coalition:
                     await server.setCoalitionPassword(Coalition(coalition), derived.password.value)
@@ -1226,7 +1217,6 @@ class Scheduler(Plugin[SchedulerListener]):
 
                 await interaction.followup.send(message, ephemeral=ephemeral)
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(PasswordModal())
 
     @group.command(description='Change the configuration of a DCS server')
@@ -1236,7 +1226,6 @@ class Scheduler(Plugin[SchedulerListener]):
     async def config(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
 
         if server.status in [Status.RUNNING, Status.PAUSED]:
@@ -1275,16 +1264,13 @@ class Scheduler(Plugin[SchedulerListener]):
                       server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.SHUTDOWN])], new_name: str):
         if server.status not in [Status.SHUTDOWN]:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Server {server.name} has to be shut down for renaming.",
                                                     ephemeral=True)
             return
         if server.name == new_name:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("The server has this name already. Aborted.", ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         old_name = server.name
         await server.rename(new_name, True)
@@ -1300,7 +1286,6 @@ class Scheduler(Plugin[SchedulerListener]):
                        node: app_commands.Transform[Node, utils.NodeTransformer],
                        instance: app_commands.Transform[Instance, utils.InstanceTransformer]):
         if server.instance == instance:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 f'Server "{server.name}" is already bound to instance "{instance.name}".', ephemeral=True)
             return
@@ -1322,9 +1307,7 @@ class Scheduler(Plugin[SchedulerListener]):
                     await interaction.followup.send("Aborted", ephemeral=ephemeral)
                 running = True
                 await server.shutdown()
-            # noinspection PyUnresolvedReferences
             if not interaction.response.is_done():
-                # noinspection PyUnresolvedReferences
                 await interaction.response.defer(ephemeral=ephemeral)
             # prepare server for migration
             await server.persist_settings()
@@ -1367,16 +1350,13 @@ class Scheduler(Plugin[SchedulerListener]):
                        ]):
         config = self.get_config(_server).get('action')
         if not config:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("No restart configured for this server.", ephemeral=True)
             return
         elif _server.maintenance:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("Server is in maintenance mode, it will not restart.",
                                                     ephemeral=True)
             return
         elif not _server.restart_time:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("Please try again in a minute.", ephemeral=True)
             return
         restart_in, rconf = await self.eventlistener.get_next_restart(server=_server, restart=config)
@@ -1400,7 +1380,6 @@ class Scheduler(Plugin[SchedulerListener]):
             else:
                 message += " immediately"
             message += f", if the mission is unpaused again."
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(message, delete_after=60)
 
     @group.command(name="cleanup", description="Clear the temp directory")
@@ -1410,7 +1389,6 @@ class Scheduler(Plugin[SchedulerListener]):
                       server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.SHUTDOWN])]):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if server.status != Status.SHUTDOWN:
             if not await utils.yn_question(
@@ -1428,7 +1406,6 @@ class Scheduler(Plugin[SchedulerListener]):
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.PAUSED, Status.RUNNING])], message: str | None = None):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         try:
             await server.lock(message)
@@ -1444,7 +1421,6 @@ class Scheduler(Plugin[SchedulerListener]):
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.PAUSED, Status.RUNNING])]):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         try:
             await server.unlock()
@@ -1463,7 +1439,7 @@ class Scheduler(Plugin[SchedulerListener]):
                           server: app_commands.Transform[Server, utils.ServerTransformer(maintenance=False)]):
         ephemeral = utils.get_ephemeral(interaction)
         if not server.maintenance:
-            if (server.restart_pending or server.on_empty or server.on_mission_end) and \
+            if (server.restart_pending or server.on_empty or server.on_mission_end or server.on_coalition_win) and \
                     not await utils.yn_question(
                         interaction, "Server is configured for a pending restart.\n"
                                      "Setting the maintenance flag will abort this restart.\n"
@@ -1474,17 +1450,15 @@ class Scheduler(Plugin[SchedulerListener]):
             server.restart_pending = False
             server.on_empty.clear()
             server.on_mission_end.clear()
-            # noinspection PyUnresolvedReferences
+            server.on_coalition_win.clear()
             if interaction.response.is_done():
                 await interaction.followup.send(f"Maintenance mode set for server {server.display_name}.",
                                                 ephemeral=ephemeral)
             else:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(f"Maintenance mode set for server {server.display_name}.",
                                                         ephemeral=ephemeral)
             await self.bot.audit("set maintenance flag", user=interaction.user, server=server)
         else:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Server {server.display_name} is already in maintenance mode.",
                                                     ephemeral=ephemeral)
 
@@ -1496,12 +1470,10 @@ class Scheduler(Plugin[SchedulerListener]):
         ephemeral = utils.get_ephemeral(interaction)
         if server.maintenance:
             server.maintenance = False
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Maintenance mode cleared for server {server.display_name}.",
                                                     ephemeral=ephemeral)
             await self.bot.audit("cleared maintenance flag", user=interaction.user, server=server)
         else:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Server {server.display_name} is not in maintenance mode.",
                                                     ephemeral=ephemeral)
 

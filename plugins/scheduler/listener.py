@@ -157,6 +157,10 @@ class SchedulerListener(EventListener["Scheduler"]):
                     "arg2": data['arg2'],
                     "server_name": server.name
                 }))
+                if server.on_coalition_win:
+                    self.bot.loop.call_soon(asyncio.create_task,
+                                            self.plugin.run_action(server, server.on_coalition_win.copy()))
+                    server.on_coalition_win.clear()
             else:
                 asyncio.create_task(self.bus.send_to_node({
                     "command": "onServerStop",
@@ -179,6 +183,7 @@ class SchedulerListener(EventListener["Scheduler"]):
         server.restart_pending = False
         server.on_empty.clear()
         server.on_mission_end.clear()
+        server.on_coalition_win.clear()
         asyncio.create_task(self.set_restart_time(server))
 
     @event(name="onMissionEnd")
@@ -240,6 +245,7 @@ class SchedulerListener(EventListener["Scheduler"]):
             server.restart_pending = False
             server.on_empty.clear()
             server.on_mission_end.clear()
+            server.on_coalition_win.clear()
             await player.sendChatMessage('Maintenance mode enabled.')
             await self.bot.audit("set maintenance flag", user=player.member or player.ucid, server=server)
         else:

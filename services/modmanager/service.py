@@ -359,10 +359,13 @@ class ModManagerService(Service):
                         os.makedirs(os.path.dirname(dest), exist_ok=True)
                         shutil.copy2(orig, dest)
                     else:
+                        dir_name = os.path.dirname(_name)
+                        if dir_name and not os.path.exists(os.path.dirname(orig)):
+                            os.makedirs(os.path.dirname(orig), exist_ok=True)
+                            log_entries.append(f"w {os.path.dirname(_name)}\n")
+                        if _name.endswith('/'):
+                            continue
                         log_entries.append(f"w {_name}\n")
-                    os.makedirs(os.path.dirname(orig), exist_ok=True)
-                    if orig.endswith('/'):
-                        continue
                     with zfile.open(name) as infile:
                         with open(orig, mode='wb') as outfile:
                             outfile.write(infile.read())

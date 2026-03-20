@@ -1,6 +1,9 @@
 from __future__ import annotations
 import asyncio
+import importlib
+import inspect
 import os
+import pkgutil
 import uuid
 
 from abc import ABC, abstractmethod
@@ -51,6 +54,7 @@ class Server(DataObject, ABC):
     _maintenance: bool = field(compare=False, default=False)
     restart_pending: bool = field(default=False, compare=False)
     on_mission_end: dict = field(default_factory=dict, compare=False)
+    on_coalition_win: dict = fiel(default_factory=dict, compare=False)
     on_empty: dict = field(default_factory=dict, compare=False)
     extensions: dict[str, Extension] = field(default_factory=dict, compare=False)
     afk: dict[str, datetime] = field(default_factory=dict, compare=False)
@@ -541,4 +545,26 @@ class Server(DataObject, ABC):
 
     @async_cache
     async def list_extension(self) -> list[str]:
-        return self.locals.get('extensions', [])
+        from core import Extension, InstallableExtension
+
+        extensions: list[str] = []
+        root_pkg = importlib.import_module('extensions')
+
+        for finder, module_name, is_pkg in pkgutil.walk_packages(
+                path=root_pkg.__path__, prefix=root_pkg.__name__ + "."
+        ):
+            # We're only interested in modules named 'extension.py'
+            if not module_name.endswith(".extension"):
+                continue
+
+            try:
+                mod = importlib.import_module(module_name)
+                for name, obj in inspect.getmembers(mod, inspect.isclass):
+                    if obj is Extension or obj is InstallableExtension:
+                        continue
+                    if issubclass(obj, Extension):
+                        extensions.append(name)
+            except Exception:
+                pass
+
+        return sorted(extensions)
