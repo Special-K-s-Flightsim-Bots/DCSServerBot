@@ -744,8 +744,9 @@ class MissionEventListener(EventListener["Mission"]):
         admin_channel = self.bot.get_admin_channel(server)
         if not admin_channel:
             return
-        message = _('Banned user {name} (ucid={ucid}, ipaddr={ipaddr}) rejected.\nReason: {reason}').format(
-            name=data.get('name', 'n/a'), ucid=data['ucid'], ipaddr=data['ipaddr'], reason=data['reason'])
+        message = _('Banned user {name} (ucid={ucid}, ip_hash={ipaddr}) rejected.\nReason: {reason}').format(
+            name=data.get('name', 'n/a'), ucid=data['ucid'], ipaddr=utils.hash_ip_addr(data['ipaddr']),
+            reason=data['reason'])
         await admin_channel.send(f"```{message}```")
 
     @event(name="onBanEvade")
@@ -757,10 +758,10 @@ class MissionEventListener(EventListener["Mission"]):
         if isinstance(old_name, discord.Member):
             old_name = old_name.display_name
 
-        message = _('Player {name} (ucid={ucid}) connected from the same IP (ipaddr={ipaddr}) '
+        message = _('Player {name} (ucid={ucid}) connected from the same IP (ip_hash={ipaddr}) '
                     'as banned player {old_name} (ucid={old_ucid}), who was banned for {reason}!').format(
-            name=data.get('name', 'n/a'), ucid=data['ucid'], ipaddr=data['ipaddr'], old_name=old_name,
-            old_ucid=data['old_ucid'], reason=data['reason']
+            name=data.get('name', 'n/a'), ucid=data['ucid'], ipaddr=utils.hash_ip_addr(data['ipaddr']),
+            old_name=old_name, old_ucid=data['old_ucid'], reason=data['reason']
         )
         view = View(timeout=None)
         button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_evade_{data['ucid']}")

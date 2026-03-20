@@ -41,7 +41,7 @@ class Player(DataObject):
     group_name: str = field(compare=False, default='')
     _member: discord.Member = field(compare=False, repr=False, default=None, init=False)
     _verified: bool = field(compare=False, default=False)
-    coalition: Coalition = field(compare=False, default=None)
+    coalition: Coalition | None = field(compare=False, default=None)
     _watchlist: bool = field(compare=False, default=False)
     _vip: bool = field(compare=False, default=False)
     bot: DCSServerBot = field(compare=False, init=False)
