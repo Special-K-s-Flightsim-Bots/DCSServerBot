@@ -54,7 +54,7 @@ class Server(DataObject, ABC):
     _maintenance: bool = field(compare=False, default=False)
     restart_pending: bool = field(default=False, compare=False)
     on_mission_end: dict = field(default_factory=dict, compare=False)
-    on_coalition_win: dict = fiel(default_factory=dict, compare=False)
+    on_coalition_win: dict = field(default_factory=dict, compare=False)
     on_empty: dict = field(default_factory=dict, compare=False)
     extensions: dict[str, Extension] = field(default_factory=dict, compare=False)
     afk: dict[str, datetime] = field(default_factory=dict, compare=False)
