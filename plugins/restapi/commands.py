@@ -421,8 +421,6 @@ class RestAPI(Plugin):
         )
         self.app.include_router(self.router)
 
-    
-
     def get_endpoint_config(self, endpoint: str):
         return self.get_config().get('endpoints', {}).get(endpoint, {})
 

@@ -113,7 +113,64 @@ DEFAULT:
 
 ## Auto-Scanning
 If you set `autoscan: true` in your server configuration of your servers.yaml, all miz files added into the 
-Missions folder of your DCS-server (for instance via a Google Drive) will be auto-added to your mission list.
+Missions folder of your DCS server (for instance via a Google Drive) will be auto-added to your mission list.
+
+## Reports
+You can customize the reports used in this plugin.
+
+### Server Info
+If you don't want to print the password of your server, you can set `show_passwords: false` in your servers.yaml.
+You can also copy your serverStatus.json from /plugins/mission/reports to /reports/mission and change it to this:
+```json
+{
+  "color": "blue",
+  "elements":
+  [
+    {
+      "class": "plugins.mission.status.Init"
+    },
+    {
+      "class": "plugins.mission.status.ServerInfo",
+      "params": { "show_password": false }
+    },
+    {
+      "class": "plugins.mission.status.WeatherInfo"
+    },
+    {
+      "class": "plugins.mission.status.IntegrityCheck"
+    },
+    {
+      "class": "plugins.mission.status.ExtensionsInfo"
+    },
+    {
+      "class": "plugins.mission.status.ScheduleInfo"
+    },
+    {
+      "class": "plugins.mission.status.Footer"
+    }
+  ]
+}
+```
+
+### Player Info
+If you want to only show players that are slotted in already, you can copy your players.json 
+from /plugins/mission/reports to /reports/mission and amend it like so:
+```json
+{
+  "color": "blue",
+  "title": "Active Players",
+  "elements":
+  [
+    {
+      "class": "plugins.mission.players.Main",
+      "params": {
+        "in_game": true
+      }
+    }
+  ]
+}
+```
+
 
 ## Discord Commands
 | Command                | Parameter                                 | Channel               | Role                           | Description                                                                                                                                                                                                                       |
