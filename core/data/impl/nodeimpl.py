@@ -679,8 +679,11 @@ class NodeImpl(Node):
 
             def run_subprocess() -> int:
                 try:
-                    # we delete the downloads dir, as we do not want to click anything
-                    utils.safe_rmtree(os.path.join(self.installation, '_downloads'))
+                    try:
+                        # we delete the downloads dir, as we do not want to click anything
+                        utils.safe_rmtree(os.path.join(self.installation, '_downloads'))
+                    except PermissionError:
+                        self.log.warning("No permission to clean the _downloads directory, trying to update anyway ...")
                     # then do the update
                     cmd = [os.path.join(self.installation, 'bin', 'dcs_updater.exe'), '--quiet', 'update']
                     if version:
