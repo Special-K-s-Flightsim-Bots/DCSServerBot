@@ -16,7 +16,7 @@ if [ -z "$python_version" ]; then
     echo "Please ensure Python is installed and available."
     echo "Press any key to continue..."
     read -n 1
-    exit 9009
+    exit 1
 fi
 
 # Required minimum Python version
@@ -64,11 +64,11 @@ while true; do
     "$VENV/bin/python" "$PROGRAM" "${ARGS[@]}"
     EXIT_CODE=$?
 
-    if [[ $EXIT_CODE -eq -1 ]]; then
+    if [[ $EXIT_CODE -eq 255 ]]; then
         PROGRAM="run.py"
-    elif [[ $EXIT_CODE -eq -3 ]]; then
+    elif [[ $EXIT_CODE -eq 253 ]]; then
         PROGRAM="update.py"
-    elif [[ $EXIT_CODE -eq -2 ]]; then
+    elif [[ $EXIT_CODE -eq 252 ]]; then
         echo "Please press any key to continue..."
         read -n 1 -s
         break
