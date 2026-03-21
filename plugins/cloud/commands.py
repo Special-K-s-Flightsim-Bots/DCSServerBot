@@ -158,7 +158,6 @@ class Cloud(Plugin[CloudListener]):
     @utils.app_has_role('Admin')
     async def status(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Checking cloud connection ...'), ephemeral=ephemeral)
         try:
             await self.get('discord-bans')
@@ -185,7 +184,6 @@ class Cloud(Plugin[CloudListener]):
                      member: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if 'token' not in self.config:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_('No cloud sync configured!'), ephemeral=True)
             return
         async with self.apool.connection() as conn:
@@ -199,7 +197,6 @@ class Cloud(Plugin[CloudListener]):
                 await conn.execute(sql, (member, ))
             else:
                 await conn.execute(sql)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Resync with cloud triggered.'), ephemeral=ephemeral)
 
     @cloud.command(description=_('Generate Cloud Statistics'))
@@ -208,7 +205,6 @@ class Cloud(Plugin[CloudListener]):
     async def statistics(self, interaction: discord.Interaction,
                          user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None):
         if 'token' not in self.config:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_('Cloud statistics are not activated in this Discord!'),
                                                     ephemeral=True)
             return
@@ -217,7 +213,6 @@ class Cloud(Plugin[CloudListener]):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(_("Use {} to link your account.").format(
                     (await utils.get_command(self.bot, name='linkme')).mention
                 ), ephemeral=True)
@@ -228,7 +223,6 @@ class Cloud(Plugin[CloudListener]):
             name = await self.bot.get_member_or_name_by_ucid(ucid)
             if isinstance(name, discord.Member):
                 name = name.display_name
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         try:
             response = await self.get(f'stats/{ucid}')
@@ -272,7 +266,6 @@ class Cloud(Plugin[CloudListener]):
             msg = await interaction.original_response()
             await msg.edit(embed=embed, delete_after=self.bot.locals.get('message_autodelete'))
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         try:
             query = f'serverlist?dcs_version={self.node.dcs_version}'
@@ -293,7 +286,6 @@ class Cloud(Plugin[CloudListener]):
                 await display_server(response[n])
         except aiohttp.ClientError:
             await interaction.followup.send(_('Cloud not connected!'), ephemeral=True)
-
 
     @tasks.loop(minutes=15.0)
     async def cloud_bans(self):
@@ -434,6 +426,7 @@ class Cloud(Plugin[CloudListener]):
                     num_bots = row[0]
                     num_servers = row[1]
         try:
+            config = self.get_config()
             if 'DCS' in self.node.locals:
                 _, dcs_version = await self.node.get_dcs_branch_and_version()
             else:
@@ -457,7 +450,6 @@ class Cloud(Plugin[CloudListener]):
                     "num_servers": len([x for x in self.bus.servers.values() if x.node == node])
                 })
 
-            # noinspection PyUnresolvedReferences
             bot = {
                 "guild_id": self.bot.guilds[0].id,
                 "guild_name": self.bot.guilds[0].name,
@@ -473,7 +465,13 @@ class Cloud(Plugin[CloudListener]):
                         "version": p.plugin_version
                     } for p in self.bot.cogs.values()
                 ],
-                "nodes": nodes
+                "nodes": nodes,
+                "dgsa": {
+                    "banlist": config.get('banlist', 'both'),
+                    "dcs_ban": config.get('dcs-ban', False),
+                    "discord_ban": config.get('discord-ban', False),
+                    "watchlist_only": config.get('watchlist_only', False),
+                }
             }
             self.log.debug("Updating registration with this data: " + str(bot))
             await self.post('register', bot)
