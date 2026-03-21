@@ -1365,10 +1365,8 @@ class NodeImpl(Node):
                     if (file.is_dir() and is_dir) or (not is_dir and not file.is_dir()):
                         yield file
 
-        for file in sorted(filtered_files(), key=sort_key, reverse=sort_key != str):
-            ret.append(str(file))
-
-        return str(directory), ret
+        ret = [f.as_posix() for f in sorted(filtered_files(), key=sort_key, reverse=sort_key != str)]
+        return directory.as_posix(), ret
 
     @override
     async def create_directory(self, path: str):
