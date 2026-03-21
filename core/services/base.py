@@ -161,7 +161,7 @@ class Service(ABC):
             raise ServiceInstallationError(self.name, ex.__str__())
 
     def save_config(self):
-        with open(os.path.join(self.node.config_dir, 'services', self.name + '.yaml'),
+        with open(os.path.join(self.node.config_dir, 'services', f'{self.name.lower()}.yaml'),
                   mode='w', encoding='utf-8') as outfile:
             yaml.dump(self.locals, outfile)
 
