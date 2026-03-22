@@ -276,3 +276,7 @@ class Node(ABC):
     @abstractmethod
     async def info(self) -> dict:
         raise NotImplementedError()
+
+    @abstractmethod
+    async def get_config(self) -> dict:
+        raise NotImplementedError()

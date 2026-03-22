@@ -459,3 +459,12 @@ class NodeProxy(Node):
             "object": "Node",
             "method": "info"
         }, timeout=timeout, node=self.name)
+
+    @override
+    async def get_config(self) -> dict:
+        timeout = 60 if not self.slow_system else 120
+        return await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "get_config"
+        }, timeout=timeout, node=self.name)

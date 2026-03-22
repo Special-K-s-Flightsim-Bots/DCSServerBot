@@ -276,6 +276,10 @@ class ServiceBus(Service):
 
         self.log.info(f"- Registering remote node {name} ...")
         node = NodeProxy(self.node, name, public_ip, dcs_version)
+        # we did not find a configuration for this node, load it from remote
+        if not node.locals:
+            node.locals = await node.get_config()
+
         self.node.all_nodes[node.name] = node
         while not self.bot or not ServiceRegistry.get(BotService):
             await asyncio.sleep(1)

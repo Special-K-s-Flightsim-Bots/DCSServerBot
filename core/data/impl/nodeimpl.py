@@ -1908,3 +1908,7 @@ class NodeImpl(Node):
                 node_dict[key] = repr(value)
 
         return node_dict
+
+    @override
+    async def get_config(self) -> dict:
+        return self.read_locals()
