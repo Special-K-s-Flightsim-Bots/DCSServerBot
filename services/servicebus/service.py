@@ -279,6 +279,8 @@ class ServiceBus(Service):
         # we did not find a configuration for this node, load it from remote
         if not node.locals:
             node.locals = await node.get_config()
+            if not node.locals:
+                self.log.warning(f'No configuration found for node "{node.name}" in nodes.yaml!')
 
         self.node.all_nodes[node.name] = node
         while not self.bot or not ServiceRegistry.get(BotService):
@@ -503,7 +505,7 @@ class ServiceBus(Service):
                 asyncio.create_task(self.udp_server.process_messages(server.name))
             self.log.info(f"  => Remote DCS-Server \"{server.name}\" registered.")
         except StopIteration:
-            self.log.error(f"No configuration found for instance {instance} in config\\nodes.yaml")
+            self.log.error(f"No configuration found for instance {instance} in nodes.yaml")
         except Exception as ex:
             self.log.exception(str(ex), exc_info=True)
 
