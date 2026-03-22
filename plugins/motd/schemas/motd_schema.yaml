@@ -7,6 +7,7 @@ schema;message_list:
       mapping:
        message: {type: str, nullable: false, range: {min: 1}}
        recipients: {type: str, nullable: false, range: {min: 1}}
+       coalition: {type: str, enum: ['red', 'blue'], nullable: false}
        report: {type: str, nullable: false, range: {min: 1}}
        display_type: {type: str, enum: ['chat', 'popup'], nullable: false}
        display_time: {type: int, range: {min: 1}, nullable: false}
@@ -43,9 +44,11 @@ schema;single_nudge:
   mapping:
     delay: {type: int, nullable: false}
     message: {type: str, nullable: false, range: {min: 1}}
+    random: {type: bool, nullable: false}
     messages:
       include: 'message_list'
     recipients: {type: str, nullable: false, range: {min: 1}}
+    coalition: {type: str, enum: ['red', 'blue'], nullable: false}
     display_type: {type: str, enum: ['chat', 'popup'], nullable: false}
     display_time: {type: int, range: {min: 1}, nullable: false}
     sound: {type: str, nullable: false, range: {min: 1}}

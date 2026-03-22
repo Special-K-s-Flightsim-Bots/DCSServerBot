@@ -1,0 +1,26 @@
+{
+  "color": "blue",
+  "title": "Active Messages",
+  "elements":
+  [
+    {
+      "type": "Graph",
+      "params": {
+        "width": 1,
+        "height": 1,
+        "rows": 1,
+        "cols": 1,
+        "elements": [
+          {
+            "class": "core.report.elements.SQLRenderedTable",
+            "params": {
+              "row": 0,
+              "col": 0,
+              "sql": "SELECT m.sender AS \"Sender\", p.name AS \"Name\", p.ucid AS \"UCID\", m.message AS \"Message\", m.ack AS \"ACK\", m.time AS \"Time\" FROM messages m JOIN players p ON m.player_ucid = p.ucid ORDER BY id DESC"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Any
 
 __all__ = [
     "Side",
@@ -84,3 +85,14 @@ class Port:
 
     def type(self) -> PortType:
         return self.typ
+
+    def to_dict(self) -> dict:
+        return {
+            "port": self.port,
+            "typ": self.typ.value,
+            "public": self.public
+        }
+
+    @staticmethod
+    def from_dict(data: dict) -> Any: # TODO: Self
+        return Port(data['port'], PortType(data['typ']), public=data.get('public', False))

@@ -1,16 +1,17 @@
-local base               = _G
+local base          = _G
 
-local dcsbot             = base.dcsbot
-local utils              = base.require("DCSServerBotUtils")
-local Censorship         = base.require('censorship')
-local textutil           = base.require('textutil')
+local dcsbot        = base.dcsbot
+local utils 	    = base.require("DCSServerBotUtils")
+local Censorship    = base.require('censorship')
+local textutil      = base.require('textutil')
 
-dcsbot.banList           = dcsbot.banList or {}
-dcsbot.locked            = dcsbot.locked or {}
-dcsbot.userInfo          = dcsbot.userInfo or {}
-dcsbot.red_slots         = dcsbot.red_slots or {}
-dcsbot.blue_slots        = dcsbot.blue_slots or {}
-dcsbot.whitelist         = dcsbot.whitelist or {}
+dcsbot.banList      = dcsbot.banList or {}
+dcsbot.locked       = dcsbot.locked or {}
+dcsbot.muted        = dcsbot.muted or {}
+dcsbot.userInfo     = dcsbot.userInfo or {}
+dcsbot.red_slots    = dcsbot.red_slots or {}
+dcsbot.blue_slots   = dcsbot.blue_slots or {}
+dcsbot.whitelist    = dcsbot.whitelist or {}
 
 local mission            = mission or {}
 mission.last_landing     = {}
@@ -111,6 +112,10 @@ local function isLocked(ucid)
     return dcsbot.locked[ucid] ~= nil
 end
 
+local function isMuted(ucid)
+    return dcsbot.muted[ucid] ~= nil
+end
+
 function mission.onPlayerTryConnect(addr, name, ucid, _playerID)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTryConnect()')
     if dcsbot.params == nil then
@@ -128,7 +133,7 @@ function mission.onPlayerTryConnect(addr, name, ucid, _playerID)
     end
     local name2 = name:gsub("[\r\n%z]", "")
     -- local name2 = name:gsub("[%c]", "")
-    if name ~= name2 then
+    if name ~= name2 or #name < 3 then
         return false, config.messages.message_player_username
     end
     -- check bans including the SMART ban system
@@ -242,6 +247,15 @@ function mission.onMissionLoadEnd()
     -- clear any lockings
     dcsbot.server_locked = false
     dcsbot.locked = {}
+    utils.sendBotTable(msg)
+end
+
+function mission.onMissionRestart(arg1)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onMissionRestart()')
+    local msg = {
+        command = "onMissionRestart",
+        arg1 = arg1
+    }
     utils.sendBotTable(msg)
 end
 
@@ -443,16 +457,19 @@ local eventHandlers = {
             end
         end
     end,
-    kill = function(arg1, _arg2, arg3, _arg4, _arg5, _arg6, arg7)
+    kill = function(arg1, _arg2, _arg3, arg4, _arg5, _arg6, arg7)
         local _unit_type, slot, _sub_slot = utils.getMulticrewAllParameters(arg1)
         local display_name = Sim.getUnitTypeAttribute(Sim.getUnitType(slot), "DisplayName")
         -- do we have collision kill (weapon == unit name)
         if display_name == arg7 then
             -- ignore "spawn on top"
-            if utils.isWithinInterval(mission.last_change_slot[arg1], 60) or utils.isWithinInterval(mission.last_change_slot[arg3], 60) then
+            if utils.isWithinInterval(mission.last_change_slot[arg1], 60) or utils.isWithinInterval(mission.last_change_slot[arg4], 60) then
                 return false
             end
         end
+    end,
+    onMissionRestart = function(arg1)
+        mission.onMissionRestart(arg1)
     end
 }
 
@@ -500,6 +517,11 @@ function mission.onPlayerTrySendChat(from, message, to)
             to = to
         }
         utils.sendBotTable(msg)
+        return ''
+    end
+    local ucid = net.get_player_info(from, 'ucid')
+    if isMuted(ucid) then
+        net.send_chat_to('You have been muted by an admin.', from)
         return ''
     end
     if config.profanity_filter then

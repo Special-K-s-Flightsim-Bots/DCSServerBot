@@ -27,6 +27,7 @@ schema;action_map:
     no_reload: {type: bool, nullable: false}
     use_orig: {type: bool, nullable: false}
     presets: {type: any, nullable: false, func: str_or_list}
+    password: {type: str}
     settings:
       type: seq
       nullable: false

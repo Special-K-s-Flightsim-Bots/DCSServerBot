@@ -65,7 +65,7 @@ class CleanupService(Service):
                         await self.do_directory_cleanup(instance, config)
             else:
                 for name, config in self.get_config().items():
-                    if 'channel' in config:
+                    if self.node.master and 'channel' in config:
                         self.log.debug(f"- Running channel cleanup ...")
                         await self.do_channel_cleanup(config)
         except Exception:

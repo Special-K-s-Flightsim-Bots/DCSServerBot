@@ -9,6 +9,7 @@ from typing import TypeVar, TYPE_CHECKING, Any, Type, Iterable, Callable, Generi
 if TYPE_CHECKING:
     from core import Plugin, Server, Player
     from services.bot import DCSServerBot
+    from services.servicebus import ServiceBus
 
 __all__ = [
     "Event",
@@ -118,6 +119,7 @@ class EventListener(Generic[TPlugin], metaclass=EventListenerMetaABC):
         self.plugin: TPlugin = plugin
         self.plugin_name = type(self).__module__.split('.')[-2]
         self.bot: DCSServerBot = plugin.bot
+        self.bus: ServiceBus = self.bot.bus
         self.node = plugin.node
         self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.pool = plugin.pool

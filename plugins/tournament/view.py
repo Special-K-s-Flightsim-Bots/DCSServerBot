@@ -112,14 +112,14 @@ class SignupView(View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(label=_("Signup"), style=ButtonStyle.green)
-    async def signup(self, interaction: discord.Interaction, button: Button):
+    async def signup(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
     # noinspection PyTypeChecker
     @discord.ui.button(label=_("Cancel"), style=ButtonStyle.red)
-    async def cancel(self, interaction: discord.Interaction, button: Button):
+    async def cancel(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.times = self.terrains = None
@@ -289,17 +289,16 @@ class ChoicesView(View):
 
         if num and costs * num <= squadron.points:
             async with self.plugin.apool.connection() as conn:
-                async with conn.transaction():
+                await conn.execute("""
+                    INSERT INTO tm_choices (match_id, squadron_id, preset, config) 
+                    VALUES (%s, %s, %s, %s)
+                """, (self.match_id, self.squadron_id, choice, Json({"num": num})))
+                if ticket_name:
+                    # invalidate the ticket
                     await conn.execute("""
-                        INSERT INTO tm_choices (match_id, squadron_id, preset, config) 
-                        VALUES (%s, %s, %s, %s)
-                    """, (self.match_id, self.squadron_id, choice, Json({"num": num})))
-                    if ticket_name:
-                        # invalidate the ticket
-                        await conn.execute("""
-                            UPDATE tm_tickets SET ticket_count = ticket_count - %s
-                            WHERE tournament_id = %s AND squadron_id = %s AND ticket_name = %s
-                        """, (num, self.tournament_id, self.squadron_id, ticket_name))
+                        UPDATE tm_tickets SET ticket_count = ticket_count - %s
+                        WHERE tournament_id = %s AND squadron_id = %s AND ticket_name = %s
+                    """, (num, self.tournament_id, self.squadron_id, ticket_name))
             squadron.points -= costs * num
             squadron.audit(event='match_choice', points=-costs * num,
                            remark=f'Bought {num} of {choice} during a match choice.')
@@ -317,19 +316,18 @@ class ChoicesView(View):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         async with self.plugin.apool.connection() as conn:
-            async with conn.transaction():
-                cursor = await conn.execute("""
-                    DELETE FROM tm_choices 
-                    WHERE match_id = %s AND squadron_id = %s AND preset = %s
-                    RETURNING config
-                """, (self.match_id, self.squadron_id, choice))
-                num = (await cursor.fetchone())[0]['num']
-                if ticket_name:
-                    # return the ticket
-                    await conn.execute("""
-                        UPDATE tm_tickets SET ticket_count = ticket_count + %s
-                        WHERE tournament_id = %s AND squadron_id = %s AND ticket_name = %s
-                    """, (num, self.tournament_id, self.squadron_id, ticket_name))
+            cursor = await conn.execute("""
+                DELETE FROM tm_choices 
+                WHERE match_id = %s AND squadron_id = %s AND preset = %s
+                RETURNING config
+            """, (self.match_id, self.squadron_id, choice))
+            num = (await cursor.fetchone())[0]['num']
+            if ticket_name:
+                # return the ticket
+                await conn.execute("""
+                    UPDATE tm_tickets SET ticket_count = ticket_count + %s
+                    WHERE tournament_id = %s AND squadron_id = %s AND ticket_name = %s
+                """, (num, self.tournament_id, self.squadron_id, ticket_name))
 
         squadron.points += costs * num
         squadron.audit(event='match_choice', points=costs * num,
@@ -380,41 +378,40 @@ class ApplicationView(View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(label=_("Accept"), style=ButtonStyle.green)
-    async def on_accept(self, interaction: discord.Interaction, button: Button):
+    async def on_accept(self, interaction: discord.Interaction, _button: Button):
         tournament = await self.plugin.get_tournament(self.tournament_id)
         embed = discord.Embed(color=discord.Color.green(), title=_("Your Squadron has been accepted!"))
         embed.description = _("Congratulations, you will be part of our upcoming tournament!")
         embed.add_field(name=_("Tournament"), value=tournament['name'])
         embed.add_field(name=_("Start Date"), value=f"<t:{int(tournament['start'].timestamp())}:f>")
         async with self.plugin.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    UPDATE tm_squadrons SET status = 'ACCEPTED' WHERE tournament_id = %s AND squadron_id = %s
-                """, (self.tournament_id, self.squadron_id))
-                # create the tickets if there are any
-                tickets = {
-                    k: v['num']
-                    for k, v in self.plugin.get_config().get('presets', {}).get('tickets', {}).items()
-                    if v.get('num', 0) > 0
-                }
-                if tickets:
-                    embed.description += _(
-                        "\n\nYou can use the following tickets during the tournament to buy special customizations:"
-                    )
-                    await conn.execute("DELETE FROM tm_tickets WHERE tournament_id = %s AND squadron_id = %s",
-                                       (self.tournament_id, self.squadron_id))
-                    ticket_names = []
-                    ticket_counts = []
-                    for name, count in tickets.items():
-                        await conn.execute("""
-                            INSERT INTO tm_tickets(tournament_id, squadron_id, ticket_name, ticket_count)
-                            VALUES (%s, %s, %s, %s)
-                        """, (self.tournament_id, self.squadron_id, name, count))
-                        ticket_names.append(name)
-                        ticket_counts.append(count)
-                    embed.add_field(name=_("Tickets"),
-                                    value="\n".join([f"{y} x {x}" for x, y in zip(ticket_names, ticket_counts)]))
-                    embed.set_footer(text=_("You can use each ticket only once, so use them wisely!"))
+            await conn.execute("""
+                UPDATE tm_squadrons SET status = 'ACCEPTED' WHERE tournament_id = %s AND squadron_id = %s
+            """, (self.tournament_id, self.squadron_id))
+            # create the tickets if there are any
+            tickets = {
+                k: v['num']
+                for k, v in self.plugin.get_config().get('presets', {}).get('tickets', {}).items()
+                if v.get('num', 0) > 0
+            }
+            if tickets:
+                embed.description += _(
+                    "\n\nYou can use the following tickets during the tournament to buy special customizations:"
+                )
+                await conn.execute("DELETE FROM tm_tickets WHERE tournament_id = %s AND squadron_id = %s",
+                                   (self.tournament_id, self.squadron_id))
+                ticket_names = []
+                ticket_counts = []
+                for name, count in tickets.items():
+                    await conn.execute("""
+                        INSERT INTO tm_tickets(tournament_id, squadron_id, ticket_name, ticket_count)
+                        VALUES (%s, %s, %s, %s)
+                    """, (self.tournament_id, self.squadron_id, name, count))
+                    ticket_names.append(name)
+                    ticket_counts.append(count)
+                embed.add_field(name=_("Tickets"),
+                                value="\n".join([f"{y} x {x}" for x, y in zip(ticket_names, ticket_counts)]))
+                embed.set_footer(text=_("You can use each ticket only once, so use them wisely!"))
 
         # update the info embed
         channel_id = self.plugin.get_config().get('channels', {}).get('info')
@@ -432,12 +429,11 @@ class ApplicationView(View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(label=_("Reject"), style=ButtonStyle.red)
-    async def on_reject(self, interaction: discord.Interaction, button: Button):
+    async def on_reject(self, interaction: discord.Interaction, _button: Button):
         async with self.plugin.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    UPDATE tm_squadrons SET status = 'REJECTED' WHERE tournament_id = %s AND squadron_id = %s
-                """, (self.tournament_id, self.squadron_id))
+            await conn.execute("""
+                UPDATE tm_squadrons SET status = 'REJECTED' WHERE tournament_id = %s AND squadron_id = %s
+            """, (self.tournament_id, self.squadron_id))
         modal = RejectModal()
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
@@ -474,7 +470,7 @@ class ApplicationView(View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(label=_("Cancel"), style=ButtonStyle.secondary)
-    async def on_cancel(self, interaction: discord.Interaction, button: Button):
+    async def on_cancel(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()

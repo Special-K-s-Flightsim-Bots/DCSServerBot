@@ -86,7 +86,7 @@ class gRPC(Extension):
         for idx, line in enumerate(orig):
             if ("dofile('Scripts/ScriptingSystem.lua')" in line and
                     r"dofile(lfs.writedir()..[[Scripts\DCS-gRPC\grpc-mission.lua]])" not in orig[idx+1]):
-                orig.insert(idx+1, r"dofile(lfs.writedir()..[[Scripts\DCS-gRPC\grpc-mission.lua]])")
+                orig.insert(idx+1, r"dofile(lfs.writedir()..[[Scripts\DCS-gRPC\grpc-mission.lua]])" + "\n")
                 dirty = True
                 break
         if dirty:

@@ -4,7 +4,7 @@ from typing import cast
 
 
 class Main(report.EmbedElement):
-    async def render(self, server: Server, sides: list[Coalition]):
+    async def render(self, server: Server, sides: list[Coalition], in_game: bool = False) -> None:
         players = server.get_active_players()
         sides = {
             Side.NEUTRAL: {"names": [], "units": [], "SRS": []},
@@ -19,13 +19,14 @@ class Main(report.EmbedElement):
         players_sorted = sorted(players, key=lambda p: p.display_name)
         for player in players_sorted:
             sides[player.side]['names'].append(player.display_name)
-            if player.side != Side.NEUTRAL:
+            pending = (player.pending and player.sub_slot == 0) and in_game
+            if player.side != Side.NEUTRAL and not pending:
                 unit = player.unit_type
                 if player.sub_slot > 0:
                     unit += ' (crew)'
                 sides[player.side]['units'].append(unit)
             else:
-                sides[player.side]['units'].append('')
+                sides[Side.NEUTRAL]['units'].append('')
             if srs_users:
                 sides[player.side]['SRS'].append(':green_circle:' if player.name in srs_users else ':red_circle:')
         for side in [Side.BLUE, Side.RED, Side.NEUTRAL]:

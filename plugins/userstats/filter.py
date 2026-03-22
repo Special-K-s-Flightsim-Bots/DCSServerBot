@@ -194,12 +194,12 @@ class PeriodFilter(StatisticsFilter):
 class CampaignFilter(StatisticsFilter):
     @staticmethod
     def list(bot: DCSServerBot) -> list[str]:
-        return [f"campaign:{x}" for x in utils.get_all_campaigns(bot)]
+        return [f"campaign:{x}" for x in utils.get_all_campaigns(bot.node)]
 
     @staticmethod
     def supports(bot: DCSServerBot, period: str) -> bool:
         return period and (period.lower().startswith('campaign:') or period.casefold() in [
-            x.casefold() for x in utils.get_all_campaigns(bot)
+            x.casefold() for x in utils.get_all_campaigns(bot.node)
         ])
 
     def filter(self, bot: DCSServerBot) -> str:

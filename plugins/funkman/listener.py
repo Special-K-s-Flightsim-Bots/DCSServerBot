@@ -52,7 +52,7 @@ class FunkManEventListener(EventListener["FunkMan"]):
         missiontime = self._GetVal(result, "mitime", "?")
         missiondate = self._GetVal(result, "midate", "?")
         theatre = self._GetVal(result, "theatre", "Unknown Map")
-        theta = self._GetVal(result, "carrierrwy", -9)
+        _theta = self._GetVal(result, "carrierrwy", -9)
 
         color = 0x00ff00
         urlIm = "https://i.imgur.com/1bWgcV7.png"
@@ -112,12 +112,12 @@ class FunkManEventListener(EventListener["FunkMan"]):
         plt.close(fig)
         return filename, buffer
 
-    async def send_fig(self, fig: matplotlib.figure.Figure, channel: discord.TextChannel):
+    async def send_fig(self, fig: matplotlib.figure.Figure, channel: discord.abc.Messageable):
         try:
             filename, buffer = self.save_fig(fig)
             with buffer:
                 await channel.send(file=discord.File(fp=buffer, filename=filename),
-                                   delete_after=self.config.get('delete_after'))
+                                   delete_after=self.get_config().get('message_autodelete'))
         except Exception as ex:
             self.log.exception(ex)
 
@@ -142,11 +142,11 @@ class FunkManEventListener(EventListener["FunkMan"]):
             self.log.exception(ex)
 
     @event(name='registerDCSServer')
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
+    async def registerDCSServer(self, server: Server, _data: dict) -> None:
         config = self.get_config(server)
         for name in ['CHANNELID_MAIN', 'CHANNELID_RANGE', 'CHANNELID_AIRBOSS']:
             if name in config:
-                self.bot.check_channel(self.config[name])
+                self.bot.check_channel(int(config[name]))
 
     @event(name="moose_text")
     async def moose_text(self, server: Server, data: dict) -> None:
@@ -154,51 +154,49 @@ class FunkManEventListener(EventListener["FunkMan"]):
         channel = self.bot.get_channel(int(config.get('CHANNELID_MAIN', -1)))
         if not channel:
             return
-        await channel.send(data['text'], delete_after=self.config.get('delete_after'))
+        await channel.send(data['text'], delete_after=self.get_config(server).get('message_autodelete'))
 
     @event(name="moose_bomb_result")
     async def moose_bomb_result(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         player: Player = server.get_player(name=data['player'])
         if player:
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("""
-                        INSERT INTO bomb_runs (mission_id, player_ucid, unit_type, range_name, distance, quality)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
-                          data['distance'], BombQuality[data['quality']].value))
-            asyncio.create_task(self.update_rangeboard(server, 'bomb'))
+            async with self.apool.connection() as conn:
+                await conn.execute("""
+                    INSERT INTO bomb_runs (mission_id, player_ucid, unit_type, range_name, distance, quality)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
+                      data['distance'], BombQuality[data['quality']].value))
         channel = self.bot.get_channel(int(config.get('CHANNELID_RANGE', -1)))
         if not channel:
             return
         fig, _ = (await self.get_funkplot()).PlotBombRun(data)
         if not fig:
-            self.log.error("Bomb result could not be plotted (due to missing data?)")
+            self.log.warning("Bomb result could not be plotted (due to missing data?)")
             return
         asyncio.create_task(self.send_fig(fig, channel))
+        asyncio.create_task(self.update_rangeboard(server, 'bomb'))
 
     @event(name="moose_strafe_result")
     async def moose_strafe_result(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         player: Player = server.get_player(name=data['player'])
         if player:
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("""
-                        INSERT INTO strafe_runs (mission_id, player_ucid, unit_type, range_name, accuracy, quality)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
-                          data['strafeAccuracy'], StrafeQuality[data['roundsQuality'].replace(' ', '_')].value if not data.get('invalid', False) else None))
-            asyncio.create_task(self.update_rangeboard(server, 'strafe'))
+            async with self.apool.connection() as conn:
+                await conn.execute("""
+                    INSERT INTO strafe_runs (mission_id, player_ucid, unit_type, range_name, accuracy, quality)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
+                      data['strafeAccuracy'], StrafeQuality[data['roundsQuality'].replace(' ', '_')].value if not data.get('invalid', False) else None))
         channel = self.bot.get_channel(int(config.get('CHANNELID_RANGE', -1)))
         if not channel:
             return
         fig, _ = (await self.get_funkplot()).PlotStrafeRun(data)
         if not fig:
-            self.log.error("Strafe result could not be plotted (due to missing data?)")
+            self.log.warning("Strafe result could not be plotted (due to missing data?)")
             return
         asyncio.create_task(self.send_fig(fig, channel))
+        asyncio.create_task(self.update_rangeboard(server, 'strafe'))
 
     @event(name="moose_lso_grade")
     async def moose_lso_grade(self, server: Server, data: dict) -> None:
@@ -209,13 +207,13 @@ class FunkManEventListener(EventListener["FunkMan"]):
         try:
             fig, _ = (await self.get_funkplot()).PlotTrapSheet(data)
             if not fig:
-                self.log.error("Trapsheet could not be plotted (due to missing data?)")
+                self.log.warning("Trapsheet could not be plotted (due to missing data?)")
                 return
             filename, buffer = self.save_fig(fig)
             with buffer:
                 embed = self.create_lso_embed(data)
                 embed.set_image(url=f"attachment://{filename}")
                 await channel.send(embed=embed, file=discord.File(fp=buffer, filename=filename),
-                                   delete_after=self.config.get('delete_after'))
+                                   delete_after=self.get_config(server).get('message_autodelete'))
         except (ValueError, TypeError):
             self.log.warning("No or invalid trapsheet data received from DCS!")

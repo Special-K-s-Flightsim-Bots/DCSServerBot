@@ -15,6 +15,10 @@ MyNode:
       url: https://myfancyhost.com  # Alternate hostname to be displayed in your status embed 
       minutes: 5                    # Number of minutes the Lardoon database is updated
       use_single_process: true      # Start one Lardoon process instead of one per node (default: true) 
+      auto_affinity:                # Optional: set core affinity
+        min_cores: 1                # Min. number of cores to be used
+        max_cores: 1                # Max. number of cores to be used
+        quality: 1                  # Core quality (0 = low (E-cores), 1 = normal, 2 = high)
   # [...]
   instances:
     DCS.dcs_serverrelease:

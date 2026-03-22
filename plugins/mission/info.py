@@ -9,7 +9,7 @@ from typing import cast
 
 class Header(report.EmbedElement):
 
-    async def render(self, member: discord.Member | str):
+    async def render(self, member: discord.Member | str, ruler_length: int):
         sql = """
             SELECT p.first_seen, p.last_seen, 
                    CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, b.reason as ban_reason, b.banned_by, 
@@ -79,7 +79,7 @@ class Header(report.EmbedElement):
             if rows[0]['vip']:
                 self.add_field(name="VIP", value="⭐")
             if banned or watchlist:
-                self.add_field(name='▬' * 13 + ' Bans & Watches ' + '▬' * 13, value='_ _', inline=False)
+                await report.Ruler(self.env).render(header='Bans & Watches', ruler_length=ruler_length)
                 if banned:
                     banned_until = rows[0]['banned_until']
                     if banned_until.year != 9999:
@@ -96,7 +96,7 @@ class Header(report.EmbedElement):
 
 
 class UCIDs(report.EmbedElement):
-    async def render(self, member: discord.Member | str):
+    async def render(self, member: discord.Member | str, ruler_length: int):
         sql = 'SELECT p.ucid, p.manual, COALESCE(p.name, \'?\') AS name FROM players p WHERE p.discord_id = '
         if isinstance(member, str):
             sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR " \
@@ -108,7 +108,7 @@ class UCIDs(report.EmbedElement):
                 await cursor.execute(sql)
                 rows = await cursor.fetchall()
         if rows:
-            self.add_field(name='▬' * 13 + ' Connected UCIDs ' + '▬' * 12, value='_ _', inline=False)
+            await report.Ruler(self.env).render(header='Connected UCIDs', ruler_length=ruler_length)
             self.add_field(name='UCID', value='\n'.join([row['ucid'] for row in rows]))
             self.add_field(name='DCS Name', value='\n'.join([utils.escape_string(row['name']) for row in rows]))
             if isinstance(member, discord.Member):
@@ -117,8 +117,8 @@ class UCIDs(report.EmbedElement):
 
 
 class History(report.EmbedElement):
-    async def render(self, member: discord.Member | str):
-        sql = 'SELECT name, max(time) AS time FROM players_hist p WHERE p.ucid '
+    async def render(self, member: discord.Member | str, ruler_length: int):
+        sql = 'SELECT name, min(time) AS time FROM players_hist p WHERE p.ucid '
         if isinstance(member, discord.Member):
             sql += f"IN (SELECT ucid FROM players WHERE discord_id = {member.id})"
         else:
@@ -129,28 +129,29 @@ class History(report.EmbedElement):
                 await cursor.execute(sql)
                 rows = await cursor.fetchall()
         if rows:
-            self.add_field(name='▬' * 13 + ' Change History ' + '▬' * 13, value='_ _', inline=False)
+            await report.Ruler(self.env).render(header='Change History', ruler_length=ruler_length)
             self.add_field(name='DCS Name', value='\n'.join([
                 utils.escape_string(row['name'] or 'n/a') for row in rows
             ]))
             self.add_field(name='Time (UTC)', value='\n'.join([
-                f'{row["time"].replace(tzinfo=timezone.utc).strftime("%y-%m-%d %H:%Mz")} / '
+                f'{row["time"].replace(tzinfo=timezone.utc).strftime("%m-%d %H:%M")} / '
                 f'<t:{int(row["time"].replace(tzinfo=timezone.utc).timestamp())}:R>' for row in rows
             ]))
 
 
 class ServerInfo(report.EmbedElement):
-    async def render(self, member: discord.Member | str, player: Player | None):
+    async def render(self, member: discord.Member | str, player: Player | None, ruler_length: int):
         if player:
-            self.add_field(name='▬' * 13 + ' Current Activity ' + '▬' * 13, value='_ _', inline=False)
+            await report.Ruler(self.env).render(header='Current Activity', ruler_length=ruler_length)
             self.add_field(name='Active on Server', value=player.server.display_name)
             self.add_field(name='DCS Name', value=player.display_name)
             self.add_field(name='Slot', value=player.unit_type if player.side != Side.NEUTRAL else 'Spectator')
 
 
 class Footer(report.EmbedElement):
-    async def render(self, member: discord.Member | str, banned: bool, watchlist: bool, player: Player | None):
-        self.add_field(name='▬' * 33, value='_ _', inline=False)
+    async def render(self, member: discord.Member | str, banned: bool, watchlist: bool, player: Player | None,
+                     ruler_length: int):
+        await report.Ruler(self.env).render(ruler_length=ruler_length)
         footer = ''
         if isinstance(member, discord.Member):
             _member = DataObjectFactory().new(Member, name=member.name, node=self.node, member=member)

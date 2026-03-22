@@ -23,5 +23,11 @@ mapping:
                   - type: str
                     nullable: false
                     unique: true
+              include_weather: {type: bool, nullable: false, default: true}
+          server_attendance:
+            type: map
+            nullable: true
+            mapping:
+              enabled: {type: bool, nullable: false, default: true}
           regex;(.+):
             type: any

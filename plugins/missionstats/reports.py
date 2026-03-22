@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 
 from core import report, ReportEnv, utils, Side, Coalition, get_translation, df_to_table
@@ -93,7 +92,7 @@ class Sorties(report.GraphElement):
                 # Count how many deaths exist per plane
                 death_counts = self.sorties[self.sorties.death == True].groupby('plane').size()
                 interval_counts = death_counts - 1  # pairs = deaths‑1
-                interval_counts[interval_counts < 0] = np.nan  # protect against 0 deaths
+                interval_counts[interval_counts < 0] = 1 # protect against 0 deaths
 
                 # Average survival time
                 avg_survival = survival_sum / interval_counts

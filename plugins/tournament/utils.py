@@ -551,7 +551,6 @@ def create_tournament_sheet(squadrons_df: pd.DataFrame, matches_df: pd.DataFrame
 
     # Write matches by stage
     matches_sorted = matches_df.sort_values(['stage', 'match_id'])
-    max_row = row  # Remember the maximum row used by groups
 
     # Group matches by stage
     for stage, stage_matches in matches_sorted.groupby('stage'):

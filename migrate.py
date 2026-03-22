@@ -20,7 +20,7 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 
-def post_migrate_admin(node: str):
+def post_migrate_admin(_node: str):
     def _migrate(_data: dict):
         remove = -1
         config = False
@@ -64,7 +64,7 @@ def post_migrate_admin(node: str):
         yaml.dump(data, outfile)
 
 
-def post_migrate_music(node: str):
+def post_migrate_music(_node: str):
     def _migrate(_data: dict):
         _data['radios'] = {
             'Radio 1': deepcopy(_data['sink'])

@@ -1,0 +1,1 @@
+# Logbook plugin tests

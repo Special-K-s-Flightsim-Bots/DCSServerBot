@@ -354,21 +354,28 @@ def get_cpu_name():
 
 
 def get_cache_info():
-    kernel32 = ctypes.WinDLL("Kernel32.dll")
+    kernel32 = ctypes.WinDLL("Kernel32.dll", use_last_error=True)
 
     # First call to get required buffer size
     buffer_size = wintypes.DWORD(0)
-    if not kernel32.GetLogicalProcessorInformationEx(RelationCache, None, ctypes.byref(buffer_size)):
-        if ctypes.get_last_error() != 122:  # ERROR_INSUFFICIENT_BUFFER
-            raise ctypes.WinError(ctypes.get_last_error())
+    RelationCache = 2
+    kernel32.GetLogicalProcessorInformationEx(RelationCache, None, ctypes.byref(buffer_size))
+
+    err = ctypes.get_last_error()
+    if err != 122:  # ERROR_INSUFFICIENT_BUFFER is expected
+        if err == 0:  # Some systems return 0 but still set buffer_size
+            pass
+        else:
+            raise ctypes.WinError(err)
+
+    if buffer_size.value == 0:
+        return []
 
     # Create the buffer
     buffer = ctypes.create_string_buffer(buffer_size.value)
     # Retrieve the information
-    result = kernel32.GetLogicalProcessorInformationEx(RelationCache, buffer, ctypes.byref(buffer_size))
-
-    if result == 0:
-        raise ctypes.WinError()
+    if not kernel32.GetLogicalProcessorInformationEx(RelationCache, buffer, ctypes.byref(buffer_size)):
+        raise ctypes.WinError(ctypes.get_last_error())
 
     offset = 0
     cache_info = []

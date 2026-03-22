@@ -10,7 +10,7 @@ from core import EventListener, Server, Player, Channel, Side, PersistentReport,
 from matplotlib import pyplot as plt
 from pathlib import Path
 from plugins.creditsystem.player import CreditPlayer
-from plugins.greenieboard import get_element
+from plugins.greenieboard import get_element, GRADES
 from contextlib import suppress
 from typing import cast, TYPE_CHECKING
 
@@ -128,7 +128,7 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
             self.bot.check_channel(int(config.get('persistent_channel')))
         for squadron in config.get('squadrons', []):
             if 'channel' in squadron:
-                self.bot.check_channel(squadron['channel'])
+                self.bot.check_channel(int(squadron['channel']))
         asyncio.create_task(self.update_greenieboard(server))
 
     @event(name="onMissionLoadEnd")
@@ -139,7 +139,8 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
     async def process_lso_event(self, config: dict, server: Server, player: Player, data: dict):
         time = (int(server.current_mission.start_time) + int(data['time'])) % 86400
         night = time > 20 * 3600 or time < 6 * 3600
-        points = int(data.get('points', config['grades'].get(data['grade'], {}).get('rating', 0)))
+        grades = GRADES | config.get('grades', {})
+        points = int(data.get('points', grades.get(data['grade'], {}).get('rating', 0)))
         # map some events to NC
         if data['grade'] in ['WOP', 'OWO', 'TWO', 'TLU']:
             data['grade'] = 'NC'
@@ -148,7 +149,7 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
         # Moose.AIRBOSS sometimes gives negative points for WO. That is not according to any standard.
         # After SME consultation, any WO will give the WO points (typically 1.0).
         if points < 0 and data['grade'] == 'WO':
-            points = config['grades']['WO']['rating']
+            points = grades['WO']['rating']
         if config.get('credits', False):
             cp: CreditPlayer = cast(CreditPlayer, player)
             cp.audit(_('Carrier Landing'), cp.points,
@@ -157,13 +158,12 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
         case = data.get('case', 1 if not night else 3)
         wire = data.get('wire')
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    INSERT INTO traps (mission_id, player_ucid, unit_type, grade, comment, place, trapcase, wire, 
-                                       night, points, trapsheet) 
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (server.mission_id, player.ucid, player.unit_type, data['grade'].strip(), data['details'],
-                      data['place']['name'], case, wire, night, points, psycopg.Binary(data.get('trapsheet'))))
+            await conn.execute("""
+                INSERT INTO traps (mission_id, player_ucid, unit_type, grade, comment, place, trapcase, wire, 
+                                   night, points, trapsheet) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (server.mission_id, player.ucid, player.unit_type, data['grade'].strip(), data['details'],
+                  data['place']['name'], case, wire, night, points, psycopg.Binary(data.get('trapsheet'))))
 
     @staticmethod
     def normalize_airboss_lso_rating(grade: str) -> str | None:

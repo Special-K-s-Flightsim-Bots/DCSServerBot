@@ -20,7 +20,9 @@ from typing import Any, Literal, cast
 
 from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
-                     PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry)
+                     PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats, 
+                     AirbasesResponse, AirbaseInfoResponse, AirbaseWarehouseResponse, AirbaseSetWarehouseItemResponse,
+                     AirbaseCaptureResponse, ConvertCoordinates)
 from ..srs.commands import SRS
 
 app: FastAPI | None = None
@@ -41,6 +43,7 @@ class RestAPI(Plugin):
 
         self.web_service: WebService | None = None
         self.app: FastAPI | None = None
+        self.router: APIRouter | None = None
 
     async def cog_load(self) -> None:
         await super().cog_load()
@@ -50,6 +53,11 @@ class RestAPI(Plugin):
 
     async def cog_unload(self) -> None:
         self.refresh_views.cancel()
+        if self.app and self.router:
+            # Remove our routes from the main app to prevent duplicates on reload
+            for route in self.router.routes:
+                self.app.routes.remove(route)
+
         await super().cog_unload()
 
     async def init_webservice(self):
@@ -64,10 +72,16 @@ class RestAPI(Plugin):
             return
         self.log.debug(f"   - {self.__cog_name__}: WebService is running")
         self.app = self.web_service.app
-        self.register_routes()
+        if self.app:
+            self.register_routes()
+        else:
+            self.log.error(f"  - {self.__cog_name__}: WebService is not available, aborted.")
+            return
 
     def register_routes(self):
         prefix = self.locals.get(DEFAULT_TAG, {}).get('prefix', '')
+        if prefix and not prefix.startswith('/'):
+            prefix = '/' + prefix
         api_key = self.locals.get(DEFAULT_TAG, {}).get('api_key')
 
         if api_key:
@@ -81,8 +95,60 @@ class RestAPI(Plugin):
         else:
             dependencies = None
 
-        router = APIRouter(prefix=prefix, dependencies=dependencies)
-        router.add_api_route(
+        self.router = APIRouter(prefix=prefix, dependencies=dependencies)
+        ## Airbase Routes
+        self.router.add_api_route(
+            "/airbases", self.airbases,
+            methods=["GET"],
+            response_model = AirbasesResponse,
+            description="Get a listing of all airbases on a given server.",
+            summary="Airbases Listing",
+            tags=["Airbase"]
+        )
+        self.router.add_api_route(
+            "/airbase", self.airbase_info,
+            methods=["GET"],
+            response_model = AirbaseInfoResponse,
+            description="Get information for a given airbase on a given server.",
+            summary="Airbase Information",
+            tags=["Airbase"]
+        )
+        self.router.add_api_route(
+            "/airbase/atis", self.airbase_atis,
+            methods=["GET"],
+            description="Get ATIS information for an airbase on a given server.",
+            summary="Airbase ATIS",
+            tags=["Airbase"]
+        )
+        self.router.add_api_route(
+            "/airbase/warehouse", self.airbase_warehouse,
+            methods=["GET"],
+            response_model = AirbaseWarehouseResponse,
+            description="Get warehouse information for an airbase on a given server.",
+            summary="Airbase Warehouse",
+            tags=["Airbase"]
+        )
+        
+        self.router.add_api_route(
+            "/airbase/warehouse/item", self.set_warehouse_item,
+            methods=["POST"],
+            response_model=AirbaseSetWarehouseItemResponse,
+            description="Set warehouse item quantity for an airbase on a given server.",
+            summary="Set Quantity of an Airbase Warehouse Item",
+            tags=["Airbase"]
+        )
+        
+        self.router.add_api_route(
+            "/airbase/capture", self.capture_airbase,
+            methods=["POST"],
+            response_model = AirbaseCaptureResponse,
+            description="Capture the airbase.",
+            summary="Airbase Information",
+            tags=["Airbase"]
+        )
+        
+        ## Info Routes
+        self.router.add_api_route(
             "/serverstats", self.serverstats,
             methods = ["GET"],
             response_model = ServerStats,
@@ -90,7 +156,15 @@ class RestAPI(Plugin):
             summary = "Server Statistics",
             tags = ["Info"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
+            "/server_attendance", self.server_attendance,
+            methods = ["GET"],
+            response_model = ServerAttendanceStats,
+            description = "Get detailed server attendance statistics",
+            summary = "Server Attendance Statistics", 
+            tags = ["Info"]
+        )
+        self.router.add_api_route(
             "/servers", self.servers,
             methods = ["GET"],
             response_model = list[ServerInfo],
@@ -98,7 +172,7 @@ class RestAPI(Plugin):
             summary = "Server list",
             tags = ["Info"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/squadrons", self.squadrons,
             methods = ["GET"],
             response_model = list[SquadronInfo],
@@ -106,7 +180,7 @@ class RestAPI(Plugin):
             summary = "Squadron list",
             tags = ["Info"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/squadron_members", self.squadron_members,
             methods = ["POST"],
             response_model = list[UserEntry],
@@ -114,7 +188,7 @@ class RestAPI(Plugin):
             summary = "Squadron Members",
             tags = ["Info"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/getuser", self.getuser,
             methods = ["POST"],
             response_model = list[UserEntry],
@@ -122,7 +196,7 @@ class RestAPI(Plugin):
             summary = "User list",
             tags = ["Info"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/linkme", self.linkme,
             methods=["POST"],
             response_model=LinkMeResponse,
@@ -130,7 +204,8 @@ class RestAPI(Plugin):
             summary="Link Discord to DCS",
             tags=["Info"]
         )
-        router.add_api_route(
+        ##Statistics Routes
+        self.router.add_api_route(
             "/leaderboard", self.leaderboard,
             methods = ["GET"],
             response_model = LeaderBoard,
@@ -138,7 +213,7 @@ class RestAPI(Plugin):
             summary = "Leaderboard",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/topkills", self.topkills,
             methods = ["GET"],
             response_model = list[TopKill],
@@ -146,7 +221,7 @@ class RestAPI(Plugin):
             summary = "Top Kills",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/topkdr", self.topkdr,
             methods = ["GET"],
             response_model = list[TopKill],
@@ -154,7 +229,7 @@ class RestAPI(Plugin):
             summary = "Top KDR",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/trueskill", self.trueskill,
             methods = ["GET"],
             response_model = list[Trueskill],
@@ -162,7 +237,7 @@ class RestAPI(Plugin):
             summary = "TrueSkill:tm:",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/weaponpk", self.weaponpk,
             methods = ["POST"],
             response_model = list[WeaponPK],
@@ -170,7 +245,7 @@ class RestAPI(Plugin):
             summary = "Weapon PK",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/stats", self.stats,
             methods = ["POST"],
             response_model = PlayerStats,
@@ -178,15 +253,15 @@ class RestAPI(Plugin):
             summary = "Player Statistics",
             tags = ["Statistics"]
         )
-        router.add_api_route(
-            "/modulestats", self.stats,
+        self.router.add_api_route(
+            "/modulestats", self.modulestats,
             methods = ["POST"],
-            response_model = ModuleStats,
+            response_model = list[ModuleStats],
             description = "Get module statistics",
             summary = "Module Statistics",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/current_server", self.current_server,
             methods = ["GET"],
             response_model = str | None,
@@ -194,7 +269,7 @@ class RestAPI(Plugin):
             summary = "Current Server",
             tags = ["Info"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/player_info", self.player_info,
             methods = ["POST"],
             response_model = PlayerInfo,
@@ -202,7 +277,7 @@ class RestAPI(Plugin):
             summary = "Player Information",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/highscore", self.highscore,
             methods = ["GET"],
             response_model = Highscore,
@@ -210,7 +285,7 @@ class RestAPI(Plugin):
             summary = "Highscore",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/traps", self.traps,
             methods = ["POST"],
             response_model = list[TrapEntry],
@@ -218,7 +293,7 @@ class RestAPI(Plugin):
             summary = "Carrier Traps",
             tags = ["Statistics"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/credits", self.credits,
             methods = ["POST"],
             response_model = CampaignCredits,
@@ -226,7 +301,7 @@ class RestAPI(Plugin):
             summary = "Campaign Credits",
             tags = ["Credits"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/squadron_credits", self.squadron_credits,
             methods = ["POST"],
             response_model = SquadronCampaignCredit,
@@ -234,7 +309,7 @@ class RestAPI(Plugin):
             summary = "Squadron Credits",
             tags = ["Credits"]
         )
-        router.add_api_route(
+        self.router.add_api_route(
             "/player_squadrons", self.player_squadrons,
             methods = ["POST"],
             response_model = list[PlayerSquadron],
@@ -242,10 +317,290 @@ class RestAPI(Plugin):
             summary = "Player Squadrons",
             tags = ["Info"]
         )
-        self.app.include_router(router)
+        
+        self.router.add_api_route(
+            "/convertCoordinates", self.convertCoordinates,
+            methods = ["GET"],
+            response_model = ConvertCoordinates,
+            description = "Convert provided coordinate string into other formats.",
+            summary = "Converts the provided coordinate into multiple formats.",
+            tags = ["Utilities"]
+        )
+        self.app.include_router(self.router)
 
     def get_endpoint_config(self, endpoint: str):
         return self.get_config().get('endpoints', {}).get(endpoint, {})
+
+    ## convertCoordinates Function
+    ## ----------------------------------------------
+    ## string: convertable
+    ## enum: mgrs | latlon | meters
+    ## ----------------------------------------------
+
+    async def convertCoordinates(self, server_name: str = Query(...), coordinates: str = Query(...)):
+        """Return all meters for a given lat/lon on a server."""
+        # Resolve server
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        # Remove leading/trailing whitespace
+        coordinates = coordinates.strip()
+
+        latitude = longitude = None
+        meters = None
+        x = y = None
+        ddm_input = None
+
+        # Lat/Lon (decimal degrees)
+        if re.match(r'^-?\d{1,3}\.\d{3,},\s*-?\d{1,3}\.\d{3,}$', coordinates):
+            lat_str, lon_str = [x.strip() for x in coordinates.split(",")]
+            latitude = float(lat_str)
+            longitude = float(lon_str)
+            convertLatLonToMeters = {
+                "command": "convertLatLonToMeters",
+                "lat": latitude,
+                "lon": longitude
+            }
+            meters = await server.send_to_dcs_sync(convertLatLonToMeters, timeout=60)
+            x = meters['x']
+            y = meters['y']
+
+        # DMS (N53°37'38" E10°00'10")
+        elif re.match(r'^([NS])(\d{1,3})°(\d{1,2})\'(\d{1,2})"\s*([EW])(\d{1,3})°(\d{1,2})\'(\d{1,2})"$', coordinates):
+            dms_match = re.match(r'^([NS])(\d{1,3})°(\d{1,2})\'(\d{1,2})"\s*([EW])(\d{1,3})°(\d{1,2})\'(\d{1,2})"$', coordinates)
+            lat_hem, lat_deg, lat_min, lat_sec, lon_hem, lon_deg, lon_min, lon_sec = dms_match.groups()
+            latitude = int(lat_deg) + int(lat_min)/60 + float(lat_sec)/3600
+            if lat_hem == 'S':
+                latitude = -latitude
+            longitude = int(lon_deg) + int(lon_min)/60 + float(lon_sec)/3600
+            if lon_hem == 'W':
+                longitude = -longitude
+            convertLatLonToMeters = {
+                "command": "convertLatLonToMeters",
+                "lat": latitude,
+                "lon": longitude
+            }
+            meters = await server.send_to_dcs_sync(convertLatLonToMeters, timeout=60)
+            x = meters['x']
+            y = meters['y']
+
+        # DDM (N53°37.633 E010°0.173)
+        elif re.match(r'^([NS])(\d{1,3})°(\d{1,2}\.\d{1,5})\s*([EW])(\d{1,3})°(\d{1,2}\.\d{1,5})$', coordinates):
+            ddm_match = re.match(r'^([NS])(\d{1,3})°(\d{1,2}\.\d{1,5})\s*([EW])(\d{1,3})°(\d{1,2}\.\d{1,5})$', coordinates)
+            lat_hem, lat_deg, lat_min, lon_hem, lon_deg, lon_min = ddm_match.groups()
+            latitude = int(lat_deg) + float(lat_min)/60
+            if lat_hem == 'S':
+                latitude = -latitude
+            longitude = int(lon_deg) + float(lon_min)/60
+            if lon_hem == 'W':
+                longitude = -longitude
+            convertLatLonToMeters = {
+                "command": "convertLatLonToMeters",
+                "lat": latitude,
+                "lon": longitude
+            }
+            meters = await server.send_to_dcs_sync(convertLatLonToMeters, timeout=60)
+            x = meters['x']
+            y = meters['y']
+            ddm_input = coordinates
+
+        # MGRS (with or without spaces)
+        elif re.match(r'^\d{1,2}[C-HJ-NP-X][A-Z]{2}\s?\d{1,5}\s?\d{1,5}$', coordinates.replace(' ', '')):
+            mgrs_clean = coordinates.replace(' ', '')
+            try:
+                latitude, longitude = utils.mgrs_to_dd(mgrs_clean)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Invalid MGRS coordinate: {coordinates}. Error: {str(e)}")
+            convertLatLonToMeters = {
+                "command": "convertLatLonToMeters",
+                "lat": latitude,
+                "lon": longitude
+            }
+            meters = await server.send_to_dcs_sync(convertLatLonToMeters, timeout=60)
+            x = meters['x']
+            y = meters['y']
+
+        # Meters (x, y)
+        elif re.match(r'^-?\d+,\s*-?\d+$', coordinates):
+            x_str, y_str = [x.strip() for x in coordinates.split(",")]
+            x = int(x_str)
+            y = int(y_str)
+            convertMetersToLatLon = {
+                "command": "convertMetersToLatLon",
+                "x": x,
+                "y": y
+            }
+            latlon = await server.send_to_dcs_sync(convertMetersToLatLon, timeout=60)
+            latitude = latlon["lat"]
+            longitude = latlon["lon"]
+            meters = {"x": x, "y": y}
+
+        else:
+            raise HTTPException(status_code=400, detail=f"Coordinate string is not valid")
+
+        # Now, generate all output formats from latitude/longitude
+        d, m, s, f = utils.dd_to_dms(latitude)
+        lat_dms = f"{'N' if d > 0 else 'S'} {int(abs(d)):02d}°{int(abs(m)):02d}'{int(abs(s)):02d}.{int(abs(f)):02d}\""
+        d, m, s, f = utils.dd_to_dms(longitude)
+        lon_dms = f"{'E' if d > 0 else 'W'} {int(abs(d)):03d}°{int(abs(m)):02d}'{int(abs(s)):02d}.{int(abs(f)):02d}\""
+
+        mgrs_raw = utils.dd_to_mgrs(latitude, longitude)
+        def format_mgrs(mgrs):
+            if len(mgrs) < 10:
+                return mgrs
+            zone = mgrs[:2]
+            band = mgrs[2]
+            sq = mgrs[3:5]
+            easting = mgrs[5:10]
+            northing = mgrs[10:]
+            return f"{zone}{band} {sq} {easting} {northing}"
+        mgrs = format_mgrs(mgrs_raw)
+
+        # Round lat/lon to 5 decimals
+        latlon_str = f"{round(latitude, 5)}, {round(longitude, 5)}"
+
+        # DDM rounding: round minutes to 5 decimals
+        def dd_to_dmm_5(lat, lon):
+            def dmm(val, hemi_pos, hemi_neg):
+                hemi = hemi_pos if val >= 0 else hemi_neg
+                deg = int(abs(val))
+                min_ = round((abs(val) - deg) * 60, 5)
+                return f"{hemi}{deg:02d}°{min_:0.5f}"
+            return f"{dmm(lat, 'N', 'S')} {dmm(lon, 'E', 'W')}"
+
+        ddm_val = ddm_input if ddm_input else dd_to_dmm_5(latitude, longitude)
+
+        rtnArray = {
+            "latlon": latlon_str,
+            "mgrs": mgrs,
+            "dms": f"{lat_dms} {lon_dms}",
+            "ddm": ddm_val,
+            "meters": {
+                "x": x,
+                "y": y
+                },
+        }
+        return rtnArray
+
+        
+    async def airbases(self, server_name: str = Query(...)):
+        """Return all airbases for a given server."""
+        # Resolve server
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        # Return all airbases
+        return {
+            "airbases": server.current_mission.airbases if server.current_mission else []
+        }
+
+    async def airbase_info(self, server_name: str = Query(...), airbase_name: str = Query(...)):
+        """Return all information for a given airbase on a server."""
+        # Resolve server
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        # Get airbase info using the same logic as mission/commands.py get_airbase
+        airbase_data = await server.send_to_dcs_sync({"command": "getAirbase", "name": airbase_name}, timeout=60)
+
+        airbase = next((x for x in server.current_mission.airbases if x['name'] == airbase_name), None)
+        if airbase:
+            # Safely assign 'mgrs', generate if missing
+            mgrs_val = airbase.get('mgrs')
+            if not mgrs_val:
+                try:
+                    mgrs_val = utils.dd_to_mgrs(airbase_data['lat'], airbase_data['lon'])
+                except Exception:
+                    mgrs_val = None
+                    
+            airbase_data['mgrs'] = mgrs_val
+            airbase_data['magVar'] = airbase.get('magVar')
+
+        # Return all information on the airbase
+        return {
+            "airbase": airbase_data,
+        }
+    
+    async def airbase_atis(self, server_name: str = Query(...), airbase_name: str = Query(...)):
+        """Return ATIS information for a given airbase on a server."""
+        # Resolve server
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        # Get airbase info using the same logic as mission/commands.py get_airbase
+        airbase_data = await server.send_to_dcs_sync({"command": "getAirbase", "name": airbase_name}, timeout=60)
+        
+        atisData = await server.send_to_dcs_sync({
+            "command": "getWeatherInfo",
+            "x": airbase_data['position']['x'],
+            "y": airbase_data['position']['y'],
+            "z": airbase_data['position']['z']
+        }, timeout=60)
+        
+        # Return only the ATIS info
+        return atisData
+
+    async def airbase_warehouse(self, server_name: str = Query(...), airbase_name: str = Query(...)):
+        """Return warehouse information for a given airbase on a server."""
+        # Resolve server
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        # Get airbase info using the same logic as mission/commands.py get_airbase
+        airbase_data = await server.send_to_dcs_sync({"command": "getAirbase", "name": airbase_name}, timeout=60)
+        if not airbase_data or 'warehouse' not in airbase_data:
+            raise HTTPException(status_code=404, detail=f"Airbase '{airbase_name}' not found or has no warehouse data.")
+
+        # Return only the warehouse info (and unlimited flags for completeness)
+        return {
+            "warehouse": airbase_data.get("warehouse", {}),
+            "unlimited": airbase_data.get("unlimited", {}),
+        }
+    
+    async def set_warehouse_item(self, server_name: str = Form(...), airbase_name: str = Form(...), item: str = Form(...), value: int = Form(...)) -> AirbaseSetWarehouseItemResponse:
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+        await server.send_to_dcs_sync({
+            "command": "setWarehouseItem",
+            "name": airbase_name,
+            "item": item,
+            "value": value
+        }, timeout=60)
+        
+        return AirbaseSetWarehouseItemResponse(
+            item=item,
+            server_name=server_name,
+            value=value
+        )
+    
+    async def capture_airbase(self, server_name: str = Form(...), airbase_name: str = Form(...), coalition: int = Form(...))-> AirbaseCaptureResponse:
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+        
+        await server.send_to_dcs_sync({
+            "command": "captureAirbase",
+            "name": airbase_name,
+            "coalition": coalition
+        }, timeout=60)
+
+        # return CaptureAirbaseResponse(
+        #     server_name=server_name,
+        #     airbase=airbase_name,
+        #     coalition=coalition
+        # )
+        
+        return {
+            "server_name": server_name,
+            "airbase_name": airbase_name,
+            "coalition": coalition
+        }
 
     @async_cache
     async def get_ucid(self, nick: str, date: str | datetime | None = None) -> str:
@@ -276,13 +631,21 @@ class RestAPI(Plugin):
 
     async def serverstats(self, server_name: str = Query(default=None)):
         self.log.debug(f'Calling /serverstats with server_name = {server_name}')
+        
+        # Resolve server name and get server object
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        
         serverstats = {}
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                if server_name:
-                    where = "WHERE server_name = %(server_name)s"
+                # For mv_serverstats, we can directly filter by server_name
+                if resolved_server_name:
+                    where_clause = "WHERE server_name = %(server_name)s"
+                    params = {"server_name": resolved_server_name}
                 else:
-                    where = ""
+                    where_clause = ""
+                    params = {}
+                    
                 await cursor.execute(f"""
                     SELECT SUM("totalPlayers") AS "totalPlayers", SUM("totalPlaytime") AS "totalPlaytime",
                            SUM("avgPlaytime") AS "avgPlaytime",
@@ -290,23 +653,28 @@ class RestAPI(Plugin):
                            SUM("totalDeaths") AS "totalDeaths", SUM("totalPvPKills") AS "totalPvPKills",
                            SUM("totalPvPDeaths") AS "totalPvPDeaths" 
                     FROM mv_serverstats
-                    {where}
-                """, {"server_name": server_name})
+                    {where_clause}
+                """, params)
                 serverstats = await cursor.fetchone()
 
-                if server_name:
-                    server = self.bot.servers.get(server_name)
+                # Get active players count
+                if server:
                     serverstats['activePlayers'] = len(server.get_active_players())
+                elif resolved_server_name:
+                    serverstats['activePlayers'] = 0  # Server not found but name was provided
                 else:
-                    active = 0
-                    for server in self.bot.servers.values():
-                        active += len(server.get_active_players())
+                    # Global stats - sum all servers
+                    active = sum(len(s.get_active_players()) for s in self.bot.servers.values())
                     serverstats['activePlayers'] = active
 
-                if server_name:
-                    join = f"JOIN missions m ON s.mission_id = m.id AND m.server_name = %(server_name)s"
+                # Get daily players trend
+                if resolved_server_name:
+                    join_sql = "JOIN missions m ON s.mission_id = m.id"
+                    where_sql = "WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '7 days' AND m.server_name = %(server_name)s"
                 else:
-                    join = ""
+                    join_sql = ""
+                    where_sql = "WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '7 days'"
+                    
                 await cursor.execute(f"""
                     WITH date_series AS (
                         SELECT generate_series(
@@ -318,17 +686,266 @@ class RestAPI(Plugin):
                     player_counts AS (
                         SELECT DATE_TRUNC('day', s.hop_on) AS date, COUNT(DISTINCT player_ucid) as player_count
                         FROM statistics s 
-                        {join}
-                        WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '7 days'
+                        {join_sql}
+                        {where_sql}
                         GROUP BY 1
                     )
                     SELECT ds.date, COALESCE(pc.player_count, 0) as player_count
                     FROM date_series ds
                     LEFT JOIN player_counts pc ON ds.date = pc.date
                     ORDER BY ds.date
-                """, {"server_name": server_name})
+                """, {"server_name": resolved_server_name})
                 serverstats['daily_players'] = await cursor.fetchall()
         return ServerStats.model_validate(serverstats)
+
+    async def server_attendance(self, server_name: str = Query(default=None)):
+        """Get detailed server attendance statistics using monitoring infrastructure patterns"""
+        self.log.debug(f'Calling /server_attendance with server_name = {server_name}')
+        
+        # Resolve server name alias to actual name
+        resolved_server_name = self.resolve_server_name(server_name)
+        
+        # Get current players count
+        current_players = 0
+        if resolved_server_name:
+            server = self.bot.servers.get(resolved_server_name)
+            current_players = len(server.get_active_players()) if server else 0
+        else:
+            for server in self.bot.servers.values():
+                current_players += len(server.get_active_players())
+
+        # Use resolved name for database queries
+        where_clause = f"AND m.server_name = '{resolved_server_name}'" if resolved_server_name else ""
+        
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                # Get basic statistics for different periods using monitoring plugin pattern
+                periods = {
+                    '24h': "s.hop_on > (now() AT TIME ZONE 'utc') - interval '24 hours'",
+                    '7d': "s.hop_on > (now() AT TIME ZONE 'utc') - interval '7 days'",
+                    '30d': "s.hop_on > (now() AT TIME ZONE 'utc') - interval '30 days'"
+                }
+                
+                stats = {"current_players": current_players}
+                
+                for period_key, time_filter in periods.items():
+                    # Use same SQL structure as ServerUsage in monitoring plugin
+                    sql = f"""
+                        SELECT 
+                            COUNT(DISTINCT s.player_ucid) AS unique_players,
+                            COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600), 0) AS total_playtime_hours,
+                            COUNT(DISTINCT p.discord_id) AS discord_members
+                        FROM statistics s
+                        JOIN missions m ON m.id = s.mission_id 
+                        LEFT JOIN players p ON s.player_ucid = p.ucid
+                        WHERE s.hop_off IS NOT NULL
+                        AND {time_filter}
+                        {where_clause}
+                    """
+                    await cursor.execute(sql)
+                    row = await cursor.fetchone()
+                    
+                    if row:
+                        stats[f"unique_players_{period_key}"] = int(row['unique_players'] or 0)
+                        stats[f"total_playtime_hours_{period_key}"] = float(row['total_playtime_hours'] or 0.0)
+                        stats[f"discord_members_{period_key}"] = int(row['discord_members'] or 0)
+
+                # Get daily trend for last 7 days (simpler version)
+                await cursor.execute(f"""
+                    WITH date_series AS (
+                        SELECT generate_series(
+                            DATE_TRUNC('day', (now() AT TIME ZONE 'utc') - interval '7 days'),
+                            DATE_TRUNC('day', now() AT TIME ZONE 'utc'),
+                            interval '1 day'
+                        ) AS date
+                    ),
+                    daily_counts AS (
+                        SELECT 
+                            DATE_TRUNC('day', s.hop_on) as date,
+                            COUNT(DISTINCT s.player_ucid) as unique_players
+                        FROM statistics s 
+                        JOIN missions m ON m.id = s.mission_id
+                        WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '7 days'
+                        {where_clause}
+                        GROUP BY 1
+                    )
+                    SELECT ds.date, COALESCE(dc.unique_players, 0) as unique_players
+                    FROM date_series ds
+                    LEFT JOIN daily_counts dc ON ds.date = dc.date
+                    ORDER BY ds.date
+                """)
+                
+                daily_data = await cursor.fetchall()
+                stats["daily_trend"] = [
+                    {
+                        "date": row['date'].strftime("%Y-%m-%d"),
+                        "unique_players": int(row['unique_players'])
+                    }
+                    for row in daily_data
+                ]
+
+                # Add top theatres (from TopTheatresPerServer)
+                await cursor.execute(f"""
+                    SELECT m.mission_theatre, 
+                           COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600), 0) AS playtime_hours 
+                    FROM missions m, statistics s
+                    WHERE m.id = s.mission_id
+                    AND s.hop_off IS NOT NULL
+                    {where_clause}
+                    GROUP BY 1
+                    ORDER BY 2 DESC
+                    LIMIT 5
+                """)
+                theatres_data = await cursor.fetchall()
+                stats["top_theatres"] = [
+                    {
+                        "theatre": row['mission_theatre'],
+                        "playtime_hours": int(row['playtime_hours'])
+                    }
+                    for row in theatres_data
+                ]
+
+                # Add top missions (from TopMissionPerServer)  
+                await cursor.execute(f"""
+                    SELECT trim(regexp_replace(m.mission_name, '{self.bot.filter['mission_name']}', ' ', 'g')) AS mission_name, 
+                           ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime_hours 
+                    FROM missions m, statistics s 
+                    WHERE m.id = s.mission_id 
+                    AND s.hop_off IS NOT NULL
+                    {where_clause}
+                    GROUP BY 1
+                    ORDER BY 2 DESC
+                    LIMIT 3
+                """)
+                missions_data = await cursor.fetchall()
+                stats["top_missions"] = [
+                    {
+                        "mission_name": row['mission_name'],
+                        "playtime_hours": int(row['playtime_hours'])
+                    }
+                    for row in missions_data
+                ]
+
+                # Add top modules (from TopModulesPerServer)
+                await cursor.execute(f"""
+                    SELECT s.slot, COUNT(s.slot) AS total_uses, 
+                           COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600),0) AS playtime_hours, 
+                           COUNT(DISTINCT s.player_ucid) AS unique_players 
+                    FROM missions m, statistics s 
+                    WHERE m.id = s.mission_id
+                    AND s.hop_off IS NOT NULL
+                    {where_clause}
+                    GROUP BY s.slot 
+                    ORDER BY 3 DESC 
+                    LIMIT 10
+                """)
+                modules_data = await cursor.fetchall()
+                stats["top_modules"] = [
+                    {
+                        "module": row['slot'],
+                        "playtime_hours": int(row['playtime_hours']),
+                        "unique_players": int(row['unique_players']),
+                        "total_uses": int(row['total_uses'])
+                    }
+                    for row in modules_data
+                ]
+
+                # Add additional server metrics from mv_serverstats
+                if resolved_server_name:
+                    mv_where_clause = "WHERE server_name = %(server_name)s"
+                    mv_params = {"server_name": resolved_server_name}
+                else:
+                    mv_where_clause = ""
+                    mv_params = {}
+                    
+                await cursor.execute(f"""
+                    SELECT SUM("totalSorties") AS total_sorties,
+                           SUM("totalKills") AS total_kills,
+                           SUM("totalDeaths") AS total_deaths,
+                           SUM("totalPvPKills") AS total_pvp_kills,
+                           SUM("totalPvPDeaths") AS total_pvp_deaths
+                    FROM mv_serverstats
+                    {mv_where_clause}
+                """, mv_params)
+                mv_row = await cursor.fetchone()
+                
+                if mv_row:
+                    stats["total_sorties"] = int(mv_row['total_sorties'] or 0)
+                    stats["total_kills"] = int(mv_row['total_kills'] or 0)
+                    stats["total_deaths"] = int(mv_row['total_deaths'] or 0)
+                    stats["total_pvp_kills"] = int(mv_row['total_pvp_kills'] or 0)
+                    stats["total_pvp_deaths"] = int(mv_row['total_pvp_deaths'] or 0)
+
+        return ServerAttendanceStats.model_validate(stats)
+
+    def resolve_server_name(self, server_name: str | None) -> str | None:
+        """Resolve server alias (instance name) to actual DCS server name"""
+        if not server_name:
+            return None
+        
+        # Check if it's already a full DCS server name
+        if server_name in self.bot.servers:
+            return server_name
+            
+        # Check if it's an instance name (alias) - find by instance name
+        for instance_name, instance in self.bus.node.instances.items():
+            if instance_name == server_name and instance.server:
+                return instance.server.name  # return the full DCS name
+        
+        # Return original if not found
+        return server_name
+
+    def get_resolved_server(self, server_name: str | None) -> tuple[str | None, Server | None]:
+        """
+        Resolve server name and get server object.
+        Returns (resolved_name, server_object)
+        """
+        resolved_name = self.resolve_server_name(server_name)
+        server = self.bot.servers.get(resolved_name) if resolved_name else None
+        return resolved_name, server
+
+    async def get_weather_info(self, server: Server) -> WeatherInfo | None:
+        """Get current weather information from DCS server"""
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            return None
+            
+        # Check if we have weather data from the current mission
+        if not server.current_mission:
+            return None
+            
+        if not hasattr(server.current_mission, 'weather'):
+            return None
+            
+        if not server.current_mission.weather:
+            return None
+            
+        try:
+            weather_data = server.current_mission.weather
+            
+            # Extract wind data (use ground level wind by default)
+            wind_data = weather_data.get('wind', {}).get('atGround', {})
+            
+            # Extract clouds data (it's directly in weather_data, not separate)
+            clouds_data = weather_data.get('clouds', {})
+            
+            # Map DCS weather data to our model using actual structure
+            return WeatherInfo(
+                temperature=weather_data.get('season', {}).get('temperature'),
+                wind_speed=wind_data.get('speed'),
+                wind_direction=wind_data.get('dir'),
+                pressure=weather_data.get('qnh'),  # QNH pressure in mmHg
+                visibility=weather_data.get('visibility', {}).get('distance'),  # Extract distance from visibility dict
+                clouds_base=clouds_data.get('base'),
+                clouds_density=clouds_data.get('density'),
+                precipitation=clouds_data.get('iprecptns'),  # Precipitation is in clouds data
+                fog_enabled=weather_data.get('enable_fog', False),
+                fog_visibility=weather_data.get('fog', {}).get('visibility') if weather_data.get('fog', {}).get('visibility') else None,
+                dust_enabled=weather_data.get('enable_dust', False),
+                dust_visibility=weather_data.get('dust_density') if weather_data.get('enable_dust') else None
+            )
+        except Exception as ex:
+            self.log.warning(f"Failed to get weather info for server {server.name}: {ex}")
+            return None
 
     async def get_srs_channels(self, server_name: str, nick: str) -> list[int]:
         srs: SRS | None = cast(SRS, self.bot.cogs.get('SRS'))
@@ -402,6 +1019,12 @@ class RestAPI(Plugin):
                 "radios": await self.get_srs_channels(server.name, player.name)
             }) for player in server.players.values()]
 
+            # add weather information
+            config = self.get_endpoint_config('servers')
+            include_weather = config.get('include_weather', True)
+            if include_weather:
+                data['weather'] = await self.get_weather_info(server)
+
             # validate the data against the schema and return it
             servers.append(ServerInfo.model_validate(data))
 
@@ -422,12 +1045,13 @@ class RestAPI(Plugin):
                     {sql_part}
                 """):
                     members = await self.squadron_members(row['name'])
+                    role_obj = self.bot.get_role(row['role']) if row['role'] else None
                     squadrons.append(SquadronInfo.model_validate({
                         "name": row['name'],
                         "description": row['description'],
                         "image_url": row['image_url'],
                         "locked": row['locked'],
-                        "role": self.bot.get_role(row['role']).name if row['role'] else None,
+                        "role": role_obj.name if role_obj else None,
                         "members": members
                     }))
         return squadrons
@@ -449,8 +1073,11 @@ class RestAPI(Plugin):
         except KeyError:
             raise HTTPException(status_code=400, detail="Invalid ordering column supplied")
 
-        if server_name:
-            where = "WHERE s.server_name = %(server_name)s"
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+        
+        if resolved_server_name:
+            where = "AND s.server_name = %(server_name)s"
         else:
             where = ""
 
@@ -476,6 +1103,7 @@ class RestAPI(Plugin):
                         JOIN players p ON s.player_ucid = p.ucid 
                         LEFT OUTER JOIN credits c ON c.player_ucid = s.player_ucid
                         LEFT OUTER JOIN campaigns ca ON ca.id = c.campaign_id AND NOW() AT TIME ZONE 'utc' BETWEEN ca.start AND COALESCE(ca.stop, NOW() AT TIME ZONE 'utc')
+                        WHERE 1=1
                         {where}
                         GROUP BY 1, 2 
                         ORDER BY {order_column} {order} 
@@ -484,7 +1112,7 @@ class RestAPI(Plugin):
                     )
                     SELECT ROW_NUMBER() OVER (ORDER BY {order_column} {order}) as row_num, * 
                     FROM result_with_count
-                """, {"server_name": server_name, "query": f"%{query}%", "limit": limit, "offset": offset})
+                """, {"server_name": resolved_server_name, "query": f"%{query}%", "limit": limit, "offset": offset})
                 rows = await cursor.fetchall()
                 if not rows:
                     return {
@@ -517,10 +1145,15 @@ class RestAPI(Plugin):
     async def trueskill(self, limit: int = Query(default=10), offset: int = Query(default=0),
                         server_name: str = Query(default=None)):
         self.log.debug(f'Calling /trueskill with limit={limit}, server_name={server_name}')
-        if server_name:
-            where = "WHERE s.server_name = %(server_name)s"
+        
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+        
+        if resolved_server_name:
+            where = "AND s.server_name = %(server_name)s"
         else:
             where = ""
+        
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(f"""
@@ -528,10 +1161,11 @@ class RestAPI(Plugin):
                     SUM(pvp) AS "kills_pvp", SUM(deaths_pvp) AS "deaths_pvp", t.skill_mu AS "TrueSkill" 
                     FROM mv_statistics s JOIN players p ON s.player_ucid = p.ucid
                     JOIN trueskill t ON t.player_ucid = p.ucid
+                    WHERE 1=1
                     {where}
                     GROUP BY 1, 2, 5 ORDER BY 5 DESC 
                     LIMIT {limit} OFFSET {offset}
-                """, {"server_name": server_name})
+                """, {"server_name": resolved_server_name})
                 return [Trueskill.model_validate(result) for result in await cursor.fetchall()]
 
     async def highscore(self, server_name: str = Query(default=None), period: str = Query(default='all'),
@@ -539,6 +1173,10 @@ class RestAPI(Plugin):
         self.log.debug(f'Calling /highscore with server_name="{server_name}", period="{period}", limit={limit}')
         highscore = {}
         flt = StatisticsFilter.detect(self.bot, period) or PeriodFilter(period)
+        
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+        
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 sql = """
@@ -550,11 +1188,11 @@ class RestAPI(Plugin):
                       WHERE p.ucid = s.player_ucid
                         AND s.mission_id = m.id
                       """
-                if server_name:
+                if resolved_server_name:
                     sql += "AND m.server_name = %(server_name)s"
                 sql += ' AND ' + flt.filter(self.bot)
                 sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
-                await cursor.execute(sql, {"server_name": server_name})
+                await cursor.execute(sql, {"server_name": resolved_server_name})
                 highscore['playtime'] = await cursor.fetchall()
 
                 sql_parts = {
@@ -578,7 +1216,7 @@ class RestAPI(Plugin):
                         FROM players p, statistics s, missions m 
                         WHERE s.player_ucid = p.ucid AND s.mission_id = m.id
                     """
-                    if server_name:
+                    if resolved_server_name:
                         sql += "AND m.server_name = %(server_name)s"
                     sql += ' AND ' + flt.filter(self.bot)
                     # only flighttimes of over an hour count for most efficient / wasteful
@@ -588,7 +1226,7 @@ class RestAPI(Plugin):
                     sql += f' GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0'
                     sql += f' ORDER BY 3 DESC LIMIT {limit}'
 
-                    await cursor.execute(sql, {"server_name": server_name})
+                    await cursor.execute(sql, {"server_name": resolved_server_name})
                     highscore[kill_type] = await cursor.fetchall()
 
         return Highscore.model_validate(highscore)
@@ -615,10 +1253,16 @@ class RestAPI(Plugin):
                        server_name: str | None = Form(None)):
         self.log.debug(f'Calling /weaponpk with nick="{nick}", date="{date}", server_name="{server_name}"')
         ucid = await self.get_ucid(nick, date)
-        if server_name:
-            join = "JOIN missions m ON ms.mission_id = m.id AND m.server_name = %(server_name)s"
+        
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+        
+        if resolved_server_name:
+            join = "JOIN missions m ON ms.mission_id = m.id"
+            where = "WHERE init_id = %(ucid)s AND weapon IS NOT NULL AND m.server_name = %(server_name)s"
         else:
             join = ""
+            where = "WHERE init_id = %(ucid)s AND weapon IS NOT NULL"
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(f"""
@@ -629,11 +1273,11 @@ class RestAPI(Plugin):
                                SUM(CASE WHEN event='S_EVENT_HIT' THEN 1 ELSE 0 END) AS "hits" 
                         FROM missionstats ms
                         {join}
-                        WHERE init_id = %(ucid)s AND weapon IS NOT NULL
+                        {where}
                         GROUP BY weapon
                     ) x
                     ORDER BY 2 DESC
-                """, {"ucid": ucid, "server_name": server_name})
+                """, {"ucid": ucid, "server_name": resolved_server_name})
                 return [WeaponPK.model_validate(result) for result in await cursor.fetchall()]
 
     async def stats(self, nick: str = Form(...), date: str | None = Form(None),
@@ -642,8 +1286,11 @@ class RestAPI(Plugin):
                        f'last_session="{last_session}"')
 
         ucid = await self.get_ucid(nick, date)
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+        
         if last_session:
-            if server_name:
+            if resolved_server_name:
                 where = "AND m.server_name = %(server_name)s"
             else:
                 where = ""
@@ -672,7 +1319,7 @@ class RestAPI(Plugin):
                 WHERE s.player_ucid = %(ucid)s
                 {where}
             """
-            if server_name:
+            if resolved_server_name:
                 inner_query = f"AND m2.server_name = %(server_name)s"
             else:
                 inner_query = ""
@@ -686,7 +1333,7 @@ class RestAPI(Plugin):
                 )
             """
         else:
-            if server_name:
+            if resolved_server_name:
                 where = "AND s.server_name = %(server_name)s"
             else:
                 where = ""
@@ -719,7 +1366,7 @@ class RestAPI(Plugin):
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(query, {"ucid": ucid, "server_name": server_name})
+                await cursor.execute(query, {"ucid": ucid, "server_name": resolved_server_name})
                 data = await cursor.fetchone()
                 if data:
                     data['kdr'] = round(data['kills'] / data['deaths'] if data['deaths'] > 0 else data['kills'], 2)
@@ -754,7 +1401,10 @@ class RestAPI(Plugin):
         self.log.debug(f'Calling /modulestats with nick="{nick}", date="{date}", server_name="{server_name}"')
 
         ucid = await self.get_ucid(nick, date)
-        if server_name:
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+        
+        if resolved_server_name:
             where = "AND s.server_name = %(server_name)s"
         else:
             where = ""
@@ -772,7 +1422,7 @@ class RestAPI(Plugin):
         """
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(query, {"ucid": ucid, "server_name": server_name})
+                await cursor.execute(query, {"ucid": ucid, "server_name": resolved_server_name})
                 return [ModuleStats.model_validate(result) for result in await cursor.fetchall()]
 
     async def current_server(self, nick: str = Query(...), date: str | None = Query(None)) -> str | None:
@@ -845,10 +1495,16 @@ class RestAPI(Plugin):
                     limit: int | None = Form(10), offset: int | None = Form(0),
                     server_name: str | None = Form(None)):
         self.log.debug(f'Calling /traps with nick="{nick}", date="{date}", server_name="{server_name}"')
-        if server_name:
-            join = "JOIN missions m ON t.mission_id = m.id AND m.server_name = %(server_name)s"
+        
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+        
+        if resolved_server_name:
+            join = "JOIN missions m ON t.mission_id = m.id"
+            where = "WHERE t.player_ucid = %(ucid)s AND m.server_name = %(server_name)s"
         else:
             join = ""
+            where = "WHERE t.player_ucid = %(ucid)s"
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 ucid = await self.get_ucid(nick, date)
@@ -856,10 +1512,10 @@ class RestAPI(Plugin):
                     SELECT t.unit_type, t.grade, t.comment, t.place, t.trapcase, t.wire, t.night, t.points, t.time
                     FROM traps t
                     {join}
-                    WHERE t.player_ucid = %(ucid)s
+                    {where}
                     ORDER BY time DESC 
                     LIMIT {limit} OFFSET {offset}
-                """, {"ucid": ucid, "server_name": server_name})
+                """, {"ucid": ucid, "server_name": resolved_server_name})
                 return [TrapEntry.model_validate(result) for result in await cursor.fetchall()]
 
     async def squadron_members(self, name: str = Form(...)):
@@ -906,8 +1562,9 @@ class RestAPI(Plugin):
             return SquadronCampaignCredit.model_validate({"campaign": row[1], "credits": squadron_obj.points})
 
     async def linkme(self,
-                     discord_id: str = Form(..., description="Discord user ID (snowflake)", example="123456789012345678"),
-                     force: bool = Form(False, description="Force the operation", example=True)):
+                     discord_id: str = Form(..., description="Discord user ID (snowflake)",
+                                            examples=["123456789012345678"]),
+                     force: bool = Form(False, description="Force the operation")):
 
         async def create_token() -> str:
             while True:
@@ -976,10 +1633,9 @@ class RestAPI(Plugin):
     @tasks.loop(hours=1)
     async def refresh_views(self):
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    REFRESH MATERIALIZED VIEW CONCURRENTLY mv_serverstats;
-                """)
+            await conn.execute("""
+                REFRESH MATERIALIZED VIEW CONCURRENTLY mv_serverstats;
+            """)
 
     @refresh_views.before_loop
     async def before_refresh_views(self):

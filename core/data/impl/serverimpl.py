@@ -7,7 +7,6 @@ import luadata
 import os
 import psutil
 import shutil
-import subprocess
 import sys
 import tempfile
 import traceback
@@ -23,14 +22,16 @@ from core import utils, Server
 from core.const import MAX_SAFE_INTEGER
 from core.data.dataobject import DataObjectFactory
 from core.data.const import Status, Channel, Coalition
+from core.data.node import UploadStatus
 from core.extension import Extension, InstallException, UninstallException
 from core.mizfile import MizFile
-from core.data.node import UploadStatus
+from core.process import ProcessManager
 from core.utils.performance import performance_log
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
+from psycopg.errors import UndefinedTable
 from typing import TYPE_CHECKING, Any
 from typing_extensions import override
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
@@ -314,17 +315,22 @@ class ServerImpl(Server):
         else:
             data = {}
         lock_time = self.locals['coalitions'].get('lock_time', '1 day')
-        with self.pool.connection() as conn:
-            for row in conn.execute(f"""
-                SELECT player_ucid, coalition, coalition_join FROM coalitions 
-                WHERE server_name = %s
-                AND coalition_join > (NOW() AT TIME ZONE 'UTC' - interval '{lock_time}')
-            """, (self.name, )):
-                if row[0] not in data:
-                    data[row[0]] = {
-                        "side": 1 if row[1] == 'red' else 2,
-                        "joinTime": int(row[2].replace(tzinfo=timezone.utc).astimezone().timestamp())
-                    }
+        try:
+            with self.pool.connection() as conn:
+                for row in conn.execute(f"""
+                    SELECT player_ucid, coalition, coalition_join FROM coalitions 
+                    WHERE server_name = %s
+                    AND coalition_join > (NOW() AT TIME ZONE 'UTC' - interval '{lock_time}')
+                """, (self.name, )):
+                    if row[0] not in data:
+                        data[row[0]] = {
+                            "side": 1 if row[1] == 'red' else 2,
+                            "joinTime": int(row[2].replace(tzinfo=timezone.utc).astimezone().timestamp())
+                        }
+        except UndefinedTable:
+            # Can happen on fresh bot installations
+            self.log.debug("Coalitions table not there yet. Ignoring.")
+            pass
         with filename.open('w', encoding='utf-8') as outfile:
             outfile.write("usersTable = " + luadata.serialize(data, 'utf-8', indent='\t', indent_level=0))
 
@@ -454,12 +460,11 @@ class ServerImpl(Server):
         async def update_database(old_name: str, new_name: str):
             # rename the server in the database
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("UPDATE servers SET server_name = %s WHERE server_name = %s",
-                                       (new_name, old_name or 'n/a'))
-                    if not old_name:
-                        await conn.execute("UPDATE instances SET server_name = %s WHERE instance = %s",
-                                           (new_name, self.instance.name))
+                await conn.execute("UPDATE servers SET server_name = %s WHERE server_name = %s",
+                                   (new_name, old_name or 'n/a'))
+                if not old_name:
+                    await conn.execute("UPDATE instances SET server_name = %s WHERE instance = %s",
+                                       (new_name, self.instance.name))
 
         async def update_cluster(new_name: str):
             # only the master can take care of a cluster-wide rename
@@ -497,8 +502,7 @@ class ServerImpl(Server):
     async def unlink(self):
         if self.name == 'n/a':
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("DELETE FROM servers WHERE server_name = 'n/a'")
+                await conn.execute("DELETE FROM servers WHERE server_name = 'n/a'")
         self.instance.server = None
 
     @performance_log()
@@ -542,21 +546,27 @@ class ServerImpl(Server):
             self.log.warning('Removed non-existent missions from serverSettings.lua')
         self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.instance.name))
         try:
-            p = subprocess.Popen(
-                [exe, '--server', '--norender', '-w', self.instance.name], executable=path, close_fds=True
+            # Old affinity (now deprecated)
+            affinity = self.locals.get('affinity')
+            if isinstance(affinity, str):
+                affinity = [int(x.strip()) for x in affinity.split(',')]
+            elif isinstance(affinity, int):
+                affinity = [affinity]
+
+            # Launch the process
+            self.process = ProcessManager().launch_process(
+                [exe, '--server', '--norender', '-w', self.instance.name],
+                executable=path,
+                close_fds=True,
+                affinity=affinity,
+                min_cores=self.locals.get('auto_affinity', {}).get('min_cores', 1),
+                max_cores=self.locals.get('auto_affinity', {}).get('max_cores', 2),
+                quality=self.locals.get('auto_affinity', {}).get('quality', 3),
+                instance=self.instance.name
             )
-            self.process = psutil.Process(p.pid)
             if 'priority' in self.locals:
                 self.set_priority(self.locals.get('priority'))
-            if 'affinity' in self.locals:
-                self.set_affinity(self.locals.get('affinity'))
-            else:
-                # make sure that we only use P-cores for DCS servers
-                e_core_affinity = utils.get_e_core_affinity()
-                if e_core_affinity:
-                    self.log.info(f"  => P/E-Core CPU detected.")
-                    self.set_affinity(utils.get_cpus_from_affinity(utils.get_p_core_affinity()))
-            self.log.info(f"  => DCS server starting up with PID {p.pid}")
+            self.log.info(f"  => DCS server starting up with PID {self.process.pid}")
         except Exception:
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
             self.process = None
@@ -641,14 +651,6 @@ class ServerImpl(Server):
         else:
             p = psutil.NORMAL_PRIORITY_CLASS
         self.process.nice(p)
-
-    def set_affinity(self, affinity: list[int] | str):
-        if isinstance(affinity, str):
-            affinity = [int(x.strip()) for x in affinity.split(',')]
-        elif isinstance(affinity, int):
-            affinity = [affinity]
-        self.log.info("  => Setting process affinity to {}".format(','.join(map(str, affinity))))
-        self.process.cpu_affinity(affinity)
 
     @override
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
@@ -821,11 +823,10 @@ class ServerImpl(Server):
         if self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             await self.send_to_dcs({"command": "getMissionUpdate"})
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    UPDATE instances SET last_seen = (now() AT TIME ZONE 'utc') 
-                    WHERE node = %s AND server_name = %s
-                """, (self.node.name, self.name))
+            await conn.execute("""
+                UPDATE instances SET last_seen = (now() AT TIME ZONE 'utc') 
+                WHERE node = %s AND server_name = %s
+            """, (self.node.name, self.name))
 
     @override
     async def uploadMission(self, filename: str, url: str, *, missions_dir: str = None, force: bool = False,
@@ -907,6 +908,10 @@ class ServerImpl(Server):
         await self.loadMission(self._get_current_mission_file(), modify_mission=modify_mission, use_orig=use_orig)
 
     @override
+    async def getStartIndex(self) -> int:
+        return self.settings.get('listStartIndex', 1)
+
+    @override
     async def setStartIndex(self, mission_id: int) -> None:
         if mission_id > len(self.settings['missionList']):
             mission_id = 1
@@ -944,10 +949,9 @@ class ServerImpl(Server):
             self.settings['advanced'] = advanced
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format(
-                    'blue_password' if coalition == Coalition.BLUE else 'red_password'),
-                    (password, self.name))
+            await conn.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format(
+                'blue_password' if coalition == Coalition.BLUE else 'red_password'),
+                (password, self.name))
 
     @override
     async def addMission(self, path: str, *, idx: int | None = -1, autostart: bool | None = False) -> list[str]:
@@ -1024,6 +1028,7 @@ class ServerImpl(Server):
 
         # we should not reload the running mission
         if no_reload and mission == current_mission:
+            self.log.debug("Skipping loadMission(current_mission) as no_reload is True.")
             return None
 
         if modify_mission:
@@ -1051,16 +1056,19 @@ class ServerImpl(Server):
             try:
                 idx = mission_list.index(filename) + 1
                 if idx == current_index:
+                    self.log.debug(f"loadMission(): {idx} == current_index, startMission({filename})")
                     rc = await self.send_to_dcs_sync({
                         "command": "startMission",
                         "filename": filename
                     }, timeout=timeout)
                 else:
+                    self.log.debug(f"loadMission(): startMission({idx})")
                     rc = await self.send_to_dcs_sync({
                         "command": "startMission",
                         "id": idx
                     }, timeout=timeout)
             except ValueError:
+                self.log.debug(f"loadMission(): Can't find index, startMission({filename})")
                 rc = await self.send_to_dcs_sync({
                     "command": "startMission",
                     "filename": filename

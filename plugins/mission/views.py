@@ -1,19 +1,18 @@
 import asyncio
 import discord
 import os
-import pandas as pd
 
 from contextlib import suppress
-from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils, get_translation, Side
+from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils, get_translation, Side, \
+    ServiceRegistry
 from discord import SelectOption, ButtonStyle
-from discord.ui import View, Select, Button
-from io import StringIO, BytesIO
-from openpyxl.utils import get_column_letter
+from discord.ui import View, Select, Button, Modal, TextInput
+from io import StringIO
 from ruamel.yaml import YAML
+from services.bot import DCSServerBot, BotService
 from typing import cast
 
-from plugins.mission.const import LIQUIDS
-from services.bot import DCSServerBot
+from services.servicebus import ServiceBus
 
 WARNING_ICON = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true"
 _ = get_translation(__name__.split('.')[1])
@@ -191,6 +190,7 @@ class InfoView(View):
         super().__init__()
         self.member = member
         self.bot = bot
+        self.bus = bot.bus
         self.ephemeral = ephemeral
         self.player = player
         self.server = server
@@ -246,7 +246,7 @@ class InfoView(View):
         return env.embed
 
     async def is_banned(self) -> bool:
-        return await self.bot.bus.is_banned(self.ucid) is not None
+        return await self.bus.is_banned(self.ucid) is not None
 
     async def is_watchlist(self) -> bool:
         async with self.bot.apool.connection() as conn:
@@ -260,23 +260,16 @@ class InfoView(View):
         self.stop()
 
     async def on_ban(self, interaction: discord.Interaction):
+        modal = BanModal(self.ucid)
         # noinspection PyUnresolvedReferences
-        await interaction.response.defer()
-        # TODO: reason modal
-        await self.bot.bus.ban(ucid=self.ucid, reason='n/a', banned_by=interaction.user.display_name)
-        await interaction.followup.send("User has been banned.", ephemeral=self.ephemeral)
-        name = self.player.name if self.player else self.member.display_name if isinstance(self.member, discord.Member) else self.member
-        message = f'banned user {name} '
-        if not utils.is_ucid(name):
-            message += '(ucid={self.ucid}) '
-        message += 'permanently'
-        await self.bot.audit(message, user=interaction.user)
+        await interaction.response.send_modal(modal)
+        await modal.wait()
         self.stop()
 
     async def on_unban(self, interaction: discord.Interaction):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
-        await self.bot.bus.unban(self.ucid)
+        await self.bus.unban(self.ucid)
         await interaction.followup.send("User has been unbanned.", ephemeral=self.ephemeral)
         await self.bot.audit(f'unbanned user {self.ucid}.', user=interaction.user)
         self.stop()
@@ -295,7 +288,7 @@ class InfoView(View):
         await interaction.response.defer()
         member: discord.Member = self._member.member
         self._member.unlink()
-        await self.bot.bus.send_to_node({
+        await self.bus.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
             "method": "propagate_event",
@@ -324,7 +317,7 @@ class InfoView(View):
         await interaction.response.defer()
         member: discord.Member = self._member.member
         self._member.verified = True
-        await self.bot.bus.send_to_node({
+        await self.bus.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
             "method": "propagate_event",
@@ -352,9 +345,8 @@ class InfoView(View):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         async with self.bot.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("INSERT INTO watchlist (player_ucid, reason, created_by) VALUES (%s, %s, %s)",
-                                   (self.ucid, 'n/a', interaction.user.display_name))
+            await conn.execute("INSERT INTO watchlist (player_ucid, reason, created_by) VALUES (%s, %s, %s)",
+                               (self.ucid, 'n/a', interaction.user.display_name))
         await interaction.followup.send("User is now on the watchlist.", ephemeral=self.ephemeral)
         self.stop()
 
@@ -362,8 +354,7 @@ class InfoView(View):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         async with self.bot.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (self.ucid, ))
+            await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (self.ucid, ))
         await interaction.followup.send("User removed from the watchlist.", ephemeral=self.ephemeral)
         name = self.player.name if self.player else self.member.display_name if isinstance(self.member, discord.Member) else self.member
         message = f'removed player {name} '
@@ -482,11 +473,12 @@ class AirbaseView(View):
         radio_toggle = self.children[2]
         radio_toggle.style = discord.ButtonStyle.primary if not self.data['radio_silent'] else discord.ButtonStyle.secondary
         radio_toggle.label = _('ATC On') if self.data['radio_silent'] else _('ATC Off')
+        # noinspection PyUnresolvedReferences
         self.children[3].disabled = all(x is True for x in self.data['unlimited'].values())
 
     # noinspection PyTypeChecker
     @discord.ui.button(label=_('Capture'))
-    async def capture(self, interaction: discord.Interaction, button: Button):
+    async def capture(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.data['coalition'] = (self.data['coalition'] % 2) + 1
@@ -509,7 +501,7 @@ class AirbaseView(View):
 
     # noinspection PyTypeChecker
     @discord.ui.button()
-    async def toggle_capture(self, interaction: discord.Interaction, button: Button):
+    async def toggle_capture(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.data['auto_capture'] = not self.data['auto_capture']
@@ -523,7 +515,7 @@ class AirbaseView(View):
 
     # noinspection PyTypeChecker
     @discord.ui.button()
-    async def silence_radio(self, interaction: discord.Interaction, button: Button):
+    async def silence_radio(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.data['radio_silent'] = not self.data['radio_silent']
@@ -537,65 +529,44 @@ class AirbaseView(View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(label=_("Download Inventory"), style=discord.ButtonStyle.green)
-    async def download(self, interaction: discord.Interaction, button: Button):
-        def dict_to_df(mapping: dict) -> pd.DataFrame:
-            df = pd.DataFrame(list(mapping.items()), columns=["Name", "Count"])
-            return df
+    async def download(self, interaction: discord.Interaction, _button: Button):
+        from .commands import Mission
 
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
-
-        sheet_titles = {
-            "aircraft": "Aircraft",
-            "weapon": "Weapons",
-            "liquids": "Liquids",
-        }
-
-        warehouse = self.data.get('warehouse', {})
-
-        dataframes = {}
-        for key, title in sheet_titles.items():
-            inner_dict = warehouse.get(key)
-            if key == "liquids":
-                mapped = {LIQUIDS.get(k, k): v for k, v in inner_dict.items()}
-            else:
-                mapped = inner_dict
-            df = dict_to_df(mapped)
-            df.sort_values("Name", inplace=True)
-            dataframes[title] = df
-
-        buffer = BytesIO()
-        with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-            for sheet_name, df in dataframes.items():
-                df.to_excel(writer, sheet_name=sheet_name, index=False)
-
-            wb = writer.book
-            for sheet_name, df in dataframes.items():
-                ws = wb[sheet_name]
-                ws.auto_filter.ref = f"A1:{get_column_letter(len(df.columns))}{len(df) + 1}"
-
-                for col_idx, col_name in enumerate(df.columns, start=1):
-                    max_len = max(
-                        df[col_name].astype(str).map(len).max(),  # data
-                        len(col_name)  # header
-                    )
-                    column_letter = get_column_letter(col_idx)
-                    ws.column_dimensions[column_letter].width = max_len + 2
-
-        buffer.seek(0)
-        try:
-            code = utils.slugify(self.airbase.get('code', '') or self.airbase.get('name', 'XXXX'))
-            # noinspection PyUnresolvedReferences
-            await interaction.followup.send(
-                file=discord.File(fp=buffer, filename=f"warehouse-{code.lower()}.xlsx"), ephemeral=True
-            )
-            self.stop()
-        finally:
-            buffer.close()
+        await Mission.download_warehouse(interaction, self.airbase, self.data)
+        self.stop()
 
     # noinspection PyTypeChecker
     @discord.ui.button(label=_('Cancel'), style=discord.ButtonStyle.secondary)
-    async def cancel(self, interaction: discord.Interaction, button: Button):
+    async def cancel(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
+
+
+class BanModal(Modal):
+    reason = TextInput(label=_("Reason"), max_length=80, required=True)
+    period = TextInput(label=_("Days (empty = forever)"), required=False)
+
+    def __init__(self, ucid: str):
+        super().__init__(title=_("Ban Details"))
+        self.ucid = ucid
+        self.bus: ServiceBus = ServiceRegistry.get(ServiceBus)
+        self.bot: BotService = ServiceRegistry.get(BotService)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        days = int(self.period.value) if self.period.value else None
+        await self.bus.ban(self.ucid, interaction.user.display_name, self.reason.value, days)
+        name = await self.bot.bot.get_member_or_name_by_ucid(self.ucid)
+        if isinstance(name, discord.Member):
+            name = name.display_name
+        elif not name:
+            name = '<unknown>'
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(
+            _("User {} banned on all servers ").format(name) +
+            (_("for {} days.").format(days) if days else ""),
+            ephemeral=utils.get_ephemeral(interaction))
+        await self.bot.audit(f'banned player {name} (ucid={self.ucid} with reason "{self.reason.value}"' +
+                             (f' for {days} days.' if days else ' permanently.'), user=interaction.user)

@@ -267,6 +267,16 @@ To display nice graphics like bar-charts or pie-charts, you need to wrap them in
 > Only one Graph element is allowed per report.
 > You can use a MultiGraphElement though.
 
+> [!TIP]
+> If you are using graph elements that can vary in size, especially tables, you can dynamically adjust the width, 
+> height, or dpi using arithmetic expressions like so:
+> ```json
+> {
+>   "height": "${limit} / 2 + 2"
+> }
+> ```
+> This will be evaluated at runtime. If you pass a "limit" of 10 to your graph, the height will be 7.
+
 You can configure sub-elements like so:
 ```json
     "elements": [
@@ -280,6 +290,25 @@ You can configure sub-elements like so:
       }
     ]
 ```
+
+### SQLRenderedTable
+A formatted table.
+```json
+  "elements": [
+    {
+      "class": "core.report.elements.SQLRenderedTable",
+      "params": {
+        "col": 0,
+        "row": 0,
+        "title": "Bans (last {limit})",
+        "sql": "SELECT * FROM bans ORDER BY banned_at DESC LIMIT {limit}",
+        "no_data": "There are no bans logged.",
+        "fontsize": 10
+      }
+    }
+```
+> [!TIP]
+> See how this element uses a dynamic title by replacing {limit} with the actual value.
 
 ### BarChart
 Simple bar chart that will display all elements of a given dictionary.

@@ -27,6 +27,10 @@ MyNode:
         Sneaker:
           enabled: true
           debug: true               # Show the Sneaker console output in the DCSSB console. Default = false
+          auto_affinity:            # Optional: core affinity settings
+            min_cores: 1            # Min number of cores to be used (default: 1)
+            max_cores: 1            # Max number of cores to be used (default: 1)
+            quality: 1              # Quality (0 = low, 1 = normal, 2 = high, default: 1)
 ```
 You need to let the sneaker cmd point to wherever you've installed the sneaker.exe binary (name might vary, usually 
 there is a version number attached to it). DCSServerBot will auto-create the config.json for sneaker 

@@ -3,7 +3,8 @@ import discord
 import json
 import os
 
-from core import Plugin, utils, Server, get_translation, Group, Coalition, Status, InstallException, UninstallException
+from core import Plugin, utils, Server, get_translation, Group, Coalition, Status, InstallException, UninstallException, \
+    ServerUploadHandler
 from discord import app_commands
 from discord.ext import commands
 from extensions.lotatc import LotAtc as LotAtcExt
@@ -44,23 +45,6 @@ class LotAtc(Plugin[LotAtcEventListener]):
     def lotatc_server_filter(server: Server) -> bool:
         extensions = server.instance.locals.get('extensions')
         return 'LotAtc' in extensions if extensions is not None else False
-
-    async def get_server(self, message: discord.Message) -> Server | None:
-        server: Server = self.bot.get_server(message, admin_only=True)
-        if server:
-            return server
-        ctx = await self.bot.get_context(message)
-        # check if we are in the correct channel
-        admin_channel = self.bot.locals.get('channels', {}).get('admin')
-        if not admin_channel or admin_channel != message.channel.id:
-            return None
-        try:
-            return await utils.server_selection(
-                self.bot, ctx, title=_("To which server do you want to upload this transponder file to?"),
-                filter_func=self.lotatc_server_filter)
-        except Exception as ex:
-            self.log.exception(ex)
-            return None
 
     # New command group "/lotatc"
     lotatc = Group(name="lotatc", description=_("Commands to manage LotAtc"))
@@ -254,42 +238,39 @@ class LotAtc(Plugin[LotAtcEventListener]):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # ignore bot messages
-        if message.author.bot:
+        pattern = ['.json']
+        if not ServerUploadHandler.is_valid(message, pattern=pattern, roles=self.bot.roles['DCS Admin']):
             return
-        if not message.attachments or not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
-            return
-        for attachment in message.attachments:
-            if not attachment.filename.endswith('.json'):
-                continue
-            async with aiohttp.ClientSession() as session:
-                async with session.get(message.attachments[0].url, proxy=self.node.proxy,
-                                       proxy_auth=self.node.proxy_auth) as response:
-                    if response.status == 200:
-                        data = await response.json(encoding="utf-8")
-                        with open('plugins/lotatc/schemas/lotatc_schema.json', mode='r') as infile:
-                            schema = json.load(infile)
-                        try:
-                            validate(instance=data, schema=schema)
-                        except ValidationError:
-                            return
-            # We have a proper LotAtc transponder json
-            try:
-                server = await self.get_server(message)
-                if not server:
-                    await message.channel.send(_("LotAtc is not configured on any server."))
-                    return
+        try:
+            server = await ServerUploadHandler.get_server(message, filter_func=self.lotatc_server_filter)
+            if not server:
+                await message.channel.send(_("LotAtc is not configured on any server."))
+                return
+
+            handler = ServerUploadHandler(server=server, message=message, pattern=pattern)
+            with open('plugins/lotatc/schemas/lotatc_schema.json', mode='r') as infile:
+                schema = json.load(infile)
+
+            for attachment in message.attachments:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(message.attachments[0].url, proxy=self.node.proxy,
+                                           proxy_auth=self.node.proxy_auth) as response:
+                        if response.status == 200:
+                            data = await response.json(encoding="utf-8")
+                            try:
+                                validate(instance=data, schema=schema)
+                            except ValidationError:
+                                await message.channel.send(f"Could not upload file {attachment.filename} "
+                                                           f"as it is no valid transponder file.")
+                                continue
 
                 root = server.instance.home
-                filename = os.path.join(root, LOTATC_DIR.format("blue") if "blue" in attachment.filename else "red",
-                                        attachment.filename)
-                await server.node.write_file(filename, attachment.url, overwrite=True)
-                await message.channel.send(_('Transponder file {} uploaded.').format(attachment.filename))
-            except Exception as ex:
-                self.log.exception(ex)
-                await message.channel.send(_('Transponder file {} could not be uploaded!').format(attachment.filename))
-            finally:
-                await message.delete()
+                base_dir = os.path.join(root, LOTATC_DIR.format("blue") if "blue" in attachment.filename else "red")
+                await handler.upload(base_dir)
+        except Exception as ex:
+            self.log.exception(ex)
+        finally:
+            await message.delete()
 
 
 async def setup(bot: DCSServerBot):

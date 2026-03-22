@@ -45,7 +45,8 @@ class Server(DataObject, ABC):
     _settings: utils.SettingsDict | utils.RemoteSettingsDict | None = field(default=None, compare=False)
     current_mission: Mission | None = field(default=None, compare=False)
     _mission_id: int = field(default=None, compare=False)
-    players: dict[int, Player] = field(default_factory=dict, compare=False)
+    players: dict[str, Player] = field(default_factory=dict, compare=False)
+    players_by_id: dict[int, Player] = field(default_factory=dict, compare=False)
     process: Process | None = field(default=None, compare=False)
     _maintenance: bool = field(compare=False, default=False)
     restart_pending: bool = field(default=False, compare=False)
@@ -89,7 +90,7 @@ class Server(DataObject, ABC):
                 "greeting_message_unmatched": "{player.name}, please use /linkme in our Discord, if you want to see your user stats!",
                 "message_server_locked": "This server is currently locked and cannot be joined.",
                 "message_player_default_username": "Please change your default player name at the top right of the multiplayer selection list to an individual one!",
-                "message_player_username": "Your player name contains invalid characters. Please change your name to join our server.",
+                "message_player_username": "Please change your name to join our server.",
                 "message_player_inappropriate_username": "Your username contains a curseword. It needs to be changed to join this server.",
                 "message_ban": "You are banned from this server. Reason: {}",
                 "message_reserved": "This server is locked for specific users.\nPlease contact a server admin.",
@@ -207,18 +208,27 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     def add_player(self, player: Player):
-        self.players[player.id] = player
+        self.players[player.ucid] = player
+        self.players_by_id[player.id] = player
 
     def get_player(self, **kwargs) -> Player | None:
-        if 'id' in kwargs:
-            return self.players.get(kwargs['id'])
+        # Check for IDs
+        if 'ucid' in kwargs:
+            player = self.players.get(kwargs['ucid'])
+            if player and (kwargs.get('active') is None or player.active == kwargs['active']):
+                return player
+            return None
+        elif 'id' in kwargs:
+            player = self.players_by_id.get(kwargs['id'])
+            if player and (kwargs.get('active') is None or player.active == kwargs['active']):
+                return player
+            return None
+
         for player in self.players.values():
             if player.id == 1:
                 continue
             if kwargs.get('active') is not None and player.active != kwargs['active']:
                 continue
-            if 'ucid' in kwargs and player.ucid == kwargs['ucid']:
-                return player
             if 'discord_id' in kwargs and player.member and player.member.id == kwargs['discord_id']:
                 return player
             if 'unit_id' in kwargs and player.unit_id == kwargs['unit_id']:
@@ -228,6 +238,10 @@ class Server(DataObject, ABC):
             if 'ipaddr' in kwargs and player.ipaddr == kwargs['ipaddr']:
                 return player
         return None
+
+    def clear_players(self):
+        self.players.clear()
+        self.players_by_id.clear()
 
     def get_active_players(self, *, side: Side = None) -> list[Player]:
         return [x for x in self.players.values() if x.active and (not side or side == x.side)]
@@ -312,8 +326,8 @@ class Server(DataObject, ABC):
                 await self.send_to_dcs(message)
                 return await asyncio.wait_for(future, timeout)
             finally:
-                if self.listeners.get(token) is future:
-                    self.listeners.pop(token, None)
+                # noinspection PyAsyncCall
+                self.listeners.pop(token, None)
 
     async def sendChatMessage(self, coalition: Coalition, message: str, sender: str = None):
         if coalition == Coalition.ALL:
@@ -375,6 +389,10 @@ class Server(DataObject, ABC):
 
     @abstractmethod
     async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def getStartIndex(self) -> int:
         raise NotImplementedError()
 
     @abstractmethod

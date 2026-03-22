@@ -1,6 +1,61 @@
+schema;element_schema:
+  type: map
+  nullable: false
+  mapping:
+    ping_everyone:
+      type: map
+      nullable: false
+      mapping:
+        report: {type: bool, nullable: false, required: true}
+        timeout: {type: int, nullable: false, range: {min: 0}}
+        kick: {type: bool, nullable: false}
+    on_join:
+      type: map
+      nullable: false
+      mapping:
+        message: {type: str, nullable: false, range: {min: 1}}
+        mention: {type: text, nullable: false}
+        channel: {type: int, nullable: false}
+    roles:
+      type: map
+      nullable: false
+      mapping:
+        regex;(.+):
+          type: map
+          nullable: false
+          mapping:
+            regex;(on_add|on_remove|on_leave):
+              type: map
+              nullable: false
+              mapping:
+                message: {type: str, nullable: false, range: {min: 1}}
+                mention: {type: text, nullable: false}
+                channel: {type: int, nullable: false}
+    reaction:
+      type: map
+      nullable: false
+      mapping:
+        channel: {type: text, nullable: false}
+        title: {type: str, nullable: false, range: {min: 1}}
+        message: {type: str, nullable: false, range: {min: 1}}
+        bot_trap: {type: bool, nullable: false}
+        roles:
+          type: map
+          nullable: false
+          mapping:
+            regex;(.+):
+              type: map
+              nullable: false
+              mapping:
+                role: {type: text, nullable: false, required: true}
+                message: {type: str, nullable: false, required: true}
+
 type: map
+func: check_main_structure
 nullable: false
 mapping:
+  DEFAULT:
+    include: 'element_schema'
   commands:
     include: 'commands_schema'
   chat_commands:

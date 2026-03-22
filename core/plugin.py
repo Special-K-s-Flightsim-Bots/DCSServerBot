@@ -337,55 +337,54 @@ class Plugin(commands.Cog, Generic[TEventListener], metaclass=PluginMeta):
 
     async def _init_db(self) -> bool:
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                async with conn.cursor() as cursor:
-                    await cursor.execute('SELECT version FROM plugins WHERE plugin = %s', (self.plugin_name,))
-                    # first installation
-                    if cursor.rowcount == 0:
-                        tables_file = f'./plugins/{self.plugin_name}/db/tables.sql'
-                        if os.path.exists(tables_file):
-                            async with aiofiles.open(tables_file, mode='r') as tables_sql:
+            async with conn.cursor() as cursor:
+                await cursor.execute('SELECT version FROM plugins WHERE plugin = %s', (self.plugin_name,))
+                # first installation
+                if cursor.rowcount == 0:
+                    tables_file = f'./plugins/{self.plugin_name}/db/tables.sql'
+                    if os.path.exists(tables_file):
+                        async with aiofiles.open(tables_file, mode='r') as tables_sql:
+                            for query in [
+                                stmt.strip()
+                                for stmt in sqlparse.split(await tables_sql.read(), encoding='utf-8')
+                                if stmt.strip()
+                            ]:
+                                self.log.debug(query.rstrip())
+                                await cursor.execute(query.rstrip())
+                    await cursor.execute("""
+                        INSERT INTO plugins (plugin, version) VALUES (%s, %s) 
+                        ON CONFLICT (plugin) DO NOTHING
+                    """, (self.plugin_name, self.plugin_version))
+                    self.log.info(f'  => {self.__cog_name__} installed.')
+                    return True
+                else:
+                    installed = (await cursor.fetchone())[0]
+                    # old variant, to be migrated
+                    if installed.startswith('v'):
+                        installed = installed[1:]
+                    while parse(installed) < parse(self.plugin_version):
+                        updates_file = f'./plugins/{self.plugin_name}/db/update_v{installed}.sql'
+                        if os.path.exists(updates_file):
+                            async with aiofiles.open(updates_file, mode='r') as updates_sql:
                                 for query in [
                                     stmt.strip()
-                                    for stmt in sqlparse.split(await tables_sql.read(), encoding='utf-8')
+                                    for stmt in sqlparse.split(await updates_sql.read(), encoding='utf-8')
                                     if stmt.strip()
                                 ]:
                                     self.log.debug(query.rstrip())
-                                    await cursor.execute(query.rstrip())
-                        await cursor.execute("""
-                            INSERT INTO plugins (plugin, version) VALUES (%s, %s) 
-                            ON CONFLICT (plugin) DO NOTHING
-                        """, (self.plugin_name, self.plugin_version))
-                        self.log.info(f'  => {self.__cog_name__} installed.')
-                        return True
-                    else:
-                        installed = (await cursor.fetchone())[0]
-                        # old variant, to be migrated
-                        if installed.startswith('v'):
-                            installed = installed[1:]
-                        while parse(installed) < parse(self.plugin_version):
-                            updates_file = f'./plugins/{self.plugin_name}/db/update_v{installed}.sql'
-                            if os.path.exists(updates_file):
-                                async with aiofiles.open(updates_file, mode='r') as updates_sql:
-                                    for query in [
-                                        stmt.strip()
-                                        for stmt in sqlparse.split(await updates_sql.read(), encoding='utf-8')
-                                        if stmt.strip()
-                                    ]:
-                                        self.log.debug(query.rstrip())
-                                        await conn.execute(query.rstrip())
-                                ver, rev = installed.split('.')
-                                installed = ver + '.' + str(int(rev) + 1)
-                            elif int(self.plugin_version[0]) == 3 and int(installed[0]) < 3:
-                                installed = '3.0'
-                            else:
-                                ver, rev = installed.split('.')
-                                installed = ver + '.' + str(int(rev) + 1)
-                            await self.migrate(installed, conn)
-                            self.log.info(f'  => {self.__cog_name__} migrated to version {installed}.')
-                            await cursor.execute('UPDATE plugins SET version = %s WHERE plugin = %s',
-                                                 (self.plugin_version, self.plugin_name))
-                        return False
+                                    await conn.execute(query.rstrip())
+                            ver, rev = installed.split('.')
+                            installed = ver + '.' + str(int(rev) + 1)
+                        elif int(self.plugin_version[0]) == 3 and int(installed[0]) < 3:
+                            installed = '3.0'
+                        else:
+                            ver, rev = installed.split('.')
+                            installed = ver + '.' + str(int(rev) + 1)
+                        await self.migrate(installed, conn)
+                        self.log.info(f'  => {self.__cog_name__} migrated to version {installed}.')
+                        await cursor.execute('UPDATE plugins SET version = %s WHERE plugin = %s',
+                                             (self.plugin_version, self.plugin_name))
+                    return False
 
     @staticmethod
     def migrate_to_3(node: str, plugin_name: str):

@@ -84,10 +84,9 @@ class Monitoring(Plugin[MonitoringListener]):
                     cursor = await conn.execute("SELECT version FROM plugins WHERE plugin = 'serverstats'")
                     row = await cursor.fetchone()
                     if row:
-                        async with conn.transaction():
-                            await conn.execute("UPDATE plugins SET version = %s WHERE plugin = 'monitoring'",
-                                               (row[0], ))
-                            await conn.execute("DELETE FROM plugins WHERE plugin = 'serverstats'")
+                        await conn.execute("UPDATE plugins SET version = %s WHERE plugin = 'monitoring'",
+                                           (row[0], ))
+                        await conn.execute("DELETE FROM plugins WHERE plugin = 'serverstats'")
                         self.log.info("  => Migrating serverstats to monitoring. Restart triggered ...")
                         await self.node.restart()
                 return True
@@ -214,8 +213,7 @@ class Monitoring(Plugin[MonitoringListener]):
     @tasks.loop(hours=12.0)
     async def cleanup(self):
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("DELETE FROM serverstats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
+            await conn.execute("DELETE FROM serverstats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
 
 
 async def setup(bot: DCSServerBot):

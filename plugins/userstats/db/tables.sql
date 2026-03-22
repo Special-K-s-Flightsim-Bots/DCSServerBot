@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS squadrons (
     name TEXT NOT NULL,
     description TEXT NULL,
     role BIGINT NULL,
+    co_ucid TEXT NULL REFERENCES players(ucid) ON UPDATE CASCADE ON DELETE SET NULL,
+    xo_ucid TEXT NULL REFERENCES players(ucid) ON UPDATE CASCADE ON DELETE SET NULL,
     image_url TEXT NULL,
     channel BIGINT NULL,
     locked BOOLEAN NOT NULL DEFAULT FALSE
@@ -43,12 +45,32 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_squadrons_name ON squadrons (name);
 CREATE TABLE IF NOT EXISTS squadron_members (
     squadron_id INTEGER NOT NULL,
     player_ucid TEXT NOT NULL,
-    admin BOOLEAN NOT NULL DEFAULT FALSE,
+    rank TEXT NULL,
+    position TEXT NULL,
+    joined_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
     PRIMARY KEY (squadron_id, player_ucid),
     FOREIGN KEY (squadron_id) REFERENCES squadrons (id) ON DELETE CASCADE,
     FOREIGN KEY (player_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_squadron_members ON squadron_members (player_ucid);
+CREATE OR REPLACE FUNCTION clear_co_xo_on_member_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'squadron_members' AND TG_OP = 'DELETE' THEN
+    UPDATE squadrons
+       SET co_ucid = NULL
+     WHERE id = OLD.squadron_id
+       AND co_ucid = OLD.player_ucid;
+
+    UPDATE squadrons
+       SET xo_ucid = NULL
+     WHERE id = OLD.squadron_id
+       AND xo_ucid = OLD.player_ucid;
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_clear_co_xo AFTER DELETE ON squadron_members FOR EACH ROW EXECUTE FUNCTION clear_co_xo_on_member_delete();
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_statistics AS
     SELECT s.player_ucid, m.server_name, s.slot, s.tail_no, s.side, COUNT(s.slot) AS usage, SUM(s.kills) AS kills,
            SUM(s.pvp) AS pvp, SUM(s.deaths) AS deaths, SUM(s.ejections) AS ejections, SUM(s.crashes) AS crashes,

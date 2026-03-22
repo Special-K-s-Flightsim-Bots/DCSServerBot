@@ -130,7 +130,7 @@ class Install:
                                 sql.SQL("CREATE USER {} WITH ENCRYPTED PASSWORD {}")
                                 .format(sql.Identifier(user), sql.Literal(passwd))
                             )
-                        except psycopg.Error as ex:
+                        except psycopg.Error:
                             print(_('[yellow]Existing {} user found![/]').format(user))
                             for i in range(1, 4):
                                 passwd = Prompt.ask(

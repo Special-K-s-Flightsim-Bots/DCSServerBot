@@ -18,9 +18,10 @@ import zipfile
 from configparser import RawConfigParser
 from contextlib import suppress
 from core import (Extension, utils, ServiceRegistry, Autoexec, get_translation, InstallException, Server,
-                  ServerMaintenanceManager, PortType, Port)
+                  ServerMaintenanceManager, PortType, Port, ProcessManager)
 from discord.ext import tasks
 from io import BytesIO
+from json import JSONDecodeError
 from packaging.version import parse
 from services.bot import BotService
 from services.servicebus import ServiceBus
@@ -106,10 +107,11 @@ class SRS(Extension, FileSystemEventHandler):
                                    os.path.join('Scripts', 'Hooks', 'DCS-SRS-AutoConnectGameGUI.lua'))
         host = self.config.get('host', self.node.public_ip)
         port = self.config.get('port', self.locals['Server Settings']['SERVER_PORT'])
+        original = os.path.join(self.get_inst_path(), 'Scripts', 'DCS-SRS-AutoConnectGameGUI.lua')
         if os.path.exists(autoconnect):
             shutil.copy2(autoconnect, autoconnect + '.bak')
-        else:
-            shutil.copy2(os.path.join(self.get_inst_path(), 'Scripts', 'DCS-SRS-AutoConnectGameGUI.lua'), autoconnect)
+        if not os.path.exists(autoconnect) or os.path.getmtime(autoconnect) < os.path.getmtime(original):
+            shutil.copy2(original, autoconnect)
 
         tempfile_name = ""
         try:
@@ -263,7 +265,7 @@ class SRS(Extension, FileSystemEventHandler):
                     # Log the decoded line
                     self.log.log(level, f"{self.name}: {line}")
 
-            def run_subprocess():
+            def run_subprocess() -> psutil.Process:
                 if sys.platform == 'win32' and self.config.get('minimized', True):
                     import win32process
                     import win32con
@@ -278,12 +280,20 @@ class SRS(Extension, FileSystemEventHandler):
                 # we want the SRS logfile in our normal logs folder
                 cwd = os.path.join(self.server.instance.home, 'Logs')
 
-                proc = subprocess.Popen(
+                proc = ProcessManager().launch_process(
                     [
                         self.get_exe_path(),
                         f"-cfg={self.get_config_path()}"
                     ],
-                    cwd=cwd, startupinfo=info, stdout=out, stderr=err, close_fds=True
+                    cwd=cwd,
+                    startupinfo=info,
+                    stdout=out,
+                    stderr=err,
+                    close_fds=True,
+                    min_cores=self.config.get('auto_affinity', {}).get('min_cores', 1),
+                    max_cores=self.config.get('auto_affinity', {}).get('max_cores', 1),
+                    quality=self.config.get('auto_affinity', {}).get('quality', 0),
+                    instance=self.server.instance.name
                 )
 
                 if self.config.get('debug', False):
@@ -296,8 +306,7 @@ class SRS(Extension, FileSystemEventHandler):
                 async with type(self)._lock:
                     if self.is_running():
                         return True
-                    p = await asyncio.to_thread(run_subprocess)
-                    self.process = psutil.Process(p.pid)
+                    self.process = await asyncio.to_thread(run_subprocess)
                     if not self.observer:
                         self.start_observer()
             except psutil.NoSuchProcess:
@@ -340,7 +349,8 @@ class SRS(Extension, FileSystemEventHandler):
 
     @override
     def on_modified(self, event: FileSystemEvent) -> None:
-        if self.loop.is_running():
+        path = os.path.expandvars(self.locals['Server Settings']['CLIENT_EXPORT_FILE_PATH'])
+        if self.loop.is_running() and event.src_path == path:
             asyncio.run_coroutine_threadsafe(self.process_export_file(event.src_path), self.loop)
 
     async def process_export_file(self, path: str):
@@ -348,7 +358,7 @@ class SRS(Extension, FileSystemEventHandler):
             with open(path, mode='r', encoding='utf-8') as infile:
                 data = json.load(infile)
             for client in data.get('Clients', {}):
-                if client['Name'] == '---':
+                if client['Name'] == '---' or client['RadioInfo'] is None:
                     continue
                 target = set(int(x['freq']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6)
                 if client['ClientGuid'] not in self.clients:
@@ -387,8 +397,12 @@ class SRS(Extension, FileSystemEventHandler):
                 })
                 del self.clients[client]
                 del self.client_names[client]
-        except Exception:
+        except (PermissionError, JSONDecodeError):
+            # Happens if SRS writes the file again when we try to read it.
+            # Just ignore, we get the file on the next try.
             pass
+        except Exception as ex:
+            self.log.exception(ex)
 
     def start_observer(self):
         path = self.locals['Server Settings']['CLIENT_EXPORT_FILE_PATH']
@@ -416,6 +430,14 @@ class SRS(Extension, FileSystemEventHandler):
             running = self.process is not None and self.process.is_running()
             if not running:
                 self.log.debug("SRS: is NOT running (process)")
+            else:
+                ProcessManager().assign_process(
+                    self.process,
+                    min_cores=self.config.get('auto_affinity', {}).get('min_cores', 1),
+                    max_cores=self.config.get('auto_affinity', {}).get('max_cores', 1),
+                    quality=self.config.get('auto_affinity', {}).get('quality', 0),
+                    instance=self.server.instance.name
+                )
         else:
             server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
             if server_ip == '0.0.0.0':
@@ -541,9 +563,17 @@ class SRS(Extension, FileSystemEventHandler):
                     with zipfile.ZipFile(BytesIO(await response.content.read())) as z:
                         # stop any existing SRS process
                         if parse(self.version) >= parse('2.2.0.0'):
-                            srs_exes = ['SR-ClientRadio.exe', 'SRS-Server.exe', 'SRS-Server-Commandline.exe']
+                            srs_exes = [
+                                'SR-ClientRadio.exe',
+                                'SRS-Server.exe',
+                                'SRS-Server-Commandline.exe',
+                                'DCS-SR-ExternalAudio.exe'
+                            ]
                         else:
-                            srs_exes = ['SR-Server.exe']
+                            srs_exes = [
+                                'SR-Server.exe',
+                                'DCS-SR-ExternalAudio.exe'
+                            ]
                         for exe in srs_exes:
                             for process in utils.find_process(os.path.basename(exe)):
                                 if process and process.is_running():

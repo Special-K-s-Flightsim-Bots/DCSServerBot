@@ -2,27 +2,12 @@ import discord
 import math
 import numpy as np
 
-from core import report, utils, Side, Server, Coalition
+from core import report, utils
 from decimal import Decimal
 from matplotlib import cm
 from psycopg.rows import dict_row
 
 from .filter import StatisticsFilter
-
-
-def get_sides(interaction: discord.Interaction, server: Server) -> list[Side]:
-    if not interaction:
-        return [Side.NEUTRAL.value, Side.BLUE.value, Side.RED.value]
-    tmp = utils.get_sides(interaction.client, interaction, server)
-    sides = [0]
-    if Coalition.RED in tmp:
-        sides.append(Side.RED.value)
-    if Coalition.BLUE in tmp:
-        sides.append(Side.BLUE.value)
-    # in this specific case, we want to display all data, if in public channels
-    if len(sides) == 0:
-        sides = [Side.NEUTRAL.value, Side.BLUE.value, Side.RED.value]
-    return sides
 
 
 def compute_font_size(num_bars):
@@ -47,10 +32,6 @@ class HighscorePlaytime(report.GraphElement):
         if server_name:
             sql += "AND m.server_name = %(server_name)s"
             self.env.embed.description = utils.escape_string(server_name)
-            if server_name in self.bot.servers:
-                sql += ' AND s.side in (' + ','.join([
-                    str(x) for x in get_sides(interaction, self.bot.servers[server_name])
-                ]) + ')'
         self.env.embed.title = flt.format(self.env.bot) + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot)
         sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
@@ -124,10 +105,6 @@ class HighscoreElement(report.GraphElement):
         where_part = ""
         if server_name:
             where_part += "AND m.server_name = %(server_name)s"
-            if server_name in self.bot.servers:
-                where_part += ' AND s.side in (' + ','.join([
-                    str(x) for x in get_sides(interaction, self.bot.servers[server_name])
-                ]) + ')'
         # only flighttimes of over an hour count for most efficient / wasteful
         if not (flt.period and (flt.period in ['day', 'today', 'yesterday'] or flt.period.startswith('mission_id:'))) and kill_type in ['Most Efficient Killers', 'Most Wasteful Pilots']:
             where_part += f" AND EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)) >= 3600"

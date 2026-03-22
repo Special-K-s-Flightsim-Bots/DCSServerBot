@@ -21,7 +21,7 @@ class HelpListener(EventListener["Help"]):
             asyncio.create_task(player.sendChatMessage(f"Use \"{self.prefix}help\" for commands."))
 
     @chat_command(name="help", help="The help command")
-    async def help(self, server: Server, player: Player, params: list[str]):
+    async def help(self, server: Server, player: Player, _params: list[str]):
         messages = [
             f'You can use the following commands:\n'
         ]

@@ -267,7 +267,7 @@ class Node(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def get_cpu_info(self) -> bytes | int:
+    async def get_cpu_info(self, used: bool = True) -> bytes | int:
         raise NotImplementedError()
 
     @abstractmethod

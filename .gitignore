@@ -17,4 +17,8 @@ Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 /fonts/
 /Music/
 /logs/
+/config/
+config
 /.emmyrc.json
+.copilot-docs/*
+reference/

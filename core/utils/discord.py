@@ -435,6 +435,11 @@ def app_has_role(role: str):
     :return: True if the user has the role, False otherwise.
     """
     def predicate(interaction: Interaction) -> bool:
+        # The owner can run any command, independently of the role
+        if (not interaction.client.node.locals.get('restrict_owner', False) and
+                interaction.user.id == interaction.client.owner_id):
+            return True
+
         return check_roles(interaction.client.roles[role], interaction.user)
 
     predicate.role = role
@@ -528,6 +533,11 @@ def app_has_roles(roles: list[str]):
     :return: A decorated function that can be used as a check for membership of the specified roles.
     """
     def predicate(interaction: Interaction) -> bool:
+        # The owner can run any command, independently of the role
+        if (not interaction.client.node.locals.get('restrict_owner', False) and
+                interaction.user.id == interaction.client.owner_id):
+            return True
+
         valid_roles = set()
         for role in roles:
             valid_roles |= set(interaction.client.roles[role])
@@ -930,6 +940,15 @@ class ServerTransformer(app_commands.Transformer):
         self.status: list[Status] = status
         self.maintenance = maintenance
 
+    @staticmethod
+    def is_admin(interaction: discord.Interaction) -> bool:
+        with (suppress(Exception)):
+            if getattr(interaction.command.checks[0], 'role', False) and interaction.command.checks[0].role == 'DCS Admin':
+                return True
+            elif getattr(interaction.command.checks[0], 'roles', False) and 'DCS Admin' in interaction.command.checks[0].roles:
+                return True
+        return False
+
     async def transform(self, interaction: discord.Interaction, value: str | None) -> Server:
         """
         Converts a server name into a Server object.
@@ -946,8 +965,12 @@ class ServerTransformer(app_commands.Transformer):
         """
         if value:
             server = interaction.client.servers.get(value)
+            is_admin = self.is_admin(interaction)
+
             if not server or (
-                    server.locals.get('managed_by') and not utils.check_roles(server.locals.get('managed_by'), interaction.user)
+                is_admin and
+                server.locals.get('managed_by') and
+                not utils.check_roles(server.locals.get('managed_by'), interaction.user)
             ):
                 raise app_commands.TransformerError(value, self.type, self)
         else:
@@ -972,6 +995,8 @@ class ServerTransformer(app_commands.Transformer):
             return []
         try:
             server: Server | None = interaction.client.get_server(interaction)
+            is_admin = self.is_admin(interaction)
+
             if (not current and server and server.status != Status.UNREGISTERED and
                     (not self.status or server.status in self.status)):
                 return [app_commands.Choice(name=server.name, value=server.name)]
@@ -981,7 +1006,7 @@ class ServerTransformer(app_commands.Transformer):
                 if (value.status != Status.UNREGISTERED and
                     (not self.status or value.status in self.status) and
                     (not self.maintenance or value.maintenance == self.maintenance) and
-                    (not value.locals.get('managed_by') or utils.check_roles(value.locals.get('managed_by'), interaction.user)) and
+                    (not is_admin or not value.locals.get('managed_by') or utils.check_roles(value.locals.get('managed_by'), interaction.user)) and
                     (not current or current.casefold() in name.casefold())
                 )
             ]
@@ -1134,7 +1159,7 @@ async def group_autocomplete(interaction: discord.Interaction, current: str) -> 
     ][:25]
 
 
-async def date_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+async def date_autocomplete(_interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     def get_date_range(date: str):
         try:
             end_date = datetime.strptime(date, '%Y-%m-%d')
@@ -1238,7 +1263,7 @@ class PlayerTransformer(app_commands.Transformer):
             return []
 
 
-def _server_filter(server: Server) -> bool:
+def _server_filter(_server: Server) -> bool:
     return True
 
 
@@ -1251,11 +1276,17 @@ async def server_selection(
         ephemeral: bool | None = True,
         filter_func: Callable[[Server], bool] = _server_filter
 ) -> Server | list[Server] | None:
+    if not filter_func:
+        filter_func = _server_filter
+
     all_servers = bot.get_servers(manager=interaction.user if isinstance(interaction, discord.Interaction) else interaction.author)
     if not all_servers:
         return []
     elif len(all_servers) == 1:
-        return [next(iter(all_servers.values()))]
+        try:
+            return [next(x for x in all_servers.values() if filter_func(x))]
+        except StopIteration:
+            return []
     if multi_select:
         max_values = len(all_servers)
     else:
@@ -1465,14 +1496,14 @@ class DirectoryPicker(discord.ui.View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(label="Upload", style=ButtonStyle.green, row=2)
-    async def on_upload(self, interaction: discord.Interaction, button: Button):
+    async def on_upload(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
     # noinspection PyTypeChecker
     @discord.ui.button(label="Up", style=ButtonStyle.secondary)
-    async def on_up(self, interaction: discord.Interaction, button: Button):
+    async def on_up(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if self.dir:
@@ -1481,7 +1512,7 @@ class DirectoryPicker(discord.ui.View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(label="Create", style=ButtonStyle.primary)
-    async def on_create(self, interaction: discord.Interaction, button: Button):
+    async def on_create(self, interaction: discord.Interaction, _button: Button):
         class TextModal(Modal, title="Create Directory"):
             name = TextInput(label="Name", max_length=80, required=True)
 
@@ -1504,7 +1535,7 @@ class DirectoryPicker(discord.ui.View):
 
     # noinspection PyTypeChecker
     @discord.ui.button(label="Cancel", style=ButtonStyle.red, row=2)
-    async def on_cancel(self, interaction: discord.Interaction, button: Button):
+    async def on_cancel(self, interaction: discord.Interaction, _button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.base_dir = self.dir = None
@@ -1642,7 +1673,12 @@ class ServerUploadHandler(NodeUploadHandler):
         self.server = server
 
     @staticmethod
-    async def get_server(message: discord.Message, channel_id: int | None = None) -> Server | None:
+    async def get_server(
+            message: discord.Message,
+            *,
+            channel_id: int | None = None,
+            filter_func: Callable[[Server], bool] = None
+    ) -> Server | None:
         from services.bot import BotService
 
         bot = ServiceRegistry.get(BotService).bot
@@ -1652,7 +1688,12 @@ class ServerUploadHandler(NodeUploadHandler):
 
         if not server and message.channel.id == channel_id:
             ctx = await bot.get_context(message)
-            server = await utils.server_selection(bot, ctx, title=_("To which server do you want to upload?"))
+            server = await utils.server_selection(
+                bot,
+                ctx,
+                title=_("To which server do you want to upload?"),
+                filter_func=filter_func
+            )
             if not server:
                 await ctx.send(_('Upload aborted.'))
                 return None
@@ -1814,10 +1855,9 @@ class DatabaseModal(Modal):
 
         # Execute query
         async with self.node.apool.connection() as conn:
-            async with conn.transaction():
-                async with conn.cursor(row_factory=dict_row) as cur:
-                    await cur.execute(query, list(validated_data.values()))
-                    self.response = await cur.fetchone()
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(query, list(validated_data.values()))
+                self.response = await cur.fetchone()
 
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(

@@ -40,7 +40,7 @@
     {
       "type": "SQLTable",
       "params": {
-        "sql": "SELECT TO_CHAR(banned_at, 'YY-MM-DD') || ' - ' || TO_CHAR(banned_until, 'YY-MM-DD') as \"Timeframe\", reason as \"Reason\", status as \"Status\"  FROM (SELECT ucid, TRUE as active, reason, banned_at, banned_until, 'Active' as status FROM bans UNION SELECT ucid, FALSE as active, reason, banned_at, banned_until, CASE WHEN auto_unban IS FALSE THEN 'Forgiven' ELSE 'Auto-Unbanned' END FROM bans_hist) x where x.ucid = '{ucid}'",
+        "sql": "SELECT TO_CHAR(banned_at, 'YY-MM-DD') || ' - ' || TO_CHAR(banned_until, 'YY-MM-DD') as \"Timeframe\", reason as \"Reason\", status as \"Status\"  FROM (SELECT ucid, TRUE as active, reason, banned_at, banned_until, 'Active' as status FROM bans UNION SELECT ucid, FALSE as active, reason, banned_at, banned_until, CASE WHEN auto_unban IS FALSE THEN 'Forgiven' ELSE 'Auto-Unbanned' END FROM bans_hist) x where x.ucid = '{ucid}' ORDER BY banned_at DESC",
         "inline": true,
         "no_data": "There are no bans logged for this user."
       }

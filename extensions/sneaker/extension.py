@@ -7,7 +7,7 @@ import os
 import psutil
 import subprocess
 
-from core import Extension, Status, ServiceRegistry, Server, utils, get_translation, PortType, Port
+from core import Extension, Status, ServiceRegistry, Server, utils, get_translation, PortType, Port, ProcessManager
 from services.servicebus import ServiceBus
 from threading import Thread
 from typing_extensions import override
@@ -46,6 +46,13 @@ class Sneaker(Extension):
                 return
             type(self)._process = next(utils.find_process(os.path.basename(cmd), self.config['bind']), None)
             if type(self)._process:
+                ProcessManager().assign_process(
+                    type(self)._process,
+                    min_cores=self.config.get('auto_affinity', {}).get('min_cores', 1),
+                    max_cores=self.config.get('auto_affinity', {}).get('max_cores', 1),
+                    quality=self.config.get('auto_affinity', {}).get('quality', 1),
+                    instance=server.instance.name
+                )
                 self.log.debug("- Running Sneaker process found.")
 
     def create_config(self):
@@ -82,14 +89,20 @@ class Sneaker(Extension):
         for line in iter(p.stdout.readline, b''):
             self.log.debug(line.decode('utf-8').rstrip())
 
-    def _run_subprocess(self, config: str):
+    def _run_subprocess(self, config: str) -> psutil.Process:
         cmd = os.path.basename(self.config['cmd'])
         out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
         self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
                        f"--config {config}")
-        p = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", config],
-                             executable=os.path.expandvars(self.config['cmd']),
-                             stdout=out, stderr=subprocess.STDOUT)
+        p = ProcessManager().launch_process(
+            [cmd, "--bind", self.config['bind'], "--config", config],
+            executable=os.path.expandvars(self.config['cmd']),
+            min_cores=self.config.get('auto_affinity', {}).get('min_cores', 1),
+            max_cores=self.config.get('auto_affinity', {}).get('max_cores', 1),
+            quality=self.config.get('auto_affinity', {}).get('quality', 1),
+            stdout=out,
+            stderr=subprocess.STDOUT
+        )
         if self.config.get('debug', False):
             Thread(target=self._log_output, args=(p,), daemon=True).start()
         return p
@@ -105,12 +118,14 @@ class Sneaker(Extension):
                     # we need to lock here to avoid race conditions on parallel server startups
                     await asyncio.to_thread(utils.terminate_process, type(self)._process)
                     self.create_config()
-                    p = await asyncio.to_thread(self._run_subprocess,
-                                                os.path.join(self.node.config_dir, 'sneaker.json'))
-                    type(self)._process = psutil.Process(p.pid)
+                    type(self)._process = await asyncio.to_thread(
+                        self._run_subprocess,
+                        os.path.join(self.node.config_dir, 'sneaker.json')
+                    )
                 elif not type(self)._process or not type(self)._process.is_running():
-                    p = await asyncio.to_thread(self._run_subprocess, os.path.expandvars(self.config['config']))
-                    type(self)._process = psutil.Process(p.pid)
+                    type(self)._process = await asyncio.to_thread(
+                        self._run_subprocess, os.path.expandvars(self.config['config'])
+                    )
                     atexit.register(self.terminate)
             type(self)._servers.add(self.server.name)
             return await super().startup()
@@ -139,8 +154,7 @@ class Sneaker(Extension):
                 if self.terminate():
                     self.create_config()
                     try:
-                        p = self._run_subprocess(os.path.join(self.node.config_dir, 'sneaker.json'))
-                        type(self)._process = psutil.Process(p.pid)
+                        type(self)._process = self._run_subprocess(os.path.join(self.node.config_dir, 'sneaker.json'))
                     except Exception as ex:
                         self.log.error(f"Error during launch of {self.config['cmd']}: {str(ex)}")
                         return False

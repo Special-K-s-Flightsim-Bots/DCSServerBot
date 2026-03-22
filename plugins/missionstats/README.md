@@ -1,10 +1,10 @@
 # Plugin "MissionStats"
 When enabled, this plugin will generate a persistent mission statistics embed to be displayed in the status channels and 
-detailed statistics from the in-game event system. The global DCSServerBot.lua and a plugin specific mission.lua will 
+detailed statistics from the in-game event system. The global DCSServerBot.lua and a plugin-specific mission.lua will 
 automatically be loaded into any mission running on that specific server.
 
 ## Configuration
-Missionstats needs the Userstats plugin to be loaded first (default).
+Missionstats need the Userstats plugin to be loaded first (default).
 
 The configuration is held in config/plugins/missionstats.yaml:
 ```yaml
@@ -28,10 +28,17 @@ DCS.dcs_serverrelease:
 ```
 
 > [!NOTE]
-> When creating a custom event_filter, list all events that you want to EXCLUDE from being sent to the bot. Note that
-> creating a new filter starts fresh - it won't automatically include the default excluded events. If you want to keep
-> those default exclusions, you'll need to add them explicitly to your custom filter.
+> When creating a custom event_filter, list all events that you want to EXCLUDE from being sent to the bot. 
+> Note that creating a new filter starts fresh – it won't automatically include the default excluded events. 
+> If you want to keep those default exclusions, you'll need to add them explicitly to your custom filter.
 
+> [!NOTE]
+> DCSServerBot creates some custom event types that are not part of DCS standard.
+> You can also filter these events if you do not like them.
+> - S_EVENT_CONNECT ⇒ a player connected to the server
+> - S_EVENT_DISCONNECT ⇒ a player disconnected from the server
+> - S_EVENT_TAXIWAY_TAKEOFF ⇒ a player took off from a part of the airbase that is not the runway
+> - S_EVENT_GROUND_TAKEOFF ⇒ a player took off from the ground outside an airbase
 
 ## How to disable Missionstats inside missions
 To disable mission statistics for a specific mission, you can use the following piece of code somewhere in your mission 

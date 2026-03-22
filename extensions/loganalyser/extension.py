@@ -181,7 +181,7 @@ class LogAnalyser(Extension):
             "params": params
         })
 
-    async def unlisted(self, idx: int, line: str, match: re.Match):
+    async def unlisted(self, _idx: int, _line: str, _match: re.Match):
         if not self.config.get('restart_on_unlist', False):
             return
         self.log.error(f"Server {self.server.name} got unlisted from the ED server list. Restarting ...")
@@ -217,13 +217,15 @@ class LogAnalyser(Extension):
                     else:
                         marked_lines.append(f"{i}: {line.rstrip()}")
                 code_content = "\n".join(marked_lines)
+                # make sure we do not exceed 1024 characters
+                code_content = code_content[:1013]
                 kwargs['code'] = f"```lua\n{code_content}\n```"
             except PermissionError:
                 self.log.debug(f"Can't open file {filename} for reading!")
         kwargs['error'] = f"Line {target_line}: {error_message}"
         await self.node.audit("A LUA error occurred!", server=self.server, **kwargs)
 
-    async def script_error(self, idx: int, line: str, match: re.Match):
+    async def script_error(self, _idx: int, _line: str, match: re.Match):
         filename, line_number, error_message = match.groups()
         basename = os.path.basename(filename)
 
@@ -247,7 +249,7 @@ class LogAnalyser(Extension):
                 data = await response.json()
         return data['tag_name'], datetime.fromisoformat(data['created_at'].replace("Z", "+00:00"))
 
-    async def moose_check(self, idx: int, line: str, match: re.Match):
+    async def moose_check(self, _idx: int, _line: str, match: re.Match):
         try:
             moose_version, moose_timestamp = await self.get_latest_moose_version()
         except ClientResponseError:
@@ -282,7 +284,7 @@ class LogAnalyser(Extension):
                 data = await response.json()
         return data['tag_name']
 
-    async def mist_check(self, idx: int, line: str, match: re.Match):
+    async def mist_check(self, _idx: int, _line: str, match: re.Match):
         try:
             mist_version = await self.get_latest_mist_version()
         except ClientResponseError:
@@ -306,7 +308,7 @@ class LogAnalyser(Extension):
             except Exception as ex:
                 self.log.exception(ex)
 
-    async def disable_upnp(self, idx: int, line: str, match: re.Match):
+    async def disable_upnp(self, _idx: int, _line: str, _match: re.Match):
         autoexec = Autoexec(cast(InstanceImpl, self.server.instance))
         net = autoexec.net or {}
         net |= {
@@ -314,7 +316,7 @@ class LogAnalyser(Extension):
         }
         autoexec.net = net
 
-    async def terrain_missing(self, idx: int, line: str, match: re.Match):
+    async def terrain_missing(self, _idx: int, _line: str, _match: re.Match):
         filename = await self.server.get_current_mission_file()
         theatre = await self.server.get_current_mission_theatre()
         if theatre:
@@ -322,6 +324,6 @@ class LogAnalyser(Extension):
                                   message=f"Terrain {theatre} is not installed on this server!\n"
                                           f"You can't run mission {filename}.")
 
-    async def restart_server(self, idx: int, line: str, match: re.Match):
+    async def restart_server(self, _idx: int, line: str, _match: re.Match):
         self.log.warning(f"Server restarting due to critical error: {line.rstrip()}")
         asyncio.create_task(self.server.restart(modify_mission=False))

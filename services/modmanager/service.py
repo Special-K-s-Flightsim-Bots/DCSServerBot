@@ -399,13 +399,12 @@ class ModManagerService(Service):
             column = 'node'
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute(f"""
-                    INSERT INTO mm_packages ({column}, package_name, version, folder) 
-                    VALUES (%s, %s, %s, %s) 
-                    ON CONFLICT ({column}, package_name) 
-                    DO UPDATE SET version=excluded.version
-                """, (reference.name, package_name, version, folder.value))
+            await conn.execute(f"""
+                INSERT INTO mm_packages ({column}, package_name, version, folder) 
+                VALUES (%s, %s, %s, %s) 
+                ON CONFLICT ({column}, package_name) 
+                DO UPDATE SET version=excluded.version
+            """, (reference.name, package_name, version, folder.value))
         self.log.info(f"- Package {package_name}_v{version} successfully installed in {target}.")
         return True
 
@@ -464,11 +463,10 @@ class ModManagerService(Service):
         else:
             column = 'node'
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute(f"""
-                    DELETE FROM mm_packages 
-                    WHERE {column} = %s AND folder = %s AND package_name = %s AND version = %s
-                """, (reference.name, folder, package_name, version))
+            await conn.execute(f"""
+                DELETE FROM mm_packages 
+                WHERE {column} = %s AND folder = %s AND package_name = %s AND version = %s
+            """, (reference.name, folder, package_name, version))
         self.log.info(f"- Package {package_name}_v{version} successfully removed.")
         return True
 

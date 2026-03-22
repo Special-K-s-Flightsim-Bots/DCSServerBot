@@ -86,9 +86,10 @@ async def squadron_users_autocomplete(interaction: discord.Interaction, current:
 def get_squadron_admins(node: Node, squadron_id: int) -> list[int]:
     with node.pool.connection() as conn:
         return [x[0] for x in conn.execute("""
-            SELECT p.discord_id FROM players p JOIN squadron_members s 
-            ON p.ucid = s.player_ucid AND p.manual IS TRUE
-            AND s.squadron_id = %s AND s.admin IS TRUE 
+            SELECT p.discord_id 
+            FROM players p JOIN squadrons s 
+            ON p.ucid IN (s.co_ucid, s.xo_ucid) AND p.manual IS TRUE
+            AND s.id = %s 
         """, (squadron_id,)).fetchall()]
 
 

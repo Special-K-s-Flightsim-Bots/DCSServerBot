@@ -266,7 +266,7 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
                     FROM missionstats m 
                     LEFT OUTER JOIN players p1 ON m.init_id = p1.ucid
                     LEFT OUTER JOIN players p2 ON m.target_id = p2.ucid
-                    WHERE m.init_id = %(ucid)s or m.target_id = %(ucid)s
+                    WHERE (m.init_id = %(ucid)s or m.target_id = %(ucid)s)
                     AND m.time BETWEEN %(start)s AND %(end)s
                     ORDER BY m.time DESC
                 """, {"ucid": ucid, "start": start, "end": end})

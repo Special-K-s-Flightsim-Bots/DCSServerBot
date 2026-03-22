@@ -2,7 +2,7 @@ import codecs
 from luadata.serializer.unserialize import unserialize
 
 
-def read(path, encoding="utf-8", multival=False):
+def read(path, encoding="utf-8", _multival=False):
     """
     Read the contents of a file and unserialize it.
 

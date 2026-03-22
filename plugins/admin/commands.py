@@ -90,7 +90,7 @@ async def label_autocomplete(interaction: discord.Interaction, current: str) -> 
             if (
                     (not current or current.casefold() in x['label'].casefold()) and
                     (not x.get('discord') or utils.check_roles(x['discord'], interaction.user)) and
-                    (not x.get('restricted', False) or not server.node.locals.get('restrict_commands', False))
+                    not utils.is_restricted(interaction)
             )
         ]
         return choices[:25]
@@ -135,7 +135,7 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
         # check if we are allowed to display the list
         if (
                 (config.get('discord') and not utils.check_roles(config['discord'], interaction.user)) or
-                (config.get('restricted', False) and server.node.locals.get('restrict_commands', False))
+                utils.is_restricted(interaction)
         ):
             return []
 
@@ -156,8 +156,8 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
     if not await interaction.command._check_can_run(interaction):
         return []
     return [
-        app_commands.Choice(name=x.capitalize(), value=x.lower())
-        for x in sorted(interaction.client.cogs)
+        app_commands.Choice(name=x, value=x.lower())
+        for x in sorted(interaction.client.cogs.keys())
         if not current or current.casefold() in x.casefold()
     ]
 
@@ -355,14 +355,19 @@ class Admin(Plugin[AdminEventListener]):
             user = self.bot.get_user(ban['discord_id'])
         else:
             user = None
-        embed.add_field(name=utils.escape_string(user.name if user else ban['name'] if ban['name'] else _('<unknown>')),
-                        value=ban['ucid'])
+        embed.add_field(name=_("User"),
+                        value=user.mention if user else ban['name'] if ban['name'] else _('<unknown>'))
         if ban['banned_until'].year == 9999:
             until = _('never')
         else:
-            until = ban['banned_until'].strftime('%y-%m-%d %H:%M')
-        embed.add_field(name=_("Banned by: {}").format(ban['banned_by']), value=_("Exp.: {}").format(until))
-        embed.add_field(name=_('Reason'), value=ban['reason'])
+            time_obj = ban['banned_until']
+            until = f'<t:{int(time_obj.timestamp())}:R>\n({time_obj.strftime("%y-%m-%d %H:%Mz")})'
+        embed.add_field(name=_("Banned by"),
+                        value=ban['banned_by'])
+        embed.add_field(name=_("Expires"),
+                        value=until)
+        embed.add_field(name=_('Reason'),
+                        value=ban['reason'])
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
@@ -586,7 +591,7 @@ class Admin(Plugin[AdminEventListener]):
         # double-check if that user can really download these files
         if (
                 (config.get('discord') and not utils.check_roles(config['discord'], interaction.user)) or
-                (config.get('restricted', False) and server.node.locals.get('restrict_commands', False))
+                utils.is_restricted(interaction)
         ):
             raise app_commands.CheckFailure()
         if what == 'Missions':
@@ -697,59 +702,58 @@ class Admin(Plugin[AdminEventListener]):
             return
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                async with conn.cursor() as cursor:
-                    if user:
-                        if isinstance(user, discord.Member):
-                            ucid = await self.bot.get_ucid_by_member(user, verified=True)
-                            if not ucid:
-                                await interaction.followup.send("Member {} is not linked!".format(user.display_name))
-                                return
-                        elif utils.is_ucid(user):
-                            ucid = user
-                        else:
-                            await interaction.followup.send("{} is not a valid UCID!".format(user))
+            async with conn.cursor() as cursor:
+                if user:
+                    if isinstance(user, discord.Member):
+                        ucid = await self.bot.get_ucid_by_member(user, verified=True)
+                        if not ucid:
+                            await interaction.followup.send("Member {} is not linked!".format(user.display_name))
                             return
+                    elif utils.is_ucid(user):
+                        ucid = user
+                    else:
+                        await interaction.followup.send("{} is not a valid UCID!".format(user))
+                        return
+                    await cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
+                    if isinstance(user, discord.Member):
+                        await interaction.followup.send(_("Data of user {} deleted.").format(user.display_name))
+                    else:
+                        await interaction.followup.send(_("Data of UCID {} deleted.").format(ucid))
+                    return
+                elif _server:
+                    await cursor.execute('DELETE FROM servers WHERE server_name = %s', (_server, ))
+                    await interaction.followup.send(_("Data of server {} deleted.").format(_server))
+                    return
+                elif view.what in ['users', 'non-members']:
+                    sql = f"""
+                        SELECT ucid FROM players 
+                        WHERE last_seen < (DATE((now() AT TIME ZONE 'utc')) - interval '{view.age} days')
+                    """
+                    if view.what == 'non-members':
+                        sql += ' AND discord_id = -1'
+                    await cursor.execute(sql)
+                    ucids = [row[0] async for row in cursor]
+                    if not ucids:
+                        await interaction.followup.send(_('No players to prune.'), ephemeral=ephemeral)
+                        return
+                    if not await utils.yn_question(
+                            interaction, _("This will delete {} players incl. their stats from the database.\n"
+                                           "Are you sure?").format(len(ucids)), ephemeral=ephemeral):
+                        return
+                    for ucid in ucids:
                         await cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
-                        if isinstance(user, discord.Member):
-                            await interaction.followup.send(_("Data of user {} deleted.").format(user.display_name))
-                        else:
-                            await interaction.followup.send(_("Data of UCID {} deleted.").format(ucid))
+                    await interaction.followup.send(f"{len(ucids)} players pruned.", ephemeral=ephemeral)
+                elif view.what == 'data':
+                    days = int(view.age)
+                    if not await utils.yn_question(
+                            interaction, _("This will delete all data older than {} days from the database.\n"
+                                           "Are you sure?").format(days), ephemeral=ephemeral):
                         return
-                    elif _server:
-                        await cursor.execute('DELETE FROM servers WHERE server_name = %s', (_server, ))
-                        await interaction.followup.send(_("Data of server {} deleted.").format(_server))
-                        return
-                    elif view.what in ['users', 'non-members']:
-                        sql = f"""
-                            SELECT ucid FROM players 
-                            WHERE last_seen < (DATE((now() AT TIME ZONE 'utc')) - interval '{view.age} days')
-                        """
-                        if view.what == 'non-members':
-                            sql += ' AND discord_id = -1'
-                        await cursor.execute(sql)
-                        ucids = [row[0] async for row in cursor]
-                        if not ucids:
-                            await interaction.followup.send(_('No players to prune.'), ephemeral=ephemeral)
-                            return
-                        if not await utils.yn_question(
-                                interaction, _("This will delete {} players incl. their stats from the database.\n"
-                                               "Are you sure?").format(len(ucids)), ephemeral=ephemeral):
-                            return
-                        for ucid in ucids:
-                            await cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
-                        await interaction.followup.send(f"{len(ucids)} players pruned.", ephemeral=ephemeral)
-                    elif view.what == 'data':
-                        days = int(view.age)
-                        if not await utils.yn_question(
-                                interaction, _("This will delete all data older than {} days from the database.\n"
-                                               "Are you sure?").format(days), ephemeral=ephemeral):
-                            return
-                        # some plugins need to prune their data based on the provided days
-                        for plugin in self.bot.cogs.values():  # type: Plugin
-                            await plugin.prune(conn, days)
-                        await interaction.followup.send(_("All data older than {} days pruned.").format(days),
-                                                        ephemeral=ephemeral)
+                    # some plugins need to prune their data based on the provided days
+                    for plugin in self.bot.cogs.values():  # type: Plugin
+                        await plugin.prune(conn, days)
+                    await interaction.followup.send(_("All data older than {} days pruned.").format(days),
+                                                    ephemeral=ephemeral)
         await self.bot.audit(f'pruned the database', user=interaction.user)
 
     node_group = Group(name="node", description=_("Commands to manage your nodes"))
@@ -1138,10 +1142,11 @@ Please make sure you forward the following ports:
     @app_commands.check(lambda interaction: sys.platform == 'win32')
     @utils.app_has_role('Admin')
     async def cpuinfo(self, interaction: discord.Interaction,
-                      node: app_commands.Transform[Node, utils.NodeTransformer]):
+                      node: app_commands.Transform[Node, utils.NodeTransformer],
+                      used: bool = True):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
-        image = await node.get_cpu_info()
+        image = await node.get_cpu_info(used)
         await interaction.followup.send(file=discord.File(fp=BytesIO(image), filename='cpuinfo.png'))
 
     plug = Group(name="plugin", description=_("Commands to manage your DCSServerBot plugins"))
@@ -1207,6 +1212,48 @@ Please make sure you forward the following ports:
         # for server in self.bot.servers.values():
         #    if server.status == Status.STOPPED:
         #        await server.send_to_dcs({"command": "reloadScripts"})
+
+    @plug.command(description=_('Stop Plugin'))
+    @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
+    @utils.app_has_role('Admin')
+    @app_commands.autocomplete(plugin=uninstallable_plugins)
+    async def stop(self, interaction: discord.Interaction, plugin: str | None):
+        ephemeral = utils.get_ephemeral(interaction)
+        if plugin not in [x.lower() for x in self.bot.cogs.keys()]:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_('Plugin {} is not running.').format(plugin), ephemeral=True)
+            return
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        if await self.bot.unload_plugin(plugin):
+            await interaction.followup.send(_('Plugin {} stopped.').format(plugin), ephemeral=ephemeral)
+        else:
+            await interaction.followup.send(
+                _('Plugin {} could not be stopped, check the log for details.').format(plugin),
+                ephemeral=ephemeral)
+
+    @plug.command(description=_('Start Plugin'))
+    @app_commands.guild_only()
+    @app_commands.check(utils.restricted_check)
+    @utils.app_has_role('Admin')
+    @app_commands.autocomplete(plugin=uninstallable_plugins)
+    async def start(self, interaction: discord.Interaction, plugin: str | None):
+        ephemeral = utils.get_ephemeral(interaction)
+        if plugin in [x.lower() for x in self.bot.cogs.keys()]:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_('Plugin {} is already started.').format(plugin), ephemeral=True)
+            return
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        if await self.bot.load_plugin(plugin):
+            await interaction.followup.send(_('Plugin {} started.').format(plugin), ephemeral=ephemeral)
+        else:
+            await interaction.followup.send(
+                _('Plugin {} could not be started, check the log for details.').format(plugin),
+                ephemeral=ephemeral)
 
     ext = Group(name="extension", description=_("Commands to manage your DCSServerBot extensions"))
 
@@ -1314,7 +1361,11 @@ Please make sure you forward the following ports:
         # read the default config if there is any
         config = self.get_config().get('uploads', {})
         # check if upload is enabled
-        if not config.get('enabled', True) or self.node.locals.get('restrict_commands'):
+        if not config.get('enabled', True) or (
+                self.node.locals.get('restrict_commands', False) and (
+                    self.node.locals.get('restrict_owner', False) or message.author.id != self.bot.owner_id#
+                )
+        ):
             return
         # check if the user has the correct role to upload, defaults to Admin
         if not utils.check_roles(config.get('discord', self.bot.roles['Admin']), message.author):
@@ -1406,8 +1457,7 @@ Please make sure you forward the following ports:
     @tasks.loop(hours=12.0)
     async def cleanup(self):
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("DELETE FROM nodestats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
+            await conn.execute("DELETE FROM nodestats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
 
     @cleanup.before_loop
     async def before_cleanup(self):

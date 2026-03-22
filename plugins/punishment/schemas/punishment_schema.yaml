@@ -12,6 +12,8 @@ schema;element_schema:
   nullable: false
   mapping:
     enabled: {type: bool, nullable: false}
+    reslot_window: {type: int, nullable: false, range: {min: 1, max: 60}}
+    survival_window: {type: int, nullable: false, range: {min: 1}}
     channel: {type: int, nullable: false}
     penalties:
       type: seq

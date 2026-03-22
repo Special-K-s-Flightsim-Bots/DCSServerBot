@@ -237,10 +237,13 @@ class Info(report.EmbedElement):
         lat = ('N' if d > 0 else 'S') + '{:02d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(abs(m)), int(abs(s)))
         d, m, s, f = utils.dd_to_dms(airbase['lng'])
         lng = ('E' if d > 0 else 'W') + '{:03d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(abs(m)), int(abs(s)))
-        self.add_field(name='Position', value=f'{lat}\n{lng}')
+        self.add_field(name='Position', value=f"{lat}\n{lng}\n{airbase.get('mgrs', '')}")
         alt = int(airbase['alt'] * const.METER_IN_FEET)
         self.add_field(name='Altitude', value='{} ft'.format(alt))
-        self.add_field(name='_ _', value='_ _')
+        if 'magVar' in airbase:
+            self.add_field(name='MagVar', value=f"{airbase['magVar']:.2f}")
+        else:
+            self.add_field(name='_ _', value='_ _')
         runways = data.get('runways')
         if runways:
             name = []

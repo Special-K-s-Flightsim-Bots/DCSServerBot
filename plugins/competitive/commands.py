@@ -30,7 +30,7 @@ class Competitive(Plugin[CompetitiveListener]):
             asyncio.create_task(self.init_trueskill())
         return True
 
-    async def init_trueskill(self):
+    async def init_trueskill(self, user: str | None = None) -> None:
         # we need to calculate the TrueSkill values for players
         self.log.warning("Calculating TrueSkill values for players... Please do NOT stop your bot!")
         ratings: dict[str, Rating] = {}
@@ -40,63 +40,70 @@ class Competitive(Plugin[CompetitiveListener]):
         last_id = 0
         total_processed = 0
 
+        if user:
+            where = f"AND (init_id = '{user}' OR target_id = '{user}')"
+        else:
+            where = ""
+
         while True:
             async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    async with conn.cursor(row_factory=dict_row) as cursor:
-                        await cursor.execute("""
-                            SELECT id, init_id, target_id, time
-                            FROM missionstats
-                            WHERE event = 'S_EVENT_KILL'
-                              AND init_id  != '-1'
-                              AND target_id != '-1'
-                              AND init_side <> target_side
-                              AND init_cat   = 'Airplanes'
-                              AND target_cat = 'Airplanes'
-                              AND id > %s
-                            ORDER BY id
-                            LIMIT %s
-                        """, (last_id, batch_size))
-                        rows = await cursor.fetchall()
-                        if not rows:
-                            break
+                async with conn.cursor(row_factory=dict_row) as cursor:
+                    await cursor.execute(f"""
+                        SELECT id, init_id, target_id, time
+                        FROM missionstats
+                        WHERE event = 'S_EVENT_KILL'
+                          AND init_id  != '-1'
+                          AND target_id != '-1'
+                          AND init_side <> target_side
+                          AND init_cat   = 'Airplanes'
+                          AND target_cat = 'Airplanes'
+                          AND id > %s
+                          {where}
+                        ORDER BY id
+                        LIMIT %s
+                    """, (last_id, batch_size))
+                    rows = await cursor.fetchall()
+                    if not rows:
+                        break
 
-                        # Compute rating changes and collect upserts for this batch
-                        insert_params: list[tuple[str, float, float, datetime]] = []
-                        for row in rows:
-                            init_id = row['init_id']
-                            target_id = row['target_id']
+                    # Compute rating changes and collect upserts for this batch
+                    insert_params: list[tuple[str, float, float, datetime]] = []
+                    for row in rows:
+                        init_id = row['init_id']
+                        target_id = row['target_id']
 
-                            if init_id not in ratings:
-                                ratings[init_id] = rating.create_rating()
-                            if target_id not in ratings:
-                                ratings[target_id] = rating.create_rating()
+                        if init_id not in ratings:
+                            ratings[init_id] = rating.create_rating()
+                        if target_id not in ratings:
+                            ratings[target_id] = rating.create_rating()
 
-                            ratings[init_id], ratings[target_id] = rating.rate_1vs1(
-                                ratings[init_id], ratings[target_id]
-                            )
+                        ratings[init_id], ratings[target_id] = rating.rate_1vs1(
+                            ratings[init_id], ratings[target_id]
+                        )
 
-                            init_rating = ratings[init_id]
-                            target_rating = ratings[target_id]
-                            t = row['time']
+                        init_rating = ratings[init_id]
+                        target_rating = ratings[target_id]
+                        t = row['time']
 
+                        if not user or user == init_id:
                             insert_params.append((init_id, float(init_rating.mu), float(init_rating.sigma), t))
+                        if not user or user == target_id:
                             insert_params.append((target_id, float(target_rating.mu), float(target_rating.sigma), t))
 
-                            last_id = row['id']
+                        last_id = row['id']
 
-                        if insert_params:
-                            await cursor.executemany("""
-                                INSERT INTO trueskill (player_ucid, skill_mu, skill_sigma, time)
-                                VALUES (%s, %s, %s, %s)
-                                ON CONFLICT (player_ucid) DO UPDATE
-                                SET skill_mu    = EXCLUDED.skill_mu,
-                                    skill_sigma = EXCLUDED.skill_sigma,
-                                    time        = EXCLUDED.time
-                            """, insert_params)
+                    if insert_params:
+                        await cursor.executemany("""
+                            INSERT INTO trueskill (player_ucid, skill_mu, skill_sigma, time)
+                            VALUES (%s, %s, %s, %s)
+                            ON CONFLICT (player_ucid) DO UPDATE
+                            SET skill_mu    = EXCLUDED.skill_mu,
+                                skill_sigma = EXCLUDED.skill_sigma,
+                                time        = EXCLUDED.time
+                        """, insert_params)
 
-                        total_processed += len(rows)
-                        self.log.info(f"- {total_processed} missionstats rows processed (up to id {last_id})")
+                    total_processed += len(rows)
+                    self.log.info(f"- {total_processed} missionstats rows processed (up to id {last_id})")
 
         self.log.info("TrueSkill values calculated.")
 
@@ -277,33 +284,49 @@ class Competitive(Plugin[CompetitiveListener]):
             return
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                if user:
-                    await conn.execute("DELETE FROM trueskill WHERE player_ucid = %s", (ucid, ))
-                else:
-                    await conn.execute("TRUNCATE trueskill CASCADE")
+            if user:
+                await conn.execute("DELETE FROM trueskill WHERE player_ucid = %s", (ucid, ))
+            else:
+                await conn.execute("TRUNCATE trueskill CASCADE")
         # noinspection PyUnresolvedReferences
         await interaction.followup.send(_("TrueSkill:tm: ratings deleted."), ephemeral=True)
 
     @trueskill.command(description=_('Regenerate TrueSkill:tm: ratings'))
     @utils.app_has_role('Admin')
     @app_commands.guild_only()
-    async def regenerate(self, interaction: discord.Interaction):
-        if not await utils.yn_question(interaction,
-                                       question=_("Do you really want to regenerate **all** TrueSkill:tm: ratings?"),
-                                       message=_("This can take a while.")):
+    async def regenerate(self, interaction: discord.Interaction,
+                         user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None):
+        if user:
+            message = _("Do you want to regenerate the TrueSkill:tm: ratings for this user?")
+        else:
+            message = _("Do you really want to regenerate **all** TrueSkill:tm: ratings?")
+        if not await utils.yn_question(interaction, question=message, message=_("This can take a while.")):
             await interaction.followup.send(_("Aborted."), ephemeral=True)
             return
+
+        if isinstance(user, discord.Member):
+            user = await self.bot.get_ucid_by_member(user)
+            if not user:
+                await interaction.followup.send(_("Member is not linked to a player."), ephemeral=True)
+                return
+
         ephemeral = utils.get_ephemeral(interaction)
         async with self.apool.connection() as conn:
-            async with conn.transaction():
+            if user:
+                await conn.execute("DELETE FROM trueskill WHERE player_ucid = %s", (user, ))
+                await conn.execute("DELETE FROM trueskill_hist WHERE player_ucid = %s", (user, ))
+            else:
                 await conn.execute("TRUNCATE trueskill CASCADE")
                 await conn.execute("TRUNCATE trueskill_hist CASCADE")
         await interaction.followup.send(_("TrueSkill:tm: ratings deleted.\nGenerating new values now ..."),
                                         ephemeral=ephemeral)
         channel = interaction.channel
-        await self.init_trueskill()
-        await channel.send(_("TrueSkill:tm: ratings regenerated."))
+        await self.init_trueskill(user)
+        if user:
+            await interaction.followup.send(_("TrueSkill:tm: ratings regenerated."), ephemeral=ephemeral)
+        else:
+            # The generation of complete new ratings can take a while so that the interaction might have vanished.
+            await channel.send(_("TrueSkill:tm: ratings regenerated."))
 
 
 async def setup(bot: DCSServerBot):
