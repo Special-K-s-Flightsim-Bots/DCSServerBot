@@ -86,8 +86,6 @@ class Server(DataObject, ABC):
                 data = yaml.load(Path(config_file).read_text(encoding='utf-8'))
             except MarkedYAMLError as ex:
                 raise YAMLError(config_file, ex)
-            if data.get(self.name) is None and self.name != 'n/a':
-                self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')
             _locals = utils.deep_merge(data.get(DEFAULT_TAG, {}), data.get(self.name, {}))
             _locals['messages'] = {
                 "greeting_message_members": "{player.name}, welcome back to {server.name}!",
@@ -568,3 +566,7 @@ class Server(DataObject, ABC):
                 pass
 
         return sorted(extensions)
+
+    @abstractmethod
+    async def get_config(self) -> dict:
+        raise NotImplementedError()

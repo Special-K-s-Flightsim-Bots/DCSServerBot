@@ -508,3 +508,13 @@ class ServerProxy(Server):
                 "plugin": plugin
             }
         }, timeout=timeout, node=self.node.name)
+
+    @override
+    async def get_config(self) -> dict:
+        timeout = 60 if not self.node.slow_system else 120
+        return await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "get_config",
+            "server_name": self.name
+        }, timeout=timeout, node=self.node.name)

@@ -131,6 +131,9 @@ class ServerImpl(Server):
     @override
     async def reload(self):
         self.locals = self.read_locals()
+        if self.locals.get(self.name) is None and self.name != 'n/a':
+            self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')
+
         self._channels.clear()
         self._options = None
         self._settings = None
@@ -596,7 +599,7 @@ class ServerImpl(Server):
                         ext = self.load_extension(extension)
                         if not ext:
                             continue
-                        if ext.is_installed():
+                        if ext.enabled:
                             self.extensions[extension] = ext
                 except InstallException as ex:
                     self.log.error(f"  => Error while loading extension {extension}: {ex} - skipped")
@@ -1210,3 +1213,8 @@ class ServerImpl(Server):
         if os.path.exists(target_path):
             utils.safe_rmtree(target_path)
             self.log.debug(f'    => Plugin {plugin.capitalize()} uninstalled.')
+
+    @override
+    async def get_config(self) -> dict:
+        return self.read_locals()
+
