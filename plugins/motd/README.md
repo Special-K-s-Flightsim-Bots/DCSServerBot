@@ -19,6 +19,7 @@ DEFAULT:
     report: greeting.json     # the respective report will be used (see Reporting Framework)
     display_type: popup       # the message will generate a popup ..
     display_time: 20          # .. which lasts for 20 seconds
+    delay: 10                 # Optional: wait 10s before displaying the message
   nudge:
     - delay: 3600             # the following message will be displayed every 3600 seconds (1h)
       message: "All members, be aware of our weekly mission, every Sunday at 1700 UTC!"

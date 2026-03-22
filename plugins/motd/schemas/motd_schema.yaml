@@ -36,6 +36,7 @@ schema;on_birth:
     report: {type: str, nullable: false, range: {min: 1}}
     display_type: {type: str, enum: ['chat', 'popup'], nullable: false}
     display_time: {type: int, range: {min: 1}, nullable: false}
+    delay: {type: int, range: {min: 1}, nullable: false}
     sound: {type: str, nullable: false, range: {min: 1}}
 
 schema;single_nudge:
