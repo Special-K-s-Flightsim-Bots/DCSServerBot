@@ -929,10 +929,11 @@ class RestAPI(Plugin):
             clouds_data = weather_data.get('clouds', {})
             
             # Map DCS weather data to our model using actual structure
+            wind_dir = wind_data.get('dir')
             return WeatherInfo(
                 temperature=weather_data.get('season', {}).get('temperature'),
                 wind_speed=wind_data.get('speed'),
-                wind_direction=wind_data.get('dir'),
+                wind_direction=int(wind_dir) if wind_dir is not None else None,
                 pressure=weather_data.get('qnh'),  # QNH pressure in mmHg
                 visibility=weather_data.get('visibility', {}).get('distance'),  # Extract distance from visibility dict
                 clouds_base=clouds_data.get('base'),
