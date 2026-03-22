@@ -1334,11 +1334,11 @@ class RestAPI(Plugin):
             
             # Extract wind data (use ground level wind by default)
             wind_data = weather_data.get('wind', {}).get('atGround', {})
-            
+            wind_dir = wind_data.get('dir', 0)
+
             # Extract clouds data (it's directly in weather_data, not separate)
             clouds_data = weather_data.get('clouds', {})
 
-            wind_dir = wind_data.get('dir', 0)
             # Map DCS weather data to our model using actual structure
             return WeatherInfo(
                 temperature=weather_data.get('season', {}).get('temperature'),
