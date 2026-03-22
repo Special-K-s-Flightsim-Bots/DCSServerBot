@@ -482,6 +482,11 @@ class ServiceBus(Service):
                     name=server_name,
                     bus=self
                 )
+                if not server.locals:
+                    server.locals = await server.get_config()
+                    if not server.locals:
+                        self.log.warning(f'No configuration found for server "{server.name}" in servers.yaml!')
+
                 _instance = node.instances.get(instance)
                 if not _instance:
                     # first time we see this instance, so register it
