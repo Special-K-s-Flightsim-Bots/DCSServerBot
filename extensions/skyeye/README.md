@@ -1,6 +1,6 @@
 # Extension "SkyEye"
 [SkyEye](https://github.com/dharmab/skyeye) is an AI powered GCI bot for DCS World, to which you can talk to using SRS.
-The solution comes with a server that connects to SRS and (optional) Tacview and gRPC.
+The solution comes with a server that connects to SRS and gRPC and (optional) Tacview.
 
 ## Installation
 Just download the latest release version of SkyEye from [here](https://github.com/dharmab/skyeye/releases/latest). You
