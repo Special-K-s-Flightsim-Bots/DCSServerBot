@@ -450,7 +450,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         config = self.get_config(server)
         player = server.get_player(id=data['id'])
-        if not player or player.slot > 0:
+        if not player:
             return
 
         shot_time, s_event = self.pending_kill.pop(player.ucid, (-1, None))
