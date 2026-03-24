@@ -105,11 +105,14 @@ class RealWeather(Extension):
 
     @override
     async def prepare(self) -> bool:
+        if not self.is_installed():
+            raise RealWeatherException(f"DCS Real Weather is not installed on node {self.node.name}.")
+
         if self.config.get('autoupdate', False):
             await self._autoupdate()
         return await super().prepare()
 
-    async def generate_config(self, input_mission: str, output_mission: str, override: dict | None = None):
+    async def generate_config(self, input_mission: str, output_mission: str, override: dict | None = None) -> bool:
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
         try:
@@ -142,10 +145,14 @@ class RealWeather(Extension):
         # make sure we only have icao or icao-list
         if cfg.get('options', {}).get('weather', {}).get('icao'):
             cfg['options']['weather'].pop('icao-list', None)
-        else:
+        elif cfg.get('options', {}).get('weather', {}).get('icao-list'):
             cfg['options']['weather']['icao'] = ""
+        else:
+            self.log.debug(f"{self.name}: no ICAO provided, skipping ...")
+            return False
         self.locals = utils.deep_merge(cfg, override or {})
         await self.write_config()
+        return True
 
     async def write_config(self):
         cwd = await self.server.get_missions_dir()
@@ -215,16 +222,20 @@ class RealWeather(Extension):
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
-        await self.generate_config(filename, tmpname)
-        return await self.run_realweather(filename, tmpname)
+        if await self.generate_config(filename, tmpname):
+            return await self.run_realweather(filename, tmpname)
+        else:
+            return filename, False
 
     async def apply_realweather(self, filename: str, config: dict, use_orig: bool = True) -> str:
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
         if use_orig:
             filename = utils.get_orig_file(filename)
-        await self.generate_config(filename, tmpname, config)
-        return (await self.run_realweather(filename, tmpname))[0]
+        if await self.generate_config(filename, tmpname, config):
+            return (await self.run_realweather(filename, tmpname))[0]
+        else:
+            return filename
 
     @override
     async def render(self, param: dict | None = None) -> dict:
@@ -241,10 +252,7 @@ class RealWeather(Extension):
             "value": value
         }
 
-    @override
     def is_installed(self) -> bool:
-        if not super().is_installed():
-            return False
         installation = self.config.get('installation')
         if not installation:
             self.log.error(f"  => {self.name}: No 'installation' specified in your nodes.yaml.")

@@ -9,7 +9,16 @@ As Tacview is an optional plugin, you need to activate it in main.yaml first lik
 opt_plugins:
   - tacview
 ```
-The additional configuration is handled in the [extension](../../extensions/tacview/README.md).
+
+Optionally, you can configure a directory to upload the Tacview files into on `/tacview download` in a file named
+config\plugins\tacview.yaml:
+```yaml
+DEFAULT:
+  upload:
+    channel: 1122334455667788  # Discord channel ID to upload Tacview files to, use -1 for DMs
+```
+
+Any additional configuration is handled in the [extension](../../extensions/tacview/README.md).
 
 ## Discord Commands
 The following Discord commands are available through the LotAtc plugin:

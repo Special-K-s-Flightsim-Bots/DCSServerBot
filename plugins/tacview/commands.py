@@ -174,11 +174,24 @@ class Tacview(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        config = (server.node.locals.get('extensions', {}).get('Tacview', {}) |
-                  server.instance.locals.get('extensions', {}).get('Tacview', {}))
-        path = config.get('tacviewExportPath', TACVIEW_DEFAULT_DIR)
+        ext_config = (server.node.locals.get('extensions', {}).get('Tacview', {}) |
+                      server.instance.locals.get('extensions', {}).get('Tacview', {}))
+        path = ext_config.get('tacviewExportPath', TACVIEW_DEFAULT_DIR)
+        config = self.get_config(server)
         file_data = await self.node.read_file(os.path.join(path, file))
-        await interaction.followup.send(file=discord.File(fp=BytesIO(file_data), filename=os.path.basename(file)))
+        if config.get('upload', {}).get('channel'):
+            channel_id = config['upload']['channel']
+            if channel_id == -1:
+                channel = await interaction.user.create_dm()
+                await channel.send(file=discord.File(fp=BytesIO(file_data), filename=os.path.basename(file)))
+                await interaction.followup.send(_("Tacview recording sent in a DM"), ephemeral=ephemeral)
+            else:
+                channel = self.bot.get_channel(channel_id)
+                await channel.send(file=discord.File(fp=BytesIO(file_data), filename=os.path.basename(file)))
+                await interaction.followup.send(_("Tacview recording uploaded to channel {}").format(channel.mention),
+                                                ephemeral=ephemeral)
+        else:
+            await interaction.followup.send(file=discord.File(fp=BytesIO(file_data), filename=os.path.basename(file)))
 
     @tacview.command(name='record_start', description=_('Start realtime recording'))
     @app_commands.guild_only()
