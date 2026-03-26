@@ -473,12 +473,11 @@ class DCSServerBot(commands.Bot):
 
     async def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> discord.Member | str | None:
         async with self.apool.connection() as conn:
-            sql = 'SELECT discord_id, name FROM players WHERE ucid = %s'
-            if verified:
-                sql += ' AND discord_id <> -1 AND manual IS TRUE'
-            cursor = await conn.execute(sql, (ucid, ))
+            cursor = await conn.execute("SELECT discord_id, name, manual FROM players WHERE ucid = %s", (ucid, ))
             if cursor.rowcount == 1:
                 row = await cursor.fetchone()
+                if verified and row[2] is False:
+                    return row[1]
                 return self.guilds[0].get_member(row[0]) or row[1]
             else:
                 return None

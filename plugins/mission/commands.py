@@ -2770,6 +2770,12 @@ class Mission(Plugin[MissionEventListener]):
             await interaction.response.edit_message(view=None)
             await interaction.message.add_reaction('🚫')
 
+        elif custom_id.startswith('unban_'):
+            ucid = custom_id[len('unban_'):]
+            await self.bus.unban(ucid)
+            await interaction.response.edit_message(view=None)
+            await interaction.message.add_reaction('✅')
+
         elif custom_id.startswith('kick_profanity_'):
             ucid = custom_id[len('kick_profanity_'):]
             for server in self.bus.servers:

@@ -746,31 +746,95 @@ class MissionEventListener(EventListener["Mission"]):
         admin_channel = self.bot.get_admin_channel(server)
         if not admin_channel:
             return
-        message = _('Banned user {name} (ucid={ucid}, ip_hash={ipaddr}) rejected.\nReason: {reason}').format(
-            name=data.get('name', 'n/a'), ucid=data['ucid'], ipaddr=utils.hash_ip_addr(data['ipaddr']),
-            reason=data['reason'])
-        await admin_channel.send(f"```{message}```")
+        ban = next((x for x in await self.bus.bans() if x['ucid'] == data['ucid']), None)
+        embed = discord.Embed(title=_("Banned user rejected"), color=discord.Color.red())
+        embed.add_field(name="Name", value=data.get('name', 'n/a'), inline=True)
+        embed.add_field(name="UCID", value=data['ucid'], inline=True)
+        if ban and ban['discord_id'] != '-1':
+            embed.add_field(name="Member", value=f"<@{ban['discord_id']}>", inline=True)
+        embed.add_field(name="IP", value=utils.hash_ip_addr(data['ipaddr']), inline=False)
+        if not ban:
+            embed.add_field(name="Reason", value=data['reason'], inline=False)
+        else:
+            embed.add_field(name="Reason", value=ban['reason'], inline=False)
+            embed.add_field(name="Banned by", value=ban['banned_by'], inline=True)
+            time_obj = ban['banned_at']
+            asof = f'<t:{int(time_obj.timestamp())}>\n({time_obj.strftime("%y-%m-%d %H:%Mz")})'
+            embed.add_field(name="Banned at", value=asof, inline=True)
+            if ban['banned_until'].year == 9999:
+                until = _('never')
+            else:
+                time_obj = ban['banned_until']
+                until = f'<t:{int(time_obj.timestamp())}:R>\n({time_obj.strftime("%y-%m-%d %H:%Mz")})'
+            embed.add_field(name="Banned until", value=until, inline=True)
+
+        if not data['reason'].startswith('DGSA'):
+            view = View(timeout=None)
+            button = Button(label="Unban", style=ButtonStyle.primary, custom_id=f"unban_{data['ucid']}")
+            view.add_item(button)
+            button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
+            view.add_item(button)
+        else:
+            view = None
+        await admin_channel.send(embed=embed, view=view)
 
     @event(name="onBanEvade")
     async def onBanEvade(self, server: Server, data: dict) -> None:
         admin_channel = self.bot.get_admin_channel(server)
         if not admin_channel:
             return
-        old_name = await self.bot.get_member_or_name_by_ucid(data['old_ucid'])
-        if isinstance(old_name, discord.Member):
-            old_name = old_name.display_name
 
-        message = _('Player {name} (ucid={ucid}) connected from the same IP (ip_hash={ipaddr}) '
-                    'as banned player {old_name} (ucid={old_ucid}), who was banned for {reason}!').format(
-            name=data.get('name', 'n/a'), ucid=data['ucid'], ipaddr=utils.hash_ip_addr(data['ipaddr']),
-            old_name=old_name, old_ucid=data['old_ucid'], reason=data['reason']
-        )
+        # read originally banned user
+        old = await self.bot.get_member_or_name_by_ucid(data['old_ucid'], verified=True)
+        if isinstance(old, discord.Member):
+            old_member = old
+            old_name = old.display_name
+        else:
+            old_member = None
+            old_name = old
+
+        # read the original ban record
+        ban = next((x for x in await self.bus.bans() if x['ucid'] == data['old_ucid']), None)
+
+        embed = discord.Embed(title=_("Possible ban-evasion detected"), color=discord.Color.red())
+        embed.add_field(name="Name", value=data.get('name', 'n/a'), inline=True)
+        embed.add_field(name="UCID", value=data['ucid'], inline=True)
+        member = self.bot.get_member_by_ucid(data['ucid'], verified=True)
+        if member:
+            embed.add_field(name="Member", value=member.mention, inline=True)
+        else:
+            embed.add_field(name="_ _", value="_ _", inline=True)
+        embed.add_field(name="Old Name", value=old_name, inline=True)
+        embed.add_field(name="Old UCID", value=data['old_ucid'], inline=True)
+        if ban:
+            if old_member:
+                embed.add_field(name="Old Member", value=old_member.mention, inline=True)
+            else:
+                embed.add_field(name="_ _", value="_ _", inline=True)
+        else:
+            embed.add_field(name="_ _", value="_ _", inline=True)
+        embed.add_field(name="IP", value=utils.hash_ip_addr(data['ipaddr']), inline=False)
+        if not ban:
+            embed.add_field(name="Reason", value=data['reason'], inline=False)
+        else:
+            embed.add_field(name="Reason", value=ban['reason'], inline=False)
+            embed.add_field(name="Banned by", value=ban['banned_by'], inline=True)
+            time_obj = ban['banned_at']
+            asof = f'<t:{int(time_obj.timestamp())}>\n({time_obj.strftime("%y-%m-%d %H:%Mz")})'
+            embed.add_field(name="Banned at", value=asof, inline=True)
+            if ban['banned_until'].year == 9999:
+                until = _('never')
+            else:
+                time_obj = ban['banned_until']
+                until = f'<t:{int(time_obj.timestamp())}:R>\n({time_obj.strftime("%y-%m-%d %H:%Mz")})'
+            embed.add_field(name="Banned until", value=until, inline=True)
+
         view = View(timeout=None)
         button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_evade_{data['ucid']}")
         view.add_item(button)
         button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
         view.add_item(button)
-        await admin_channel.send(f"```{message}```", view=view)
+        await admin_channel.send(embed=embed, view=view)
 
     async def _stop_player(self, server: Server, player: Player):
         player.active = False
