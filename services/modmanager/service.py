@@ -300,8 +300,18 @@ class ModManagerService(Service):
                                                                        package).replace('\\', '/')))
 
         def recreate_zip_package():
+            dirs = []
             with zipfile.ZipFile(package + '.zip', 'r') as zfile:
                 for name in zfile.namelist():
+                    if os.path.basename(name).lower() == 'thumbs.db':
+                        continue
+                    if name.endswith('/'):
+                        name.rstrip('/')
+                    else:
+                        dirname = os.path.dirname(name)
+                        if dirname not in dirs:
+                            log_entries.append(f"w {os.path.dirname(name)}\n")
+                            dirs.append(dirname)
                     log_entries.append(f"w {name}\n")
 
         package = os.path.join(path, f"{package_name}_v{version}")
@@ -455,16 +465,16 @@ class ModManagerService(Service):
         target = reference.installation if folder == Folder.RootFolder else reference.instance.home
         async with aiofiles.open(os.path.join(packages_path, 'install.log'), mode='r', encoding=ENCODING) as log:
             lines = await log.readlines()
-            for i in range(len(lines) - 1, 0, -1):
-                filename = lines[i][2:].strip()
+            for line in reversed(lines):
+                filename = line[2:].strip()
                 file = os.path.normpath(os.path.join(target, filename))
-                if lines[i].startswith('w'):
+                if line.startswith('w'):
                     if os.path.isfile(file):
                         os.remove(file)
                     elif os.path.isdir(file) and not os.listdir(file):
                         with suppress(Exception):
                             os.removedirs(file)
-                elif lines[i].startswith('x'):
+                elif line.startswith('x'):
                     try:
                         shutil.copy2(os.path.join(packages_path, filename), file)
                     except FileNotFoundError:
