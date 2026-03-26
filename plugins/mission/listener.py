@@ -39,6 +39,7 @@ class MissionEventListener(EventListener["Mission"]):
             'friendly_fire': '```ansi\n\u001b[1;33mBLUE {} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```ansi\n\u001b[0;34mBLUE player {} killed themselves - Ooopsie!```',
             'change_slot': '```ansi\n\u001b[0;34m{} player {} occupied {} {}.```',
+            'spectators': '```ansi\n\u001b[0;34mBLUE player {} returned to Spectators```',
             'disconnect': '```ansi\n\u001b[0;34mBLUE player {} disconnected from server {}.```',
             'S_EVENT_SHOT': '```ansi\n\u001b[0;34mBLUE {} in {} shot at {} {} in {} with {}.```',
             'S_EVENT_HIT': '```ansi\n\u001b[0;34mBLUE {} in {} hit {} {} in {}.```'
@@ -53,6 +54,7 @@ class MissionEventListener(EventListener["Mission"]):
             'friendly_fire': '```ansi\n\u001b[1;33mRED {} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```ansi\n\u001b[0;31mRED player {} killed themselves - Ooopsie!```',
             'change_slot': '```ansi\n\u001b[0;31m{} player {} occupied {} {}.```',
+            'spectators': '```ansi\n\u001b[0;31mRED player {} returned to Spectators```',
             'disconnect': '```ansi\n\u001b[0;31mRED player {} disconnected from server {}.```',
             'S_EVENT_SHOT': '```ansi\n\u001b[0;31mRED {} in {} shot at {} {} in {} with {}.```',
             'S_EVENT_HIT': '```ansi\n\u001b[0;31mRED {} in {} hit {} {} in {}.```'
@@ -846,14 +848,17 @@ class MissionEventListener(EventListener["Mission"]):
                 server.afk.pop(player.ucid, None)
                 if 'change_slot' not in self.get_config(server).get('event_filter', []):
                     side = Side(data['side'])
-                    self.send_dcs_event(server, side, self.EVENT_TEXTS[side]['change_slot'].format(player.side.name,
-                        data['name'], Side(data['side']).name, data['unit_type']))
+                    self.send_dcs_event(
+                        server, side, self.EVENT_TEXTS[side]['change_slot'].format(player.side.name,
+                        data['name'], Side(data['side']).name, data['unit_type'])
+                    )
             else:
                 server.afk[player.ucid] = datetime.now(timezone.utc)
                 if 'change_slot' not in self.get_config(server).get('event_filter', []):
-                    self.send_dcs_event(server, Side.NEUTRAL,
-                                        self.EVENT_TEXTS[Side.NEUTRAL]['spectators'].format(player.side.name,
-                                                                                            data['name']))
+                    side = player.side
+                    self.send_dcs_event(
+                        server, side, self.EVENT_TEXTS[side]['spectators'].format(data['name'])
+                    )
         finally:
             await player.update(data)
             self.display_player_embed(server)
