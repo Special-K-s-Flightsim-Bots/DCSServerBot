@@ -1,7 +1,6 @@
-schema;dsmc_schema:
+schema;houndtts_schema:
   type: map
   nullable: false
   mapping:
     enabled: {type: bool, nullable: false}
     autoupdate: {type: bool, nullable: false}
-    name: {type: str, nullable: false, range: {min: 1}}

@@ -12,7 +12,7 @@ MyNode:
       # [...]
       extensions:
         LogAnalyser:
-          restart_on_unlist: true   # If true, a server will be auto-restarted if unlisted.
+          restart_on_unlist: true   # If true, a server will be auto-restarted if unlisted (default: false)
           message_unlist: 'Server is going to restart in {}!' # message to display to users on restarts
           disable_detections:       # if you do not want to use specific error detections, you can disable them here
             - script errors         # LUA script errors    
@@ -23,8 +23,8 @@ MyNode:
             - moose version         # Outdated MOOSE version
             - mist version          # Outdated MIST version
           ignore_files:
-            - moose.lua   # this can be any regular expression pattern like [Mm]oose.*\.lua
-          warn_times: # times when to send the restart messages
+            - moose.lua             # this can be any regular expression pattern like [Mm]oose.*\.lua
+          warn_times:               # times when to send the restart messages
             - 120
             - 60
             - 10 

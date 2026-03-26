@@ -1650,7 +1650,7 @@ class Tournament(Plugin[TournamentEventListener]):
 
     @staticmethod
     async def change_tacview_output(server: Server, results: int):
-        extensions = await server.list_extension()
+        extensions = await server.list_extensions()
         if 'Tacview' in extensions:
             await server.run_on_extension(
                 extension='Tacview',

@@ -1419,17 +1419,15 @@ class ConfigModal(Modal):
         return value
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=self.ephemeral)
         # noinspection PyUnresolvedReferences
         self.value = {
-            v.custom_id: self.unparse(v.value, self.config[v.custom_id].get('type'))
+            v.component.custom_id: self.unparse(v.component.value, self.config[v.component.custom_id].get('type'))
             for v in self.children
         }
         self.stop()
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(f"An error occurred: {error}")
         self.stop()
 

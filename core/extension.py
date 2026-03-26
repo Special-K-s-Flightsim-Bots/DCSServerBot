@@ -4,7 +4,10 @@ import asyncio
 import logging
 
 from abc import ABC
+from core import Status
+from core.services.registry import ServiceRegistry
 from typing import TYPE_CHECKING
+from typing_extensions import override
 
 if TYPE_CHECKING:
     from core import Server, Port
@@ -13,7 +16,8 @@ __all__ = [
     "Extension",
     "ExtensionException",
     "InstallException",
-    "UninstallException"
+    "UninstallException",
+    "InstallableExtension"
 ]
 
 
@@ -47,7 +51,7 @@ class Extension(ABC):
             self._name = self.config['name']
         else:
             self._name = self.__class__.__name__
-        if not self.enabled or not self.is_installed():
+        if not self.enabled:
             return
         self.locals = self.load_config()
         if self.__class__.__name__ not in Extension.started_schedulers:
@@ -60,6 +64,8 @@ class Extension(ABC):
         return dict()
 
     async def prepare(self) -> bool:
+        if not self.is_available():
+            raise InstallException(f"{self.name} is not installed.")
         return True
 
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
@@ -96,6 +102,9 @@ class Extension(ABC):
             self.log.info(f"  => {self.name} shut down for \"{self.server.name}\".")
         return True
 
+    def is_available(self) -> bool:
+        return True
+
     def is_running(self) -> bool:
         return self.running
 
@@ -113,8 +122,11 @@ class Extension(ABC):
 
     async def enable(self):
         self.config['enabled'] = True
-        if not self.is_running():
-            asyncio.create_task(self.startup())
+        if self.server.status in [Status.RUNNING, Status.PAUSED]:
+            if not self.is_running():
+                asyncio.create_task(self.startup())
+        else:
+            await self.prepare()
 
     async def disable(self):
         if self.is_running():
@@ -124,15 +136,6 @@ class Extension(ABC):
     async def render(self, param: dict | None = None) -> dict:
         raise NotImplementedError()
 
-    def is_installed(self) -> bool:
-        return self.enabled
-
-    async def install(self):
-        pass
-
-    async def uninstall(self):
-        pass
-
     async def get_config(self, **kwargs) -> dict:
         return self.config
 
@@ -141,3 +144,101 @@ class Extension(ABC):
 
     async def change_config(self, config: dict):
         self.config |= config
+
+
+class InstallableExtension(Extension):
+    def __init__(self, server: Server, config: dict, repo: str | None = None, package_name: str | None = None):
+        from services.modmanager import ModManagerService
+
+        super().__init__(server, config)
+        self.service: ModManagerService = ServiceRegistry.get(ModManagerService)
+        self.repo = repo
+        self.package_name = package_name
+
+    def is_installed(self) -> bool:
+        raise NotImplementedError()
+
+    @property
+    def autoupdate(self) -> bool:
+        return self.config.get('autoupdate', True)
+
+    @override
+    async def prepare(self):
+        # check if the extension is installed
+        if not self.is_installed() and not await self.install():
+            self.log.warning(f"  => {self.name}: Mod not installed, skipping.")
+            return False
+
+        if self.autoupdate:
+            available_version = await self.get_latest_version()
+            if available_version != self.version:
+                await self.update(available_version)
+
+        return await super().prepare()
+
+    async def get_latest_version(self) -> str | None:
+        if self.repo:
+            return await self.service.get_latest_repo_version(self.repo)
+        else:
+            from services.modmanager import Folder
+
+            return await self.service.get_latest_version({
+                "name": self.package_name,
+                "source": Folder.SavedGames.value
+            })
+
+    async def install(self) -> bool:
+        from services.modmanager import Folder
+
+        if not self.service:
+            self.log.error(f"  => {self.name}: ModManagerService not found, cannot install")
+            return False
+
+        if not await self.service.get_installed_package(self.server, Folder.SavedGames, self.package_name):
+            version = await self.get_latest_version()
+            return await self.service.install_package(
+                self.server,
+                folder=Folder.SavedGames,
+                package_name=self.package_name,
+                version=version,
+                repo=self.repo
+            )
+        else:
+            self.log.info(f"  => {self.name}: Mod already installed.")
+            return False
+
+    async def uninstall(self) -> bool:
+        if not self.service:
+            self.log.error(f"  => {self.name}: ModManagerService not found, cannot uninstall")
+            return False
+
+        from services.modmanager import Folder
+
+        return await self.service.uninstall_package(self.server, Folder.SavedGames, self.package_name, self.version)
+
+    async def update(self, version: str | None = None) -> bool:
+        from services.modmanager import Folder
+
+        if not version:
+            version = await self.get_latest_version()
+        if await self.service.uninstall_package(self.server, Folder.SavedGames, self.package_name, self.version):
+            await self.service.install_package(
+                self.server,
+                folder=Folder.SavedGames,
+                package_name=self.package_name,
+                version=version,
+                repo=self.repo
+            )
+            self.log.info(f"  => {self.name}: Mod updated to version {version}.")
+            return True
+        return False
+
+    async def enable(self):
+        if not self.is_installed():
+            await self.install()
+        await super().enable()
+
+    async def disable(self):
+        await super().disable()
+        if self.is_installed():
+            await self.uninstall()

@@ -7,13 +7,13 @@ import shutil
 import sys
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
-    PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, ServiceRegistry, NodeTransformer
+    PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, ServiceRegistry, NodeTransformer, \
+    InstallException
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
 from functools import partial
 from io import BytesIO
-from pathlib import Path
 from plugins.admin.listener import AdminEventListener
 from plugins.admin.views import CleanupView
 from plugins.modmanager.commands import get_installed_mods
@@ -238,7 +238,35 @@ async def extensions_autocomplete(interaction: discord.Interaction, current: str
     if not await interaction.command._check_can_run(interaction):
         return []
     server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
-    extensions = await server.list_extension()
+    extensions = await server.list_extensions()
+    current = current.casefold()
+    choices: list[app_commands.Choice[str]] = [
+        app_commands.Choice(name=x, value=x)
+        for x in extensions
+        if not current or current in x.casefold()
+    ]
+    return choices[:25]
+
+
+async def enabled_extensions_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
+    extensions = await server.list_extensions(active=True)
+    current = current.casefold()
+    choices: list[app_commands.Choice[str]] = [
+        app_commands.Choice(name=x, value=x)
+        for x in extensions
+        if not current or current in x.casefold()
+    ]
+    return choices[:25]
+
+
+async def disabled_extensions_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
+    extensions = await server.list_extensions(active=False)
     current = current.casefold()
     choices: list[app_commands.Choice[str]] = [
         app_commands.Choice(name=x, value=x)
@@ -1259,96 +1287,84 @@ Please make sure you forward the following ports:
     @ext.command(description=_('Enable Extension'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    @app_commands.autocomplete(extension=extensions_autocomplete)
-    async def enable(self, interaction: discord.Interaction,
-                     server: app_commands.Transform[Server, utils.ServerTransformer], extension: str):
+    @app_commands.autocomplete(extension=disabled_extensions_autocomplete)
+    async def enable(
+            self,
+            interaction: discord.Interaction,
+            server: app_commands.Transform[Server, utils.ServerTransformer],
+            extension: str
+    ) -> None:
         ephemeral = utils.get_ephemeral(interaction)
-        await interaction.response.defer(ephemeral=ephemeral)
-        await interaction.followup.send(_("Enabling extension {}...").format(extension), ephemeral=ephemeral)
-        # set enabled in the nodes.yaml
-        if server.status in [Status.STOPPED, Status.SHUTDOWN]:
-            config_file_path = Path(os.path.join(interaction.client.node.config_dir, 'nodes.yaml'))
-            async with aiofiles.open(config_file_path, encoding='utf-8') as file:
-                config_data = yaml.load(await file.read())
-            ext = config_data[server.node.name].get('instances', {}).get(server.instance.name, {}).get('extensions', {}).get(extension)
-            if not ext:
-                await interaction.followup.send(_("You need to add a configuration for extension {} first.").format(
-                    extension), ephemeral=ephemeral)
-                return
-            if not ext.get('enabled', True):
-                ext['enabled'] = True
-                with open(config_file_path, mode='w', encoding='utf-8') as outfile:
-                    yaml.dump(config_data, outfile)
-                await interaction.followup.send(_("Extension {} enabled on server {}.").format(
-                    extension, server.display_name), ephemeral=ephemeral)
-            else:
-                await interaction.followup.send(_("Extension {} is already enabled on server {}.").format(
-                    extension, server.display_name), ephemeral=ephemeral)
+        await server.init_extensions()
+
+        ext_cls = utils.str_to_class(f'extensions.{extension.lower()}.extension.{extension}')
+        config = {}
+        if getattr(ext_cls, 'CONFIG_DICT', None):
+            # read the old extension values if there are any
+            ext = await server.config_extension(extension)
+            # ask the user to configure the extension
+            modal = utils.ConfigModal(
+                title=f'Configure {extension} Extension',
+                config=ext_cls.CONFIG_DICT,
+                old_values=ext,
+                ephemeral=ephemeral
+            )
+            await interaction.response.send_modal(modal)
+            if await modal.wait():
                 return
 
-        elif server.status in [Status.RUNNING, Status.PAUSED]:
-            await server.config_extension(extension, {"enabled": True})
-            # do we need to initialize the extension?
-            try:
-                await server.run_on_extension(extension=extension, method='enable')
-            except ValueError:
-                await server.init_extensions()
-                try:
-                    await server.run_on_extension(extension=extension, method='prepare')
-                except ValueError as ex:
-                    await interaction.followup.send(_("Failed enabling extension {} on server {}: {}").format(
-                        extension, server.display_name, ex), ephemeral=ephemeral)
-                    return
-            is_running = await server.run_on_extension(extension=extension, method='is_running')
-            if not is_running:
-                await server.run_on_extension(extension=extension, method='startup')
-            await interaction.followup.send(_("Extension {} enabled on server {} and started.").format(
-                extension, server.display_name), ephemeral=ephemeral)
+            config = modal.value
+        else:
+            await interaction.response.defer(ephemeral=ephemeral)
+
+        msg = await interaction.followup.send(_("Enabling extension {}...").format(extension), ephemeral=ephemeral)
+        try:
+            await server.enable_extension(extension, config)
+            await msg.edit(content=_("Extension {} enabled.").format(extension))
+        except InstallException as ex:
+            await msg.edit(content=_("Failed to enable extension:\n{}").format(str(ex)))
 
     @ext.command(description=_('Disable Extension'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    @app_commands.autocomplete(extension=extensions_autocomplete)
-    async def disable(self, interaction: discord.Interaction,
-                      server: app_commands.Transform[Server, utils.ServerTransformer], extension: str):
+    @app_commands.autocomplete(extension=enabled_extensions_autocomplete)
+    async def disable(
+            self,
+            interaction: discord.Interaction,
+            server: app_commands.Transform[Server, utils.ServerTransformer],
+            extension: str
+    ) -> None:
+        ephemeral = utils.get_ephemeral(interaction)
+
+        await server.init_extensions()
+        await interaction.response.send_message(
+            _("Disabling extension {}...").format(extension),
+            ephemeral=ephemeral
+        )
+        msg = await interaction.original_response()
+
+        try:
+            await server.disable_extension(extension)
+            await msg.edit(content=_("Extension {} disabled.").format(extension))
+        except InstallException as ex:
+            await msg.edit(content=_("Failed to disable extension:\n{}").format(str(ex)))
+
+    @ext.command(description=_('List Extensions'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def list(
+            self, interaction: discord.Interaction,
+            server: app_commands.Transform[Server, utils.ServerTransformer]
+    ):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
-        await interaction.followup.send(_("Disabling extension {}...").format(extension), ephemeral=ephemeral)
-        # unset enabled in the nodes.yaml
-        if server.status in [Status.STOPPED, Status.SHUTDOWN]:
-            config_file_path = Path(os.path.join(interaction.client.node.config_dir, 'nodes.yaml'))
-            async with aiofiles.open(config_file_path, encoding='utf-8') as file:
-                config_data = yaml.load(await file.read())
-            ext = config_data[server.node.name].get('instances', {}).get(server.instance.name, {}).get('extensions', {}).get(extension)
-            if not ext:
-                await interaction.followup.send(_("You need to add a configuration for extension {} first.").format(
-                    extension), ephemeral=ephemeral)
-                return
-            if ext.get('enabled', True):
-                ext['enabled'] = False
-                with open(config_file_path, mode='w', encoding='utf-8') as outfile:
-                    yaml.dump(config_data, outfile)
-                await interaction.followup.send(_("Extension {} disabled in nodes.yaml").format(extension),
-                                                ephemeral=ephemeral)
-                return
-            else:
-                await interaction.followup.send(_("Extension {} is already disabled.").format(extension),
-                                                ephemeral=ephemeral)
-                return
-
-        elif server.status in [Status.RUNNING, Status.PAUSED]:
-            try:
-                is_running = await server.run_on_extension(extension=extension, method='is_running')
-                if not is_running:
-                    await interaction.followup.send(_("Extension {} is not running on server {}.").format(
-                        extension, server.name), ephemeral=True)
-                    return
-                await server.config_extension(extension, {"enabled": False})
-                await server.run_on_extension(extension=extension, method='disable')
-                await interaction.followup.send(_("Extension {} disabled and stopped on server {}.").format(
-                    extension, server.display_name), ephemeral=ephemeral)
-            except ValueError:
-                await interaction.followup.send(_("Extension {} not found.").format(extension), ephemeral=True)
+        await server.init_extensions()
+        extensions = await server.render_extensions()
+        embed = discord.Embed(colour=discord.Colour.blue())
+        embed.description = _("Enabled extensions on server {}").format(server.display_name)
+        for ext in extensions:
+            embed.add_field(name=ext['name'], value=ext['version'])
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):

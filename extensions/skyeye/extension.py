@@ -14,7 +14,7 @@ import tempfile
 import zipfile
 
 from contextlib import suppress
-from core import Extension, utils, ServiceRegistry, get_translation, ProcessManager
+from core import utils, ServiceRegistry, get_translation, ProcessManager, InstallableExtension
 from logging.handlers import RotatingFileHandler
 from io import BytesIO
 from packaging.version import parse
@@ -46,7 +46,29 @@ LOGLEVEL = {
 }
 
 
-class SkyEye(Extension):
+class SkyEye(InstallableExtension):
+
+    CONFIG_DICT = {
+        "coalition": {
+            "type": list,
+            "label": _("Coalition"),
+            "default": "blue",
+            "options": ["blue", "red"],
+            "required": True
+        },
+        "callsign": {
+            "type": str,
+            "label": _("Callsign"),
+            "default": "Magic",
+            "required": True
+        },
+        "srs-frequencies": {
+            "type": str,
+            "label": _("SRS Frequencies"),
+            "default": "251.0AM,133.0AM,30.0FM",
+            "required": True
+        }
+    }
 
     def __init__(self, server, config):
         self.configs = []
@@ -477,8 +499,6 @@ class SkyEye(Extension):
 
     @override
     def is_installed(self) -> bool:
-        if not super().is_installed():
-            return False
         exe_path = self.get_exe_path()
         if not os.path.exists(exe_path):
             self.log.error(f"  => SkyEye executable not found in {exe_path}")

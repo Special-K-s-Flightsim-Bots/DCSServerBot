@@ -15,7 +15,8 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
-from core import Extension, utils, Server, ServiceRegistry, get_translation, InstallException, PortType, Port
+from core import (utils, Server, ServiceRegistry, get_translation, InstallException, PortType, Port,
+                  InstallableExtension)
 from discord.ext import tasks
 from extensions.srs import SRS
 from packaging.version import parse
@@ -36,7 +37,7 @@ __all__ = [
 ]
 
 
-class LotAtc(Extension, FileSystemEventHandler):
+class LotAtc(InstallableExtension, FileSystemEventHandler):
     _ports: dict[int, str] = {}
     _json_ports: dict[int, str] = {}
 
@@ -116,6 +117,7 @@ class LotAtc(Extension, FileSystemEventHandler):
 
     @override
     async def prepare(self) -> bool:
+        await super().prepare()
         await self.update_instance(False)
         config = self.config.copy()
         if 'enabled' in config:
@@ -249,9 +251,8 @@ class LotAtc(Extension, FileSystemEventHandler):
         }
 
     @override
+    @property
     def is_installed(self) -> bool:
-        if not super().is_installed():
-            return False
         if (not os.path.exists(os.path.join(self.home, 'bin', 'lotatc.dll')) or
                 not os.path.exists(os.path.join(self.home, 'config.lua'))):
             self.log.error(f"  => {self.server.name}: Can't load extension, LotAtc not correctly installed.")
@@ -292,7 +293,8 @@ class LotAtc(Extension, FileSystemEventHandler):
         version = utils.get_windows_version(os.path.join(path, 'LotAtc.dll'))
         return major_version, version
 
-    async def check_for_updates(self) -> str | None:
+    @override
+    async def get_latest_version(self) -> str | None:
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                 ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
             async with session.get(f"https://tinyurl.com/{UPDATER_CODE}", proxy=self.node.proxy,
@@ -304,9 +306,7 @@ class LotAtc(Extension, FileSystemEventHandler):
                         if name is not None and name.text == 'com.lotatc.server.server23':
                             version = package.find('Version')
                             if version is not None:
-                                _, inst_version = self.get_inst_version()
-                                if version.text != inst_version:
-                                    return version.text
+                                return version.text
         return None
 
     def do_update(self):
@@ -359,7 +359,7 @@ class LotAtc(Extension, FileSystemEventHandler):
                     try:
                         os.rmdir(dir_y)  # only removes empty directories
                     except OSError:
-                        pass  # directory not empty
+                        pass  # directory is not empty
         self.log.info(f"  => {self.name} {version} uninstalled from instance {self.server.instance.name}.")
 
     @tasks.loop(minutes=30)
@@ -367,8 +367,8 @@ class LotAtc(Extension, FileSystemEventHandler):
         if not self.config.get('autoupdate', False):
             return
         try:
-            version = await self.check_for_updates()
-            if version:
+            version = await self.get_latest_version()
+            if version != self.version:
                 self.log.info(f"A new LotAtc update is available. Updating to version {version} ...")
                 await asyncio.to_thread(self.do_update)
                 self.log.info("LotAtc updated.")

@@ -2,7 +2,7 @@ import os
 import re
 import shutil
 
-from core import Extension, Server
+from core import Server, InstallableExtension
 from typing_extensions import override
 
 __all__ = [
@@ -10,10 +10,10 @@ __all__ = [
 ]
 
 
-class DSMC(Extension):
+class DSMC(InstallableExtension):
 
     def __init__(self, server: Server, config: dict):
-        super().__init__(server, config)
+        super().__init__(server, config, repo="https://github.com/Chromium18/DSMC1", package_name="DSMC")
         if config.get('enabled', True):
             server.locals['mission_rewrite'] = False
             server.locals['validate_missions'] = False
@@ -66,6 +66,9 @@ class DSMC(Extension):
 
     @override
     async def prepare(self) -> bool:
+        if not await super().prepare():
+            return False
+
         if 'DSMC_updateMissionList' not in self.locals:
             self.log.error('  => DSMC_updateMissionList missing in DSMC_Dedicated_Server_options.lua! '
                            'Check your config and / or update DSMC!')
@@ -90,7 +93,7 @@ class DSMC(Extension):
                             self.locals['DSMC_AutosaveExit_time'] = 0
                         outfile.write(line)
             self.log.info('  => DSMC configuration changed to be compatible with DCSServerBot.')
-        return await super().prepare()
+        return True
 
     @override
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
@@ -117,8 +120,6 @@ class DSMC(Extension):
 
     @override
     def is_installed(self) -> bool:
-        if not super().is_installed():
-            return False
         dcs_home = self.server.instance.home
         if not os.path.exists(os.path.join(dcs_home, 'DSMC')) or \
                 not os.path.exists(os.path.join(dcs_home, 'Scripts', 'Hooks', 'DSMC_hooks.lua')):

@@ -41,7 +41,7 @@ class Sneaker(Extension):
         super().__init__(server, config)
         self.bus = ServiceRegistry.get(ServiceBus)
         if self.enabled and (not type(self)._process or not type(self)._process.is_running()):
-            cmd = self.config.get('cmd')
+            cmd = self.get_exe_path()
             if not cmd:
                 return
             type(self)._process = next(utils.find_process(os.path.basename(cmd), self.config['bind']), None)
@@ -85,12 +85,15 @@ class Sneaker(Extension):
             json.dump(cfg, file, indent=2)
         self.log.debug(f"Created / updated Sneaker config file: {filename}")
 
+    def get_exe_path(self) -> str | None:
+        return os.path.expandvars(self.config['cmd']) if 'cmd' in self.config else None
+
     def _log_output(self, p: subprocess.Popen):
         for line in iter(p.stdout.readline, b''):
             self.log.debug(line.decode('utf-8').rstrip())
 
     def _run_subprocess(self, config: str) -> psutil.Process:
-        cmd = os.path.basename(self.config['cmd'])
+        cmd = os.path.basename(self.get_exe_path())
         out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
         self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
                        f"--config {config}")
@@ -130,7 +133,7 @@ class Sneaker(Extension):
             type(self)._servers.add(self.server.name)
             return await super().startup()
         except Exception as ex:
-            self.log.error(f"Error during launch of {self.config['cmd']}: {str(ex)}")
+            self.log.error(f"Error during launch of {self.get_exe_path()}: {str(ex)}")
             return False
 
     def terminate(self) -> bool:
@@ -140,7 +143,7 @@ class Sneaker(Extension):
                 type(self)._process = None
             return True
         except Exception as ex:
-            self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
+            self.log.error(f"Error during shutdown of {self.get_exe_path()}: {str(ex)}")
             return False
 
     @override
@@ -156,7 +159,7 @@ class Sneaker(Extension):
                     try:
                         type(self)._process = self._run_subprocess(os.path.join(self.node.config_dir, 'sneaker.json'))
                     except Exception as ex:
-                        self.log.error(f"Error during launch of {self.config['cmd']}: {str(ex)}")
+                        self.log.error(f"Error during launch of {self.get_exe_path()}: {str(ex)}")
                         return False
                 else:
                     return False
@@ -173,17 +176,7 @@ class Sneaker(Extension):
     @override
     @property
     def version(self) -> str | None:
-        return utils.get_windows_version(self.config['cmd'])
-
-    @override
-    def is_installed(self) -> bool:
-        if not super().is_installed():
-            return False
-        # check if Sneaker is installed
-        if 'cmd' not in self.config or not os.path.exists(os.path.expandvars(self.config['cmd'])):
-            self.log.warning("  => Sneaker: can't run extension, executable not found!")
-            return False
-        return True
+        return utils.get_windows_version(self.get_exe_path())
 
     @override
     async def render(self, param: dict | None = None) -> dict:
@@ -202,3 +195,7 @@ class Sneaker(Extension):
         return {
             "Sneaker": Port(self.config['bind'].split(':')[1], PortType.TCP, public=True)
         } if self.enabled else {}
+
+    @override
+    def is_available(self) -> bool:
+        return os.path.exists(self.get_exe_path())

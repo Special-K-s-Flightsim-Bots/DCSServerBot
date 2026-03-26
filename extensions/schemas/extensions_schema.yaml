@@ -28,6 +28,8 @@ schema;instance_extensions_schema:
       include: 'github_schema'
     gRPC:
       include: 'grpc_schema'
+    HoundTTS:
+      include: 'houndtts_schema'
     Lardoon:
       include: 'instance_lardoon_schema'
     LogAnalyser:

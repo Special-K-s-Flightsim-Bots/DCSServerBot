@@ -1,9 +1,6 @@
 from __future__ import annotations
 import asyncio
-import importlib
-import inspect
 import os
-import pkgutil
 import uuid
 
 from abc import ABC, abstractmethod
@@ -518,15 +515,15 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def config_extension(self, name: str, config: dict) -> None:
+    async def config_extension(self, name: str, config: dict | None = None) -> dict:
         raise NotImplementedError()
 
     @abstractmethod
-    async def install_extension(self, name: str, config: dict) -> None:
+    async def enable_extension(self, name: str, config: dict | None = None) -> None:
         raise NotImplementedError()
 
     @abstractmethod
-    async def uninstall_extension(self, name: str) -> None:
+    async def disable_extension(self, name: str) -> None:
         raise NotImplementedError()
 
     @abstractmethod
@@ -542,30 +539,8 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @async_cache
-    async def list_extension(self) -> list[str]:
-        from core import Extension, InstallableExtension
-
-        extensions: list[str] = []
-        root_pkg = importlib.import_module('extensions')
-
-        for finder, module_name, is_pkg in pkgutil.walk_packages(
-                path=root_pkg.__path__, prefix=root_pkg.__name__ + "."
-        ):
-            # We're only interested in modules named 'extension.py'
-            if not module_name.endswith(".extension"):
-                continue
-
-            try:
-                mod = importlib.import_module(module_name)
-                for name, obj in inspect.getmembers(mod, inspect.isclass):
-                    if obj is Extension or obj is InstallableExtension:
-                        continue
-                    if issubclass(obj, Extension):
-                        extensions.append(name)
-            except Exception:
-                pass
-
-        return sorted(extensions)
+    async def list_extensions(self, *, only_installable: bool = False, active: bool = None) -> list[str]:
+        raise NotImplementedError()
 
     @abstractmethod
     async def get_config(self) -> dict:

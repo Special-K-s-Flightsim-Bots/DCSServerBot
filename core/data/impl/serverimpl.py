@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import atexit
+import importlib
+import inspect
 import json
 import luadata
 import os
+import pkgutil
 import psutil
 import shutil
 import sys
@@ -20,19 +23,21 @@ from contextlib import suppress
 from copy import deepcopy
 from core import utils, Server
 from core.const import MAX_SAFE_INTEGER
+from core.extension import InstallableExtension
 from core.data.dataobject import DataObjectFactory
 from core.data.const import Status, Channel, Coalition
 from core.data.node import UploadStatus
-from core.extension import Extension, InstallException, UninstallException
+from core.extension import Extension, InstallException
 from core.mizfile import MizFile
 from core.process import ProcessManager
+from core.utils.helper import async_cache
 from core.utils.performance import performance_log
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from psycopg.errors import UndefinedTable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterable
 from typing_extensions import override
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 from watchdog.observers import Observer, ObserverType
@@ -1108,11 +1113,59 @@ class ServerImpl(Server):
     async def getMissionList(self) -> list[str]:
         return self.settings.get('missionList', [])
 
+    @async_cache
+    async def _find_extensions(self, only_installable: bool = False) -> Iterable[str]:
+        from core import Extension, InstallableExtension
+
+        extensions: set[str] = set()
+        root_pkg = importlib.import_module('extensions')
+
+        for finder, module_name, is_pkg in pkgutil.walk_packages(
+                path=root_pkg.__path__, prefix=root_pkg.__name__ + "."
+        ):
+            # We're only interested in modules named 'extension.py'
+            if not module_name.endswith(".extension"):
+                continue
+
+            try:
+                mod = importlib.import_module(module_name)
+                for name, obj in inspect.getmembers(mod, inspect.isclass):
+                    if obj is Extension or obj is InstallableExtension:
+                        continue
+                    if not only_installable and issubclass(obj, Extension):
+                        extensions.add(name)
+                    elif only_installable and issubclass(obj, InstallableExtension):
+                        extensions.add(name)
+            except Exception:
+                pass
+
+        return extensions
+
+    @override
+    async def list_extensions(self, *, only_installable: bool = False, active: bool = None) -> list[str]:
+        ext = await self._find_extensions(only_installable=only_installable)
+        if active is not None:
+            if not self.extensions:
+                await self.init_extensions()
+            if only_installable:
+                subclass = InstallableExtension
+            else:
+                subclass = Extension
+            if active:
+                ext = [x.__class__.__name__ for x in self.extensions.values() if issubclass(type(x), subclass)]
+            else:
+                ext = [x for x in ext if x not in self.extensions]
+        return sorted(ext)
+
     @override
     async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
         ext = self.extensions.get(extension)
         if not ext:
-            raise ValueError(f"Extension {extension} not found.")
+            if method == "is_installed":
+                ext = self.load_extension(extension)
+                self.extensions[extension] = ext
+            else:
+                raise ValueError(f"Extension {extension} not found.")
         # Check if the command exists in the extension object
         if not hasattr(ext, method):
             raise ValueError(f"Command {method} not found in extension {extension}.")
@@ -1128,13 +1181,15 @@ class ServerImpl(Server):
         return result
 
     @override
-    async def config_extension(self, name: str, config: dict) -> None:
+    async def config_extension(self, name: str, config: dict | None = None) -> dict:
         config_file = os.path.join(self.node.config_dir, 'nodes.yaml')
         data: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
         node_config = data.get(self.node.name, {})
         extensions = node_config.setdefault('instances', {}).setdefault(
-            self.instance.name, {}
-        ).setdefault('extensions', {})
+            self.instance.name, {}).setdefault('extensions', {})
+        if not config:
+            return extensions.get(name, {})
+
         extensions[name] = extensions.get(name, {}) | config
         with open(config_file, 'w', encoding='utf-8') as f:
             yaml.dump(data, f)
@@ -1144,24 +1199,27 @@ class ServerImpl(Server):
         self.instance.locals |= self.node.locals['instances'][self.instance.name]
         if name in self.extensions:
             self.extensions[name].config = self.node.locals.get('extensions', {}).get(name, {}) | self.locals['extensions'][name]
+            return self.extensions[name].config
+        else:
+            return extensions[name]
 
     @override
-    async def install_extension(self, name: str, config: dict) -> None:
-        if name in self.extensions:
-            raise InstallException(f"Extension {name} is already installed!")
-        await self.config_extension(name, config)
-        ext = self.load_extension(name)
-        await ext.install()
-        self.extensions[name] = ext
-
-    @override
-    async def uninstall_extension(self, name: str) -> None:
-        ext = self.extensions[name]
+    async def enable_extension(self, name: str, config: dict | None = None) -> None:
+        await self.config_extension(name, (config or {}) | {"enabled": True})
+        ext = self.extensions.get(name)
         if not ext:
-            raise UninstallException(f"Extension {name} is not installed!")
-        await ext.uninstall()
-        self.extensions.pop(name, None)
+            ext = self.load_extension(name)
+            self.extensions[name] = ext
+        await ext.enable()
+
+    @override
+    async def disable_extension(self, name: str) -> None:
+        if name not in self.extensions:
+            raise InstallException(f"Extension '{name}' not found")
+        ext = self.extensions[name]
         await self.config_extension(name, {"enabled": False})
+        await ext.disable()
+        self.extensions.pop(name, None)
 
     @override
     async def cleanup(self) -> None:

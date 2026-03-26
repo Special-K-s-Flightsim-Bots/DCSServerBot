@@ -16,6 +16,7 @@ MyNode:
       extensions:
         DSMC:
           enabled: true
+          autoupdate: true  # auto-update DSMC to the latest version from GitHub
 ```
 DCSServerBot will detect if DSMC is enabled and - if yes - change the settings in your DSMC_Dedicated_Server_options.lua
 to fit to its needs. DSMC will write out a new miz-file with a new extension (001, 002, ...) after each run. The bot

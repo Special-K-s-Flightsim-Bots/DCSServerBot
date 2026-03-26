@@ -21,19 +21,16 @@ MyNode:
       autoupdate: true                                              # Auto update SkyEye, whenever a new version is available
       auto_affinity:                                                # Optional: set core affinity
         min_cores: 2                                                # Min cores to be used (default: 2)
-#        max_cores: 4                                                # Max cores to be used (default: unlimited)
+#        max_cores: 4                                               # Max cores to be used (default: unlimited)
         quality: 2                                                  # Core quality (0 = low (E-cores), 1 = normal, 2 = high, default: 2)
   # [...]
   instances:
     DCS.dcs_serverrelease:
-      affinity: 1, 2                  # Recommended, set core affinity for your DCS server process when using SkyEye
-      # [...]
       extensions:
         SkyEye:
           debug: true                   # Replicate the SkyEye console log into the DCSSB log
           log: {instance.home}/Logs/skyeye.log        # Replicate the SkyEye log into a separate logfile
           config: {instance.home}/Config/SkyEye.yaml' # your SkyEye config file (default path)
-          affinity: 14,15               # Deprecated: Set the core affinity for SkyEye (use auto_affinity instead!)
           coalition: blue               # Which coalition should SkyEye be active on   
           any-other-skyeye-config: xxx  # See the SkyEye documentation. 
           # No need to provide SRS, Tacview and gRPC configuration, as long as they are configured in nodes.yaml

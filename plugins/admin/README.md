@@ -90,8 +90,9 @@ download to the current channel. Discord limits may apply.</br>
 | /plugin install    | plugin                                 | all           | Admin     | Install a plugin into your DCSServerBot installation.                                                                                            |
 | /plugin uninstall  | plugin                                 | all           | Admin     | Uninstalls a plugin from your DCSServerBot installation.                                                                                         |
 | /plugin reload     | plugin                                 | all           | Admin     | Reloads a DCSServerBot plugin.                                                                                                                   |
-| /extension enable  | extension                              | all           | Admin     | Enables a (configured) extension.                                                                                                                |
-| /extension disable | extension                              | all           | Admin     | Disables an extension.                                                                                                                           |
+| /extension enable  | extension                              | all           | Admin     | Enables (and configures) an extension. Installable extensions will be auto-installed.                                                            |
+| /extension disable | extension                              | all           | Admin     | Disables an extension. Installable extensions will be auto-uninstalled.                                                                          |
+| /extension list    |                                        | all           | DCS Admin | List all enabled extensions.                                                                                                                     |
 
 ## Config File Uploads
 All configuration files used by the bot itself (such as `main.yaml`) or by various plugins (like `<plugin>.yaml`) 

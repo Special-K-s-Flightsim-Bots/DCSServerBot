@@ -57,26 +57,28 @@ class SRS(Extension, FileSystemEventHandler):
         "blue_password": {
             "type": str,
             "label": _("Blue Password"),
-            "placeholder": _("Password for blue GCI, . for none"),
-            "required": True,
+            "placeholder": _("Password for blue GCI"),
+            "required": False,
             "default": "blue"
           },
         "red_password": {
             "type": str,
             "label": _("Red Password"),
-            "placeholder": _("Password for red GCI, . for none"),
-            "required": True,
+            "placeholder": _("Password for red GCI"),
+            "required": False,
             "default": "red"
         },
         "gui_server": {
             "type": bool,
             "label": _("GUI Server"),
-            "default": False
+            "default": False,
+            "required": True
         },
         "autoconnect": {
             "type": bool,
             "label": _("Autoconnect"),
-            "default": True
+            "default": True,
+            "required": True
         }
     }
 
@@ -588,15 +590,12 @@ class SRS(Extension, FileSystemEventHandler):
         }
 
     @override
-    def is_installed(self) -> bool:
-        if not super().is_installed():
-            return False
-        # check if SRS is installed
-        exe_path = self.get_exe_path()
-        if not os.path.exists(exe_path):
-            self.log.error(f"  => SRS executable not found in {exe_path}")
-            return False
-        # do we have a proper config file?
+    def is_available(self) -> bool:
+        return os.path.exists(self.get_exe_path())
+
+    @override
+    @property
+    def enabled(self) -> bool:
         try:
             cfg_path = self.get_config_path()
             if not os.path.exists(cfg_path) or not os.path.isfile(cfg_path):

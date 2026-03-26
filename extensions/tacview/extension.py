@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import aiofiles
 import asyncio
 import os
@@ -7,8 +5,9 @@ import re
 import shutil
 import sys
 
-from core import Extension, utils, ServiceRegistry, Server, get_translation, InstallException, DISCORD_FILE_SIZE_LIMIT, \
-    Status, PortType, Port
+from core import (utils, ServiceRegistry, Server, get_translation, InstallException, DISCORD_FILE_SIZE_LIMIT, Status,
+                  PortType, Port, InstallableExtension)
+from datetime import datetime
 from extensions.tacview.recorder import TacviewRecorder
 from packaging.version import parse
 from services.bot import BotService
@@ -28,7 +27,7 @@ __all__ = [
 ]
 
 
-class Tacview(Extension):
+class Tacview(InstallableExtension):
     _rtt_ports: dict[int, str] = dict()
     _rcp_ports: dict[int, str] = dict()
 
@@ -253,10 +252,11 @@ class Tacview(Extension):
         }
 
     @override
-    def is_installed(self) -> bool:
-        if not super().is_installed():
-            return False
+    def is_available(self) -> bool:
+        return self.get_inst_path() is not None
 
+    @override
+    def is_installed(self) -> bool:
         base_dir = self.server.instance.home
         dll_installed = os.path.exists(os.path.join(base_dir, r'Mods\tech\Tacview\bin\tacview.dll'))
         exports_installed = (os.path.exists(os.path.join(base_dir, r'Scripts\TacviewGameExport.lua')) &
@@ -264,10 +264,10 @@ class Tacview(Extension):
         if exports_installed:
             with open(os.path.join(base_dir, 'Scripts', 'Export.lua'), mode='r', encoding='utf-8') as file:
                 for line in file.readlines():
-                    # best case we find the default line Tacview put in the Export.lua
+                    # search for the line Tacview put in the Export.lua
                     if line == TACVIEW_EXPORT_LINE:
                         break
-                    # at least we found it, it might still be wrong
+                    # we found it, it might still be wrong
                     elif not line.strip().startswith('--') and 'TacviewGameExport.lua'.casefold() in line.casefold():
                         break
                 else:

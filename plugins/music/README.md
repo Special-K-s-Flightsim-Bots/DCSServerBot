@@ -9,7 +9,7 @@ See [Music Service](../../services/music/README.md).
 | Command           | Parameter                    | Channel | Role       | Description                                                    |
 |-------------------|------------------------------|---------|------------|----------------------------------------------------------------|
 | /music player     | radio_name                   | all     | DCS Admin  | The music player. Assign a radio to your server and play it.   |
-| /music play       | radio_name [playlist] [song} | all     | DCS Admin  | Play a song or a complete playlist.                            |
+| /music play       | radio_name [playlist] [song] | all     | DCS Admin  | Play a song or a complete playlist.                            |
 | /music stop       | radio_name                   | all     | DCS Admin  |                                                                |
 | /playlist add     | playlist song                | all     | DCS Admin  | Add a song to a playlist (or create a new one with that song). |
 | /playlist add_all | playlist                     | all     | DCS Admin  | Adds all songs from the music directory to the playlist.       |

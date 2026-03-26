@@ -98,7 +98,7 @@ class SignupView(View):
         self.times = []
         self.terrains = []
 
-    @discord.ui.select(placeholder=_("Select your preferred mach times"), min_values=1)
+    @discord.ui.select(placeholder=_("Select your preferred match times"), min_values=1)
     async def times_callback(self, interaction: discord.Interaction, select: Select):
         self.times = select.values
         # noinspection PyUnresolvedReferences

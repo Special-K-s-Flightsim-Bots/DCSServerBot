@@ -440,7 +440,8 @@ class NodeImpl(Node):
     async def init_instances(self):
         grouped = defaultdict(list)
         for server_name, instance_name in utils.findDCSInstances():
-            grouped[server_name].append(instance_name)
+            if instance_name in self.locals.get('instances', []):
+                grouped[server_name].append(instance_name)
         duplicates = {
             server_name: instances
             for server_name, instances in grouped.items()

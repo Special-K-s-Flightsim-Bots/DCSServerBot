@@ -38,6 +38,11 @@ class Lardoon(Extension):
         "minutes": {
             "type": int,
             "label": _("Scan (min)")
+        },
+        "use_singleprocess": {
+            "type": bool,
+            "label": _("Use Single Process"),
+            "default": True
         }
     }
 
@@ -48,11 +53,12 @@ class Lardoon(Extension):
         else:
             self.process = self.find_running_process(None)
 
+    def get_exe_path(self) -> str | None:
+        return os.path.expandvars(self.config['cmd']) if 'cmd' in self.config else None
+
     def find_running_process(self, p: psutil.Process | None = None):
         if not p or not p.is_running():
-            cmd = self.config.get('cmd')
-            if not cmd:
-                return None
+            cmd = self.get_exe_path()
             p = next(utils.find_process(os.path.basename(cmd), self.config['bind']), None)
             if p:
                 if self.config.get('use_single_process', True):
@@ -101,7 +107,7 @@ class Lardoon(Extension):
                         instance = self.server.instance.name
                         cwd = os.path.join(self.server.instance.home, 'Config')
                     out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
-                    cmd = os.path.basename(self.config['cmd'])
+                    cmd = self.get_exe_path()
                     self.log.debug(f"Launching Lardoon server with {cmd} serve --bind {self.config['bind']}")
                     proc = ProcessManager().launch_process(
                         [cmd, "serve", "--bind", self.config['bind']],
@@ -122,7 +128,7 @@ class Lardoon(Extension):
                     self.process = await asyncio.to_thread(run_subprocess)
                     atexit.register(self.terminate)
                 except psutil.NoSuchProcess:
-                    self.log.error(f"Error during launch of {self.config['cmd']}!")
+                    self.log.error(f"Error during launch of {self.get_exe_path()}!")
                     return False
 
         if self.config.get('use_single_process', True):
@@ -144,7 +150,7 @@ class Lardoon(Extension):
                 type(self)._process = None
             return True
         except Exception as ex:
-            self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
+            self.log.error(f"Error during shutdown of {self.get_exe_path()}: {str(ex)}")
             return False
 
     @override
@@ -172,14 +178,12 @@ class Lardoon(Extension):
     @override
     @property
     def version(self) -> str | None:
-        return utils.get_windows_version(self.config['cmd'])
+        return utils.get_windows_version(self.get_exe_path())
 
     @override
-    def is_installed(self) -> bool:
-        if not super().is_installed():
-            return False
+    def is_available(self) -> bool:
         # check if Lardoon is installed
-        if 'cmd' not in self.config or not os.path.exists(os.path.expandvars(self.config['cmd'])):
+        if not os.path.exists(self.get_exe_path()):
             self.log.warning("Lardoon executable not found!")
             return False
         return True
@@ -217,7 +221,7 @@ class Lardoon(Extension):
         if self._schedule.minutes != minutes:
             self._schedule.change_interval(minutes=minutes)
 
-        cmd = os.path.expandvars(self.config['cmd'])
+        cmd = self.get_exe_path()
         if self.config.get('use_single_process', True):
             for tacview_dir, server_list in type(self)._tacview_dirs.items():
                 if not server_list:

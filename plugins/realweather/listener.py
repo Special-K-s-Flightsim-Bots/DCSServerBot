@@ -24,7 +24,7 @@ class RealWeatherEventListener(EventListener["RealWeather"]):
 
     @chat_command(name="realweather", help=_("applies real weather"), roles=['DCS Admin'], usage="<icao|airport>")
     async def realweather(self, server: Server, player: Player, params: list[str]):
-        if 'RealWeather' not in await server.list_extension():
+        if 'RealWeather' not in await server.list_extensions():
             await player.sendChatMessage("RealWeather is not enabled in this server.")
             return
 

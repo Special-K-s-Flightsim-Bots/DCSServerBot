@@ -105,12 +105,12 @@ class RealWeather(Extension):
 
     @override
     async def prepare(self) -> bool:
-        if not self.is_installed():
-            raise RealWeatherException(f"DCS Real Weather is not installed on node {self.node.name}.")
+        if not super().prepare():
+            return False
 
         if self.config.get('autoupdate', False):
             await self._autoupdate()
-        return await super().prepare()
+        return True
 
     async def generate_config(self, input_mission: str, output_mission: str, override: dict | None = None) -> bool:
         tmpfd, tmpname = tempfile.mkstemp()
@@ -252,7 +252,7 @@ class RealWeather(Extension):
             "value": value
         }
 
-    def is_installed(self) -> bool:
+    def is_available(self) -> bool:
         installation = self.config.get('installation')
         if not installation:
             self.log.error(f"  => {self.name}: No 'installation' specified in your nodes.yaml.")

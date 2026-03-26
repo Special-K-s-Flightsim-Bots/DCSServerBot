@@ -407,6 +407,21 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
 
     @override
+    @cache_with_expiration(expiration=60)
+    async def list_extensions(self, *, only_installable: bool = False, active: bool = None) -> list[str]:
+        timeout = 180 if not self.node.slow_system else 300
+        return await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "list_extensions",
+            "server_name": self.name,
+            "params": {
+                "only_installable": only_installable,
+                "active": active
+            }
+        }, timeout=timeout, node=self.node.name)
+
+    @override
     async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
         timeout = 180 if not self.node.slow_system else 300
         params = {
@@ -422,9 +437,9 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
 
     @override
-    async def config_extension(self, name: str, config: dict) -> None:
-        timeout = 60 if not self.node.slow_system else 120
-        await self.bus.send_to_node_sync({
+    async def config_extension(self, name: str, config: dict | None = None) -> dict:
+        timeout = 180 if not self.node.slow_system else 300
+        return await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "config_extension",
@@ -436,12 +451,12 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
 
     @override
-    async def install_extension(self, name: str, config: dict) -> None:
+    async def enable_extension(self, name: str, config: dict | None = None) -> None:
         timeout = 180 if not self.node.slow_system else 300
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
-            "method": "install_extension",
+            "method": "enable_extension",
             "server_name": self.name,
             "params": {
                 "name": name,
@@ -450,12 +465,12 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
 
     @override
-    async def uninstall_extension(self, name: str) -> None:
+    async def disable_extension(self, name: str) -> None:
         timeout = 180 if not self.node.slow_system else 300
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
-            "method": "uninstall_extension",
+            "method": "disable_extension",
             "server_name": self.name,
             "params": {
                 "name": name

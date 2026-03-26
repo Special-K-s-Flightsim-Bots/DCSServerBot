@@ -15,7 +15,8 @@ MyNode:
       extensions:
         gRPC:
           enabled: true
-          port: 50051     # you can set any configuration parameter here, that will be replaced in your dcs-grpc.lua file.
+          autoupdate: true  # auto-update DCS-gRPC to the latest version from GitHub
+          port: 50051       # you can set any configuration parameter here, that will be replaced in your dcs-grpc.lua file.
 ```
 
 > [!TIP]
