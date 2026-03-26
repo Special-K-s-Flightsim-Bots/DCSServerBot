@@ -1181,7 +1181,7 @@ class NodeImpl(Node):
                     # We don't want to be a master
                     if config.get('no_master', False):
                         if not await is_node_alive(master, config.get('heartbeat', 30)):
-                            raise FatalException(f"Master node {master} is not alive, exiting.")
+                            self.log.critical(f"Master node {master} is not alive, waiting ...")
                         return False
 
                     # I am the master
