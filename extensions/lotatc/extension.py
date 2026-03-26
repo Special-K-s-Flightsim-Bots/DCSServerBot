@@ -109,11 +109,7 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
     def get_inst_path(self) -> str:
         inst_path = os.path.join(
             os.path.expandvars(self.config.get('installation', os.path.join('%ProgramFiles%', 'LotAtc'))))
-        if os.path.exists(inst_path):
-            return inst_path
-        else:
-            raise InstallException(f"Can't find the {self.name} installation dir, "
-                                   "please specify it manually in your nodes.yaml!")
+        return inst_path
 
     @override
     async def prepare(self) -> bool:
@@ -333,15 +329,16 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
         return False
 
     @override
-    async def install(self):
+    async def install(self, version: str | None = None) -> bool:
         major_version, _ = self.get_inst_version()
         from_path = os.path.join(self.get_inst_path(), 'server', major_version)
         shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True)
         self.locals = self.load_config()
         self.log.info(f"  => {self.name} {self.version} installed into instance {self.server.instance.name}.")
+        return True
 
     @override
-    async def uninstall(self):
+    async def uninstall(self) -> bool:
         major_version, _ = self.get_inst_version()
         version = self.version
         from_path = os.path.join(self.get_inst_path(), 'server', major_version)
@@ -360,6 +357,7 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
                     except OSError:
                         pass  # directory is not empty
         self.log.info(f"  => {self.name} {version} uninstalled from instance {self.server.instance.name}.")
+        return True
 
     @tasks.loop(minutes=30)
     async def schedule(self):
@@ -420,3 +418,7 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
             "LotAtc": Port(self.locals.get('port', 10310), PortType.TCP, public=True),
             "LotAtc JSON Server Port": Port(self.locals.get('lotatc_inst.options', {}).get('jsonserver_port', 8081), PortType.TCP)
         } if self.enabled else {}
+
+    @override
+    def is_available(self) -> bool:
+        return os.path.exists(self.get_inst_path())

@@ -14,7 +14,7 @@ import tempfile
 import zipfile
 
 from contextlib import suppress
-from core import utils, ServiceRegistry, get_translation, ProcessManager, InstallableExtension
+from core import utils, ServiceRegistry, get_translation, ProcessManager, Extension
 from logging.handlers import RotatingFileHandler
 from io import BytesIO
 from packaging.version import parse
@@ -46,7 +46,7 @@ LOGLEVEL = {
 }
 
 
-class SkyEye(InstallableExtension):
+class SkyEye(Extension):
 
     CONFIG_DICT = {
         "coalition": {
@@ -274,7 +274,7 @@ class SkyEye(InstallableExtension):
 
     async def _autoupdate(self):
         try:
-            version = await self.check_for_updates()
+            version = await self.get_latest_version()
             if version:
                 self.log.info(f"A new SkyEye update is available. Updating to version {version} ...")
                 await self.do_update(version)
@@ -498,14 +498,14 @@ class SkyEye(InstallableExtension):
         }
 
     @override
-    def is_installed(self) -> bool:
+    def is_available(self) -> bool:
         exe_path = self.get_exe_path()
         if not os.path.exists(exe_path):
             self.log.error(f"  => SkyEye executable not found in {exe_path}")
             return False
         return True
 
-    async def check_for_updates(self) -> str | None:
+    async def get_latest_version(self) -> str | None:
         with suppress(aiohttp.ClientConnectionError):
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:

@@ -187,7 +187,7 @@ class InstallableExtension(Extension):
                 "source": Folder.SavedGames.value
             })
 
-    async def install(self) -> bool:
+    async def install(self, version: str | None = None) -> bool:
         from services.modmanager import Folder
 
         if not self.service:
@@ -195,7 +195,8 @@ class InstallableExtension(Extension):
             return False
 
         if not await self.service.get_installed_package(self.server, Folder.SavedGames, self.package_name):
-            version = await self.get_latest_version()
+            if not version:
+                version = await self.get_latest_version()
             return await self.service.install_package(
                 self.server,
                 folder=Folder.SavedGames,
@@ -217,20 +218,8 @@ class InstallableExtension(Extension):
         return await self.service.uninstall_package(self.server, Folder.SavedGames, self.package_name, self.version)
 
     async def update(self, version: str | None = None) -> bool:
-        from services.modmanager import Folder
-
-        if not version:
-            version = await self.get_latest_version()
-        if await self.service.uninstall_package(self.server, Folder.SavedGames, self.package_name, self.version):
-            await self.service.install_package(
-                self.server,
-                folder=Folder.SavedGames,
-                package_name=self.package_name,
-                version=version,
-                repo=self.repo
-            )
-            self.log.info(f"  => {self.name}: Mod updated to version {version}.")
-            return True
+        if await self.uninstall():
+           return await self.install(version)
         return False
 
     async def enable(self):
