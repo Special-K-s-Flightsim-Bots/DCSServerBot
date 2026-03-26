@@ -121,6 +121,7 @@ DCSServerBot supports a lot of them already which can add some quality of life.
 | DSMC        | DSMC mission handling, should be activated when dealing with DSMC missions.                                | [README](./extensions/dsmc/README.md)        |
 | GitHub      | Clone / update a Git repository into a directory on your server.                                           | [README](./extensions/github/README.md)      |
 | gRPC        | Support gRPC, a communication framework with DCS World.                                                    | [README](./extensions/grpc/README.md)        |
+| HoundTTS    | Support for the Hound Text-to-speech system.                                                               | [README](./extensions/houndtts/README.md)    |
 | Lardoon     | Webgui for Tacview with search options.                                                                    | [README](./extensions/lardoon/README.md)     |
 | LogAnalyser | Analyses the dcs.log on the fly and does some helpful things. Activated per default.                       | [README](./extensions/loganalyser/README.md) |
 | LotAtc      | GCI- and ATC-extension for DCS World. Simple display only extension.                                       | [README](./extensions/lotatc/README.md)      |
@@ -137,14 +138,23 @@ DCSServerBot supports a lot of them already which can add some quality of life.
 | VoiceChat   | DCS VOIP system to communicate with other pilots.                                                          | [README](./extensions/voicechat/README.md)   |
 
 > [!IMPORTANT]
-> Many of the solutions that these extensions rely on are created by talented community members. I deeply appreciate 
-> the extensive time and effort they have invested in developing these tools to their current state.<br>
+> Many of the solutions that these extensions rely on are created by talented community members. 
+> I deeply appreciate the extensive time and effort they have invested in developing these tools to their current state.
+> 
 > However, please note that I am not accountable for these extensions, including any bugs or their overall 
-> functionality. The developers typically have dedicated Discord servers for support inquiries or GitHub repositories 
-> where you can report any issues.<br>
+> functionality. 
+> The developers typically have dedicated Discord servers for support inquiries or GitHub repositories where you can 
+> report any issues.
+> 
 > Therefore, if you encounter any problems with these solutions, please reach out directly to the developers for 
 > assistance.
 
+[!TIP]
+If you're using the [ModManager](./services/modmanager/README.md) service, some of these extensions can be installed
+automatically (DSMC, gRPC, HoundTTS, Olympus).
+You can try and use `/enable extension`, which will in many cases succeed already in enabling and configuring the 
+extension to your basic needs.
+If that does not work, please have a look at the respective READMEs for more information.
 ---
 
 ## Installation
