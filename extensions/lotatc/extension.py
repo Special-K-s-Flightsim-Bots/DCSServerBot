@@ -251,7 +251,6 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
         }
 
     @override
-    @property
     def is_installed(self) -> bool:
         if (not os.path.exists(os.path.join(self.home, 'bin', 'lotatc.dll')) or
                 not os.path.exists(os.path.join(self.home, 'config.lua'))):
