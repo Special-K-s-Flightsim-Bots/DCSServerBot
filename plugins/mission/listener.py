@@ -750,7 +750,7 @@ class MissionEventListener(EventListener["Mission"]):
         embed = discord.Embed(title=_("Banned user rejected"), color=discord.Color.red())
         embed.add_field(name="Name", value=data.get('name', 'n/a'), inline=True)
         embed.add_field(name="UCID", value=data['ucid'], inline=True)
-        if ban and ban['discord_id'] != '-1':
+        if ban and ban['discord_id'] != -1:
             embed.add_field(name="Member", value=f"<@{ban['discord_id']}>", inline=True)
         embed.add_field(name="IP", value=utils.hash_ip_addr(data['ipaddr']), inline=False)
         if not ban:
