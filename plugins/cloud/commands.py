@@ -374,7 +374,7 @@ class Cloud(Plugin[CloudListener]):
     async def cloud_sync(self):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                cursor = await conn.execute("""
+                await cursor.execute("""
                     SELECT ucid FROM players 
                     WHERE synced IS FALSE 
                     ORDER BY last_seen DESC 
@@ -398,14 +398,14 @@ class Cloud(Plugin[CloudListener]):
                         FROM statistics s, missions m 
                         WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
                         GROUP BY 1, 2, 3
-                    """, (row[0], ))
+                    """, (row['ucid'], ))
                     async for line in cursor:
                         try:
                             line['client'] = self.client
                             await self.post('upload', line)
                         except TypeError as ex:
-                            self.log.warning(f"Could not replicate user {row[0]}: {ex}")
-                    await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row[0], ))
+                            self.log.warning(f"Could not replicate user {row['ucid']}: {ex}")
+                    await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
 
     @cloud_sync.before_loop
     async def before_cloud_sync(self):
