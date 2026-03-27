@@ -1180,7 +1180,14 @@ class NodeImpl(Node):
 
                     # We don't want to be a master
                     if config.get('no_master', False):
-                        if not await is_node_alive(master, config.get('heartbeat', 30)):
+                        if master == self.name:
+                            # step down
+                            if holds_lock:
+                                await lock_conn.execute("SELECT pg_advisory_unlock(%s)", (lock_key,))
+                            await lock_conn.execute("DELETE FROM cluster WHERE guild_id = %s", (self.guild_id,))
+                        elif not master:
+                            self.log.critical(f"No Master found, waiting ...")
+                        elif not await is_node_alive(master, config.get('heartbeat', 30)):
                             self.log.critical(f"Master node {master} is not alive, waiting ...")
                         return False
 
