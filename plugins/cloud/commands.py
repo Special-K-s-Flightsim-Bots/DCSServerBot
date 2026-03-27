@@ -475,8 +475,9 @@ class Cloud(Plugin[CloudListener]):
             }
             self.log.debug("Updating registration with this data: " + str(bot))
             await self.post('register', bot)
-        except aiohttp.ClientError:
+        except aiohttp.ClientError as ex:
             self.log.debug('Cloud: Bot could not register due to service unavailability. Ignored.')
+            self.log.exception(ex)
         except Exception:
             self.log.debug("Error while registering: ", exc_info=True)
 
