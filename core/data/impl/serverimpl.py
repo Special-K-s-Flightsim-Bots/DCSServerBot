@@ -119,18 +119,17 @@ class ServerImpl(Server):
         self.transport = None
         self._lock = asyncio.Lock()
         with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
-                    INSERT INTO servers (server_name) 
-                    VALUES (%s) 
-                    ON CONFLICT (server_name) DO NOTHING
-                """, (self.name, ))
-                cursor = conn.execute("""
-                    SELECT maintenance FROM servers WHERE server_name = %s
-                """, (self.name, ))
-                row = cursor.fetchone()
-                if row:
-                    self._maintenance = row[0]
+            conn.execute("""
+                INSERT INTO servers (server_name) 
+                VALUES (%s) 
+                ON CONFLICT (server_name) DO NOTHING
+            """, (self.name, ))
+            cursor = conn.execute("""
+                SELECT maintenance FROM servers WHERE server_name = %s
+            """, (self.name, ))
+            row = cursor.fetchone()
+            if row:
+                self._maintenance = row[0]
         atexit.register(self.stop_observer)
 
     @override

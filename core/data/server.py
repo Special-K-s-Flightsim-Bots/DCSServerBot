@@ -190,9 +190,8 @@ class Server(DataObject, ABC):
 
     def update_maintenance(self):
         with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("UPDATE servers SET maintenance = %s WHERE server_name = %s",
-                             (self._maintenance, self.name))
+            conn.execute("UPDATE servers SET maintenance = %s WHERE server_name = %s",
+                         (self._maintenance, self.name))
 
     @property
     def display_name(self) -> str:

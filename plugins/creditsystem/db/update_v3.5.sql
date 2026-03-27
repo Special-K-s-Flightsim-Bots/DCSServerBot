@@ -1,0 +1,2 @@
+ALTER TABLE players_badges DROP CONSTRAINT players_badges_player_ucid_fkey;
+ALTER TABLE players_badges ADD CONSTRAINT players_badges_player_ucid_fkey FOREIGN KEY (player_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE;

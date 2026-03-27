@@ -601,23 +601,6 @@ class MissionEventListener(EventListener["Mission"]):
         if data['id'] == 1:
             return
 
-        # create the pseudo-event "S_EVENT_CONNECT"
-        asyncio.create_task(self.bus.send_to_node(
-            {
-                "command": "onMissionEvent",
-                "eventName": "S_EVENT_CONNECT",
-                "initiator": {
-                    "name": data['name'],
-                    "type": "UNIT"
-                },
-                "comment": "auto-generated",
-                "server_name": server.name
-            }
-        ))
-        if 'connect' not in self.get_config(server).get('event_filter', []):
-            self.send_dcs_event(server, Side.NEUTRAL, self.EVENT_TEXTS[Side.NEUTRAL]['connect'].format(
-                data['name'], server.name))
-
         player: Player = server.get_player(ucid=data['ucid'])
         if not player or player.id == 1:
             player = DataObjectFactory().new(
@@ -640,6 +623,23 @@ class MissionEventListener(EventListener["Mission"]):
         mt = usage_alarm.get('max_threshold')
         if mt and len(server.get_active_players()) == (mt + 1):
             asyncio.create_task(self._threshold_alert(server, usage_alarm))
+
+        # create the pseudo-event "S_EVENT_CONNECT"
+        asyncio.create_task(self.bus.send_to_node(
+            {
+                "command": "onMissionEvent",
+                "eventName": "S_EVENT_CONNECT",
+                "initiator": {
+                    "name": data['name'],
+                    "type": "UNIT"
+                },
+                "comment": "auto-generated",
+                "server_name": server.name
+            }
+        ))
+        if 'connect' not in self.get_config(server).get('event_filter', []):
+            self.send_dcs_event(server, Side.NEUTRAL, self.EVENT_TEXTS[Side.NEUTRAL]['connect'].format(
+                data['name'], server.name))
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:

@@ -83,13 +83,12 @@ class InstanceImpl(Instance):
     def update_instance(self):
         try:
             with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("""
-                        INSERT INTO instances (node, instance, port)
-                        VALUES (%s, %s, %s) 
-                        ON CONFLICT (node, instance) DO UPDATE 
-                        SET port=excluded.port 
-                    """, (self.node.name, self.name, self.locals.get('bot_port', 6666)))
+                conn.execute("""
+                    INSERT INTO instances (node, instance, port)
+                    VALUES (%s, %s, %s) 
+                    ON CONFLICT (node, instance) DO UPDATE 
+                    SET port=excluded.port 
+                """, (self.node.name, self.name, self.locals.get('bot_port', 6666)))
         except psycopg.errors.UniqueViolation:
             self.log.error(f"bot_port {self.locals.get('bot_port', 6666)} is already in use on node {self.node.name}!")
             raise
@@ -101,11 +100,10 @@ class InstanceImpl(Instance):
 
     def update_server(self, server: Server | None = None):
         with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
-                    UPDATE instances SET server_name = %s, last_seen = (now() AT TIME ZONE 'utc') 
-                    WHERE node = %s AND instance = %s
-                """, (server.name if server and server.name != 'n/a' else None, self.node.name, self.name))
+            conn.execute("""
+                UPDATE instances SET server_name = %s, last_seen = (now() AT TIME ZONE 'utc') 
+                WHERE node = %s AND instance = %s
+            """, (server.name if server and server.name != 'n/a' else None, self.node.name, self.name))
 
     @override
     def set_server(self, server: Server | None):

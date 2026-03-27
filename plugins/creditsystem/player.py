@@ -71,12 +71,11 @@ class CreditPlayer(Player):
         campaign_id, _ = utils.get_running_campaign(self.node, self.server)
         if campaign_id:
             with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("""
-                        INSERT INTO credits (campaign_id, player_ucid, points) 
-                        VALUES (%s, %s, %s) 
-                        ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = EXCLUDED.points
-                    """, (campaign_id, self.ucid, self._points))
+                conn.execute("""
+                    INSERT INTO credits (campaign_id, player_ucid, points) 
+                    VALUES (%s, %s, %s) 
+                    ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = EXCLUDED.points
+                """, (campaign_id, self.ucid, self._points))
         else:
             self.log.debug("No campaign active, player points will vanish after a bot restart.")
 
@@ -98,11 +97,10 @@ class CreditPlayer(Player):
         if not campaign_id:
             return
         with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
-                    INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, remark) 
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (campaign_id, event, self.ucid, old_points, self._points, remark))
+            conn.execute("""
+                INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, remark) 
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (campaign_id, event, self.ucid, old_points, self._points, remark))
 
         if self.squadron and old_points < self.points:
             if self.config.get('squadron_credits', False):
