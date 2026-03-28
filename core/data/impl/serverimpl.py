@@ -1020,7 +1020,7 @@ class ServerImpl(Server):
             current_mission = self._get_current_mission_file()
             current_index = mission_list.index(current_mission) + 1
         except ValueError:
-            current_index = start_index
+            current_index = start_index if start_index < len(mission_list) else 1
             current_mission = mission_list[current_index - 1]
 
         if isinstance(mission, int):
