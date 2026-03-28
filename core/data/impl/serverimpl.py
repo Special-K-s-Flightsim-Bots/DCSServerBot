@@ -237,11 +237,12 @@ class ServerImpl(Server):
     async def _load_mission_list(self):
         try:
             data = await self.send_to_dcs_sync({"command": "listMissions"}, timeout=60)
-            mission_list = data['missionList']
-            if mission_list != self.settings['missionList']:
-                for m in set(self.settings['missionList']) - set(mission_list):
+            online_mission_list = [os.path.normpath(x) for x in data['missionList']]
+            offline_mission_list = await self.getMissionList()
+            if online_mission_list != offline_mission_list:
+                for m in set(offline_mission_list) - set(online_mission_list):
                     self.log.warning(f"Removed non-existing/unsupported mission from the list: {m}")
-                self.settings['missionList'] = mission_list
+                self.settings['missionList'] = online_mission_list
         except (TimeoutError, asyncio.TimeoutError):
             pass
 
@@ -525,14 +526,15 @@ class ServerImpl(Server):
         # check if all missions are existing
         missions = []
         try:
-            start_mission = self.settings['missionList'][int(self.settings.get('listStartIndex', 1)) - 1]
+            start_mission = os.path.normpath(
+                self.settings['missionList'][int(self.settings.get('listStartIndex', 1)) - 1])
         except IndexError:
             start_mission = None
         for mission in self.settings['missionList']:
             if '.dcssb' in mission:
                 _mission = os.path.join(os.path.dirname(os.path.dirname(mission)), os.path.basename(mission))
             else:
-                _mission = mission
+                _mission = os.path.normpath(mission)
             # check if the orig file has been updated
             orig = utils.get_orig_file(_mission, create_file=False)
             if orig and os.path.exists(orig) and os.path.exists(mission) and os.path.getmtime(orig) > os.path.getmtime(mission):
@@ -846,8 +848,8 @@ class ServerImpl(Server):
             filename = secondary + '.orig'
             add = False
         else:
-            for idx, name in enumerate(self.settings['missionList']):
-                if (os.path.normpath(name) == filename) or (os.path.normpath(name) == secondary):
+            for idx, name in enumerate(await self.getMissionList()):
+                if (name == filename) or (name == secondary):
                     if self.current_mission and idx == int(self.settings['listStartIndex']) - 1:
                         if not force:
                             return UploadStatus.FILE_IN_USE
@@ -967,7 +969,7 @@ class ServerImpl(Server):
         orig = secondary + '.orig'
         if os.path.exists(orig):
             os.remove(orig)
-        missions = self.settings['missionList']
+        missions = await self.getMissionList()
         if path in missions or secondary in missions:
             # the mission is already in the list. check if we need to reset a .dcssb copy
             if secondary in missions:
@@ -982,7 +984,7 @@ class ServerImpl(Server):
                 "index": idx,
                 "autostart": autostart
             })
-            self.settings['missionList'] = data['missionList']
+            self.settings['missionList'] = [os.path.normpath(x) for x in data['missionList']]
         else:
             if idx > 0:
                 missions.insert(idx - 1, path)
@@ -999,10 +1001,10 @@ class ServerImpl(Server):
             raise AttributeError("Can't delete the running mission!")
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             data = await self.send_to_dcs_sync({"command": "deleteMission", "id": mission_id})
-            self.settings['missionList'] = data['missionList']
+            self.settings['missionList'] = [os.path.normpath(x) for x in data['missionList']]
         else:
             missions = self.settings['missionList']
-            del missions[mission_id - 1]
+            missions.pop(mission_id - 1)
             self.settings['missionList'] = missions
         return self.settings['missionList']
 
@@ -1021,13 +1023,13 @@ class ServerImpl(Server):
     async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
                           use_orig: bool | None = True, no_reload: bool | None = False) -> bool | None:
 
-        mission_list = self.settings['missionList']
+        mission_list = await self.getMissionList()
         start_index = int(self.settings.get('listStartIndex', 1))
         try:
             current_mission = self._get_current_mission_file()
             current_index = mission_list.index(current_mission) + 1
         except ValueError:
-            current_index = start_index
+            current_index = start_index if start_index < len(mission_list) else 1
             current_mission = mission_list[current_index - 1]
 
         if isinstance(mission, int):
@@ -1110,7 +1112,7 @@ class ServerImpl(Server):
 
     @override
     async def getMissionList(self) -> list[str]:
-        return self.settings.get('missionList', [])
+        return [os.path.normpath(x) for x in self.settings.get('missionList', [])]
 
     @async_cache
     async def _find_extensions(self, only_installable: bool = False) -> Iterable[str]:

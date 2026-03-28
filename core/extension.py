@@ -160,7 +160,7 @@ class InstallableExtension(Extension):
 
     @property
     def autoupdate(self) -> bool:
-        return self.config.get('autoupdate', True)
+        return self.config.get('autoupdate', False)
 
     @override
     async def prepare(self):

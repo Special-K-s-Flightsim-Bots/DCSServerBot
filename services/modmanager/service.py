@@ -351,7 +351,11 @@ class ModManagerService(Service):
             with zipfile.ZipFile(filename, 'r') as zfile:
                 ovgme = self.is_ovgme(zfile, package_name)
                 if ovgme:
-                    root = str(PurePosixPath(zfile.namelist()[0]).parent) + '/'
+                    first = zfile.namelist()[0]
+                    if first.endswith('/'):
+                        root = first
+                    else:
+                        root = str(PurePosixPath(zfile.namelist()[0]).parent) + '/'
                 for name in zfile.namelist():
                     if ovgme:
                         _name = name.replace(root, '')
