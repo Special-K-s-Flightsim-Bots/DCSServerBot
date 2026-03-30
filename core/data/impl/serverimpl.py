@@ -844,8 +844,10 @@ class ServerImpl(Server):
             missions_dir = self.instance.missions_dir
         filename = os.path.normpath(os.path.join(missions_dir, filename))
         secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
+        orig_filename = secondary + '.orig'
+
         if orig:
-            filename = secondary + '.orig'
+            filename = orig_filename
             add = False
         else:
             for idx, name in enumerate(await self.getMissionList()):
@@ -862,6 +864,8 @@ class ServerImpl(Server):
             return rc
         if (force or not self.locals.get('autoscan', False)) and add:
             await self.addMission(filename)
+        elif os.path.exists(orig_filename):
+            os.remove(orig_filename)
         return UploadStatus.OK
 
     @override
