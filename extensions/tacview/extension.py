@@ -142,7 +142,9 @@ class Tacview(InstallableExtension):
 
     @override
     async def prepare(self) -> bool:
-        await self.handle_update()
+        if not await super().prepare():
+            return False
+
         options = self.server.options['plugins']
         dirty = False
 
@@ -190,7 +192,7 @@ class Tacview(InstallableExtension):
                            f"server {type(self)._rcp_ports[rcp_port]}!")
             return False
         type(self)._rcp_ports[rcp_port] = self.server.name
-        return await super().prepare()
+        return True
 
     @override
     @property
@@ -383,7 +385,7 @@ class Tacview(InstallableExtension):
             asyncio.create_task(self.send_tacview_file(filename))
         return filename
 
-    def get_inst_version(self) -> str | None:
+    async def get_latest_version(self) -> str | None:
         if not self.get_inst_path():
             self.log.error("You need to specify an installation path for Tacview!")
             return None
@@ -391,7 +393,7 @@ class Tacview(InstallableExtension):
         return utils.get_windows_version(os.path.join(path, 'tacview.dll'))
 
     @override
-    async def install(self) -> bool:
+    async def install(self, version: str | None = None) -> bool:
         def ignore_funct(dirname, filenames) -> list[str]:
             ignored = []
             for item in filenames:
@@ -465,34 +467,17 @@ class Tacview(InstallableExtension):
         self.log.info(f"  => {self.name} {version} uninstalled from instance {self.server.instance.name}.")
         return True
 
-    async def check_for_updates(self) -> str | None:
-        version = self.get_inst_version()
-        return version if parse(self.version) < parse(version) else None
-
-    async def do_update(self) -> bool:
-        if not await self.uninstall():
-            return False
-        if not await self.install():
-            return False
-        return True
-
-    async def handle_update(self):
-        # don't run if autoupdate is disabled
-        if not self.config.get('autoupdate', False):
-            return
-
-        version = await self.check_for_updates()
-        if version:
-            if await self.do_update():
-                await ServiceRegistry.get(ServiceBus).send_to_node({
-                    "command": "rpc",
-                    "service": BotService.__name__,
-                    "method": "audit",
-                    "params": {
-                        "message": _("Tacview updated to version {version} on instance {instance}.").format(
-                            version=version, instance=self.server.instance.name)
-                    }
-                })
+    async def update(self, version: str | None = None) -> bool:
+        if await super().update(version):
+            await ServiceRegistry.get(ServiceBus).send_to_node({
+                "command": "rpc",
+                "service": BotService.__name__,
+                "method": "audit",
+                "params": {
+                    "message": _("Tacview updated to version {version} on instance {instance}.").format(
+                        version=version, instance=self.server.instance.name)
+                }
+            })
 
     @override
     def get_ports(self) -> dict[str, Port]:
