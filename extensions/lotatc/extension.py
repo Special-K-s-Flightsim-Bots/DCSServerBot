@@ -113,7 +113,9 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
 
     @override
     async def prepare(self) -> bool:
-        await super().prepare()
+        if not await super().prepare():
+            return False
+
         await self.update_instance(False)
         config = self.config.copy()
         if 'enabled' in config:
@@ -181,7 +183,7 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
                     outfile.writelines(orig)
                 self.log.info(f"  => {self.name}: MissionScripting.lua amended.")
 
-        return await super().prepare()
+        return True
 
     # File Event Handlers
     def process_stats_file(self, path: str):

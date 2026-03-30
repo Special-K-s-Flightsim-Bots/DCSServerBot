@@ -248,6 +248,7 @@ class Olympus(InstallableExtension):
     async def prepare(self) -> bool:
         if not await super().prepare():
             return False
+
         self.log.debug(f"Preparing {self.name} configuration ...")
         try:
             if not await self.prepare_olympus_json():
