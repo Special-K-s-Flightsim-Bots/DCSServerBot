@@ -49,7 +49,7 @@ class DCSServerBot(commands.Bot):
     async def connect(self, *, reconnect: bool = True) -> None:
         try:
             await super().connect(reconnect=reconnect)
-        except PrivilegedIntentsRequired as ex:
+        except PrivilegedIntentsRequired:
             self.log.critical("You need to enable all priviledged intents in your Discord developer page!")
             exit(-2)
 

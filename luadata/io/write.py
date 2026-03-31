@@ -1,4 +1,3 @@
-import codecs
 from luadata.serializer.serialize import serialize
 
 
@@ -12,5 +11,5 @@ def write(path, data, encoding="utf-8", indent=None, prefix="return "):
         indent (str, optional): indent string. Defaults to None.
         prefix (str, optional): prefix string. Defaults to "return ".
     """
-    with codecs.open(path, "w", encoding) as file:
+    with open(path, mode="w", encoding=encoding) as file:
         file.write(prefix + serialize(data, encoding=encoding, indent=indent))

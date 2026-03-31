@@ -754,7 +754,7 @@ class ServiceBus(Service):
 
             # Log performance and execute the function
             with PerformanceLog(f"RPC: {obj.__class__.__name__}.{method_name}()"):
-                if asyncio.iscoroutinefunction(func):
+                if inspect.iscoroutinefunction(func):
                     # If the function is asynchronous, await it directly
                     return await func(**kwargs)
                 else:

@@ -711,7 +711,7 @@ def cache_with_expiration(expiration: int):
             result = func(*args, **kwargs)
             return update_cache(cache_key, result)
 
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
             return async_wrapper
         return sync_wrapper
 

@@ -404,7 +404,8 @@ async def __{sanitized_name}_callback(interaction: discord.Interaction):
 
                 # Apply role checks, if any
                 if checks:
-                    [slash_cmd.add_check(check) for check in checks]
+                    for check in checks:
+                        slash_cmd.add_check(check)
 
                 # update parameters
                 for p_name, spec in params.items():

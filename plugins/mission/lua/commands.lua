@@ -221,7 +221,7 @@ function dcsbot.getAirbases(json)
     for carrierID, carrier in pairs(farpsAndCarriers.carriers) do
         local airbase = {}
         airbase.name = carrier.name
-        airbase.type = carrier.type
+        airbase.type = 'Carrier'
         airbase.coalition = carrier.coalition
         airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(carrier.x, carrier.y)
         airbase.alt = Terrain.GetHeight(carrier.x, carrier.y)
@@ -238,7 +238,7 @@ function dcsbot.getAirbases(json)
     for farpID, farp in pairs(farpsAndCarriers.farps) do
         local airbase = {}
         airbase.name = farp.name
-        airbase.type = farp.type
+        airbase.type = 'FARP'
         airbase.coalition = farp.coalition
         airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(farp.x, farp.y)
         airbase.alt = Terrain.GetHeight(farp.x, farp.y)

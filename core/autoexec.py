@@ -58,12 +58,10 @@ class Autoexec:
                     mydict['table'].append(line[6:])
         self.values = mydict
 
-    def __getattribute__(self, item):
-        return super(Autoexec, self).__getattribute__(item)
-
     def __getattr__(self, item):
         if item not in self.values:
-            return super(Autoexec, self).__setattr__(item, None)
+            super(Autoexec, self).__setattr__(item, None)
+            return None
         else:
             return self.values[item]
 

@@ -1981,7 +1981,7 @@ class RestAPI(Plugin):
             while True:
                 try:
                     token = str(random.randint(1000, 9999))
-                    cursor.execute("""
+                    await cursor.execute("""
                         INSERT INTO players (ucid, discord_id, last_seen)
                         VALUES (%s, %s, NOW() AT TIME ZONE 'utc')
                     """, (token, discord_id))
@@ -2010,7 +2010,7 @@ class RestAPI(Plugin):
                         rc |= BIT_LINK_IN_PROGRESS
                         if force:
                             rc |= BIT_FORCE_OPERATION
-                            cursor.execute("""
+                            await cursor.execute("""
                                 UPDATE players 
                                 SET last_seen = (NOW() AT TIME ZONE 'utc') 
                                 WHERE discord_id = %s

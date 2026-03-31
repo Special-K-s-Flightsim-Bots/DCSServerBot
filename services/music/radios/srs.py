@@ -1,17 +1,12 @@
 import asyncio
 import os
-from typing import cast
-
 import psutil
-import subprocess
 
-from core import Server, Status, Coalition, utils, ProcessManager
-from packaging.version import parse
-from threading import Thread
-
+from core import Server, Status, Coalition, utils
 from extensions.srs import SRS
-from services.music.radios.base import RadioInitError, Radio
+from services.music.radios.base import Radio
 from plugins.music.utils import get_tag
+from typing import cast
 
 
 class SRSRadio(Radio):

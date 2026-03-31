@@ -27,7 +27,7 @@ class GitHub(Extension):
         "target": {
             "type": str,
             "label": _("Target"),
-            "default": "{server.instance.home}\Missions",
+            "default": "{server.instance.home}\\Missions",
             "required": True
         },
         "filter": {

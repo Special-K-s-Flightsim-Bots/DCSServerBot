@@ -3,6 +3,7 @@ import aiofiles
 import asyncio
 import discord
 import importlib
+import inspect
 import os
 import pandas as pd
 import psycopg
@@ -217,7 +218,7 @@ class Mission(Plugin[MissionEventListener]):
         migrate_module = importlib.import_module('.migrate', package=__package__)
         migrate_function = getattr(migrate_module, function_name, None)
         if callable(migrate_function):
-            if asyncio.iscoroutinefunction(migrate_function):
+            if inspect.iscoroutinefunction(migrate_function):
                 await migrate_function(self)
             else:
                 migrate_function(self)

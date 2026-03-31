@@ -244,7 +244,7 @@ class Info(report.EmbedElement):
             self.add_field(name='MagVar', value=f"{airbase['magVar']:.2f}")
         else:
             self.add_field(name='_ _', value='_ _')
-        runways = data.get('runways')
+        runways = data.get('runways', [])
         if runways:
             name = []
             course = []
@@ -259,7 +259,7 @@ class Info(report.EmbedElement):
                 self.add_field(name=_('Course'), value='\n'.join(f"{utils.rad_to_heading(x):.0f}°" for x in course))
                 self.add_field(name=_('Length (ft)'), value='\n'.join(f"{x} ft" for x in length))
 
-        parking = data.get('parking')
+        parking = data.get('parking', [])
         if parking:
             spot_count: dict[int, int] = defaultdict(int)
             for parking_spot in parking:

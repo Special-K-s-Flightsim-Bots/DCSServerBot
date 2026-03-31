@@ -1,5 +1,6 @@
 import aiofiles
 import asyncio
+import inspect
 import os
 import re
 
@@ -141,7 +142,7 @@ class LogAnalyser(Extension):
                 if not match:
                     continue
 
-                if asyncio.iscoroutinefunction(callback):
+                if inspect.iscoroutinefunction(callback):
                     asyncio.create_task(
                         callback(self.log_pos + idx, line, match),
                         name=f"callback_{callback.__name__}_{self.log_pos + idx}"

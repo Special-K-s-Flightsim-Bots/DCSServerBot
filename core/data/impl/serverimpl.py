@@ -1179,7 +1179,7 @@ class ServerImpl(Server):
         _method = getattr(ext, method)
 
         # Check if it is a coroutine
-        if asyncio.iscoroutinefunction(_method):
+        if inspect.iscoroutinefunction(_method):
             result = await _method(**kwargs)
         else:
             result = await asyncio.to_thread(_method, **kwargs)

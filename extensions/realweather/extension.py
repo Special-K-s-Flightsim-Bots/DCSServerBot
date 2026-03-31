@@ -105,7 +105,7 @@ class RealWeather(Extension):
 
     @override
     async def prepare(self) -> bool:
-        if not super().prepare():
+        if not await super().prepare():
             return False
 
         if self.config.get('autoupdate', False):

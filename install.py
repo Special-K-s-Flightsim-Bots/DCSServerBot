@@ -11,7 +11,7 @@ import sys
 if sys.platform == 'win32':
     import winreg
 
-from contextlib import closing, suppress
+from contextlib import suppress
 from core import utils, SAVED_GAMES, translations, COMMAND_LINE_ARGS
 from pathlib import Path
 from psycopg import sql
@@ -120,48 +120,47 @@ class Install:
             try:
                 with psycopg.connect(url, autocommit=True) as conn:
                     utils.set_password(master_user, master_passwd, config_dir)
-                    with closing(conn.cursor()) as cursor:
-                        try:
-                            passwd = utils.get_password('database', config_dir) or ''
-                        except ValueError:
+                    try:
+                        passwd = utils.get_password('database', config_dir) or ''
+                    except ValueError:
+                        passwd = secrets.token_urlsafe(8)
+                    try:
+                        conn.execute(
+                            sql.SQL("CREATE USER {} WITH ENCRYPTED PASSWORD {}")
+                            .format(sql.Identifier(user), sql.Literal(passwd))
+                        )
+                    except psycopg.Error:
+                        print(_('[yellow]Existing {} user found![/]').format(user))
+                        for i in range(1, 4):
+                            passwd = Prompt.ask(
+                                _("Please enter your password for user {}").format(user))
+                            try:
+                                with psycopg.connect(f"postgres://{user}:{quote(passwd)}@{host}:{port}/{database}?sslmode=prefer"):
+                                    pass
+                                break
+                            except psycopg.Error:
+                                print(_("[red]Wrong password! Try again ({}/3).[/]").format(i+1))
+                        else:
+                            print(_('[yellow]You have entered 3x a wrong password. I have reset it.[/]'))
                             passwd = secrets.token_urlsafe(8)
-                        try:
-                            cursor.execute(
-                                sql.SQL("CREATE USER {} WITH ENCRYPTED PASSWORD {}")
+                            conn.execute(
+                                sql.SQL("ALTER USER {} WITH ENCRYPTED PASSWORD {}")
                                 .format(sql.Identifier(user), sql.Literal(passwd))
                             )
-                        except psycopg.Error:
-                            print(_('[yellow]Existing {} user found![/]').format(user))
-                            for i in range(1, 4):
-                                passwd = Prompt.ask(
-                                    _("Please enter your password for user {}").format(user))
-                                try:
-                                    with psycopg.connect(f"postgres://{user}:{quote(passwd)}@{host}:{port}/{database}?sslmode=prefer"):
-                                        pass
-                                    break
-                                except psycopg.Error:
-                                    print(_("[red]Wrong password! Try again ({}/3).[/]").format(i+1))
-                            else:
-                                print(_('[yellow]You have entered 3x a wrong password. I have reset it.[/]'))
-                                passwd = secrets.token_urlsafe(8)
-                                cursor.execute(
-                                    sql.SQL("ALTER USER {} WITH ENCRYPTED PASSWORD {}")
-                                    .format(sql.Identifier(user), sql.Literal(passwd))
-                                )
-                        # store the (new) password
-                        utils.set_password('database', passwd, config_dir)
-                        with suppress(psycopg.Error):
-                            cursor.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database)))
-                            cursor.execute(
-                                sql.SQL("GRANT ALL PRIVILEGES ON DATABASE {} TO {}")
-                                .format(sql.Identifier(database), sql.Identifier(user))
-                            )
-                            cursor.execute(
-                                sql.SQL("ALTER DATABASE {} OWNER TO {}")
-                                .format(sql.Identifier(database), sql.Identifier(user))
-                            )
-                        print(_("[green]Database user and database created.[/]"))
-                    return f"postgres://{user}:SECRET@{host}:{port}/{database}?sslmode=prefer"
+                    # store the (new) password
+                    utils.set_password('database', passwd, config_dir)
+                    with suppress(psycopg.Error):
+                        conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database)))
+                        conn.execute(
+                            sql.SQL("GRANT ALL PRIVILEGES ON DATABASE {} TO {}")
+                            .format(sql.Identifier(database), sql.Identifier(user))
+                        )
+                        conn.execute(
+                            sql.SQL("ALTER DATABASE {} OWNER TO {}")
+                            .format(sql.Identifier(database), sql.Identifier(user))
+                        )
+                    print(_("[green]Database user and database created.[/]"))
+                return f"postgres://{user}:SECRET@{host}:{port}/{database}?sslmode=prefer"
             except psycopg.errors.InvalidPassword:
                 print(_("[red]Master password wrong. Please try again.[/]"))
                 pkl_file = os.path.join(config_dir, '.secret', master_user + '.pkl')
@@ -170,6 +169,7 @@ class Install:
             except psycopg.OperationalError as ex:
                 print(_("[yellow]Connection issue to the database: {} \nPlease try again.[/]").format(ex))
         print(_("[red]Could not connect to the database after 3 tries.[/]"))
+        return None
 
     def install_master(self) -> tuple[dict, dict, dict]:
         global _
