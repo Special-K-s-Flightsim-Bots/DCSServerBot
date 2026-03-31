@@ -100,6 +100,15 @@ class PunishmentEventListener(EventListener["Punishment"]):
                         if not tasks:
                             self.pending_forgiveness.pop(key, None)
 
+    @event(name="punish")
+    async def punish(self, server: Server, data: dict):
+        initiator = self.bot.servers[server.name].get_player(name=data['initiator'])
+        if not initiator:
+            return
+        data['server_name'] = server.name
+        data['initiator'] = initiator
+        await self._check_punishment(data)
+
     async def _punish(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)

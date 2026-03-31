@@ -58,13 +58,14 @@ def chat_command(name: str = MISSING, cls: Type[ChatCommand] = MISSING, **attrs)
 
 class ChatCommand:
     def __init__(self, func, **kwargs):
-        self.name: str = kwargs.get('name', func.__name__)
+        self.name: str = kwargs.get('name') or func.__name__
         self.help: str = inspect.cleandoc(kwargs.get('help', ''))
         self.roles: list[str | int] = kwargs.get('roles', [])
-        self.usage: str = kwargs.get('usage')
+        self.usage: str | None = kwargs.get('usage')
         self.aliases: list[str] = kwargs.get('aliases', [])
         self.callback = func
         self.enabled = kwargs.get('enabled', True)
+        self.hidden = kwargs.get('hidden', False)
 
     async def __call__(self, listener: EventListener, server: Server, player: Player, params: list[str]) -> None:
         await self.callback(listener, server, player, params)

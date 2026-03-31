@@ -319,7 +319,7 @@ class ServerImpl(Server):
     def _merge_coalition_users(self):
         filename = Path(self.instance.home) / 'Config' / 'multiplayerCoalitionBlockerUsersList.lua'
         if filename.exists():
-            data = luadata.unserialize(filename.read_text(encoding='utf-8'), 'utf-8')
+            data = luadata.unserialize(filename.read_text(encoding='utf-8'), 'utf-8') or {}
         else:
             data = {}
         lock_time = self.locals['coalitions'].get('lock_time', '1 day')

@@ -16,7 +16,7 @@ class HelpListener(EventListener["Help"]):
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1 or 'ucid' not in data:
             return
-        player: Player = server.get_player(ucid=data['ucid'])
+        player: Player | None = server.get_player(ucid=data['ucid'])
         if player:
             asyncio.create_task(player.sendChatMessage(f"Use \"{self.prefix}help\" for commands."))
 
@@ -27,7 +27,7 @@ class HelpListener(EventListener["Help"]):
         ]
         for listener in self.bot.eventListeners:
             for command in listener.chat_commands:
-                if not await listener.can_run(command, server, player):
+                if not await listener.can_run(command, server, player) or command.hidden:
                     continue
                 cmd = f"{self.prefix}{command.name}"
                 if command.usage:

@@ -23,16 +23,14 @@ async def frequency_autocomplete(interaction: discord.Interaction, _current: flo
             return []
         if player:
             return [
-                app_commands.Choice(name="{:.2f} {}".format(x/1000000, 'AM' if x/1000000 > 108 else 'FM'),
-                                    value=x/1000000)
+                app_commands.Choice(name=utils.format_frequency(x), value=x/1000000)
                 for p in eventlistener.srs_users[server.name].values()
                 if p['player_name'] == player.name
                 for x in sorted(p['radios'])
             ]
         elif coalition:
             return [
-                app_commands.Choice(name="{:.2f} {}".format(x/1000000, 'AM' if x/1000000 > 108 else 'FM'),
-                                    value=x/1000000)
+                app_commands.Choice(name=utils.format_frequency(x), value=x/1000000)
                 for x in sorted({
                     radio
                     for p in eventlistener.srs_users[server.name].values()
@@ -81,7 +79,7 @@ class SRS(Plugin[SRSEventListener]):
                 continue
             names += player['player_name'] + "\n"
             _radios = player.get('radios', [])
-            radios += ', '.join([utils.format_frequency(x, band=False) for x in _radios[:2]]) + "\n"
+            radios += ', '.join([utils.format_frequency(x, modulation=False) for x in _radios[:2]]) + "\n"
         if names:
             embed.add_field(name=_("Name"), value=names)
             embed.add_field(name=_("Radios"), value=radios)
@@ -138,7 +136,6 @@ class SRS(Plugin[SRSEventListener]):
         modal = utils.ConfigModal(title=_("SRS Configuration"),
                                   config=SRSExt.CONFIG_DICT,
                                   old_values=config)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         if await modal.wait():
             return None
