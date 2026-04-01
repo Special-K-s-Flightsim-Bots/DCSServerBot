@@ -224,6 +224,33 @@ class TournamentEventListener(EventListener["Tournament"]):
             await server.lock()
             self.round_started[server.name] = True
 
+    @event(name="onPlayerStart")
+    async def onPlayerStart(self, server: Server, data: dict) -> None:
+        if data['id'] == 1 or 'ucid' not in data:
+            return
+        player = server.get_player(ucid=data['ucid'])
+        if not player:
+            return
+
+        tournament = self.tournaments[server.name]
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT p.name, t.player_ucid FROM tm_players t JOIN players p ON t.player_ucid = p.ucid 
+                WHERE t.tournament_id = %s AND t.ip_hash = %s AND t.player_ucid != %s
+            """, (tournament['id'], utils.hash_ip_addr(player.ipaddr), player.ucid))
+            row = await cursor.fetchone()
+            if row:
+                await self.audit(
+                    server,f"Player {player.display_name} (ucid={player.ucid}) joined from the same network "
+                           f"as player {row[0]} (ucid={row[1]}). Please investigate."
+                )
+            await conn.execute("""
+                INSERT INTO tm_players (tournament_id, player_ucid, ip_hash) 
+                VALUES (%s, %s, %s)
+                ON CONFLICT (tournament_id, player_ucid) DO UPDATE
+                    SET ip_hash = EXCLUDED.ip_hash
+            """, (tournament['id'], player.ucid, utils.hash_ip_addr(player.ipaddr)))
+
     async def disqualify(self, server: Server, player: Player, reason: str) -> None:
         await server.kick(player, reason)
         asyncio.create_task(self.inform_streamer(server, _("{} player {}: {}").format(

@@ -730,6 +730,11 @@ class Tournament(Plugin[TournamentEventListener]):
             """, (tournament_id,))
             name = (await cursor.fetchone())[0]
 
+            # GDPR: delete the IP addresses
+            await conn.execute("""
+                DELETE FROM tm_players WHERE tournament_id = %s
+            """, (tournament_id,))
+
         await self.bot.audit(f"finished tournament {name} and closed the underlying campaign.",
                              user=interaction.user)
         messages.append(_("The tournament {} is finished.").format(name))
