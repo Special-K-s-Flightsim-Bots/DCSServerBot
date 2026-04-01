@@ -482,7 +482,11 @@ class Tournament(Plugin[TournamentEventListener]):
             embed.add_field(name=_("Start Date"), value=f"<t:{int(tournament['start'].timestamp())}>")
             embed.add_field(name=_("# Players per Side"), value=str(tournament['num_players']))
             embed.add_field(name=_("# Signups"), value=str(num_squadrons))
-            embed.set_footer(text=_("You need to be an admin of the respective squadron to sign up."))
+            embed.set_footer(text=_("You need to be an admin of the respective squadron to sign up.\n"
+                                    "\n"
+                                    "DISCLAIMER:\n"
+                                    "We will store player information during the tournament.\n"
+                                    "This includes account IDs and hashed IP addresses."))
 
         elif phase == TOURNAMENT_PHASE.START_GROUP_PHASE:
             message = _("The group phase is now running.")

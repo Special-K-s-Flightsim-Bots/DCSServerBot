@@ -31,7 +31,7 @@ from .airbase import Info
 from .const import LIQUIDS
 from .listener import MissionEventListener
 from .upload import MissionUploadHandler
-from .views import ServerView, PresetView, InfoView, ModifyView, AirbaseView, BanModal
+from .views import ServerView, PresetView, InfoView, ModifyView, AirbaseView, BanModal, WatchModal
 from ..userstats.filter import PeriodFilter
 
 # ruamel YAML support
@@ -774,7 +774,6 @@ class Mission(Plugin[MissionEventListener]):
         finally:
             await msg.delete()
 
-        # noinspection PyUnreachableCode
         if simulate_only:
             await self.simulate(interaction, server, use_orig, presets_file, view.result, ephemeral)
             return
@@ -1469,6 +1468,18 @@ class Mission(Plugin[MissionEventListener]):
             return
         await interaction.response.send_modal(BanModal(player.ucid))
 
+    @player.command(description=_('Adds a player to the watchlist'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def watch(self, interaction: discord.Interaction,
+                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
+
+        if not player:
+            await interaction.response.send_message(_("Player not found."), ephemeral=True)
+            return
+        await interaction.response.send_modal(WatchModal(player.ucid))
+
     @player.command(description=_('Locks a player'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
@@ -1710,7 +1721,7 @@ class Mission(Plugin[MissionEventListener]):
     @utils.app_has_role('DCS Admin')
     async def _add(self, interaction: discord.Interaction,
                    user: app_commands.Transform[discord.Member | str, utils.UserTransformer(
-                       sel_type=PlayerType.PLAYER, watchlist=False)], reason: str):
+                       sel_type=PlayerType.PLAYER, watchlist=False)]):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
@@ -1722,19 +1733,7 @@ class Mission(Plugin[MissionEventListener]):
         else:
             await interaction.response.send_message(_("User not found."), ephemeral=True)
             return
-
-        try:
-            async with self.apool.connection() as conn:
-                await conn.execute("INSERT INTO watchlist (player_ucid, reason, created_by) VALUES (%s, %s, %s)",
-                                   (ucid, reason, interaction.user.display_name))
-            await interaction.response.send_message(_("Player {} is now on the watchlist.").format(
-                user.display_name if isinstance(user, discord.Member) else ucid),
-                ephemeral=utils.get_ephemeral(interaction))
-        except psycopg.errors.UniqueViolation:
-            await interaction.response.send_message(
-                _("Player {} was already on the watchlist.").format(
-                    user.display_name if isinstance(user, discord.Member) else ucid),
-                ephemeral=utils.get_ephemeral(interaction))
+        await interaction.response.send_modal(WatchModal(ucid))
 
     @watch.command(description=_('Removes a player from the watchlist'))
     @app_commands.guild_only()

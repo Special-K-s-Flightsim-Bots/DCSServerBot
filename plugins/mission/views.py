@@ -1,10 +1,11 @@
 import asyncio
 import discord
 import os
+import psycopg
 
 from contextlib import suppress
-from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils, get_translation, Side, \
-    ServiceRegistry
+from core import (Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils, get_translation, Side,
+                  ServiceRegistry)
 from discord import SelectOption, ButtonStyle
 from discord.ui import View, Select, Button, Modal, TextInput
 from io import StringIO
@@ -48,37 +49,30 @@ class ServerView(View):
 #            select.callback = self.change_preset
 #            self.add_item(select)
         if self.server.status in [Status.PAUSED, Status.STOPPED]:
-            # noinspection PyTypeChecker
             button: Button = Button(style=ButtonStyle.primary, emoji='▶️')
             button.callback = self.run
             self.add_item(button)
         elif self.server.status == Status.RUNNING:
-            # noinspection PyTypeChecker
             button: Button = Button(style=ButtonStyle.primary, emoji='⏸️')
             button.callback = self.pause
             self.add_item(button)
         if self.server.status in [Status.RUNNING, Status.PAUSED]:
-            # noinspection PyTypeChecker
             button: Button = Button(style=ButtonStyle.primary, emoji='⏹️')
             button.callback = self.stop_server
             self.add_item(button)
-            # noinspection PyTypeChecker
             button: Button = Button(style=ButtonStyle.primary, emoji='🔁')
             button.callback = self.reload
             self.add_item(button)
-        # noinspection PyTypeChecker
         button: Button = Button(style=ButtonStyle.primary if self.modify_mission else ButtonStyle.gray,
                                 emoji='⛅' if self.modify_mission else '🚫')
         button.callback = self.toggle_modify
         self.add_item(button)
-        # noinspection PyTypeChecker
         button: Button = Button(label='Quit', style=ButtonStyle.red)
         button.callback = self.quit
         self.add_item(button)
         return self.env.embed
 
     async def load_mission(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.env.embed.set_footer(text="Loading mission, please wait ...")
         await interaction.edit_original_response(embed=self.env.embed)
@@ -96,7 +90,6 @@ class ServerView(View):
         pass
 
     async def run(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if self.server.status == Status.STOPPED:
             self.env.embed.set_footer(text="Starting, please wait ...")
@@ -110,14 +103,12 @@ class ServerView(View):
         await interaction.edit_original_response(embed=self.env.embed, view=self)
 
     async def pause(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         await self.server.current_mission.pause()
         await self.render(interaction)
         await interaction.edit_original_response(embed=self.env.embed, view=self)
 
     async def stop_server(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.env.embed.set_footer(text="Stopping server, please wait ...")
         await interaction.edit_original_response(embed=self.env.embed)
@@ -126,7 +117,6 @@ class ServerView(View):
         await interaction.edit_original_response(embed=self.env.embed, view=self)
 
     async def reload(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.env.embed.set_footer(text="Restarting, please wait ...")
         await interaction.edit_original_response(embed=self.env.embed)
@@ -138,14 +128,12 @@ class ServerView(View):
         await interaction.edit_original_response(embed=self.env.embed, view=self)
 
     async def toggle_modify(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.modify_mission = not self.modify_mission
         await self.render(interaction)
         await interaction.edit_original_response(embed=self.env.embed, view=self)
 
     async def quit(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
@@ -164,20 +152,15 @@ class PresetView(View):
     @discord.ui.select(placeholder="Select the preset(s) you want to apply")
     async def callback(self, interaction: discord.Interaction, select: Select):
         self.result = select.values
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label='OK', style=ButtonStyle.green)
     async def ok(self, interaction: discord.Interaction, _: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label='Cancel', style=ButtonStyle.red)
     async def cancel(self, interaction: discord.Interaction, _: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = None
         self.stop()
@@ -236,7 +219,6 @@ class InfoView(View):
                 self.add_item(button)
         else:
             banned = watchlist = False
-        # noinspection PyTypeChecker
         button = Button(label="Cancel", style=ButtonStyle.red)
         button.callback = self.on_cancel
         self.add_item(button)
@@ -255,19 +237,16 @@ class InfoView(View):
         return row[0] if row else False
 
     async def on_cancel(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
     async def on_ban(self, interaction: discord.Interaction):
         modal = BanModal(self.ucid)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         await modal.wait()
         self.stop()
 
     async def on_unban(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         await self.bus.unban(self.ucid)
         await interaction.followup.send("User has been unbanned.", ephemeral=self.ephemeral)
@@ -275,7 +254,6 @@ class InfoView(View):
         self.stop()
 
     async def on_kick(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         # TODO: reason modal
         await self.server.kick(player=self.player)
@@ -284,7 +262,6 @@ class InfoView(View):
         self.stop()
 
     async def on_unlink(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         member: discord.Member = self._member.member
         self._member.unlink()
@@ -313,7 +290,6 @@ class InfoView(View):
         self.stop()
 
     async def on_verify(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         member: discord.Member = self._member.member
         self._member.verified = True
@@ -342,16 +318,12 @@ class InfoView(View):
         self.stop()
 
     async def on_watch(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
-        await interaction.response.defer()
-        async with self.bot.apool.connection() as conn:
-            await conn.execute("INSERT INTO watchlist (player_ucid, reason, created_by) VALUES (%s, %s, %s)",
-                               (self.ucid, 'n/a', interaction.user.display_name))
-        await interaction.followup.send("User is now on the watchlist.", ephemeral=self.ephemeral)
+        modal = WatchModal(self.ucid)
+        await interaction.response.send_modal(modal)
+        await modal.wait()
         self.stop()
 
     async def on_unwatch(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         async with self.bot.apool.connection() as conn:
             await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (self.ucid, ))
@@ -375,30 +347,25 @@ class ModifyView(View):
         self.warehouses_change = self.cut(warehouses_change)
         self.options_change = self.cut(options_change)
 
-        # noinspection PyTypeChecker
         button = Button(label="Presets", style=ButtonStyle.primary)
         button.callback = self.display_presets
         self.add_item(button)
 
         if self.mission_change:
-            # noinspection PyTypeChecker
             button = Button(label="mission", style=ButtonStyle.secondary)
             button.callback = self.display_mission
             self.add_item(button)
 
         if self.warehouses_change:
-            # noinspection PyTypeChecker
             button = Button(label="warehouses", style=ButtonStyle.secondary)
             button.callback = self.display_warehouses
             self.add_item(button)
 
         if self.options_change:
-            # noinspection PyTypeChecker
             button = Button(label="options", style=ButtonStyle.secondary)
             button.callback = self.display_options
             self.add_item(button)
 
-        # noinspection PyTypeChecker
         button = Button(label="Cancel", style=ButtonStyle.red)
         button.callback = self.cancel
         self.add_item(button)
@@ -424,34 +391,29 @@ class ModifyView(View):
             self.embed.description += "{k}:\n```yaml\n{v}\n```".format(k=k, v=stream.getvalue())
 
     async def display_presets(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.render()
         await interaction.edit_original_response(embed=self.embed)
 
     async def display_mission(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.embed.title = 'mission'
         self.embed.description = self.mission_change
         await interaction.edit_original_response(embed=self.embed)
 
     async def display_warehouses(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.embed.title = 'warehouses'
         self.embed.description = self.warehouses_change
         await interaction.edit_original_response(embed=self.embed)
 
     async def display_options(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.embed.title = 'options'
         self.embed.description = self.options_change
         await interaction.edit_original_response(embed=self.embed)
 
     async def cancel(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
@@ -476,10 +438,8 @@ class AirbaseView(View):
         # noinspection PyUnresolvedReferences
         self.children[3].disabled = all(x is True for x in self.data['unlimited'].values())
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label=_('Capture'))
     async def capture(self, interaction: discord.Interaction, _button: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.data['coalition'] = (self.data['coalition'] % 2) + 1
         await self.server.send_to_dcs_sync({
@@ -499,10 +459,8 @@ class AirbaseView(View):
         embed.set_field_at(1, name=_('Coalition'), value=Side(self.data['coalition']).name.title())
         await interaction.edit_original_response(embed=embed, view=self)
 
-    # noinspection PyTypeChecker
     @discord.ui.button()
     async def toggle_capture(self, interaction: discord.Interaction, _button: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.data['auto_capture'] = not self.data['auto_capture']
         await self.server.send_to_dcs({
@@ -513,10 +471,8 @@ class AirbaseView(View):
         self.render()
         await interaction.edit_original_response(view=self)
 
-    # noinspection PyTypeChecker
     @discord.ui.button()
     async def silence_radio(self, interaction: discord.Interaction, _button: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.data['radio_silent'] = not self.data['radio_silent']
         await self.server.send_to_dcs({
@@ -527,20 +483,16 @@ class AirbaseView(View):
         self.render()
         await interaction.edit_original_response(view=self)
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label=_("Download Inventory"), style=discord.ButtonStyle.green)
     async def download(self, interaction: discord.Interaction, _button: Button):
         from .commands import Mission
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         await Mission.download_warehouse(interaction, self.airbase, self.data)
         self.stop()
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label=_('Cancel'), style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: discord.Interaction, _button: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
@@ -563,10 +515,40 @@ class BanModal(Modal):
             name = name.display_name
         elif not name:
             name = '<unknown>'
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(
             _("User {} banned on all servers ").format(name) +
             (_("for {} days.").format(days) if days else ""),
             ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f'banned player {name} (ucid={self.ucid} with reason "{self.reason.value}"' +
                              (f' for {days} days.' if days else ' permanently.'), user=interaction.user)
+
+
+class WatchModal(Modal):
+    reason = TextInput(label=_("Reason"), max_length=80, required=True)
+
+    def __init__(self, ucid: str):
+        super().__init__(title=_("Ban Details"))
+        self.ucid = ucid
+        self.bot: BotService = ServiceRegistry.get(BotService)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        name = await self.bot.bot.get_member_or_name_by_ucid(self.ucid)
+        if isinstance(name, discord.Member):
+            name = name.display_name
+        elif not name:
+            name = '<unknown>'
+        try:
+            async with self.bot.apool.connection() as conn:
+                await conn.execute("INSERT INTO watchlist (player_ucid, reason, created_by) VALUES (%s, %s, %s)",
+                                   (self.ucid, self.reason.value, interaction.user.display_name))
+            await interaction.response.send_message(_("Player {} is now on the watchlist.").format(name),
+                ephemeral=utils.get_ephemeral(interaction))
+            await self.bot.audit(
+                f'added player {name} (ucid={self.ucid} with reason "{self.reason.value}" to the watchlist',
+                user=interaction.user
+            )
+        except psycopg.errors.UniqueViolation:
+            await interaction.response.send_message(
+                _("Player {} was already on the watchlist.").format(name),
+                ephemeral=utils.get_ephemeral(interaction)
+            )
