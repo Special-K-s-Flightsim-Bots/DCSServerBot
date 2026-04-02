@@ -381,7 +381,7 @@ class Dashboard(Service):
     async def update(self):
         try:
             previous_server_count = len(self.bus.servers)
-            with Live(self.layout, refresh_per_second=1, screen=False) as live:
+            with Live(self.layout, refresh_per_second=1, screen=True) as live:
                 while not self.stop_event.is_set():
                     current_server_count = len(self.bus.servers)
                     if current_server_count != previous_server_count:
