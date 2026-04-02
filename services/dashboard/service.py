@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import logging
+import os
 import re
 
 from core import Service, ServiceRegistry, Status
@@ -13,7 +14,6 @@ from rich.live import Live
 from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.table import Table
-from rich.traceback import Traceback
 from typing import TYPE_CHECKING
 
 from ..servicebus import ServiceBus
@@ -123,6 +123,15 @@ class NodeWidget:
                      border_style=config.get("border", "white"))
 
 
+class RichQueueHandler(QueueHandler):
+    def prepare(self, record: logging.LogRecord) -> logging.LogRecord:
+        # Keep traceback information for the dashboard widget.
+        record = logging.makeLogRecord(record.__dict__.copy())
+        record.message = record.getMessage()
+        record.args = None
+        return record
+
+
 class LogWidget:
     """Display log messages"""
 
@@ -133,52 +142,69 @@ class LogWidget:
         self.handler = service.old_handler
         self.console = Console(record=True)
         config = self.service.get_config().get("log", {})
-        self.panel = Panel("", height=self.console.options.max_height,
-                           style=config.get("background", "white on grey15"),
-                           border_style=config.get("border", "white"))
-        self.previous_size = self.console.size
-
-    def _emit(self, record: logging.LogRecord) -> ConsoleRenderable:
-        message = self.handler.format(record)
-        traceback = None
-        if (
-                self.handler.rich_tracebacks
-                and record.exc_info
-                and record.exc_info != (None, None, None)
-        ):
-            exc_type, exc_value, exc_traceback = record.exc_info
-            assert exc_type is not None
-            assert exc_value is not None
-            traceback = Traceback.from_exception(
-                exc_type,
-                exc_value,
-                exc_traceback,
-                width=self.handler.tracebacks_width,
-                extra_lines=self.handler.tracebacks_extra_lines,
-                theme=self.handler.tracebacks_theme,
-                word_wrap=self.handler.tracebacks_word_wrap,
-                show_locals=self.handler.tracebacks_show_locals,
-                locals_max_length=self.handler.locals_max_length,
-                locals_max_string=self.handler.locals_max_string,
-                suppress=self.handler.tracebacks_suppress,
-            )
-            message = record.getMessage()
-            if self.handler.formatter:
-                record.message = record.getMessage()
-                formatter = self.handler.formatter
-                if hasattr(formatter, "usesTime") and formatter.usesTime():
-                    record.asctime = formatter.formatTime(record, formatter.datefmt)
-                message = formatter.formatMessage(record)
-        message_renderable = self.handler.render_message(record, message)
-        return self.handler.render(
-            record=record, traceback=traceback, message_renderable=message_renderable
+        self.panel = Panel(
+            "",
+            style=config.get("background", "white on grey15"),
+            border_style=config.get("border", "white"),
+            expand=True,
         )
+        self.previous_size = self.console.size
+        self.cwd = os.getcwd()
 
-    def _measure_renderable_lines(self, renderable: "ConsoleRenderable", width: int):
-        with self.console.capture() as capture:  # Capture the rendered output for measurement
+    def _fill_initial_buffer(self, height: int) -> None:
+        if self.buffer:
+            return
+        placeholder = self.console.render_str("")
+        # Pre-fill with empty rows so the widget occupies its full area immediately.
+        self.buffer = [(1, placeholder) for _ in range(max(1, height))]
+
+    def _project_traceback(self, exc_tb) -> tuple[str, int, str, list[str]]:
+        frames: list[tuple[str, int, str]] = []
+        while exc_tb is not None:
+            filename = exc_tb.tb_frame.f_code.co_filename
+            if self.cwd in filename and all(x not in filename for x in ('\\venv\\', '\\.venv\\')):
+                rel = os.path.relpath(filename, self.cwd)
+                frames.append((rel, exc_tb.tb_lineno, exc_tb.tb_frame.f_code.co_name))
+            exc_tb = exc_tb.tb_next
+
+        if not frames:
+            return "<unknown>", -1, "<unknown>", []
+
+        file, line, func = frames[-1]
+        trace = [f'File "{f}", line {ln}, in {fn}' for f, ln, fn in frames[-3:]]
+        return file, line, func, trace
+
+    def _normalize_record(self, record: logging.LogRecord) -> logging.LogRecord:
+        record = logging.makeLogRecord(record.__dict__.copy())
+
+        message = record.getMessage()
+
+        # Make discord.py task exceptions readable.
+        if message.startswith("Unhandled exception in internal background task"):
+            coro_name = record.args[0] if isinstance(record.args, tuple) and record.args else None
+            if coro_name:
+                message = f"Unhandled exception in background task `{coro_name}`"
+                record.msg = message
+                record.args = None
+            elif "%r" in message:
+                record.msg = "Unhandled exception in background task"
+                record.args = None
+
+        if record.exc_info and record.exc_info != (None, None, None):
+            _, _, exc_tb = record.exc_info
+            file, line, func, _ = self._project_traceback(exc_tb)
+            if line >= 0:
+                record.pathname = os.path.join(self.cwd, file)
+                record.filename = os.path.basename(file)
+                record.lineno = line
+                record.funcName = func
+
+        return record
+
+    def _measure_renderable_lines(self, renderable: "ConsoleRenderable", width: int) -> int:
+        with self.console.capture() as capture:
             self.console.print(renderable, width=width)
-        lines = capture.get().splitlines()
-        return len(lines)
+        return len(capture.get().splitlines()) or 1
 
     def _check_size_change(self) -> bool:
         """Check if the terminal has been resized"""
@@ -188,32 +214,90 @@ class LogWidget:
             return True
         return False
 
+    def _emit(self, record: logging.LogRecord) -> ConsoleRenderable:
+        record = self._normalize_record(record)
+
+        exc_info = record.exc_info if record.exc_info and record.exc_info != (None, None, None) else None
+        exc_text = getattr(record, "exc_text", None)
+
+        if exc_info:
+            exc_type, exc_value, exc_traceback = exc_info
+            file, line, _, trace = self._project_traceback(exc_traceback)
+
+            message = record.getMessage()
+            if self.handler.formatter:
+                record.message = message
+                formatter = self.handler.formatter
+                if hasattr(formatter, "usesTime") and formatter.usesTime():
+                    record.asctime = formatter.formatTime(record, formatter.datefmt)
+                message = formatter.formatMessage(record)
+
+            traceback_renderable = Group(
+                self.console.render_str(f"[red]{exc_type.__name__}[/red]: {exc_value}"),
+                self.console.render_str(f"[dim]at {file}:{line}[/dim]"),
+                self.console.render_str("[dim]" + "\n".join(trace) + "[/dim]") if trace else "",
+            )
+
+            return self.handler.render(
+                record=record,
+                traceback=traceback_renderable,
+                message_renderable=self.handler.render_message(record, message),
+            )
+
+        if exc_text:
+            return Group(
+                self.handler.render_message(record, record.getMessage()),
+                self.console.render_str(f"[red]{exc_text}[/red]"),
+            )
+
+        message = self.handler.format(record)
+        message_renderable = self.handler.render_message(record, message)
+        return self.handler.render(
+            record=record,
+            traceback=None,
+            message_renderable=message_renderable,
+        )
+
     def __rich_console__(self, _: Console, options: ConsoleOptions) -> RenderResult:
-        if not self.queue.empty() or self._check_size_change():
-            config = self.service.get_config()
+        try:
+            if not self.queue.empty() or self._check_size_change():
+                config = self.service.get_config()
+                max_displayable_height = max(1, options.max_height - 2)
 
-            max_displayable_height = options.max_height - 2
-            available_height = max_displayable_height
+                while not self.queue.empty():
+                    record: logging.LogRecord = self.queue.get_nowait()
+                    try:
+                        log_renderable = self._emit(record)
+                        renderable_lines = self._measure_renderable_lines(log_renderable, options.max_width)
+                        self.buffer.append((renderable_lines, log_renderable))
+                    except Exception as ex:
+                        fallback = self.console.render_str(f"[red]Log render failed[/red]: {ex!r}")
+                        fallback_lines = self._measure_renderable_lines(fallback, options.max_width)
+                        self.buffer.append((fallback_lines, fallback))
 
-            while not self.queue.empty():
-                record: logging.LogRecord = self.queue.get()
-                log_renderable = self._emit(record)
-                renderable_lines = self._measure_renderable_lines(log_renderable, options.max_width)
-                self.buffer.append((renderable_lines, log_renderable))
-                available_height -= renderable_lines
+                total_height_used = sum(lines for lines, _ in self.buffer)
+                while total_height_used > max_displayable_height and self.buffer:
+                    removed_lines, _ = self.buffer.pop(0)
+                    total_height_used -= removed_lines
 
-            # Adjust the buffer to fit into max_displayable_height
-            total_height_used = sum(lines for lines, _ in self.buffer)
-            while total_height_used > max_displayable_height and self.buffer:
-                removed_lines, _ = self.buffer.pop(0)
-                total_height_used -= removed_lines
+                content = [renderable for _, renderable in self.buffer]
+                content.extend(self.console.render_str("") for _ in range(max_displayable_height - total_height_used))
 
-            log_content = Group(*(renderable for _, renderable in self.buffer))
-            self.panel = Panel(log_content, height=options.max_height,
-                        style=config.get("log", {}).get("background", "white on grey15"),
-                        border_style=config.get("log", {}).get("border", "white"))
+                self.panel = Panel(
+                    Group(*content),
+                    style=config.get("log", {}).get("background", "white on grey15"),
+                    border_style=config.get("log", {}).get("border", "white"),
+                    expand=True,
+                )
 
-        yield self.panel
+            yield self.panel
+        except Exception as ex:
+            yield Panel(
+                f"[red]Dashboard log widget error:[/red] {ex!r}",
+                style="white on dark_red",
+                border_style="red",
+                expand=True,
+            )
 
 
 @ServiceRegistry.register(depends_on=[ServiceBus])
@@ -256,7 +340,7 @@ class Dashboard(Service):
 
     def hook_logging(self):
         self.queue = Queue()
-        self.log_handler = QueueHandler(self.queue)
+        self.log_handler = RichQueueHandler(self.queue)
         self.log_handler.setLevel(logging.INFO)
         for handler in self.log.root.handlers:
             if isinstance(handler, RichHandler) and not isinstance(handler, RotatingFileHandler):
@@ -284,7 +368,7 @@ class Dashboard(Service):
         if not self.node.config.get('use_dashboard', True):
             return
         self.stop_event.set()
-        if self.update_task:
+        if self.update_task and self.update_task is not asyncio.current_task():
             await self.update_task
         self.unhook_logging()
         self.console.clear()
@@ -297,7 +381,7 @@ class Dashboard(Service):
     async def update(self):
         try:
             previous_server_count = len(self.bus.servers)
-            with Live(self.layout, refresh_per_second=1, screen=True) as live:
+            with Live(self.layout, refresh_per_second=1, screen=False) as live:
                 while not self.stop_event.is_set():
                     current_server_count = len(self.bus.servers)
                     if current_server_count != previous_server_count:
@@ -305,6 +389,6 @@ class Dashboard(Service):
                         live.update(self.layout)
                         previous_server_count = current_server_count
                     await asyncio.sleep(0.5)
-        except Exception as ex:
-            self.log.exception(ex)
-            await self.stop()
+        except Exception:
+            self.log.exception("Dashboard update loop crashed")
+            self.stop_event.set()
