@@ -308,6 +308,16 @@ if __name__ == "__main__":
     # Setup the logging
     Main.setup_logging(args.node, args.config)
     log = logging.getLogger("dcsserverbot")
+
+    # Waiting for the network connection to be active
+    if args.ping:
+        # wait for an internet connection to be available (after system reboots)
+        log.info("Waiting for the network ...")
+        if not myasyncio_run(wait_for_internet(host="8.8.8.8", timeout=300.0)):
+            print("Internet connection not available. Exiting.")
+            exit(-1)
+        log.info("Network connection available.\n")
+
     # check if we should reveal the passwords
     utils.create_secret_dir(args.config)
     if args.secret:
@@ -343,12 +353,6 @@ WARNING: DCSServerBot will drop support for Pyton 3.10 soon.
             print("")
 
     fault_log = open(os.path.join('logs', 'fault.log'), 'w')
-    if args.ping:
-        # wait for an internet connection to be available (after system reboots)
-        log.info("Checking internet connection ...")
-        if not myasyncio_run(wait_for_internet(host="8.8.8.8", timeout=300.0)):
-            print("Internet connection not available. Exiting.")
-            exit(-1)
     try:
         # enable faulthandler
         faulthandler.enable(file=fault_log, all_threads=True)
