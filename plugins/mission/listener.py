@@ -989,7 +989,7 @@ class MissionEventListener(EventListener["Mission"]):
                     if any(x for x in _config.get('penalties', []) if x.get('event', "") == 'kill'):
                        return
 
-                name = ('Member ' + player1.member.display_name) \
+                name = ('Member ' + player1.member.mention) \
                     if player1.member else ('Player ' + player1.display_name)
                 message = f"{name} (ucid={player1.ucid}) is killing team members."
                 # show the server name on central admin channels

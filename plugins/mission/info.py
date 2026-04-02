@@ -37,8 +37,8 @@ class Header(report.EmbedElement):
                 await cursor.execute(sql)
                 rows = await cursor.fetchall()
                 if not rows:
-                    self.embed.description = 'User "{}" is not linked or unknown.'.format(
-                        utils.escape_string(member if isinstance(member, str) else member.display_name)
+                    self.embed.description = 'User {} is not linked or unknown.'.format(
+                        utils.escape_string(member if isinstance(member, str) else member.mention)
                     )
                     # do we maybe have a permanent ban without a user?
                     if isinstance(member, str) and utils.is_ucid(member):
@@ -55,7 +55,7 @@ class Header(report.EmbedElement):
                             return
         self.embed.description = f'Information about '
         if isinstance(member, discord.Member):
-            self.embed.description += 'member **{}**:'.format(utils.escape_string(member.display_name))
+            self.embed.description += 'member **{}**:'.format(member.display_name)
             self.add_field(name='Discord', value=f"{member.mention}\nID: {member.id}")
         else:
             self.embed.description += 'a non-member user:'

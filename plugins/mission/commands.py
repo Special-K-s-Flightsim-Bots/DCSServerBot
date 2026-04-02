@@ -1725,7 +1725,7 @@ class Mission(Plugin[MissionEventListener]):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
-                await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name),
+                await interaction.response.send_message(_("Member {} is not linked!").format(user.mention),
                                                         ephemeral=True)
                 return
         elif utils.is_ucid(user):
@@ -1745,7 +1745,7 @@ class Mission(Plugin[MissionEventListener]):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
                 # we should never be here
-                await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name))
+                await interaction.response.send_message(_("Member {} is not linked!").format(user.mention))
                 return
         else:
             ucid = user
@@ -1815,8 +1815,7 @@ class Mission(Plugin[MissionEventListener]):
                     return
             elif not await utils.yn_question(
                 interaction, _("Member {name} is linked to another UCID ({ucid}) already. "
-                               "Do you want to relink?").format(
-                    name=utils.escape_string(user.display_name), ucid=ucid), ephemeral=ephemeral):
+                               "Do you want to relink?").format(name=user.mention, ucid=ucid), ephemeral=ephemeral):
                 return
             else:
                 _new_member.unlink()
@@ -1826,13 +1825,13 @@ class Mission(Plugin[MissionEventListener]):
             if not await utils.yn_question(
                 interaction, _("Member {name} is linked to another UCID ({ucid}) already. "
                                "Do you want to relink?").format(
-                    name=utils.escape_string(member.display_name), ucid=_member.ucid), ephemeral=ephemeral):
+                    name=member.mention, ucid=_member.ucid), ephemeral=ephemeral):
                 return
             else:
                 _member.unlink()
         _member.link(ucid, verified=True)
         await interaction.followup.send(_('Member {name} linked to UCID {ucid}.').format(
-            name=utils.escape_string(member.display_name), ucid=ucid), ephemeral=utils.get_ephemeral(interaction))
+            name=member.mention, ucid=ucid), ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f'linked member {utils.escape_string(member.display_name)} to ucid {ucid}.',
                              user=interaction.user)
         # If autorole is enabled, give the user the role:
@@ -1889,7 +1888,7 @@ class Mission(Plugin[MissionEventListener]):
                 await conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid,))
                 server = None
             await interaction.followup.send(_('Member {name} unlinked from UCID {ucid}.').format(
-                name=utils.escape_string(member.display_name), ucid=ucid), ephemeral=ephemeral)
+                name=member.mention, ucid=ucid), ephemeral=ephemeral)
             await self.bot.audit(
                 f'unlinked member {utils.escape_string(member.display_name)} from ucid {ucid}',
                 user=interaction.user)
@@ -2142,7 +2141,7 @@ class Mission(Plugin[MissionEventListener]):
                         ephemeral=ephemeral)
                 else:
                     await interaction.followup.send(_("Member {name} unlinked from UCID {ucid}.").format(
-                        name=utils.escape_string(suspicious[n]['mismatch'].display_name),
+                        name=suspicious[n]['mismatch'].mention,
                         ucid=suspicious[n]['ucid']), ephemeral=ephemeral)
 
     @command(description=_('Link your DCS and Discord user'))

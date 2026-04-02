@@ -78,17 +78,17 @@ class Discord(Plugin):
         if role in member.roles:
             await interaction.response.send_message(
                 _("Member {member} already has role {role}.").format(
-                    member=member.display_name, role=role.name), ephemeral=True)
+                    member=member.mention, role=role.mention), ephemeral=True)
             return
         try:
             await member.add_roles(role)
             await interaction.response.send_message(
-                _("Role {role} added to {member}.").format(role=role.name, member=member.display_name),
+                _("Role {role} added to {member}.").format(role=role.mention, member=member.mention),
                 ephemeral=ephemeral)
         except discord.Forbidden:
             await interaction.response.send_message(
                 _("You don't have permission to add role {role} to {member}.").format(
-                    role=role.name, member=member.display_name), ephemeral=True)
+                    role=role.mention, member=member.mention), ephemeral=True)
 
     @command(name='delrole', description=_('Removes a role from a member'))
     @app_commands.guild_only()
@@ -98,17 +98,17 @@ class Discord(Plugin):
         if role not in member.roles:
             await interaction.response.send_message(
                 _("Member {member} doesn't have role {role}.").format(
-                    member=member.display_name, role=role.name), ephemeral=True)
+                    member=member.mention, role=role.mention), ephemeral=True)
             return
         try:
             await member.remove_roles(role)
             await interaction.response.send_message(
-                _("Role {role} removed from {member}.").format(role=role.name, member=member.display_name),
+                _("Role {role} removed from {member}.").format(role=role.mention, member=member.mention),
                 ephemeral=ephemeral)
         except discord.Forbidden:
             await interaction.response.send_message(
                 _("You don't have permission to remove role {role} from {member}.").format(
-                    role=role.name, member=member.display_name), ephemeral=True)
+                    role=role.mention, member=member.mention), ephemeral=True)
 
     async def _send_message(self, member: discord.Member, config: dict):
         message = config['message']

@@ -319,7 +319,7 @@ class Admin(Plugin[AdminEventListener]):
                     ucid = await self.bot.get_ucid_by_member(derived.user)
                     if not ucid:
                         await interaction.response.send_message(
-                            _("Member {} is not linked!").format(derived.user.display_name), ephemeral=True)
+                            _("Member {} is not linked!").format(derived.user.mention), ephemeral=True)
                         return
                     name = derived.user.display_name
                 elif utils.is_ucid(derived.user):
@@ -721,7 +721,7 @@ class Admin(Plugin[AdminEventListener]):
                     if isinstance(user, discord.Member):
                         ucid = await self.bot.get_ucid_by_member(user, verified=True)
                         if not ucid:
-                            await interaction.followup.send("Member {} is not linked!".format(user.display_name))
+                            await interaction.followup.send("Member {} is not linked!".format(user.mention))
                             return
                     elif utils.is_ucid(user):
                         ucid = user
@@ -730,7 +730,7 @@ class Admin(Plugin[AdminEventListener]):
                         return
                     await cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
                     if isinstance(user, discord.Member):
-                        await interaction.followup.send(_("Data of user {} deleted.").format(user.display_name))
+                        await interaction.followup.send(_("Data of user {} deleted.").format(user.mention))
                     else:
                         await interaction.followup.send(_("Data of UCID {} deleted.").format(ucid))
                     return
@@ -1444,7 +1444,8 @@ Please make sure you forward the following ports:
         if self.bot.locals.get('greeting_dm'):
             try:
                 channel = await member.create_dm()
-                await channel.send(self.bot.locals['greeting_dm'].format(name=member.name, guild=member.guild.name))
+                await channel.send(self.bot.locals['greeting_dm'].format(
+                    name=member.display_name, guild=member.guild.name))
             except discord.Forbidden:
                 self.log.debug("Could not send greeting DM to user {} due to their Discord limitations.".format(
                     member.display_name))

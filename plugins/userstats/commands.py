@@ -314,12 +314,12 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 ucid = await self.bot.get_ucid_by_member(member, verified=True)
                 if not ucid:
                     await interaction.followup.send(
-                        f"Member {member.display_name} needs to be linked to join this squadron!", ephemeral=True)
+                        f"Member {member.mention} needs to be linked to join this squadron!", ephemeral=True)
                     return
             if not member:
                 prefix = f"User {ucid}"
             else:
-                prefix = f"Member {member.display_name}"
+                prefix = f"Member {member.mention}"
 
             # add the user to the database
             await conn.execute("""
@@ -352,7 +352,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 elif role not in [x.id for x in member.roles]:
                     _role = self.bot.get_role(role)
                     if not await utils.yn_question(interaction,
-                                                   f"{prefix} needs to have the \"{_role.name}\" role to join "
+                                                   f"{prefix} needs to have the {_role.mention} role to join "
                                                    f"this squadron.\n"
                                                    f"Do you want to give them the role?", ephemeral=True):
                         await interaction.followup.send("Aborted", ephemeral=ephemeral)
@@ -470,7 +470,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                             role = self.bot.get_role(row[1])
                             try:
                                 await interaction.user.add_roles(role)
-                                message += f" and got the {role.name} role"
+                                message += f" and got the {role.mention} role"
                             except discord.Forbidden:
                                 await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
                         # noinspection PyUnresolvedReferences
@@ -511,7 +511,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                         role = self.bot.get_role(row[1])
                         try:
                             await interaction.user.remove_roles(role)
-                            message += f" and lost the {role.name} role"
+                            message += f" and lost the {role.mention} role"
                         except discord.Forbidden:
                             await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
                     # noinspection PyUnresolvedReferences
