@@ -1335,13 +1335,13 @@ def get_ephemeral(interaction: discord.Interaction) -> bool:
 async def get_command(bot: DCSServerBot, *, name: str,
                       group: str | None = None) -> app_commands.AppCommand | app_commands.AppCommandGroup:
     for cmd in await bot.tree.fetch_commands(guild=bot.guilds[0]):
-        if cmd.options and isinstance(cmd.options[0], app_commands.AppCommandGroup):
+        if group is not None and cmd.options and isinstance(cmd.options[0], app_commands.AppCommandGroup):
             if group != cmd.name:
                 continue
             for inner in cmd.options:
                 if inner.name == name:
                     return inner
-        elif cmd.name == name:
+        elif group is None and cmd.name == name:
             return cmd
     raise app_commands.CommandNotFound(name, [group] if group else [])
 
