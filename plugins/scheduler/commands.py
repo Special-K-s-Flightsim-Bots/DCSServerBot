@@ -1130,23 +1130,25 @@ class Scheduler(Plugin[SchedulerListener]):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status == Status.STOPPED:
             await interaction.response.defer(ephemeral=ephemeral, thinking=True)
+            msg = None
             try:
+                msg = await interaction.followup.send(f"Starting server {server.name} ...", ephemeral=ephemeral)
                 if not await server.start():
                     embed = utils.create_warning_embed(
                         title=f"Error while starting server \"{server.display_name}\"!",
                         text="Please check manually, if the server has started.\n"
                              "If not, check the dcs.log for errors.")
-                    await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-                    return
+                    await msg.edit(content="", embed=embed)
+                else:
+                    await msg.edit(content=f"Server {server.display_name} started.")
+                    await self.bot.audit('started the server', server=server, user=interaction.user)
             except (TimeoutError, asyncio.TimeoutError):
                 embed = utils.create_warning_embed(
                     title=f"Timeout while starting server \"{server.display_name}\"!",
                     text="Please check manually, if the server has started.\n"
                          "If not, check the dcs.log for errors.")
-                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+                await msg.edit(content="", embed=embed)
                 return
-            await interaction.followup.send(f"Server {server.display_name} started.", ephemeral=ephemeral)
-            await self.bot.audit('started the server', server=server, user=interaction.user)
         elif server.status == Status.SHUTDOWN:
             await interaction.response.send_message(
                 f"Server {server.display_name} is shut down. Use /server startup to start it up.", ephemeral=ephemeral)
@@ -1174,21 +1176,14 @@ class Scheduler(Plugin[SchedulerListener]):
         try:
             msg = await interaction.followup.send(f"Stopping server {server.name} ...", ephemeral=ephemeral)
             await server.stop()
+            await msg.edit(content=f"Server {server.display_name} stopped.")
+            await self.bot.audit('stopped the server', server=server, user=interaction.user)
         except (TimeoutError, asyncio.TimeoutError):
             embed = utils.create_warning_embed(
                 title=f"Timeout while stopping server \"{server.display_name}\"!",
                 text="Please check manually, if the server has stopped.\n"
                      "If not, check the dcs.log for errors.")
-            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-            return
-        finally:
-            try:
-                if msg:
-                    await msg.delete()
-            except discord.NotFound:
-                pass
-        await interaction.followup.send(f"Server {server.display_name} stopped.", ephemeral=ephemeral)
-        await self.bot.audit('stopped the server', server=server, user=interaction.user)
+            await msg.edit(content="", embed=embed)
 
     @group.command(description='Change the password of a DCS server')
     @app_commands.guild_only()
