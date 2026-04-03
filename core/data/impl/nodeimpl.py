@@ -380,6 +380,9 @@ class NodeImpl(Node):
 
         cpool_url, lpool_url = self.get_database_urls()
         version = await check_db(lpool_url)
+        if parse(version).major <= 13:
+            self.log.warning("Your PostgreSQL version is outdated. Please upgrade to 14 or higher!")
+
         if lpool_url != cpool_url:
             await check_db(cpool_url)
 
