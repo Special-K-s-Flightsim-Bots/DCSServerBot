@@ -517,6 +517,30 @@ class Cloud(Plugin[CloudListener]):
     async def before_register(self):
         await self.bot.wait_until_ready()
 
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member):
+        # only auto-link players if we participate in cloud stats
+        config = self.get_config()
+        if not config.get('token'):
+            return
+
+        ucid = await self.bot.get_ucid_by_member(member)
+        # user is linked already
+        if ucid:
+            return
+        links = await self.get(f'/player?discord_id={member.id}')
+        if not links:
+            return
+        async with self.apool.connection() as conn:
+            for link in links:
+                await conn.execute("""
+                    INSERT INTO players (ucid, name, discord_id, manual) 
+                    VALUES (%s, %s, %s, TRUE)
+                    ON CONFLICT (ucid) DO UPDATE 
+                        SET discord_id = EXCLUDED.discord_id,
+                            manual = TRUE
+                """, (link['ucid'], link['name'], member.id))
+
 
 async def setup(bot: DCSServerBot):
     await bot.add_cog(Cloud(bot, CloudListener))

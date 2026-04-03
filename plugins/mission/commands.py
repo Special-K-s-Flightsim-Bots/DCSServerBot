@@ -1848,7 +1848,7 @@ class Mission(Plugin[MissionEventListener]):
                 await self.bot.audit(_('permission "Manage Roles" missing.'), user=self.bot.member)
         # Generate the onMemberLinked event
         for server_name, server in self.bot.servers.items():
-            player = server.get_player(ucid=ucid, active=True)
+            player = server.get_player(ucid=ucid)
             if player:
                 player.member = self.bot.get_member_by_ucid(player.ucid)
                 player.verified = True
@@ -1877,9 +1877,9 @@ class Mission(Plugin[MissionEventListener]):
                      user: app_commands.Transform[discord.Member | str, utils.UserTransformer(linked=True)]):
 
         async def unlink_member(member: discord.Member, ucid: str):
-            # change the link status of that member if they are an active player
+            # change the link status of that member
             for server_name, server in self.bot.servers.items():
-                player = server.get_player(ucid=ucid, active=True)
+                player = server.get_player(ucid=ucid)
                 if player:
                     player.member = None
                     player.verified = False

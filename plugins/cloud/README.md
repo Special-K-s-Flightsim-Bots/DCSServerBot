@@ -9,8 +9,7 @@ for every active user into the cloud.
 Users can use Discord commands to see their overall stats (`/cloud statistics`), like they are used to see with `/statistics`.
 
 > [!NOTE]
-> The Cloud statistics are meant for larger servers only atm. 
-> I am happy to provide you access to it, using a token, provided by me. 
+> I am happy to provide you access to the cloud service, with a token, provided by me. 
 > The service comes free of charge but without any liabilities or guarantees, you can use it or leave it, 
 > and so can I revoke any token at any time, especially if I see misuse of the system.
 
@@ -20,7 +19,7 @@ system. We've put together a group consisting of the admins of the most popular 
 on in the community. When we see someone crashing servers by hacking or any other **really** (really) bad stuff,
 we put them in the global banlist. Nobody that gets usually banned on a server for misbehavior will get onto the list.
 There are only the really bad guys on it.</br>
-If you opt in to that plugin, you already participate from that banlist. You can choose whether to ban DCS players 
+If you opt in to this plugin, you already participate from that banlist. You can choose whether to ban DCS players 
 and/or Discord users. Both are inactive as a default.
 
 If you are a server admin of a large server and not part of DGSA, the "DCS Global Server Admins" yet, send me a DM.
@@ -52,6 +51,11 @@ maintaining the solutions that are out in the wild.
 - DCSSB-Plugins in use (for general DCSSB stats)
 - DGSA-Status (for protection stats)
 - Node hardware (for general HW stats)
+- Subscriptions only: Aggregated user statistics for your users (for `/cloud statistics`)
+
+Also, DCSServerBot will send account mappings of users (Discord Account / DCS Account mapping) to the cloud.
+This will allow users to only link themselves once on all servers that are using a cloud token 
+(limited due to security reasons).
 
 > [!NOTE]
 > If you feel uncomfortable with any of the above information, please let me know.

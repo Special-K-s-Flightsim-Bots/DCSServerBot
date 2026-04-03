@@ -14,7 +14,6 @@ from discord.ui import View, Button
 from functools import partial
 from pathlib import Path
 from psycopg.rows import dict_row
-from services.bot.dummy import DummyBot
 from typing import TYPE_CHECKING, Callable, Coroutine, cast
 
 from .menu import read_menu_config, filter_menu
@@ -686,9 +685,6 @@ class MissionEventListener(EventListener["Mission"]):
                     asyncio.create_task(admin_channel.send(
                         f"{server.display_name}: Player {player.display_name} (ucid={player.ucid}) can't be matched "
                         f"to a discord user."))
-            if not isinstance(self.bot, DummyBot):
-                asyncio.create_task(player.sendChatMessage(
-                    messages['greeting_message_unmatched'].format(server=server, player=player)))
         else:
             asyncio.create_task(player.sendChatMessage(
                 messages['greeting_message_members'].format(player=player, server=server)))

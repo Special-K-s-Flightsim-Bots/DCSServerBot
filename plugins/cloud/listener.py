@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from psycopg.rows import dict_row
 from typing import TYPE_CHECKING
 
+from services.bot.dummy import DummyBot
+
 if TYPE_CHECKING:
     from .commands import Cloud
 
@@ -18,17 +20,55 @@ class CloudListener(EventListener["Cloud"]):
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
+        if isinstance(self.bot, DummyBot):
+           return
         if data['id'] == 1 or 'ucid' not in data:
             return
         player: Player | None = server.get_player(ucid=data['ucid'])
-        if not player or not player.verified:
+        if not player:
             return
+        config = self.get_config(server)
         try:
-            await self.plugin.post('register_player', {
-                'ucid': player.ucid,
-                'name': player.name,
-                'discord_id': player.member.id
-            })
+            linked = False
+            if player.verified:
+                linked = True
+                await self.plugin.post('register_player', {
+                    'ucid': player.ucid,
+                    'name': player.name,
+                    'discord_id': player.member.id
+                })
+            # registered servers can ask for a discord link
+            elif config.get('token'):
+                link = await self.plugin.get(f'player?ucid={player.ucid}')
+                if link:
+                    linked = True
+                    discord_id = link[0]['discord_id']
+                    member = await self.bot.guilds[0].fetch_member(discord_id)
+                    if not member:
+                        async with self.apool.connection() as conn:
+                            await conn.execute("""
+                                UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s
+                            """, (discord_id, player.ucid))
+                    else:
+                        player.member = member
+                        player.verified = True
+                        await self.bus.send_to_node({
+                            "command": "rpc",
+                            "service": "ServiceBus",
+                            "method": "propagate_event",
+                            "params": {
+                                "command": "onMemberLinked",
+                                "server": server.name,
+                                "data": {
+                                    "ucid": player.ucid,
+                                    "discord_id": member.id
+                                }
+                            }
+                        })
+            if not linked:
+                asyncio.create_task(player.sendChatMessage(
+                    server.locals['messages']['greeting_message_unmatched'].format(server=server, player=player)))
+
         except aiohttp.ClientError:
             pass
 
