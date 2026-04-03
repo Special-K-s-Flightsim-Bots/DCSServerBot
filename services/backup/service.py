@@ -55,11 +55,11 @@ class BackupService(Service):
             self.delete.cancel()
         await super().stop()
 
-    def mkdir(self) -> str:
+    def _mkdir(self) -> Path:
         target = os.path.expandvars(self.locals.get('target'))
         directory = os.path.join(target, utils.slugify(self.node.name) + '_' + datetime.now().strftime("%Y%m%d"))
         os.makedirs(directory, exist_ok=True)
-        return str(directory)
+        return Path(directory)
 
     @staticmethod
     def get_postgres_installations() -> list[dict]:
@@ -140,10 +140,10 @@ class BackupService(Service):
 
     def _backup_bot(self) -> bool:
         self.log.info("Backing up DCSServerBot ...")
-        target = self.mkdir()
+        target = self._mkdir()
         config = self.locals['backups'].get('bot')
         filename = "bot_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
-        zf = ZipFile(os.path.join(target, filename), mode="w")
+        zf = ZipFile(target / filename, mode="w")
         try:
             for directory in config.get('directories', [self.node.config_dir, 'reports']):
                 self.zip_path(zf, "", directory)
@@ -159,7 +159,7 @@ class BackupService(Service):
         return await asyncio.to_thread(self._backup_servers)
 
     def _backup_servers(self) -> bool:
-        target = self.mkdir()
+        target = self._mkdir()
         config = self.locals['backups'].get('servers')
         rc = True
 
@@ -170,7 +170,7 @@ class BackupService(Service):
             filename = f"{server.instance.name}_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
             directories = config.get('directories', ['Config', 'Scripts'])
             root_dir = server.instance.home
-            with ZipFile(os.path.join(target, filename), mode="w") as zf:
+            with ZipFile(target / filename, mode="w") as zf:
                 try:
                     for directory in directories:
                         parts = PureWindowsPath(directory).parts
@@ -205,44 +205,65 @@ class BackupService(Service):
         return await asyncio.to_thread(self._backup_database, path)
 
     def _backup_database(self, path: str) -> bool:
-        target = self.mkdir()
-        config = self.locals['backups'].get('database')
-        cmd = os.path.join(path, "pg_dump.exe")
-        if not os.path.exists(cmd):
-            raise FileNotFoundError(cmd)
+        """
+        Create a tar archive of the database located at `path/pg_dump.exe`.
+        Returns True on success, False otherwise.
+        """
+        target = self._mkdir()
 
-        _, lpool_url = self.node.get_database_urls()
+        pg_dump = Path(path) / "pg_dump.exe"
+        if not pg_dump.exists():
+            raise FileNotFoundError(f"pg_dump not found: {pg_dump}")
+
+        lpool_url = self.node.get_database_urls()[1]    # (ignore cpool)
         url = urlparse(lpool_url)
-        filename = f"db_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
 
+        username = self.locals['backups'].get('database', {}).get('username', 'postgres')
         try:
-            username = config.get('username', 'postgres')
             password = utils.get_password(username, self.node.config_dir)
         except ValueError:
-            username = url.username
-            password = url.password
+            username = url.username or username
+            password = url.password or ""
 
-        database = url.path.strip('/')
+        database = url.path.strip('/') or 'postgres'          # fallback
+        filename = f"db_{datetime.now():%Y%m%d_%H%M%S}.tar"
+
         args = [
+            str(pg_dump),                # <-- absolute path – see comment
             '--no-owner',
             '--no-privileges',
             '-U', username,
             '-F', 't',
-            '-f', os.path.join(target, filename),
+            '-f', str(target / filename),
             '-d', database,
-            '-h', url.hostname
+            '-h', url.hostname or 'localhost',
         ]
-        os.environ['PGPASSWORD'] = password
+
+        # 3. Set the password in the environment – Postgres reads this
+        env = os.environ.copy()
+        env['PGPASSWORD'] = password
+
         self.log.info(f'Backing up database "{database}" ...')
-        process = subprocess.run([os.path.basename(cmd), *args], executable=cmd,
-                                 stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
-        rc = process.returncode
-        if rc != 0:
-            error_message = process.stderr.strip()
-            self.log.info(f"Backup of database {database} failed. Code: {rc}. Error: {error_message}")
+
+        try:
+            subprocess.run(
+                args,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=env,
+                check=True          # Raise if returncode != 0
+            )
+        except subprocess.CalledProcessError as exc:
+            self.log.error(
+                f"Backup failed (code {exc.returncode}): {exc.stderr.strip()}"
+            )
             return False
-        else:
-            self.log.info(f"Backup of database {database} complete.")
+        except FileNotFoundError as exc:
+            self.log.error(f"Could not launch pg_dump: {exc}")
+            return False
+
+        self.log.info(f"Backup of database {database} complete.")
         return True
 
     async def restart(self):
