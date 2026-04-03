@@ -83,7 +83,7 @@ class CloudListener(EventListener["Cloud"]):
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
-        if data['id'] == 1:
+        if data['id'] == 1 or 'ucid' not in data:
             return
         config = self.plugin.get_config(server)
         if 'token' not in config:
