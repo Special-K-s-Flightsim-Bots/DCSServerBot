@@ -52,7 +52,7 @@ class RealWeather(Extension):
         return utils.get_windows_version(self.get_rw_exe())
 
     @override
-    def load_config(self) -> dict | None:
+    def load_config(self) -> dict:
         try:
             with open(self.config_path, mode='rb') as infile:
                 return tomli.load(infile)

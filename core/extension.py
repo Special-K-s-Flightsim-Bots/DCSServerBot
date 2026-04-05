@@ -60,7 +60,7 @@ class Extension(ABC):
                 schedule.start()
             Extension.started_schedulers.add(self.__class__.__name__)
 
-    def load_config(self) -> dict | None:
+    def load_config(self) -> dict:
         return dict()
 
     async def prepare(self) -> bool:
@@ -151,7 +151,7 @@ class InstallableExtension(Extension):
         from services.modmanager import ModManagerService
 
         super().__init__(server, config)
-        self.service: ModManagerService = ServiceRegistry.get(ModManagerService)
+        self.service: ModManagerService | None = ServiceRegistry.get(ModManagerService)
         self.repo = repo
         self.package_name = package_name
 
@@ -170,22 +170,30 @@ class InstallableExtension(Extension):
             return False
 
         if self.autoupdate:
-            available_version = await self.get_latest_version()
-            if available_version != self.version:
+            available_version = await self.update_available()
+            if available_version:
                 await self.update(available_version)
 
         return await super().prepare()
 
+    async def update_available(self) -> str | None:
+        available_version = await self.get_latest_version()
+        if available_version != self.version:
+            return available_version
+        else:
+            return None
+
     async def get_latest_version(self) -> str | None:
         if self.repo:
-            return await self.service.get_latest_repo_version(self.repo)
+            latest = await self.service.get_latest_repo_version(self.repo)
         else:
             from services.modmanager import Folder
 
-            return await self.service.get_latest_version({
+            latest = await self.service.get_latest_version({
                 "name": self.package_name,
                 "source": Folder.SavedGames.value
             })
+        return latest if latest else self.version
 
     async def install(self, version: str | None = None) -> bool:
         from services.modmanager import Folder
@@ -218,6 +226,14 @@ class InstallableExtension(Extension):
         return await self.service.uninstall_package(self.server, Folder.SavedGames, self.package_name, self.version)
 
     async def update(self, version: str | None = None) -> bool:
+        if version == self.version:
+            return False
+        if await self.uninstall():
+            return await self.install(version)
+        return False
+
+    async def repair(self) -> bool:
+        version = self.version
         if await self.uninstall():
            return await self.install(version)
         return False

@@ -42,7 +42,7 @@ class Tacview(InstallableExtension):
         "tacviewRealTimeTelemetryPassword": {
             "type": str,
             "label": _("Tacview Password"),
-            "placeholder": _("Password for Tacview, . for none"),
+            "placeholder": _("Password for Tacview"),
             "default": ""
         },
         "tacviewRemoteControlPort": {
@@ -54,7 +54,7 @@ class Tacview(InstallableExtension):
         "tacviewRemoteControlPassword": {
             "type": str,
             "label": _("Remote Control Password"),
-            "placeholder": _("Password for remote control, . for none"),
+            "placeholder": _("Password for remote control"),
             "default": ""
         },
         "tacviewPlaybackDelay": {
@@ -107,7 +107,7 @@ class Tacview(InstallableExtension):
             return super().shutdown()
 
     @override
-    def load_config(self) -> dict | None:
+    def load_config(self) -> dict:
         if self.server.options['plugins']:
             options = self.server.options['plugins']
         else:
@@ -478,6 +478,9 @@ class Tacview(InstallableExtension):
                         version=version, instance=self.server.instance.name)
                 }
             })
+            return True
+        else:
+            return False
 
     @override
     def get_ports(self) -> dict[str, Port]:

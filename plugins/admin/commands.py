@@ -8,7 +8,7 @@ import sys
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
     PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, ServiceRegistry, NodeTransformer, \
-    InstallException
+    InstallException, InstallableExtension
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
@@ -1365,6 +1365,110 @@ Please make sure you forward the following ports:
         for ext in extensions:
             embed.add_field(name=ext['name'], value=ext['version'])
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+    @ext.command(description=_('Update Extension'))
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    @app_commands.autocomplete(extension=enabled_extensions_autocomplete)
+    async def update(
+            self,
+            interaction: discord.Interaction,
+            server: app_commands.Transform[Server, utils.ServerTransformer],
+            extension: str
+    ) -> None:
+        ephemeral = utils.get_ephemeral(interaction)
+        ext_cls = utils.str_to_class(f'extensions.{extension.lower()}.extension.{extension}')
+        if not issubclass(ext_cls, InstallableExtension):
+            await interaction.response.send_message(
+                _("Extension {} can not be updated.").format(extension),
+                ephemeral=ephemeral
+            )
+            return
+
+        await server.init_extensions()
+        await interaction.response.send_message(
+            _("Updating extension {}...").format(extension),
+            ephemeral=ephemeral
+        )
+        msg = await interaction.original_response()
+        try:
+            version = await server.run_on_extension(extension, 'update_available')
+            if version:
+                if await server.run_on_extension(extension, 'update', version=version):
+                    await msg.edit(content=_("Extension {} updated.").format(extension))
+                else:
+                    await msg.edit(content=_("Extension {} not updated, check logfile.").format(extension))
+            else:
+                await msg.edit(content=_("Extension {} is already up to date.").format(extension))
+        except InstallException as ex:
+            await msg.edit(content=_("Failed to update extension:\n{}").format(str(ex)))
+
+    @ext.command(description=_('Repair Extension'))
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    @app_commands.autocomplete(extension=enabled_extensions_autocomplete)
+    async def repair(
+            self,
+            interaction: discord.Interaction,
+            server: app_commands.Transform[Server, utils.ServerTransformer],
+            extension: str
+    ) -> None:
+        ephemeral = utils.get_ephemeral(interaction)
+        ext_cls = utils.str_to_class(f'extensions.{extension.lower()}.extension.{extension}')
+        if not issubclass(ext_cls, InstallableExtension):
+            await interaction.response.send_message(
+                _("Extension {} can not be repaired.").format(extension),
+                ephemeral=ephemeral
+            )
+            return
+
+        await server.init_extensions()
+        await interaction.response.send_message(
+            _("Reparing extension {}...").format(extension),
+            ephemeral=ephemeral
+        )
+        msg = await interaction.original_response()
+        try:
+            if await server.run_on_extension(extension, 'repair'):
+                await msg.edit(content=_("Extension {} repaired.").format(extension))
+            else:
+                await msg.edit(content=_("Extension {} not repaired, check logfile.").format(extension))
+        except InstallException as ex:
+            await msg.edit(content=_("Failed to repair extension:\n{}").format(str(ex)))
+
+    @ext.command(description=_('Configure Extension'))
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    @app_commands.autocomplete(extension=enabled_extensions_autocomplete)
+    async def configure(
+            self,
+            interaction: discord.Interaction,
+            server: app_commands.Transform[Server, utils.ServerTransformer],
+            extension: str
+    ) -> None:
+        ephemeral = utils.get_ephemeral(interaction)
+        await server.init_extensions()
+
+        ext_cls = utils.str_to_class(f'extensions.{extension.lower()}.extension.{extension}')
+        if getattr(ext_cls, 'CONFIG_DICT', None):
+            # read the old extension values if there are any
+            config = await server.config_extension(extension)
+            # ask the user to configure the extension
+            modal = utils.ConfigModal(
+                title=f'Configure {extension} Extension',
+                config=ext_cls.CONFIG_DICT,
+                old_values=config,
+                ephemeral=ephemeral
+            )
+            await interaction.response.send_modal(modal)
+            if await modal.wait():
+                return
+
+            await server.config_extension(extension, modal.value)
+            await interaction.followup.send(_("Extension {} configured.").format(extension), ephemeral=ephemeral)
+        else:
+            await interaction.response.send_message(
+                _("No configuration available for extension {}").format(extension), ephemeral=ephemeral)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):

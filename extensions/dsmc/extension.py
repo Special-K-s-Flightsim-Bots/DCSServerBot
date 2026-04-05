@@ -36,7 +36,7 @@ class DSMC(InstallableExtension):
             return None
 
     @override
-    def load_config(self) -> dict | None:
+    def load_config(self) -> dict:
         def parse(_value: str) -> int | str | bool:
             if _value.startswith('"'):
                 return _value[1:-1]

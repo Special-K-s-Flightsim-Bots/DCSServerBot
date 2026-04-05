@@ -92,7 +92,7 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
         atexit.register(self.stop_observer)
 
     @override
-    def load_config(self) -> dict | None:
+    def load_config(self) -> dict:
         cfg = {}
         for path in [os.path.join(self.home, 'config.lua'), os.path.join(self.home, 'config.custom.lua')]:
             try:
@@ -304,7 +304,7 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
                             version = package.find('Version')
                             if version is not None:
                                 return version.text
-        return None
+        return self.get_inst_version()[1]
 
     def do_update(self):
         cwd = self.get_inst_path()
@@ -322,12 +322,29 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
         major_version, version = self.get_inst_version()
         if version != self.version:
             if force or self.config.get('autoupdate', False):
-                await self.uninstall()
-                await self.install()
-                return True
+                if await self.uninstall():
+                    return await self.install(version)
+                return False
             else:
                 self.log.warning(f"  => {self.name}: Instance {self.server.instance.name} is running version "
                                  f"{self.version}, where {version} is available!")
+        return False
+
+    @override
+    async def update(self, version: str | None = None) -> bool:
+        available = await self.get_latest_version()
+        if available != version:
+            raise InstallException(f"LotAtc {version} is not available!")
+
+        installed = self.get_inst_version()[1]
+        # update the base installation of LotAtc
+        if available != installed:
+            await asyncio.to_thread(self.do_update)
+            installed = self.get_inst_version()[1]
+        # update the mod
+        if installed != self.version:
+            return await self.update_instance(True)
+        self.log.debug(f"  => {self.name}: Instance {self.server.instance.name} is already up to date.")
         return False
 
     @override

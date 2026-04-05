@@ -64,7 +64,7 @@ class gRPC(InstallableExtension):
             return value
 
     @override
-    def load_config(self) -> dict | None:
+    def load_config(self) -> dict:
         def read_file(file: TextIO, cfg: dict):
             for line in file.readlines():
                 match = exp.match(line)

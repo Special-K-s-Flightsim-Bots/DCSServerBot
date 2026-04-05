@@ -1400,16 +1400,16 @@ class ConfigModal(Modal):
         return str(value)
 
     @staticmethod
-    def unparse(value: str, t: str = None) -> Any:
+    def unparse(value: Any, t: type = None) -> Any:
         if not t or t == str:
             return value
-        elif not value:
+        elif value is None:
             return None
         elif t == int:
             return int(value)
         elif t == float:
             return float(value)
-        elif t == bool:
+        elif t == bool and isinstance(value, str):
             if value.lower() == 'true':
                 return True
             elif value.lower() == 'false':
@@ -1424,11 +1424,15 @@ class ConfigModal(Modal):
         self.value = {
             v.component.custom_id: self.unparse(v.component.value, self.config[v.component.custom_id].get('type'))
             for v in self.children
+#            if not isinstance(v, discord.ui.Label)
         }
         self.stop()
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
-        await interaction.response.send_message(f"An error occurred: {error}")
+        if interaction.response.is_done():
+            await interaction.followup.send(f"An error occurred: {error}", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"An error occurred: {error}", ephemeral=True)
         self.stop()
 
 

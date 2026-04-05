@@ -105,7 +105,7 @@ class SRS(Extension, FileSystemEventHandler):
         return os.path.expandvars(config_path.format(server=self.server, instance=self.server.instance))
 
     @override
-    def load_config(self) -> dict | None:
+    def load_config(self) -> dict:
         if 'config' in self.config:
             self.cfg.read(self.get_config_path(), encoding='utf-8')
             return {

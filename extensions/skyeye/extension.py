@@ -99,7 +99,7 @@ class SkyEye(Extension):
         return path
 
     @override
-    def load_config(self) -> dict | None:
+    def load_config(self) -> dict:
         base_config = os.path.join(os.path.dirname(self.get_exe_path()), "config.yaml")
         if os.path.exists(base_config):
             data = yaml.load(Path(base_config).read_text(encoding='utf-8')) or {}

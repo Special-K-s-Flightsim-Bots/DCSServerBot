@@ -101,7 +101,7 @@ class Olympus(InstallableExtension):
             return os.path.join(self.server.instance.home, 'Config', 'olympus.json')
 
     @override
-    def load_config(self) -> dict | None:
+    def load_config(self) -> dict:
         try:
             with open(self.config_path, mode='r', encoding='utf-8') as file:
                 return json.load(file)
