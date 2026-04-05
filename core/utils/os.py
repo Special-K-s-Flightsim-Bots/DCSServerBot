@@ -47,7 +47,6 @@ if sys.platform == 'win32':
 __all__ = [
     "find_process",
     "find_process_async",
-    "is_process_running",
     "get_windows_version",
     "get_drive_space",
     "list_all_files",
@@ -102,13 +101,6 @@ async def find_process_async(proc: str, instance: str | None = None):
         return next(find_process(proc, instance), None)
 
     return await asyncio.to_thread(_find_first_match)
-
-
-def is_process_running(process: subprocess.Popen | psutil.Process):
-    if isinstance(process, subprocess.Popen):
-        return process.poll() is None
-    else:
-        return process.is_running()
 
 
 MS_LSB_MULTIPLIER = 65536

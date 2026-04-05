@@ -565,7 +565,6 @@ class ServiceBus(Service):
                 await self.send_to_node(message, node=node)
                 return await asyncio.wait_for(future, timeout)
             finally:
-                # noinspection PyAsyncCall
                 self.listeners.pop(token, None)
 
     def _serialize(self, obj: Any) -> Any:

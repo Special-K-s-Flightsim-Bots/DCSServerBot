@@ -170,13 +170,6 @@ class Tacview(InstallableExtension):
             self.log.warning(
                 f'  => {self.server.name}: tacviewDataCaptureMode is set to 1, you might see performance issues!')
 
-        if options['Tacview'].get('tacviewPlaybackDelay', 0) > 0 and options['Tacview'].get('tacviewRealTimeTelemetryEnabled', True):
-            self.log.warning(
-                f'  => {self.server.name}: tacviewPlaybackDelay is set, disabling real time telemetry.')
-            dirty |= self.set_option(options, 'tacviewRealTimeTelemetryEnabled', False)
-        elif options['Tacview'].get('tacviewPlaybackDelay', 0) == 0 and not options['Tacview'].get('tacviewRealTimeTelemetryEnabled', True):
-            dirty |= self.set_option(options, 'tacviewRealTimeTelemetryEnabled', True)
-
         if dirty:
             self.server.options['plugins'] = options
             self.locals = options['Tacview']

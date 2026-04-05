@@ -519,7 +519,7 @@ class SRS(Extension, FileSystemEventHandler):
 
     async def play_external_audio(self, config: dict, *, file: str | None = None, text: str | None = None) -> psutil.Process:
         def run_subprocess() -> psutil.Process:
-            def _log_output(p: subprocess.Popen):
+            def _log_output(p: psutil.Popen):
                 for line in iter(p.stdout.readline, b''):
                     self.log.debug(line.decode('utf-8', errors='replace').rstrip())
 

@@ -91,7 +91,7 @@ class Lardoon(Extension):
                 self.process = type(self)._process
 
             if not self.process or not self.process.is_running():
-                def log_stream(proc: subprocess.Popen, stream: str):
+                def log_stream(proc: psutil.Popen, stream: str):
                     pipe = proc.stdout if stream == 'stdout' else proc.stderr
                     for line in iter(pipe.readline, b''):
                         if stream == 'stdout':

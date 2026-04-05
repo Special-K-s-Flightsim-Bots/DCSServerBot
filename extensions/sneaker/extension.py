@@ -88,7 +88,7 @@ class Sneaker(Extension):
     def get_exe_path(self) -> str | None:
         return os.path.expandvars(self.config['cmd']) if 'cmd' in self.config else None
 
-    def _log_output(self, p: subprocess.Popen):
+    def _log_output(self, p: psutil.Popen):
         for line in iter(p.stdout.readline, b''):
             self.log.debug(line.decode('utf-8').rstrip())
 
