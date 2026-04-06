@@ -5,8 +5,9 @@ miz-file with the state of the mission at the time of saving. This is perfect fo
 want to follow up on the next campaign day with the exact state of the mission it had at the end of the current day.</br>
 
 ## Configuration
-To use DSMC, you need to install it, according to the documentation linked above. In DCSServerBot, you activate the 
-extension like with all others:
+To use DSMC, you need to install it, according to the documentation linked above. 
+You can use `/extension enable <DSMC>` to enable the extension.
+This will add an entry in your `nodes.yaml` like so:
 ```yaml
 MyNode:
   # [...]

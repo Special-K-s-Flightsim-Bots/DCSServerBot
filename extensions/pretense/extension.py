@@ -14,6 +14,15 @@ __all__ = [
 
 class Pretense(Extension):
 
+    CONFIG_DICT = {
+        "randomize": {
+            "type": bool,
+            "label": "Randomize",
+            "default": False,
+            "required": False
+        }
+    }
+
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
         self.missions_dir = None

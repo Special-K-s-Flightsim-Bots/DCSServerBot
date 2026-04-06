@@ -8,7 +8,7 @@ astral==3.2
 audioop-lts==0.2.2 ; python_version >= "3.13"
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
-aiohttp==3.13.4
+aiohttp==3.13.5
 
 # Certifi: Python package for providing Mozilla's CA Bundle
 certifi==2026.2.25
@@ -27,7 +27,7 @@ discord.py==2.7.1
 eyeD3==0.9.9
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.135.2
+fastapi==0.135.3
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -91,7 +91,7 @@ pykwalify==1.8.0
 python-Levenshtein==0.27.3
 
 # python-multipart: A library for parsing multipart/form-data input requests
-python-multipart==0.0.22
+python-multipart==0.0.23
 
 # Pywin32: Set of Python extensions for MS Windows
 pywin32==311 ; sys_platform == 'win32'
@@ -132,7 +132,7 @@ upnpy==1.1.8 ; python_version >= "3.14"
 miniupnpc==2.3.3 ; python_version < "3.14"
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.42.0
+uvicorn==0.43.0
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==6.0.0

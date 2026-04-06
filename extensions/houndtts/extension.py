@@ -6,6 +6,15 @@ from typing_extensions import override
 
 class HoundTTS(InstallableExtension):
 
+    CONFIG_DICT = {
+        "autoupdate": {
+            "type": bool,
+            "label": "Autoupdate",
+            "default": True,
+            "required": False
+        }
+    }
+
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config, repo="https://github.com/uriba107/HoundTTS", package_name="HoundTTS-windows")
         self.home = os.path.join(self.server.instance.home, 'Mods', 'Services', 'HoundTTS')

@@ -4,8 +4,8 @@ already. It has some differences though and comes with some other tools. This sa
 without issues.
 
 ## Configuration
-The extension itself allows you to configure your DCS-gRPC server from your instance configurations like with any other
-extension:
+You can use `/extension enable <gRPC>` to enable the extension.
+This will add an entry in your `nodes.yaml` like so:
 ```yaml
 MyNode:
   # [...]

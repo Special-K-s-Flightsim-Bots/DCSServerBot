@@ -891,12 +891,17 @@ class Mission(Plugin[MissionEventListener]):
         else:
             new_file = filename
             orig_file = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename)) + '.orig'
+
         try:
             orig_file = orig_file.replace('.sav', '.miz')
             new_file = new_file.replace('.sav', '.miz')
             await server.node.rename_file(orig_file, new_file, force=True)
             if filename.endswith('.sav'):
                 await server.node.remove_file(filename)
+            # check for persistence
+            ext = await server.init_extensions()
+            if 'Persistence' in ext:
+                await server.run_on_extension(extension='Persistence', method='reset', filename=filename)
         except FileNotFoundError:
             # we should never be here, but just in case
             await interaction.followup.send(_('No ".orig" file there, the mission was never changed.'),

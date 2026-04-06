@@ -787,7 +787,7 @@ class ServerImpl(Server):
 
     @override
     @performance_log()
-    async def apply_mission_changes(self, filename: str | None = None, *, use_orig: bool | None = True) -> str:
+    async def apply_mission_changes(self, filename: str | None = None, *, use_orig: bool | None = True) -> str | None:
         try:
             # disable autoscan
             if self.locals.get('autoscan', False):
@@ -796,7 +796,7 @@ class ServerImpl(Server):
                 filename = await self.get_current_mission_file()
                 if not filename:
                     self.log.warning("No mission found. Is your mission list empty?")
-                    return filename
+                    return None
 
             # create a writable mission
             new_filename = utils.create_writable_mission(filename)
@@ -1280,4 +1280,3 @@ class ServerImpl(Server):
     @override
     async def get_config(self) -> dict:
         return self.read_locals()
-

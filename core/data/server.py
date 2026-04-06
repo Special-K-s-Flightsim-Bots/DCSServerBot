@@ -446,7 +446,7 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True) -> str:
+    async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True) -> str | None:
         raise NotImplementedError()
 
     @property
@@ -457,20 +457,19 @@ class Server(DataObject, ABC):
             self._channels = {}
             for key, value in self.locals.get('channels', {}).items():
                 self._channels[Channel(key)] = int(value)
-            if Channel.STATUS not in self._channels:
-                self._channels[Channel.STATUS] = -1
-            if Channel.CHAT not in self._channels:
-                self._channels[Channel.CHAT] = -1
-            if Channel.EVENTS not in self._channels:
-                self._channels[Channel.EVENTS] = self._channels[Channel.CHAT]
-            if Channel.VOICE not in self._channels:
-                self._channels[Channel.VOICE] = -1
-            if Channel.AUDIT not in self._channels:
-                self._channels[Channel.AUDIT] = -1
-            if Channel.COALITION_BLUE_EVENTS not in self._channels and Channel.COALITION_BLUE_CHAT in self._channels:
-                self._channels[Channel.COALITION_BLUE_EVENTS] = self._channels[Channel.COALITION_BLUE_CHAT]
-            if Channel.COALITION_RED_EVENTS not in self._channels and Channel.COALITION_RED_CHAT in self._channels:
-                self._channels[Channel.COALITION_RED_EVENTS] = self._channels[Channel.COALITION_RED_CHAT]
+            self._channels.setdefault(Channel.STATUS, -1)
+            self._channels.setdefault(Channel.CHAT, -1)
+            self._channels.setdefault(Channel.EVENTS, self._channels[Channel.CHAT])
+            self._channels.setdefault(Channel.VOICE, -1)
+            self._channels.setdefault(Channel.AUDIT, -1)
+
+            if Channel.COALITION_BLUE_CHAT in self._channels:
+                self._channels.setdefault(Channel.COALITION_BLUE_EVENTS,
+                                          self._channels[Channel.COALITION_BLUE_CHAT])
+
+            if Channel.COALITION_RED_CHAT in self._channels:
+                self._channels.setdefault(Channel.COALITION_RED_EVENTS,
+                                          self._channels[Channel.COALITION_RED_CHAT])
         return self._channels
 
     @abstractmethod

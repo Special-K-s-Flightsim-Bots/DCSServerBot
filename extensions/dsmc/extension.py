@@ -12,6 +12,15 @@ __all__ = [
 
 class DSMC(InstallableExtension):
 
+    CONFIG_DICT = {
+        "autoupdate": {
+            "type": bool,
+            "label": "Autoupdate",
+            "default": True,
+            "required": False
+        }
+    }
+
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config, repo="https://github.com/Chromium18/DSMC1", package_name="DSMC")
         if config.get('enabled', True):

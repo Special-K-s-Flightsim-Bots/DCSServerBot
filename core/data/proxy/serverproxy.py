@@ -175,7 +175,7 @@ class ServerProxy(Server):
         return UploadStatus(data)
 
     @override
-    async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True) -> str:
+    async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True) -> str | None:
         timeout = 120 if not self.node.slow_system else 240
         return await self.bus.send_to_node_sync({
             "command": "rpc",

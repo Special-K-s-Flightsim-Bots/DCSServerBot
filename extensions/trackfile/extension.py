@@ -14,6 +14,14 @@ _ = get_translation(__name__.split('.')[1])
 
 class Trackfile(Extension):
 
+    CONFIG_DICT = {
+        "target": {
+            "type": str,
+            "label": _("Target"),
+            "required": True
+        },
+    }
+
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
         self.bus = ServiceRegistry.get(ServiceBus)

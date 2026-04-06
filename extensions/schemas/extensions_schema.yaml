@@ -42,6 +42,8 @@ schema;instance_extensions_schema:
       include: 'modmanager_schema'
     Olympus:
       include: 'instance_olympus_schema'
+    Persistence:
+      include: 'persistence_schema'
     Pretense:
       include: 'pretense_schema'
     RealWeather:
@@ -57,4 +59,4 @@ schema;instance_extensions_schema:
     Trackfile:
       include: 'trackfile_schema'
     VoiceChat:
-      include: 'instance_voicechat_schema'
+      include: 'voicechat_schema'

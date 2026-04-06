@@ -3,7 +3,8 @@ This extension provides integration with the HoundTTS text-to-speech engine for 
 For more information, refer to the [HoundTTS documentation](https://github.com/uriba107/HoundTTS).
 
 ## Configuration
-You can enabled HoundTTS in your nodes.yaml like so:
+You can use `/extension enable <HoundTTS>` to enable the extension.
+This will add an entry in your `nodes.yaml` like so:
 ```yaml
 MyNode:
   # [...]

@@ -24,6 +24,12 @@ class gRPC(InstallableExtension):
             "label": _("Port"),
             "default": 50051,
             "required": True
+        },
+        "autoupdate": {
+            "type": bool,
+            "label": _("Autoupdate"),
+            "default": True,
+            "required": False
         }
     }
 

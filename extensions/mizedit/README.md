@@ -1,5 +1,4 @@
 # Extension "MizEdit"
-
 One of the primary features of DCSServerBot is its ability to allow users to use any standard missions, 
 either self-created or obtained from the community, while having complete control over them without modifying the 
 mission itself. 
@@ -8,14 +7,19 @@ modifications to the missions itself as desired without having to open the Missi
 
 Sounds like magic? Well, it kinda is.
 
+> [!IMPORTANT]
+> Please read this documentation thoroughly before using MizEdit.
+> Also, look at the examples at the end of this file to see how to use it.
+> It is complex but very powerful, and you will love it!
+
 ## Concept
 DCS World organizes a mission as multiple files within a zipped archive with the ".miz" extension, one of which is the 
-**mission** file - a large Lua table containing essential information about the mission such as the theater, date and time, 
-weather, units, triggers, settings, and more. 
+**mission** file – a large Lua table containing essential information about the mission such as the theater, date and time, 
+weather, units, triggers, settings, and much more. 
 The **options** file stores parts of the mission configuration, while the **warehouses** file contains details about 
 the dedicated airports and their warehouses. 
 By using the Mission Editor to write and modify these files, any changes made to the mission are accurately represented. 
-However, the question is: why not accomplish this directly, without relying on the editor?
+However, the question is: why not do this directly, without relying on the editor?
 
 ## Presets
 Each modification made to a mission is stored in a compact YAML data structure that I've named "presets". 
@@ -33,10 +37,10 @@ together.
 
 > [!TIP]
 > You can create any other file named "presets*.yaml" to better structure your presets.
-> If you want to use presets from another yaml file, you can specify that in your MizEdit-Extension.
+> If you want to use presets from another YAML file, you can specify that in your MizEdit-Extension.
 > You can mix several presets files by specifying them as a list (see example below).
 
-#### a) Simple Presets
+#### Simple Presets
 ```yaml
 Spring:
   date: '2016-04-21'
@@ -71,20 +75,20 @@ With this method, you can change the following values in your mission (to be ext
 * date
 * temperature
 * atmosphere_type
-* wind (including sub-structures like listed in your mission file)
+* wind (including substructures like listed in your mission file)
 * groundTurbulence
 * enable_dust
 * dust_density
 * qnh
-* clouds (including sub-structures like listed in your mission file)
+* clouds (including substructures like listed in your mission file)
 * enable_fog
 * fog
-* halo (including sub-structures like listed in your mission file)
+* halo (including substructures like listed in your mission file)
 * requiredModules (set this to [] to remove any module requirements from your mission)
 * accidental_failures (set this to `false` to remove any failures from your mission)
 * forcedOptions (force any mission option)
-* miscellaneous (set any miscellaneous option)
-* difficulty (set any difficulty option)
+* miscellaneous (set any miscellaneous option in the options.lua of your mission)
+* difficulty (set any difficulty option in the options.lua of your mission)
 
 > [!NOTE]
 > I highly recommend looking at a mission or options file inside your miz-file to see the structure of these settings.
@@ -105,28 +109,28 @@ start_time has different options:
 > 
 > Thanks, @davidp57 for contributing the moments-part!
 
-#### b) Attaching Files
-If you want to attach files to your mission (e.g. sounds or others like scripts, etc.), you can do it like this:
+#### Attaching Files
+If you want to attach files to your mission (e.g., sounds or others like scripts, etc.), you can do it like this:
 ```yaml
 Sounds:
   files:
   - sounds/alarm.ogg
   - sounds/beep.ogg
 ```
-This will create a new preset "Sounds", that - if applied - copies the two ogg files into your l10n/DEFAULT directory 
+This will create a new preset "Sounds", that, if applied, copies the two ogg files into your l10n/DEFAULT directory 
 of your miz-file. The path of these files is relative to your DCSServerBot installation directory.
 
 If you want to add files to a specific directory, you can do it like so:
 ```yaml
 AddFiles:
   files:
-    - source: sounds/alarm.ogg    # upload a single file to the target dir inside of the mission
+    - source: sounds/alarm.ogg    # upload a single file to the target dir inside the mission
       target: l10n/EN 
     - source: kneeboards          # upload the whole file structure from this directory into the mission
       target: KNEEBOARDS          # at this place
 ```
 
-#### c) Fog
+#### Fog
 Starting with DCS 2.9.10, Eagle Dynamics added a new fog system, which allows fog animations, based on time. 
 You can use this new feature with the bot like so:
 ```yaml
@@ -145,7 +149,7 @@ manual_fog: # set a manual fog animation
 The key is the time in seconds after which the specific thickness and visibility should appear. DCS will then animate
 the fog changes in-between for you.
 
-#### d) DCS RealWeather
+#### DCS RealWeather
 You can run DCS RealWeather from MizEdit like so:
 ```yaml
 realweather:
@@ -155,7 +159,7 @@ realweather:
                 icao: UGKO
 ```
 
-#### e) Complex Modifications
+#### Complex Modifications
 In certain instances, modifying only the weather may not suffice, as there may be parts of the mission that are deeply 
 nested or dependent on other elements within the mission file. 
 For example, adjusting frequencies, TACAN codes, or similar items can require direct access to specific areas of the 
@@ -164,7 +168,7 @@ To address this issue, I developed a SQL-like query language capable of searchin
 file.
 
 > [!NOTE]
-> As this is complex and very (!) powerful, I decided to move the documentation in a separate file [here](MODIFY.md).
+> As this is complex and very (!) powerful, I decided to move the documentation into a separate file [here](MODIFY.md).
 
 ## Usage
 MizEdit is used like any other extension. It is added to your nodes.yaml and configured through it.

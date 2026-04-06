@@ -3,7 +3,9 @@ This is a default extension loaded in any case.
 It will scan your dcs.log for errors and react in several ways according to what happened.
 
 ## Configuration
-Per default, the extension does not need any configuration. But you can disable the auto-restart on unlisting like so:
+Per default, the extension does not need any configuration. 
+You can use `/extension configure <LogAnalyser>` to configure the extension.
+This will add an entry in your `nodes.yaml` like so:
 ```yaml
 MyNode:
   # [...]
@@ -32,7 +34,7 @@ MyNode:
 
 > [!NOTE]
 > "unlisted" and "regmapstorage" are disabled per default.
-> To enable them, create a new "disabled_detections" structure and leave them out like so:
+> To enable them, do not select any detections in the disable_detections section:
 > ```yaml
 > disable_detections: []  # enable all detections
 > ```
