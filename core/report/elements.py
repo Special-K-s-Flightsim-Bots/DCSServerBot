@@ -319,7 +319,6 @@ class Graph(ReportElement):
         plt.rcParams['axes.facecolor'] = self.facecolor
         plt.rcParams['figure.facecolor'] = self.facecolor
         plt.rcParams['savefig.facecolor'] = self.facecolor
-        plt.rcParams['text.usetex'] = False
         fonts = get_supported_fonts()
         font_list = []
         if fonts:
@@ -588,7 +587,7 @@ class BarChart(GraphElement):
 
     async def render(self, values: dict[str, float], **kwargs):
         if len(values) or self.show_no_data:
-            labels = list(values.keys())
+            labels = [str(label).replace('$', r'\$') for label in values.keys()]
             values = list(values.values())
             if self.orientation == 'vertical':
                 self.axes.bar(labels, values, width=self.width, color=self.color)
