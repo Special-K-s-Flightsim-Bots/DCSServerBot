@@ -528,7 +528,7 @@ class Cloud(Plugin[CloudListener]):
         # user is linked already
         if ucid:
             return
-        links = await self.get(f'/player?discord_id={member.id}')
+        links = await self.get(f'player?discord_id={member.id}')
         if not links:
             return
         async with self.apool.connection() as conn:
