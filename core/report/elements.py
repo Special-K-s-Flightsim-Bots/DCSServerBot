@@ -319,6 +319,7 @@ class Graph(ReportElement):
         plt.rcParams['axes.facecolor'] = self.facecolor
         plt.rcParams['figure.facecolor'] = self.facecolor
         plt.rcParams['savefig.facecolor'] = self.facecolor
+        plt.rcParams['text.usetex'] = False
         fonts = get_supported_fonts()
         font_list = []
         if fonts:
