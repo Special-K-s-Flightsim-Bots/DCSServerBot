@@ -34,6 +34,20 @@ if TYPE_CHECKING:
 warnings.filterwarnings('ignore', category=UserWarning, module='matplotlib')
 warnings.filterwarnings('ignore', message='.*glyph.*missing from font.*')
 
+def _escape_matplotlib_label(label: str) -> str:
+    return (
+        str(label)
+        .replace('\\', r'\\')
+        .replace('$', r'\$')
+        .replace('_', r'\_')
+        .replace('{', r'\{')
+        .replace('}', r'\}')
+        .replace('%', r'\%')
+        .replace('&', r'\&')
+        .replace('#', r'\#')
+    )
+
+
 __all__ = [
     "df_to_table",
     "ReportElement",
@@ -587,7 +601,7 @@ class BarChart(GraphElement):
 
     async def render(self, values: dict[str, float], **kwargs):
         if len(values) or self.show_no_data:
-            labels = [str(label).replace('$', r'\$') for label in values.keys()]
+            labels = [_escape_matplotlib_label(label) for label in values.keys()]
             values = list(values.values())
             if self.orientation == 'vertical':
                 self.axes.bar(labels, values, width=self.width, color=self.color)
