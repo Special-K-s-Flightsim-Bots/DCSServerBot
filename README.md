@@ -128,6 +128,7 @@ DCSServerBot supports a lot of them already which can add some quality of life.
 | MizEdit     | My own invention, can be used to modify your missions. Very powerful!                                      | [README](./extensions/mizedit/README.md)     |
 | ModManager  | Use mods within your DCS World servers.                                                                    | [README](./extensions/modmanager/README.md)  |
 | Olympus     | Real-time control of your DCS missions through a map interface.                                            | [README](./extensions/olympus/README.md)     |
+| Persistence | A simple date/time persistence to allow you to continue your mission at the time it ended.                 | [README](./extensions/persistence/README.md) |
 | Pretense    | Dynamic campaign framework by Dzsek.                                                                       | [README](./extensions/pretense/README.md)    |
 | RealWeather | Real weather for your missions using DCS Real Weather.                                                     | [README](./extensions/realweather/README.md) |
 | SkyEye      | AI Powered GCI Bot for DCS                                                                                 | [README](./extensions/skyeye/README.md)      |
