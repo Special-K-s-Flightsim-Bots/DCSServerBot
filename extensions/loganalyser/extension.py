@@ -178,7 +178,7 @@ class LogAnalyser(Extension):
                         lines = await file.readlines()
                         await self.process_lines(lines)
                         self.log_pos = await file.tell()
-                except FileNotFoundError:
+                except (PermissionError, FileNotFoundError):
                     pass
                 finally:
                     await asyncio.sleep(1)

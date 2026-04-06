@@ -277,10 +277,7 @@ async def restore_node(name: str, config_dir: str, restarted: bool) -> int:
     print("")
     print("Processing ...")
     restore = Restore(name, config_dir, quiet=restarted)
-    try:
-        return await restore.run(Path('restore'), delete=True)
-    finally:
-        utils.safe_rmtree('restore')
+    return await restore.run(Path('restore'), delete=True)
 
 
 def myasyncio_run(func: Coroutine[Any, Any, Any]) -> Any:

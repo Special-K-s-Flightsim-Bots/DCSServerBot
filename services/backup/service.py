@@ -11,7 +11,7 @@ from core import ServiceRegistry, Service, utils
 from datetime import datetime
 from discord.ext import tasks
 from pathlib import Path, PureWindowsPath
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 from zipfile import ZipFile
 
 from ..servicebus.service import ServiceBus
@@ -223,7 +223,7 @@ class BackupService(Service):
             password = utils.get_password(username, self.node.config_dir)
         except ValueError:
             username = url.username or username
-            password = url.password or ""
+            password = unquote(url.password) or ""
 
         database = url.path.strip('/') or 'postgres'          # fallback
         filename = f"db_{datetime.now():%Y%m%d_%H%M%S}.tar"

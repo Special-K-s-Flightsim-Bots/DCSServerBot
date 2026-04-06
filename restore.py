@@ -17,7 +17,7 @@ from psycopg import AsyncConnection, sql
 from rich.console import Console
 from rich.prompt import Prompt, Confirm
 from services.backup import BackupService
-from urllib.parse import urlparse, ParseResult
+from urllib.parse import urlparse, ParseResult, unquote, quote
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -71,7 +71,7 @@ class Restore:
             console.print(_("[green]Node {} renamed to {}.[/]").format(old_node, self.node))
         return True
 
-    async def prepare_restore_database(self, console: Console) -> tuple[ParseResult, str, str] | None:
+    async def prepare_restore_database(self, console: Console) -> str | None:
         main_yaml = Path(self.config_dir) / "main.yaml"
         try:
             main = yaml.load(main_yaml.read_text(encoding='utf-8'))
@@ -94,48 +94,93 @@ class Restore:
             console.print(_("[red]No database configuration found, aborting."))
             return None
 
-        db_url = urlparse(l_url)
-        try:
-            pg_pwd = get_password("postgres", config_dir=self.config_dir)
-        except ValueError:
-            if self.quiet:
-                raise ValueError("Password of user 'postgres' not stored, run the restore process manually!")
-            pg_pwd = Prompt.ask(_("Please enter the master password of your database (user=postgres):"))
-            set_password("postgres", pg_pwd, config_dir=self.config_dir)
-        try:
-            db_pwd = get_password("database", config_dir=self.config_dir)
-        except ValueError:
-            if db_url.password == 'SECRET':
-                db_pwd = secrets.token_urlsafe(8)
-            else:
-                db_pwd = db_url.password
+        db_url: ParseResult = urlparse(l_url)
+        if db_url.password == 'SECRET':
+            try:
+                db_pwd = get_password("database", config_dir=self.config_dir)
+                conninfo = l_url.replace('SECRET', quote(db_pwd))
+                async with await AsyncConnection.connect(conninfo=conninfo):
+                    pass
+            except (ValueError, psycopg.OperationalError):
+                if not self.quiet:
+                    db_pwd: str = Prompt.ask(_("Please enter the password of your database (user={})").format(db_url.username))
+                    if not db_pwd:
+                        db_pwd = secrets.token_urlsafe(8)
+                    set_password("database", db_pwd, config_dir=self.config_dir)
+        else:
+            db_pwd = unquote(db_url.password)
 
-        return db_url, pg_pwd, db_pwd
-
-    async def restore_database(self, console: Console, backup_file: Path, db_url: ParseResult, pg_pwd: str,
-                               db_pwd: str) -> bool:
-        conninfo = f"postgresql://postgres:{pg_pwd}@{db_url.hostname}:{db_url.port}/postgres?sslmode=prefer"
+        # try to connect to the database
+        l_url = l_url.replace(db_url.password, quote(db_pwd))
         try:
+            async with await AsyncConnection.connect(conninfo=l_url, autocommit=True) as conn:
+                cursor = await conn.execute("""
+                    SELECT count(*)
+                    FROM pg_catalog.pg_tables
+                    WHERE tablename = 'version'
+                """)
+                num = (await cursor.fetchone())[0]
+                # database is clean, we can continue
+                if num == 0:
+                    return l_url
+                else:
+                    await conn.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(db_url.username)))
+                    return l_url
+        except psycopg.OperationalError:
+            try:
+                pg_pwd = get_password("postgres", config_dir=self.config_dir)
+                conninfo = f"postgresql://postgres:{quote(pg_pwd)}@{db_url.hostname}:{db_url.port}/postgres?sslmode=prefer"
+                async with await AsyncConnection.connect(conninfo=conninfo):
+                    pass
+            except (ValueError, psycopg.OperationalError):
+                if self.quiet:
+                    console.print(_("[red]Password of user 'postgres' not stored, run the restore process manually![/]"))
+                    return None
+                pg_pwd: str = Prompt.ask(_("Please enter the master password of your database (user=postgres)"))
+                if pg_pwd:
+                    set_password("postgres", pg_pwd, config_dir=self.config_dir)
+                else:
+                    console.print(_("[red]Aborting restore.[/]"))
+                    return None
+
+            conninfo = f"postgresql://postgres:{quote(pg_pwd)}@{db_url.hostname}:{db_url.port}/postgres?sslmode=prefer"
+            try:
+                async with await AsyncConnection.connect(conninfo=conninfo, autocommit=True) as conn:
+                    # terminate any existing connection to the database
+                    await conn.execute("""
+                            SELECT pg_terminate_backend(pid) 
+                            FROM pg_stat_activity 
+                            WHERE datname='{}' AND pid != pg_backend_pid();
+                        """.format(db_url.path[1:]))
+                    await conn.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(db_url.path[1:])))
+                    try:
+                        await conn.execute(sql.SQL("DROP USER IF EXISTS {}").format(sql.Identifier(db_url.username)))
+                        await conn.execute(sql.SQL("CREATE USER {} WITH PASSWORD {}").format(
+                            sql.Identifier(db_url.username), sql.Literal(db_pwd)))
+                    except psycopg.errors.DependentObjectsStillExist:
+                        await conn.execute(sql.SQL("ALTER USER {} WITH PASSWORD {}").format(
+                            sql.Identifier(db_url.username), sql.Literal(db_pwd)))
+                    await conn.execute(sql.SQL("CREATE DATABASE {} OWNER {}").format(
+                        sql.Identifier(db_url.path[1:]), sql.Identifier(db_url.username)))
+                return l_url
+            except psycopg.OperationalError as ex:
+                console.print(_("[red]Could not restore the database.[/]"))
+                return None
+
+    async def restore_database(
+            self,
+            console: Console,
+            backup_file: Path,
+            conninfo: str
+    ) -> bool:
+        try:
+            db_url: ParseResult = urlparse(conninfo)
             async with await AsyncConnection.connect(conninfo=conninfo, autocommit=True) as conn:
-                # terminate any existing connection to the database
-                await conn.execute("""
-                        SELECT pg_terminate_backend(pid) 
-                        FROM pg_stat_activity 
-                        WHERE datname='{}' AND pid != pg_backend_pid();
-                    """.format(db_url.path[1:]))
-                await conn.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(db_url.path[1:])))
-                await conn.execute(sql.SQL("DROP USER IF EXISTS {}").format(sql.Identifier(db_url.username)))
-                await conn.execute(sql.SQL("CREATE USER {} WITH PASSWORD {}").format(
-                    sql.Identifier(db_url.username), sql.Literal(db_pwd)))
-                set_password("database", db_pwd, config_dir=self.config_dir)
-                await conn.execute(sql.SQL("CREATE DATABASE {} OWNER {}").format(
-                    sql.Identifier(db_url.path[1:]), sql.Identifier(db_url.username)))
-
                 # read the postgres installation directory
                 backup_yaml = Path(self.config_dir) / "services" / "backup.yaml"
                 try:
                     data = yaml.load(backup_yaml.read_text(encoding='utf-8'))
-                    install_path = data.get('backups', {}).get('database', {}).get('path')
+                    install_path = os.path.dirname(data.get('backups', {}).get('database', {}).get('path'))
                     if not os.path.exists(install_path):
                         install_path = None
                 except FileNotFoundError:
@@ -167,7 +212,7 @@ class Restore:
             return False
 
         def do_restore() -> int:
-            os.environ['PGPASSWORD'] = db_pwd
+            os.environ['PGPASSWORD'] = unquote(db_url.password)
             cmd = os.path.join(install_path, 'bin', 'pg_restore.exe')
             args = [
                 '--no-owner',
@@ -266,17 +311,23 @@ class Restore:
                         rc = -1
                     else:
                         console.print(_("[yellow]Could not restore DCSServerBot configuration.[/]"))
+                        continue
                 except Exception:
                     console.print_exception(show_locals=True)
+                    continue
             elif file.name.startswith('db_'):
                 if not self.quiet and not Confirm.ask(_("Do you want to restore the Database?"), default=False):
                     continue
-                data = await self.prepare_restore_database(console)
-                if data:
-                    db_url, pg_pwd, db_pwd = data
-                    await self.restore_database(console, file, db_url, pg_pwd, db_pwd)
-                    console.print(_("[green]Database configuration restored.[/]"))
-                    rc = -1
+                conninfo = await self.prepare_restore_database(console)
+                if conninfo:
+                    if await self.restore_database(console, file, conninfo):
+                        console.print(_("[green]Database configuration restored.[/]"))
+                        rc = -1
+                    else:
+                        console.print(_("[yellow]Could not restore database configuration.[/]"))
+                        continue
+                else:
+                    continue
             else:
                 instance_name = re.match(r'^(.+?)_(?=\d{8}_\d{6}\.zip$)', file.name).group(1)
                 if not self.quiet and not Confirm.ask(_("Do you want to restore instance {}?").format(instance_name),
@@ -285,10 +336,17 @@ class Restore:
                 if await self.restore_instance(console, file):
                     console.print(_("[green]Instance {} restored.[/]").format(os.path.basename(file.name)))
                     rc = -1
+                else:
+                    console.print(_("[yellow]Could not restore instance {}.[/]").format(os.path.basename(file.name)))
+                    continue
             if delete:
                 file.unlink()
         if rc:
-            console.print(_("[green]All data restored.[/]"))
+            if not os.listdir(restore_dir):
+                console.print(_("[green]All data restored.[/]"))
+                utils.safe_rmtree(restore_dir)
+            else:
+                console.print(_("[yellow]Some data could not be restored.[/]"))
         else:
             console.print(_("[yellow]No data restored.[/]"))
         return rc
