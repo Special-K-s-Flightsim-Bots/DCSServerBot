@@ -14,6 +14,7 @@ if sys.platform == 'win32':
 from contextlib import suppress
 from core import utils, SAVED_GAMES, translations, COMMAND_LINE_ARGS
 from pathlib import Path
+from packaging.version import parse
 from psycopg import sql
 from rich import print
 from rich.console import Console
@@ -125,6 +126,15 @@ class Install:
                     except ValueError:
                         passwd = secrets.token_urlsafe(8)
                     try:
+                        cursor = conn.execute("""
+                            SELECT (current_setting('server_version_num')::int / 10000) 
+                                   || '.' || 
+                                   (current_setting('server_version_num')::int % 100) AS version
+                        """)
+                        version = cursor.fetchone()[0]
+                        if parse(version).major < 14:
+                            print(_('[yellow]Your PostgreSQL version is outdated. Please upgrade to 14 or higher![/]\n'))
+
                         conn.execute(
                             sql.SQL("CREATE USER {} WITH ENCRYPTED PASSWORD {}")
                             .format(sql.Identifier(user), sql.Literal(passwd))
@@ -295,9 +305,9 @@ For a successful installation, you need to fulfill the following prerequisites:
     def install(self, config_dir: str, user: str, database: str):
         global _
 
-        if sys.version_info < (3,10):
+        if sys.version_info < (3,11):
             print(f"[red]!!! Python {sys.version_info.major}.{sys.version_info.minor} is not supported."
-                  f"DCSServerBot requires Python >= 3.10 !!![/]")
+                  f"DCSServerBot requires Python >= 3.11 !!![/]")
             exit(-2)
         print("""
 [bright_blue]Hello! Thank you for choosing DCSServerBot.[/]
@@ -403,6 +413,19 @@ If you need any further assistance, please visit the support discord, listed in 
                 node['public_ip'] = public_ip
         except TimeoutError:
             pass
+
+        print(_("DCSServerBot can subscribe to the DGSA banlist managed by a group of DCS administrators.\n"
+                "It is split into two parts: one for banned DCS players and one for banned Discord users.\n"
+                "For public servers, it's recommended to subscribe to this list for optimal security."))
+        dgsa_dcs = Confirm.ask(_("Do you want to use the global banlist for DCS players?"), default=True)
+        dgsa_discord = Confirm.ask(_("Do you want to use the global banlist for Discord users?"), default=True)
+        if dgsa_dcs or dgsa_discord:
+            cloud: dict[str, bool] = {
+                "dcs": dgsa_dcs,
+                "discord": dgsa_discord
+            }
+        else:
+            cloud = None
 
         if 'database' not in main:
             node["database"] = {
@@ -547,6 +570,16 @@ If you need any further assistance, please visit the support discord, listed in 
                 yaml.dump(bot, out)
             print(_("- Created {}").format(os.path.join(config_dir, 'services', 'bot.yaml')))
             self.log.info(_("{} written.").format(os.path.join(config_dir, 'services', 'bot.yaml')))
+            if cloud:
+                os.makedirs(os.path.join(config_dir, 'plugins'), exist_ok=True)
+                file = os.path.join(config_dir, 'plugins', 'cloud.yaml')
+                if not os.path.exists(file):
+                    shutil.copy2('samples/plugins/cloud.yaml', file)
+                data = yaml.load(Path(file).read_text(encoding='utf-8'))
+                data.setdefault('DEFAULT', {}).update({
+                    "dcs-ban": cloud['dcs'],
+                    "discord-ban": cloud['discord']
+                })
         with open(os.path.join(config_dir, 'nodes.yaml'), mode='w', encoding='utf-8') as out:
             yaml.dump(nodes, out)
         print(_("- Created {}").format(os.path.join(config_dir, "nodes.yaml")))
@@ -593,7 +626,7 @@ If you need any further assistance, please visit the support discord, listed in 
         if not url:
             print(_("No database URL found. Please configure the database URL in the main.yaml or nodes.yaml file."))
             return
-        url = url.replace('SECRET', utils.get_password('database', config_dir))
+        url = url.replace('SECRET', quote(utils.get_password('database', config_dir)))
         with psycopg.connect(url, autocommit=True) as conn:
             # rename nodes in all relevant tables
             conn.execute("UPDATE instances SET node = %s WHERE node = %s", (new_name, old_name))

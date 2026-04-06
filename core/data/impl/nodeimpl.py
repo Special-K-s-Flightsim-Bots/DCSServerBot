@@ -43,7 +43,7 @@ from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
 from typing import Awaitable, Callable, Any
 from typing_extensions import override
-from urllib.parse import urlparse, quote
+from urllib.parse import urlparse, quote, unquote
 from version import __version__
 from zoneinfo import ZoneInfo
 
@@ -303,7 +303,7 @@ class NodeImpl(Node):
             if database_url:
                 url = urlparse(database_url)
                 if url.password and url.password != 'SECRET':
-                    utils.set_password('database', url.password, self.config_dir)
+                    utils.set_password('database', unquote(url.password), self.config_dir)
                     port = url.port or 5432
                     node['database']['url'] = \
                         f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{port}{url.path}?sslmode=prefer"
