@@ -24,9 +24,6 @@ def _escape_matplotlib_label(value: str) -> str:
         str(value)
         .replace('\\', r'\\')
         .replace('$', r'\$')
-        .replace('_', r'\_')
-        .replace('{', r'\{')
-        .replace('}', r'\}')
     )
 
 
