@@ -4,7 +4,6 @@ import time
 from contextlib import suppress
 from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel, \
     ThreadSafeDict, Coalition, Side
-from functools import partial
 from plugins.competitive.commands import Competitive
 from psycopg.types.json import Json
 from typing import TYPE_CHECKING, cast
@@ -282,6 +281,22 @@ class PunishmentEventListener(EventListener["Punishment"]):
             asyncio.create_task(player.sendChatMessage(_("{name}, you have {points} punishment points.").format(
                 name=player.name, points=points)))
 
+    def _schedule_give_kill(self, server: Server, victim_ucid: str, s_event: dict, delay: int = 10) -> None:
+        def fire() -> None:
+            self.awaiting_task.pop(victim_ucid, None)
+            asyncio.create_task(self._give_kill(server, s_event))
+
+        old = self.awaiting_task.pop(victim_ucid, None)
+        if old:
+            old.cancel()
+
+        self.awaiting_task[victim_ucid] = self.loop.call_later(delay, fire)
+
+    async def _cancel_give_kill(self, victim_ucid: str) -> None:
+        handle = self.awaiting_task.pop(victim_ucid, None)
+        if handle:
+            handle.cancel()
+
     async def _give_kill(self, server: Server, s_event: dict) -> None:
         # create the pseudo-event "S_EVENT_KILL"
         s_event |= {
@@ -439,10 +454,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             if ((s_event['eventName'] == 'S_EVENT_SHOT' and delta_time < config.get('reslot_window', 60)) or
                     (s_event['eventName'] == 'S_EVENT_HIT' and delta_time < config.get('survival_window', 300))):
                 # TODO: DCS Bug, change this to immediate, when S_EVENT_KILL is fixed
-                self.awaiting_task[initiator.ucid] = self.loop.call_later(
-                    delay=5,
-                    callback=partial(asyncio.create_task,self._give_kill(server, s_event))
-                )
+                self._schedule_give_kill(server, initiator.ucid, s_event)
 
         elif data['eventName'] == 'S_EVENT_TAXIWAY_TAKEOFF':
             player = server.get_player(name=data.get('initiator', {}).get('name'))
