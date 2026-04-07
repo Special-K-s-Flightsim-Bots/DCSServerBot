@@ -300,7 +300,8 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         categories = {
             0: "Planes",
-            1: "Helicopters"
+            1: "Helicopters",
+            2: "Air Defence"
         }
 
         init_type = s_event.get('initiator', {}).get('unit_type')
