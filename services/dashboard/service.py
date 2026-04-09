@@ -127,7 +127,9 @@ class RichQueueHandler(QueueHandler):
     def prepare(self, record: logging.LogRecord) -> logging.LogRecord:
         # Keep traceback information for the dashboard widget.
         record = logging.makeLogRecord(record.__dict__.copy())
-        record.message = record.getMessage()
+        message = record.getMessage()
+        record.msg = message
+        record.message = message
         record.args = None
         return record
 
@@ -224,7 +226,7 @@ class LogWidget:
             exc_type, exc_value, exc_traceback = exc_info
             file, line, _, trace = self._project_traceback(exc_traceback)
 
-            message = record.getMessage()
+            message = getattr(record, "message", None) or record.getMessage()
             if self.handler.formatter:
                 record.message = message
                 formatter = self.handler.formatter
@@ -246,11 +248,11 @@ class LogWidget:
 
         if exc_text:
             return Group(
-                self.handler.render_message(record, record.getMessage()),
+                self.handler.render_message(record, getattr(record, "message", None) or record.getMessage()),
                 self.console.render_str(f"[red]{exc_text}[/red]"),
             )
 
-        message = self.handler.format(record)
+        message = getattr(record, "message", None) or record.getMessage()
         message_renderable = self.handler.render_message(record, message)
         return self.handler.render(
             record=record,

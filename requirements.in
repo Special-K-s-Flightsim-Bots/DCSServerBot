@@ -45,7 +45,7 @@ jinja2==3.1.6
 jsonschema==4.26.0
 
 # Fast LUA parser
-lupa==2.6
+lupa==2.7
 
 # Matplotlib: Python 2D plotting library
 matplotlib==3.10.8
@@ -91,7 +91,7 @@ pykwalify==1.8.0
 python-Levenshtein==0.27.3
 
 # python-multipart: A library for parsing multipart/form-data input requests
-python-multipart==0.0.23
+python-multipart==0.0.24
 
 # Pywin32: Set of Python extensions for MS Windows
 pywin32==311 ; sys_platform == 'win32'
@@ -117,7 +117,7 @@ sqlparse==0.5.5
 # Telnetlib3: Connect to telnet services (for NUT)
 telnetlib3==4.0.1
 
-# TimetoneFinder: Find the right timezones for a given coordinate
+# TimezoneFinder: Find the right timezones for a given coordinate
 tzfpy[tzdata]==1.1.3
 
 # tomli: Python TOML parser
@@ -132,7 +132,7 @@ upnpy==1.1.8 ; python_version >= "3.14"
 miniupnpc==2.3.3 ; python_version < "3.14"
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.43.0
+uvicorn==0.44.0
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==6.0.0

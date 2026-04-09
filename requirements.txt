@@ -47,7 +47,7 @@ jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
 kiwisolver==1.5.0
 levenshtein==0.27.3
-lupa==2.6
+lupa==2.7
 markdown-it-py==4.0.0
 markupsafe==3.0.3
 matplotlib==3.10.8
@@ -80,10 +80,10 @@ pyproj==3.7.1 ; python_version < "3.11"
 pyproject-hooks==1.2.0
 python-dateutil==2.9.0.post0
 python-levenshtein==0.27.3
-python-multipart==0.0.23
+python-multipart==0.0.24
 pywin32==311 ; sys_platform == "win32"
 pywinauto==0.6.9 ; sys_platform == "win32"
-rapidfuzz==3.14.3
+rapidfuzz==3.14.5
 referencing==0.37.0
 requests==2.33.1
 rich==14.3.3
@@ -105,7 +105,7 @@ tzdata==2026.1
 tzfpy==1.1.3
 upnpy==1.1.8 ; python_version >= "3.14"
 urllib3==2.6.3
-uvicorn==0.43.0
+uvicorn==0.44.0
 watchdog==6.0.0
 wcwidth==0.6.0
 wheel==0.46.3
