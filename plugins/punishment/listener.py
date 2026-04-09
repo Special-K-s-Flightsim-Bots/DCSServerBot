@@ -256,7 +256,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 task = self.awaiting_task.pop(target.ucid, None)
                 if task:
                     task.cancel()
-                    self.log.warning(f"Missing S_EVENT_KILL for player {initiator.name} vs {target.name}, ignoring")
+                    self.log.debug(f"Missing S_EVENT_KILL for player {initiator.name} vs {target.name}, ignoring")
 
         elif data['eventName'] == 'disconnect':
             shot_time, evt = self.pending_kill.pop(initiator.ucid, (-1, None))
