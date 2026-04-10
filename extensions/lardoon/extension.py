@@ -59,6 +59,8 @@ class Lardoon(Extension):
     def find_running_process(self, p: psutil.Process | None = None):
         if not p or not p.is_running():
             cmd = self.get_exe_path()
+            if not cmd:
+                return None
             p = next(utils.find_process(os.path.basename(cmd), self.config['bind']), None)
             if p:
                 if self.config.get('use_single_process', True):
