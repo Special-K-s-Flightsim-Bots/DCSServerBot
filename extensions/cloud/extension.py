@@ -107,8 +107,9 @@ class Cloud(Extension):
             # noinspection PyUnresolvedReferences
             await self.post('register_server', payload)
             self.log.debug(f"Server {self.server.name} registered with the cloud.")
-        except aiohttp.ClientError:
+        except aiohttp.ClientError as ex:
             self.log.warning(f"Could not register server {self.server.name} with the cloud.")
+            self.log.debug(f"Error: {ex}")
             self.log.debug(payload)
 
     async def cloud_unregister(self):
