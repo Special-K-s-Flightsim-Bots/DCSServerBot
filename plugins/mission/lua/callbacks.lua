@@ -450,8 +450,9 @@ local eventHandlers = {
             if ((utils.isWithinInterval(mission.last_collision[arg1], 10) and mission.last_victim[arg1] == arg3)) or ((utils.isWithinInterval(mission.last_collision[arg3], 10) and mission.last_victim[arg3] == arg1)) then
                 return false
             else
-                mission.last_collision[arg1] = os.clock()
-                mission.last_collision[arg3] = os.clock()
+                local now = os.clock()
+                mission.last_collision[arg1] = now
+                mission.last_collision[arg3] = now
                 mission.last_victim[arg1] = arg3
                 mission.last_victim[arg3] = arg1
             end
@@ -477,7 +478,7 @@ function mission.onGameEvent(eventName, arg1, arg2, arg3, arg4, arg5, arg6, arg7
     log.write('DCSServerBot', log.DEBUG, 'Mission: onGameEvent(' .. eventName .. ')')
     -- Call the appropriate handler based on the eventName
     if eventHandlers[eventName] then
-        local result = eventHandlers[eventName](arg1,arg2,arg3,arg4,arg5,arg6,arg7)
+        local result = eventHandlers[eventName](arg1, arg2, arg3, arg4, arg5, arg6, arg7)
         if result == false then
             return
         end

@@ -68,7 +68,6 @@ class NodeProxy(Node):
         if os.path.exists(config_file):
             node: dict = yaml.load(Path(config_file).read_text(encoding='utf-8')).get(self.name)
             if not node:
-                self.log.warning(f'No configuration found for node "{self.name}" in {config_file}!')
                 return {}
             for name, element in node.items():
                 if name == 'instances':
@@ -458,4 +457,13 @@ class NodeProxy(Node):
             "command": "rpc",
             "object": "Node",
             "method": "info"
+        }, timeout=timeout, node=self.name)
+
+    @override
+    async def get_config(self) -> dict:
+        timeout = 60 if not self.slow_system else 120
+        return await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "get_config"
         }, timeout=timeout, node=self.name)

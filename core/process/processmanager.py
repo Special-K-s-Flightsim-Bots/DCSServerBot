@@ -1,8 +1,9 @@
 import logging
 import psutil
-import subprocess
 import sys
 import threading
+
+from typing import Any
 
 if sys.platform == 'win32':
     from .win32.cpu import get_cpu_set_information, get_e_core_affinity
@@ -37,7 +38,7 @@ class ProcessManager:
             self.p_e_core_cpu = get_e_core_affinity() > 0
             self.excluded_cores = excluded_cores or []
             self.topology = self._get_physical_topology()
-            self.managed_processes: dict[int, dict] = {}
+            self.managed_processes: dict[int, dict[str, Any]] = {}
             # Cache for CPU load: {pid: last_load_percentage}
             self._load_cache: dict[int, float] = {}
             # Track consecutive high-load runs: {pid: count}
@@ -146,7 +147,7 @@ class ProcessManager:
                              reverse=True)
 
         # Map logical cores to their current owners for an easier lookup
-        current_owner_map = {}
+        current_owner_map: dict[int, int] = {}
         for pid, info in self.managed_processes.items():
             for l in info.get('_current_assignments', []):
                 current_owner_map[l] = pid
@@ -446,21 +447,18 @@ class ProcessManager:
                 continue
 
     def launch_process(self, args, min_cores: int = 1, max_cores: int | None = None, quality: int = 1,
-                       instance: str | None = None, affinity: list[int] | None = None, **kwargs):
-        proc = subprocess.Popen(args, **kwargs)
-        ps_proc = psutil.Process(proc.pid)
+                       instance: str | None = None, affinity: list[int] | None = None, **kwargs) -> psutil.Popen:
+        ps_proc = psutil.Popen(args, **kwargs)
 
         # Attach the original Popen object so stdout/stderr can be accessed
-        setattr(ps_proc, 'popen', proc)
+        setattr(ps_proc, 'popen', ps_proc)
         setattr(ps_proc, 'name_tag', ps_proc.name()[:-4] + (f"/{instance}" if instance else ""))
-        setattr(ps_proc, 'stdout', proc.stdout)
-        setattr(ps_proc, 'stderr', proc.stderr)
 
         if affinity:
             ps_proc.cpu_affinity(affinity)
         elif self.auto_affinity:
             with self._lock:
-                self.managed_processes[proc.pid] = {
+                self.managed_processes[ps_proc.pid] = {
                     'process': ps_proc,
                     'min_cores': min_cores,
                     'max_cores': max_cores or 999,
@@ -503,7 +501,7 @@ class ProcessManager:
 
         # 1. Gather current state
         with self._lock:
-            usage_map = {}
+            usage_map: dict[int, str] = {}
             for info in self.managed_processes.values():
                 try:
                     name = getattr(info['process'], 'name_tag', info['process'].name()).replace('/', '\n')

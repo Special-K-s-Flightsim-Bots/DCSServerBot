@@ -47,7 +47,6 @@ if sys.platform == 'win32':
 __all__ = [
     "find_process",
     "find_process_async",
-    "is_process_running",
     "get_windows_version",
     "get_drive_space",
     "list_all_files",
@@ -102,13 +101,6 @@ async def find_process_async(proc: str, instance: str | None = None):
         return next(find_process(proc, instance), None)
 
     return await asyncio.to_thread(_find_first_match)
-
-
-def is_process_running(process: subprocess.Popen | psutil.Process):
-    if isinstance(process, subprocess.Popen):
-        return process.poll() is None
-    else:
-        return process.is_running()
 
 
 MS_LSB_MULTIPLIER = 65536
@@ -269,36 +261,69 @@ def delete_password(key: str, config_dir='config'):
         raise ValueError(key)
 
 
-def sanitize_filename(filename: str, base_directory: str) -> str:
+def sanitize_filename(
+    filename: str,
+    base_directory: str | Path,
+    *,
+    return_absolute: bool = True,
+) -> Path:
     """
-    Sanitizes an input filename to prevent relative path injection.
-    Ensures the file path is within the `base_directory`.
+    Convert *filename* into a safe path that **cannot** escape *base_directory*.
 
-    Args:
-        filename (str): The input filename to sanitize.
-        base_directory (str): The base directory where all downloads should be stored.
+    Parameters
+    ----------
+    filename:
+        The user‑supplied relative path.  It may contain `..`, symlinks,
+        or even invalid characters for the underlying OS.
+    base_directory:
+        The directory that *must* contain the resulting file.
+    return_absolute:
+        If ``True`` (default) return an absolute path; if ``False`` return
+        the relative path that lives inside *base_directory*.
 
-    Returns:
-        str: A sanitized, safe file path.
+    Returns
+    -------
+    pathlib.Path
+        A safe, validated path.
 
-    Raises:
-        ValueError: If the filename contains invalid patterns or escapes the base directory.
+    Raises
+    ------
+    ValueError
+        If the path tries to escape the base directory or contains
+        prohibited characters.
     """
-    # Ensure the base_directory is absolute
-    base_directory = os.path.abspath(base_directory)
 
-    # Resolve the filename into an absolute path
-    resolved_path = os.path.abspath(os.path.join(base_directory, filename))
+    # 1. Normalize the inputs
+    base = Path(base_directory).resolve(strict=True)          # absolute & real
+    user_path = Path(filename)
 
-    # Ensure the resolved path is within the base directory
-    if not os.path.commonpath([base_directory, resolved_path]) == base_directory:
-        raise ValueError(f"Relative path injection attempt detected: {filename}")
+    # 2. Resolve the combined path (collapse .., symlinks, etc.)
+    resolved = (
+        user_path.resolve(strict=False)
+        if user_path.is_absolute()
+        else (base / user_path).resolve(strict=False)
+    )
 
-    # Optional: Check file name for illegal characters (e.g., reject ../)
-    if ".." in filename or filename.startswith("/"):
-        raise ValueError(f"Invalid filename detected: {filename}")
+    # 3. Ensure containment – this is the heart of the check
+    if not resolved.is_relative_to(base):
+        raise ValueError(
+            f"Attempt to escape base directory: {filename!r} → {resolved}"
+        )
 
-    return resolved_path
+    # 4. Strip OS‑specific illegal characters
+    #    Windows:  < > : " / \ | ? *   and NUL (chr(0))
+    #    Linux:    /   and NUL (chr(0))
+    illegal_chars = (r'/', r'<>:"/\|?*')[sys.platform.startswith("win")]
+
+    cleaned = "".join(c for c in resolved.name if c not in illegal_chars)
+
+    if not cleaned:
+        raise ValueError(f"Filename contains only illegal characters: {filename!r}")
+
+    resolved = resolved.with_name(cleaned)
+
+    # 5. Return the requested representation
+    return resolved if return_absolute else resolved.relative_to(base)
 
 
 def get_win32_error_message(error_code: int) -> str:

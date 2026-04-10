@@ -160,7 +160,7 @@ class ModManagerService(Service):
                 data = await response.json()
         return set([x['tag_name'].strip('v') for x in data])
 
-    async def get_download_url(self, repo: str, package_name: str, version: str) -> str | None:
+    async def get_download_url(self, repo: str, package_name: str, version: str) -> str | list[str] | None:
         url = f"https://api.github.com/repos/{self.extract_repo_name(repo)}/releases"
         async with ClientSession() as session:
             async with session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
@@ -170,11 +170,16 @@ class ModManagerService(Service):
         if not element:
             return None
         for asset in element.get('assets', []):
-            if asset['name'] == f"{package_name}_{version}.zip":
+            if version in asset['name']:
+                _name, _ = self.parse_filename(asset['name'])
+                if _name == package_name:
+                    return asset['browser_download_url']
+            elif asset['name'] == f"{package_name}.zip":
                 return asset['browser_download_url']
         else:
             try:
-                return element['assets'][0]['browser_download_url']
+                assets = [asset['browser_download_url'] for asset in element.get('assets', [])]
+                return assets[0] if len(assets) == 1 else assets
             except (KeyError, IndexError):
                 return None
 
@@ -197,34 +202,39 @@ class ModManagerService(Service):
         path = urlparse(url).path
         return path.lstrip('/')
 
-    async def download(self, url: str, folder: Folder, force: bool | None = False) -> None:
+    async def download(self, url: str, folder: Folder, version: str, *, force: bool | None = False) -> None:
         config = self.get_config()
         path = os.path.expandvars(config[folder.value])
         filename = url.split('/')[-1]
-        self.log.info(f"  => ModManager: Downloading {folder.value}/{filename} ...")
+        outpath = os.path.join(path, filename)
+        if version not in outpath:
+            outpath = os.path.join(path, filename)[:-4] + f'_v{version}.zip'
+        self.log.info(f"  => ModManager: Downloading {folder.value}/{os.path.basename(outpath)} ...")
         async with ClientSession() as session:
             async with session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
                 response.raise_for_status()
-                outpath = os.path.join(path, filename)
                 if os.path.exists(outpath) and not force:
                     self.log.warning(f"  => ModManager: File {folder.value}/{filename} exists!")
                     raise FileExistsError(outpath)
                 with open(outpath, mode='wb') as outfile:
                     outfile.write(await response.read())
-        self.log.info(f"  => ModManager: {folder.value}/{filename} downloaded.")
+        self.log.info(f"  => ModManager: {folder.value}/{os.path.basename(outpath)} downloaded.")
 
     async def download_from_repo(self, repo: str, folder: Folder, *, package_name: str | None = None,
-                                 version: str | None = None, force: bool | None = False):
+                                 version: str | None = None, force: bool | None = False) -> list[str] | None:
         if not package_name:
             package_name = self.extract_repo_name(repo).split('/')[-1]
         if not version or version == 'latest':
             version = await self.get_latest_repo_version(repo)
         url = await self.get_download_url(repo, package_name, version)
+        # if the download list is ambiguous, return the whole list for a selection
+        if isinstance(url, list):
+            return url
         try:
-            await self.download(url, folder, force)
+            await self.download(url, folder, version, force=force)
         except ClientResponseError:
             url = f'{repo}/releases/download/v{version}/{package_name}_{version}.zip'
-            await self.download(url, folder, force)
+            await self.download(url, folder, version, force=force)
 
     async def get_latest_repo_version(self, repo: str) -> str:
         url = f"https://api.github.com/repos/{self.extract_repo_name(repo)}/releases/latest"
@@ -290,8 +300,18 @@ class ModManagerService(Service):
                                                                        package).replace('\\', '/')))
 
         def recreate_zip_package():
+            dirs = []
             with zipfile.ZipFile(package + '.zip', 'r') as zfile:
                 for name in zfile.namelist():
+                    if os.path.basename(name).lower() == 'thumbs.db':
+                        continue
+                    if name.endswith('/'):
+                        name.rstrip('/')
+                    else:
+                        dirname = os.path.dirname(name)
+                        if dirname not in dirs:
+                            log_entries.append(f"w {os.path.dirname(name)}\n")
+                            dirs.append(dirname)
                     log_entries.append(f"w {name}\n")
 
         package = os.path.join(path, f"{package_name}_v{version}")
@@ -331,7 +351,11 @@ class ModManagerService(Service):
             with zipfile.ZipFile(filename, 'r') as zfile:
                 ovgme = self.is_ovgme(zfile, package_name)
                 if ovgme:
-                    root = str(PurePosixPath(zfile.namelist()[0]).parent) + '/'
+                    first = zfile.namelist()[0]
+                    if first.endswith('/'):
+                        root = first
+                    else:
+                        root = str(PurePosixPath(zfile.namelist()[0]).parent) + '/'
                 for name in zfile.namelist():
                     if ovgme:
                         _name = name.replace(root, '')
@@ -349,10 +373,13 @@ class ModManagerService(Service):
                         os.makedirs(os.path.dirname(dest), exist_ok=True)
                         shutil.copy2(orig, dest)
                     else:
+                        dir_name = os.path.dirname(_name)
+                        if dir_name and not os.path.exists(os.path.dirname(orig)):
+                            os.makedirs(os.path.dirname(orig), exist_ok=True)
+                            log_entries.append(f"w {os.path.dirname(_name)}\n")
+                        if _name.endswith('/'):
+                            continue
                         log_entries.append(f"w {_name}\n")
-                    os.makedirs(os.path.dirname(orig), exist_ok=True)
-                    if orig.endswith('/'):
-                        continue
                     with zfile.open(name) as infile:
                         with open(orig, mode='wb') as outfile:
                             outfile.write(infile.read())
@@ -426,7 +453,9 @@ class ModManagerService(Service):
             filename = str(next(Path(path).glob(f"{package_name}*{version}*")))
         except StopIteration:
             if repo:
-                await self.download_from_repo(repo, folder, package_name=package_name, version=version)
+                if await self.download_from_repo(repo, folder, package_name=package_name, version=version):
+                    self.log.warning(f"Can't find {package_name}_v{version} in {repo}.")
+                    return False
                 return await self.install_package(reference, folder, package_name, version)
             return False
         try:
@@ -440,16 +469,16 @@ class ModManagerService(Service):
         target = reference.installation if folder == Folder.RootFolder else reference.instance.home
         async with aiofiles.open(os.path.join(packages_path, 'install.log'), mode='r', encoding=ENCODING) as log:
             lines = await log.readlines()
-            for i in range(len(lines) - 1, 0, -1):
-                filename = lines[i][2:].strip()
+            for line in reversed(lines):
+                filename = line[2:].strip()
                 file = os.path.normpath(os.path.join(target, filename))
-                if lines[i].startswith('w'):
+                if line.startswith('w'):
                     if os.path.isfile(file):
                         os.remove(file)
                     elif os.path.isdir(file) and not os.listdir(file):
                         with suppress(Exception):
                             os.removedirs(file)
-                elif lines[i].startswith('x'):
+                elif line.startswith('x'):
                     try:
                         shutil.copy2(os.path.join(packages_path, filename), file)
                     except FileNotFoundError:

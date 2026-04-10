@@ -1,7 +1,7 @@
 import os
 import re
 
-from core import Extension, Server, get_translation, PortType, Port
+from core import Server, get_translation, PortType, Port, InstallableExtension
 from typing import Any, TextIO
 from typing_extensions import override
 
@@ -13,22 +13,35 @@ __all__ = [
     "gRPC"
 ]
 
+MISSION_SCRIPTING = r"dofile(lfs.writedir()..[[Scripts\DCS-gRPC\grpc-mission.lua]])"
 
-class gRPC(Extension):
+
+class gRPC(InstallableExtension):
 
     CONFIG_DICT = {
         "port": {
             "type": int,
             "label": _("Port"),
+            "default": 50051,
             "required": True
+        },
+        "autoupdate": {
+            "type": bool,
+            "label": _("Autoupdate"),
+            "default": True,
+            "required": False
         }
     }
 
     def __init__(self, server: Server, config: dict):
         self.home = os.path.join(server.instance.home, 'Mods', 'tech', 'DCS-gRPC')
-        super().__init__(server, config)
+        super().__init__(server, config, repo="https://github.com/DCS-gRPC/rust-server", package_name="DCS-gRPC")
         if not config.get('name'):
             self._name = 'DCS-gRPC'
+
+    @property
+    def version(self) -> str | None:
+        return "0.8.1"
 
     @staticmethod
     def parse(value: str) -> Any:
@@ -57,7 +70,7 @@ class gRPC(Extension):
             return value
 
     @override
-    def load_config(self) -> dict | None:
+    def load_config(self) -> dict:
         def read_file(file: TextIO, cfg: dict):
             for line in file.readlines():
                 match = exp.match(line)
@@ -78,23 +91,28 @@ class gRPC(Extension):
 
     @override
     async def prepare(self) -> bool:
+        if not await super().prepare():
+            return False
+
         config = self.config.copy()
         filename = os.path.join(self.node.installation, 'Scripts', 'MissionScripting.lua')
         with open(filename, mode='r', encoding='utf-8') as infile:
             orig = infile.readlines()
-        dirty = False
+        update_needed = True
+        start = -1
         for idx, line in enumerate(orig):
-            if ("dofile('Scripts/ScriptingSystem.lua')" in line and
-                    r"dofile(lfs.writedir()..[[Scripts\DCS-gRPC\grpc-mission.lua]])" not in orig[idx+1]):
-                orig.insert(idx+1, r"dofile(lfs.writedir()..[[Scripts\DCS-gRPC\grpc-mission.lua]])" + "\n")
-                dirty = True
-                break
-        if dirty:
+            if "dofile('Scripts/ScriptingSystem.lua')" in line:
+                start = idx
+            elif MISSION_SCRIPTING in line:
+                update_needed = False
+
+        if update_needed:
+            orig.insert(start+1, MISSION_SCRIPTING + "\n")
             with open(filename, mode='w', encoding='utf-8') as outfile:
                 outfile.writelines(orig)
             self.log.info(f"  => {self.name}: MissionScripting.lua amended.")
-        if 'enabled' in config:
-            del config['enabled']
+
+        config.pop('enabled', None)
         if len(config):
             self.locals = self.locals | config
             self.locals['autostart'] = True
@@ -114,14 +132,12 @@ class gRPC(Extension):
             ports[port] = self.server.name
         host = self.locals.get('host', '127.0.0.1')
         if host != '127.0.0.1':
-            self.log.warning(
-                'Please consider changing the host in your dcs-grpc.lua to 127.0.0.1 for security reasons!')
-        return await super().prepare()
+            self.log.warning('Please consider changing the host in your dcs-grpc.lua to 127.0.0.1 for security reasons '
+                             'or whitelist IPs that are allowed to reach this port.')
+        return True
 
     @override
     def is_installed(self) -> bool:
-        if not super().is_installed():
-            return False
         if not os.path.exists(os.path.join(self.home, 'dcs_grpc.dll')):
             self.log.error(f"  => {self.server.name}: Can't load extension, {self.name} not correctly installed.")
             return False

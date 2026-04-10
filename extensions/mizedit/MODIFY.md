@@ -1,15 +1,15 @@
 # Using the "modify"-Preset
-To use the "modify"-Preset, you need to understand some of the basic concepts first. A DCS miz file, that carries your
-mission is basically a ZIP file, consisting of several configuration files inside. MizEdit can amend these files and
-with that the whole mission. Now, lets take a look at these files and talk about the purpose of them.
+To use the "modify"-Preset, you need to understand some of the basic concepts first. 
+A DCS miz file that carries your mission is basically a ZIP file, consisting of several configuration files inside. 
+MizEdit can amend these files and with that the whole mission. 
+Now, let's take a look at these files and talk about the purpose of them.
 
 ### mission
 This file is the main file inside the miz file. It holds your units, their waypoints (routes), time and weather
 information of the mission, any mission triggers and basic mission options.
 
 ### options
-This file holds additional options, and can be seen as an overwrite for your Saved Games\DCS.server\Config\options.lua 
-file.
+This file holds additional options and will be overwriting people's Saved Games\DCS.server\Config\options.lua file.
 
 ### warehouses
 This file holds information about airports, especially their warehouse information but also information about dynamic
@@ -19,8 +19,8 @@ All these files are basically lua tables. To change a mission, you unpack it, am
 a new miz file. That's exactly what MizEdit is doing.
 
 ## Lua Table Navigation
-As we need to "navigate" all around the basic lua files inside your miz file, we need some kind of path description 
-first, that helps us find the respective elements that we want to change:
+As we need to "navigate" all around the basic Lua files inside your miz file, we need some kind of path description 
+first that helps us find the respective elements that we want to change:
 
 | Character | Description                                                                             |
 |-----------|-----------------------------------------------------------------------------------------|
@@ -54,10 +54,10 @@ MyFancyPreset:
     where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
 ```
 In theory, this does the very same. It processes over some carriers on the blue coalition. The difference is that
-the "reference" element, meaning the element on which we will work in a bit, is a carrier unit in the first example
+the "reference" element meaning the element on which we will work in a bit is a carrier unit in the first example
 and all groups **containing** any of the carriers in the second example.
 
-Now lets see, why we might need that difference:
+Now let's see why we might need that difference:
 ```yaml
 MyFancyPreset:
   modify:
@@ -100,7 +100,7 @@ that only one option is valid at a time. To determine the correct frequency, we 
 (as described above) and match it with one from the predefined list of carrier types. In this example, only two carrier 
 types (72 and 73) are included. The corresponding frequency is then selected based on the matched carrier type.
 
-If we now look at CVN_73 for instance, this will be the result:
+If we now look at CVN_73, for instance, this will be the result:
 ```lua
 ["params"] = 
 {
@@ -112,7 +112,7 @@ If we now look at CVN_73 for instance, this will be the result:
 
 > [!NOTE]
 > Besides "replace" you can also use: 
-> - delete: delete something from your mission, a unit type for instance, random failures, a whole coalition, etc.
+> - delete: delete something from your mission, a unit type, for instance, random failures, a whole coalition, etc.
 > - merge: merge two parts of your mission file, like blue and neutral countries to create a new blue. 
 
 ## Variables
@@ -122,14 +122,14 @@ Sometimes it might be necessary to use variables inside your code. Some are pres
 MyFancyPreset:
   modify:
     variables:
-      theatre: theatre                          # fills the missions theatre into the {theatre} variable
-      temperature: weather/season/temperature   # fills the mission temperature in the {temperature} variable
+      theatre: theatre                          # fills the mission's theatre into the {theatre} variable
+      temperature: weather/season/temperature   # fills the mission's temperature into the {temperature} variable
       speed: 40                                 # sets a fixed value for speed
       rand: '$random.randint(1, 10)'            # fills some random number between 1 and 10 into ${rand}
       mylist: '$list(range(1, {rand}))'         # creates a list ${mylist} of numbers starting from 1 to the result of the random pick above
 ```
-You can work with these variables then later on, to for instance create some randomness in your mission. To use a 
-variable, just add `{variablename}` in your code.
+You can work with these variables later on, for instance, to create some randomness in your mission. 
+To use a variable, add `{variablename}` in your code.
 
 ## Conditions
 If you only want to run the script under specific conditions, you can add an "if"-condition like so:
@@ -198,7 +198,7 @@ will walk the mission tree like so:
                              |_ elements where ["type"] is one of ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
 ```
 
-#### Example 2a: Change the carrier's frequency for the blue coalition to 3 + carrier type + 000000 (w. g. CVN-71 => 371000000)
+#### Example 2a: Change the carrier's frequency for the blue coalition to 3 + carrier type + 000000 (w. g. CVN-71 ⇒ 371000000)
 ```yaml
 MyFancyPreset:
   modify:
@@ -241,7 +241,7 @@ MyFancyPreset:
         $'{reference[units][0][type]}'[-2:] == '73': 1160000000
 ```
 
-#### Example 4: Set the 1st radio-preset of all blue F-14Bs to 243
+#### Example 4: Set the first radio-preset of all blue F-14Bs to 243
 ```yaml
 ChangeRadios:
   modify:

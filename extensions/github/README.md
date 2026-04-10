@@ -2,7 +2,8 @@
 Simple extension to clone or update a given repository into a directory on your server.
 
 ## Configuration
-To enable track file upload, a change in nodes.yaml is needed:
+You can use `/extension enable <GitHub>` to enable the extension.
+This will add an entry in your `nodes.yaml` like so:
 ```yaml
 MyNode:
   # [...]

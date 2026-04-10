@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import atexit
+import importlib
+import inspect
 import json
 import luadata
 import os
+import pkgutil
 import psutil
 import shutil
 import sys
@@ -20,19 +23,21 @@ from contextlib import suppress
 from copy import deepcopy
 from core import utils, Server
 from core.const import MAX_SAFE_INTEGER
+from core.extension import InstallableExtension
 from core.data.dataobject import DataObjectFactory
 from core.data.const import Status, Channel, Coalition
 from core.data.node import UploadStatus
-from core.extension import Extension, InstallException, UninstallException
+from core.extension import Extension, InstallException
 from core.mizfile import MizFile
 from core.process import ProcessManager
+from core.utils.helper import async_cache
 from core.utils.performance import performance_log
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from psycopg.errors import UndefinedTable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterable
 from typing_extensions import override
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 from watchdog.observers import Observer, ObserverType
@@ -114,23 +119,25 @@ class ServerImpl(Server):
         self.transport = None
         self._lock = asyncio.Lock()
         with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
-                    INSERT INTO servers (server_name) 
-                    VALUES (%s) 
-                    ON CONFLICT (server_name) DO NOTHING
-                """, (self.name, ))
-                cursor = conn.execute("""
-                    SELECT maintenance FROM servers WHERE server_name = %s
-                """, (self.name, ))
-                row = cursor.fetchone()
-                if row:
-                    self._maintenance = row[0]
+            conn.execute("""
+                INSERT INTO servers (server_name) 
+                VALUES (%s) 
+                ON CONFLICT (server_name) DO NOTHING
+            """, (self.name, ))
+            cursor = conn.execute("""
+                SELECT maintenance FROM servers WHERE server_name = %s
+            """, (self.name, ))
+            row = cursor.fetchone()
+            if row:
+                self._maintenance = row[0]
         atexit.register(self.stop_observer)
 
     @override
     async def reload(self):
         self.locals = self.read_locals()
+        if self.locals.get(self.name) is None and self.name != 'n/a':
+            self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')
+
         self._channels.clear()
         self._options = None
         self._settings = None
@@ -230,11 +237,12 @@ class ServerImpl(Server):
     async def _load_mission_list(self):
         try:
             data = await self.send_to_dcs_sync({"command": "listMissions"}, timeout=60)
-            mission_list = data['missionList']
-            if mission_list != self.settings['missionList']:
-                for m in set(self.settings['missionList']) - set(mission_list):
+            online_mission_list = [os.path.normpath(x) for x in data['missionList']]
+            offline_mission_list = await self.getMissionList()
+            if online_mission_list != offline_mission_list:
+                for m in set(offline_mission_list) - set(online_mission_list):
                     self.log.warning(f"Removed non-existing/unsupported mission from the list: {m}")
-                self.settings['missionList'] = mission_list
+                self.settings['missionList'] = online_mission_list
         except (TimeoutError, asyncio.TimeoutError):
             pass
 
@@ -311,7 +319,7 @@ class ServerImpl(Server):
     def _merge_coalition_users(self):
         filename = Path(self.instance.home) / 'Config' / 'multiplayerCoalitionBlockerUsersList.lua'
         if filename.exists():
-            data = luadata.unserialize(filename.read_text(encoding='utf-8'), 'utf-8')
+            data = luadata.unserialize(filename.read_text(encoding='utf-8'), 'utf-8') or {}
         else:
             data = {}
         lock_time = self.locals['coalitions'].get('lock_time', '1 day')
@@ -518,14 +526,15 @@ class ServerImpl(Server):
         # check if all missions are existing
         missions = []
         try:
-            start_mission = self.settings['missionList'][int(self.settings.get('listStartIndex', 1)) - 1]
+            start_mission = os.path.normpath(
+                self.settings['missionList'][int(self.settings.get('listStartIndex', 1)) - 1])
         except IndexError:
             start_mission = None
         for mission in self.settings['missionList']:
             if '.dcssb' in mission:
                 _mission = os.path.join(os.path.dirname(os.path.dirname(mission)), os.path.basename(mission))
             else:
-                _mission = mission
+                _mission = os.path.normpath(mission)
             # check if the orig file has been updated
             orig = utils.get_orig_file(_mission, create_file=False)
             if orig and os.path.exists(orig) and os.path.exists(mission) and os.path.getmtime(orig) > os.path.getmtime(mission):
@@ -596,7 +605,7 @@ class ServerImpl(Server):
                         ext = self.load_extension(extension)
                         if not ext:
                             continue
-                        if ext.is_installed():
+                        if ext.enabled:
                             self.extensions[extension] = ext
                 except InstallException as ex:
                     self.log.error(f"  => Error while loading extension {extension}: {ex} - skipped")
@@ -778,7 +787,7 @@ class ServerImpl(Server):
 
     @override
     @performance_log()
-    async def apply_mission_changes(self, filename: str | None = None, *, use_orig: bool | None = True) -> str:
+    async def apply_mission_changes(self, filename: str | None = None, *, use_orig: bool | None = True) -> str | None:
         try:
             # disable autoscan
             if self.locals.get('autoscan', False):
@@ -787,7 +796,7 @@ class ServerImpl(Server):
                 filename = await self.get_current_mission_file()
                 if not filename:
                     self.log.warning("No mission found. Is your mission list empty?")
-                    return filename
+                    return None
 
             # create a writable mission
             new_filename = utils.create_writable_mission(filename)
@@ -841,8 +850,8 @@ class ServerImpl(Server):
             filename = orig_filename
             add = False
         else:
-            for idx, name in enumerate(self.settings['missionList']):
-                if (os.path.normpath(name) == filename) or (os.path.normpath(name) == secondary):
+            for idx, name in enumerate(await self.getMissionList()):
+                if (name == filename) or (name == secondary):
                     if self.current_mission and idx == int(self.settings['listStartIndex']) - 1:
                         if not force:
                             return UploadStatus.FILE_IN_USE
@@ -964,7 +973,7 @@ class ServerImpl(Server):
         orig = secondary + '.orig'
         if os.path.exists(orig):
             os.remove(orig)
-        missions = self.settings['missionList']
+        missions = await self.getMissionList()
         if path in missions or secondary in missions:
             # the mission is already in the list. check if we need to reset a .dcssb copy
             if secondary in missions:
@@ -979,7 +988,7 @@ class ServerImpl(Server):
                 "index": idx,
                 "autostart": autostart
             })
-            self.settings['missionList'] = data['missionList']
+            self.settings['missionList'] = [os.path.normpath(x) for x in data['missionList']]
         else:
             if idx > 0:
                 missions.insert(idx - 1, path)
@@ -996,10 +1005,10 @@ class ServerImpl(Server):
             raise AttributeError("Can't delete the running mission!")
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             data = await self.send_to_dcs_sync({"command": "deleteMission", "id": mission_id})
-            self.settings['missionList'] = data['missionList']
+            self.settings['missionList'] = [os.path.normpath(x) for x in data['missionList']]
         else:
             missions = self.settings['missionList']
-            del missions[mission_id - 1]
+            missions.pop(mission_id - 1)
             self.settings['missionList'] = missions
         return self.settings['missionList']
 
@@ -1018,7 +1027,7 @@ class ServerImpl(Server):
     async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
                           use_orig: bool | None = True, no_reload: bool | None = False) -> bool | None:
 
-        mission_list = self.settings['missionList']
+        mission_list = await self.getMissionList()
         start_index = int(self.settings.get('listStartIndex', 1))
         try:
             current_mission = self._get_current_mission_file()
@@ -1107,13 +1116,61 @@ class ServerImpl(Server):
 
     @override
     async def getMissionList(self) -> list[str]:
-        return self.settings.get('missionList', [])
+        return [os.path.normpath(x) for x in self.settings.get('missionList', [])]
+
+    @async_cache
+    async def _find_extensions(self, only_installable: bool = False) -> Iterable[str]:
+        from core import Extension, InstallableExtension
+
+        extensions: set[str] = set()
+        root_pkg = importlib.import_module('extensions')
+
+        for finder, module_name, is_pkg in pkgutil.walk_packages(
+                path=root_pkg.__path__, prefix=root_pkg.__name__ + "."
+        ):
+            # We're only interested in modules named 'extension.py'
+            if not module_name.endswith(".extension"):
+                continue
+
+            try:
+                mod = importlib.import_module(module_name)
+                for name, obj in inspect.getmembers(mod, inspect.isclass):
+                    if obj is Extension or obj is InstallableExtension:
+                        continue
+                    if not only_installable and issubclass(obj, Extension):
+                        extensions.add(name)
+                    elif only_installable and issubclass(obj, InstallableExtension):
+                        extensions.add(name)
+            except Exception:
+                pass
+
+        return extensions
+
+    @override
+    async def list_extensions(self, *, only_installable: bool = False, active: bool = None) -> list[str]:
+        ext = await self._find_extensions(only_installable=only_installable)
+        if active is not None:
+            if not self.extensions:
+                await self.init_extensions()
+            if only_installable:
+                subclass = InstallableExtension
+            else:
+                subclass = Extension
+            if active:
+                ext = [x.__class__.__name__ for x in self.extensions.values() if issubclass(type(x), subclass)]
+            else:
+                ext = [x for x in ext if x not in self.extensions]
+        return sorted(ext)
 
     @override
     async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
         ext = self.extensions.get(extension)
         if not ext:
-            raise ValueError(f"Extension {extension} not found.")
+            if method == "is_installed":
+                ext = self.load_extension(extension)
+                self.extensions[extension] = ext
+            else:
+                raise ValueError(f"Extension {extension} not found.")
         # Check if the command exists in the extension object
         if not hasattr(ext, method):
             raise ValueError(f"Command {method} not found in extension {extension}.")
@@ -1122,20 +1179,22 @@ class ServerImpl(Server):
         _method = getattr(ext, method)
 
         # Check if it is a coroutine
-        if asyncio.iscoroutinefunction(_method):
+        if inspect.iscoroutinefunction(_method):
             result = await _method(**kwargs)
         else:
             result = await asyncio.to_thread(_method, **kwargs)
         return result
 
     @override
-    async def config_extension(self, name: str, config: dict) -> None:
+    async def config_extension(self, name: str, config: dict | None = None) -> dict:
         config_file = os.path.join(self.node.config_dir, 'nodes.yaml')
         data: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
         node_config = data.get(self.node.name, {})
         extensions = node_config.setdefault('instances', {}).setdefault(
-            self.instance.name, {}
-        ).setdefault('extensions', {})
+            self.instance.name, {}).setdefault('extensions', {})
+        if not config:
+            return extensions.get(name, {})
+
         extensions[name] = extensions.get(name, {}) | config
         with open(config_file, 'w', encoding='utf-8') as f:
             yaml.dump(data, f)
@@ -1145,24 +1204,27 @@ class ServerImpl(Server):
         self.instance.locals |= self.node.locals['instances'][self.instance.name]
         if name in self.extensions:
             self.extensions[name].config = self.node.locals.get('extensions', {}).get(name, {}) | self.locals['extensions'][name]
+            return self.extensions[name].config
+        else:
+            return extensions[name]
 
     @override
-    async def install_extension(self, name: str, config: dict) -> None:
-        if name in self.extensions:
-            raise InstallException(f"Extension {name} is already installed!")
-        await self.config_extension(name, config)
-        ext = self.load_extension(name)
-        await ext.install()
-        self.extensions[name] = ext
-
-    @override
-    async def uninstall_extension(self, name: str) -> None:
-        ext = self.extensions[name]
+    async def enable_extension(self, name: str, config: dict | None = None) -> None:
+        await self.config_extension(name, (config or {}) | {"enabled": True})
+        ext = self.extensions.get(name)
         if not ext:
-            raise UninstallException(f"Extension {name} is not installed!")
-        await ext.uninstall()
-        self.extensions.pop(name, None)
+            ext = self.load_extension(name)
+            self.extensions[name] = ext
+        await ext.enable()
+
+    @override
+    async def disable_extension(self, name: str) -> None:
+        if name not in self.extensions:
+            raise InstallException(f"Extension '{name}' not found")
+        ext = self.extensions[name]
         await self.config_extension(name, {"enabled": False})
+        await ext.disable()
+        self.extensions.pop(name, None)
 
     @override
     async def cleanup(self) -> None:
@@ -1214,3 +1276,7 @@ class ServerImpl(Server):
         if os.path.exists(target_path):
             utils.safe_rmtree(target_path)
             self.log.debug(f'    => Plugin {plugin.capitalize()} uninstalled.')
+
+    @override
+    async def get_config(self) -> dict:
+        return self.read_locals()

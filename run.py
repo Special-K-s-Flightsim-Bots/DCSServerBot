@@ -140,7 +140,7 @@ class Main:
         # check for updates
         if self.no_autoupdate:
             autoupdate = False
-            # remove the exec parameter, to allow restart/update of the node
+            # remove the exec parameter to allow restart/update of the node
             if '--x' in sys.argv:
                 sys.argv.remove('--x')
             elif '--noupdate' in sys.argv:
@@ -180,30 +180,40 @@ class Main:
                         continue
 
                     # switch master
-                    tasks = []
                     if self.node.claimed_master:
                         self.log.info("Taking over as the MASTER node ...")
                         # start all the master-only services
+                        tasks = []
                         for cls in [x for x in registry.services().keys() if registry.master_only(x)]:
                             tasks.append(self.start_service(registry, cls))
-                        # now switch all others
+                        await asyncio.gather(*tasks)
+                        # now we are the real master
+                        self.node.commit_claimed_master()
+
+                        # switch all others services / register the agent nodes
+                        tasks = []
                         for cls in [x for x in registry.services().keys() if not registry.master_only(x)]:
                             service = registry.get(cls)
                             if service:
-                                tasks.append(service.switch())
+                                tasks.append(service.switch(True))
+                        await asyncio.gather(*tasks)
                     else:
                         self.log.info("Second MASTER found, stepping back to AGENT configuration.")
 
+                        tasks = []
                         for cls in registry.services().keys():
                             if registry.master_only(cls):
                                 tasks.append(registry.get(cls).stop())
-                            else:
+                        await asyncio.gather(*tasks)
+                        self.node.commit_claimed_master()
+
+                        tasks = []
+                        for cls in registry.services().keys():
+                            if not registry.master_only(cls):
                                 service = registry.get(cls)
                                 if service:
-                                    tasks.append(service.switch())
-                    await asyncio.gather(*tasks)
-                    self.node.commit_claimed_master()
-                    self.log.info(f"I am the {'MASTER' if self.node.master else 'AGENT'} now.")
+                                    tasks.append(service.switch(False))
+                        await asyncio.gather(*tasks)
             except OperationalError:
                 db_available = False
                 raise
@@ -248,11 +258,11 @@ def handle_exception(loop, context):
         f.write(f"{'=' * 50}\n")
 
 
-async def run_node(name, config_dir=None, no_autoupdate=False) -> int:
+async def run_node(name, config_dir=None, no_autoupdate=False, restarted=False) -> int:
     loop = asyncio.get_running_loop()
     loop.set_exception_handler(handle_exception)
 
-    async with NodeImpl(name=name, config_dir=config_dir) as node:
+    async with NodeImpl(name=name, config_dir=config_dir, restarted=restarted) as node:
         await Main(node, no_autoupdate=no_autoupdate).run()
         return node.rc
 
@@ -267,10 +277,7 @@ async def restore_node(name: str, config_dir: str, restarted: bool) -> int:
     print("")
     print("Processing ...")
     restore = Restore(name, config_dir, quiet=restarted)
-    try:
-        return await restore.run(Path('restore'), delete=True)
-    finally:
-        utils.safe_rmtree('restore')
+    return await restore.run(Path('restore'), delete=True)
 
 
 def myasyncio_run(func: Coroutine[Any, Any, Any]) -> Any:
@@ -298,6 +305,16 @@ if __name__ == "__main__":
     # Setup the logging
     Main.setup_logging(args.node, args.config)
     log = logging.getLogger("dcsserverbot")
+
+    # Waiting for the network connection to be active
+    if args.ping:
+        # wait for an internet connection to be available (after system reboots)
+        log.info("Waiting for the network ...")
+        if not myasyncio_run(wait_for_internet(host="8.8.8.8", timeout=300.0)):
+            print("Internet connection not available. Exiting.")
+            exit(-1)
+        log.info("Network connection available.\n")
+
     # check if we should reveal the passwords
     utils.create_secret_dir(args.config)
     if args.secret:
@@ -333,24 +350,28 @@ WARNING: DCSServerBot will drop support for Pyton 3.10 soon.
             print("")
 
     fault_log = open(os.path.join('logs', 'fault.log'), 'w')
-    if args.ping:
-        # wait for an internet connection to be available (after system reboots)
-        log.info("Checking internet connection ...")
-        if not myasyncio_run(wait_for_internet(host="8.8.8.8", timeout=300.0)):
-            print("Internet connection not available. Exiting.")
-            exit(-1)
     try:
         # enable faulthandler
         faulthandler.enable(file=fault_log, all_threads=True)
 
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
-                rc = myasyncio_run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
+                rc = myasyncio_run(run_node(
+                    name=args.node,
+                    config_dir=args.config,
+                    no_autoupdate=args.noupdate,
+                    restarted=args.restarted
+                ))
             except FatalException:
                 from install import Install
 
                 Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
-                rc = myasyncio_run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
+                rc = myasyncio_run(run_node(
+                    name=args.node,
+                    config_dir=args.config,
+                    no_autoupdate=args.noupdate,
+                    restarted=args.restarted
+                ))
     except PermissionError as ex:
         log.error(f"There is a permission error: {ex}", exc_info=True)
         # do not restart again

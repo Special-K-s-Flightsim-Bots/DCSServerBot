@@ -177,12 +177,12 @@ class Commands(Plugin):
 
         else:  # no shell – just fire and forget
             try:
-                def run_cmd() -> subprocess.Popen:
+                def run_cmd() -> psutil.Popen:
                     executable = os.path.join(cwd, cmd[0])
-                    return subprocess.Popen(cmd, cwd=cwd, executable=executable, close_fds=True)
+                    return psutil.Popen(cmd, cwd=cwd, executable=executable, close_fds=True)
 
                 p = await asyncio.to_thread(run_cmd)
-                self.processes[psutil.Process(p.pid)] = cmd[0]
+                self.processes[p] = cmd[0]
                 await self._send(interaction, f"Process with PID {p.pid} started.", ephemeral=ephemeral)
             except Exception as ex:
                 await self._send(interaction, str(ex), ephemeral=True)
@@ -404,7 +404,8 @@ async def __{sanitized_name}_callback(interaction: discord.Interaction):
 
                 # Apply role checks, if any
                 if checks:
-                    [slash_cmd.add_check(check) for check in checks]
+                    for check in checks:
+                        slash_cmd.add_check(check)
 
                 # update parameters
                 for p_name, spec in params.items():

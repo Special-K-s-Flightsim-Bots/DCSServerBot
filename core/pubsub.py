@@ -94,6 +94,8 @@ class PubSub:
                                 VALUES (%(guild_id)s, %(node)s, %(data)s)
                             """).format(table=sql.Identifier(self.name))
                             await conn.execute(query, message)
+                        except Exception as ex:
+                            self.log.exception(ex)
                         finally:
                             # Notify the queue that the message has been processed.
                             self.write_queue.task_done()
@@ -126,7 +128,7 @@ class PubSub:
                 async with await AsyncConnection.connect(self.url, autocommit=True) as conn:
                     while not self._stop_event.is_set():
                         try:
-                            # we will read every 5s independent if there is data in the queue or not
+                            # we will read every 5s independently if there is data in the queue or not
                             if not await asyncio.wait_for(self.read_queue.get(), timeout=5.0):
                                 return
                             try:

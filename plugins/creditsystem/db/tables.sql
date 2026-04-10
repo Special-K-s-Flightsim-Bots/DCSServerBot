@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS players_badges (
     badge_url TEXT,
     time TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
     PRIMARY KEY (campaign_id, player_ucid),
-    FOREIGN KEY (player_ucid) REFERENCES players (ucid) ON DELETE CASCADE,
+    FOREIGN KEY (player_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY (campaign_id) REFERENCES campaigns (id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_players_badges ON players_badges (player_ucid);

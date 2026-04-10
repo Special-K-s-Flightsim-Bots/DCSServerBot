@@ -881,6 +881,139 @@ class AirbaseCaptureResponse(BaseModel):
             }
         }
     }
+
+class MissionRestartResponse(BaseModel):
+    status: str = Field(..., description="Status of the operation")
+    message: str = Field(..., description="Status message")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "success",
+                "message": "Mission on server 'DCS Server' restarted."
+            }
+        }
+    }
+
+class MissionLoadResponse(BaseModel):
+    status: str = Field(..., description="Status of the operation")
+    message: str = Field(..., description="Status message")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "success",
+                "message": "Mission 'Training Mission.miz' loaded on server 'DCS Server'."
+            }
+        }
+    }
+
+class MissionUploadResponse(BaseModel):
+    status: str = Field(..., description="Status of the operation")
+    message: str = Field(..., description="Status message")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "success",
+                "message": "Mission 'Training Mission.miz' uploaded to server 'DCS Server'."
+            }
+        }
+    }
+
+class MissionPauseResponse(BaseModel):
+    status: str = Field(..., description="Status of the operation")
+    message: str = Field(..., description="Status message")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "success",
+                "message": "Mission on server 'DCS Server' paused."
+            }
+        }
+    }
+
+class MissionUnpauseResponse(BaseModel):
+    status: str = Field(..., description="Status of the operation")
+    message: str = Field(..., description="Status message")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "success",
+                "message": "Mission on server 'DCS Server' resumed."
+            }
+        }
+    }
+
+class MissionEntry(BaseModel):
+    name: str = Field(..., description="Mission name without extension")
+    path: str = Field(..., description="Relative path to mission file")
+    installed: bool = Field(..., description="Whether mission is in the active mission list")
+
+class MissionsResponse(BaseModel):
+    missions: list[MissionEntry] = Field(..., description="List of available missions")
+    count: int = Field(..., description="Total count of missions")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "missions": [
+                    {
+                        "name": "Training Mission",
+                        "path": "Training Mission.miz",
+                        "installed": True
+                    },
+                    {
+                        "name": "Combat Scenario",
+                        "path": "scenarios/Combat Scenario.miz",
+                        "installed": False
+                    }
+                ],
+                "count": 2
+            }
+        }
+    }
+
+class ServerStartResponse(BaseModel):
+    status: str = Field(..., description="Status of the operation")
+    message: str = Field(..., description="Status message")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "success",
+                "message": "Server 'DCS Server' started."
+            }
+        }
+    }
+
+class ServerStopResponse(BaseModel):
+    status: str = Field(..., description="Status of the operation")
+    message: str = Field(..., description="Status message")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "success",
+                "message": "Server 'DCS Server' stopped."
+            }
+        }
+    }
+
+class ServerRestartResponse(BaseModel):
+    status: str = Field(..., description="Status of the operation")
+    message: str = Field(..., description="Status message")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "success",
+                "message": "Server 'DCS Server' restarted."
+            }
+        }
+    }
     
 class ConvertCoordinates(BaseModel):
     latlon: str = Field(..., description="Latitude and Longitude in decimal degrees")
@@ -899,6 +1032,25 @@ class ConvertCoordinates(BaseModel):
                 "meters": {
                     "x": 42430,
                     "y": 5719
+                }
+            }
+        }
+    }
+
+
+class GroupWaypointsResponse(BaseModel):
+    group_name: str = Field(..., description="Name of the group")
+    group_type: str = Field(..., description="Type of the group")
+    waypoints: dict = Field(..., description="Keyed waypoint dictionary (wp1, wp2, ...) with lat/lon per waypoint")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "group_name": "Tanker-1",
+                "group_type": "plane",
+                "waypoints": {
+                    "wp1": {"lat": 36.00001, "lon": 36.00001},
+                    "wp2": {"lat": 36.50000, "lon": 36.50000}
                 }
             }
         }

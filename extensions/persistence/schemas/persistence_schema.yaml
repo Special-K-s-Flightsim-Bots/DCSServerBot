@@ -1,0 +1,6 @@
+schema;persistence_schema:
+  type: map
+  nullable: false
+  mapping:
+    enabled: {type: bool, nullable: false}
+    path: {type: str, nullable: false, range: {min: 1}}

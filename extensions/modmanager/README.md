@@ -3,7 +3,8 @@ This little extension checks, if you have any requiredModules in your miz file a
 embed in Discord. Nice addition for your users, if you show them what to install to fly on your server.
 
 ## Configuration
-The configuration is as simple as it sounds:
+You can use `/extension enable <ModManager>` to enable the extension.
+This will add an entry in your `nodes.yaml` like so:
 ```yaml
 MyNode:
   # [...]

@@ -11,7 +11,7 @@ import stat
 import subprocess
 import sys
 
-from core import Extension, utils, Server, get_translation, PortType, Port, ProcessManager
+from core import utils, Server, get_translation, PortType, Port, ProcessManager, InstallableExtension
 from threading import Thread
 from typing import cast
 from typing_extensions import override
@@ -28,7 +28,7 @@ __all__ = [
 ]
 
 
-class Olympus(Extension):
+class Olympus(InstallableExtension):
     _server_ports: dict[int, str] = dict()
     _client_ports: dict[int, str] = dict()
     _ws_ports: dict[int, str] = dict()
@@ -38,6 +38,12 @@ class Olympus(Extension):
             "type": int,
             "label": _("Backend Port"),
             "placeholder": _("Backend Port"),
+            "required": True
+        },
+        "frontend_port": {
+            "type": int,
+            "label": _("Frontend Port"),
+            "placeholder": _("Frontend Port"),
             "required": True
         },
         "gameMasterPassword": {
@@ -51,19 +57,13 @@ class Olympus(Extension):
         "redCommanderPassword": {
             type: str,
             "label": _("Red Commander Password")
-        },
-        "frontend_port": {
-            "type": int,
-            "label": _("Frontend Port"),
-            "placeholder": _("Frontend Port"),
-            "required": True
         }
     }
 
     def __init__(self, server: Server, config: dict):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'Olympus')
         self.nodejs = os.path.join(os.path.expandvars(config.get('nodejs', '%ProgramFiles%\\nodejs')), 'node.exe')
-        super().__init__(server, config)
+        super().__init__(server, config, repo="https://github.com/Pax1601/DCSOlympus", package_name="DCSOlympus")
         if not config.get('name'):
             self._name = 'DCS Olympus'
 
@@ -101,7 +101,7 @@ class Olympus(Extension):
             return os.path.join(self.server.instance.home, 'Config', 'olympus.json')
 
     @override
-    def load_config(self) -> dict | None:
+    def load_config(self) -> dict:
         try:
             with open(self.config_path, mode='r', encoding='utf-8') as file:
                 return json.load(file)
@@ -133,8 +133,6 @@ class Olympus(Extension):
 
     @override
     def is_installed(self) -> bool:
-        if not super().is_installed():
-            return False
         if not os.path.exists(os.path.join(self.home, 'bin', 'olympus.dll')):
             self.log.warning(f"  => {self.server.name}: Can't load extension, {self.name} is not installed!")
             return False
@@ -248,15 +246,16 @@ class Olympus(Extension):
 
     @override
     async def prepare(self) -> bool:
-        if not self.is_installed():
+        if not await super().prepare():
             return False
+
         self.log.debug(f"Preparing {self.name} configuration ...")
         try:
             if not await self.prepare_olympus_json():
                 return False
             if self.version != '1.0.3.0':
                 await self.prepare_exports_lua()
-            return await super().prepare()
+            return True
         except Exception as ex:
             self.log.error(f"Error during preparation of {self.name}: {str(ex)}")
             return False

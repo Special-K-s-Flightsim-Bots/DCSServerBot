@@ -372,7 +372,8 @@ class MonitoringService(Service):
                         bytes_total=self.convert_bytes(total)
                     )
                     self.log.warning(message)
-                    await self.node.audit(message)
+                    await self.node.audit(f"**Your DCS drive on node {self.node.name} is running out of space!**\n"
+                                          f"{message}")
                     self.space_warning_sent[drive] = True
 
     @tasks.loop(minutes=1.0)

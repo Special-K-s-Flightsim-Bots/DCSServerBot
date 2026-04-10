@@ -1,6 +1,10 @@
 import aiohttp
 import asyncio
+import base64
+import hashlib
+import hmac
 import ipaddress
+import secrets
 import socket
 import sys
 import time
@@ -9,10 +13,14 @@ from contextlib import closing, suppress
 from core import Port, PortType
 from typing import Iterable, TYPE_CHECKING
 
+from .os import get_password, set_password
+
 if TYPE_CHECKING:
     from core import Node
 
 __all__ = [
+    "hmac_hash",
+    "hash_ip_addr",
     "is_open",
     "get_public_ip",
     "is_upnp_available",
@@ -26,6 +34,34 @@ API_URLS = [
     'https://www.trackip.net/ip',
     'https://api4.my-ip.io/v1/ip'  # they have an issue with their cert atm, hope they get it fixed
 ]
+
+
+def get_hash_secret() -> bytes:
+    try:
+        secret = base64.b64decode(get_password('hash'))
+    except ValueError:
+        secret = base64.b64encode(secrets.token_bytes(32)).decode()
+        set_password("hash", secret)
+    return secret
+
+
+def hmac_hash(value: str) -> str:
+    return hmac.new(get_hash_secret(), value.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def get_network_prefix(ip_str: str, prefix_len: int | None = None) -> str:
+    ip_obj = ipaddress.ip_address(ip_str)
+
+    # Default prefix length if not supplied
+    if prefix_len is None:
+        prefix_len = 24 if isinstance(ip_obj, ipaddress.IPv4Address) else 48
+
+    net = ipaddress.ip_network(f"{ip_str}/{prefix_len}", strict=False)
+    return f"{net.network_address}/{prefix_len}"
+
+
+def hash_ip_addr(ip_addr: str, prefix_len: int | None = None) -> str:
+    return hmac_hash(get_network_prefix(ip_addr, prefix_len))
 
 
 def is_open(ip, port):

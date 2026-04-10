@@ -3,6 +3,7 @@ import aiofiles
 import asyncio
 import discord
 import importlib
+import inspect
 import os
 import pandas as pd
 import psycopg
@@ -30,7 +31,7 @@ from .airbase import Info
 from .const import LIQUIDS
 from .listener import MissionEventListener
 from .upload import MissionUploadHandler
-from .views import ServerView, PresetView, InfoView, ModifyView, AirbaseView, BanModal
+from .views import ServerView, PresetView, InfoView, ModifyView, AirbaseView, BanModal, WatchModal
 from ..userstats.filter import PeriodFilter
 
 # ruamel YAML support
@@ -217,7 +218,7 @@ class Mission(Plugin[MissionEventListener]):
         migrate_module = importlib.import_module('.migrate', package=__package__)
         migrate_function = getattr(migrate_module, function_name, None)
         if callable(migrate_function):
-            if asyncio.iscoroutinefunction(migrate_function):
+            if inspect.iscoroutinefunction(migrate_function):
                 await migrate_function(self)
             else:
                 migrate_function(self)
@@ -511,9 +512,12 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(mission_id="mission")
-    @app_commands.describe(use_orig="Change the mission based on the original uploaded mission file.")
+    @app_commands.describe(use_orig="Change the mission based on the original uploaded mission file")
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
+    @app_commands.describe(mission_id="Mission to load from your mission list")
     @app_commands.autocomplete(alt_mission=mizfile_autocomplete)
+    @app_commands.describe(alt_mission="Alternate mission to load from your file system")
+    @app_commands.describe(run_extensions="Apply extensions (MizEdit, RealWeather, ...)")
     async def load(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
@@ -770,7 +774,6 @@ class Mission(Plugin[MissionEventListener]):
         finally:
             await msg.delete()
 
-        # noinspection PyUnreachableCode
         if simulate_only:
             await self.simulate(interaction, server, use_orig, presets_file, view.result, ephemeral)
             return
@@ -888,12 +891,17 @@ class Mission(Plugin[MissionEventListener]):
         else:
             new_file = filename
             orig_file = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename)) + '.orig'
+
         try:
             orig_file = orig_file.replace('.sav', '.miz')
             new_file = new_file.replace('.sav', '.miz')
             await server.node.rename_file(orig_file, new_file, force=True)
             if filename.endswith('.sav'):
                 await server.node.remove_file(filename)
+            # check for persistence
+            ext = await server.init_extensions()
+            if 'Persistence' in ext:
+                await server.run_on_extension(extension='Persistence', method='reset', filename=filename)
         except FileNotFoundError:
             # we should never be here, but just in case
             await interaction.followup.send(_('No ".orig" file there, the mission was never changed.'),
@@ -1059,6 +1067,11 @@ class Mission(Plugin[MissionEventListener]):
             "command": "getAirbase",
             "name": airbase['name']
         }, timeout=60)
+
+        if 'errors' in data:
+            await interaction.followup.send(_("Error: {}").format(data['error']), ephemeral=True)
+            return
+
         colors = {
             0: "dark_gray",
             1: "red",
@@ -1460,6 +1473,18 @@ class Mission(Plugin[MissionEventListener]):
             return
         await interaction.response.send_modal(BanModal(player.ucid))
 
+    @player.command(description=_('Adds a player to the watchlist'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def watch(self, interaction: discord.Interaction,
+                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
+
+        if not player:
+            await interaction.response.send_message(_("Player not found."), ephemeral=True)
+            return
+        await interaction.response.send_modal(WatchModal(player.ucid))
+
     @player.command(description=_('Locks a player'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
@@ -1701,11 +1726,11 @@ class Mission(Plugin[MissionEventListener]):
     @utils.app_has_role('DCS Admin')
     async def _add(self, interaction: discord.Interaction,
                    user: app_commands.Transform[discord.Member | str, utils.UserTransformer(
-                       sel_type=PlayerType.PLAYER, watchlist=False)], reason: str):
+                       sel_type=PlayerType.PLAYER, watchlist=False)]):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
-                await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name),
+                await interaction.response.send_message(_("Member {} is not linked!").format(user.mention),
                                                         ephemeral=True)
                 return
         elif utils.is_ucid(user):
@@ -1713,19 +1738,7 @@ class Mission(Plugin[MissionEventListener]):
         else:
             await interaction.response.send_message(_("User not found."), ephemeral=True)
             return
-
-        try:
-            async with self.apool.connection() as conn:
-                await conn.execute("INSERT INTO watchlist (player_ucid, reason, created_by) VALUES (%s, %s, %s)",
-                                   (ucid, reason, interaction.user.display_name))
-            await interaction.response.send_message(_("Player {} is now on the watchlist.").format(
-                user.display_name if isinstance(user, discord.Member) else ucid),
-                ephemeral=utils.get_ephemeral(interaction))
-        except psycopg.errors.UniqueViolation:
-            await interaction.response.send_message(
-                _("Player {} was already on the watchlist.").format(
-                    user.display_name if isinstance(user, discord.Member) else ucid),
-                ephemeral=utils.get_ephemeral(interaction))
+        await interaction.response.send_modal(WatchModal(ucid))
 
     @watch.command(description=_('Removes a player from the watchlist'))
     @app_commands.guild_only()
@@ -1737,7 +1750,7 @@ class Mission(Plugin[MissionEventListener]):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
                 # we should never be here
-                await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name))
+                await interaction.response.send_message(_("Member {} is not linked!").format(user.mention))
                 return
         else:
             ucid = user
@@ -1807,8 +1820,7 @@ class Mission(Plugin[MissionEventListener]):
                     return
             elif not await utils.yn_question(
                 interaction, _("Member {name} is linked to another UCID ({ucid}) already. "
-                               "Do you want to relink?").format(
-                    name=utils.escape_string(user.display_name), ucid=ucid), ephemeral=ephemeral):
+                               "Do you want to relink?").format(name=user.mention, ucid=ucid), ephemeral=ephemeral):
                 return
             else:
                 _new_member.unlink()
@@ -1818,13 +1830,13 @@ class Mission(Plugin[MissionEventListener]):
             if not await utils.yn_question(
                 interaction, _("Member {name} is linked to another UCID ({ucid}) already. "
                                "Do you want to relink?").format(
-                    name=utils.escape_string(member.display_name), ucid=_member.ucid), ephemeral=ephemeral):
+                    name=member.mention, ucid=_member.ucid), ephemeral=ephemeral):
                 return
             else:
                 _member.unlink()
         _member.link(ucid, verified=True)
         await interaction.followup.send(_('Member {name} linked to UCID {ucid}.').format(
-            name=utils.escape_string(member.display_name), ucid=ucid), ephemeral=utils.get_ephemeral(interaction))
+            name=member.mention, ucid=ucid), ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f'linked member {utils.escape_string(member.display_name)} to ucid {ucid}.',
                              user=interaction.user)
         # If autorole is enabled, give the user the role:
@@ -1841,7 +1853,7 @@ class Mission(Plugin[MissionEventListener]):
                 await self.bot.audit(_('permission "Manage Roles" missing.'), user=self.bot.member)
         # Generate the onMemberLinked event
         for server_name, server in self.bot.servers.items():
-            player = server.get_player(ucid=ucid, active=True)
+            player = server.get_player(ucid=ucid)
             if player:
                 player.member = self.bot.get_member_by_ucid(player.ucid)
                 player.verified = True
@@ -1870,9 +1882,9 @@ class Mission(Plugin[MissionEventListener]):
                      user: app_commands.Transform[discord.Member | str, utils.UserTransformer(linked=True)]):
 
         async def unlink_member(member: discord.Member, ucid: str):
-            # change the link status of that member if they are an active player
+            # change the link status of that member
             for server_name, server in self.bot.servers.items():
-                player = server.get_player(ucid=ucid, active=True)
+                player = server.get_player(ucid=ucid)
                 if player:
                     player.member = None
                     player.verified = False
@@ -1881,7 +1893,7 @@ class Mission(Plugin[MissionEventListener]):
                 await conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid,))
                 server = None
             await interaction.followup.send(_('Member {name} unlinked from UCID {ucid}.').format(
-                name=utils.escape_string(member.display_name), ucid=ucid), ephemeral=ephemeral)
+                name=member.mention, ucid=ucid), ephemeral=ephemeral)
             await self.bot.audit(
                 f'unlinked member {utils.escape_string(member.display_name)} from ucid {ucid}',
                 user=interaction.user)
@@ -2134,7 +2146,7 @@ class Mission(Plugin[MissionEventListener]):
                         ephemeral=ephemeral)
                 else:
                     await interaction.followup.send(_("Member {name} unlinked from UCID {ucid}.").format(
-                        name=utils.escape_string(suspicious[n]['mismatch'].display_name),
+                        name=suspicious[n]['mismatch'].mention,
                         ucid=suspicious[n]['ucid']), ephemeral=ephemeral)
 
     @command(description=_('Link your DCS and Discord user'))
@@ -2491,9 +2503,9 @@ class Mission(Plugin[MissionEventListener]):
                 self.log.debug(f"=> Member {member.display_name} is linked and got the {role.name} role.")
 
     async def handle_miz_uploads(self, message: discord.Message):
-        pattern = ['.miz', '.sav']
+        patterns = [r'\.miz$', r'\.sav$']
         config = self.get_config().get('uploads', {})
-        if not MissionUploadHandler.is_valid(message, pattern, config.get('discord', self.bot.roles['DCS Admin'])):
+        if not MissionUploadHandler.is_valid(message, patterns, config.get('discord', self.bot.roles['DCS Admin'])):
             return
         # check if upload is enabled
         if not config.get('enabled', True):
@@ -2540,7 +2552,7 @@ class Mission(Plugin[MissionEventListener]):
 
         try:
             self.log.debug(f"Uploading mission {message.attachments[0].filename} to server {server.name} ...")
-            handler = MissionUploadHandler(plugin=self, server=server, message=message, pattern=pattern)
+            handler = MissionUploadHandler(plugin=self, server=server, message=message, patterns=patterns)
             base_dir = await handler.server.get_missions_dir()
             ignore = ['.dcssb', 'Saves', 'Scripts']
             if server.locals.get('ignore_dirs'):
@@ -2761,6 +2773,25 @@ class Mission(Plugin[MissionEventListener]):
                 )
             await interaction.response.edit_message(view=None)
             await interaction.message.add_reaction('🚫')
+
+        elif custom_id.startswith('unban_'):
+            ucid = custom_id[len('unban_'):]
+            await self.bus.unban(ucid)
+            await interaction.response.edit_message(view=None)
+            await interaction.message.add_reaction('✅')
+
+        elif custom_id.startswith('kick_profanity_'):
+            ucid = custom_id[len('kick_profanity_'):]
+            for server in self.bus.servers:
+                player = server.get_player(ucid=ucid, active=True)
+                if player:
+                    await server.kick(player, reason="Please change your playername to something more appropriate.")
+                    break
+            else:
+                await interaction.response.send_message('Player not active anymore.', ephemeral=True)
+                return
+            await interaction.response.edit_message(view=None)
+            await interaction.message.add_reaction('⏏️')
 
         elif custom_id.startswith('message_profanity_'):
             ucid = custom_id[len('message_profanity_'):]

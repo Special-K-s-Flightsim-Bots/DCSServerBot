@@ -106,44 +106,53 @@ class Cloud(Plugin[CloudListener]):
             config = super().read_locals()
         return config
 
-    async def get(self, request: str) -> Any:
+    async def get(self, request: str, retries: int = 1) -> Any:
         url = f"{self.base_url}/{request}"
-        try:
-            async with self.session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
-                return await response.json()
-        except (aiohttp.ClientError, asyncio.TimeoutError):
-            # If the session is closed, stale, or timed out, reset it
-            if self._session and not self._session.closed:
-                await self._session.close()
-            self._session = None
+        return await self._request_with_retry(
+            "get",
+            url,
+            retries=retries,
+        )
 
-            # Retry once with a fresh session (re-initialized via the property)
-            async with self.session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
-                return await response.json()
-
-    async def post(self, request: str, data: Any) -> Any:
+    async def post(self, request: str, data: Any, retries: int = 1) -> Any:
         async def send(element: dict):
             url = f"{self.base_url}/{request}/"
-            try:
-                async with self.session.post(
-                        url, json=element, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
-                    return await response.json()
-            except (aiohttp.ClientError, asyncio.TimeoutError):
-                # Reset the session if it's broken
-                if self._session and not self._session.closed:
-                    await self._session.close()
-                self._session = None
-
-                # Retry the POST once with a fresh session
-                async with self.session.post(
-                        url, json=element, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
-                    return await response.json()
+            return await self._request_with_retry(
+                "post",
+                url,
+                json=element,
+                retries=retries,
+            )
 
         if isinstance(data, list):
             for line in data:
                 await send(line)
         else:
             await send(data)
+
+    async def _request_with_retry(self, method: str, url: str, *, retries: int = 1, **kwargs) -> Any:
+        last_error: Exception | None = None
+
+        for attempt in range(retries + 1):
+            try:
+                session_method = getattr(self.session, method)
+                async with session_method(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth, **kwargs) as response:
+                    return await response.json()
+            except (aiohttp.ClientError, asyncio.TimeoutError) as ex:
+                last_error = ex
+
+                # Reset broken/stale sessions before retrying
+                if self._session and not self._session.closed:
+                    await self._session.close()
+                self._session = None
+
+                if attempt >= retries:
+                    self.log.warning("Cloud service unavailable.")
+                    raise
+
+        if last_error:
+            raise last_error
+        return None
 
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
         # we must not fail due to a cloud unavailability
@@ -158,7 +167,6 @@ class Cloud(Plugin[CloudListener]):
     @utils.app_has_role('Admin')
     async def status(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Checking cloud connection ...'), ephemeral=ephemeral)
         try:
             await self.get('discord-bans')
@@ -185,7 +193,6 @@ class Cloud(Plugin[CloudListener]):
                      member: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if 'token' not in self.config:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_('No cloud sync configured!'), ephemeral=True)
             return
         async with self.apool.connection() as conn:
@@ -199,7 +206,6 @@ class Cloud(Plugin[CloudListener]):
                 await conn.execute(sql, (member, ))
             else:
                 await conn.execute(sql)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Resync with cloud triggered.'), ephemeral=ephemeral)
 
     @cloud.command(description=_('Generate Cloud Statistics'))
@@ -208,7 +214,6 @@ class Cloud(Plugin[CloudListener]):
     async def statistics(self, interaction: discord.Interaction,
                          user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None):
         if 'token' not in self.config:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_('Cloud statistics are not activated in this Discord!'),
                                                     ephemeral=True)
             return
@@ -217,7 +222,6 @@ class Cloud(Plugin[CloudListener]):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(_("Use {} to link your account.").format(
                     (await utils.get_command(self.bot, name='linkme')).mention
                 ), ephemeral=True)
@@ -228,7 +232,6 @@ class Cloud(Plugin[CloudListener]):
             name = await self.bot.get_member_or_name_by_ucid(ucid)
             if isinstance(name, discord.Member):
                 name = name.display_name
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         try:
             response = await self.get(f'stats/{ucid}')
@@ -272,7 +275,6 @@ class Cloud(Plugin[CloudListener]):
             msg = await interaction.original_response()
             await msg.edit(embed=embed, delete_after=self.bot.locals.get('message_autodelete'))
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         try:
             query = f'serverlist?dcs_version={self.node.dcs_version}'
@@ -293,7 +295,6 @@ class Cloud(Plugin[CloudListener]):
                 await display_server(response[n])
         except aiohttp.ClientError:
             await interaction.followup.send(_('Cloud not connected!'), ephemeral=True)
-
 
     @tasks.loop(minutes=15.0)
     async def cloud_bans(self):
@@ -382,38 +383,62 @@ class Cloud(Plugin[CloudListener]):
     async def cloud_sync(self):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                cursor = await conn.execute("""
-                    SELECT ucid FROM players 
-                    WHERE synced IS FALSE 
-                    ORDER BY last_seen DESC 
-                    LIMIT 10
-                """)
-                rows = await cursor.fetchall()
-
-                for row in rows:
+                try:
                     await cursor.execute("""
-                        SELECT s.player_ucid, m.mission_theatre, s.slot, 
-                               SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
-                               SUM(ejections) as ejections, SUM(crashes) as crashes, 
-                               SUM(teamkills) as teamkills, SUM(kills_planes) AS kills_planes, 
-                               SUM(kills_helicopters) AS kills_helicopters, SUM(kills_ships) AS kills_ships, 
-                               SUM(kills_sams) AS kills_sams, SUM(kills_ground) AS kills_ground, 
-                               SUM(deaths_pvp) as deaths_pvp, SUM(deaths_planes) AS deaths_planes, 
-                               SUM(deaths_helicopters) AS deaths_helicopters, SUM(deaths_ships) AS deaths_ships,
-                               SUM(deaths_sams) AS deaths_sams, SUM(deaths_ground) AS deaths_ground, 
-                               SUM(takeoffs) as takeoffs, SUM(landings) as landings, 
-                               ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))))::BIGINT AS playtime 
-                        FROM statistics s, missions m 
-                        WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
-                        GROUP BY 1, 2, 3
-                    """, (row[0], ))
-                    async for line in cursor:
-                        try:
+                        SELECT ucid FROM players 
+                        WHERE synced IS FALSE 
+                        ORDER BY last_seen DESC 
+                        LIMIT 10
+                    """)
+                    rows = await cursor.fetchall()
+
+                    for row in rows:
+                        await cursor.execute("""
+                            SELECT DISTINCT x.name, x.discord_id, min(time) AS linked_at, max(time) AS last_seen FROM  
+                            (
+                                SELECT name, discord_id, last_seen AS time FROM players
+                                WHERE ucid = %(ucid)s AND manual = TRUE AND discord_id != -1
+                                UNION
+                                SELECT DISTINCT name, discord_id, min(time) AS time FROM players_hist
+                                WHERE ucid = %(ucid)s AND manual = TRUE AND discord_id != -1
+                                GROUP BY 1, 2
+                            ) x
+                            GROUP BY 1, 2
+                            ORDER BY 3
+                        """, {"ucid": row['ucid']})
+                        async for player in cursor:
+                            await self.post('register_player', {
+                                "ucid": row['ucid'],
+                                "name": player['name'],
+                                "discord_id": player['discord_id'],
+                                "linked_at": player['linked_at'].isoformat(),
+                                "last_seen": player['last_seen'].isoformat()
+                            })
+                        await cursor.execute("""
+                            SELECT s.player_ucid, m.mission_theatre, s.slot, 
+                                   SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
+                                   SUM(ejections) as ejections, SUM(crashes) as crashes, 
+                                   SUM(teamkills) as teamkills, SUM(kills_planes) AS kills_planes, 
+                                   SUM(kills_helicopters) AS kills_helicopters, SUM(kills_ships) AS kills_ships, 
+                                   SUM(kills_sams) AS kills_sams, SUM(kills_ground) AS kills_ground, 
+                                   SUM(deaths_pvp) as deaths_pvp, SUM(deaths_planes) AS deaths_planes, 
+                                   SUM(deaths_helicopters) AS deaths_helicopters, SUM(deaths_ships) AS deaths_ships,
+                                   SUM(deaths_sams) AS deaths_sams, SUM(deaths_ground) AS deaths_ground, 
+                                   SUM(takeoffs) as takeoffs, SUM(landings) as landings, 
+                                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))))::BIGINT AS playtime 
+                            FROM statistics s, missions m 
+                            WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
+                            GROUP BY 1, 2, 3
+                        """, (row['ucid'], ))
+                        async for line in cursor:
                             line['client'] = self.client
                             await self.post('upload', line)
-                        except TypeError as ex:
-                            self.log.warning(f"Could not replicate user {row[0]}: {ex}")
-                    await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row[0], ))
+                        await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
+                        if self.cloud_sync.minutes == 5.0:
+                            self.cloud_sync.change_interval(seconds=10)
+                except (aiohttp.ClientError, TypeError):
+                    if self.cloud_sync.minutes == 0.0:
+                        self.cloud_sync.change_interval(minutes=5.0)
 
     @cloud_sync.before_loop
     async def before_cloud_sync(self):
@@ -434,6 +459,7 @@ class Cloud(Plugin[CloudListener]):
                     num_bots = row[0]
                     num_servers = row[1]
         try:
+            config = self.get_config()
             if 'DCS' in self.node.locals:
                 _, dcs_version = await self.node.get_dcs_branch_and_version()
             else:
@@ -457,7 +483,6 @@ class Cloud(Plugin[CloudListener]):
                     "num_servers": len([x for x in self.bus.servers.values() if x.node == node])
                 })
 
-            # noinspection PyUnresolvedReferences
             bot = {
                 "guild_id": self.bot.guilds[0].id,
                 "guild_name": self.bot.guilds[0].name,
@@ -473,7 +498,13 @@ class Cloud(Plugin[CloudListener]):
                         "version": p.plugin_version
                     } for p in self.bot.cogs.values()
                 ],
-                "nodes": nodes
+                "nodes": nodes,
+                "dgsa": {
+                    "banlist": config.get('banlist', 'both'),
+                    "dcs_ban": config.get('dcs-ban', False),
+                    "discord_ban": config.get('discord-ban', False),
+                    "watchlist_only": config.get('watchlist_only', False),
+                }
             }
             self.log.debug("Updating registration with this data: " + str(bot))
             await self.post('register', bot)
@@ -485,6 +516,30 @@ class Cloud(Plugin[CloudListener]):
     @register.before_loop
     async def before_register(self):
         await self.bot.wait_until_ready()
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member):
+        # only auto-link players if we participate in cloud stats
+        config = self.get_config()
+        if not config.get('token'):
+            return
+
+        ucid = await self.bot.get_ucid_by_member(member)
+        # user is linked already
+        if ucid:
+            return
+        links = await self.get(f'player?discord_id={member.id}')
+        if not links:
+            return
+        async with self.apool.connection() as conn:
+            for link in links:
+                await conn.execute("""
+                    INSERT INTO players (ucid, name, discord_id, manual) 
+                    VALUES (%s, %s, %s, TRUE)
+                    ON CONFLICT (ucid) DO UPDATE 
+                        SET discord_id = EXCLUDED.discord_id,
+                            manual = TRUE
+                """, (link['ucid'], link['name'], member.id))
 
 
 async def setup(bot: DCSServerBot):

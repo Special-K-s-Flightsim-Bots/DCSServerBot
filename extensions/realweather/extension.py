@@ -1,7 +1,6 @@
 import aiohttp
 import asyncio
 import certifi
-import json
 import os
 import re
 import shutil
@@ -53,14 +52,10 @@ class RealWeather(Extension):
         return utils.get_windows_version(self.get_rw_exe())
 
     @override
-    def load_config(self) -> dict | None:
+    def load_config(self) -> dict:
         try:
-            if self.version.split('.')[0] == '1':
-                with open(self.config_path, mode='r', encoding='utf-8') as infile:
-                    return json.load(infile)
-            else:
-                with open(self.config_path, mode='rb') as infile:
-                    return tomli.load(infile)
+            with open(self.config_path, mode='rb') as infile:
+                return tomli.load(infile)
         except Exception as ex:
             raise RealWeatherException( f"Error while reading {self.config_path}: {ex}")
 
@@ -78,10 +73,7 @@ class RealWeather(Extension):
     @property
     def config_path(self) -> str:
         rw_home = os.path.expandvars(self.config['installation'])
-        if self.version.split('.')[0] == '1':
-            return os.path.join(rw_home, 'config.json')
-        else:
-            return os.path.join(rw_home, 'config.toml')
+        return os.path.join(rw_home, 'config.toml')
 
     @staticmethod
     def get_icao_code(filename: str) -> str | None:
@@ -113,38 +105,14 @@ class RealWeather(Extension):
 
     @override
     async def prepare(self) -> bool:
+        if not await super().prepare():
+            return False
+
         if self.config.get('autoupdate', False):
             await self._autoupdate()
-        return await super().prepare()
+        return True
 
-    async def generate_config_1_0(self, input_mission: str, output_mission: str, override: dict | None = None):
-        try:
-            with open(self.config_path, mode='r', encoding='utf-8') as infile:
-                cfg = json.load(infile)
-        except json.JSONDecodeError as ex:
-            raise RealWeatherException(f"Error while reading {self.config_path}: {ex}")
-
-        config = await asyncio.to_thread(self.get_config, input_mission)
-        # create proper configuration
-        for name, element in cfg.items():
-            if name == 'files':
-                element['input-mission'] = input_mission
-                element['output-mission'] = output_mission
-                element['log'] = config.get('files', {}).get('log', 'logfile.log')
-            elif name in config:
-                if isinstance(config[name], dict):
-                    element |= config[name]
-                else:
-                    cfg[name] = config[name]
-        icao = self.get_icao_code(input_mission)
-        if icao and icao != self.config.get('metar', {}).get('icao'):
-            if 'metar' not in cfg:
-                cfg['metar'] = {}
-            cfg['metar']['icao'] = icao
-        self.locals = utils.deep_merge(cfg, override or {})
-        await self.write_config()
-
-    async def generate_config_2_0(self, input_mission: str, output_mission: str, override: dict | None = None):
+    async def generate_config(self, input_mission: str, output_mission: str, override: dict | None = None) -> bool:
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
         try:
@@ -177,25 +145,19 @@ class RealWeather(Extension):
         # make sure we only have icao or icao-list
         if cfg.get('options', {}).get('weather', {}).get('icao'):
             cfg['options']['weather'].pop('icao-list', None)
-        else:
+        elif cfg.get('options', {}).get('weather', {}).get('icao-list'):
             cfg['options']['weather']['icao'] = ""
+        else:
+            self.log.debug(f"{self.name}: no ICAO provided, skipping ...")
+            return False
         self.locals = utils.deep_merge(cfg, override or {})
         await self.write_config()
+        return True
 
     async def write_config(self):
         cwd = await self.server.get_missions_dir()
-        if self.version.split('.')[0] == '1':
-            with open(os.path.join(cwd, 'config.json'), mode='w', encoding='utf-8') as outfile:
-                json.dump(self.locals, outfile, indent=2)
-        else:
-            with open(os.path.join(cwd, 'config.toml'), mode='wb') as outfile:
-                tomli_w.dump(self.locals, outfile)
-
-    async def generate_config(self, filename: str, tmpname: str, config: dict | None = None):
-        if self.version.split('.')[0] == '1':
-            await self.generate_config_1_0(filename, tmpname, config)
-        else:
-            await self.generate_config_2_0(filename, tmpname, config)
+        with open(os.path.join(cwd, 'config.toml'), mode='wb') as outfile:
+            tomli_w.dump(self.locals, outfile)
 
     async def run_realweather(self, filename: str, tmpname: str) -> tuple[str, bool]:
         try:
@@ -260,23 +222,24 @@ class RealWeather(Extension):
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
-        await self.generate_config(filename, tmpname)
-        return await self.run_realweather(filename, tmpname)
+        if await self.generate_config(filename, tmpname):
+            return await self.run_realweather(filename, tmpname)
+        else:
+            return filename, False
 
     async def apply_realweather(self, filename: str, config: dict, use_orig: bool = True) -> str:
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
         if use_orig:
             filename = utils.get_orig_file(filename)
-        await self.generate_config(filename, tmpname, config)
-        return (await self.run_realweather(filename, tmpname))[0]
+        if await self.generate_config(filename, tmpname, config):
+            return (await self.run_realweather(filename, tmpname))[0]
+        else:
+            return filename
 
     @override
     async def render(self, param: dict | None = None) -> dict:
-        if self.version.split('.')[0] == '1':
-            icao = self.config.get('metar', {}).get('icao')
-        else:
-            icao = self.config.get('options', {}).get('weather', {}).get('icao')
+        icao = self.config.get('options', {}).get('weather', {}).get('icao')
         if self.metar:
             value = f'METAR: {self.metar}'
         elif icao:
@@ -289,10 +252,7 @@ class RealWeather(Extension):
             "value": value
         }
 
-    @override
-    def is_installed(self) -> bool:
-        if not super().is_installed():
-            return False
+    def is_available(self) -> bool:
         installation = self.config.get('installation')
         if not installation:
             self.log.error(f"  => {self.name}: No 'installation' specified in your nodes.yaml.")
@@ -300,8 +260,8 @@ class RealWeather(Extension):
         if not os.path.exists(self.get_rw_exe()):
             self.log.error(f"  => {self.name}: {self.get_rw_exe()} not found.")
             return False
-        if not self.version or parse(self.version) < parse('1.9.0'):
-            self.log.error(f"  => {self.name}: Versions < 1.9.0 not supported, please upgrade.")
+        if not self.version or parse(self.version) < parse('2.0.0'):
+            self.log.error(f"  => {self.name}: Versions < 2.0.0 are not supported, please upgrade.")
             return False
         if not os.path.exists(self.config_path):
             self.log.error(f"  => {self.name}: {self.config_path} not found.")

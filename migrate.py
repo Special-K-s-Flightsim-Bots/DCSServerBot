@@ -183,8 +183,7 @@ def migrate_3_12(node: Node) -> int:
             yaml.dump(data, outfile)
         node.log.info("  => main.yaml auto-migrated, please check")
         with node.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("UPDATE plugins SET plugin = 'modmanager' WHERE plugin = 'ovgme'")
+            conn.execute("UPDATE plugins SET plugin = 'modmanager' WHERE plugin = 'ovgme'")
         filename = os.path.join(node.config_dir, 'services', 'ovgme.yaml')
         if os.path.exists(filename):
             shutil.move(filename, os.path.join(node.config_dir, 'services', 'modmanager.yaml'))

@@ -72,16 +72,17 @@ DEFAULT:
 ```
 
 > [!NOTE]
-> The balance_multiplier adds some fairness into your game. It will award a party that is weaker with more credit points
-> and the stronger party with less. So the weaker party can buy more stuff on the next round than the stronger party.
-> The system is based on an "upset bonus system" which allows multipliers between 0.5 and 2.5, depending on the
-> situation.
+> The "balance_multiplier" adds some fairness into your game. 
+> It will award a party that is weaker with more credit points and the stronger party with less. 
+> So the weaker party can buy more stuff on the next round than the stronger party.
+> The system is based on an "upset bonus system" which allows multipliers between 0.5 and 2.5, 
+> depending on the situation.
 
 > [!IMPORTANT]
-> The remove_on_death needs you to have single unit groups in your mission.
+> The "remove_on_death" needs you to have single-unit groups in your mission.
 
 > [!WARNING]
-> The streamer channel above will receive all information about what's going on in your match. 
+> The "streamer" channel above will receive all information about what's going on in your match. 
 > You do NOT want any of the participating parties to have access to this channel!
 
 You also want to configure the [Competitive plugin](../competitive/README.md). 
@@ -105,21 +106,23 @@ Setting up a tournament needs some prerequisites. Please read <b>carefully</>!
 ### Campaign
 Each tournament is based on a [campaign](../gamemaster/README.md). 
 This means you need to create a campaign first like so: `/campaign add`
-Give it a self-explaining name and a proper description, which you want to share with your players. It will be posted
-to everyone when creating the tournament!
+Give it a self-explaining name and a proper description, which you want to share with your players. 
+It will be posted to everyone when creating the tournament!
 
 > [!NOTE]
 > The name and description of the campaign will be the name and description of the tournament!
 
 ### Squadrons
-For each participating party, a squadron needs to be created (if none exists yet). Each member that wants to fly in the
-tournament needs to be set up in one of these squadrons. Each squadron can have a squadron admin that needs to be 
-a Discord member, as they need to run commands. Squadron members do not necessarily need to be in your Discord.
+For each participating party, a squadron needs to be created (if none exists yet). 
+Each member that wants to fly in the tournament needs to be set up in one of these squadrons. 
+Each squadron can have a squadron admin that needs to be a Discord member, as they need to run commands. 
+Squadron members do not necessarily need to be in your Discord.
 
 To create a squadron, you need to first create a role in your Discord.
-Then, use `/squadron create`, give it a name and assign the role that you created earlier.
-If you want nice pictures to be displayed later for the crowd (which you most likely want), assign an image also to the 
-squadron.
+Then, use `/squadron create`, give it a name, and assign the role that you created earlier.
+If you want nice pictures to be displayed later for the crowd (which you most likely want), 
+assign an image also to the squadron.
+
 > [!IMPORTANT]
 > A squadron needs to have an assoicated role!
 
@@ -128,8 +131,8 @@ squadron.
 > These pictures need to be publicly available via a URL on the internet.
 
 Then you need to add the squadron administrator, which is usually the leader of that squadron or any member that should
-be able to admin this squadron (add / delete members, sign the squadron up for the tournament, etc.). You do this with
-`/squadron add` and by setting the respective optional admin flag.
+be able to admin this squadron (add / delete members, sign the squadron up for the tournament, etc.). 
+You do this with `/squadron add` and by setting the respective optional admin flag.
 
 The squadron admin is then able to add the other participants for this squadron.
 > [!IMPORTANT]
@@ -147,8 +150,9 @@ If a campaign is set up, you can create a tournament with `/tournament create`. 
 the number of rounds per match and the number of players that have to fight for each side.
 
 ### Signup of Squadrons
-Each squadron that wants to participate in a tournament has to sign up. A squadron admin can use `/tournament signup` 
-to do so.<p>
+Each squadron that wants to participate in a tournament has to sign up. 
+A squadron admin can use `/tournament signup` to do so.
+<p>
 New applications can be seen by the GameMaster role and can either be accepted or rejected with `/tournament verify`.
 
 > [!NOTE]

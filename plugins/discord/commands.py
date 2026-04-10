@@ -78,17 +78,17 @@ class Discord(Plugin):
         if role in member.roles:
             await interaction.response.send_message(
                 _("Member {member} already has role {role}.").format(
-                    member=member.display_name, role=role.name), ephemeral=True)
+                    member=member.mention, role=role.mention), ephemeral=True)
             return
         try:
             await member.add_roles(role)
             await interaction.response.send_message(
-                _("Role {role} added to {member}.").format(role=role.name, member=member.display_name),
+                _("Role {role} added to {member}.").format(role=role.mention, member=member.mention),
                 ephemeral=ephemeral)
         except discord.Forbidden:
             await interaction.response.send_message(
                 _("You don't have permission to add role {role} to {member}.").format(
-                    role=role.name, member=member.display_name), ephemeral=True)
+                    role=role.mention, member=member.mention), ephemeral=True)
 
     @command(name='delrole', description=_('Removes a role from a member'))
     @app_commands.guild_only()
@@ -98,17 +98,17 @@ class Discord(Plugin):
         if role not in member.roles:
             await interaction.response.send_message(
                 _("Member {member} doesn't have role {role}.").format(
-                    member=member.display_name, role=role.name), ephemeral=True)
+                    member=member.mention, role=role.mention), ephemeral=True)
             return
         try:
             await member.remove_roles(role)
             await interaction.response.send_message(
-                _("Role {role} removed from {member}.").format(role=role.name, member=member.display_name),
+                _("Role {role} removed from {member}.").format(role=role.mention, member=member.mention),
                 ephemeral=ephemeral)
         except discord.Forbidden:
             await interaction.response.send_message(
                 _("You don't have permission to remove role {role} from {member}.").format(
-                    role=role.name, member=member.display_name), ephemeral=True)
+                    role=role.mention, member=member.mention), ephemeral=True)
 
     async def _send_message(self, member: discord.Member, config: dict):
         message = config['message']
@@ -131,7 +131,8 @@ class Discord(Plugin):
     async def healthcheck(self, interaction: discord.Interaction):
         if not self.bot.member.guild_permissions.administrator:
             await interaction.response.send_message(
-                "Please give the bot temporary administrative permissions to run this command.", ephemeral=True)
+                "Please give the bot __temporary__ administrative permissions in this "
+                "Discord server to run this command.", ephemeral=True)
             return
 
         # check roles
@@ -159,6 +160,8 @@ class Discord(Plugin):
         # check channels
         channels_for_everyone = []
         for channel in guild.channels:
+            if channel.type == discord.ChannelType.category:
+                continue
             if channel.permissions_for(guild.default_role).view_channel:
                 channels_for_everyone.append(channel)
 
@@ -170,9 +173,9 @@ class Discord(Plugin):
             x.display_name + (' (🤖)' if x in all_bots else '') for x in admins
         ]))
         embed.add_field(name=utils.print_ruler(header="Elevated Roles"), value='_ _', inline=False)
-        embed.add_field(name="Elevated Roles", value='\n'.join([x.name for x in elevated_roles]))
+        embed.add_field(name="Elevated Roles", value='\n'.join([x.mention for x in elevated_roles]))
         embed.add_field(name="Members", value='\n'.join([
-            x.display_name + (' (🤖)' if x in all_bots else '') for x in elevated
+            x.mention + (' (🤖)' if x in all_bots else '') for x in elevated
         ]))
         embed.add_field(name=utils.print_ruler(header="⚠️ Critical Roles ⚠️"), value='_ _', inline=False)
         if everyone_ping or external_apps:
@@ -186,8 +189,12 @@ class Discord(Plugin):
         # Channels
         if len(channels_for_everyone) > 1:
             embed.add_field(name=utils.print_ruler(header="Channels"), value='_ _', inline=False)
-            embed.add_field(name=f"You allow everyone to view {len(channels_for_everyone)} channels.",
-                            value="The recommended approach is to have one landing channel and a role for users.")
+            if len(channels_for_everyone) > 10:
+                embed.add_field(name=f"You allow everyone to view {len(channels_for_everyone)} channels.",
+                                value="The recommended approach is to have one landing channel and a role for users.")
+            else:
+                embed.add_field(name="Public Channels", value='\n'.join(x.mention for x in channels_for_everyone),
+                                inline=False)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         try:
             await view.wait()
@@ -254,7 +261,7 @@ class Discord(Plugin):
                 if role:
                     try:
                         await payload.member.add_roles(role)
-                        self.log.info(f"Added role {role.name} to {payload.member.display_name}")
+                        self.log.debug(f"Added role {role.name} to {payload.member.display_name}")
                     except discord.Forbidden:
                         self.log.warning('DCSServerBot is missing permission "Manage Roles"!')
                 else:

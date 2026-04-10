@@ -7,7 +7,8 @@ specific statistic displays. But you can also use this small extension to either
 Pretense you are using and to have a very basic configuration of it. 
 
 ## Configuration
-Just add some lines to your nodes.yaml like so:
+You can use `/extension enable <Pretense>` to enable the extension.
+This will add an entry in your `nodes.yaml` like so:
 ```yaml
 MyNode:
   # [...]

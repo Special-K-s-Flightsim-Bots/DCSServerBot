@@ -84,4 +84,7 @@ class MOTDListener(EventListener["MOTD"]):
                 return
             message, cfg = await self.on_birth(config['on_birth'], server, player)
             if message:
-                asyncio.create_task(self.plugin.send_message(message, server, cfg, player))
+                if 'delay' in cfg:
+                    self.loop.call_later(cfg['delay'], self.plugin.send_message, message, server, cfg, player)
+                else:
+                    asyncio.create_task(self.plugin.send_message(message, server, cfg, player))

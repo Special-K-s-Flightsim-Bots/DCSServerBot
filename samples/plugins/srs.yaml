@@ -1,4 +1,16 @@
 DEFAULT:
   message_no_srs: You need to use SRS to play on this server!
-  enforce_srs: true   # Block slots until SRS is activated. People can not use slots, if not on SRS!
-  move_to_spec: true  # Move people back to spectators if they leave SRS (only if enforce is true)
+  enforce_srs: true   # Block slots until SRS is activated. People cannot use slots if not on SRS!
+  move_to_spec: true  # Move people back to spectators if they leave SRS (only if enforce is true, default: false)
+  enforce_atc: true   # Optional: Enforce ATC frequencies for SRS users (default: false)
+  atc_frequencies:    # Optional: default is airbase frequencies, according to the mission
+    blue:
+      'Airbase': [30000FM, 252000AM]
+      'Carrier': 251000AM
+      'FARP': 250000AM
+      '*': 253000AM
+    red:
+      'Airbase': 126000AM
+      'Carrier': 125000AM
+      'FARP': 125500AM
+      '*': 124000AM

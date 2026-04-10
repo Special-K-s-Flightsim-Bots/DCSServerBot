@@ -153,7 +153,8 @@ startup:
 | mission_id       | For load only: the mission_id to load (1 = first from the mission list). Can be an integer or a list of integers for random pick.                                                   |
 | mission_file     | For load only: the mission file name to load (has to be in the mission list). Can be a single mission or list of missions for random pick.                                          |
 | populated        | If **false**, the mission will be restarted / rotated only, if no player is in (default: true).                                                                                     |
-| mission_end      | Only apply the method on mission end (usually in combination with restart_with_shutdown).                                                                                           |
+| mission_end      | Only apply the method on mission end (you need to combine it with one time setting like mission_time: 1).                                                                           |
+| coalition_win    | Same as mission_end, but if a coalition won. mission_end is fired on every mission restart, coalition_win only if there was a real win.                                             |
 | run_extensions   | If true, extensions will be applied to the mission prior to the restart / rotation (default: true) .                                                                                |
 | use_orig         | Use the original mission as a reference.                                                                                                                                            |
 | no_reload        | load only: Do not reload an already running mission.                                                                                                                                |

@@ -377,16 +377,14 @@ def lua_pattern_to_python_regex(lua_pattern):
     return python_regex
 
 
-def format_frequency(frequency_hz: int, *, band: bool = True) -> str:
-    frequency_mhz = frequency_hz / 1e6
-    if 30 <= frequency_mhz < 300:
-        _band = "VHF"
-    elif 300 <= frequency_mhz < 3000:
-        _band = "UHF"
+def format_frequency(frequency_hz: tuple[int, int], *, modulation: bool = True) -> str:
+    frequency_mhz = frequency_hz[0] / 1e6
+    if frequency_hz[1] == 0:
+        _modulation = 'AM'
     else:
-        _band = None
-    if band:
-        return f"{frequency_mhz:.1f} MHz ({_band})"
+        _modulation = 'FM'
+    if modulation:
+        return f"{frequency_mhz:.1f} MHz ({_modulation})"
     else:
         return f"{frequency_mhz:.1f} MHz"
 

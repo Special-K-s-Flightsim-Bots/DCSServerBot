@@ -28,6 +28,7 @@ if not COMMAND_LINE_ARGS:
         parser.add_argument('-i', '--install', action='store_true', default=False,
                             help='Install requirements.txt only')
         parser.add_argument('-a', '--restarted', action='store_true', help='Indicates if the bot was restarted')
+        parser.add_argument('-p', '--ping', action='store_true', help='Ping Google DNS on startup to assure internet connection')
     elif program == 'install.py':
         parser.add_argument('-n', '--node', help='Node name', default=platform.node())
         parser.add_argument('-u', '--user', help='Database username', default='dcsserverbot')

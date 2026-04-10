@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 
 from core import ServiceRegistry, Service, DEFAULT_TAG, utils, Server, Status
 from datetime import datetime
@@ -48,7 +49,7 @@ class CronService(Service):
             kwargs['node'] = self.node
             if server:
                 kwargs['server'] = server
-            if asyncio.iscoroutinefunction(func):
+            if inspect.iscoroutinefunction(func):
                 await func(**kwargs)
             else:
                 async def _aux_func():

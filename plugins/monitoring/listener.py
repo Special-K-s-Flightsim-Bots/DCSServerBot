@@ -69,8 +69,8 @@ class MonitoringListener(EventListener["Monitoring"]):
                                          mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, fps, ping) 
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (server.name, server.node.name, server.mission_id, len(server.get_active_players()),
-                  server.status.name, mission_time, cpu, data['mem_total'], data['mem_ram'], data['read_bytes'],
-                  data['write_bytes'], data['bytes_sent'], data['bytes_recv'], fps, ping))
+                  server.status.name, mission_time, round(cpu, 2), data['mem_total'], data['mem_ram'], data['read_bytes'],
+                  data['write_bytes'], data['bytes_sent'], data['bytes_recv'], round(fps, 2), ping))
 
         # check RAM
         config = self.get_config(server).get('thresholds', {}).get('RAM', {})

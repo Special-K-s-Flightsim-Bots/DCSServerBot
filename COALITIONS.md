@@ -38,8 +38,9 @@ a) Greeting Direct Message (DM)
 greeting_dm: This server has a coalition system enabled. Please use .red or .blue in the in-game chat to join a coalition.  
 # [...]
 ```
-`greeting_dm` is not mandatory and not linked to coalitions, but it is recommended to tell your new joiners to join a
-coalition.
+> [!NOTE]
+> `greeting_dm` is not mandatory and not linked to coalitions, but it is recommended to tell your new joiners to join a
+> coalition.
 
 b) Roles for Coalitions
 ```yaml

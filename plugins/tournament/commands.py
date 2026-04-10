@@ -108,6 +108,7 @@ async def squadron_autocomplete(interaction: discord.Interaction, current: str,
         ]
         return choices[:25]
 
+
 async def all_squadron_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     return await squadron_autocomplete(interaction, current, 'all')
 
@@ -481,7 +482,11 @@ class Tournament(Plugin[TournamentEventListener]):
             embed.add_field(name=_("Start Date"), value=f"<t:{int(tournament['start'].timestamp())}>")
             embed.add_field(name=_("# Players per Side"), value=str(tournament['num_players']))
             embed.add_field(name=_("# Signups"), value=str(num_squadrons))
-            embed.set_footer(text=_("You need to be an admin of the respective squadron to sign up."))
+            embed.set_footer(text=_("You need to be an admin of the respective squadron to sign up.\n"
+                                    "\n"
+                                    "DISCLAIMER:\n"
+                                    "We will store player information during the tournament.\n"
+                                    "This includes account IDs and hashed IP addresses."))
 
         elif phase == TOURNAMENT_PHASE.START_GROUP_PHASE:
             message = _("The group phase is now running.")
@@ -728,6 +733,11 @@ class Tournament(Plugin[TournamentEventListener]):
                 RETURNING name
             """, (tournament_id,))
             name = (await cursor.fetchone())[0]
+
+            # GDPR: delete the IP addresses
+            await conn.execute("""
+                DELETE FROM tm_players WHERE tournament_id = %s
+            """, (tournament_id,))
 
         await self.bot.audit(f"finished tournament {name} and closed the underlying campaign.",
                              user=interaction.user)
@@ -1649,7 +1659,7 @@ class Tournament(Plugin[TournamentEventListener]):
 
     @staticmethod
     async def change_tacview_output(server: Server, results: int):
-        extensions = await server.list_extension()
+        extensions = await server.list_extensions()
         if 'Tacview' in extensions:
             await server.run_on_extension(
                 extension='Tacview',

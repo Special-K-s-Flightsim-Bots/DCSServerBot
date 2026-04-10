@@ -237,17 +237,16 @@ class ScheduleInfo(report.EmbedElement):
 class Footer(report.EmbedElement):
     async def render(self, server: Server):
         text = self.embed.footer.text or ''
-        for listener in self.bot.eventListeners:
-            # noinspection PyUnresolvedReferences
-            if (type(listener).__name__ == 'UserStatisticsEventListener') and \
-                    (server.name in listener.active_servers):
-                text += '\n\n- User statistics are enabled.'
-                break
-        current_mission = await server.get_current_mission_file()
-        if current_mission and current_mission.endswith('.sav'):
-            text += '\n- Mission persistence is enabled.'
+        cloud = self.bot.get_cog('Cloud')
+        img = None
+        if cloud:
+            config = cloud.get_config()
+            if config.get('dcs-ban', False):
+                img = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/development/images/dgsa.png?raw=true"
+            if config.get('token'):
+                text += "\nThis server participates in global cloud statistics."
         text += f'\n\nLast updated: {datetime.now(timezone.utc):%y-%m-%d %H:%M:%S UTC}'
-        self.embed.set_footer(text=text)
+        self.embed.set_footer(text=text, icon_url=img)
 
 
 class All(report.EmbedElement):

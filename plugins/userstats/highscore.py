@@ -19,6 +19,14 @@ def compute_font_size(num_bars):
         return 7  # Minimum font size for 20 or more bars
 
 
+def _escape_matplotlib_label(value: str) -> str:
+    return (
+        str(value)
+        .replace('\\', r'\\')
+        .replace('$', r'\$')
+    )
+
+
 class HighscorePlaytime(report.GraphElement):
 
     async def render(self, interaction: discord.Interaction, server_name: str, limit: int,
@@ -44,7 +52,7 @@ class HighscorePlaytime(report.GraphElement):
                 async for row in cursor:
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']
-                    labels.insert(0, name)
+                    labels.insert(0, _escape_matplotlib_label(name))
                     values.insert(0, row['playtime'] / 3600)
 
         num_bars = len(labels)
@@ -139,7 +147,7 @@ class HighscoreElement(report.GraphElement):
                 async for row in cursor:
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']
-                    labels.insert(0, name)
+                    labels.insert(0, _escape_matplotlib_label(name))
                     values.insert(0, row['value'])
 
         self.axes.set_title(kill_type, color='white', fontsize=25)

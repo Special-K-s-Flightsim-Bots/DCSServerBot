@@ -7,6 +7,7 @@ __all__ = [
 
 
 class VoiceChat(Extension):
+
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
         if not config.get('name'):
@@ -25,10 +26,6 @@ class VoiceChat(Extension):
             "name": self.name,
             "value": "enabled" if self.config.get('enabled', True) else "disabled"
         }
-
-    @override
-    def is_installed(self) -> bool:
-        return True
 
     @override
     async def startup(self, *, quiet: bool = False) -> bool:

@@ -13,6 +13,7 @@ schema;element_schema:
   mapping:
     enabled: {type: bool, nullable: false}
     display: {type: bool, nullable: false}
+    channel: {type: int, nullable: false}
     persistence: {type: bool, nullable: false}
     persist_ai_statistics: {type: bool, nullable: false}
     event_filter:

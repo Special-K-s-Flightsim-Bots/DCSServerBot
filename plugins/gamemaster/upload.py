@@ -16,8 +16,8 @@ _ = get_translation(__name__.split('.')[1])
 
 class GameMasterUploadHandler(ServerUploadHandler):
 
-    def __init__(self, plugin: "GameMaster", server: Server, message: discord.Message, pattern: list[str]):
-        super().__init__(server, message, pattern)
+    def __init__(self, plugin: "GameMaster", server: Server, message: discord.Message, patterns: list[str]):
+        super().__init__(server, message, patterns)
         self.plugin = plugin
         self.log = plugin.log
 

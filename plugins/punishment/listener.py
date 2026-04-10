@@ -5,7 +5,8 @@ from contextlib import suppress
 from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel, \
     ThreadSafeDict, Coalition, Side
 from plugins.competitive.commands import Competitive
-from typing import TYPE_CHECKING
+from psycopg.types.json import Json
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from .commands import Punishment
@@ -22,6 +23,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         self.pending_forgiveness: dict[tuple[str, str], list[asyncio.Task]] = {}
         self.pending_kill: dict[str, tuple[int, dict | None]] = ThreadSafeDict()
         self.disconnected: dict[str, tuple[int, dict | None]] = ThreadSafeDict()
+        self.awaiting_task: dict[str, asyncio.TimerHandle] = ThreadSafeDict()
 
     async def shutdown(self) -> None:
         for tasks in self.pending_forgiveness.values():
@@ -80,7 +82,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                                         (player.ucid, ))
             return (await cursor.fetchone())[0]
 
-    async def _provide_forgiveness_window(self, data: dict, window: int):
+    async def _provide_forgiveness_window(self, data: dict, window: int, key: tuple[str, str]) -> None:
         try:
             # wait for a '-forgive' to happen
             await asyncio.sleep(window)
@@ -89,6 +91,24 @@ class PunishmentEventListener(EventListener["Punishment"]):
         except asyncio.CancelledError:
             # it did happen -> do nothing
             pass
+        finally:
+            current = asyncio.current_task()
+            if current:
+                async with self.lock:
+                    tasks = self.pending_forgiveness.get(key)
+                    if tasks and current in tasks:
+                        tasks.remove(current)
+                        if not tasks:
+                            self.pending_forgiveness.pop(key, None)
+
+    @event(name="punish")
+    async def punish(self, server: Server, data: dict):
+        initiator = self.bot.servers[server.name].get_player(name=data['initiator'])
+        if not initiator:
+            return
+        data['server_name'] = server.name
+        data['initiator'] = initiator
+        await self._check_punishment(data)
 
     async def _punish(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
@@ -110,6 +130,17 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING
                 """, (initiator.ucid, target.ucid if target else None, data['server_name'], data['eventName'],
                       data['points']))
+            await self.plugin.trigger.publish({
+                "guild_id": self.node.guild_id,
+                "node": "Master",
+                "data": Json({
+                    'init_id': initiator.ucid,
+                    'target_id': target.ucid if target else None,
+                    'server_name': data['server_name'],
+                    'event': data['eventName'],
+                    'points': data['points']
+                })
+            })
 
     async def _check_punishment(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
@@ -154,7 +185,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     if not tasks:
                         inform_victim = True
                         tasks = self.pending_forgiveness[key] = []
-                    tasks.append(asyncio.create_task(self._provide_forgiveness_window(data, window)))
+                    tasks.append(asyncio.create_task(self._provide_forgiveness_window(data.copy(), window, key)))
 
                 if inform_victim:
                     asyncio.create_task(target.sendUserMessage(
@@ -165,7 +196,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                             prefix=self.prefix, time=window)))
 
             else:
-                asyncio.create_task(self._punish(data))
+                asyncio.create_task(self._punish(data.copy()))
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict):
@@ -181,7 +212,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             return
 
         # check if we have the Competitive plugin enabled and a match is on
-        competitive: Competitive | None = self.bot.cogs.get('Competitive')
+        competitive: Competitive | None = cast(Competitive, self.bot.cogs.get('Competitive'))
         if competitive:
             if competitive.eventlistener.in_match.get(server.name, {}).get(initiator.ucid):
                 return
@@ -209,8 +240,8 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         elif data['eventName'] == 'kill':
             # check team-kills
+            target = server.get_player(id=data['arg4'])
             if data['arg1'] != data['arg4'] and data['arg3'] == data['arg6']:
-                target = server.get_player(id=data['arg4'])
                 if target:
                     evt['target'] = target
                 # check collision
@@ -220,13 +251,16 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     evt['eventName'] = 'kill'
                 asyncio.create_task(self._check_punishment(evt))
             # remove pending kills
-            player = server.get_player(id=data['arg4'])
-            if player:
-                self.pending_kill.pop(player.ucid, None)
+            if target:
+                self.pending_kill.pop(target.ucid, None)
+                task = self.awaiting_task.pop(target.ucid, None)
+                if task:
+                    task.cancel()
+                    self.log.debug(f"Missing S_EVENT_KILL for player {initiator.name} vs {target.name}, ignoring")
 
         elif data['eventName'] == 'disconnect':
             shot_time, evt = self.pending_kill.pop(initiator.ucid, (-1, None))
-            if shot_time == -1:
+            if shot_time == -1 or not evt:
                 return
 
             delta_time = int(time.time()) - shot_time
@@ -247,6 +281,22 @@ class PunishmentEventListener(EventListener["Punishment"]):
             asyncio.create_task(player.sendChatMessage(_("{name}, you have {points} punishment points.").format(
                 name=player.name, points=points)))
 
+    def _schedule_give_kill(self, server: Server, victim_ucid: str, s_event: dict, delay: int = 10) -> None:
+        def fire() -> None:
+            self.awaiting_task.pop(victim_ucid, None)
+            asyncio.create_task(self._give_kill(server, s_event))
+
+        old = self.awaiting_task.pop(victim_ucid, None)
+        if old:
+            old.cancel()
+
+        self.awaiting_task[victim_ucid] = self.loop.call_later(delay, fire)
+
+    async def _cancel_give_kill(self, victim_ucid: str) -> None:
+        handle = self.awaiting_task.pop(victim_ucid, None)
+        if handle:
+            handle.cancel()
+
     async def _give_kill(self, server: Server, s_event: dict) -> None:
         # create the pseudo-event "S_EVENT_KILL"
         s_event |= {
@@ -258,20 +308,15 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         initiator = server.get_player(name=s_event.get('initiator', {}).get('name'))
         target = server.get_player(name=s_event.get('target', {}).get('name'))
-        if not initiator or not target:
-            message = "Could not create kill event: "
-            parts = []
-            if not initiator:
-                parts.append(f"Initiator {s_event.get('initiator', {}).get('name', 'n/a')} not found.")
-            if not target:
-                parts.append(f"Target {s_event.get('target', {}).get('name', 'n/a')} not found.")
-            message = message + ", ".join(parts)
-            self.log.warning(message)
-            return
+
+        # remove the pending task if there is one
+        if target:
+            self.awaiting_task.pop(target.ucid, None)
 
         categories = {
             0: "Planes",
-            1: "Helicopters"
+            1: "Helicopters",
+            2: "Air Defence"
         }
 
         init_type = s_event.get('initiator', {}).get('unit_type')
@@ -287,10 +332,10 @@ class PunishmentEventListener(EventListener["Punishment"]):
             {
                 "command": "onGameEvent",
                 "eventName": "kill",
-                "arg1": initiator.id,
+                "arg1": initiator.id if initiator else -1,
                 "arg2": init_type,
                 "arg3": init_side.value,
-                "arg4": target.id,
+                "arg4": target.id if target else -1,
                 "arg5": target_type,
                 "arg6": target_side.value,
                 "arg7": weapon,
@@ -308,7 +353,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             ('player ' + initiator.name) if initiator is not None else 'AI',
             init_type,
             target_side.name,
-            'player ' + target.name,
+            ('player ' + target.name) if target is not None else 'AI',
             target_type,
             weapon
         )
@@ -347,7 +392,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1 or 'ucid' not in data:
             return
-        player: Player = server.get_player(ucid=data['ucid'])
+        player = server.get_player(ucid=data['ucid'])
         if player:
             asyncio.create_task(self._send_player_points(player))
 
@@ -401,14 +446,15 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 return
 
             shot_time, s_event = self.pending_kill.pop(initiator.ucid, (-1, None))
-            if shot_time == -1:
+            if shot_time == -1 or not s_event:
                 return
 
             delta_time = int(time.time()) - shot_time
             # give the kill to the opponent if we were hit earlier or if the shot was shortly before
             if ((s_event['eventName'] == 'S_EVENT_SHOT' and delta_time < config.get('reslot_window', 60)) or
                     (s_event['eventName'] == 'S_EVENT_HIT' and delta_time < config.get('survival_window', 300))):
-                asyncio.create_task(self._give_kill(server, s_event))
+                # TODO: DCS Bug, change this to immediate, when S_EVENT_KILL is fixed
+                self._schedule_give_kill(server, initiator.ucid, s_event)
 
         elif data['eventName'] == 'S_EVENT_TAXIWAY_TAKEOFF':
             player = server.get_player(name=data.get('initiator', {}).get('name'))
@@ -429,11 +475,11 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         config = self.get_config(server)
         player = server.get_player(id=data['id'])
-        if not player or player.slot > 0:
+        if not player:
             return
 
         shot_time, s_event = self.pending_kill.pop(player.ucid, (-1, None))
-        if shot_time == -1:
+        if shot_time == -1 or not s_event:
             return
 
         delta_time = int(time.time()) - shot_time

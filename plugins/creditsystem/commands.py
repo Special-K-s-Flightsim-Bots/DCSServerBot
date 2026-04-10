@@ -74,7 +74,7 @@ class CreditSystem(Plugin[CreditSystemListener]):
                 if not ucid:
                     # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(
-                        _("Member {} is not linked to any DCS user!").format(utils.escape_string(member.display_name)),
+                        _("Member {} is not linked to any DCS user!").format(member.mention),
                         ephemeral=True)
                     return
         else:
@@ -88,7 +88,7 @@ class CreditSystem(Plugin[CreditSystemListener]):
                 ), ephemeral=True)
                 return
         data = await self.get_credits(ucid)
-        name = member.display_name if isinstance(member, discord.Member) else member
+        name = member.mention if isinstance(member, discord.Member) else member
         if not data:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_('{} has no campaign credits.').format(name), ephemeral=True)
@@ -167,7 +167,7 @@ class CreditSystem(Plugin[CreditSystemListener]):
                     (old_points_receiver + donation) > int(self.get_config()['max_points']):
                 await interaction.followup.send(
                     _('Member {} would overrun the configured maximum points with this donation. Aborted.').format(
-                        utils.escape_string(to.display_name)), ephemeral=True
+                        to.mention), ephemeral=True
                 )
                 return
             if p_receiver:
@@ -285,7 +285,7 @@ class CreditSystem(Plugin[CreditSystemListener]):
                     (old_points_receiver + donation) > int(self.get_config()['max_points']):
                 await interaction.followup.send(
                     _('Member {} would overrun the configured maximum points with this donation. Aborted.').format(
-                        utils.escape_string(to.display_name)), ephemeral=True)
+                        to.mention), ephemeral=True)
                 return
             if p_donor:
                 squadron = p_donor.squadron

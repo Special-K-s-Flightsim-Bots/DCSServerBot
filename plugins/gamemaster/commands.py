@@ -109,7 +109,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    message: str):
         if server.status != Status.RUNNING:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
             return
         await server.send_to_dcs({
@@ -118,7 +117,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
             "message": message,
             "from": interaction.user.display_name
         })
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Message sent.'), ephemeral=utils.get_ephemeral(interaction))
 
     @command(description=_('Sends a popup to a coalition\n'))
@@ -128,11 +126,9 @@ class GameMaster(Plugin[GameMasterEventListener]):
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                     to: Literal['all', 'red', 'blue'], message: str, time: Range[int, 1, 30] | None = -1):
         if server.status != Status.RUNNING:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
             return
         await server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Message sent.'), ephemeral=utils.get_ephemeral(interaction))
 
     @command(description=_('Sends a popup to all servers'))
@@ -141,7 +137,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
     async def broadcast(self, interaction: discord.Interaction, to: Literal['all', 'red', 'blue'], message: str,
                         time: Range[int, 1, 30] | None = -1):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         received: dict[str, bool] = {}
         for server in self.bot.get_servers(manager=interaction.user).values():
@@ -169,7 +164,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    flag: str, value: int | None = None):
         if server.status != Status.RUNNING:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
@@ -179,12 +173,10 @@ class GameMaster(Plugin[GameMasterEventListener]):
                 "flag": flag,
                 "value": value
             })
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Flag {flag} set to {value}.").format(flag=flag, value=value),
                                                     ephemeral=ephemeral)
         else:
             data = await server.send_to_dcs_sync({"command": "getFlag", "flag": flag})
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Flag {flag} has value {value}.").format(
                 flag=flag, value=data['value']), ephemeral=ephemeral)
 
@@ -195,11 +187,9 @@ class GameMaster(Plugin[GameMasterEventListener]):
                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                        name: str, value: str | None = None):
         if server.status != Status.RUNNING:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if value is not None:
             await server.send_to_dcs({
@@ -231,11 +221,9 @@ class GameMaster(Plugin[GameMasterEventListener]):
                             Status.RUNNING, Status.PAUSED
                         ])]):
         if server.status not in [Status.RUNNING, Status.PAUSED]:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
             return
         modal = ScriptModal(server, utils.get_ephemeral(interaction))
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
 
     @command(description=_('Loads a lua file into the mission'))
@@ -248,7 +236,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
                              ])],
                              filename: str):
         if server.status not in [Status.RUNNING, Status.PAUSED]:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
             return
         filename = os.path.join('Missions', 'Scripts', filename)
@@ -256,7 +243,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
             "command": "do_script_file",
             "file": filename.replace('\\', '/')
         })
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Script loaded.'), ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f"loaded LUA script {filename}", user=interaction.user, server=server)
 
@@ -269,7 +255,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
                               player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
         ephemeral = utils.get_ephemeral(interaction)
         if not server.locals.get('coalitions'):
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("The coalition system is not enabled on this server."),
                                                     ephemeral=True)
             return
@@ -328,7 +313,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
     async def _list(self, interaction: discord.Interaction, active: bool | None = True):
         report = Report(self.bot, self.plugin_name, 'active-campaigns.json' if active else 'all-campaigns.json')
         env = await report.render()
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
     @campaign.command(description=_("Campaign info"))
@@ -338,7 +322,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
     async def info(self, interaction: discord.Interaction, campaign: str):
         report = Report(self.bot, self.plugin_name, 'campaign.json')
         env = await report.render(campaign=await utils.get_campaign(self.node, campaign), title=_('Campaign Overview'))
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
     @campaign.command(description=_("Edit Campaign"))
@@ -354,18 +337,16 @@ class GameMaster(Plugin[GameMasterEventListener]):
                 """, (campaign, ))
                 row = await cursor.fetchone()
                 if not row:
-                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(_('Campaign not found.'), ephemeral=True)
                     return
                 modal = CampaignModal(name=campaign, start=row['start'], end=row['stop'], description=row['description'],
                                       image_url=row['image_url'])
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_modal(modal)
                 if await modal.wait():
                     return
 
                 await conn.execute("""
-                    UPDATE campaigns SET start=%s, stop=%s, description=%s, image_url=%s 
+                    UPDATE campaigns SET start = %s, stop = %s, description = %s, image_url = %s 
                     WHERE name=%s
                 """, (modal.start, modal.end, modal.description.value, modal.image_url.value, campaign))
                 await interaction.followup.send(_('Campaign {} updated.').format(campaign),
@@ -377,7 +358,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
     async def add(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
         modal = CampaignModal()
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         if await modal.wait():
             return
@@ -423,12 +403,10 @@ class GameMaster(Plugin[GameMasterEventListener]):
                     SELECT id, %s FROM campaigns WHERE name = %s 
                     ON CONFLICT DO NOTHING
                     """, (server.name, campaign))
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Server {server} added to campaign {campaign}.").format(server=server.name, campaign=campaign),
                 ephemeral=ephemeral)
         except psycopg.errors.UniqueViolation:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Server {server} is already part of the campaign {campaign}!").format(
                     server=server.name, campaign=campaign), ephemeral=ephemeral)
@@ -448,7 +426,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
                     SELECT id FROM campaigns WHERE name = %s 
                 ) AND server_name = %s 
                 """, (campaign, server_name))
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(
             _("Server {server} deleted from campaign {campaign}.").format(server=server_name, campaign=campaign),
             ephemeral=ephemeral)
@@ -472,7 +449,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
     async def start(self, interaction: discord.Interaction, campaign: str):
         ephemeral = utils.get_ephemeral(interaction)
         try:
-            # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=True)
             servers = await utils.server_selection(self.bot, interaction,
                                                    title=_("Select all servers for this campaign"),
@@ -510,7 +486,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
                    to: app_commands.Transform[discord.Member | str, utils.UserTransformer(
                        sel_type=PlayerType.PLAYER)], acknowledge: bool | None = True):
         modal = MessageModal()
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         if await modal.wait():
             return
@@ -536,7 +511,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def _list(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         report = Report(self.bot, self.plugin_name, 'messages.json')
         env = await report.render()
@@ -553,7 +527,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
     @app_commands.autocomplete(ucid=recipient_autocomplete)
     async def edit(self, interaction: discord.Interaction, ucid: str):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -572,13 +545,13 @@ class GameMaster(Plugin[GameMasterEventListener]):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        pattern = ['.lua', '.json']
+        patterns = [r'\.lua$', r'\.json$']
 
-        if GameMasterUploadHandler.is_valid(message, pattern=pattern, roles=self.bot.roles['DCS Admin']):
+        if GameMasterUploadHandler.is_valid(message, patterns=patterns, roles=self.bot.roles['DCS Admin']):
             server = await GameMasterUploadHandler.get_server(message)
             if not server:
                 return
-            handler = GameMasterUploadHandler(plugin=self, server=server, message=message, pattern=pattern)
+            handler = GameMasterUploadHandler(plugin=self, server=server, message=message, patterns=patterns)
             try:
                 base_dir = os.path.join(await handler.server.get_missions_dir(), 'Scripts')
                 await handler.upload(base_dir)

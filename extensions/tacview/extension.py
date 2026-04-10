@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import aiofiles
 import asyncio
 import os
@@ -7,8 +5,9 @@ import re
 import shutil
 import sys
 
-from core import Extension, utils, ServiceRegistry, Server, get_translation, InstallException, DISCORD_FILE_SIZE_LIMIT, \
-    Status, PortType, Port
+from core import (utils, ServiceRegistry, Server, get_translation, InstallException, DISCORD_FILE_SIZE_LIMIT, Status,
+                  PortType, Port, InstallableExtension)
+from datetime import datetime
 from extensions.tacview.recorder import TacviewRecorder
 from packaging.version import parse
 from services.bot import BotService
@@ -28,7 +27,7 @@ __all__ = [
 ]
 
 
-class Tacview(Extension):
+class Tacview(InstallableExtension):
     _rtt_ports: dict[int, str] = dict()
     _rcp_ports: dict[int, str] = dict()
 
@@ -43,7 +42,7 @@ class Tacview(Extension):
         "tacviewRealTimeTelemetryPassword": {
             "type": str,
             "label": _("Tacview Password"),
-            "placeholder": _("Password for Tacview, . for none"),
+            "placeholder": _("Password for Tacview"),
             "default": ""
         },
         "tacviewRemoteControlPort": {
@@ -55,7 +54,7 @@ class Tacview(Extension):
         "tacviewRemoteControlPassword": {
             "type": str,
             "label": _("Remote Control Password"),
-            "placeholder": _("Password for remote control, . for none"),
+            "placeholder": _("Password for remote control"),
             "default": ""
         },
         "tacviewPlaybackDelay": {
@@ -108,7 +107,7 @@ class Tacview(Extension):
             return super().shutdown()
 
     @override
-    def load_config(self) -> dict | None:
+    def load_config(self) -> dict:
         if self.server.options['plugins']:
             options = self.server.options['plugins']
         else:
@@ -143,7 +142,9 @@ class Tacview(Extension):
 
     @override
     async def prepare(self) -> bool:
-        await self.handle_update()
+        if not await super().prepare():
+            return False
+
         options = self.server.options['plugins']
         dirty = False
 
@@ -169,13 +170,6 @@ class Tacview(Extension):
             self.log.warning(
                 f'  => {self.server.name}: tacviewDataCaptureMode is set to 1, you might see performance issues!')
 
-        if options['Tacview'].get('tacviewPlaybackDelay', 0) > 0 and options['Tacview'].get('tacviewRealTimeTelemetryEnabled', True):
-            self.log.warning(
-                f'  => {self.server.name}: tacviewPlaybackDelay is set, disabling real time telemetry.')
-            dirty |= self.set_option(options, 'tacviewRealTimeTelemetryEnabled', False)
-        elif options['Tacview'].get('tacviewPlaybackDelay', 0) == 0 and not options['Tacview'].get('tacviewRealTimeTelemetryEnabled', True):
-            dirty |= self.set_option(options, 'tacviewRealTimeTelemetryEnabled', True)
-
         if dirty:
             self.server.options['plugins'] = options
             self.locals = options['Tacview']
@@ -191,7 +185,7 @@ class Tacview(Extension):
                            f"server {type(self)._rcp_ports[rcp_port]}!")
             return False
         type(self)._rcp_ports[rcp_port] = self.server.name
-        return await super().prepare()
+        return True
 
     @override
     @property
@@ -253,10 +247,11 @@ class Tacview(Extension):
         }
 
     @override
-    def is_installed(self) -> bool:
-        if not super().is_installed():
-            return False
+    def is_available(self) -> bool:
+        return self.get_inst_path() is not None
 
+    @override
+    def is_installed(self) -> bool:
         base_dir = self.server.instance.home
         dll_installed = os.path.exists(os.path.join(base_dir, r'Mods\tech\Tacview\bin\tacview.dll'))
         exports_installed = (os.path.exists(os.path.join(base_dir, r'Scripts\TacviewGameExport.lua')) &
@@ -264,10 +259,10 @@ class Tacview(Extension):
         if exports_installed:
             with open(os.path.join(base_dir, 'Scripts', 'Export.lua'), mode='r', encoding='utf-8') as file:
                 for line in file.readlines():
-                    # best case we find the default line Tacview put in the Export.lua
+                    # search for the line Tacview put in the Export.lua
                     if line == TACVIEW_EXPORT_LINE:
                         break
-                    # at least we found it, it might still be wrong
+                    # we found it, it might still be wrong
                     elif not line.strip().startswith('--') and 'TacviewGameExport.lua'.casefold() in line.casefold():
                         break
                 else:
@@ -382,7 +377,7 @@ class Tacview(Extension):
             asyncio.create_task(self.send_tacview_file(filename))
         return filename
 
-    def get_inst_version(self) -> str | None:
+    async def get_latest_version(self) -> str | None:
         if not self.get_inst_path():
             self.log.error("You need to specify an installation path for Tacview!")
             return None
@@ -390,7 +385,7 @@ class Tacview(Extension):
         return utils.get_windows_version(os.path.join(path, 'tacview.dll'))
 
     @override
-    async def install(self) -> bool:
+    async def install(self, version: str | None = None) -> bool:
         def ignore_funct(dirname, filenames) -> list[str]:
             ignored = []
             for item in filenames:
@@ -464,34 +459,20 @@ class Tacview(Extension):
         self.log.info(f"  => {self.name} {version} uninstalled from instance {self.server.instance.name}.")
         return True
 
-    async def check_for_updates(self) -> str | None:
-        version = self.get_inst_version()
-        return version if parse(self.version) < parse(version) else None
-
-    async def do_update(self) -> bool:
-        if not await self.uninstall():
+    async def update(self, version: str | None = None) -> bool:
+        if await super().update(version):
+            await ServiceRegistry.get(ServiceBus).send_to_node({
+                "command": "rpc",
+                "service": BotService.__name__,
+                "method": "audit",
+                "params": {
+                    "message": _("Tacview updated to version {version} on instance {instance}.").format(
+                        version=version, instance=self.server.instance.name)
+                }
+            })
+            return True
+        else:
             return False
-        if not await self.install():
-            return False
-        return True
-
-    async def handle_update(self):
-        # don't run if autoupdate is disabled
-        if not self.config.get('autoupdate', False):
-            return
-
-        version = await self.check_for_updates()
-        if version:
-            if await self.do_update():
-                await ServiceRegistry.get(ServiceBus).send_to_node({
-                    "command": "rpc",
-                    "service": BotService.__name__,
-                    "method": "audit",
-                    "params": {
-                        "message": _("Tacview updated to version {version} on instance {instance}.").format(
-                            version=version, instance=self.server.instance.name)
-                    }
-                })
 
     @override
     def get_ports(self) -> dict[str, Port]:

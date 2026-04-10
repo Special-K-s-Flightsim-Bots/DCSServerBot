@@ -1,4 +1,3 @@
-import codecs
 from luadata.serializer.unserialize import unserialize
 
 
@@ -11,7 +10,7 @@ def read(path, encoding="utf-8", _multival=False):
     :param multival: Flag indicating if the file contains multiple serialized values. Defaults to False.
     :return: The unserialized contents of the file.
     """
-    with codecs.open(path, "r", encoding) as file:
+    with open(path, mode="r", encoding=encoding) as file:
         text = file.read().strip()
         if text[0:6] == "return":
             ch = text[6:7]

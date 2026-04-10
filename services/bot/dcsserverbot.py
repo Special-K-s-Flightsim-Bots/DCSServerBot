@@ -8,7 +8,7 @@ from core.data.node import FatalException
 from core.listener import EventListener
 from core.services.registry import ServiceRegistry
 from datetime import datetime, timezone
-from discord import Thread
+from discord import Thread, PrivilegedIntentsRequired
 from discord.abc import PrivateChannel, GuildChannel
 from discord.ext import commands
 from typing import TYPE_CHECKING, Iterable
@@ -45,6 +45,13 @@ class DCSServerBot(commands.Bot):
     async def start(self, token: str, *, reconnect: bool = True) -> None:
         self.synced: bool = False
         await super().start(token, reconnect=reconnect)
+
+    async def connect(self, *, reconnect: bool = True) -> None:
+        try:
+            await super().connect(reconnect=reconnect)
+        except PrivilegedIntentsRequired:
+            self.log.critical("You need to enable all priviledged intents in your Discord developer page!")
+            exit(-2)
 
     async def close(self):
         try:
@@ -433,7 +440,7 @@ class DCSServerBot(commands.Bot):
             if kwargs:
                 for name, value in kwargs.items():
                     embed.add_field(name=name.title(),
-                                    value=value.mention if isinstance(value, discord.Member) else value,
+                                    value=value.mention if isinstance(value, discord.Member) else value[:1024],
                                     inline=False)
             embed.set_footer(text=datetime.now(timezone.utc).strftime("%y-%m-%d %H:%M:%S"))
             try:
@@ -466,12 +473,11 @@ class DCSServerBot(commands.Bot):
 
     async def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> discord.Member | str | None:
         async with self.apool.connection() as conn:
-            sql = 'SELECT discord_id, name FROM players WHERE ucid = %s'
-            if verified:
-                sql += ' AND discord_id <> -1 AND manual IS TRUE'
-            cursor = await conn.execute(sql, (ucid, ))
+            cursor = await conn.execute("SELECT discord_id, name, manual FROM players WHERE ucid = %s", (ucid, ))
             if cursor.rowcount == 1:
                 row = await cursor.fetchone()
+                if verified and row[2] is False:
+                    return row[1]
                 return self.guilds[0].get_member(row[0]) or row[1]
             else:
                 return None

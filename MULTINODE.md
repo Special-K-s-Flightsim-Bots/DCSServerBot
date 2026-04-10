@@ -1,20 +1,22 @@
 # Multi-Node-Setup
-Larger groups do not only run one PC with (multiple) DCS servers, but they run multiple (virtual) PCs, sometimes even 
-over multiple locations. DCSServerBot supports many of these configurations.
+Larger groups do not only run one PC with (multiple) DCS servers, but they run multiple (virtual) PCs, 
+sometimes even over multiple locations. 
+DCSServerBot supports many of these configurations.
 
 ## Prerequisites
 To support a multi-node setup (or cloud setup), you should prepare your environment.<br>
 Let's first clarify a few terms again:
 
 - **Guild**<br>
-This is the virtual bracket around everything. Your _Guild_ ID is your Discord server ID. One bot with an unlimited number 
-of nodes will form a DCSServerBot cluster under this ID.
+This is the virtual bracket around everything. Your _Guild_ ID is your Discord server ID. 
+One bot with an unlimited number of nodes will form a DCSServerBot cluster under this ID.
 
 - **Node**<br>
-A _Node_ is a single installation of DCSServerBot. You can run multiple nodes on one PC (see below), or you can run them
-on different PCs. Each node is a single Python process. Only one of the nodes can be a master. The cluster will 
-determine automatically which one that is and will automatically switch the master to another node on system downtimes 
-or outages.
+A _Node_ is a single installation of DCSServerBot. 
+You can run multiple nodes on one PC (see below), or you can run them on different PCs. 
+Each node is a single Python process. Only one of the nodes can be a master. 
+The cluster will automatically determine which node is the master and will automatically switch the master to another 
+node on system downtimes or outages.
 
 If you want to run your DCSServerBot over multiple locations, you need to prepare your setup:
 
@@ -30,8 +32,10 @@ MyNode:                     # This is the name of your first node (will be diffe
 ```
 
 ## Cloud-Drive Setup (default)
-You need to make sure that every node in your cluster is aware of the full configuration. The best way to achieve this
-is to have the bot or at least the bot's configuration installed on a cloud drive, like OneDrive or Google Drive. 
+You need to make sure that **every node in your cluster that should be able to act as a master** is aware of the 
+full configuration. 
+The best way to achieve this is to have the bot or at least the bot's configuration installed on a cloud drive, 
+like OneDrive or Google Drive. 
 I personally prefer OneDrive, as its technology is superior to Google Drive. But any cloud drive or NAS should work.
 
 Add these lines to your configuration:
@@ -47,7 +51,7 @@ Node1:  # this is the name of your first node (will be different for you, usuall
   database:
     url: postgres://dcsserverbot:SECRET@127.0.0.1:5432/dcsserverbot?sslmode=prefer  # if your database is installed on Node1
   cluster:
-    cloud_drive: true # this is the default, so no need to specify it in here, just for reference    
+    cloud_drive: true # this is the default, so no need to specify it in here, it's just for reference    
     heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here if your nodes are not on the same network (default = 30)
 # ... anything else like extensions, instances, ... for Node1
 Node2:  # this is the name of your second node (will be different for you, usually the hostname is used)
@@ -63,6 +67,16 @@ Node3:  # this is the name of your third node (will be different for you, usuall
     heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here if your nodes are not on the same network (default = 30)
 # ... anything else like extensions, instances, ... for Node3
 ```
+
+> [!NOTE]
+> Since 3.0.4.22 DCSServerBot is able to read the node, instance and server configurations from remote nodes.
+> This means that it is sufficient to keep each node's configuration in place at the specific node.
+> Whenever DCSServerBot cannot find the configuration locally, it will try to read the configuration from the 
+> registered remote node.
+> 
+> Be aware that this feature does **not** work for plugin configurations.
+> If you want the node to become a master on cluster failures, you need to make sure that the plugin configuration is
+> stored locally to the respective node.
 
 ## Config-Sync Setup
 If you decide to only sync the configuration, your bots will behave differently on auto-update.
@@ -141,8 +155,8 @@ This will start a new node (you'll be prompted for the installation of it, if it
 ## Running multiple Nodes on multiple PCs
 If you set up your environment with a cloud drive for your installation and a central database that is accessible from
 every node, the installation of an additional node is quite straight forward.<br>
-You need to run `run.cmd` or `install.cmd` on your new node and the installer will guide you through your 
-installation. If not specified otherwise, the node-name will be the hostname of the respective node.
+You need to run `run.cmd` or `install.cmd` on your new node and the installer will guide you through your installation. 
+If not specified otherwise, the node-name will be the hostname of the respective node.
 
 > [!TIP]
 > If you use multiple nodes on multiple PCs, you might get to the moment where instances are named identically. 
@@ -188,11 +202,12 @@ Node2:  # node where I do not have full control
 ```
 
 > [!NOTE]
-> Unless you specify `restrict_owner: true` in nodes.yaml, the owner of the bot can still run restricted commands.
+> Unless you specify `restrict_owner: true` in nodes.yaml, the owner of the bot can still run any restricted command.
 
 ### Moving a Server from one Node / Instance to another
 Each server is loosely coupled to an instance on a node. You can migrate a server to another instance though, by using
 the `/server migrate` command. 
+
 > [!NOTE]
 > Unless you use a central missions directory, the necessary missions (or scripts) for this server might not be 
 > available on the other node and the migration will end up in an incomplete state.

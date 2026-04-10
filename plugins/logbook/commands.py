@@ -483,35 +483,34 @@ class Logbook(Plugin[LogbookEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
 
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # Insert into shared squadrons table (no abbreviation/service)
-                cursor = await conn.execute("""
-                    INSERT INTO squadrons (name, description, locked)
-                    VALUES (%s, %s, FALSE)
-                    ON CONFLICT (name) DO NOTHING
-                    RETURNING id
-                """, (name, description))
-                result = await cursor.fetchone()
+            # Insert into shared squadrons table (no abbreviation/service)
+            cursor = await conn.execute("""
+                INSERT INTO squadrons (name, description, locked)
+                VALUES (%s, %s, FALSE)
+                ON CONFLICT (name) DO NOTHING
+                RETURNING id
+            """, (name, description))
+            result = await cursor.fetchone()
 
-                if not result:
-                    # Squadron already exists
-                    # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(
-                        _('Squadron "{}" already exists!').format(name),
-                        ephemeral=True
-                    )
-                    return
-                squadron_id = result[0]
+            if not result:
+                # Squadron already exists
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(
+                    _('Squadron "{}" already exists!').format(name),
+                    ephemeral=True
+                )
+                return
+            squadron_id = result[0]
 
-                # Insert logbook-specific metadata (abbreviation/service)
-                if abbreviation or service:
-                    await conn.execute("""
-                        INSERT INTO logbook_squadron_metadata (squadron_id, abbreviation, service)
-                        VALUES (%s, %s, %s)
-                        ON CONFLICT (squadron_id) DO UPDATE SET
-                            abbreviation = EXCLUDED.abbreviation,
-                            service = EXCLUDED.service
-                    """, (squadron_id, abbreviation, service.upper() if service else None))
+            # Insert logbook-specific metadata (abbreviation/service)
+            if abbreviation or service:
+                await conn.execute("""
+                    INSERT INTO logbook_squadron_metadata (squadron_id, abbreviation, service)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (squadron_id) DO UPDATE SET
+                        abbreviation = EXCLUDED.abbreviation,
+                        service = EXCLUDED.service
+                """, (squadron_id, abbreviation, service.upper() if service else None))
 
         embed = discord.Embed(
             title=_('Squadron Created'),
@@ -1050,38 +1049,37 @@ class Logbook(Plugin[LogbookEventListener]):
 
                 old_name = squadron_row['name']
 
-                async with conn.transaction():
-                    # Update shared squadrons table (name, description, image_url)
-                    squad_updates = []
-                    squad_params = []
+                # Update shared squadrons table (name, description, image_url)
+                squad_updates = []
+                squad_params = []
 
-                    if name:
-                        squad_updates.append("name = %s")
-                        squad_params.append(name)
-                    if description:
-                        squad_updates.append("description = %s")
-                        squad_params.append(description)
-                    if logo_url:
-                        squad_updates.append("image_url = %s")
-                        squad_params.append(logo_url)
+                if name:
+                    squad_updates.append("name = %s")
+                    squad_params.append(name)
+                if description:
+                    squad_updates.append("description = %s")
+                    squad_params.append(description)
+                if logo_url:
+                    squad_updates.append("image_url = %s")
+                    squad_params.append(logo_url)
 
-                    if squad_updates:
-                        squad_params.append(squadron)
-                        await conn.execute(f"""
-                            UPDATE squadrons
-                            SET {', '.join(squad_updates)}
-                            WHERE id = %s
-                        """, tuple(squad_params))
+                if squad_updates:
+                    squad_params.append(squadron)
+                    await conn.execute(f"""
+                        UPDATE squadrons
+                        SET {', '.join(squad_updates)}
+                        WHERE id = %s
+                    """, tuple(squad_params))
 
-                    # Update logbook metadata table (abbreviation, service)
-                    if abbreviation or service:
-                        await conn.execute("""
-                            INSERT INTO logbook_squadron_metadata (squadron_id, abbreviation, service)
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT (squadron_id) DO UPDATE SET
-                                abbreviation = COALESCE(EXCLUDED.abbreviation, logbook_squadron_metadata.abbreviation),
-                                service = COALESCE(EXCLUDED.service, logbook_squadron_metadata.service)
-                        """, (squadron, abbreviation, service.upper() if service else None))
+                # Update logbook metadata table (abbreviation, service)
+                if abbreviation or service:
+                    await conn.execute("""
+                        INSERT INTO logbook_squadron_metadata (squadron_id, abbreviation, service)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (squadron_id) DO UPDATE SET
+                            abbreviation = COALESCE(EXCLUDED.abbreviation, logbook_squadron_metadata.abbreviation),
+                            service = COALESCE(EXCLUDED.service, logbook_squadron_metadata.service)
+                    """, (squadron, abbreviation, service.upper() if service else None))
 
         embed = discord.Embed(
             title=_('Squadron Updated'),

@@ -54,15 +54,14 @@ class Radio(ABC):
         playlist: list[str] = list()
         music_dir: str = self.service.music_dir
         with self.pool.connection() as conn:
-            with conn.transaction():
-                for row in conn.execute('SELECT song_file FROM music_playlists WHERE name = %s',
-                                        (self._playlist,)):
-                    if os.path.exists(os.path.join(music_dir, row[0])):
-                        playlist.append(row[0])
-                    else:
-                        self.log.warning(f"Can't find music file {row[0]}, deleting from playlist {self._playlist}.")
-                        conn.execute('DELETE FROM music_playlists WHERE name = %s AND song_file = %s',
-                                     (self._playlist, row[0]))
+            for row in conn.execute('SELECT song_file FROM music_playlists WHERE name = %s',
+                                    (self._playlist,)):
+                if os.path.exists(os.path.join(music_dir, row[0])):
+                    playlist.append(row[0])
+                else:
+                    self.log.warning(f"Can't find music file {row[0]}, deleting from playlist {self._playlist}.")
+                    conn.execute('DELETE FROM music_playlists WHERE name = %s AND song_file = %s',
+                                 (self._playlist, row[0]))
         return playlist
 
     @property
@@ -73,16 +72,15 @@ class Radio(ABC):
     def playlist(self, playlist: str) -> None:
         if playlist and self._playlist != playlist:
             with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("""
-                        INSERT INTO music_radios (server_name, radio_name, playlist_name) 
-                        VALUES (%s, %s, %s) 
-                        ON CONFLICT (server_name, radio_name) DO UPDATE 
-                        SET playlist_name = excluded.playlist_name
-                    """, (self.server.name, self.name, playlist))
-                self._playlist = playlist
-                self.songs = self._read_playlist()
-                self.idx = 0 if (self._mode == Mode.REPEAT or not len(self.songs)) else randrange(len(self.songs))
+                conn.execute("""
+                    INSERT INTO music_radios (server_name, radio_name, playlist_name) 
+                    VALUES (%s, %s, %s) 
+                    ON CONFLICT (server_name, radio_name) DO UPDATE 
+                    SET playlist_name = excluded.playlist_name
+                """, (self.server.name, self.name, playlist))
+            self._playlist = playlist
+            self.songs = self._read_playlist()
+            self.idx = 0 if (self._mode == Mode.REPEAT or not len(self.songs)) else randrange(len(self.songs))
 
     @property
     def config(self) -> dict:

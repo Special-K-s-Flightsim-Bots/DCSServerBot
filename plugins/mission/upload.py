@@ -14,8 +14,8 @@ _ = get_translation(__name__.split('.')[1])
 
 class MissionUploadHandler(ServerUploadHandler):
 
-    def __init__(self, plugin: "Mission", server: Server, message: discord.Message, pattern: list[str]):
-        super().__init__(server, message, pattern)
+    def __init__(self, plugin: "Mission", server: Server, message: discord.Message, patterns: list[str]):
+        super().__init__(server, message, patterns)
         self.plugin = plugin
         self.log = plugin.log
 
@@ -132,6 +132,7 @@ class MissionUploadHandler(ServerUploadHandler):
                 return
             else:
                 await self.server.stop()
-        await self._load_mission(filename)
+        if not self.server.current_mission or self.server.current_mission.filename != filename:
+            await self._load_mission(filename)
         if self.server.status == Status.STOPPED:
             await self.server.start()

@@ -16,7 +16,7 @@ if [ -z "$python_version" ]; then
     echo "Please ensure Python is installed and available."
     echo "Press any key to continue..."
     read -n 1
-    exit 9009
+    exit 1
 fi
 
 # Required minimum Python version

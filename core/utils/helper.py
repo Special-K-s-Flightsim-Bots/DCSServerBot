@@ -178,7 +178,7 @@ def format_string(string_: str, default_: str | None = None, **kwargs) -> str:
             elif isinstance(value, dict):
                 value = json.dumps(value)
             elif isinstance(value, bool):
-                value = str(value).lower()
+                value = str(value)
             elif isinstance(value, datetime) and value.tzinfo:
                 value = value.astimezone(timezone.utc).replace(tzinfo=None)
             return super().format_field(value, spec)
@@ -336,25 +336,26 @@ def alternate_parse_settings(path: str):
 
 
 def exception_to_dict(e: BaseException) -> dict[str, Any]:
-    """Return a plain‑dict representation of any exception."""
-    exc_dict = {
+    """Return a JSON-friendly dict representation of an exception."""
+    payload: dict[str, Any] = {
         'class': f'{e.__class__.__module__}.{e.__class__.__name__}',
         'message': str(e),
-        'traceback': traceback.format_exception_only(type(e), e), 'args': [repr(a) for a in e.args]
+        'traceback': traceback.format_exception_only(type(e), e),
+        'args': list(e.args),
     }
 
     # Pull out useful OSError / socket attributes
-    # (only those that are JSON‑friendly)
+    # (only those that are JSON-friendly)
     for key in ('errno', 'strerror', 'filename', 'filename2'):
         if hasattr(e, key):
-            exc_dict[key] = getattr(e, key)
+            payload[key] = getattr(e, key)
 
     # If the exception has a kwargs dict (rare), sanitize it
     kwargs = getattr(e, 'kwargs', None)
     if isinstance(kwargs, dict):
-        exc_dict['kwargs'] = {k: repr(v) for k, v in kwargs.items()}
+        payload['kwargs'] = dict(kwargs)
 
-    return exc_dict
+    return payload
 
 
 class ReprException(Exception):
@@ -379,6 +380,13 @@ def rebuild_exception(payload: dict[str, Any]) -> BaseException:
 
     try:
         return cls(*args, **kwargs)
+    except TypeError:
+        # Some exceptions, especially library HTTP exceptions, cannot be
+        # reconstructed from their constructor args. Fall back gracefully.
+        message = payload.get('message')
+        if message:
+            return Exception(message)
+        return ReprException(payload)
     except Exception:
         # Constructor raised an unexpected error – fall back.
         return ReprException(payload)
@@ -711,7 +719,7 @@ def cache_with_expiration(expiration: int):
             result = func(*args, **kwargs)
             return update_cache(cache_key, result)
 
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
             return async_wrapper
         return sync_wrapper
 

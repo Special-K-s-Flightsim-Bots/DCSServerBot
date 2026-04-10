@@ -48,12 +48,11 @@ local function get_distance(point1, point2)
 end
 
 local function is_on_runway(runway, pos)
---[[
     -- ignore rubber banding
-    if get_distance(runway.position, pos) > 10000 then
+    if get_distance(runway.position, pos) > 3500 then
         return true
     end
-]]--
+
     local dx = pos.x - runway.position.x
     local dz = pos.z - runway.position.z
 
@@ -129,12 +128,14 @@ function onMissionEvent(event)
             msg.initiator.unit_type = msg.initiator.unit:getTypeName()
             msg.initiator.category = msg.initiator.unit:getDesc().category
             local point = msg.initiator.unit:getPosition().p
-            local lat, lon = Terrain.convertMetersToLatLon(point.x, point.z)
-            msg.initiator.position = {
-                point = point,
-                lat = lat,
-                lon = lon
-            }
+            if point.y > 0 and point.y < 20000 then
+                local lat, lon = Terrain.convertMetersToLatLon(point.x, point.z)
+                msg.initiator.position = {
+                    point = point,
+                    lat = lat,
+                    lon = lon
+                }
+            end
             if event.id == world.event.S_EVENT_RUNWAY_TAKEOFF then
                 if not event.place then
                     msg['eventName'] = 'S_EVENT_GROUND_TAKEOFF'
@@ -271,13 +272,15 @@ function onMissionEvent(event)
             msg.target.unit_type = msg.target.unit:getTypeName()
             msg.target.category = msg.target.unit:getDesc().category
             local point = msg.target.unit:getPosition().p
-            local lat, lon = Terrain.convertMetersToLatLon(point.x, point.z)
-            msg.target.position = {
-                point = point,
-                lat = lat,
-                lon = lon
-            }
-            if msg.initiator ~= nil and msg.initiator.position ~= nil then
+            if point.y > 0 and point.y < 20000 then
+                local lat, lon = Terrain.convertMetersToLatLon(point.x, point.z)
+                msg.target.position = {
+                    point = point,
+                    lat = lat,
+                    lon = lon
+                }
+            end
+            if msg.initiator ~= nil and msg.initiator.position ~= nil and msg.target.position ~= nil then
                 msg.distance = get_distance(msg.initiator.position.point, msg.target.position.point)
             end
         elseif category == Object.Category.WEAPON then

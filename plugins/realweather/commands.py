@@ -1,46 +1,16 @@
 import discord
-import os
 
-from core import Plugin, command, utils, Status, Server, PluginInstallationError, UnsupportedMizFileException
+from core import Plugin, command, utils, Status, Server, UnsupportedMizFileException
 from discord import app_commands
 from services.bot import DCSServerBot
-from typing import Type
 
 from .listener import RealWeatherEventListener
 
 
 class RealWeather(Plugin[RealWeatherEventListener]):
 
-    def __init__(self, bot: DCSServerBot, listener: Type[RealWeatherEventListener] = None):
-        super().__init__(bot, listener)
-        self.installation = self.node.locals.get('extensions', {}).get('RealWeather', {}).get('installation')
-        if not self.installation:
-            raise PluginInstallationError(
-                plugin='RealWeather',
-                reason=f"No configuration found for RealWeather for node {self.node.name} in nodes.yaml"
-            )
-        self.version = utils.get_windows_version(os.path.join(os.path.expandvars(self.installation), 'realweather.exe'))
-
     @staticmethod
-    def generate_config_1_0(airbase: dict, config: dict) -> dict:
-        return {
-            "metar": {
-                "icao": airbase['code']
-            },
-            "options": {
-                "update-weather": True,
-                "update-time": config['time'],
-                "fog": {
-                    "enable": config['fog']
-                },
-                "dust": {
-                    "enable": config['dust']
-                }
-            }
-        }
-
-    @staticmethod
-    def generate_config_2_0(airbase: dict, config: dict) -> dict:
+    def generate_config(airbase: dict, config: dict) -> dict:
         return {
             "options": {
                 "weather": {
@@ -70,12 +40,6 @@ class RealWeather(Plugin[RealWeatherEventListener]):
                 }
             }
         }
-
-    def generate_config(self, airbase: dict, config: dict) -> dict:
-        if self.version.split('.')[0] == '1':
-            return self.generate_config_1_0(airbase, config)
-        else:
-            return self.generate_config_2_0(airbase, config)
 
     @command(description='Modify mission with a preset')
     @app_commands.guild_only()

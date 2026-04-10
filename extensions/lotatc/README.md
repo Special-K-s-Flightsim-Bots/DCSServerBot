@@ -28,6 +28,7 @@ MyNode:
           show_passwords: false     # show passwords in the server status embed (default = true)
           host: "myfancyhost.com"   # Optional: Show a different hostname instead of your servers external IP
           port: 10310               # Optional: your LotAtc port (default: 10310)
+          use_jsonserver: true      # Optional: enable LotAtc Link
           jsonserver_port: 8081     # Optional: you can specify any parameter from LotAtc's config.lua in here to overwrite it
           # ...
 ```

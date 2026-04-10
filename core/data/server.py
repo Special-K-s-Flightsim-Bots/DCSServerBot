@@ -51,6 +51,7 @@ class Server(DataObject, ABC):
     _maintenance: bool = field(compare=False, default=False)
     restart_pending: bool = field(default=False, compare=False)
     on_mission_end: dict = field(default_factory=dict, compare=False)
+    on_coalition_win: dict = field(default_factory=dict, compare=False)
     on_empty: dict = field(default_factory=dict, compare=False)
     extensions: dict[str, Extension] = field(default_factory=dict, compare=False)
     afk: dict[str, datetime] = field(default_factory=dict, compare=False)
@@ -82,8 +83,6 @@ class Server(DataObject, ABC):
                 data = yaml.load(Path(config_file).read_text(encoding='utf-8'))
             except MarkedYAMLError as ex:
                 raise YAMLError(config_file, ex)
-            if data.get(self.name) is None and self.name != 'n/a':
-                self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')
             _locals = utils.deep_merge(data.get(DEFAULT_TAG, {}), data.get(self.name, {}))
             _locals['messages'] = {
                 "greeting_message_members": "{player.name}, welcome back to {server.name}!",
@@ -191,9 +190,8 @@ class Server(DataObject, ABC):
 
     def update_maintenance(self):
         with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("UPDATE servers SET maintenance = %s WHERE server_name = %s",
-                             (self._maintenance, self.name))
+            conn.execute("UPDATE servers SET maintenance = %s WHERE server_name = %s",
+                         (self._maintenance, self.name))
 
     @property
     def display_name(self) -> str:
@@ -219,6 +217,8 @@ class Server(DataObject, ABC):
                 return player
             return None
         elif 'id' in kwargs:
+            if kwargs['id'] == -1:
+                return None
             player = self.players_by_id.get(kwargs['id'])
             if player and (kwargs.get('active') is None or player.active == kwargs['active']):
                 return player
@@ -316,7 +316,7 @@ class Server(DataObject, ABC):
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
         raise NotImplementedError()
 
-    async def send_to_dcs_sync(self, message: dict, timeout: int | None = 5.0) -> dict | None:
+    async def send_to_dcs_sync(self, message: dict, timeout: int | None = 5) -> dict | None:
         with PerformanceLog(f"DCS: dcsbot.{message['command']}()"):
             future = self.bus.loop.create_future()
             token = 'sync-' + str(uuid.uuid4())
@@ -446,7 +446,7 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True) -> str:
+    async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True) -> str | None:
         raise NotImplementedError()
 
     @property
@@ -457,20 +457,19 @@ class Server(DataObject, ABC):
             self._channels = {}
             for key, value in self.locals.get('channels', {}).items():
                 self._channels[Channel(key)] = int(value)
-            if Channel.STATUS not in self._channels:
-                self._channels[Channel.STATUS] = -1
-            if Channel.CHAT not in self._channels:
-                self._channels[Channel.CHAT] = -1
-            if Channel.EVENTS not in self._channels:
-                self._channels[Channel.EVENTS] = self._channels[Channel.CHAT]
-            if Channel.VOICE not in self._channels:
-                self._channels[Channel.VOICE] = -1
-            if Channel.AUDIT not in self._channels:
-                self._channels[Channel.AUDIT] = -1
-            if Channel.COALITION_BLUE_EVENTS not in self._channels and Channel.COALITION_BLUE_CHAT in self._channels:
-                self._channels[Channel.COALITION_BLUE_EVENTS] = self._channels[Channel.COALITION_BLUE_CHAT]
-            if Channel.COALITION_RED_EVENTS not in self._channels and Channel.COALITION_RED_CHAT in self._channels:
-                self._channels[Channel.COALITION_RED_EVENTS] = self._channels[Channel.COALITION_RED_CHAT]
+            self._channels.setdefault(Channel.STATUS, -1)
+            self._channels.setdefault(Channel.CHAT, -1)
+            self._channels.setdefault(Channel.EVENTS, self._channels[Channel.CHAT])
+            self._channels.setdefault(Channel.VOICE, -1)
+            self._channels.setdefault(Channel.AUDIT, -1)
+
+            if Channel.COALITION_BLUE_CHAT in self._channels:
+                self._channels.setdefault(Channel.COALITION_BLUE_EVENTS,
+                                          self._channels[Channel.COALITION_BLUE_CHAT])
+
+            if Channel.COALITION_RED_CHAT in self._channels:
+                self._channels.setdefault(Channel.COALITION_RED_EVENTS,
+                                          self._channels[Channel.COALITION_RED_CHAT])
         return self._channels
 
     @abstractmethod
@@ -514,15 +513,15 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def config_extension(self, name: str, config: dict) -> None:
+    async def config_extension(self, name: str, config: dict | None = None) -> dict:
         raise NotImplementedError()
 
     @abstractmethod
-    async def install_extension(self, name: str, config: dict) -> None:
+    async def enable_extension(self, name: str, config: dict | None = None) -> None:
         raise NotImplementedError()
 
     @abstractmethod
-    async def uninstall_extension(self, name: str) -> None:
+    async def disable_extension(self, name: str) -> None:
         raise NotImplementedError()
 
     @abstractmethod
@@ -538,5 +537,9 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @async_cache
-    async def list_extension(self) -> list[str]:
-        return self.locals.get('extensions', [])
+    async def list_extensions(self, *, only_installable: bool = False, active: bool = None) -> list[str]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def get_config(self) -> dict:
+        raise NotImplementedError()

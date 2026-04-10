@@ -46,16 +46,15 @@ class Squadron(DataObject):
             if row:
                 return row[0]
             else:
-                with conn.transaction():
-                    conn.execute("""
-                        INSERT INTO squadron_credits (campaign_id, squadron_id, points) 
-                        VALUES (%s, %s, %s) 
-                        ON CONFLICT DO NOTHING
-                    """, (self.campaign_id, self.squadron_id, self.config.get('initial_points', 0)))
-                    cursor = conn.execute("""
-                        SELECT points FROM squadron_credits WHERE campaign_id = %s AND squadron_id = %s
-                    """, (self.campaign_id, self.squadron_id))
-                    row = cursor.fetchone()
+                conn.execute("""
+                    INSERT INTO squadron_credits (campaign_id, squadron_id, points) 
+                    VALUES (%s, %s, %s) 
+                    ON CONFLICT DO NOTHING
+                """, (self.campaign_id, self.squadron_id, self.config.get('initial_points', 0)))
+                cursor = conn.execute("""
+                    SELECT points FROM squadron_credits WHERE campaign_id = %s AND squadron_id = %s
+                """, (self.campaign_id, self.squadron_id))
+                row = cursor.fetchone()
                 return row[0]
 
     @points.setter
@@ -71,12 +70,11 @@ class Squadron(DataObject):
 
         # persist points
         with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
-                    INSERT INTO squadron_credits (campaign_id, squadron_id, points) 
-                    VALUES (%s, %s, %s) 
-                    ON CONFLICT (campaign_id, squadron_id) DO UPDATE SET points = EXCLUDED.points
-                """, (self.campaign_id, self.squadron_id, p))
+            conn.execute("""
+                INSERT INTO squadron_credits (campaign_id, squadron_id, points) 
+                VALUES (%s, %s, %s) 
+                ON CONFLICT (campaign_id, squadron_id) DO UPDATE SET points = EXCLUDED.points
+            """, (self.campaign_id, self.squadron_id, p))
 
         # send points to all active DCS servers
         bus = ServiceRegistry.get(ServiceBus)
@@ -93,16 +91,15 @@ class Squadron(DataObject):
             return
         new_points = self.points
         with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
-                    INSERT INTO squadron_credits_log (
-                        campaign_id, 
-                        event, 
-                        squadron_id, 
-                        old_points, 
-                        new_points, 
-                        player_ucid, 
-                        remark
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (self.campaign_id, event, self.squadron_id, new_points - points, new_points,
-                      player.ucid if player else None, remark))
+            conn.execute("""
+                INSERT INTO squadron_credits_log (
+                    campaign_id, 
+                    event, 
+                    squadron_id, 
+                    old_points, 
+                    new_points, 
+                    player_ucid, 
+                    remark
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (self.campaign_id, event, self.squadron_id, new_points - points, new_points,
+                  player.ucid if player else None, remark))

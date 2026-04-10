@@ -27,7 +27,7 @@ class Cloud(Extension):
         self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
 
     @override
-    def load_config(self) -> dict | None:
+    def load_config(self) -> dict:
         return yaml.load(Path(os.path.join(self.node.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
 
     def read_config(self):

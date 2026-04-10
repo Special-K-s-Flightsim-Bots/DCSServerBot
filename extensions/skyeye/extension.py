@@ -14,7 +14,7 @@ import tempfile
 import zipfile
 
 from contextlib import suppress
-from core import Extension, utils, ServiceRegistry, get_translation, ProcessManager
+from core import utils, ServiceRegistry, get_translation, ProcessManager, Extension
 from logging.handlers import RotatingFileHandler
 from io import BytesIO
 from packaging.version import parse
@@ -48,6 +48,28 @@ LOGLEVEL = {
 
 class SkyEye(Extension):
 
+    CONFIG_DICT = {
+        "coalition": {
+            "type": list,
+            "label": _("Coalition"),
+            "default": "blue",
+            "options": ["blue", "red"],
+            "required": True
+        },
+        "callsign": {
+            "type": str,
+            "label": _("Callsign"),
+            "default": "Magic",
+            "required": True
+        },
+        "srs-frequencies": {
+            "type": str,
+            "label": _("SRS Frequencies"),
+            "default": "251.0AM,133.0AM,30.0FM",
+            "required": True
+        }
+    }
+
     def __init__(self, server, config):
         self.configs = []
         super().__init__(server, config)
@@ -77,7 +99,7 @@ class SkyEye(Extension):
         return path
 
     @override
-    def load_config(self) -> dict | None:
+    def load_config(self) -> dict:
         base_config = os.path.join(os.path.dirname(self.get_exe_path()), "config.yaml")
         if os.path.exists(base_config):
             data = yaml.load(Path(base_config).read_text(encoding='utf-8')) or {}
@@ -252,7 +274,7 @@ class SkyEye(Extension):
 
     async def _autoupdate(self):
         try:
-            version = await self.check_for_updates()
+            version = await self.get_latest_version()
             if version:
                 self.log.info(f"A new SkyEye update is available. Updating to version {version} ...")
                 await self.do_update(version)
@@ -476,16 +498,14 @@ class SkyEye(Extension):
         }
 
     @override
-    def is_installed(self) -> bool:
-        if not super().is_installed():
-            return False
+    def is_available(self) -> bool:
         exe_path = self.get_exe_path()
         if not os.path.exists(exe_path):
             self.log.error(f"  => SkyEye executable not found in {exe_path}")
             return False
         return True
 
-    async def check_for_updates(self) -> str | None:
+    async def get_latest_version(self) -> str | None:
         with suppress(aiohttp.ClientConnectionError):
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:

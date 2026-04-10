@@ -87,23 +87,20 @@ class ServiceBus(Service):
             asyncio.create_task(self.intercom_channel.subscribe())
             asyncio.create_task(self.broadcasts_channel.subscribe())
             # check master
-            await self.switch()
+            await self.switch(self.master)
 
         except Exception as ex:
             # we can't run without the servicebus, so better restart
             raise FatalException(repr(ex)) from ex
 
-    async def switch(self):
+    async def switch(self, master: bool):
         from ..bot.service import BotService
 
-        if self.master:
+        if master:
             # wait for the bot service to be started
-            while self.master and not ServiceRegistry.get(BotService):
+            while not ServiceRegistry.get(BotService):
                 await asyncio.sleep(1)
-            # in the unlikely event of not being the master anymore, switch again
-            if not self.master:
-                await self.switch()
-                return
+
             self.bot = ServiceRegistry.get(BotService).bot
             while not self.bot:
                 await asyncio.sleep(1)
@@ -114,7 +111,10 @@ class ServiceBus(Service):
                 await self.send_to_node({
                     "command": "rpc",
                     "service": self.__class__.__name__,
-                    "method": "switch"
+                    "method": "switch",
+                    "params": {
+                        "master": False
+                    }
                 }, node=node)
         else:
             await self.send_to_node({
@@ -276,6 +276,12 @@ class ServiceBus(Service):
 
         self.log.info(f"- Registering remote node {name} ...")
         node = NodeProxy(self.node, name, public_ip, dcs_version)
+        # we did not find a configuration for this node, load it from remote
+        if not node.locals:
+            node.locals = await node.get_config()
+            if not node.locals:
+                self.log.warning(f'No configuration found for node "{node.name}" in nodes.yaml!')
+
         self.node.all_nodes[node.name] = node
         while not self.bot or not ServiceRegistry.get(BotService):
             await asyncio.sleep(1)
@@ -476,6 +482,11 @@ class ServiceBus(Service):
                     name=server_name,
                     bus=self
                 )
+                if not server.locals:
+                    server.locals = await server.get_config()
+                    if not server.locals:
+                        self.log.warning(f'No configuration found for server "{server.name}" in servers.yaml!')
+
                 _instance = node.instances.get(instance)
                 if not _instance:
                     # first time we see this instance, so register it
@@ -499,7 +510,7 @@ class ServiceBus(Service):
                 asyncio.create_task(self.udp_server.process_messages(server.name))
             self.log.info(f"  => Remote DCS-Server \"{server.name}\" registered.")
         except StopIteration:
-            self.log.error(f"No configuration found for instance {instance} in config\\nodes.yaml")
+            self.log.error(f"No configuration found for instance {instance} in nodes.yaml")
         except Exception as ex:
             self.log.exception(str(ex), exc_info=True)
 
@@ -554,7 +565,6 @@ class ServiceBus(Service):
                 await self.send_to_node(message, node=node)
                 return await asyncio.wait_for(future, timeout)
             finally:
-                # noinspection PyAsyncCall
                 self.listeners.pop(token, None)
 
     def _serialize(self, obj: Any) -> Any:
@@ -743,7 +753,7 @@ class ServiceBus(Service):
 
             # Log performance and execute the function
             with PerformanceLog(f"RPC: {obj.__class__.__name__}.{method_name}()"):
-                if asyncio.iscoroutinefunction(func):
+                if inspect.iscoroutinefunction(func):
                     # If the function is asynchronous, await it directly
                     return await func(**kwargs)
                 else:

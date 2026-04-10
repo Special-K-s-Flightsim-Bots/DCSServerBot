@@ -1,5 +1,6 @@
 import aiofiles
 import asyncio
+import inspect
 import os
 import re
 
@@ -33,6 +34,30 @@ __all__ = [
 
 
 class LogAnalyser(Extension):
+
+    CONFIG_DICT = {
+        "restart_on_unlist": {
+            "type": bool,
+            "label": _("Restart server on unlisting"),
+            "default": False,
+            "required": False
+        },
+        "disable_detections": {
+            "type": list,
+            "label": _("Disable detections"),
+            "options": [
+                "script errors",
+                "upnp",
+                "missing terrain",
+                "regmapstorage",
+                "unlisted",
+                "moose version",
+                "mist version"
+            ],
+            "min_values": 0,
+            "max_values": 7
+        }
+    }
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
@@ -117,7 +142,7 @@ class LogAnalyser(Extension):
                 if not match:
                     continue
 
-                if asyncio.iscoroutinefunction(callback):
+                if inspect.iscoroutinefunction(callback):
                     asyncio.create_task(
                         callback(self.log_pos + idx, line, match),
                         name=f"callback_{callback.__name__}_{self.log_pos + idx}"
@@ -153,7 +178,7 @@ class LogAnalyser(Extension):
                         lines = await file.readlines()
                         await self.process_lines(lines)
                         self.log_pos = await file.tell()
-                except FileNotFoundError:
+                except (PermissionError, FileNotFoundError):
                     pass
                 finally:
                     await asyncio.sleep(1)

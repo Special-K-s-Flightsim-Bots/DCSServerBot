@@ -14,7 +14,6 @@ from discord.ui import View, Button
 from functools import partial
 from pathlib import Path
 from psycopg.rows import dict_row
-from services.bot.dummy import DummyBot
 from typing import TYPE_CHECKING, Callable, Coroutine, cast
 
 from .menu import read_menu_config, filter_menu
@@ -39,6 +38,7 @@ class MissionEventListener(EventListener["Mission"]):
             'friendly_fire': '```ansi\n\u001b[1;33mBLUE {} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```ansi\n\u001b[0;34mBLUE player {} killed themselves - Ooopsie!```',
             'change_slot': '```ansi\n\u001b[0;34m{} player {} occupied {} {}.```',
+            'spectators': '```ansi\n\u001b[0;34mBLUE player {} returned to Spectators```',
             'disconnect': '```ansi\n\u001b[0;34mBLUE player {} disconnected from server {}.```',
             'S_EVENT_SHOT': '```ansi\n\u001b[0;34mBLUE {} in {} shot at {} {} in {} with {}.```',
             'S_EVENT_HIT': '```ansi\n\u001b[0;34mBLUE {} in {} hit {} {} in {}.```'
@@ -53,6 +53,7 @@ class MissionEventListener(EventListener["Mission"]):
             'friendly_fire': '```ansi\n\u001b[1;33mRED {} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```ansi\n\u001b[0;31mRED player {} killed themselves - Ooopsie!```',
             'change_slot': '```ansi\n\u001b[0;31m{} player {} occupied {} {}.```',
+            'spectators': '```ansi\n\u001b[0;31mRED player {} returned to Spectators```',
             'disconnect': '```ansi\n\u001b[0;31mRED player {} disconnected from server {}.```',
             'S_EVENT_SHOT': '```ansi\n\u001b[0;31mRED {} in {} shot at {} {} in {} with {}.```',
             'S_EVENT_HIT': '```ansi\n\u001b[0;31mRED {} in {} hit {} {} in {}.```'
@@ -599,6 +600,29 @@ class MissionEventListener(EventListener["Mission"]):
         if data['id'] == 1:
             return
 
+        player: Player = server.get_player(ucid=data['ucid'])
+        if not player or player.id == 1:
+            player = DataObjectFactory().new(
+                Player, node=server.node, server=server, id=data['id'], name=data['name'],
+                active=data['active'], side=Side(data['side']), ucid=data['ucid'], ipaddr=data.get('ipaddr'))
+            server.add_player(player)
+        else:
+            await player.update(data | {'slot': 0, 'sub_slot': 0})
+        player.connected = True
+
+        # if the first player joined, the server is considered non-idle
+        if server.idle_since:
+            server.idle_since = None
+        asyncio.create_task(self._upload_user_roles(server, player))
+        if player.watchlist:
+            asyncio.create_task(self._watchlist_alert(server, player))
+
+        # check if we've reached the max_threshold
+        usage_alarm = server.locals.get('usage_alarm', {})
+        mt = usage_alarm.get('max_threshold')
+        if mt and len(server.get_active_players()) == (mt + 1):
+            asyncio.create_task(self._threshold_alert(server, usage_alarm))
+
         # create the pseudo-event "S_EVENT_CONNECT"
         asyncio.create_task(self.bus.send_to_node(
             {
@@ -615,29 +639,6 @@ class MissionEventListener(EventListener["Mission"]):
         if 'connect' not in self.get_config(server).get('event_filter', []):
             self.send_dcs_event(server, Side.NEUTRAL, self.EVENT_TEXTS[Side.NEUTRAL]['connect'].format(
                 data['name'], server.name))
-
-        player: Player = server.get_player(ucid=data['ucid'])
-        if not player or player.id == 1:
-            player = DataObjectFactory().new(
-                Player, node=server.node, server=server, id=data['id'], name=data['name'],
-                active=data['active'], side=Side(data['side']), ucid=data['ucid'], ipaddr=data.get('ipaddr'))
-            server.add_player(player)
-        else:
-            await player.update(data)
-        player.connected = True
-
-        # if the first player joined, the server is considered non-idle
-        if server.idle_since:
-            server.idle_since = None
-        asyncio.create_task(self._upload_user_roles(server, player))
-        if player.watchlist:
-            asyncio.create_task(self._watchlist_alert(server, player))
-
-        # check if we've reached the max_threshold
-        usage_alarm = server.locals.get('usage_alarm', {})
-        mt = usage_alarm.get('max_threshold')
-        if mt and len(server.get_active_players()) == (mt + 1):
-            asyncio.create_task(self._threshold_alert(server, usage_alarm))
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
@@ -667,7 +668,7 @@ class MissionEventListener(EventListener["Mission"]):
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'], ipaddr=data.get('ipaddr'))
             server.add_player(player)
         else:
-            await player.update(data)
+            await player.update(data | {'slot': 0, 'sub_slot': 0})
         player.connected = True
 
         # security check, if a banned player somehow managed to get here (should never happen)
@@ -684,9 +685,6 @@ class MissionEventListener(EventListener["Mission"]):
                     asyncio.create_task(admin_channel.send(
                         f"{server.display_name}: Player {player.display_name} (ucid={player.ucid}) can't be matched "
                         f"to a discord user."))
-            if not isinstance(self.bot, DummyBot):
-                asyncio.create_task(player.sendChatMessage(
-                    messages['greeting_message_unmatched'].format(server=server, player=player)))
         else:
             asyncio.create_task(player.sendChatMessage(
                 messages['greeting_message_members'].format(player=player, server=server)))
@@ -703,7 +701,8 @@ class MissionEventListener(EventListener["Mission"]):
                             f"force_voice is enabled for server {server.name}, but no voice channel is configured!")
                         return
                     if not player.member.voice:
-                        asyncio.create_task(server.kick(player, reason=messages['message_no_voice'].format(voice.name)))
+                        asyncio.create_task(server.kick(player, reason=messages['message_no_voice'].format(
+                            utils.escape_string(voice.name))))
                         return
                     else:
                         asyncio.create_task(player.member.move_to(voice))
@@ -730,6 +729,8 @@ class MissionEventListener(EventListener["Mission"]):
         view.add_item(button)
         button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_profanity_{data['ucid']}")
         view.add_item(button)
+        button = Button(label="Kick", style=ButtonStyle.red, custom_id=f"kick_profanity_{data['ucid']}")
+        view.add_item(button)
         button = Button(label="Message", style=ButtonStyle.green, custom_id=f"message_profanity_{data['ucid']}")
         view.add_item(button)
         button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
@@ -741,30 +742,95 @@ class MissionEventListener(EventListener["Mission"]):
         admin_channel = self.bot.get_admin_channel(server)
         if not admin_channel:
             return
-        message = _('Banned user {name} (ucid={ucid}, ipaddr={ipaddr}) rejected.\nReason: {reason}').format(
-            name=data.get('name', 'n/a'), ucid=data['ucid'], ipaddr=data['ipaddr'], reason=data['reason'])
-        await admin_channel.send(f"```{message}```")
+        ban = next((x for x in await self.bus.bans() if x['ucid'] == data['ucid']), None)
+        embed = discord.Embed(title=_("Banned user rejected"), color=discord.Color.red())
+        embed.add_field(name="Name", value=data.get('name', 'n/a'), inline=True)
+        embed.add_field(name="UCID", value=data['ucid'], inline=True)
+        if ban and ban['discord_id'] != -1:
+            embed.add_field(name="Member", value=f"<@{ban['discord_id']}>", inline=True)
+        embed.add_field(name="IP", value=utils.hash_ip_addr(data['ipaddr']), inline=False)
+        if not ban:
+            embed.add_field(name="Reason", value=data['reason'], inline=False)
+        else:
+            embed.add_field(name="Reason", value=ban['reason'], inline=False)
+            embed.add_field(name="Banned by", value=ban['banned_by'], inline=True)
+            time_obj = ban['banned_at']
+            asof = f'<t:{int(time_obj.timestamp())}>\n({time_obj.strftime("%y-%m-%d %H:%Mz")})'
+            embed.add_field(name="Banned at", value=asof, inline=True)
+            if ban['banned_until'].year == 9999:
+                until = _('never')
+            else:
+                time_obj = ban['banned_until']
+                until = f'<t:{int(time_obj.timestamp())}:R>\n({time_obj.strftime("%y-%m-%d %H:%Mz")})'
+            embed.add_field(name="Banned until", value=until, inline=True)
+
+        if not data['reason'].startswith('DGSA'):
+            view = View(timeout=None)
+            button = Button(label="Unban", style=ButtonStyle.primary, custom_id=f"unban_{data['ucid']}")
+            view.add_item(button)
+            button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
+            view.add_item(button)
+        else:
+            view = None
+        await admin_channel.send(embed=embed, view=view)
 
     @event(name="onBanEvade")
     async def onBanEvade(self, server: Server, data: dict) -> None:
         admin_channel = self.bot.get_admin_channel(server)
         if not admin_channel:
             return
-        old_name = await self.bot.get_member_or_name_by_ucid(data['old_ucid'])
-        if isinstance(old_name, discord.Member):
-            old_name = old_name.display_name
 
-        message = _('Player {name} (ucid={ucid}) connected from the same IP (ipaddr={ipaddr}) '
-                    'as banned player {old_name} (ucid={old_ucid}), who was banned for {reason}!').format(
-            name=data.get('name', 'n/a'), ucid=data['ucid'], ipaddr=data['ipaddr'], old_name=old_name,
-            old_ucid=data['old_ucid'], reason=data['reason']
-        )
+        # read originally banned user
+        old = await self.bot.get_member_or_name_by_ucid(data['old_ucid'], verified=True)
+        if isinstance(old, discord.Member):
+            old_member = old
+            old_name = old.display_name
+        else:
+            old_member = None
+            old_name = old
+
+        # read the original ban record
+        ban = next((x for x in await self.bus.bans() if x['ucid'] == data['old_ucid']), None)
+
+        embed = discord.Embed(title=_("Possible ban-evasion detected"), color=discord.Color.red())
+        embed.add_field(name="Name", value=data.get('name', 'n/a'), inline=True)
+        embed.add_field(name="UCID", value=data['ucid'], inline=True)
+        member = self.bot.get_member_by_ucid(data['ucid'], verified=True)
+        if member:
+            embed.add_field(name="Member", value=member.mention, inline=True)
+        else:
+            embed.add_field(name="_ _", value="_ _", inline=True)
+        embed.add_field(name="Old Name", value=old_name, inline=True)
+        embed.add_field(name="Old UCID", value=data['old_ucid'], inline=True)
+        if ban:
+            if old_member:
+                embed.add_field(name="Old Member", value=old_member.mention, inline=True)
+            else:
+                embed.add_field(name="_ _", value="_ _", inline=True)
+        else:
+            embed.add_field(name="_ _", value="_ _", inline=True)
+        embed.add_field(name="IP", value=utils.hash_ip_addr(data['ipaddr']), inline=False)
+        if not ban:
+            embed.add_field(name="Reason", value=data['reason'], inline=False)
+        else:
+            embed.add_field(name="Reason", value=ban['reason'], inline=False)
+            embed.add_field(name="Banned by", value=ban['banned_by'], inline=True)
+            time_obj = ban['banned_at']
+            asof = f'<t:{int(time_obj.timestamp())}>\n({time_obj.strftime("%y-%m-%d %H:%Mz")})'
+            embed.add_field(name="Banned at", value=asof, inline=True)
+            if ban['banned_until'].year == 9999:
+                until = _('never')
+            else:
+                time_obj = ban['banned_until']
+                until = f'<t:{int(time_obj.timestamp())}:R>\n({time_obj.strftime("%y-%m-%d %H:%Mz")})'
+            embed.add_field(name="Banned until", value=until, inline=True)
+
         view = View(timeout=None)
         button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_evade_{data['ucid']}")
         view.add_item(button)
         button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
         view.add_item(button)
-        await admin_channel.send(f"```{message}```", view=view)
+        await admin_channel.send(embed=embed, view=view)
 
     async def _stop_player(self, server: Server, player: Player):
         player.active = False
@@ -842,14 +908,17 @@ class MissionEventListener(EventListener["Mission"]):
                 server.afk.pop(player.ucid, None)
                 if 'change_slot' not in self.get_config(server).get('event_filter', []):
                     side = Side(data['side'])
-                    self.send_dcs_event(server, side, self.EVENT_TEXTS[side]['change_slot'].format(player.side.name,
-                        data['name'], Side(data['side']).name, data['unit_type']))
+                    self.send_dcs_event(
+                        server, side, self.EVENT_TEXTS[side]['change_slot'].format(player.side.name,
+                        data['name'], Side(data['side']).name, data['unit_type'])
+                    )
             else:
                 server.afk[player.ucid] = datetime.now(timezone.utc)
                 if 'change_slot' not in self.get_config(server).get('event_filter', []):
-                    self.send_dcs_event(server, Side.NEUTRAL,
-                                        self.EVENT_TEXTS[Side.NEUTRAL]['spectators'].format(player.side.name,
-                                                                                            data['name']))
+                    side = player.side
+                    self.send_dcs_event(
+                        server, side, self.EVENT_TEXTS[side]['spectators'].format(data['name'])
+                    )
         finally:
             await player.update(data)
             self.display_player_embed(server)
@@ -916,7 +985,7 @@ class MissionEventListener(EventListener["Mission"]):
                     if any(x for x in _config.get('penalties', []) if x.get('event', "") == 'kill'):
                        return
 
-                name = ('Member ' + player1.member.display_name) \
+                name = ('Member ' + player1.member.mention) \
                     if player1.member else ('Player ' + player1.display_name)
                 message = f"{name} (ucid={player1.ucid}) is killing team members."
                 # show the server name on central admin channels

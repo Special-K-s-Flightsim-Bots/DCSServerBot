@@ -14,6 +14,18 @@ schema;element_schema:
     message_no_srs: {type: str, nullable: false, range: {min: 1}}
     enforce_srs: {type: bool, nullable: false}
     move_to_spec: {type: bool, nullable: false}
+    enforce_atc: {type: bool, nullable: false}
+    atc_frequencies:
+      type: map
+      nullable: false
+      mapping:
+        regex;(blue|red):
+          type: map
+          nullable: false
+          mapping:
+            regex;(Airbase|Carrier|FARP|\*):
+              type: any
+              func: str_or_list
 
 type: map
 func: check_main_structure

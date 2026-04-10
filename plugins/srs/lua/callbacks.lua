@@ -5,6 +5,12 @@ local utils 	= base.require("DCSServerBotUtils")
 local dcs_srs   = dcs_srs or {}
 dcsbot.srs = dcsbot.srs or {}
 
+function dcs_srs.onMissionLoadEnd()
+    log.write('DCSServerBot', log.DEBUG, 'DCS-SRS: onMissionLoadEnd()')
+    utils.loadScript('DCSServerBot.lua')
+    utils.loadScript('srs/mission.lua')
+end
+
 function dcs_srs.onPlayerTryChangeSlot(playerID, side, slotID)
     if not dcsbot.params or not dcsbot.params.srs or not dcsbot.params.srs.enforce_srs then
         return
