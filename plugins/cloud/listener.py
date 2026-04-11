@@ -43,7 +43,7 @@ class CloudListener(EventListener["Cloud"]):
                 if link:
                     linked = True
                     discord_id = link[0]['discord_id']
-                    member = await self.bot.guilds[0].fetch_member(discord_id)
+                    member = self.bot.guilds[0].get_member(discord_id)
                     if not member:
                         async with self.apool.connection() as conn:
                             await conn.execute("""
