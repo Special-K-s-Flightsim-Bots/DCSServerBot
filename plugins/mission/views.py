@@ -527,7 +527,7 @@ class WatchModal(Modal):
     reason = TextInput(label=_("Reason"), max_length=80, required=True)
 
     def __init__(self, ucid: str):
-        super().__init__(title=_("Ban Details"))
+        super().__init__(title=_("Watch Details"))
         self.ucid = ucid
         self.bot: BotService = ServiceRegistry.get(BotService)
 
