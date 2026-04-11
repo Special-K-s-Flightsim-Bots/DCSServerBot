@@ -74,6 +74,9 @@ class MOTDListener(EventListener["MOTD"]):
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
+        def _send_message(message: str, server: Server, cfg: dict, player: Player) -> None:
+            asyncio.create_task(self.plugin.send_message(message, server, cfg, player))
+
         config = self.plugin.get_config(server)
         if not config:
             return
@@ -83,8 +86,8 @@ class MOTDListener(EventListener["MOTD"]):
                 # should never happen, just in case
                 return
             message, cfg = await self.on_birth(config['on_birth'], server, player)
-            if message:
+            if message and cfg:
                 if 'delay' in cfg:
-                    self.loop.call_later(cfg['delay'], self.plugin.send_message, message, server, cfg, player)
+                    self.loop.call_later(cfg['delay'], _send_message, message, server, cfg, player)
                 else:
-                    asyncio.create_task(self.plugin.send_message(message, server, cfg, player))
+                    _send_message(message, server, cfg, player)
