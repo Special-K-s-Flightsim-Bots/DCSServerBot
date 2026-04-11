@@ -1319,8 +1319,10 @@ Please make sure you forward the following ports:
 
         msg = await interaction.followup.send(_("Enabling extension {}...").format(extension), ephemeral=ephemeral)
         try:
-            await server.enable_extension(extension, config)
-            await msg.edit(content=_("Extension {} enabled.").format(extension))
+            if await server.enable_extension(extension, config):
+                await msg.edit(content=_("Extension {} enabled.").format(extension))
+            else:
+                await msg.edit(content=_("Failed to enable extension. See the log for details."))
         except InstallException as ex:
             await msg.edit(content=_("Failed to enable extension:\n{}").format(str(ex)))
 
@@ -1344,8 +1346,10 @@ Please make sure you forward the following ports:
         msg = await interaction.original_response()
 
         try:
-            await server.disable_extension(extension)
-            await msg.edit(content=_("Extension {} disabled.").format(extension))
+            if await server.disable_extension(extension):
+                await msg.edit(content=_("Extension {} disabled.").format(extension))
+            else:
+                await msg.edit(content=_("Failed to disable extension. See the log for details."))
         except InstallException as ex:
             await msg.edit(content=_("Failed to disable extension:\n{}").format(str(ex)))
 

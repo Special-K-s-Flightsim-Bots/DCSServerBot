@@ -600,7 +600,7 @@ class ServerImpl(Server):
             extensions = DEFAULT_EXTENSIONS | self.locals.get('extensions', {})
             for extension in extensions.keys():
                 try:
-                    ext: Extension = self.extensions.get(extension)
+                    ext = self.extensions.get(extension)
                     if not ext:
                         ext = self.load_extension(extension)
                         if not ext:
@@ -1209,22 +1209,26 @@ class ServerImpl(Server):
             return extensions[name]
 
     @override
-    async def enable_extension(self, name: str, config: dict | None = None) -> None:
-        await self.config_extension(name, (config or {}) | {"enabled": True})
+    async def enable_extension(self, name: str, config: dict | None = None) -> bool:
         ext = self.extensions.get(name)
         if not ext:
             ext = self.load_extension(name)
             self.extensions[name] = ext
-        await ext.enable()
+        if await ext.enable():
+            await self.config_extension(name, (config or {}) | {"enabled": True})
+            return True
+        return False
 
     @override
-    async def disable_extension(self, name: str) -> None:
+    async def disable_extension(self, name: str) -> bool:
         if name not in self.extensions:
             raise InstallException(f"Extension '{name}' not found")
         ext = self.extensions[name]
         await self.config_extension(name, {"enabled": False})
-        await ext.disable()
-        self.extensions.pop(name, None)
+        if await ext.disable():
+            self.extensions.pop(name, None)
+            return True
+        return False
 
     @override
     async def cleanup(self) -> None:

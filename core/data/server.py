@@ -517,11 +517,11 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def enable_extension(self, name: str, config: dict | None = None) -> None:
+    async def enable_extension(self, name: str, config: dict | None = None) -> bool:
         raise NotImplementedError()
 
     @abstractmethod
-    async def disable_extension(self, name: str) -> None:
+    async def disable_extension(self, name: str) -> bool:
         raise NotImplementedError()
 
     @abstractmethod
