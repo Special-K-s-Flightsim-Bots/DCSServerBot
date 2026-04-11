@@ -150,12 +150,12 @@ DCSServerBot supports a lot of them already which can add some quality of life.
 > Therefore, if you encounter any problems with these solutions, please reach out directly to the developers for 
 > assistance.
 
-[!TIP]
-If you're using the [ModManager](./services/modmanager/README.md) service, some of these extensions can be installed
-automatically (DSMC, gRPC, HoundTTS, Olympus).
-You can try and use `/enable extension`, which will in many cases succeed already in enabling and configuring the 
-extension to your basic needs.
-If that does not work, please have a look at the respective READMEs for more information.
+> [!TIP]
+> If you're using the [ModManager](./services/modmanager/README.md) service, some of these extensions can be installed
+> automatically (DSMC, gRPC, HoundTTS, Olympus).
+> You can try and use `/enable extension`, which will in many cases succeed already in enabling and configuring the 
+> extension to your basic needs.
+> If that does not work, please have a look at the respective READMEs for more information.
 ---
 
 ## Installation
