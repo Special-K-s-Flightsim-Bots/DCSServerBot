@@ -62,29 +62,34 @@ class MOTDListener(EventListener["MOTD"]):
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         async def _send_message(config: dict, server: Server, player: Player) -> None:
-            await player.sendChatMessage(await self.on_join(config['on_join'], server, player))
+            msg = await self.on_join(config['on_join'], server, player)
+            if msg:
+                await player.sendChatMessage(msg)
 
         if data['id'] == 1 or 'ucid' not in data:
             return
         config = self.plugin.get_config(server)
         if config and 'on_join' in config:
-            player: Player = server.get_player(ucid=data['ucid'])
+            player = server.get_player(ucid=data['ucid'])
             if player:
                 asyncio.create_task(_send_message(config, server, player))
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
+        def _send_message(message: str, server: Server, cfg: dict, player: Player) -> None:
+            asyncio.create_task(self.plugin.send_message(message, server, cfg, player))
+
         config = self.plugin.get_config(server)
         if not config:
             return
         if data['eventName'] == 'S_EVENT_BIRTH' and 'name' in data['initiator'] and 'on_birth' in config:
-            player: Player = server.get_player(name=data['initiator']['name'], active=True)
+            player = server.get_player(name=data['initiator']['name'], active=True)
             if not player:
                 # should never happen, just in case
                 return
             message, cfg = await self.on_birth(config['on_birth'], server, player)
-            if message:
+            if message and cfg:
                 if 'delay' in cfg:
-                    self.loop.call_later(cfg['delay'], self.plugin.send_message, message, server, cfg, player)
+                    self.loop.call_later(cfg['delay'], _send_message, message, server, cfg, player)
                 else:
-                    asyncio.create_task(self.plugin.send_message(message, server, cfg, player))
+                    _send_message(message, server, cfg, player)
