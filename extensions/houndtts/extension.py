@@ -33,3 +33,12 @@ class HoundTTS(InstallableExtension):
                 elements = elements[0:3]
             version = '.'.join(elements)
         return version or "0.1.1"
+
+    async def uninstall(self) -> bool:
+        if not self.service or not await super().uninstall():
+            try:
+                utils.safe_rmtree(self.home)
+            except Exception as ex:
+                self.log.error(f"Error during uninstall of {self.name}: {str(ex)}")
+                return False
+        return True

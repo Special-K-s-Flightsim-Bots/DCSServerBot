@@ -320,6 +320,8 @@ class ModManagerService(Service):
         elif os.path.exists(package + '.zip'):
             await asyncio.to_thread(recreate_zip_package)
         else:
+            self.log.error(f"- Recreation of install log for package {package_name}_v{version} failed, "
+                           f"no source package available.")
             return False
 
         async with aiofiles.open(os.path.join(packages_path, 'install.log'), 'w', encoding=ENCODING,

@@ -451,9 +451,9 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
 
     @override
-    async def enable_extension(self, name: str, config: dict | None = None) -> None:
+    async def enable_extension(self, name: str, config: dict | None = None) -> bool:
         timeout = 180 if not self.node.slow_system else 300
-        await self.bus.send_to_node_sync({
+        return await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "enable_extension",
@@ -465,9 +465,9 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
 
     @override
-    async def disable_extension(self, name: str) -> None:
+    async def disable_extension(self, name: str) -> bool:
         timeout = 180 if not self.node.slow_system else 300
-        await self.bus.send_to_node_sync({
+        return await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "disable_extension",

@@ -4,6 +4,9 @@ import asyncio
 import logging
 
 from abc import ABC
+
+from aiohttp import ClientResponseError
+
 from core import Status
 from core.services.registry import ServiceRegistry
 from typing import TYPE_CHECKING
@@ -120,18 +123,21 @@ class Extension(ABC):
     def enabled(self) -> bool:
         return self.config.get('enabled', True)
 
-    async def enable(self):
+    async def enable(self) -> bool:
         self.config['enabled'] = True
         if self.server.status in [Status.RUNNING, Status.PAUSED]:
             if not self.is_running():
-                asyncio.create_task(self.startup())
+                return await self.startup()
+            return True
         else:
-            await self.prepare()
+            return await self.prepare()
 
-    async def disable(self):
+    async def disable(self) -> bool:
         if self.is_running():
-            await asyncio.to_thread(self.shutdown)
+            if not await asyncio.to_thread(self.shutdown):
+                return False
         self.config['enabled'] = False
+        return True
 
     async def render(self, param: dict | None = None) -> dict:
         raise NotImplementedError()
@@ -185,7 +191,11 @@ class InstallableExtension(Extension):
 
     async def get_latest_version(self) -> str | None:
         if self.repo:
-            latest = await self.service.get_latest_repo_version(self.repo)
+            try:
+                latest = await self.service.get_latest_repo_version(self.repo)
+            except ClientResponseError:
+                self.log.warning(f"Failed to fetch latest version for {self.name} from repository, skipping.")
+                return self.version
         else:
             from services.modmanager import Folder
 
@@ -199,7 +209,7 @@ class InstallableExtension(Extension):
         from services.modmanager import Folder
 
         if not self.service:
-            self.log.error(f"  => {self.name}: ModManagerService not found, cannot install")
+            self.log.error(f"  => {self.name}: To install, please enable ModManager service!")
             return False
 
         if not await self.service.get_installed_package(self.server, Folder.SavedGames, self.package_name):
@@ -218,7 +228,7 @@ class InstallableExtension(Extension):
 
     async def uninstall(self) -> bool:
         if not self.service:
-            self.log.error(f"  => {self.name}: ModManagerService not found, cannot uninstall")
+            self.log.error(f"  => {self.name}: ModManager service not active, cannot uninstall!")
             return False
 
         from services.modmanager import Folder
@@ -238,12 +248,15 @@ class InstallableExtension(Extension):
            return await self.install(version)
         return False
 
-    async def enable(self):
+    async def enable(self) -> bool:
         if not self.is_installed():
-            await self.install()
-        await super().enable()
+            if not await self.install():
+                return False
+        return await super().enable()
 
-    async def disable(self):
-        await super().disable()
+    async def disable(self) -> bool:
+        if not await super().disable():
+            return False
         if self.is_installed():
-            await self.uninstall()
+            return await self.uninstall()
+        return True
