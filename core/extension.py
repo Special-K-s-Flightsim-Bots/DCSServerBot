@@ -4,6 +4,9 @@ import asyncio
 import logging
 
 from abc import ABC
+
+from aiohttp import ClientResponseError
+
 from core import Status
 from core.services.registry import ServiceRegistry
 from typing import TYPE_CHECKING
@@ -188,7 +191,11 @@ class InstallableExtension(Extension):
 
     async def get_latest_version(self) -> str | None:
         if self.repo:
-            latest = await self.service.get_latest_repo_version(self.repo)
+            try:
+                latest = await self.service.get_latest_repo_version(self.repo)
+            except ClientResponseError:
+                self.log.warning(f"Failed to fetch latest version for {self.name} from repository, skipping.")
+                return self.version
         else:
             from services.modmanager import Folder
 
