@@ -190,6 +190,8 @@ class InstallableExtension(Extension):
             return None
 
     async def get_latest_version(self) -> str | None:
+        if not self.service:
+            return self.version
         if self.repo:
             try:
                 latest = await self.service.get_latest_repo_version(self.repo)

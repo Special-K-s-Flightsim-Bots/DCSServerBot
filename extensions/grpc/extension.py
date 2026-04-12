@@ -1,7 +1,7 @@
 import os
 import re
 
-from core import Server, get_translation, PortType, Port, InstallableExtension
+from core import Server, get_translation, PortType, Port, InstallableExtension, utils
 from typing import Any, TextIO
 from typing_extensions import override
 
@@ -156,3 +156,12 @@ class gRPC(InstallableExtension):
     @override
     def shutdown(self, *, quiet: bool = False) -> bool:
         return super().shutdown(quiet=True)
+
+    async def uninstall(self) -> bool:
+        if not self.service or not await super().uninstall():
+            try:
+                utils.safe_rmtree(self.home)
+            except Exception as ex:
+                self.log.error(f"Error during uninstall of {self.name}: {str(ex)}")
+                return False
+        return True
