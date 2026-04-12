@@ -280,9 +280,10 @@ class ModManagerService(Service):
             """, (reference.name, package_name, folder.value))
             return (await cursor.fetchone())[0] if cursor.rowcount == 1 else None
 
-    async def recreate_install_log(self, reference: Server | Node, folder: Folder, package_name: str, version: str) -> bool:
+    async def recreate_install_log(self, reference: Server | Node, folder: Folder, package_name: str, version: str,
+                                   repo: str | None = None) -> bool:
         config = self.get_config()
-        path = os.path.expandvars(config['SavedGames'])
+        path = os.path.expandvars(config[folder.value])
         if folder == Folder.SavedGames:
             packages_path = os.path.join(path, '.' + reference.instance.name, package_name + '_v' + version)
         else:
@@ -314,15 +315,15 @@ class ModManagerService(Service):
                             dirs.append(dirname)
                     log_entries.append(f"w {name}\n")
 
-        package = os.path.join(path, f"{package_name}_v{version}")
-        if os.path.isdir(package):
-            await asyncio.to_thread(recreate_normal_package)
-        elif os.path.exists(package + '.zip'):
-            await asyncio.to_thread(recreate_zip_package)
-        else:
+        package = await self._ensure_package(folder, package_name, version, repo=repo)
+        if not package:
             self.log.error(f"- Recreation of install log for package {package_name}_v{version} failed, "
                            f"no source package available.")
             return False
+        elif os.path.isdir(package):
+            await asyncio.to_thread(recreate_normal_package)
+        elif os.path.exists(package + '.zip'):
+            await asyncio.to_thread(recreate_zip_package)
 
         async with aiofiles.open(os.path.join(packages_path, 'install.log'), 'w', encoding=ENCODING,
                                  errors='replace') as log:
@@ -437,6 +438,25 @@ class ModManagerService(Service):
         self.log.info(f"- Package {package_name}_v{version} successfully installed in {target}.")
         return True
 
+    async def _ensure_package(self, folder: Folder, package_name: str, version: str,
+                              repo: str | None = None) -> str | None:
+        if isinstance(folder, str):
+            folder = Folder(folder)
+        config = self.get_config()
+        path = os.path.expandvars(config[folder.value])
+        try:
+            return str(next(Path(path).glob(f"{package_name}*{version}*")))
+        except StopIteration:
+            if repo:
+                try:
+                    if await self.download_from_repo(repo, folder, package_name=package_name, version=version):
+                        raise
+                    return str(next(Path(path).glob(f"{package_name}*{version}*")))
+                except Exception:
+                    pass
+            self.log.warning(f"Can't find {package_name}_v{version} in {repo}.")
+            return None
+
     @proxy(timeout=180)
     async def install_package(self, server: Server, folder: Folder | str, package_name: str, version: str,
                               repo: str | None = None) -> bool:
@@ -451,14 +471,8 @@ class ModManagerService(Service):
         else:
             reference = server.node
             os.makedirs(os.path.join(path, '.' + reference.name), exist_ok=True)
-        try:
-            filename = str(next(Path(path).glob(f"{package_name}*{version}*")))
-        except StopIteration:
-            if repo:
-                if await self.download_from_repo(repo, folder, package_name=package_name, version=version):
-                    self.log.warning(f"Can't find {package_name}_v{version} in {repo}.")
-                    return False
-                return await self.install_package(reference, folder, package_name, version)
+        filename = await self._ensure_package(folder, package_name, version, repo)
+        if not filename:
             return False
         try:
             return await self.do_install(reference, folder, package_name, version, path, filename)
@@ -503,7 +517,7 @@ class ModManagerService(Service):
 
     @proxy(timeout=180)
     async def uninstall_package(self, server: Server, folder: Folder | str, package_name: str,
-                                version: str) -> bool:
+                                version: str, repo: str | None = None) -> bool:
         if isinstance(folder, str):
             folder = Folder(folder)
         if folder == Folder.RootFolder:
@@ -515,14 +529,15 @@ class ModManagerService(Service):
         if not os.path.exists(os.path.join(packages_path, 'install.log')):
             self.log.warning(f"- Can't find {os.path.join(packages_path, 'install.log')}. Trying to recreate ...")
             # try to recreate it
-            if not await self.recreate_install_log(server, folder, package_name, version):
+            if not await self.recreate_install_log(server, folder, package_name, version, repo):
                 self.log.error(f"- Recreation failed. Can't uninstall {package_name}.")
                 return False
             else:
                 self.log.info("- Recreation successful.")
         return await self.do_uninstall(server, folder, package_name, version, packages_path)
 
-    async def uninstall_root_package(self, node: Node, package_name: str, version: str) -> bool:
+    async def uninstall_root_package(self, node: Node, package_name: str, version: str,
+                                     repo: str | None = None) -> bool:
         self.log.info(f"Uninstalling root-package {package_name}_v{version} ...")
         folder = Folder.RootFolder
         config = self.get_config()
@@ -531,7 +546,7 @@ class ModManagerService(Service):
         if not os.path.exists(os.path.join(packages_path, 'install.log')):
             self.log.warning(f"- Can't find {os.path.join(packages_path, 'install.log')}. Trying to recreate ...")
             # try to recreate it
-            if not await self.recreate_install_log(node, folder, package_name, version):
+            if not await self.recreate_install_log(node, folder, package_name, version, repo):
                 self.log.error(f"- Recreation failed. Can't uninstall {package_name}.")
                 return False
             else:
