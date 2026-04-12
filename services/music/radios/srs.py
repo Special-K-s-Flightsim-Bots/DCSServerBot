@@ -32,15 +32,14 @@ class SRSRadio(Radio):
         try:
             self.process = await extension.play_external_audio(self.config, file=file)
             coalition = Coalition.BLUE if int(self.config['coalition']) == 2 else Coalition.RED
-            server_config = self.service.get_config(self.server)
-            if 'popup' in server_config:
+            if 'popup' in self.config:
                 kwargs = self.config.copy()
                 kwargs['song'] = get_tag(file).title or os.path.basename(file)
-                await self.server.sendPopupMessage(coalition, utils.format_string(server_config['popup'], **kwargs))
-            if 'chat' in server_config:
+                await self.server.sendPopupMessage(coalition, utils.format_string(self.config['popup'], **kwargs))
+            if 'chat' in self.config:
                 kwargs = self.config.copy()
                 kwargs['song'] = get_tag(file).title or os.path.basename(file)
-                await self.server.sendChatMessage(coalition, utils.format_string(server_config['chat'], **kwargs))
+                await self.server.sendChatMessage(coalition, utils.format_string(self.config['chat'], **kwargs))
             await asyncio.to_thread(self.process.wait)
         except Exception as ex:
             self.log.exception(ex)
