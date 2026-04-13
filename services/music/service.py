@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import asyncio
 import logging
 import os
 import sys
@@ -67,24 +69,41 @@ class MusicService(Service):
                     await radio.start()
 
     @proxy
-    async def stop_radios(self, server: Server, radio_name: str | None = None) -> None:
-        if server.name in self.radios:
-            for name, radio in self.radios[server.name].items():
-                if radio_name and name != radio_name:
-                    continue
-                await radio.stop()
+    async def stop_radios(
+            self,
+            server: Server,
+            radio_name: str | None = None,
+    ) -> None:
+        """
+        Stop one or more radios belonging to *server*.
+
+        If *radio_name* is supplied only that radio is stopped;
+        otherwise all radios for the server are stopped.
+        """
+        # No radios for this server → nothing to do
+        if server.name not in self.radios:
+            return
+
+        stop_tasks = [
+            radio.stop()
+            for name, radio in self.radios[server.name].items()
+            if not radio_name or name == radio_name
+        ]
+
+        if stop_tasks:
+            await asyncio.gather(*stop_tasks)
 
     @proxy
     async def play_song(self, server: Server, radio_name: str, song: str) -> None:
         radio = self.radios.get(server.name, {}).get(radio_name)
         if radio:
-            await radio.play(song)
+            asyncio.create_task(radio.play(song))
 
     @proxy
     async def skip_song(self, server: Server, radio_name: str) -> None:
         radio = self.radios.get(server.name, {}).get(radio_name)
         if radio:
-            await radio.skip()
+            asyncio.create_task(radio.skip())
 
     @proxy
     async def get_current_song(self, server: Server, radio_name: str) -> str | None:

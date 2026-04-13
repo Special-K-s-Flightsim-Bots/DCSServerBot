@@ -41,7 +41,7 @@ class Radio(ABC):
         self._playlist = None
         # TODO: async
         self.playlist = self._get_active_playlist()
-        self.idx = 0 if (self._mode == Mode.REPEAT or not len(self.songs)) else randrange(len(self.songs))
+        self._reset_index()
 
     def _get_active_playlist(self) -> str | None:
         with self.pool.connection() as conn:
@@ -80,7 +80,10 @@ class Radio(ABC):
                 """, (self.server.name, self.name, playlist))
             self._playlist = playlist
             self.songs = self._read_playlist()
-            self.idx = 0 if (self._mode == Mode.REPEAT or not len(self.songs)) else randrange(len(self.songs))
+            self._reset_index()
+
+    def _reset_index(self) -> None:
+        self.idx = 0 if (self._mode == Mode.REPEAT or not self.songs) else randrange(len(self.songs))
 
     @property
     def config(self) -> dict:
@@ -141,9 +144,10 @@ class Radio(ABC):
 
     @tasks.loop()
     async def queue_worker(self):
+        music_dir = self.service.music_dir
         while not self.queue_worker.is_being_cancelled():
-            with suppress(Exception):
-                filename = os.path.join(self.service.music_dir, self.songs[self.idx])
+            if self.songs:
+                filename = os.path.join(music_dir, self.songs[self.idx])
                 if os.path.exists(filename):
                     await self.play(filename)
                 else:
