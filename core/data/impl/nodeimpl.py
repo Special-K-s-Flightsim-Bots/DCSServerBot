@@ -1256,6 +1256,10 @@ class NodeImpl(Node):
                         return True
                     return False
 
+
+                except asyncio.CancelledError:
+                    cancelled = True
+                    raise
                 except (UndefinedTable, UndefinedColumn):
                     raise
                 except Exception as ex:
