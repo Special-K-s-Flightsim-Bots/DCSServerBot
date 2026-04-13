@@ -1256,7 +1256,6 @@ class NodeImpl(Node):
                         return True
                     return False
 
-
                 except asyncio.CancelledError:
                     cancelled = True
                     raise
@@ -1267,7 +1266,8 @@ class NodeImpl(Node):
                     raise
 
                 finally:
-                    if not cancelled:
+                    if (not cancelled and not self.node.is_shutdown.is_set()
+                            and self.apool is not None and not self.apool.closed):
                         async with self.apool.connection() as conn2:
                             await conn2.execute("""
                                 INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
