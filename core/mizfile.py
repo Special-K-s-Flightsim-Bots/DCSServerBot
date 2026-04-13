@@ -396,7 +396,13 @@ class MizFile:
     def accidental_failures(self, value: bool) -> None:
         if value:
             raise ValueError("Setting of accidental_failures is not implemented.")
-        self.mission.setdefault('forcedOptions', {})['accidental_failures'] = value
+
+        current = self.mission.get('forcedOptions')
+        if not isinstance(current, dict):
+            current = {}
+
+        current['accidental_failures'] = value
+        self.mission['forcedOptions'] = current
         self.failures = {}
 
     @property
@@ -407,7 +413,10 @@ class MizFile:
     def forcedOptions(self, values: dict):
         if 'accidental_failures' in values:
             self.accidental_failures = values['accidental_failures']
-        self.mission['forcedOptions'] = self.mission.setdefault('forcedOptions', values) | values
+        current = self.mission.get('forcedOptions')
+        if not isinstance(current, dict):
+            current = {}
+        self.mission['forcedOptions'] = current | values
 
     @property
     def miscellaneous(self) -> dict:
@@ -415,7 +424,10 @@ class MizFile:
 
     @miscellaneous.setter
     def miscellaneous(self, values: dict):
-        self.options['miscellaneous'] = self.options.setdefault('miscellaneous', values) | values
+        current = self.options.get('miscellaneous')
+        if not isinstance(current, dict):
+            current = {}
+        self.options['miscellaneous'] = current | values
 
     @property
     def difficulty(self) -> dict:
@@ -423,7 +435,10 @@ class MizFile:
 
     @difficulty.setter
     def difficulty(self, values: dict):
-        self.options['difficulty'] = self.options.setdefault('difficulty', values) | values
+        current = self.options.get('difficulty')
+        if not isinstance(current, dict):
+            current = {}
+        self.options['difficulty'] = current | values
 
     @property
     def files(self) -> list:
