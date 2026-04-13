@@ -1157,6 +1157,7 @@ class NodeImpl(Node):
                 await ServiceRegistry.get(ServiceBus).unregister_remote_node(node)
                 self.suspect[node.name] = node
 
+        cancelled = False
         try:
             # do not do any checks if we are supposed to shut down
             if self.node.is_shutdown.is_set():
@@ -1262,11 +1263,13 @@ class NodeImpl(Node):
                     raise
 
                 finally:
-                    await conn.execute("""
-                        INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
-                        ON CONFLICT (guild_id, node) DO UPDATE 
-                        SET last_seen = (NOW() AT TIME ZONE 'UTC')
-                    """, (self.guild_id, self.name))
+                    if not cancelled:
+                        async with self.apool.connection() as conn2:
+                            await conn2.execute("""
+                                INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
+                                ON CONFLICT (guild_id, node) DO UPDATE 
+                                SET last_seen = (NOW() AT TIME ZONE 'UTC')
+                            """, (self.guild_id, self.name))
         except InFailedSqlTransaction:
             # we should only be here when the CLUSTER table does not exist yet
             return True
