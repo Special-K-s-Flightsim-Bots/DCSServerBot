@@ -1132,6 +1132,7 @@ class NodeImpl(Node):
             return True
 
         async def check_nodes():
+            from services.bot import BotService
             from services.servicebus import ServiceBus
 
             active_nodes = set(await self.get_active_nodes())
@@ -1153,8 +1154,12 @@ class NodeImpl(Node):
                 # remove known inactive nodes
                 if not node:
                     continue
-                self.log.error(f"Node {node.name} not responding.")
+                self.log.error(f"Node {node.name} is not responding.")
                 await ServiceRegistry.get(ServiceBus).unregister_remote_node(node)
+                await ServiceRegistry.get(BotService).alert(
+                    title=_("Node {node} is not responding").format(node=node.name),
+                    message=_("Node {node} was unregistered from the cluster.").format(node=node.name)
+                )
                 self.suspect[node.name] = node
 
         cancelled = False
@@ -1267,8 +1272,8 @@ class NodeImpl(Node):
 
                 finally:
                     if (not cancelled and not self.node.is_shutdown.is_set()
-                            and self.apool is not None and not self.apool.closed):
-                        async with self.apool.connection() as conn2:
+                            and self.cpool is not None and not self.cpool.closed):
+                        async with self.cpool.connection() as conn2:
                             await conn2.execute("""
                                 INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
                                 ON CONFLICT (guild_id, node) DO UPDATE 
