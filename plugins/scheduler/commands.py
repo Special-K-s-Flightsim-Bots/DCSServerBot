@@ -486,10 +486,19 @@ class Scheduler(Plugin[SchedulerListener]):
             is_running_mission = False
 
         # apply presets if configured
-        if rconf.get('settings'):
-            await self._run_with_presets(server, rconf, new_mission, is_running_mission)
-        else:
-            await self._run_without_presets(server, rconf, new_mission)
+        try:
+            if rconf.get('settings'):
+                await self._run_with_presets(server, rconf, new_mission, is_running_mission)
+            else:
+                await self._run_without_presets(server, rconf, new_mission)
+        except (asyncio.TimeoutError, TimeoutError):
+            await self.bot.audit(
+                f"{self.__cog_name__} timeout while starting mission",
+                server=server,
+                user=rconf.get('user'),
+                mission=new_mission
+            )
+            return
 
         # change password if configured
         if 'password' in rconf:
