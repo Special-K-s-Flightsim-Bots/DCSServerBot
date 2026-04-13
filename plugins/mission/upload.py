@@ -134,5 +134,8 @@ class MissionUploadHandler(ServerUploadHandler):
                 await self.server.stop()
         if not self.server.current_mission or self.server.current_mission.filename != filename:
             await self._load_mission(filename)
+            await self.channel.send(_('Mission {} loaded.').format(filename))
         if self.server.status == Status.STOPPED:
             await self.server.start()
+            await self.channel.send(_('Server {} started and mission {} loaded.').format(
+                self.server.display_name, filename))

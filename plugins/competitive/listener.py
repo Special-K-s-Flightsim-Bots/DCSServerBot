@@ -163,7 +163,7 @@ class CompetitiveListener(EventListener["Competitive"]):
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1 or 'ucid' not in data:
             return
-        player: Player = server.get_player(ucid=data['ucid'])
+        player = server.get_player(ucid=data['ucid'])
         if player:
             asyncio.create_task(self._print_trueskill(player))
 
