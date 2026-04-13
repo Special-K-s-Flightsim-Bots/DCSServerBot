@@ -297,7 +297,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
 
     @override
-    async def setPassword(self, password: str):
+    async def setPassword(self, password: str | None):
         timeout = 60 if not self.node.slow_system else 120
         await self.bus.send_to_node_sync({
             "command": "rpc",

@@ -20,53 +20,60 @@ class MissionUploadHandler(ServerUploadHandler):
         self.log = plugin.log
 
     async def handle_attachment(self, directory: str, att: discord.Attachment) -> UploadStatus:
-        ctx = await self.bot.get_context(self.message)
-        rc = await self.server.uploadMission(att.filename, att.url, force=self.overwrite, missions_dir=directory)
-        if rc in [UploadStatus.FILE_IN_USE, UploadStatus.WRITE_ERROR]:
-            if self.server.is_populated():
-                what = await utils.populated_question(ctx, _('This mission is currently active.\n'
-                                                             'Do you want me to stop the DCS-server to replace it?'))
-            else:
-                what = 'yes'
-            if what == 'yes':
-                await self.server.stop()
-            elif what == 'later':
-                await self.server.uploadMission(att.filename, att.url, orig=True, force=True, missions_dir=directory)
-                await self.channel.send(_('Mission "{mission}" uploaded to server {server}\n'
-                                          'It will be loaded when server is empty or on the next restart.').format(
-                    mission=os.path.basename(att.filename)[:-4], server=self.server.display_name))
-                # we return the old rc (file in use), to not force a mission load
-                return rc
-            else:
-                await self.channel.send(_('Upload aborted.'))
-                return rc
-        elif rc == UploadStatus.FILE_EXISTS:
-            self.log.debug("File exists, asking for overwrite.")
-            if not await utils.yn_question(ctx, _('File exists. Do you want to overwrite it?')):
-                await self.channel.send(_('Upload aborted.'))
-                return rc
-        if rc != UploadStatus.OK:
-            rc = await self.server.uploadMission(att.filename, att.url, force=True, missions_dir=directory)
+        try:
+            ctx = await self.bot.get_context(self.message)
+            rc = await self.server.uploadMission(att.filename, att.url, force=self.overwrite, missions_dir=directory)
+            if rc in [UploadStatus.FILE_IN_USE, UploadStatus.WRITE_ERROR]:
+                if self.server.is_populated():
+                    what = await utils.populated_question(ctx, _('This mission is currently active.\n'
+                                                                 'Do you want me to stop the DCS-server to replace it?'))
+                else:
+                    what = 'yes'
+                if what == 'yes':
+                    await self.server.stop()
+                    self.log.debug(f"Mission upload: Server {self.server.name} stopped.")
+                elif what == 'later':
+                    await self.server.uploadMission(att.filename, att.url, orig=True, force=True, missions_dir=directory)
+                    await self.channel.send(_('Mission "{mission}" uploaded to server {server}\n'
+                                              'It will be loaded when server is empty or on the next restart.').format(
+                        mission=os.path.basename(att.filename)[:-4], server=self.server.display_name))
+                    # we return the old rc (file in use), to not force a mission load
+                    return rc
+                else:
+                    await self.channel.send(_('Upload aborted.'))
+                    return rc
+            elif rc == UploadStatus.FILE_EXISTS:
+                self.log.debug("File exists, asking for overwrite.")
+                if not await utils.yn_question(ctx, _('File exists. Do you want to overwrite it?')):
+                    await self.channel.send(_('Upload aborted.'))
+                    return rc
             if rc != UploadStatus.OK:
-                self.log.debug(f"Error while uploading: {rc}")
-                await self.channel.send(_('Error while uploading: {}').format(rc.name))
-                return rc
+                self.log.debug(f"Uploading mission {att.filename} ...")
+                rc = await self.server.uploadMission(att.filename, att.url, force=True, missions_dir=directory)
+                if rc != UploadStatus.OK:
+                    self.log.debug(f"Error while uploading: {rc}")
+                    await self.channel.send(_('Error while uploading: {}').format(rc.name))
+                    return rc
 
-        name = utils.escape_string(os.path.basename(att.filename)[:-4])
-        if not self.server.locals.get('autoadd', True):
-            await self.channel.send(_('Mission "{mission}" uploaded to server {server} and NOT added.').format(
-                mission=name, server=self.server.display_name))
+            name = utils.escape_string(os.path.basename(att.filename)[:-4])
+            if not self.server.locals.get('autoadd', True):
+                self.log.debug(f"Mission {name} was uploaded but not added.")
+                await self.channel.send(_('Mission "{mission}" uploaded to server {server} and NOT added.').format(
+                    mission=name, server=self.server.display_name))
+                return rc
+            if self.server.status != Status.STOPPED and self.server.locals.get('autoscan', False):
+                self.log.debug("Autoscan enabled, waiting for mission to be auto-added.")
+                await self.channel.send(
+                    _('Mission "{mission}" uploaded to server {server}.\n'
+                      'As you have "autoscan" enabled, it might take some seconds to appear in your mission list.'
+                      ).format(mission=name, server=self.server.display_name))
+            else:
+                self.log.debug(f"Mission {name} was uploaded and added.")
+                await self.channel.send(_('Mission "{mission}" uploaded to server {server}').format(
+                    mission=name, server=self.server.display_name))
             return rc
-        if self.server.status != Status.STOPPED and self.server.locals.get('autoscan', False):
-            self.log.debug("Autoscan enabled, waiting for mission to be auto-added.")
-            await self.channel.send(
-                _('Mission "{mission}" uploaded to server {server}.\n'
-                  'As you have "autoscan" enabled, it might take some seconds to appear in your mission list.'
-                  ).format(mission=name, server=self.server.display_name))
-        else:
-            await self.channel.send(_('Mission "{mission}" uploaded to server {server}').format(
-                mission=name, server=self.server.display_name))
-        return rc
+        except Exception as ex:
+            self.log.exception(ex)
 
     async def _wait_for_mission(self, att: discord.Attachment) -> str | None:
         # wait 60s for the mission to appear
@@ -134,7 +141,6 @@ class MissionUploadHandler(ServerUploadHandler):
                 await self.server.stop()
         if not self.server.current_mission or self.server.current_mission.filename != filename:
             await self._load_mission(filename)
-            await self.channel.send(_('Mission {} loaded.').format(filename))
         if self.server.status == Status.STOPPED:
             await self.server.start()
             await self.channel.send(_('Server {} started and mission {} loaded.').format(

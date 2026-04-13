@@ -400,7 +400,7 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def setPassword(self, password: str):
+    async def setPassword(self, password: str | None):
         raise NotImplementedError()
 
     @abstractmethod
