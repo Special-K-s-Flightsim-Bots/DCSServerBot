@@ -346,7 +346,7 @@ class GameMasterEventListener(EventListener["GameMaster"]):
     async def onPlayerChangeCoalition(self, server: Server, data: dict) -> None:
         if data['side'] == 0 or not server.locals.get('coalitions'):
             return
-        player: Player = server.get_player(id=data['id'], active=True)
+        player = server.get_player(id=data['id'], active=True)
         if not player:
             return
         # DCS Admin and GameMaster can join any side

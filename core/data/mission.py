@@ -29,7 +29,7 @@ class Mission(DataObject):
     num_slots_red = 0
     weather: dict = field(repr=False, default_factory=dict)
     clouds: dict = field(repr=False, default_factory=dict)
-    airbases: list = field(repr=False, default_factory=list)
+    airbases: list[dict] = field(repr=False, default_factory=list)
 
     @property
     def display_name(self) -> str:

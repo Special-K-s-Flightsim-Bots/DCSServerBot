@@ -39,7 +39,7 @@ class Player(DataObject):
     unit_type: str = field(compare=False, default='')
     group_id: int = field(compare=False, default=0)
     group_name: str = field(compare=False, default='')
-    _member: discord.Member = field(compare=False, repr=False, default=None, init=False)
+    _member: discord.Member | None = field(compare=False, repr=False, default=None, init=False)
     _verified: bool = field(compare=False, default=False)
     coalition: Coalition | None = field(compare=False, default=None)
     _watchlist: bool = field(compare=False, default=False)
@@ -122,7 +122,7 @@ class Player(DataObject):
         return self.banned
 
     @property
-    def member(self) -> discord.Member:
+    def member(self) -> discord.Member | None:
         return self._member
 
     @member.setter
@@ -148,6 +148,8 @@ class Player(DataObject):
         self._verified = verified
 
     def update_verified(self, verified: bool) -> None:
+        if not self.member:
+            return
         with self.pool.connection() as conn:
             conn.execute('UPDATE players SET manual = %s WHERE ucid = %s', (verified, self.ucid))
             if verified:
@@ -330,6 +332,8 @@ class Player(DataObject):
             "command": "getScreenshots",
             "id": self.id
         })
+        if not data:
+            return []
         return data.get('screens', [])
 
     async def deleteScreenshot(self, key: str) -> None:
