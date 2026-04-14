@@ -5,7 +5,7 @@ import discord
 import os
 import zipfile
 
-from aiohttp import BasicAuth
+from aiohttp import BasicAuth, ClientConnectorDNSError
 from core import utils, FatalException
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
@@ -67,7 +67,8 @@ class BotService(Service):
 
     def __init__(self, node):
         super().__init__(node=node, name="Bot")
-        self.bot: DCSServerBot | None = None
+        self.bot: DCSServerBot | DummyBot | None = None
+        self._connect_task: asyncio.Task | None = None
         # do we need to change the bot.yaml file?
         dirty = self._migrate_autorole()
         dirty = self._secure_token() or dirty
@@ -133,19 +134,57 @@ class BotService(Service):
             self.bot = self.init_bot()
             await self.install_fonts()
             await self.bot.login(token=self.token)
-            asyncio.create_task(self.bot.connect(reconnect=reconnect))
-        except Exception as ex:
-            self.log.exception(ex)
+
+            async def connect_with_retry() -> None:
+                delay = 5
+                max_delay = 60
+                while not self.node.is_shutdown.is_set():
+                    try:
+                        await self.bot.connect(reconnect=reconnect)
+                        return
+                    except asyncio.CancelledError:
+                        raise
+                    except (ClientConnectorDNSError, OSError) as ex:
+                        self.log.warning(f"Discord connection/DNS error: {ex}. Retrying in {delay}s ...")
+                    except discord.HTTPException as ex:
+                        self.log.error(f"Discord HTTP error during connect: {ex}")
+                        raise
+                    except Exception as ex:
+                        self.log.exception("Unexpected error while connecting to Discord", exc_info=ex)
+                        raise
+
+                    try:
+                        await asyncio.wait_for(self.node.is_shutdown.wait(), timeout=delay)
+                        return
+                    except asyncio.TimeoutError:
+                        delay = min(delay * 2, max_delay)
+
+            self._connect_task = asyncio.create_task(connect_with_retry())
+
         except PermissionError as ex:
             self.log.error("Please check the permissions for " + str(ex))
             raise
         except discord.HTTPException:
             raise FatalException("Error while logging in your Discord bot. Check you token!")
         except SSLCertVerificationError:
-            raise FatalException("The Discord certificate is invalid. You need to import it manually. "
-                                 "Check the known issues section in my Discord for help.")
+            raise FatalException(
+                "The Discord certificate is invalid. You need to import it manually. "
+                "Check the known issues section in my Discord for help."
+            )
+        except Exception as ex:
+            self.log.exception(ex)
+            raise
 
     async def stop(self):
+        if self._connect_task and not self._connect_task.done():
+            self._connect_task.cancel()
+            try:
+                await self._connect_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as ex:
+                self.log.debug(f"Ignored connect task failure during shutdown: {ex}")
+
         if self.bot:
             await self.bot.close()
         await super().stop()
