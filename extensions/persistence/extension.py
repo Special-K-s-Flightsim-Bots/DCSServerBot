@@ -3,7 +3,7 @@ import os
 import pickle
 
 from core import Extension, MizFile
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 
 class Persistence(Extension):
@@ -55,6 +55,10 @@ class Persistence(Extension):
         mission_time = self.server.current_mission.mission_time
         mission_date = self.server.current_mission.date
         start_time = self.server.current_mission.start_time
+
+        # handling dates before 1.1.1970
+        if isinstance(mission_date, str):
+            mission_date = datetime.strptime(mission_date, '%Y-%m-%d')
 
         payload = {
             "start_time": int(start_time + mission_time) % 86400,
