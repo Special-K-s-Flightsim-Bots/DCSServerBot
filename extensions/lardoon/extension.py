@@ -79,8 +79,10 @@ class Lardoon(Extension):
             return p
 
     def _get_tacview_dir(self) -> str:
-        return self.config.get('tacviewExportPath', self.server.options['plugins']['Tacview'].get(
-            'tacviewExportPath')) or TACVIEW_DEFAULT_DIR
+        return os.path.expandvars(
+            self.config.get('tacviewExportPath', self.server.options['plugins']['Tacview'].get(
+                'tacviewExportPath')) or TACVIEW_DEFAULT_DIR
+        )
 
     @override
     async def startup(self, *, quiet: bool = False) -> bool:

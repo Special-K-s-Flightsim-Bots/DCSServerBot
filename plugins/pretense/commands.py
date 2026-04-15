@@ -129,7 +129,8 @@ class Pretense(Plugin):
             return
         if not message.attachments or not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
             return
-        server: Server = self.bot.get_server(message, admin_only=True)
+
+        server = self.bot.get_server(message, admin_only=True)
         for attachment in message.attachments:
             if not (attachment.filename in ['player_stats.json', 'player_stats_v2.0.json'] or
                     (attachment.filename.startswith('pretense') and attachment.filename.endswith('.json'))):

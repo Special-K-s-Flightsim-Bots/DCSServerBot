@@ -262,10 +262,7 @@ class Scheduler(Plugin[SchedulerListener]):
         self.log.debug(f"{self.__cog_name__}: Restart {server.name} in {restart_in} seconds...")
 
         action = rconf.get("method")
-        item = "Server" if action in {"restart", "shutdown"} else "Mission"
-        # If a restart is accompanied by a shutdown-flag, we still treat it as a server‑level action.
-        if action == "restart" and rconf.get("shutdown", False):
-            item = "Server"
+        item = "Server" if (action == "shutdown" or rconf.get("shutdown", False)) else "Mission"
 
         async def do_warn(warn_time: int):
             nonlocal warn_text
@@ -486,10 +483,19 @@ class Scheduler(Plugin[SchedulerListener]):
             is_running_mission = False
 
         # apply presets if configured
-        if rconf.get('settings'):
-            await self._run_with_presets(server, rconf, new_mission, is_running_mission)
-        else:
-            await self._run_without_presets(server, rconf, new_mission)
+        try:
+            if rconf.get('settings'):
+                await self._run_with_presets(server, rconf, new_mission, is_running_mission)
+            else:
+                await self._run_without_presets(server, rconf, new_mission)
+        except (asyncio.TimeoutError, TimeoutError):
+            await self.bot.audit(
+                f"{self.__cog_name__} timeout while starting mission",
+                server=server,
+                user=rconf.get('user'),
+                mission=new_mission
+            )
+            return
 
         # change password if configured
         if 'password' in rconf:

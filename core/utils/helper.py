@@ -392,8 +392,13 @@ def rebuild_exception(payload: dict[str, Any]) -> BaseException:
         return ReprException(payload)
 
 
-def get_all_players(self, linked: bool | None = None, watchlist: bool | None = None,
-                    vip: bool | None = None) -> list[tuple[str, str]]:
+def get_all_players(
+        self,
+        linked: bool | None = None,
+        watchlist: bool | None = None,
+        vip: bool | None = None,
+        search: str | None = None
+) -> list[tuple[str, str]]:
     """
     This method `get_all_players` returns a list of tuples containing the UCID and name of players from the database. Filtering can be optionally applied by providing values for the parameters
     * `linked`, `watchlist`, and `vip`.
@@ -405,6 +410,7 @@ def get_all_players(self, linked: bool | None = None, watchlist: bool | None = N
     * set to `False`, only players not on the watchlist will be returned. If not provided, no filtering based on watchlist status will be applied.
     :param vip: Optional boolean parameter to filter players based on whether they are VIP players or not. If set to `True`, only VIP players will be returned. If set to `False`, only non
     *-VIP players will be returned. If not provided, no filtering based on VIP status will be applied.
+    :param search: Optional string parameter to search for players by name or UCID. If provided, only players whose name or UCID contain the search string will be returned.
     :return: A list of tuples containing the UCID and name of players from the database.
 
     """
@@ -421,6 +427,8 @@ def get_all_players(self, linked: bool | None = None, watchlist: bool | None = N
             sql += " AND p.discord_id != -1 AND p.manual IS TRUE"
         else:
             sql += " AND p.manual IS FALSE"
+    if search is not None:
+        sql += f" AND (p.name ILIKE '%{search}%' OR p.ucid ILIKE '%{search}%') LIMIT 25"
     sql = sql.format(sub_sql)
     with self.pool.connection() as conn:
         return [(row[0], row[1]) for row in conn.execute(sql)]

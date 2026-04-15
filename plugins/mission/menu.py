@@ -55,7 +55,7 @@ def filter_menu_items(menu: list, usable_commands: list[str], player: Player) ->
     return filtered_menu
 
 
-async def filter_menu(listener: EventListener, menu: list, server: Server, player: Player) -> list | None:
+async def filter_menu(listener: EventListener, menu: list | None, server: Server, player: Player) -> list | None:
     if not menu:
         return None
     usable_commands = []

@@ -934,7 +934,7 @@ class ServerImpl(Server):
             self.settings['listStartIndex'] = mission_id
 
     @override
-    async def setPassword(self, password: str):
+    async def setPassword(self, password: str | None):
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             await self.send_to_dcs({"command": "setPassword", "password": password})
         else:

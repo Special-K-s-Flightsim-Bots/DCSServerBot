@@ -88,6 +88,11 @@ mapping:
         nullable: false
         mapping:
           afk_time: {type: int, range: {min: -1}, nullable: false}
+          punish: {type: bool, nullable: false}
+          threshold: {type: int, range: {min: 0, max: 100}, nullable: false}
+          check_on_join: {type: bool, nullable: false}
+          check_on_spawn: {type: bool, nullable: false}
+          check_after_landing: {type: bool, nullable: false}
           message: {type: str, nullable: false, range: {min: 1}}
           exemptions:
             nullable: false

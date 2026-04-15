@@ -190,6 +190,8 @@ class InstallableExtension(Extension):
             return None
 
     async def get_latest_version(self) -> str | None:
+        if not self.service:
+            return self.version
         if self.repo:
             try:
                 latest = await self.service.get_latest_repo_version(self.repo)
@@ -227,13 +229,17 @@ class InstallableExtension(Extension):
             return False
 
     async def uninstall(self) -> bool:
+        if not self.is_installed():
+            return True
         if not self.service:
             self.log.error(f"  => {self.name}: ModManager service not active, cannot uninstall!")
             return False
 
         from services.modmanager import Folder
 
-        return await self.service.uninstall_package(self.server, Folder.SavedGames, self.package_name, self.version)
+        return await self.service.uninstall_package(
+            self.server, Folder.SavedGames, self.package_name, self.version, self.repo
+        )
 
     async def update(self, version: str | None = None) -> bool:
         if version == self.version:

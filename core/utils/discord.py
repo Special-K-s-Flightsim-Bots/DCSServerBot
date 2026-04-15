@@ -898,6 +898,7 @@ def find_similar_names(list1: list[str], list2: list[str], threshold: int = 90) 
     return similar_names
 
 
+@cache_with_expiration(30)
 def get_all_linked_members(interaction: discord.Interaction) -> list[discord.Member]:
     """
     :param interaction: the discord Interaction
@@ -1209,10 +1210,9 @@ class UserTransformer(app_commands.Transformer):
         ret = []
         if self.sel_type in [PlayerType.ALL, PlayerType.PLAYER]:
             ret.extend([
-                app_commands.Choice(name='✈ ' + name + (' (' + ucid + ')' if show_ucid else ''),
+                app_commands.Choice[str](name='✈ ' + name + (' (' + ucid + ')' if show_ucid else ''),
                                     value=ucid)
-                for ucid, name in get_all_players(interaction.client, self.linked, self.watchlist)
-                if not current or current.casefold() in name.casefold() or current.casefold() in ucid
+                for ucid, name in get_all_players(interaction.client, self.linked, self.watchlist, search=current)
             ])
         if (self.linked is None or self.linked) and self.sel_type in [PlayerType.ALL, PlayerType.MEMBER]:
             ret.extend([
@@ -1233,7 +1233,7 @@ class PlayerTransformer(app_commands.Transformer):
         self.watchlist = watchlist
         self.vip = vip
 
-    async def transform(self, interaction: discord.Interaction, value: str) -> Player:
+    async def transform(self, interaction: discord.Interaction, value: str) -> Player | None:
         server: Server = await ServerTransformer().transform(interaction, interaction.namespace.server)
         return server.get_player(ucid=value, active=self.active)
 
@@ -1245,8 +1245,8 @@ class PlayerTransformer(app_commands.Transformer):
                 server: Server = await ServerTransformer().transform(interaction, interaction.namespace.server)
                 if not server:
                     return []
-                choices: list[app_commands.Choice[str]] = [
-                    app_commands.Choice(name=x.name, value=x.ucid)
+                choices = [
+                    app_commands.Choice[str](name=x.name, value=x.ucid)
                     for x in server.get_active_players()
                     if ((not self.watchlist or x.watchlist == self.watchlist) and (not self.vip or x.vip == self.vip)
                         and (not current or current.casefold() in x.name.casefold() or current.casefold() in x.ucid))
@@ -1254,8 +1254,7 @@ class PlayerTransformer(app_commands.Transformer):
             else:
                 choices = [
                     app_commands.Choice(name=f"{ucid} ({name})", value=ucid)
-                    for ucid, name in get_all_players(interaction.client, self.watchlist, self.vip)
-                    if not current or current.casefold() in name.casefold() or current.casefold() in ucid
+                    for ucid, name in get_all_players(interaction.client, self.watchlist, self.vip, search=current)
                 ]
             return choices[:25]
         except Exception as ex:
@@ -1371,8 +1370,8 @@ class ConfigModal(Modal):
                     custom_id=k,
                     placeholder=v.get('placeholder'),
                     options=[
-                        SelectOption(label=x, value=y, default=(old_values.get(k, v.get('default')) == y))
-                        for x, y in v.get('options', [])
+                        SelectOption(label=x, value=x, default=(old_values.get(k, v.get('default')) == x))
+                        for x in v.get('options', [])
                     ],
                     min_values=v.get('min_values', 1),
                     max_values=v.get('max_values', 1),
@@ -1422,7 +1421,10 @@ class ConfigModal(Modal):
         await interaction.response.defer(ephemeral=self.ephemeral)
         # noinspection PyUnresolvedReferences
         self.value = {
-            v.component.custom_id: self.unparse(v.component.value, self.config[v.component.custom_id].get('type'))
+            v.component.custom_id: self.unparse(
+                v.component.value if getattr(v.component, 'value', None) is not None else v.component.values[0],
+                self.config[v.component.custom_id].get('type')
+            )
             for v in self.children
 #            if not isinstance(v, discord.ui.Label)
         }
@@ -1707,15 +1709,18 @@ class NodeUploadHandler:
     async def post_upload(self, uploaded: list[discord.Attachment]):
         ...
 
-    async def upload(self, base_dir: str, ignore_list: list[str] | None = None):
+    async def upload(self, base_dir: str, ignore_list: list[str] | None = None,
+                     attachments: list[discord.Attachment] | None = None):
         directory = await self.render(base_dir, ignore_list)
         if not directory:
             return
 
-        attachments = [
-            att for att in self.message.attachments
-            if any(p.search(att.filename) for p in self.patterns)
-        ]
+        if not attachments:
+            attachments = [
+                att for att in self.message.attachments
+                if any(p.search(att.filename) for p in self.patterns)
+            ]
+
         # run all uploads in parallel
         tasks = [self.handle_attachment(directory, att) for att in attachments]
         ret_vals = await asyncio.gather(*tasks, return_exceptions=True)

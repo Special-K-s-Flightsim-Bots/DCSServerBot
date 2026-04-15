@@ -1,4 +1,3 @@
-import asyncio
 import cProfile
 import inspect
 import io

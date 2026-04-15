@@ -6,7 +6,7 @@ from typing import cast
 class Main(report.EmbedElement):
     async def render(self, server: Server, sides: list[Coalition], in_game: bool = False) -> None:
         players = server.get_active_players()
-        sides = {
+        sides: dict[Side, dict] = {
             Side.NEUTRAL: {"names": [], "units": [], "SRS": []},
             Side.BLUE: {"names": [], "units": [], "SRS": []},
             Side.RED: {"names": [], "units": [], "SRS": []}
@@ -20,7 +20,7 @@ class Main(report.EmbedElement):
         for player in players_sorted:
             sides[player.side]['names'].append(player.display_name)
             pending = (player.pending and player.sub_slot == 0) and in_game
-            if player.side != Side.NEUTRAL and not pending:
+            if player.slot != -1 and not pending:
                 unit = player.unit_type
                 if player.sub_slot > 0:
                     unit += ' (crew)'

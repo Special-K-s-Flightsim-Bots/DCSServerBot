@@ -1132,6 +1132,7 @@ class NodeImpl(Node):
             return True
 
         async def check_nodes():
+            from services.bot import BotService
             from services.servicebus import ServiceBus
 
             active_nodes = set(await self.get_active_nodes())
@@ -1153,10 +1154,15 @@ class NodeImpl(Node):
                 # remove known inactive nodes
                 if not node:
                     continue
-                self.log.error(f"Node {node.name} not responding.")
+                self.log.error(f"Node {node.name} is not responding.")
                 await ServiceRegistry.get(ServiceBus).unregister_remote_node(node)
+                await ServiceRegistry.get(BotService).alert(
+                    title=_("Node {node} is not responding").format(node=node.name),
+                    message=_("Node {node} was unregistered from the cluster.").format(node=node.name)
+                )
                 self.suspect[node.name] = node
 
+        cancelled = False
         try:
             # do not do any checks if we are supposed to shut down
             if self.node.is_shutdown.is_set():
@@ -1255,6 +1261,9 @@ class NodeImpl(Node):
                         return True
                     return False
 
+                except asyncio.CancelledError:
+                    cancelled = True
+                    raise
                 except (UndefinedTable, UndefinedColumn):
                     raise
                 except Exception as ex:
@@ -1262,11 +1271,14 @@ class NodeImpl(Node):
                     raise
 
                 finally:
-                    await conn.execute("""
-                        INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
-                        ON CONFLICT (guild_id, node) DO UPDATE 
-                        SET last_seen = (NOW() AT TIME ZONE 'UTC')
-                    """, (self.guild_id, self.name))
+                    if (not cancelled and not self.node.is_shutdown.is_set()
+                            and self.cpool is not None and not self.cpool.closed):
+                        async with self.cpool.connection() as conn2:
+                            await conn2.execute("""
+                                INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
+                                ON CONFLICT (guild_id, node) DO UPDATE 
+                                SET last_seen = (NOW() AT TIME ZONE 'UTC')
+                            """, (self.guild_id, self.name))
         except InFailedSqlTransaction:
             # we should only be here when the CLUSTER table does not exist yet
             return True

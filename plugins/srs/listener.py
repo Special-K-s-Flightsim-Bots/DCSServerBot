@@ -217,14 +217,14 @@ class SRSEventListener(EventListener["SRS"]):
 
             if not atc_freqs:
                 atc_freqs = airbase['frequencyList']
-
-            for idx, freq in enumerate(atc_freqs):
-                if freq.endswith('AM'):
-                    atc_freqs[idx] = (int(freq[:-2]) * 1000, 0)
-                elif freq.endswith('FM'):
-                    atc_freqs[idx] = (int(freq[:-2]) * 1000, 1)
-                else:
-                    atc_freqs[idx] = (int(freq) * 1000, 0 if int(freq) > 108000 else 1)
+            else:
+                for idx, freq in enumerate(atc_freqs):
+                    if freq.endswith('AM'):
+                        atc_freqs[idx] = (int(freq[:-2]) * 1000, 0)
+                    elif freq.endswith('FM'):
+                        atc_freqs[idx] = (int(freq[:-2]) * 1000, 1)
+                    else:
+                        atc_freqs[idx] = (int(freq) * 1000, 0 if int(freq) > 108000 else 1)
 
             if data['eventName'] == 'S_EVENT_BIRTH':
                 await player.sendPopupMessage(_("Please contact ATC on {}").format(

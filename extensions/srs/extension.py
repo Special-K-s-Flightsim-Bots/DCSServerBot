@@ -145,7 +145,7 @@ class SRS(Extension, FileSystemEventHandler):
                             line = f'SRSAuto.SERVER_SRS_HOST = "{host}" -- overridden if SRS_HOST_AUTO is true ' \
                                    f'-- set to your PUBLIC ipv4 address\n'
                         elif line.startswith('SRSAuto.SRS_NUDGE_ENABLED') and self.config.get('srs_nudge_message'):
-                            line = 'SRSAuto.SRS_NUDGE_ENABLED = true -- set to true to enable the message below'
+                            line = 'SRSAuto.SRS_NUDGE_ENABLED = true -- set to true to enable the message below\n'
                         elif line.startswith('SRSAuto.SRS_NUDGE_MESSAGE = ') and self.config.get('srs_nudge_message'):
                             line = f"SRSAuto.SRS_NUDGE_MESSAGE = \"{self.config.get('srs_nudge_message')}\"\n"
 

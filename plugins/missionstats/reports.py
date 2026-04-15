@@ -11,10 +11,22 @@ _ = get_translation(__name__.split('.')[1])
 
 @dataclass
 class Flight:
-    start: datetime = None
-    end: datetime = None
-    plane: str = None
+    start: datetime | None = None
+    end: datetime | None = None
+    plane: str | None = None
     death: bool = False
+
+    def to_dict(self) -> dict:
+        if self.start is None or self.end is None:
+            # we never had a real flight – caller should skip this
+            return {}
+        return {
+            "plane": self.plane,
+            "start": self.start,
+            "end": self.end,
+            "time": (self.end - self.start).total_seconds(),
+            "death": self.death,
+        }
 
 
 class Sorties(report.GraphElement):
@@ -24,10 +36,25 @@ class Sorties(report.GraphElement):
         super().__init__(env, rows, cols, row, col, colspan, rowspan, polar)
         self.sorties = pd.DataFrame(columns=['plane', 'time', 'death'])
 
-    def add_flight(self, flight: Flight) -> Flight:
-        if flight.start and flight.end and flight.plane:
-            self.sorties.loc[len(self.sorties.index)] = [flight.plane, flight.end - flight.start, flight.death]
-        return Flight()
+    @staticmethod
+    def avg_survival_time(df: pd.DataFrame) -> pd.Series:
+        """
+        Return a Series indexed by plane with the *average survival time*.
+        Missing planes (never died) are given an interval of 1, so the
+        survival time equals the total flight time.
+        """
+        planes = df['plane'].unique()
+
+        # Total time of all flights per plane
+        survival_sum = df.groupby('plane')['time'].sum().reindex(planes, fill_value=0)
+
+        # Number of deaths per plane
+        death_counts = df[df['death']].groupby('plane').size().reindex(planes, fill_value=0)
+
+        # Intervals = deaths – 1, but never less than 1
+        intervals = (death_counts - 1).clip(lower=1)
+
+        return survival_sum / intervals
 
     async def render(self, ucid: str, flt: StatisticsFilter) -> None:
         sql = f"""
@@ -37,76 +64,119 @@ class Sorties(report.GraphElement):
                 'S_EVENT_BIRTH', 
                 'S_EVENT_TAKEOFF', 
                 'S_EVENT_LAND', 
+                'S_EVENT_CRASH', 
+                'S_EVENT_EJECT',
                 'S_EVENT_UNIT_LOST', 
-                'S_EVENT_PLAYER_LEAVE_UNIT'
+                'S_EVENT_PLAYER_LEAVE_UNIT',
+                'S_EVENT_DISCONNECT'
             )
             AND {flt.filter(self.env.bot)}
             AND init_id = %s 
             ORDER BY id
         """
-        self.env.embed.title = flt.format(self.env.bot) + self.env.embed.title
+
+        self.env.embed.title = flt.format(self.env.bot) + (self.env.embed.title or '')
+
+        flight_records: list[dict] = []
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 flight = Flight()
-                mission_id = -1
-                await cursor.execute(sql, (ucid, ))
+                mission_id: int | None = None
+
+                await cursor.execute(sql, (ucid,))
                 async for row in cursor:
+
                     if row['mission_id'] != mission_id:
                         mission_id = row['mission_id']
-                        flight = self.add_flight(flight)
-                    if not flight.plane:
+                        d = flight.to_dict()
+                        if d:  # finished flight from previous mission
+                            flight_records.append(d)
+                        flight = Flight()
+
+                    if flight.plane is None:
                         flight.plane = row['init_type']
-                    # air starts
-                    if row['event'] == 'S_EVENT_BIRTH' and row['place'] is None:
-                        if not flight.start:
+
+                    ev = row['event']
+
+                    if ev == 'S_EVENT_BIRTH' and row['place'] is None:
+                        if flight.start is None:
                             flight.start = row['time']
-                        else:
+
+                    elif ev == 'S_EVENT_TAKEOFF':
+                        if flight.start is None:
+                            flight.start = row['time']
+
+                    elif ev in (
+                            'S_EVENT_LAND',
+                            'S_EVENT_CRASH',
+                            'S_EVENT_EJECT',
+                            'S_EVENT_UNIT_LOST',
+                            'S_EVENT_PLAYER_LEAVE_UNIT',
+                            'S_EVENT_DISCONNECT',
+                    ):
+                        if flight.start is not None:
                             flight.end = row['time']
-                            flight = self.add_flight(flight)
-                            flight.start = row['time']
-                    elif row['event'] == 'S_EVENT_TAKEOFF':
-                        if not flight.start:
-                            flight.start = row['time']
-                        else:
-                            flight.end = row['time']
-                            flight = self.add_flight(flight)
-                            flight.start = row['time']
-                    elif row['event'] in ['S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT']:
-                        flight.end = row['time']
-                        if row['event'] == 'S_EVENT_UNIT_LOST':
-                            flight.death = True
-                        flight = self.add_flight(flight)
-                df = self.sorties.groupby('plane').agg(
-                    count=('time', 'size'), total_time=('time', 'sum'), avg_time=('time', 'mean')
-                ).sort_values(by=['total_time'], ascending=False).reset_index()
-                if df.empty:
-                    self.axes.axis('off')
-                    self.axes.text(0.5, 0.5, _('No sorties found for this player.'), ha='center', va='center',
-                                   rotation=45, size=15, transform=self.axes.transAxes)
-                    return
+                            if ev != 'S_EVENT_LAND':
+                                flight.death = True
+                            flight_records.append(flight.to_dict())
+                        flight = Flight()
 
-                # Sum the time of those flights per plane
-                survival_sum = self.sorties.groupby('plane')['time'].sum()
+                d = flight.to_dict()
+                if d:
+                    flight_records.append(d)
 
-                # Count how many deaths exist per plane
-                death_counts = self.sorties[self.sorties.death == True].groupby('plane').size()
-                interval_counts = death_counts - 1  # pairs = deaths‑1
-                interval_counts[interval_counts < 0] = 1 # protect against 0 deaths
+        self.sorties = pd.DataFrame(flight_records)
 
-                # Average survival time
-                avg_survival = survival_sum / interval_counts
+        if self.sorties.empty:
+            self.axes.axis('off')
+            self.axes.text(
+                0.5, 0.5, _('No sorties found for this player.'),
+                ha='center', va='center', rotation=45, size=15,
+                transform=self.axes.transAxes
+            )
+            return
 
-                # Merge into the original dataframe
-                df = df.merge(avg_survival.rename('avg_survival'), on='plane', how='left')
+        stats = (
+            self.sorties.groupby('plane')
+            .agg(
+                count=('time', 'size'),
+                total_time=('time', 'sum'),
+                avg_time=('time', 'mean')
+            )
+            .sort_values('total_time', ascending=False)
+            .reset_index()
+        )
 
-                self.axes = df_to_table(
-                    self.axes, df[['plane', 'count', 'total_time', 'avg_time', 'avg_survival']],
-                    col_labels=['Plane', 'Sorties', 'Total Flighttime', 'Avg. Flighttime', 'Avg. Survivaltime']
-                )
-                self.env.embed.set_footer(
-                    text=_('Flighttime is the time you were airborne from takeoff to landing / leave or\n'
-                           'airspawn to landing / leave.'))
+        stats = stats.set_index('plane')
+        stats['avg_survival'] = self.avg_survival_time(self.sorties)
+        stats = stats.reset_index()
+
+        # helper – works for any numeric column that may contain NaN
+        def fmt(col_name: str, placeholder: str = '—'):
+            return stats[col_name].apply(
+                lambda s: utils.convert_time(int(round(s))) if not pd.isna(s) else placeholder
+            )
+
+        stats['total_time'] = fmt('total_time')
+        stats['avg_time'] = fmt('avg_time')
+        stats['avg_survival'] = fmt('avg_survival')
+
+        self.axes = df_to_table(
+            self.axes,
+            stats[['plane', 'count', 'total_time', 'avg_time', 'avg_survival']],
+            col_labels=[
+                'Plane', 'Sorties', 'Total Flighttime',
+                'Avg. Flighttime', 'Avg. Survivaltime'
+            ]
+        )
+
+        self.env.embed.set_footer(
+            text=_(
+                'Flighttime is the time you were airborne from takeoff to '
+                'landing / leave or airspawn to landing / leave.'
+            )
+        )
 
 
 class MissionStats(report.EmbedElement):
@@ -125,7 +195,7 @@ class MissionStats(report.EmbedElement):
             self.add_field(name=coalition.name, value=value)
 
         # if no SQL was provided, do not print the actual achievements
-        sql = kwargs.get('sql')
+        sql: str | None = kwargs.get('sql')
         if not sql:
             return
         async with self.apool.connection() as conn:
@@ -162,13 +232,15 @@ class ModuleStats1(report.EmbedElement):
             FROM statistics s, missions m 
             WHERE s.mission_id = m.id AND s.player_ucid = %(ucid)s AND s.slot = %(module)s
         """
-        self.env.embed.title = flt.format(self.env.bot) + self.env.embed.title
+        self.env.embed.title = flt.format(self.env.bot) + (self.env.embed.title or '')
         sql += ' AND ' + flt.filter(self.env.bot)
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(sql, self.env.params)
-                row = await cursor.fetchone()
+                row: dict | None = await cursor.fetchone()
+                if not row:
+                    return
                 self.add_field(name=_('Usages'), value=str(row['num']))
                 self.add_field(name=_('Total Playtime'), value=utils.convert_time(row['total'] or 0))
                 self.add_field(name=_('Average Playtime'), value=utils.convert_time(row['average'] or 0))
@@ -253,7 +325,7 @@ class Refuelings(report.EmbedElement):
               GROUP BY 1 
               ORDER BY 2 DESC
         """
-        self.env.embed.title = flt.format(self.env.bot) + self.env.embed.title
+        self.env.embed.title = flt.format(self.env.bot) + (self.env.embed.title or '')
 
         modules = []
         numbers = []
@@ -311,7 +383,9 @@ class Nemesis(report.EmbedElement):
                     else:
                         self.embed.description = "You have not been killed by anybody yet."
                     return
-                row = await cursor.fetchone()
+                row: dict | None = await cursor.fetchone()
+                if not row:
+                    return
                 for k,v in row.items():
                     self.embed.add_field(name=k, value=v)
 
@@ -357,6 +431,8 @@ class Antagonist(report.EmbedElement):
                     else:
                         self.embed.description = "You have not killed anybody yet."
                     return
-                row = await cursor.fetchone()
+                row: dict | None = await cursor.fetchone()
+                if not row:
+                    return
                 for k,v in row.items():
                     self.embed.add_field(name=k, value=v)

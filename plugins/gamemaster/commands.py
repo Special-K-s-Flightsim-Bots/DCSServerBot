@@ -1,5 +1,8 @@
 import asyncio
+import aiofiles
+import aiohttp
 import discord
+import json
 import os
 import psycopg
 
@@ -9,6 +12,8 @@ from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
 from discord.utils import MISSING
+from jsonschema import ValidationError
+from jsonschema.validators import validate
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from typing import Literal
@@ -548,6 +553,29 @@ class GameMaster(Plugin[GameMasterEventListener]):
         patterns = [r'\.lua$', r'\.json$']
 
         if GameMasterUploadHandler.is_valid(message, patterns=patterns, roles=self.bot.roles['DCS Admin']):
+
+            attachments = []
+            async with aiofiles.open('plugins/gamemaster/schemas/embed_schema.json', mode='r') as infile:
+                schema = json.loads(await infile.read())
+            for attachment in message.attachments:
+                if attachment.url.endswith('.lua'):
+                    attachments.append(attachment)
+                    continue
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(attachment.url, proxy=self.node.proxy,
+                                           proxy_auth=self.node.proxy_auth) as response:
+                        if response.status == 200:
+                            data = await response.json(encoding="utf-8")
+                            try:
+                                validate(instance=data, schema=schema)
+                                attachments.append(attachment)
+                            except ValidationError:
+                                continue
+
+            # no valid attachment found
+            if not attachments:
+                return
+
             server = await GameMasterUploadHandler.get_server(message)
             if not server:
                 return
@@ -559,6 +587,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
                 self.log.exception(ex)
             finally:
                 await message.delete()
+
         elif not message.author.bot:
             for server in self.bot.servers.values():
                 if server.status != Status.RUNNING:

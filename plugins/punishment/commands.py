@@ -3,15 +3,13 @@ import discord
 import psycopg
 
 from contextlib import suppress
-
-from psycopg.types.json import Json
-
-from core import (Plugin, PluginRequiredError, utils, Player, Server, PluginInstallationError, command, DEFAULT_TAG,
+from core import (Plugin, PluginRequiredError, utils, Server, PluginInstallationError, command, DEFAULT_TAG,
                   Report, get_translation, SEND_ONLY_CHANNEL_PERMISSIONS, PubSub)
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import tasks
 from psycopg.rows import dict_row
+from psycopg.types.json import Json
 from services.bot import DCSServerBot
 from typing import Type, cast
 
@@ -42,9 +40,9 @@ class Punishment(Plugin[PunishmentEventListener]):
         await super().cog_unload()
 
     async def punish(self, server: Server, ucid: str, punishment: dict, reason: str, points: float | None = None):
-        player: Player = server.get_player(ucid=ucid)
+        player = server.get_player(ucid=ucid)
         member = self.bot.get_member_by_ucid(ucid)
-        channel_id = self.get_config(server).get('channel')
+        channel_id: int | None = self.get_config(server).get('channel')
         if channel_id:
             self.bot.check_channel(int(channel_id), SEND_ONLY_CHANNEL_PERMISSIONS)
             channel = self.bot.get_channel(channel_id)
@@ -143,7 +141,7 @@ class Punishment(Plugin[PunishmentEventListener]):
         server = self.bot.servers.get(data['server_name'])
         config = self.get_config(server)
         # we are not initialized correctly yet
-        if not config:
+        if not config or not server:
             return
 
         for punishment in sorted(config.get('punishments', {}),
@@ -152,7 +150,7 @@ class Punishment(Plugin[PunishmentEventListener]):
             if points < punishment['points']:
                 continue
 
-            reason = next((
+            reason: str | None = next((
                 p.get('reason', data['event'])
                 for p in config.get('penalties', [])
                 if p['event'] == data['event']
@@ -160,7 +158,7 @@ class Punishment(Plugin[PunishmentEventListener]):
             if not reason:
                 self.log.warning(
                     f"No penalty or reason configured for event {data['event']}.")
-                reason = data['event']
+                reason: str = data['event']
             await self.punish(server, data['init_id'], punishment, reason, points)
             break
 
@@ -194,14 +192,12 @@ class Punishment(Plugin[PunishmentEventListener]):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(_("User {} is not linked.").format(user.display_name),
                                                         ephemeral=ephemeral)
                 return
         elif user is not None:
             ucid = user
         else:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("The UCID provided is invalid."), ephemeral=True)
             return
 
@@ -225,7 +221,6 @@ class Punishment(Plugin[PunishmentEventListener]):
             message = _('User punished with {} points.').format(points)
         else:
             message = _('The users punishment points have been reduced by {} points.').format(abs(points))
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(message, ephemeral=ephemeral)
         await self.bot.audit(
             _("changed punishment points of user {ucid} by {points} points.").format(ucid=ucid, points=points),
@@ -240,7 +235,6 @@ class Punishment(Plugin[PunishmentEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
 
         if not user:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("The user provided is invalid."), ephemeral=True)
             return
 
@@ -275,7 +269,6 @@ class Punishment(Plugin[PunishmentEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
         if user and user != interaction.user:
             if not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(
                     _('You need the DCS Admin role to show penalty points for other users.'), ephemeral=True)
                 return
@@ -285,7 +278,6 @@ class Punishment(Plugin[PunishmentEventListener]):
             else:
                 ucid = await self.bot.get_ucid_by_member(user)
                 if not ucid:
-                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(
                         _("Member {} is not linked.").format(user.mention), ephemeral=True)
                     return
@@ -293,7 +285,6 @@ class Punishment(Plugin[PunishmentEventListener]):
             user = interaction.user
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(
                     _("Use {} to link your Discord and DCS accounts first.").format(
                         (await utils.get_command(self.bot, name='linkme')).mention
@@ -304,7 +295,6 @@ class Punishment(Plugin[PunishmentEventListener]):
                 await cursor.execute("SELECT event, points, time FROM pu_events WHERE init_id = %s ORDER BY time DESC",
                                      (ucid, ))
                 if cursor.rowcount == 0:
-                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(_('User has no penalty points.'), ephemeral=ephemeral)
                     return
                 embed = discord.Embed(
@@ -337,7 +327,6 @@ class Punishment(Plugin[PunishmentEventListener]):
             embed.add_field(name='_ _', value='_ _')
             embed.set_footer(text=_("You are currently banned.\n"
                                     "Please contact a member of the server staff, if you want to get unbanned."))
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     @command(description=_('Show last infractions of a user'))
@@ -347,7 +336,6 @@ class Punishment(Plugin[PunishmentEventListener]):
                           user: app_commands.Transform[discord.Member | str, utils.UserTransformer],
                           limit: Range[int, 3, 20] | None = 10):
         if not user:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("This user does not exist. Try {} to find them in the historic data.").format(
                     (await utils.get_command(self.bot, name='find')).mention
@@ -359,12 +347,10 @@ class Punishment(Plugin[PunishmentEventListener]):
         else:
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(
                     _("Member {} is not linked.").format(user.mention), ephemeral=True)
                 return
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         report = Report(self.bot, self.plugin_name, 'events.json')
         env = await report.render(ucid=ucid, limit=limit)

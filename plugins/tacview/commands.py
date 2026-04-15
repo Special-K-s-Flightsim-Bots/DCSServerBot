@@ -1,7 +1,7 @@
 import discord
 import os
 
-from core import Plugin, get_translation, Group, Server, utils, Status, UninstallException, InstallException
+from core import Plugin, get_translation, Group, Server, utils, Status
 from datetime import datetime, timezone
 from discord import app_commands
 from extensions.tacview import TACVIEW_DEFAULT_DIR
@@ -36,8 +36,8 @@ async def list_tacview_files(interaction: discord.Interaction, current: str) -> 
             path, files = await server.node.list_directory(path, pattern='*.acmi', is_dir=False, traverse=True)
 
         # file per session
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=os.path.relpath(x, path), value=os.path.relpath(x, path))
+        choices = [
+            app_commands.Choice[str](name=os.path.relpath(x, path), value=os.path.relpath(x, path))
             for x in files
             if not current or current.casefold() in x.casefold()
         ]

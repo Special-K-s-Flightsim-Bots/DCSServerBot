@@ -246,12 +246,13 @@ class Server(DataObject, ABC):
     def get_active_players(self, *, side: Side = None) -> list[Player]:
         return [x for x in self.players.values() if x.active and (not side or side == x.side)]
 
-    def get_crew_members(self, pilot: Player) -> list[Player]:
+    def get_crew_members(self, pilot: Player | None) -> list[Player]:
         members = []
         if pilot:
-            # now find players that have the same slot
+            members.append(pilot)
+            # now find any crew members
             for player in self.players.values():
-                if player.active and player.slot == pilot.slot:
+                if player.active and player.slot == pilot.slot and player.sub_slot > 0:
                     members.append(player)
         return members
 
@@ -326,7 +327,6 @@ class Server(DataObject, ABC):
                 await self.send_to_dcs(message)
                 return await asyncio.wait_for(future, timeout)
             finally:
-                # noinspection PyAsyncCall
                 self.listeners.pop(token, None)
 
     async def sendChatMessage(self, coalition: Coalition, message: str, sender: str = None):
@@ -400,7 +400,7 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def setPassword(self, password: str):
+    async def setPassword(self, password: str | None):
         raise NotImplementedError()
 
     @abstractmethod

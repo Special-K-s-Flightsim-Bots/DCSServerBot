@@ -468,8 +468,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             }
             asyncio.create_task(self._check_punishment(evt))
 
-    @event(name="onPlayerChangeSlot")
-    async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
+    async def _change_slot(self, server: Server, data: dict) -> None:
         if 'side' not in data or data['id'] == 1:
             return
 
@@ -496,6 +495,14 @@ class PunishmentEventListener(EventListener["Punishment"]):
         elif s_event['eventName'] == 'S_EVENT_HIT' and delta_time < config.get('survival_window', 300):
             # reslotting of a damaged plane will be treated as a kill
             asyncio.create_task(self._give_kill(server, s_event))
+
+    @event(name="onPlayerChangeSlot")
+    async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
+        await self._change_slot(server, data)
+
+    @event(name="onPlayerChangeCoalition")
+    async def onPlayerChangeCoalition(self, server: Server, data: dict) -> None:
+        await self._change_slot(server, data)
 
     @chat_command(name="forgive", help=_("forgive another user for their infraction"))
     async def forgive(self, server: Server, player: Player, _params: list[str]):
