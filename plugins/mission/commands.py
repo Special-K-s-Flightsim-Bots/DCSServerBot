@@ -48,11 +48,11 @@ SHEET_TITLES = {
 REVERSE_LIQUIDS = {v: k for k, v in LIQUIDS.items()}
 
 
-async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
+        server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         base_dir = await server.get_missions_dir()
@@ -62,8 +62,8 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
         installed_missions = [os.path.expandvars(x) for x in await utils.get_cached_mission_list(server)]
         exp_base, file_list = await server.node.list_directory(base_dir, pattern=['*.miz', '*.sav'], traverse=True,
                                                                ignore=ignore)
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=os.path.relpath(x, exp_base)[:-4], value=os.path.relpath(x, exp_base))
+        choices = [
+            app_commands.Choice[str](name=os.path.relpath(x, exp_base)[:-4], value=os.path.relpath(x, exp_base))
             for x in file_list
             if x not in installed_missions and os.path.join(os.path.dirname(x), '.dcssb', os.path.basename(
                 x)) not in installed_missions and current.casefold() in os.path.relpath(x, base_dir).casefold()
@@ -77,14 +77,14 @@ async def orig_mission_autocomplete(interaction: discord.Interaction, current: s
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
+        server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
         _, file_list = await server.node.list_directory(await server.get_missions_dir(), pattern='*.orig',
                                                         traverse=True)
         orig_files = [os.path.basename(x)[:-9] for x in file_list]
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
+        choices = [
+            app_commands.Choice[int](name=os.path.basename(x)[:-4], value=idx)
             for idx, x in enumerate(await utils.get_cached_mission_list(server))
             if os.path.basename(x)[:-4] in orig_files and (not current or current.casefold() in x[:-4].casefold())
         ]
@@ -98,8 +98,8 @@ async def presets_autocomplete(interaction: discord.Interaction, current: str) -
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=x.name[:-5], value=str(x))
+        choices = [
+            app_commands.Choice[str](name=x.name[:-5], value=str(x))
             for x in Path(interaction.client.node.config_dir).glob('presets*.yaml')
             if not current or current.casefold() in x.name[:-5].casefold()
         ]
@@ -127,8 +127,8 @@ async def nosav_autocomplete(interaction: discord.Interaction, current: str) -> 
         if not server:
             return []
         base_dir = await server.get_missions_dir()
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=get_name(base_dir, x), value=idx)
+        choices = [
+            app_commands.Choice[int](name=get_name(base_dir, x), value=idx)
             for idx, x in enumerate(await utils.get_cached_mission_list(server))
             if not x.endswith('.sav') and (not current or current.casefold() in get_name(base_dir, x).casefold())
         ]
@@ -139,14 +139,14 @@ async def nosav_autocomplete(interaction: discord.Interaction, current: str) -> 
 
 @cache_with_expiration(180)
 async def get_airbase(server: Server, name: str) -> dict:
-    return await server.send_to_dcs_sync({"command": "getAirbase", "name": name}, timeout=60)
+    return await server.send_to_dcs_sync({"command": "getAirbase", "name": name}, timeout=60) or {}
 
 async def wh_category_autocomplete(interaction: discord.Interaction, _current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
         server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
-        idx = interaction.namespace.airbase
+        idx: int = interaction.namespace.airbase
         airbase: dict = server.current_mission.airbases[idx]
         data = await get_airbase(server, airbase['name'])
         return [
@@ -165,8 +165,8 @@ async def wh_item_autocomplete(interaction: discord.Interaction, current: str) -
     server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
     category = interaction.namespace.category
     try:
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=x['name'], value=x['wstype'])
+        choices = [
+            app_commands.Choice[str](name=x['name'], value=x['wstype'])
             for x in sorted(server.resources.get(category, {}), key=lambda x: x['name'])
             if not current or current.casefold() in x['name'].casefold()
         ]
@@ -181,7 +181,7 @@ class DDTransformer(app_commands.Transformer):
         try:
             return float(value)
         except ValueError:
-            return utils.dms_to_dd(value)
+            return utils.dms_to_dd(str(value))
 
 
 class Mission(Plugin[MissionEventListener]):
@@ -376,7 +376,7 @@ class Mission(Plugin[MissionEventListener]):
         if not interaction.response.is_done():
             await interaction.response.defer(ephemeral=ephemeral)
         if server.is_populated():
-            if delay > 0:
+            if delay:
                 message = _("!!! Mission will be {what} in {when}!!!").format(what=_(actions.get(what)),
                                                                               when=utils.format_time(delay))
             else:
@@ -390,7 +390,8 @@ class Mission(Plugin[MissionEventListener]):
                                                                                        when=utils.format_time(delay)),
                 ephemeral=ephemeral)
             await server.sendPopupMessage(Coalition.ALL, message, sender=interaction.user.display_name)
-            await asyncio.sleep(delay)
+            if delay:
+                await asyncio.sleep(delay)
             await msg.delete()
         try:
             msg = await interaction.followup.send(_('Mission will {} now, please wait ...').format(_(what)),
@@ -641,8 +642,8 @@ class Mission(Plugin[MissionEventListener]):
                                                                         status=server.status.name),
                 ephemeral=ephemeral)
 
-    async def simulate(self, interaction: discord.Interaction, server: Server, use_orig: bool, presets_file: str,
-                       presets: list[str] | None, ephemeral: bool):
+    async def simulate(self, interaction: discord.Interaction, server: Server, use_orig: bool | None,
+                       presets_file: str | None, presets: list[str] | None, ephemeral: bool):
 
         presets = {x: utils.get_preset(self.node, x, filename=presets_file) for x in presets} if presets else None
         if not presets:
@@ -1174,13 +1175,13 @@ class Mission(Plugin[MissionEventListener]):
                     "command": "getWarehouseLiquid",
                     "name": airbase['name'],
                     "item": int(item)
-                }, timeout=60)
+                }, timeout=60) or {}
             else:
                 return await server.send_to_dcs_sync({
                     "command": "getWarehouseItem",
                     "name": airbase['name'],
                     "item": item
-                }, timeout=60)
+                }, timeout=60) or {}
         else:
             if category == 'liquids':
                 return await server.send_to_dcs_sync({
@@ -1188,14 +1189,14 @@ class Mission(Plugin[MissionEventListener]):
                     "name": airbase['name'],
                     "item": int(item),
                     "value": value * 1000
-                }, timeout=60)
+                }, timeout=60) or {}
             else:
                 return await server.send_to_dcs_sync({
                     "command": "setWarehouseItem",
                     "name": airbase['name'],
                     "item": item,
                     "value": value
-                }, timeout=60)
+                }, timeout=60) or {}
 
     @staticmethod
     async def manage_category(server: Server, airbase: dict, category: str, value: int | None = None) -> None:
@@ -2442,25 +2443,64 @@ class Mission(Plugin[MissionEventListener]):
     async def afk_check(self):
         try:
             for server in self.bot.servers.values():
-                config = server.locals.get('afk', {})
-                max_time = config.get('afk_time', -1)
-                if not config or max_time == -1 or server.status != Status.RUNNING:
+                afk_config = server.locals.get('afk', {})
+                if not afk_config or server.status != Status.RUNNING:
                     continue
+
+                max_time = afk_config.get('afk_time', -1)
+                if max_time == -1:
+                    continue
+
+                threshold = afk_config.get('threshold', 0)
+                if threshold:
+                    num_players = len(server.get_active_players())
+                    max_players = server.settings.get('maxPlayers', 16)
+                    server_load = num_players * 100 // max_players
+                    if server_load < threshold:
+                        continue
+
                 for ucid, dt in server.afk.copy().items():
+                    # only check active players
                     player = server.get_player(ucid=ucid, active=True)
-                    exemptions = config.get('exemptions', {})
+
+                    # check exemptions
+                    exemptions = afk_config.get('exemptions', {})
                     if 'discord' in exemptions:
                         exemptions['discord'] = list(set(exemptions['discord']) | {"DCS Admin", "GameMaster"})
                         if server.locals.get('managed_by'):
                             exemptions['discord'].extend(server.locals.get('managed_by'))
                     if not player or player.check_exemptions(exemptions):
                         continue
-                    if (datetime.now(timezone.utc) - dt).total_seconds() > max_time:
-                        msg = server.locals.get('afk', {}).get(
-                            'message_afk', '{player.name}, you have been kicked for being AFK for more than {time}.'
+
+                    # check AFK time
+                    if (datetime.now(timezone.utc) - dt).total_seconds() <= max_time:
+                        continue
+
+                    if afk_config.get('punish', False):
+                        await self.bus.send_to_node({
+                            "command": "rpc",
+                            "service": "ServiceBus",
+                            "method": "propagate_event",
+                            "params": {
+                                "command": "punish",
+                                "server": server.name,
+                                "data": {
+                                    "eventName": "afk",
+                                    "initiator": {
+                                        "name": player.name
+                                    }
+                                }
+                            }
+                        })
+                    else:
+                        msg = afk_config.get(
+                            'message_afk',
+                            '{player.name}, you have been kicked for being AFK for more than {time}.'
                         ).format(player=player, time=utils.format_time(max_time))
                         await server.kick(player, msg)
-                        server.afk.pop(ucid, None)
+
+                    # reset the AFK timer (would happen anyway due to the kick)
+                    server.afk.pop(ucid, None)
         except Exception as ex:
             self.log.exception(ex)
 
@@ -2626,7 +2666,7 @@ class Mission(Plugin[MissionEventListener]):
         filename = att.filename.lower()
         match = re.match(r'^warehouse-([^.]*)\.xlsx?$', filename)
         if not match:
-            coalition = await utils.selection(
+            coalition: str | None = await utils.selection(
                 ctx,
                 title=_("Upload to all warehouses of this coalition:"),
                 options=[SelectOption(label="Blue", value="BLUE"), SelectOption(label="Red", value="RED")]

@@ -72,9 +72,9 @@ class Header(report.EmbedElement):
                     last_seen = row['last_seen']
                 banned = row['banned'] or banned
                 watchlist = row['watchlist'] or watchlist
-        if first_seen < datetime(2999, 12, 31) and last_seen > datetime(1970, 1, 1):
-            self.add_datetime_field('Last seen', last_seen.replace(tzinfo=timezone.utc))
-            self.add_datetime_field('First seen', first_seen.replace(tzinfo=timezone.utc))
+            if first_seen < datetime(2999, 12, 31) and last_seen > datetime(1970, 1, 1):
+                self.add_datetime_field('Last seen', last_seen.replace(tzinfo=timezone.utc))
+                self.add_datetime_field('First seen', first_seen.replace(tzinfo=timezone.utc))
         if rows:
             if rows[0]['vip']:
                 self.add_field(name="VIP", value="⭐")
@@ -145,7 +145,7 @@ class ServerInfo(report.EmbedElement):
             await report.Ruler(self.env).render(header='Current Activity', ruler_length=ruler_length)
             self.add_field(name='Active on Server', value=player.server.display_name)
             self.add_field(name='DCS Name', value=player.display_name)
-            self.add_field(name='Slot', value=player.unit_type if player.side != Side.NEUTRAL else 'Spectator')
+            self.add_field(name='Slot', value=player.unit_type if player.slot != -1 else 'Spectator')
 
 
 class Footer(report.EmbedElement):

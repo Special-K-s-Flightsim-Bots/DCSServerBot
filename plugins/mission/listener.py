@@ -126,7 +126,7 @@ class MissionEventListener(EventListener["Mission"]):
                 if message != message_old:
                     if len(messages + message) > 2000:
                         await _channel.send(messages)
-                        await asyncio.sleep(self.print_queue.seconds)
+                        await asyncio.sleep(self.print_queue.seconds or 2)
                         messages = message
                     else:
                         messages += message
@@ -317,7 +317,7 @@ class MissionEventListener(EventListener["Mission"]):
     async def _threshold_alert(self, server: Server, config: dict):
         if server.name in self.alert_fired:
             return
-        role = config.get('role')
+        role: str | None = config.get('role')
         if role:
             if role in self.bot.roles:
                 mentions = ''.join([self.bot.get_role(_role).mention for _role in self.bot.roles[role]])
@@ -409,14 +409,20 @@ class MissionEventListener(EventListener["Mission"]):
             if not data.get('airbases'):
                 asyncio.create_task(server.send_to_dcs({"command": "getAirbases"}))
 
+        # Get the auto role
+        autorole: str | None = server.locals.get(
+            'autorole',
+            self.bot.locals.get('autorole', {}).get('online')
+        )
+
         server.afk.clear()
         server.players_by_id.clear()
         for p in data['players']:
             if p['id'] == 1:
                 continue
-            player: Player = server.get_player(ucid=p['ucid'])
+            player = server.get_player(ucid=p['ucid'])
             if not player:
-                player = DataObjectFactory().new(
+                player: Player = DataObjectFactory().new(
                     Player, node=server.node, server=server, id=p['id'], name=p['name'], active=p['active'],
                     side=Side(p['side']), ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
                     unit_callsign=p['unit_callsign'], unit_name=p['unit_name'], unit_type=p['unit_type'],
@@ -427,16 +433,15 @@ class MissionEventListener(EventListener["Mission"]):
                 await player.update(p)
             player.connected = True
 
-            # autorole
-            if player.member:
-                autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
-                if autorole:
-                    asyncio.create_task(player.add_role(autorole))
+            # give the player the autorole
+            if player.member and autorole:
+                asyncio.create_task(player.add_role(autorole))
 
             asyncio.create_task(self._upload_user_roles(server, player))
 
-            # initialize AFK check
-            if Side(p['side']) == Side.NEUTRAL:
+            # initialize AFK check for players on spectators
+            afk_config = server.locals.get('afk', {})
+            if afk_config and afk_config.get('check_on_join', True) and p['slot'] == -1:
                 server.afk[player.ucid] = datetime.now(timezone.utc)
 
         # clean up inactive players
@@ -450,16 +455,19 @@ class MissionEventListener(EventListener["Mission"]):
         # check if we are idle
         if not server.is_populated():
             server.idle_since = datetime.now(tz=timezone.utc)
+
         # remove roles
-        if server.locals.get('autorole'):
-            role = self.bot.get_role(server.locals.get('autorole'))
+        if autorole:
+            role = self.bot.get_role(autorole)
             if role:
                 all_members = set(x.member for x in server.players.values() if x.member)
                 for member in (set(role.members) - all_members):
                     asyncio.create_task(member.remove_roles(role))
+
         # Set the status at the latest possible place
         if data['channel'].startswith('sync-'):
             server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
+
         # only read resources if they are not set yet
         if not server.resources:
             asyncio.create_task(server.send_to_dcs({"command": "getWarehouseResources"}))
@@ -471,8 +479,8 @@ class MissionEventListener(EventListener["Mission"]):
         if not server.current_mission:
             self.log.warning("getWeatherInfo received without running mission.")
             return
-        server.current_mission.weather = data.get('weather')
-        server.current_mission.clouds = data.get('clouds')
+        server.current_mission.weather = data.get('weather', {})
+        server.current_mission.clouds = data.get('clouds', {})
         self.display_mission_embed(server)
 
     @event(name="getAirbases")
@@ -480,7 +488,7 @@ class MissionEventListener(EventListener["Mission"]):
         if not server.current_mission:
             self.log.warning("getAirbases received without running mission.")
             return
-        server.current_mission.airbases = data.get('airbases')
+        server.current_mission.airbases = data.get('airbases', [])
 
         # if missionstats is enabled ...
         mstats: MissionStatistics = cast(MissionStatistics, self.bot.cogs.get('MissionStatistics'))
@@ -600,9 +608,9 @@ class MissionEventListener(EventListener["Mission"]):
         if data['id'] == 1:
             return
 
-        player: Player = server.get_player(ucid=data['ucid'])
+        player = server.get_player(ucid=data['ucid'])
         if not player or player.id == 1:
-            player = DataObjectFactory().new(
+            player: Player = DataObjectFactory().new(
                 Player, node=server.node, server=server, id=data['id'], name=data['name'],
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'], ipaddr=data.get('ipaddr'))
             server.add_player(player)
@@ -619,7 +627,7 @@ class MissionEventListener(EventListener["Mission"]):
 
         # check if we've reached the max_threshold
         usage_alarm = server.locals.get('usage_alarm', {})
-        mt = usage_alarm.get('max_threshold')
+        mt: int | None = usage_alarm.get('max_threshold')
         if mt and len(server.get_active_players()) == (mt + 1):
             asyncio.create_task(self._threshold_alert(server, usage_alarm))
 
@@ -646,7 +654,7 @@ class MissionEventListener(EventListener["Mission"]):
             return
         messages = server.locals['messages']
         # check if the server only allows linked members to join
-        discord_roles = server.locals.get('discord')
+        discord_roles: str | list[str] | None = server.locals.get('discord')
         if server.locals.get('force_voice', False) and not discord_roles:
             discord_roles = ['@everyone']
         if discord_roles:
@@ -661,9 +669,9 @@ class MissionEventListener(EventListener["Mission"]):
                 return
 
         # create the player object (should have been created through onPlayerConnect already)
-        player: Player = server.get_player(ucid=data['ucid'])
+        player = server.get_player(ucid=data['ucid'])
         if not player:
-            player = DataObjectFactory().new(
+            player: Player = DataObjectFactory().new(
                 Player, node=server.node, server=server, id=data['id'], name=data['name'],
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'], ipaddr=data.get('ipaddr'))
             server.add_player(player)
@@ -688,7 +696,9 @@ class MissionEventListener(EventListener["Mission"]):
         else:
             asyncio.create_task(player.sendChatMessage(
                 messages['greeting_message_members'].format(player=player, server=server)))
-            autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
+            autorole: str | int | None = server.locals.get(
+                'autorole', self.bot.locals.get('autorole', {}).get('online')
+            )
             if autorole:
                 asyncio.create_task(player.add_role(autorole))
             # check if we need to enforce voice chat usage
@@ -708,7 +718,9 @@ class MissionEventListener(EventListener["Mission"]):
                         asyncio.create_task(player.member.move_to(voice))
 
         # add the player to the afk list
-        server.afk[player.ucid] = datetime.now(timezone.utc)
+        afk_config = server.locals.get('afk', {})
+        if afk_config and afk_config.get('check_on_join', True):
+            server.afk[player.ucid] = datetime.now(timezone.utc)
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
@@ -844,12 +856,14 @@ class MissionEventListener(EventListener["Mission"]):
             server.idle_since = datetime.now(tz=timezone.utc)
             await self.bus.send_to_node({"command": "onServerEmpty", "server_name": server.name})
         if player.member:
-            autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
+            autorole: str | int | None = server.locals.get(
+                'autorole', self.bot.locals.get('autorole', {}).get('online')
+            )
             if autorole:
                 await player.remove_role(autorole)
         # check if we've reached the min_threshold
         usage_alarm = server.locals.get('usage_alarm', {})
-        mt = usage_alarm.get('min_threshold')
+        mt: int | None = usage_alarm.get('min_threshold')
         if mt and len(server.get_active_players()) == (mt - 1):
             await self._threshold_alert(server, usage_alarm)
         self.display_mission_embed(server)
@@ -866,7 +880,7 @@ class MissionEventListener(EventListener["Mission"]):
             else:
                 await self._stop_player(server, player)
 
-    async def _disconnect(self, server: Server, player: Player):
+    async def _disconnect(self, server: Server, player: Player | None):
         if not player or player.connected is False:
             return
 
@@ -894,7 +908,7 @@ class MissionEventListener(EventListener["Mission"]):
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
-        player: Player = server.get_player(id=data['id'], active=True)
+        player = server.get_player(id=data['id'], active=True)
         if not player:
             return
 
@@ -904,17 +918,22 @@ class MissionEventListener(EventListener["Mission"]):
             return
 
         try:
-            if Side(data['side']) != Side.NEUTRAL:
+            # (re-)initialize the AFK timer unless a CA slot is selected
+            if data['unit_type'] not in ['artillery_commander', 'instructor', 'forward_observer', 'observer']:
+                afk_config = server.locals.get('afk', {})
+                if afk_config and afk_config.get('check_on_join', True):
+                    server.afk[player.ucid] = datetime.now(timezone.utc)
+            else:
                 server.afk.pop(player.ucid, None)
-                if 'change_slot' not in self.get_config(server).get('event_filter', []):
+
+            if 'change_slot' not in self.get_config(server).get('event_filter', []):
+                if data['slot'] != -1:
                     side = Side(data['side'])
                     self.send_dcs_event(
                         server, side, self.EVENT_TEXTS[side]['change_slot'].format(player.side.name,
                         data['name'], Side(data['side']).name, data['unit_type'])
                     )
-            else:
-                server.afk[player.ucid] = datetime.now(timezone.utc)
-                if 'change_slot' not in self.get_config(server).get('event_filter', []):
+                else:
                     side = player.side
                     self.send_dcs_event(
                         server, side, self.EVENT_TEXTS[side]['spectators'].format(data['name'])
@@ -922,6 +941,31 @@ class MissionEventListener(EventListener["Mission"]):
         finally:
             await player.update(data)
             self.display_player_embed(server)
+
+    @event(name="onPlayerChangeCoalition")
+    async def onPlayerChangeCoalition(self, server: Server, data: dict) -> None:
+        player = server.get_player(id=data['id'], active=True)
+        if not player:
+            return
+
+        afk_config = server.locals.get('afk', {})
+        if afk_config and afk_config.get('check_on_join', True):
+            # (re-)initialize the AFK timer
+            server.afk[player.ucid] = datetime.now(timezone.utc)
+
+        # reset player
+        await player.update(data | {
+            "slot": -1,
+            "sub_slot": -1,
+            "unit_id": 0,
+            "unit_type": "?",
+            "unit_name": "",
+            "unit_display_name": "",
+            "unit_callsign": "",
+            "group_name": "",
+            "group_id": "",
+        })
+        self.display_player_embed(server)
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
@@ -1042,9 +1086,18 @@ class MissionEventListener(EventListener["Mission"]):
             player.pending = False
 
             # Send ATIS information (if configured)
-            place = data.get('place', {}).get('name')
-            if place and server.locals.get('show_atis', False):
-                asyncio.create_task(self.send_atis(server, player, place))
+            place: str | None = data.get('place', {}).get('name')
+            if place:
+                if server.locals.get('show_atis', False):
+                    asyncio.create_task(self.send_atis(server, player, place))
+
+                # (re-)initialize the AFK timer if someone has spawned on an airfield
+                afk_config = server.locals.get('afk', {})
+                if afk_config and afk_config.get('check_on_spawn', True):
+                    server.afk[player.ucid] = datetime.now(timezone.utc)
+            else:
+                # airspawns should reset any timer
+                server.afk.pop(player.ucid, None)
 
             # Build menu
             menu = await filter_menu(self, read_menu_config(self, server), server, player)
@@ -1057,6 +1110,28 @@ class MissionEventListener(EventListener["Mission"]):
                         "groupID": group_id,
                         "menu": menu
                     })
+
+        elif data['eventName'] == 'S_EVENT_TAKEOFF':
+            _player = data.get('initiator', {}).get('name')
+            if not _player:
+                return
+            player = server.get_player(name=_player)
+            if not player:
+                return
+            # clear the AFK timer on takeoff
+            server.afk.pop(player.ucid, None)
+
+        elif data['eventName'] == 'S_EVENT_LAND':
+            _player = data.get('initiator', {}).get('name')
+            if not _player:
+                return
+            player = server.get_player(name=_player)
+            if not player:
+                return
+            # (re-)initialize the AFK timer if someone has landed
+            afk_config = server.locals.get('afk', {})
+            if afk_config and afk_config.get('check_after_landing', False):
+                server.afk[player.ucid] = datetime.now(timezone.utc)
 
         elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
             initiator = data.get('initiator', {})
@@ -1116,7 +1191,7 @@ class MissionEventListener(EventListener["Mission"]):
             mission_file = os.path.join(await server.get_missions_dir(), mission_file)
         if not mission_file:
             mission_list = await server.getMissionList()
-            mission_id = params.get('mission_id')
+            mission_id: int | None = params.get('mission_id')
             if mission_id:
                 mission_file = mission_list[int(mission_id) - 1]
             else:
@@ -1129,7 +1204,7 @@ class MissionEventListener(EventListener["Mission"]):
         if params.get('run_extensions', False):
             mission_file = await server.apply_mission_changes(mission_file, use_orig=use_orig)
             use_orig = False
-        presets = params.get('presets')
+        presets: list | None = params.get('presets')
         if presets:
             mission_file = await server.modifyMission(
                 mission_file, [utils.get_preset(self.node, x) for x in presets], use_orig
@@ -1140,7 +1215,8 @@ class MissionEventListener(EventListener["Mission"]):
     async def changeMission(self, server: Server, data: dict) -> None:
         params = data.get('params', {})
         player = server.get_player(id=data['from'])
-        asyncio.create_task(self.do_change_mission(server, player, params))
+        if player:
+            asyncio.create_task(self.do_change_mission(server, player, params))
 
     @chat_command(name='pause', help='pause the mission', roles=['DCS Admin', 'GameMaster'])
     async def pause(self, server: Server, player: Player, _params: list[str]):
@@ -1266,7 +1342,7 @@ class MissionEventListener(EventListener["Mission"]):
         name = params[0]
         reason = ' '.join(params[1:]) if len(params) > 1 else 'n/a'
 
-        delinquent: Player = server.get_player(name=name, active=True)
+        delinquent = server.get_player(name=name, active=True)
         if not delinquent:
             await player.sendChatMessage(f'Player {name} not found. Use "" around names with blanks.')
             return

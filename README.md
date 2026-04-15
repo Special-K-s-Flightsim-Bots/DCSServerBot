@@ -513,8 +513,13 @@ My Fancy Server:                # Your server name, as displayed in the server l
     size: 1048576               # Max logfile size, default is 1 MB. 
   no_coalition_chat: true       # Optional: Do not replicate red and blue chats to the Discord chat replication (default: false)
   afk:                          # Optional: AFK check
-    message: '{player.name}, you have been kicked for being AFK for more than {time}.'  # default message for AFK users
-    afk_time: 300               # Time in seconds after which a player on spectators is considered being AFK. Default: -1, which is disabled
+    afk_time: 900               # Time in seconds after which a player is considered being AFK. Default: -1, which is disabled
+    punish: false               # Optional: Instead of kicking, create a punishment event "afk" to be handled in the punishment plugin (default: false)
+    message: '{player.name}, you have been kicked for being AFK for more than {time}.'  # default message for AFK kicks
+    threshold: 75               # Optional: Only kick, if the server is fuller than 75% (default: kick always)
+    check_on_join: true         # Check if the player is AFK after join, sitting in the slot selection (default: true)
+    check_on_spawn: true        # Check if the player is AFK after spawning and sitting on the apron (default: true)
+    check_after_landing: false  # Check if the player is AFK after landing and before the next takeoff (default: false)  
     exemptions:                 # List of UCIDs or discord roles that are exempted from AFK kicks (besides the users that have the DCS Admin or GameMaster role)
       ucid:
         - aabbccddeeff1122334455
