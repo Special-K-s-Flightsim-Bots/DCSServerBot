@@ -22,11 +22,11 @@ __all__ = [
     "ModManagerService"
 ]
 
-import sys
-if sys.platform == 'win32':
-    ENCODING = 'cp1252'
-else:
-    ENCODING = 'utf-8'
+#import sys
+#if sys.platform == 'win32':
+#    ENCODING = 'cp1252'
+#else:
+ENCODING = 'utf-8'
 
 @total_ordering
 class Folder(Enum):
@@ -301,7 +301,7 @@ class ModManagerService(Service):
                                                                        package).replace('\\', '/')))
 
         def recreate_zip_package():
-            dirs = []
+            created_dirs = []
             with zipfile.ZipFile(package + '.zip', 'r') as zfile:
                 for name in zfile.namelist():
                     if os.path.basename(name).lower() == 'thumbs.db':
@@ -310,9 +310,9 @@ class ModManagerService(Service):
                         name.rstrip('/')
                     else:
                         dirname = os.path.dirname(name)
-                        if dirname not in dirs:
+                        if dirname not in created_dirs:
                             log_entries.append(f"w {os.path.dirname(name)}\n")
-                            dirs.append(dirname)
+                            created_dirs.append(dirname)
                     log_entries.append(f"w {name}\n")
 
         package = await self._ensure_package(folder, package_name, version, repo=repo)
@@ -325,9 +325,8 @@ class ModManagerService(Service):
         elif os.path.exists(package + '.zip'):
             await asyncio.to_thread(recreate_zip_package)
 
-        async with aiofiles.open(os.path.join(packages_path, 'install.log'), 'w', encoding=ENCODING,
-                                 errors='replace') as log:
-            await log.writelines(log_entries)
+        with open(os.path.join(packages_path, 'install.log'), 'w', encoding=ENCODING) as log:
+            log.writelines(log_entries)
         return True
 
     @staticmethod
@@ -351,15 +350,13 @@ class ModManagerService(Service):
         log_entries = []
 
         def process_zipfile():
+            create_dirs = set()
             with zipfile.ZipFile(filename, 'r') as zfile:
+                namelist = zfile.namelist()
                 ovgme = self.is_ovgme(zfile, package_name)
                 if ovgme:
-                    first = zfile.namelist()[0]
-                    if first.endswith('/'):
-                        root = first
-                    else:
-                        root = str(PurePosixPath(zfile.namelist()[0]).parent) + '/'
-                for name in zfile.namelist():
+                    root = PurePosixPath(namelist[0]).parts[0] + '/'
+                for name in namelist:
                     if ovgme:
                         _name = name.replace(root, '')
                         if not _name or name in ['README.txt', 'VERSION.txt']:
@@ -370,27 +367,33 @@ class ModManagerService(Service):
                     if os.path.basename(_name).lower() == 'thumbs.db':
                         continue
                     orig = os.path.join(target, _name)
+                    parent = os.path.dirname(orig)
+
                     if os.path.exists(orig) and os.path.isfile(orig):
                         log_entries.append(f"x {_name}\n")
                         dest = os.path.join(packages_path, _name)
-                        os.makedirs(os.path.dirname(dest), exist_ok=True)
-                        shutil.copy2(orig, dest)
+                        dest_parent = os.path.dirname(dest)
+                        if dest_parent not in create_dirs:
+                            os.makedirs(dest_parent, exist_ok=True)
+                            create_dirs.add(dest_parent)
+                        shutil.copyfile(orig, dest)
                     else:
-                        dir_name = os.path.dirname(_name)
-                        if dir_name and not os.path.exists(os.path.dirname(orig)):
-                            os.makedirs(os.path.dirname(orig), exist_ok=True)
+                        if parent and not parent in create_dirs:
+                            os.makedirs(parent, exist_ok=True)
+                            create_dirs.add(parent)
                             log_entries.append(f"w {os.path.dirname(_name)}\n")
                         if _name.endswith('/'):
                             continue
                         log_entries.append(f"w {_name}\n")
                     with zfile.open(name) as infile:
                         with open(orig, mode='wb') as outfile:
-                            outfile.write(infile.read())
+                            shutil.copyfileobj(infile, outfile)
             return log_entries
 
         def copy_tree():
             def backup(p, names) -> list[str]:
                 ignore_list = []
+                created_dirs = set()
                 _dir = p[len(os.path.join(path, package_name + '_v' + version)):].lstrip(os.path.sep)
                 for name in names:
                     # ignore all Thumbs.db files
@@ -404,8 +407,11 @@ class ModManagerService(Service):
                     if os.path.exists(orig) and os.path.isfile(orig) and not cmp(source, orig):
                         log_entries.append("x {}\n".format(name.replace('\\', '/')))
                         dest = os.path.join(packages_path, name)
-                        os.makedirs(os.path.dirname(dest), exist_ok=True)
-                        shutil.copy2(orig, dest)
+                        dest_parent = os.path.dirname(dest)
+                        if dest_parent not in created_dirs:
+                            os.makedirs(dest_parent, exist_ok=True)
+                            created_dirs.add(dest_parent)
+                        shutil.copy(orig, dest)
                     else:
                         log_entries.append("w {}\n".format(name.replace('\\', '/')))
                 return ignore_list
@@ -419,9 +425,8 @@ class ModManagerService(Service):
         else:
             self.log.error(f"- Installation of package {package_name}_v{version} failed, no package.")
             return False
-        async with aiofiles.open(os.path.join(packages_path, 'install.log'), mode='w', encoding=ENCODING,
-                                 errors='replace') as log:
-            await log.writelines(log_entries)
+        with open(os.path.join(packages_path, 'install.log'), mode='w', encoding=ENCODING) as log:
+            log.writelines(log_entries)
 
         if isinstance(reference, Server):
             column = 'server_name'
@@ -483,24 +488,44 @@ class ModManagerService(Service):
     async def do_uninstall(self, reference: Server | Node, folder: Folder, package_name: str, version: str,
                            packages_path: str) -> bool:
         target = reference.installation if folder == Folder.RootFolder else reference.instance.home
-        async with aiofiles.open(os.path.join(packages_path, 'install.log'), mode='r', encoding=ENCODING) as log:
-            lines = await log.readlines()
-            for line in reversed(lines):
-                filename = line[2:].strip()
+
+        def _process_install_log() -> list[tuple[str, str]]:
+            actions: list[tuple[str, str]] = []
+            log_path = os.path.join(packages_path, 'install.log')
+            with open(log_path, mode='r', encoding=ENCODING) as log:
+                for line in log:
+                    if len(line) < 3:
+                        continue
+                    action = line[0]
+                    filename = line[2:].strip()
+                    if filename:
+                        actions.append((action, filename))
+            return actions
+
+        actions = await asyncio.to_thread(_process_install_log)
+
+        def _apply_actions() -> None:
+            for action, filename in reversed(actions):
                 file = os.path.normpath(os.path.join(target, filename))
-                if line.startswith('w'):
+                if action == 'w':
                     if os.path.isfile(file):
                         os.remove(file)
-                    elif os.path.isdir(file) and not os.listdir(file):
+                    elif os.path.isdir(file):
                         with suppress(Exception):
-                            os.removedirs(file)
-                elif line.startswith('x'):
+                            # avoid loading the full directory listing when only emptiness matters
+                            if next(os.scandir(file), None) is None:
+                                os.removedirs(file)
+                elif action == 'x':
                     try:
-                        shutil.copy2(os.path.join(packages_path, filename), file)
+                        shutil.copy(os.path.join(packages_path, filename), file)
                     except FileNotFoundError:
                         if folder == Folder.RootFolder:
-                            self.log.warning(f"- Can't recover file {filename}, because it has been removed! "
-                                             f"You might need to run a slow repair.")
+                            self.log.warning(
+                                f"- Can't recover file {filename}, because it has been removed! "
+                                f"You might need to run a slow repair."
+                            )
+
+        await asyncio.to_thread(_apply_actions)
         utils.safe_rmtree(packages_path)
 
         if isinstance(reference, Server):

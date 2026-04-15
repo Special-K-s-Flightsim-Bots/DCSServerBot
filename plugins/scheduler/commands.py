@@ -262,10 +262,7 @@ class Scheduler(Plugin[SchedulerListener]):
         self.log.debug(f"{self.__cog_name__}: Restart {server.name} in {restart_in} seconds...")
 
         action = rconf.get("method")
-        item = "Server" if action in {"restart", "shutdown"} else "Mission"
-        # If a restart is accompanied by a shutdown-flag, we still treat it as a server‑level action.
-        if action == "restart" and rconf.get("shutdown", False):
-            item = "Server"
+        item = "Server" if (action == "shutdown" or rconf.get("shutdown", False)) else "Mission"
 
         async def do_warn(warn_time: int):
             nonlocal warn_text
