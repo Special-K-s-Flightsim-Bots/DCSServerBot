@@ -95,6 +95,7 @@ from time to time, but you as a community member can also create your own plugin
 | Punishment    | Punish users for team-hits or team-kills.                                                       |   yes    | Mission                               | [README](./plugins/punishment/README.md)    |
 | RealWeather   | Apply real weather to your missions (also available as an extension).                           |   yes    |                                       | [README](./plugins/realweather/README.md)   |
 | RestAPI       | Simple REST-API to query users and statistics (WIP).                                            |   yes    | Userstats, MissionStats               | [README](./plugins/restapi/README.md)       |
+| SkyEye        | Support for location.json file uploading for [SkyEye](https://github.com/dharmab/skyeye).       |   yes    |                                       | [README](./plugins/skyeye/README.md)        |
 | SlotBlocking  | Slot blocking either based on discord roles or credits.                                         |   yes    | Mission, CreditSystem                 | [README](./plugins/slotblocking/README.md)  |
 | SRS           | Display players activity on SRS, show active channels and enable slot blocking.                 |   yes    | MissionStats                          | [README](./plugins/srs/README.md)           |
 | Tacview       | Install or uninstall Tacview from your server(s) and do a basic configuration.                  |   yes    |                                       | [README](./plugins/tacview/README.md)       |
