@@ -128,8 +128,8 @@ class CloudListener(EventListener["Cloud"]):
         config = self.plugin.get_config(server)
         if 'token' not in config:
             return
-        player: Player | None = server.get_player(ucid=data['ucid'])
-        if not player or player.side == Side.NEUTRAL:
+        player = server.get_player(ucid=data['ucid'])
+        if not player or player.slot == -1:
             return
         asyncio.create_task(self.update_cloud_data(server, player))
 
