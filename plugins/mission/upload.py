@@ -74,6 +74,7 @@ class MissionUploadHandler(ServerUploadHandler):
             return rc
         except Exception as ex:
             self.log.exception(ex)
+            return UploadStatus.WRITE_ERROR
 
     async def _wait_for_mission(self, att: discord.Attachment) -> str | None:
         # wait 60s for the mission to appear

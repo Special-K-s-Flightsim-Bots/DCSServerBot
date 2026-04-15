@@ -1370,8 +1370,8 @@ class ConfigModal(Modal):
                     custom_id=k,
                     placeholder=v.get('placeholder'),
                     options=[
-                        SelectOption(label=x, value=y, default=(old_values.get(k, v.get('default')) == y))
-                        for x, y in v.get('options', [])
+                        SelectOption(label=x, value=x, default=(old_values.get(k, v.get('default')) == x))
+                        for x in v.get('options', [])
                     ],
                     min_values=v.get('min_values', 1),
                     max_values=v.get('max_values', 1),
@@ -1421,7 +1421,10 @@ class ConfigModal(Modal):
         await interaction.response.defer(ephemeral=self.ephemeral)
         # noinspection PyUnresolvedReferences
         self.value = {
-            v.component.custom_id: self.unparse(v.component.value, self.config[v.component.custom_id].get('type'))
+            v.component.custom_id: self.unparse(
+                v.component.value if getattr(v.component, 'value', None) is not None else v.component.values[0],
+                self.config[v.component.custom_id].get('type')
+            )
             for v in self.children
 #            if not isinstance(v, discord.ui.Label)
         }
@@ -1706,15 +1709,18 @@ class NodeUploadHandler:
     async def post_upload(self, uploaded: list[discord.Attachment]):
         ...
 
-    async def upload(self, base_dir: str, ignore_list: list[str] | None = None):
+    async def upload(self, base_dir: str, ignore_list: list[str] | None = None,
+                     attachments: list[discord.Attachment] | None = None):
         directory = await self.render(base_dir, ignore_list)
         if not directory:
             return
 
-        attachments = [
-            att for att in self.message.attachments
-            if any(p.search(att.filename) for p in self.patterns)
-        ]
+        if not attachments:
+            attachments = [
+                att for att in self.message.attachments
+                if any(p.search(att.filename) for p in self.patterns)
+            ]
+
         # run all uploads in parallel
         tasks = [self.handle_attachment(directory, att) for att in attachments]
         ret_vals = await asyncio.gather(*tasks, return_exceptions=True)

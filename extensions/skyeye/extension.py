@@ -215,6 +215,15 @@ class SkyEye(Extension):
             dirty |= self._maybe_update_config(cfg, 'discord-webhook-id', cfg['discord-webhook-id'])
             dirty |= self._maybe_update_config(cfg, 'discord-webhook-token', cfg['discord-webhook-token'])
 
+        # Configure locations file
+        if parse(self.version) >= parse("1.9"):
+            if cfg.get('locations-file'):
+                dirty |= self._maybe_update_config(cfg, 'locations-file', cfg['locations-file'])
+            else:
+                locations_file = os.path.join(self.server.instance.home, 'Config', 'locations.json')
+                if os.path.exists(locations_file):
+                    dirty |= self._maybe_update_config(cfg, 'locations-file', locations_file)
+
         # Configure Tacview
         tacview = self.server.extensions.get('Tacview')
         if tacview:
@@ -463,7 +472,7 @@ class SkyEye(Extension):
     def get_exe_path(self) -> str:
         return os.path.join(os.path.expandvars(self.config['installation']), "skyeye.exe")
 
-    def _get_version(self) -> str | None:
+    def _get_version(self) -> str:
         with suppress(Exception):
             # Run the program and capture its output
             result = subprocess.run([self.get_exe_path(), '--version'], text=True,

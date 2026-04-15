@@ -23,14 +23,14 @@ async def frequency_autocomplete(interaction: discord.Interaction, _current: flo
             return []
         if player:
             return [
-                app_commands.Choice(name=utils.format_frequency(x), value=x/1000000)
+                app_commands.Choice[float](name=utils.format_frequency(x), value=x/1000000)
                 for p in eventlistener.srs_users[server.name].values()
                 if p['player_name'] == player.name
                 for x in sorted(p['radios'])
             ]
         elif coalition:
             return [
-                app_commands.Choice(name=utils.format_frequency(x), value=x/1000000)
+                app_commands.Choice[float](name=utils.format_frequency(x), value=x/1000000)
                 for x in sorted({
                     radio
                     for p in eventlistener.srs_users[server.name].values()
@@ -40,8 +40,8 @@ async def frequency_autocomplete(interaction: discord.Interaction, _current: flo
             ]
         else:
             return [
-                app_commands.Choice(name="Guard 121.5", value=121.5),
-                app_commands.Choice(name="Guard 243.0", value=243.0)
+                app_commands.Choice[float](name="Guard 121.5", value=121.5),
+                app_commands.Choice[float](name="Guard 243.0", value=243.0)
             ]
     except Exception as ex:
         interaction.client.log.exception(ex)

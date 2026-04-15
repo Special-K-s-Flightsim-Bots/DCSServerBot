@@ -29,12 +29,6 @@ class GameMasterUploadHandler(ServerUploadHandler):
                     return
                 data = await response.json(encoding="utf-8")
 
-        with open(os.path.join('plugins', self.plugin.plugin_name, 'schemas', 'embed_schema.json'), mode='r') as infile:
-            schema = json.load(infile)
-        try:
-            validate(instance=data, schema=schema)
-        except ValidationError:
-            return
         embed = utils.format_embed(data, server=self.server, user=self.message.author)
         msg = None
         if 'message_id' in data:
@@ -51,8 +45,15 @@ class GameMasterUploadHandler(ServerUploadHandler):
             await self.channel.send(embed=embed)
         await self.message.delete()
 
-    async def upload(self, base_dir: str, ignore_list: list[str] | None = None):
-        for att in self.message.attachments:
+    async def upload(self, base_dir: str, ignore_list: list[str] | None = None,
+                     attachments: list[discord.Attachment] | None = None):
+        if not attachments:
+            attachments = [
+                att for att in self.message.attachments
+                if any(p.search(att.filename) for p in self.patterns)
+            ]
+
+        for att in attachments:
             if att.filename.endswith('.lua'):
                 await super().upload(base_dir, ignore_list)
             elif att.filename.endswith('.json'):
