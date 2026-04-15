@@ -7,7 +7,6 @@ import pickle
 import platform
 import psutil
 import stat
-import subprocess
 import sys
 
 from contextlib import suppress

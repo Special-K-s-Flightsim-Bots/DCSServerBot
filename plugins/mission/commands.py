@@ -1474,10 +1474,10 @@ class Mission(Plugin[MissionEventListener]):
             return
         await interaction.response.send_modal(BanModal(player.ucid))
 
-    @player.command(description=_('Adds a player to the watchlist'))
+    @player.command(name="watch", description=_('Adds a player to the watchlist'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def watch(self, interaction: discord.Interaction,
+    async def _watch(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                     player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
 

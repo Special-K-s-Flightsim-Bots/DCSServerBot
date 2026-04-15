@@ -1,7 +1,7 @@
 import discord
 import os
 
-from core import Plugin, get_translation, Group, Server, utils, Status, UninstallException, InstallException
+from core import Plugin, get_translation, Group, Server, utils, Status
 from datetime import datetime, timezone
 from discord import app_commands
 from extensions.tacview import TACVIEW_DEFAULT_DIR

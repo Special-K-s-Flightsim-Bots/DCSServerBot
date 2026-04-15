@@ -1,11 +1,7 @@
 import aiohttp
 import discord
-import json
-import os
 
 from core import utils, get_translation, Server, ServerUploadHandler
-from jsonschema.exceptions import ValidationError
-from jsonschema.validators import validate
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

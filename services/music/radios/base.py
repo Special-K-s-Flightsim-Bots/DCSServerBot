@@ -2,7 +2,6 @@ import asyncio
 import os
 
 from abc import ABC
-from contextlib import suppress
 from core import Server, ServiceRegistry
 from discord.ext import tasks
 from enum import Enum
