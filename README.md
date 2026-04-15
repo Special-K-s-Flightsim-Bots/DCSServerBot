@@ -518,7 +518,7 @@ My Fancy Server:                # Your server name, as displayed in the server l
     message: '{player.name}, you have been kicked for being AFK for more than {time}.'  # default message for AFK kicks
     threshold: 75               # Optional: Only kick, if the server is fuller than 75% (default: kick always)
     check_on_join: true         # Check if the player is AFK after join, sitting in the slot selection (default: true)
-    check_on_spawn: true        # Check if the player is AFK after spawning and sitting on the apron (default: true)
+    check_on_spawn: false       # Check if the player is AFK after spawning and sitting on the apron (default: false)
     check_after_landing: false  # Check if the player is AFK after landing and before the next takeoff (default: false)  
     exemptions:                 # List of UCIDs or discord roles that are exempted from AFK kicks (besides the users that have the DCS Admin or GameMaster role)
       ucid:

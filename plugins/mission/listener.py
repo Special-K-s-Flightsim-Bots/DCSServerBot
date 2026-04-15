@@ -1093,7 +1093,7 @@ class MissionEventListener(EventListener["Mission"]):
 
                 # (re-)initialize the AFK timer if someone has spawned on an airfield
                 afk_config = server.locals.get('afk', {})
-                if afk_config and afk_config.get('check_on_spawn', True):
+                if afk_config and afk_config.get('check_on_spawn', False):
                     server.afk[player.ucid] = datetime.now(timezone.utc)
             else:
                 # airspawns should reset any timer
