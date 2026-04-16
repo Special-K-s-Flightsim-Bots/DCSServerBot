@@ -117,6 +117,19 @@ class ServiceBus(Service):
                     }
                 }, node=node)
         else:
+            # figure the master node
+            async with self.node.cpool.connection() as conn:
+                cursor = await conn.execute("SELECT master FROM cluster WHERE guild_id = %s", (self.node.guild_id, ))
+                row = await cursor.fetchone()
+                if not row:
+                    self.log.warning("No master available, can't register.")
+                    return
+                master = row[0]
+
+            if master not in await self.node.get_active_nodes():
+                self.log.debug(f"Master node {master} is not active (yet), waiting ...")
+                return
+
             await self.send_to_node({
                 "command": "rpc",
                 "service": self.__class__.__name__,
@@ -274,8 +287,16 @@ class ServiceBus(Service):
         if name == self.node.name:
             return
 
-        self.log.info(f"- Registering remote node {name} ...")
+        if self.node.all_nodes.get(name):
+            self.log.debug(f"Node {name} already registered, skipping registration request.")
+            return
+
         node = NodeProxy(self.node, name, public_ip, dcs_version)
+        if not await node.is_alive(self.node.config.get('cluster', {}).get('heartbeat', 30)):
+            self.log.warning(f"Node {name} is not alive (anymore). Skipping registration request.")
+            return
+
+        self.log.info(f"- Registering remote node {name} ...")
         # we did not find a configuration for this node, load it from remote
         if not node.locals:
             node.locals = await node.get_config()
@@ -466,12 +487,12 @@ class ServiceBus(Service):
                 return await cursor.fetchone()
 
     async def init_remote_server(self, server_name: str, status: str, instance: str, home: str,
-                                 settings: dict, options: dict, node: Node, channels: dict, dcs_port: int,
+                                 settings: dict, options: dict, node: Node | str, channels: dict, dcs_port: int,
                                  webgui_port: int, maintenance: bool) -> None:
         from core import InstanceProxy
 
         # init event for an unregistered remote node received or a race condition due to master switches, ignoring
-        if not node or node == self.node:
+        if not node or node == self.node or isinstance(node, str):
             return
         try:
             server: ServerProxy = cast(ServerProxy, self.servers.get(server_name))

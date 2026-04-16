@@ -280,3 +280,7 @@ class Node(ABC):
     @abstractmethod
     async def get_config(self) -> dict:
         raise NotImplementedError()
+
+    @abstractmethod
+    async def is_alive(self, timeout: int = 30) -> bool:
+        raise NotImplementedError()
