@@ -33,16 +33,15 @@ _ = get_translation(__name__.split('.')[1])
 async def bans_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    choices: list[app_commands.Choice[int]] = [
-        app_commands.Choice(name=f"{x['name']} ({x['ucid']})" if x['name'] else x['ucid'], value=x['ucid'])
+    return [
+        app_commands.Choice[int](name=f"{x['name']} ({x['ucid']})" if x['name'] else x['ucid'], value=x['ucid'])
         for x in await interaction.client.bus.bans()
         if not current or (x['name'] and current.casefold() in x['name'].casefold()) or current.casefold() in x['ucid']
-    ]
-    return choices[:25]
+    ][:25]
 
 
 async def available_modules_autocomplete(interaction: discord.Interaction,
-                                         current: str) -> list[app_commands.Choice[int]]:
+                                         current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
@@ -50,7 +49,7 @@ async def available_modules_autocomplete(interaction: discord.Interaction,
         available_modules = (set(await node.get_available_modules()) -
                              set(await node.get_installed_modules()))
         return [
-            app_commands.Choice(name=x, value=x)
+            app_commands.Choice[str](name=x, value=x)
             for x in available_modules
             if 0 < len(x) <= 100 and (not current or current.casefold() in x.casefold())
         ][:25]
@@ -66,12 +65,11 @@ async def installed_modules_autocomplete(interaction: discord.Interaction,
     try:
         node = await utils.NodeTransformer().transform(interaction, interaction.namespace.node)
         available_modules = await node.get_installed_modules()
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=x, value=x)
+        return [
+            app_commands.Choice[str](name=x, value=x)
             for x in available_modules
             if not current or current.casefold() in x.casefold()
-        ]
-        return choices[:25]
+        ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -85,15 +83,14 @@ async def label_autocomplete(interaction: discord.Interaction, current: str) -> 
         if not server:
             return []
         config = interaction.client.cogs['Admin'].get_config(server)
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=x['label'], value=x['label']) for x in config['downloads']
+        return [
+            app_commands.Choice[str](name=x['label'], value=x['label']) for x in config['downloads']
             if (
                     (not current or current.casefold() in x['label'].casefold()) and
                     (not x.get('discord') or utils.check_roles(x['discord'], interaction.user)) and
                     not utils.is_restricted(interaction)
             )
-        ]
-        return choices[:25]
+        ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -104,12 +101,11 @@ async def _mission_file_autocomplete(interaction: discord.Interaction, current: 
         server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         file_list = await server.getAllMissionFiles()
         exp_base = await server.get_missions_dir()
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=os.path.relpath(x[0], exp_base), value=os.path.relpath(x[1], exp_base))
+        return [
+            app_commands.Choice[str](name=os.path.relpath(x[0], exp_base), value=os.path.relpath(x[1], exp_base))
             for x in file_list
             if not current or current.casefold() in os.path.relpath(x[0], exp_base).casefold()
-        ]
-        return choices[:25]
+        ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -141,12 +137,11 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
 
         base_dir = utils.format_string(config['directory'], server=server)
         exp_base, file_list = await server.node.list_directory(base_dir, pattern=config['pattern'], traverse=True)
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=os.path.relpath(x, exp_base), value=os.path.relpath(x, exp_base))
+        return [
+            app_commands.Choice[str](name=os.path.relpath(x, exp_base), value=os.path.relpath(x, exp_base))
             for x in file_list
             if not current or current.casefold() in os.path.relpath(x, base_dir).casefold()
-        ]
-        return choices[:25]
+        ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -156,10 +151,10 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
     if not await interaction.command._check_can_run(interaction):
         return []
     return [
-        app_commands.Choice(name=x, value=x.lower())
+        app_commands.Choice[str](name=str(x), value=x.lower())
         for x in sorted(interaction.client.cogs.keys())
         if not current or current.casefold() in x.casefold()
-    ]
+    ][:25]
 
 
 async def uninstallable_plugins(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -167,10 +162,10 @@ async def uninstallable_plugins(interaction: discord.Interaction, current: str) 
         return []
     installed = set([x for x in interaction.client.node.plugins]) - set(DEFAULT_PLUGINS)
     return [
-        app_commands.Choice(name=x.capitalize(), value=x.lower())
+        app_commands.Choice[str](name=x.capitalize(), value=x.lower())
         for x in sorted(installed)
         if not current or current.casefold() in x.casefold()
-    ]
+    ][:25]
 
 
 async def installable_plugins(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -179,10 +174,10 @@ async def installable_plugins(interaction: discord.Interaction, current: str) ->
     installed = set([x for x in interaction.client.node.plugins])
     available = set([d for d in os.listdir('plugins') if d not in ['__pycache__'] and os.path.isdir(os.path.join('plugins', d))])
     return [
-        app_commands.Choice(name=x.capitalize(), value=x)
+        app_commands.Choice[str](name=x.capitalize(), value=x)
         for x in sorted(available - installed)
         if not current or current.casefold() in x.casefold()
-    ]
+    ][:25]
 
 
 async def get_dcs_branches(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -199,10 +194,10 @@ async def get_dcs_branches(interaction: discord.Interaction, current: str) -> li
             branches.append(('Testing', 'dcs_server.testing'))
             branches.append(('Nightly', 'dcs_server.nightly'))
     return [
-        app_commands.Choice(name=x[0], value=x[1])
+        app_commands.Choice[str](name=x[0], value=x[1])
         for x in branches
         if not current or current.casefold() in x[0].casefold()
-    ]
+    ][:25]
 
 
 async def get_dcs_versions(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -214,10 +209,10 @@ async def get_dcs_versions(interaction: discord.Interaction, current: str) -> li
         branch, _ = await node.get_dcs_branch_and_version()
     versions = await interaction.client.node.get_available_dcs_versions(branch)
     return [
-        app_commands.Choice(name=x, value=x)
+        app_commands.Choice[str](name=x, value=x)
         for x in versions[::-1][:25]
         if not current or current.casefold() in x.casefold()
-    ]
+    ][:25]
 
 
 async def all_servers_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -227,11 +222,10 @@ async def all_servers_autocomplete(interaction: discord.Interaction, current: st
         cursor = await conn.execute("""
             SELECT server_name FROM servers WHERE server_name ILIKE %s
         """, ('%' + current + '%', ))
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=row[0], value=row[0])
+        return [
+            app_commands.Choice[str](name=row[0], value=row[0])
             async for row in cursor
-        ]
-        return choices[:25]
+        ][:25]
 
 
 async def extensions_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -240,12 +234,11 @@ async def extensions_autocomplete(interaction: discord.Interaction, current: str
     server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
     extensions = await server.list_extensions()
     current = current.casefold()
-    choices: list[app_commands.Choice[str]] = [
-        app_commands.Choice(name=x, value=x)
+    return [
+        app_commands.Choice[str](name=x, value=x)
         for x in extensions
         if not current or current in x.casefold()
-    ]
-    return choices[:25]
+    ][:25]
 
 
 async def enabled_extensions_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -254,12 +247,11 @@ async def enabled_extensions_autocomplete(interaction: discord.Interaction, curr
     server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
     extensions = await server.list_extensions(active=True)
     current = current.casefold()
-    choices: list[app_commands.Choice[str]] = [
-        app_commands.Choice(name=x, value=x)
+    return [
+        app_commands.Choice[str](name=x, value=x)
         for x in extensions
         if not current or current in x.casefold()
-    ]
-    return choices[:25]
+    ][:25]
 
 
 async def disabled_extensions_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -268,12 +260,11 @@ async def disabled_extensions_autocomplete(interaction: discord.Interaction, cur
     server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
     extensions = await server.list_extensions(active=False)
     current = current.casefold()
-    choices: list[app_commands.Choice[str]] = [
-        app_commands.Choice(name=x, value=x)
+    return [
+        app_commands.Choice[str](name=x, value=x)
         for x in extensions
         if not current or current in x.casefold()
-    ]
-    return choices[:25]
+    ][:25]
 
 
 class Admin(Plugin[AdminEventListener]):
