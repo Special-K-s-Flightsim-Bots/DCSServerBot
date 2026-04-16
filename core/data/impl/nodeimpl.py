@@ -1096,7 +1096,9 @@ class NodeImpl(Node):
                 return row
             except psycopg.errors.UndefinedColumn:
                 # add the column if missing
+                await conn.rollback()
                 await conn.execute("ALTER TABLE cluster ADD COLUMN IF NOT EXISTS takeover_requested_by TEXT NULL")
+                await conn.commit()
                 return await get_master()
 
         async def is_node_alive(node: str, timeout: int) -> bool:
