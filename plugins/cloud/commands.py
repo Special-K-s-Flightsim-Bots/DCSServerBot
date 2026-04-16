@@ -207,7 +207,7 @@ class Cloud(Plugin[CloudListener]):
                     member = member.id
                 await conn.execute(query, (member, ))
             elif linked_users is True:
-                query += " WHERE discord_id <> '-1'"
+                query += " WHERE discord_id <> -1"
             await conn.execute(query)
         await interaction.response.send_message(_('Resync with cloud triggered.'), ephemeral=ephemeral)
 
