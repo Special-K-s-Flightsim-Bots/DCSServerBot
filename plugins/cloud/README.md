@@ -64,9 +64,9 @@ This will allow users to only link themselves once on all servers that are using
 > your group in my [Discord](https://discord.com/channels/722748768113393664/1093919535326834812/1163193329731768342).
 
 ## Discord Commands
-| Command           | Parameter        | Role      | Description                                          |
-|-------------------|------------------|-----------|------------------------------------------------------|
-| /cloud status     |                  | Admin     | Status of the connection to the cloud service.       |
-| /cloud resync     | [@member / ucid] | DCS Admin | Resync all players (or this player) with the cloud.  |
-| /cloud statistics | [@member / ucid] | DCS       | Display player cloud statistics (overall, per guild) |
-| /serverlist       | name             | DCS       | Display the DCS server list.                         |
+| Command           | Parameter                       | Role      | Description                                                             |
+|-------------------|---------------------------------|-----------|-------------------------------------------------------------------------|
+| /cloud status     |                                 | Admin     | Status of the connection to the cloud service.                          |
+| /cloud resync     | [@member / ucid] [linked_users] | DCS Admin | Resync all players (or this player / only linked users) with the cloud. |
+| /cloud statistics | [@member / ucid]                | DCS       | Display player cloud statistics (overall, per guild)                    |
+| /serverlist       | name                            | DCS       | Display the DCS server list.                                            |
