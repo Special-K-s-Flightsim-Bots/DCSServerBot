@@ -496,6 +496,8 @@ class Plugin(commands.Cog, Generic[TEventListener], metaclass=PluginMeta):
             for plugin in self.bot.cogs.values():  # type: Plugin
                 if plugin.plugin_name == plugin_name:
                     return plugin.get_config(server, use_cache=use_cache)
+            else:
+                raise ValueError(f'Plugin "{plugin_name}" not found!')
         if not server:
             return self.locals.get(DEFAULT_TAG, {})
         if server.node.name not in self._config:

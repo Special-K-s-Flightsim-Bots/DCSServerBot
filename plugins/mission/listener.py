@@ -92,6 +92,7 @@ class MissionEventListener(EventListener["Mission"]):
         self.alert_fired: dict[str, bool] = {}
         self.whitelist: set[str] = set()
         self.restart_pending: dict[str, bool] = {}
+        self.mission_stats: dict[str, bool] = {}
         # start schedulers
         self.print_queue.start()
         self.update_player_embed.start()
@@ -455,6 +456,12 @@ class MissionEventListener(EventListener["Mission"]):
         # check if we are idle
         if not server.is_populated():
             server.idle_since = datetime.now(tz=timezone.utc)
+
+        # check if missionstats are enabled
+        if self.get_config(plugin_name='missionstats').get('enabled', True):
+            self.mission_stats[server.name] = True
+        else:
+            self.mission_stats[server.name] = False
 
         # remove roles
         if autorole:
@@ -924,10 +931,14 @@ class MissionEventListener(EventListener["Mission"]):
             # multi-crew slots must not be checked for AFK
             elif data['sub_slot'] > 0:
                 server.afk.pop(player.ucid, None)
-            else:
-                afk_config = server.locals.get('afk', {})
-                if afk_config and afk_config.get('check_on_join', True):
-                    server.afk[player.ucid] = datetime.now(timezone.utc)
+            elif data['slot'] > 0:
+                # we can only track BIRTH events if mission stats are enabled
+                if self.mission_stats[server.name]:
+                    afk_config = server.locals.get('afk', {})
+                    if afk_config and afk_config.get('check_on_join', True):
+                        server.afk[player.ucid] = datetime.now(timezone.utc)
+                else:
+                    server.afk.pop(player.ucid, None)
 
             if 'change_slot' not in self.get_config(server).get('event_filter', []):
                 if data['slot'] != -1:
