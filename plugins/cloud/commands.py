@@ -198,7 +198,7 @@ class Cloud(Plugin[CloudListener]):
             await interaction.response.send_message(_('No cloud sync configured!'), ephemeral=True)
             return
         async with self.apool.connection() as conn:
-            query = sql.SQL('UPDATE players SET synced = false')
+            query = 'UPDATE players SET synced = false'
             if member:
                 if isinstance(member, str):
                     query += ' WHERE ucid = %s'
