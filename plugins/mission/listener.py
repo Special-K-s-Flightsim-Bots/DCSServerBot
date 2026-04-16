@@ -919,12 +919,15 @@ class MissionEventListener(EventListener["Mission"]):
 
         try:
             # (re-)initialize the AFK timer unless a CA slot is selected
-            if data['unit_type'] not in ['artillery_commander', 'instructor', 'forward_observer', 'observer']:
+            if data['unit_type'] in ['artillery_commander', 'instructor', 'forward_observer', 'observer']:
+                server.afk.pop(player.ucid, None)
+            # multi-crew slots must not be checked for AFK
+            elif data['sub_slot'] > 0:
+                server.afk.pop(player.ucid, None)
+            else:
                 afk_config = server.locals.get('afk', {})
                 if afk_config and afk_config.get('check_on_join', True):
                     server.afk[player.ucid] = datetime.now(timezone.utc)
-            else:
-                server.afk.pop(player.ucid, None)
 
             if 'change_slot' not in self.get_config(server).get('event_filter', []):
                 if data['slot'] != -1:
