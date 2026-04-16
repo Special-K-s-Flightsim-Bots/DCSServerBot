@@ -509,9 +509,6 @@ class NodeImpl(Node):
                     ]:
                         self.log.debug(query.rstrip())
                         await conn.execute(query.rstrip())
-            # TODO: remove this in a future version
-            elif self.sub_version >= 22:
-                await conn.execute("ALTER TABLE cluster ADD COLUMN IF NOT EXISTS takeover_requested_by TEXT NULL")
 
         # initialize all other tables ...
         async with self.apool.connection() as conn:
@@ -1087,15 +1084,20 @@ class NodeImpl(Node):
                 return await try_become_master()
 
         async def get_master() -> tuple[str | None, str | None, str, bool]:
-            cursor = await conn.execute("""
-                SELECT master, takeover_requested_by, version, update_pending
-                FROM cluster
-                WHERE guild_id = %s
-            """, (self.guild_id,))
-            row = await cursor.fetchone()
-            if row is None:
-                return None, None, __version__, False
-            return row
+            try:
+                cursor = await conn.execute("""
+                    SELECT master, takeover_requested_by, version, update_pending
+                    FROM cluster
+                    WHERE guild_id = %s
+                """, (self.guild_id,))
+                row = await cursor.fetchone()
+                if row is None:
+                    return None, None, __version__, False
+                return row
+            except psycopg.errors.UndefinedColumn:
+                # add the column if missing
+                await conn.execute("ALTER TABLE cluster ADD COLUMN IF NOT EXISTS takeover_requested_by TEXT NULL")
+                return await get_master()
 
         async def is_node_alive(node: str, timeout: int) -> bool:
             if node == self.name:
