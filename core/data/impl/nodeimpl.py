@@ -38,7 +38,7 @@ from migrate import migrate
 from packaging.version import parse
 from pathlib import Path
 from psycopg import sql
-from psycopg.errors import InFailedSqlTransaction, ConnectionTimeout, UniqueViolation, UndefinedTable, UndefinedColumn
+from psycopg.errors import ConnectionTimeout, UniqueViolation, UndefinedTable, UndefinedColumn
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
 from typing import Awaitable, Callable, Any
@@ -652,6 +652,10 @@ class NodeImpl(Node):
             await self._upgrade(self.master, conn)
 
     @override
+    async def is_alive(self, timeout: int = 30) -> bool:
+        return True
+
+    @override
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         if not self.dcs_branch or not self.dcs_version:
             try:
@@ -1097,8 +1101,8 @@ class NodeImpl(Node):
             except psycopg.errors.UndefinedColumn:
                 # add the column if missing
                 await conn.rollback()
-                await conn.execute("ALTER TABLE cluster ADD COLUMN IF NOT EXISTS takeover_requested_by TEXT NULL")
-                await conn.commit()
+                async with conn.transaction():
+                    await conn.execute("ALTER TABLE cluster ADD COLUMN IF NOT EXISTS takeover_requested_by TEXT NULL")
                 return await get_master()
 
         async def is_node_alive(node: str, timeout: int) -> bool:
@@ -1283,8 +1287,9 @@ class NodeImpl(Node):
                                 ON CONFLICT (guild_id, node) DO UPDATE 
                                 SET last_seen = (NOW() AT TIME ZONE 'UTC')
                             """, (self.guild_id, self.name))
-        except InFailedSqlTransaction:
-            # we should only be here when the CLUSTER table does not exist yet
+        except UndefinedTable:
+            # we should only be here when the CLUSTER table does not exist
+            # it will be created directly afterward
             return True
 
     @tasks.loop(seconds=5.0)

@@ -7,6 +7,7 @@ from core.data.proxy.instanceproxy import InstanceProxy
 from core.services.registry import ServiceRegistry
 from core.utils import async_cache, cache_with_expiration
 from pathlib import Path
+from psycopg import sql
 from typing import TYPE_CHECKING
 from typing_extensions import override
 
@@ -29,6 +30,7 @@ class NodeProxy(Node):
         self.local_node = local_node
         self.pool = self.local_node.pool
         self.apool = self.local_node.apool
+        self.cpool = self.local_node.cpool
         self.log = self.local_node.log
         self._public_ip = public_ip
         self.locals = self.read_locals()
@@ -467,3 +469,14 @@ class NodeProxy(Node):
             "object": "Node",
             "method": "get_config"
         }, timeout=timeout, node=self.name)
+
+    @override
+    async def is_alive(self, timeout: int = 30) -> bool:
+        async with self.cpool.connection() as conn:
+            query = sql.SQL("""
+                SELECT COUNT(*) FROM nodes 
+                WHERE guild_id = %s AND node = %s 
+                AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval {interval})
+            """).format(interval=sql.Literal(f"{timeout} seconds"))
+            cursor = await conn.execute(query, (self.guild_id, self.name))
+            return (await cursor.fetchone())[0] == 1

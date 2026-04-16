@@ -190,25 +190,28 @@ class BotService(Service):
         await super().stop()
 
     async def alert(self, title: str, message: str, server: Server | None = None) -> None:
-        # if we have dedicated managers of a server, send the alerts to them
-        if server and server.locals.get('managed_by'):
-            alert_roles = server.locals['managed_by']
-        # use the default Alert role otherwise
-        else:
-            alert_roles = self.bot.roles['Alert']
         try:
-            mentions = ''.join([self.bot.get_role(role).mention for role in alert_roles if role is not None])
-        except AttributeError:
-            self.log.error(f"Alert-Role {alert_roles} not found.")
-            mentions = ""
-        embed = utils.create_warning_embed(title=title, text=utils.escape_string(message))
-        admin_channel = self.bot.get_admin_channel(server)
-        audit_channel = self.bot.get_channel(self.bot.locals.get('channels', {}).get('audit', -1))
-        channel = admin_channel or audit_channel
-        if channel:
-            await channel.send(content=mentions, embed=embed)
-        else:
-            self.log.critical(f"{title}: {message}")
+            # if we have dedicated managers of a server, send the alerts to them
+            if server and server.locals.get('managed_by'):
+                alert_roles = server.locals['managed_by']
+            # use the default Alert role otherwise
+            else:
+                alert_roles = self.bot.roles['Alert']
+            try:
+                mentions = ''.join([self.bot.get_role(role).mention for role in alert_roles if role is not None])
+            except AttributeError:
+                self.log.error(f"Alert-Role {alert_roles} not found.")
+                mentions = ""
+            embed = utils.create_warning_embed(title=title, text=utils.escape_string(message))
+            admin_channel = self.bot.get_admin_channel(server)
+            audit_channel = self.bot.get_channel(self.bot.locals.get('channels', {}).get('audit', -1))
+            channel = admin_channel or audit_channel
+            if channel:
+                await channel.send(content=mentions, embed=embed)
+            else:
+                self.log.critical(f"{title}: {message}")
+        except Exception:
+            self.log.warning("Audit message discarded due to master takeover: " + message)
 
     async def install_fonts(self):
         font_dir = Path('fonts')
