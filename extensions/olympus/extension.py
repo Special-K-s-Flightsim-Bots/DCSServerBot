@@ -12,6 +12,7 @@ import subprocess
 import sys
 
 from core import utils, Server, get_translation, PortType, Port, ProcessManager, InstallableExtension
+from packaging.version import Version, InvalidVersion
 from threading import Thread
 from typing import cast
 from typing_extensions import override
@@ -33,32 +34,32 @@ class Olympus(InstallableExtension):
     _client_ports: dict[int, str] = dict()
     _ws_ports: dict[int, str] = dict()
 
-    CONFIG_DICT = {
-        "backend_port": {
-            "type": int,
-            "label": _("Backend Port"),
-            "placeholder": _("Backend Port"),
-            "required": True
-        },
-        "frontend_port": {
-            "type": int,
-            "label": _("Frontend Port"),
-            "placeholder": _("Frontend Port"),
-            "required": True
-        },
-        "gameMasterPassword": {
-            type: str,
-            "label": _("Game Master Password")
-        },
-        "blueCommanderPassword": {
-            type: str,
-            "label": _("Blue Commander Password")
-        },
-        "redCommanderPassword": {
-            type: str,
-            "label": _("Red Commander Password")
-        }
-    }
+#    CONFIG_DICT = {
+#        "backend_port": {
+#            "type": int,
+#            "label": _("Backend Port"),
+#            "placeholder": _("Backend Port"),
+#            "required": True
+#        },
+#        "frontend_port": {
+#            "type": int,
+#            "label": _("Frontend Port"),
+#            "placeholder": _("Frontend Port"),
+#            "required": True
+#        },
+#        "gameMasterPassword": {
+#            "type": str,
+#            "label": _("Game Master Password")
+#        },
+#       "blueCommanderPassword": {
+#            "type": str,
+#            "label": _("Blue Commander Password")
+#        },
+#        "redCommanderPassword": {
+#            "type": str,
+#            "label": _("Red Commander Password")
+#        }
+#    }
 
     def __init__(self, server: Server, config: dict):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'Olympus')
@@ -81,7 +82,7 @@ class Olympus(InstallableExtension):
                 )
                 self.log.debug("- Running Olympus process found.")
 
-        if self.version == '1.0.3.0':
+        if self.version == '1.0.3':
             self.backend_tag = 'server'
             self.frontend_tag = 'client'
         else:
@@ -91,11 +92,18 @@ class Olympus(InstallableExtension):
     @override
     @property
     def version(self) -> str | None:
-        return utils.get_windows_version(os.path.join(self.home, 'bin', 'olympus.dll'))
+        version = utils.get_windows_version(os.path.join(self.home, 'bin', 'olympus.dll'))
+        if version:
+            elements = version.split('.')
+            if len(elements) > 3:
+                elements = elements[0:3]
+            version = '.'.join(elements)
+
+        return version or '1.0.3'
 
     @property
     def config_path(self) -> str:
-        if self.version == '1.0.3.0':
+        if self.version == '1.0.3':
             return os.path.join(self.home, 'olympus.json')
         else:
             return os.path.join(self.server.instance.home, 'Config', 'olympus.json')
@@ -120,7 +128,7 @@ class Olympus(InstallableExtension):
                 "port": 3000,
                 "elevationProvider": elevation_provider
             }
-            if self.version == '1.0.3.0':
+            if self.version == '1.0.3':
                 return {
                     "server": backend,
                     "client": frontend
@@ -192,7 +200,7 @@ class Olympus(InstallableExtension):
         type(self)._ws_ports[ws_port] = self.server.name
 
         self.locals = self.load_config()
-        default_address = '*' if self.version == '1.0.3.0' else 'localhost'
+        default_address = '*' if self.version == '1.0.3' else 'localhost'
         self.locals[self.backend_tag]['address'] = self.config.get(self.backend_tag, {}).get('address', default_address)
         self.locals[self.backend_tag]['port'] = server_port
         self.locals[self.frontend_tag]['port'] = client_port
@@ -253,7 +261,7 @@ class Olympus(InstallableExtension):
         try:
             if not await self.prepare_olympus_json():
                 return False
-            if self.version != '1.0.3.0':
+            if self.version != '1.0.3':
                 await self.prepare_exports_lua()
             return True
         except Exception as ex:
@@ -280,7 +288,7 @@ class Olympus(InstallableExtension):
             if not os.path.exists(frontend_exe):
                 raise AttributeError(f"Path {frontend_exe} does not exist, can't launch Olympus!")
             args = [self.nodejs, frontend_exe]
-            if self.version != '1.0.3.0':
+            if self.version != '1.0.3':
                 args.append('--config')
                 args.append(self.config_path)
             self.log.debug("Launching {}".format(' '.join(args)))
