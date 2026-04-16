@@ -27,7 +27,7 @@ discord.py==2.7.1
 eyeD3==0.9.9
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.135.3
+fastapi==0.136.0
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -45,7 +45,7 @@ jinja2==3.1.6
 jsonschema==4.26.0
 
 # Fast LUA parser
-lupa==2.7
+lupa==2.8
 
 # Matplotlib: Python 2D plotting library
 matplotlib==3.10.8

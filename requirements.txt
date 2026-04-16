@@ -31,7 +31,7 @@ discord-py==2.7.1
 docopt==0.6.2
 et-xmlfile==2.0.0
 eyed3==0.9.9
-fastapi==0.135.3
+fastapi==0.136.0
 filetype==1.2.0
 fonttools==4.62.1
 frozenlist==1.8.0
@@ -47,7 +47,7 @@ jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
 kiwisolver==1.5.0
 levenshtein==0.27.3
-lupa==2.7
+lupa==2.8
 markdown-it-py==4.0.0
 markupsafe==3.0.3
 matplotlib==3.10.8
