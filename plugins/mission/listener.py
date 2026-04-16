@@ -1095,6 +1095,8 @@ class MissionEventListener(EventListener["Mission"]):
                 afk_config = server.locals.get('afk', {})
                 if afk_config and afk_config.get('check_on_spawn', False):
                     server.afk[player.ucid] = datetime.now(timezone.utc)
+                else:
+                    server.afk.pop(player.ucid, None)
             else:
                 # airspawns should reset any timer
                 server.afk.pop(player.ucid, None)
