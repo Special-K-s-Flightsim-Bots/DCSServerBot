@@ -458,7 +458,7 @@ class MissionEventListener(EventListener["Mission"]):
             server.idle_since = datetime.now(tz=timezone.utc)
 
         # check if missionstats are enabled
-        if self.get_config(plugin_name='missionstats').get('enabled', True):
+        if self.get_config(server, plugin_name='missionstats').get('enabled', True):
             self.mission_stats[server.name] = True
         else:
             self.mission_stats[server.name] = False
