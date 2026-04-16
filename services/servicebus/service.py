@@ -285,7 +285,6 @@ class ServiceBus(Service):
 
         # in case of a race condition during master takeovers, ignore this registration
         if name == self.node.name:
-            self.log.warning("### NODE ALREADY REGISTERED ###")
             return
 
         if self.node.all_nodes.get(name):
