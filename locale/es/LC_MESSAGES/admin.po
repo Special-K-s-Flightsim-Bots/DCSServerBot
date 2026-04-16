@@ -243,7 +243,7 @@ msgid "All nodes are"
 msgstr "Todos los nodos están"
 
 msgid "Master is"
-msgstr "Master es"
+msgstr "Master se"
 
 msgid " going to {} **NOW**."
 msgstr " va a {} **AHORA**."
