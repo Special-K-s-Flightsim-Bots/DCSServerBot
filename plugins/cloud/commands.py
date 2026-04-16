@@ -15,6 +15,7 @@ from core import Plugin, utils, PaginationReport, Group, DEFAULT_TAG, PluginConf
 from datetime import timedelta
 from discord import app_commands, DiscordServerError
 from discord.ext import commands, tasks
+from psycopg import sql
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.bot.dummy import DummyBot
@@ -190,22 +191,24 @@ class Cloud(Plugin[CloudListener]):
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(member="user")
     async def resync(self, interaction: discord.Interaction,
-                     member: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None):
+                     member: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None,
+                     linked_users: bool | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if 'token' not in self.config:
             await interaction.response.send_message(_('No cloud sync configured!'), ephemeral=True)
             return
         async with self.apool.connection() as conn:
-            sql = 'UPDATE players SET synced = false'
+            query = 'UPDATE players SET synced = false'
             if member:
                 if isinstance(member, str):
-                    sql += ' WHERE ucid = %s'
+                    query += ' WHERE ucid = %s'
                 else:
-                    sql += ' WHERE discord_id = %s'
+                    query += ' WHERE discord_id = %s'
                     member = member.id
-                await conn.execute(sql, (member, ))
-            else:
-                await conn.execute(sql)
+                await conn.execute(query, (member, ))
+            elif linked_users is True:
+                query += " WHERE discord_id <> '-1'"
+            await conn.execute(query)
         await interaction.response.send_message(_('Resync with cloud triggered.'), ephemeral=ephemeral)
 
     @cloud.command(description=_('Generate Cloud Statistics'))
