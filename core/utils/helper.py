@@ -414,24 +414,44 @@ def get_all_players(
     :return: A list of tuples containing the UCID and name of players from the database.
 
     """
-    sql = "SELECT p.ucid, p.name FROM players p{} WHERE length(p.ucid) = 32"
-    sub_sql = ""
+    clauses = ["length(p.ucid) = 32"]
+    params: list[object] = []
+    join_watchlist = False
+    search_lc = search.lower() if search else None
+
     if watchlist:
-        sub_sql = " JOIN watchlist w ON p.ucid = w.player_ucid"
+        join_watchlist = True
     elif watchlist is False:
-        sql += " AND p.ucid NOT IN (SELECT player_ucid FROM watchlist)"
+        clauses.append("p.ucid NOT IN (SELECT player_ucid FROM watchlist)")
+
     if vip:
-        sql += " AND p.vip IS NOT FALSE"
-    if linked is not None:
-        if linked:
-            sql += " AND p.discord_id != -1 AND p.manual IS TRUE"
+        clauses.append("p.vip IS NOT FALSE")
+
+    if linked:
+        clauses.append("p.discord_id != -1 AND p.manual IS TRUE")
+    elif linked is False:
+        clauses.append("p.manual IS FALSE")
+
+    if search_lc is not None:
+        if is_ucid(search_lc):
+            clauses.append("p.ucid = %s")
+            params.append(search_lc)
         else:
-            sql += " AND p.manual IS FALSE"
-    if search is not None:
-        sql += f" AND (p.name ILIKE '%{search}%' OR p.ucid ILIKE '%{search}%') LIMIT 25"
-    sql = sql.format(sub_sql)
+            clauses.append("(p.name ILIKE %s OR p.ucid ILIKE %s)")
+            pattern = f"%{search_lc}%"
+            params.extend([pattern, pattern])
+
+    sql = "SELECT p.ucid, p.name FROM players p"
+    if join_watchlist:
+        sql += " JOIN watchlist w ON p.ucid = w.player_ucid"
+
+    sql += " WHERE " + " AND ".join(clauses)
+    sql += " ORDER BY last_seen DESC LIMIT 25"
+
     with self.pool.connection() as conn:
-        return [(row[0], row[1]) for row in conn.execute(sql)]
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            return [(row[0], row[1]) for row in cur.fetchall()]
 
 
 def is_ucid(ucid: str | None) -> bool:

@@ -905,26 +905,42 @@ def find_similar_names(list1: list[str], list2: list[str], threshold: int = 90) 
     return similar_names
 
 
-@cache_with_expiration(30)
-async def get_all_linked_members(interaction: discord.Interaction, search: str | None = None) -> list[discord.Member]:
+async def get_all_linked_members(
+    interaction: discord.Interaction,
+    search: str | None = None,
+) -> list[discord.Member]:
+    """Return up to 25 members that are linked in the `players` table
+    and (optionally) whose display name contains *search*.
+
+    The function streams rows from the DB, looks up each member in the
+    guild cache and stops as soon as 25 matches have been found.
     """
-    :param interaction: the discord Interaction
-    :param search: search pattern
-    :return: A list of discord.Member objects representing all the members linked to DCS accounts in the bot's guild.
-    """
-    discord_ids: list[int] = []
-    async with interaction.client.apool.connection() as conn:
-        async for row in await conn.execute("""
-            SELECT DISTINCT discord_id FROM players WHERE discord_id <> -1
-        """):
-            discord_ids.append(row[0])
     guild = interaction.guild
     search_lc = search.lower() if search else None
-    return [
-        member
-        for mid in discord_ids
-        if (member := guild.get_member(mid)) and (search_lc is None or search_lc in member.display_name.lower())
-    ][:25]
+
+    results: list[discord.Member] = []
+
+    async with interaction.client.apool.connection() as conn:
+        sql = "SELECT DISTINCT discord_id, ucid FROM players WHERE discord_id <> -1"
+        if is_ucid(search_lc):
+            sql += ' AND ucid = %(ucid)s'
+
+        async for row in await conn.execute(sql, {"ucid": search_lc}):
+            mid = row[0]
+            ucid = row[1]
+
+            member = guild.get_member(mid)
+            if not member:
+                continue  # member not cached – skip
+
+            if search_lc and not (search_lc in member.display_name.lower() or search_lc in ucid):
+                continue
+
+            results.append(member)
+            if len(results) == 25:
+                break
+
+    return results
 
 
 class ServerTransformer(app_commands.Transformer):
@@ -1221,15 +1237,21 @@ class UserTransformer(app_commands.Transformer):
         ret = []
         if self.sel_type in [PlayerType.ALL, PlayerType.PLAYER]:
             ret.extend([
-                app_commands.Choice[str](name='✈ ' + name + (' (' + ucid + ')' if show_ucid else ''),
-                                    value=ucid)
+                app_commands.Choice[str](
+                    name='✈ ' + name + (' (' + ucid + ')' if show_ucid else ''),
+                    value=ucid
+                )
                 for ucid, name in get_all_players(interaction.client, self.linked, self.watchlist, search=current)
-            ])
-        if (self.linked is None or self.linked) and self.sel_type in [PlayerType.ALL, PlayerType.MEMBER]:
+            ][:25])
+        # we do not add linked accounts, if the result above fills the return list already
+        if len(ret) < 25 and self.sel_type in [PlayerType.ALL, PlayerType.MEMBER] and (self.linked is None or self.linked):
             ret.extend([
-                app_commands.Choice(name='@' + member.display_name, value=str(member.id))
+                app_commands.Choice[str](
+                    name='@' + member.display_name,
+                    value=str(member.id)
+                )
                 for member in await get_all_linked_members(interaction, search=current)
-            ])
+            ][:25])
         return ret[:25]
 
 
@@ -1251,22 +1273,22 @@ class PlayerTransformer(app_commands.Transformer):
         if not await interaction.command._check_can_run(interaction):
             return []
         try:
+            current_lc = current.casefold() if current else None
             if self.active:
                 server: Server = await ServerTransformer().transform(interaction, interaction.namespace.server)
                 if not server:
                     return []
-                choices = [
+                return [
                     app_commands.Choice[str](name=x.name, value=x.ucid)
                     for x in server.get_active_players()
                     if ((not self.watchlist or x.watchlist == self.watchlist) and (not self.vip or x.vip == self.vip)
-                        and (not current or current.casefold() in x.name.casefold() or current.casefold() in x.ucid))
-                ]
+                        and (not current_lc or current_lc in x.name.casefold() or current_lc in x.ucid))
+                ][:25]
             else:
-                choices = [
-                    app_commands.Choice(name=f"{ucid} ({name})", value=ucid)
-                    for ucid, name in get_all_players(interaction.client, self.watchlist, self.vip, search=current)
-                ]
-            return choices[:25]
+                return [
+                    app_commands.Choice[str](name=f"{ucid} ({name})", value=ucid)
+                    for ucid, name in get_all_players(interaction.client, self.watchlist, self.vip, search=current_lc)
+                ][:25]
         except Exception as ex:
             interaction.client.log.exception(ex)
             return []
