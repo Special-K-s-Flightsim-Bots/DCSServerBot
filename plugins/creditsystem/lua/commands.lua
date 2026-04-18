@@ -7,6 +7,8 @@ dcsbot.squadronInfo = dcsbot.squadronInfo or {}
 -- internal, do not use inside of missions unless you know what you are doing!
 function dcsbot.updateUserPoints(json)
     log.write('DCSServerBot', log.DEBUG, 'CreditSystem: updateUserPoints()')
+
+    dcsbot.userInfo[json.ucid] = dcsbot.userInfo[json.ucid] or {}
     dcsbot.userInfo[json.ucid].points = tonumber(json.points)
 
     local plist = net.get_player_list()
@@ -24,6 +26,8 @@ end
 
 function dcsbot.updateSquadronPoints(json)
     log.write('DCSServerBot', log.DEBUG, 'CreditSystem: updateSquadronPoints()')
+
+    dcsbot.squadronInfo[json.squadron] = dcsbot.squadronInfo[json.squadron] or {}
     dcsbot.squadronInfo[json.squadron].points = tonumber(json.points)
 
     local script = 'dcsbot._setSquadronPoints(' .. utils.basicSerialize(json.squadron) .. ', ' .. json.points .. ')'
