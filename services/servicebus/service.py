@@ -80,7 +80,8 @@ class ServiceBus(Service):
             async with self.node.cpool.connection() as conn:
                 await conn.execute("""
                     DELETE FROM files 
-                    WHERE guild_id = %s AND created < ((now() AT TIME ZONE 'utc') - interval '300 seconds')
+                    WHERE guild_id = %s 
+                      AND created < ((now() AT TIME ZONE 'utc') - interval '300 seconds')
                 """, (self.node.guild_id, ))
 
             # subscribe to the intercom and broadcast channels
@@ -287,9 +288,9 @@ class ServiceBus(Service):
         if name == self.node.name:
             return
 
-        if self.node.all_nodes.get(name):
-            self.log.debug(f"Node {name} already registered, skipping registration request.")
-            return
+#        if self.node.all_nodes.get(name):
+#            self.log.debug(f"Node {name} already registered, skipping registration request.")
+#            return
 
         node = NodeProxy(self.node, name, public_ip, dcs_version)
         if not await node.is_alive(self.node.config.get('cluster', {}).get('heartbeat', 30)):
