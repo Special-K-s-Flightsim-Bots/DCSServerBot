@@ -229,7 +229,7 @@ async def all_servers_autocomplete(interaction: discord.Interaction, current: st
         return [
             app_commands.Choice[str](name=row[0], value=row[0])
             async for row in cursor
-        ]s
+        ]
 
 
 async def extensions_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
