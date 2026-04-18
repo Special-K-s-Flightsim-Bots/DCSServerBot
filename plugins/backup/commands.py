@@ -23,11 +23,10 @@ async def backup_autocomplete(interaction: discord.Interaction, current: str) ->
         return []
     try:
         config = interaction.client.cogs['Backup'].locals.get('backups')
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=key.title(), value=key) for key in config.keys()
+        return [
+            app_commands.Choice[str](name=key.title(), value=key) for key in config.keys()
             if not current or current.casefold() in key.casefold()
-        ]
-        return choices[:25]
+        ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -50,7 +49,7 @@ async def date_autocomplete(interaction: discord.Interaction, current: str) -> l
     target = interaction.client.cogs['Backup'].locals.get('target')
     node = await utils.NodeTransformer().transform(interaction, interaction.namespace.node)
     return [
-        app_commands.Choice(name=date, value=date) for date in await get_all_dates(node, target)
+        app_commands.Choice[str](name=date, value=date) for date in await get_all_dates(node, target)
         if not current or current in date
     ][:25]
 

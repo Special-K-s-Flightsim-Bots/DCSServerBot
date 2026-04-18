@@ -27,7 +27,7 @@ async def logbook_squadron_autocomplete(interaction: discord.Interaction, curren
                 ('%' + current + '%',)
             )
             return [
-                app_commands.Choice(name=row[1], value=row[0])
+                app_commands.Choice[int](name=row[1], value=row[0])
                 async for row in cursor
             ]
     except Exception as e:
@@ -54,7 +54,7 @@ async def logbook_squadron_admin_autocomplete(interaction: discord.Interaction, 
                     ('%' + current + '%',)
                 )
             return [
-                app_commands.Choice(name=row[1], value=row[0])
+                app_commands.Choice[int](name=row[1], value=row[0])
                 async for row in cursor
             ]
     except Exception as e:
@@ -77,7 +77,7 @@ async def squadron_member_autocomplete(interaction: discord.Interaction, current
                 ORDER BY p.name LIMIT 25
             """, (squadron_id, '%' + current + '%'))
             return [
-                app_commands.Choice(name=row[0], value=row[1])
+                app_commands.Choice[str](name=row[0], value=row[1])
                 async for row in cursor
             ]
     except Exception as e:
@@ -97,7 +97,7 @@ async def unassigned_player_autocomplete(interaction: discord.Interaction, curre
                 ORDER BY p.name LIMIT 25
             """, ('%' + current + '%',))
             return [
-                app_commands.Choice(name=row[0], value=row[1])
+                app_commands.Choice[str](name=row[0], value=row[1])
                 async for row in cursor
             ]
     except Exception as e:
@@ -114,7 +114,7 @@ async def qualification_autocomplete(interaction: discord.Interaction, current: 
                 ('%' + current + '%',)
             )
             return [
-                app_commands.Choice(name=row[1], value=row[0])
+                app_commands.Choice[int](name=row[1], value=row[0])
                 async for row in cursor
             ]
     except Exception as e:
@@ -141,7 +141,7 @@ async def pilot_qualification_autocomplete(interaction: discord.Interaction, cur
                 ORDER BY q.name LIMIT 25
             """, (ucid, '%' + current + '%'))
             return [
-                app_commands.Choice(name=row[1], value=row[0])
+                app_commands.Choice[int](name=row[1], value=row[0])
                 async for row in cursor
             ]
     except Exception as e:
@@ -159,7 +159,7 @@ async def player_autocomplete(interaction: discord.Interaction, current: str) ->
                 ORDER BY name LIMIT 25
             """, ('%' + current + '%',))
             return [
-                app_commands.Choice(name=row[0], value=row[1])
+                app_commands.Choice[str](name=row[0], value=row[1])
                 async for row in cursor
             ]
     except Exception as e:
@@ -176,7 +176,7 @@ async def award_autocomplete(interaction: discord.Interaction, current: str) -> 
                 ('%' + current + '%',)
             )
             return [
-                app_commands.Choice(name=row[1], value=row[0])
+                app_commands.Choice[int](name=row[1], value=row[0])
                 async for row in cursor
             ]
     except Exception as e:
@@ -202,7 +202,7 @@ async def pilot_award_autocomplete(interaction: discord.Interaction, current: st
                 ORDER BY a.name LIMIT 25
             """, (ucid, '%' + current + '%'))
             return [
-                app_commands.Choice(name=row[1], value=row[0])
+                app_commands.Choice[int](name=row[1], value=row[0])
                 async for row in cursor
             ]
     except Exception as e:

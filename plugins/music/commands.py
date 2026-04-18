@@ -29,9 +29,9 @@ async def playlist_autocomplete(interaction: discord.Interaction, current: str) 
     try:
         playlists = await get_all_playlists(interaction)
         return [
-            app_commands.Choice(name=playlist, value=playlist)
+            app_commands.Choice[str](name=playlist, value=playlist)
             for playlist in playlists if not current or current.casefold() in playlist.casefold()
-        ]
+        ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -44,7 +44,9 @@ async def all_songs_autocomplete(interaction: discord.Interaction, current: str)
         ret = []
         service = ServiceRegistry.get(MusicService)
         music_dir = await service.get_music_dir()
-        _, file_list = await interaction.client.node.list_directory(music_dir, pattern=['*.mp3', '*.ogg'], traverse=True)
+        _, file_list = await interaction.client.node.list_directory(
+            music_dir, pattern=['*.mp3', '*.ogg'], traverse=True
+        )
         for song in file_list:
             if os.path.isdir(song):
                 continue
@@ -52,8 +54,10 @@ async def all_songs_autocomplete(interaction: discord.Interaction, current: str)
             title = os.path.join(os.path.dirname(song_path), get_tag(song).title or os.path.basename(song))
             if current and current.casefold() not in title.casefold():
                 continue
-            ret.append(app_commands.Choice(name=title[:100], value=song_path))
-        return ret[:25]
+            ret.append(app_commands.Choice[str](name=title[:100], value=song_path))
+            if len(ret) == 25:
+                break
+        return ret
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -71,8 +75,10 @@ async def songs_autocomplete(interaction: discord.Interaction, current: str) -> 
             title = get_tag(os.path.join(music_dir, song)).title or song
             if current and current.casefold() not in title.casefold():
                 continue
-            ret.append(app_commands.Choice(name=title[:100], value=song))
-        return ret[:25]
+            ret.append(app_commands.Choice[str](name=title[:100], value=song))
+            if len(ret) == 25:
+                break
+        return ret
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -86,11 +92,10 @@ async def radios_autocomplete(interaction: discord.Interaction, current: str) ->
         if not server:
             return []
         service = ServiceRegistry.get(MusicService)
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=x, value=x) for x in service.get_config(server)['radios'].keys()
+        return [
+            app_commands.Choice[str](name=x, value=x) for x in service.get_config(server)['radios'].keys()
             if not current or current.casefold() in x.casefold()
-        ]
-        return choices[:25]
+        ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -103,11 +108,10 @@ async def subfolder_autocomplete(interaction: discord.Interaction, _current: str
         service = ServiceRegistry.get(MusicService)
         music_dir = await service.get_music_dir()
         _, file_list = await interaction.client.node.list_directory(music_dir, is_dir=True, traverse=True)
-        ret: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=os.path.relpath(folder, music_dir), value=folder)
+        return [
+            app_commands.Choice[str](name=os.path.relpath(folder, music_dir), value=folder)
             for folder in file_list
-        ]
-        return ret[:25]
+        ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []

@@ -130,7 +130,7 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
 
         # check if we are allowed to display the list
         if (
-                (config.get('discord') and not utils.check_roles(config['discord'], interaction.user)) or
+            (config.get('discord') and not utils.check_roles(config['discord'], interaction.user)) or
                 utils.is_restricted(interaction)
         ):
             return []
@@ -220,12 +220,16 @@ async def all_servers_autocomplete(interaction: discord.Interaction, current: st
         return []
     async with interaction.client.apool.connection() as conn:
         cursor = await conn.execute("""
-            SELECT server_name FROM servers WHERE server_name ILIKE %s
+            SELECT server_name 
+            FROM servers 
+            WHERE server_name ILIKE %s 
+            ORDER BY server_name
+            LIMIT 25
         """, ('%' + current + '%', ))
         return [
             app_commands.Choice[str](name=row[0], value=row[0])
             async for row in cursor
-        ][:25]
+        ]s
 
 
 async def extensions_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:

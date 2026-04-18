@@ -20,14 +20,26 @@ _ = get_translation(__name__.split('.')[1])
 
 async def player_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
 
-    async def get_modules(ucid: str) -> list[str]:
+    async def get_modules(ucid: str, current: str | None = None) -> list[str]:
+        if current:
+            where = "AND slot ILIKE %(current)s"
+        else:
+            where = ''
+
+        query = f"""
+            SELECT DISTINCT slot FROM mv_statistics 
+            WHERE player_ucid = %(ucid)s 
+            AND slot NOT IN ('', '?', '''forward_observer', 'instructor', 'observer', 'artillery_commander')
+            {where}
+            LIMIT 25
+        """
+
         async with interaction.client.apool.connection() as conn:
-            return [row[0] async for row in await conn.execute("""
-                SELECT DISTINCT slot, usage FROM mv_statistics 
-                WHERE player_ucid =  %s 
-                AND slot NOT IN ('', '?', '''forward_observer', 'instructor', 'observer', 'artillery_commander') 
-                ORDER BY 2 DESC
-            """, (ucid, ))]
+            return [
+                row[0] async for row in await conn.execute(
+                    query, {"ucid": ucid, "current": f"%{current}%" if current else None}
+                )
+            ]
 
     try:
         user = await utils.UserTransformer().transform(interaction, interaction.namespace.user)
@@ -39,12 +51,10 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
             ucid = await interaction.client.get_ucid_by_member(user)
         if not ucid:
             return []
-        ret = [
-            app_commands.Choice(name=x, value=x)
-            for x in await get_modules(ucid)
-            if not current or current.casefold() in x.casefold()
+        return [
+            app_commands.Choice[str](name=x, value=x)
+            for x in await get_modules(ucid, current)
         ]
-        return ret[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -66,11 +76,9 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
                                status=[Status.RUNNING, Status.PAUSED])]):
         stats = self.eventlistener.mission_stats.get(server.name)
         if not stats:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Mission statistics not initialized yet or not active for this server."), ephemeral=True)
             return
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'missionstats.json')
         env = await report.render(stats=stats, mission_id=server.mission_id,
@@ -99,7 +107,6 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         else:
             ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'sorties.json')
         env = await report.render(ucid=ucid, member_name=name, flt=period)
@@ -124,7 +131,6 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         if not user:
             user = interaction.user
         if not module:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_('You need to chose a module!'), ephemeral=True)
             return
         if isinstance(user, str):
@@ -137,7 +143,6 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         else:
             ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'modulestats.json')
         env = await report.render(member_name=name, ucid=ucid, module=module, flt=period)
@@ -163,7 +168,6 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         else:
             ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'refuelings.json')
         env = await report.render(ucid=ucid, member_name=name, flt=period)
@@ -189,7 +193,6 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         else:
             ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'nemesis.json')
         env = await report.render(ucid=ucid, member_name=name, flt=period)
@@ -216,7 +219,6 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         else:
             ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'antagonist.json')
         env = await report.render(ucid=ucid, member_name=name, flt=period)
@@ -240,7 +242,6 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
             ucid = await self.bot.get_ucid_by_member(user)
 
         if not ucid:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Use {} to link your account.").format(
                 (await utils.get_command(self.bot, name='linkme')).mention
             ), ephemeral=True)
@@ -250,7 +251,6 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         end = datetime.strptime(end, '%Y-%m-%d') if end else datetime.now()
 
         ephemeral = not utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         async with interaction.client.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:

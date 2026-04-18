@@ -56,7 +56,7 @@ async def installed_mods_autocomplete(interaction: discord.Interaction, current:
         if not server:
             return []
         return [
-            app_commands.Choice(name=name + f'_v{version}', value=f"{folder.value}/{name}/{version}")
+            app_commands.Choice[str](name=name + f'_v{version}', value=f"{folder.value}/{name}/{version}")
             for folder, name, version in sorted(await get_installed_mods(service, server))
             if not current or current.casefold() in name.casefold()
         ][:25]
@@ -74,7 +74,7 @@ async def available_mods_autocomplete(interaction: discord.Interaction, current:
         if not server:
             return []
         return [
-            app_commands.Choice(name=name, value=f"{folder.value}/{name}")
+            app_commands.Choice[str](name=name, value=f"{folder.value}/{name}")
             for folder, name in sorted(set(
                 (folder, name) for folder, name, _ in await get_available_mods(interaction, service, server))
             )
@@ -99,7 +99,7 @@ async def available_versions_autocomplete(interaction: discord.Interaction,
         except (ValueError, AttributeError):
             return []
         return [
-            app_commands.Choice(name=version, value=version)
+            app_commands.Choice[str](name=version, value=version)
             for version in sorted(await service.get_available_versions(server, Folder(folder), mod), reverse=True)
             if not current or current.casefold() in version.casefold()
         ][:25]
@@ -118,7 +118,7 @@ async def repo_version_autocomplete(interaction: discord.Interaction, current: s
         if not repo or not utils.is_github_repo(repo):
             return []
         return [
-            app_commands.Choice(name=version, value=version)
+            app_commands.Choice[str](name=version, value=version)
             for version in sorted(await service.get_repo_versions(repo), reverse=True)
             if not current or current.casefold() in version.casefold()
         ][:25]

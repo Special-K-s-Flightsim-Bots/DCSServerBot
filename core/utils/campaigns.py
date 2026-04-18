@@ -61,9 +61,9 @@ async def campaign_autocomplete(interaction: discord.Interaction, current: str) 
         choices: list[app_commands.Choice[str]] = list()
         _, name = get_running_campaign(interaction.client.node)
         if name:
-            choices.append(app_commands.Choice(name=name, value=name))
+            choices.append(app_commands.Choice[str](name=name, value=name))
         choices.extend([
-            app_commands.Choice(name=x, value=x)
+            app_commands.Choice[str](name=x, value=x)
             for x in get_all_campaigns(interaction.client.node)
             if x != name and current.casefold() in x.casefold()
         ])

@@ -62,13 +62,12 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
         installed_missions = [os.path.expandvars(x) for x in await utils.get_cached_mission_list(server)]
         exp_base, file_list = await server.node.list_directory(base_dir, pattern=['*.miz', '*.sav'], traverse=True,
                                                                ignore=ignore)
-        choices = [
+        return [
             app_commands.Choice[str](name=os.path.relpath(x, exp_base)[:-4], value=os.path.relpath(x, exp_base))
             for x in file_list
             if x not in installed_missions and os.path.join(os.path.dirname(x), '.dcssb', os.path.basename(
                 x)) not in installed_missions and current.casefold() in os.path.relpath(x, base_dir).casefold()
-        ]
-        return choices[:25]
+        ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -83,12 +82,11 @@ async def orig_mission_autocomplete(interaction: discord.Interaction, current: s
         _, file_list = await server.node.list_directory(await server.get_missions_dir(), pattern='*.orig',
                                                         traverse=True)
         orig_files = [os.path.basename(x)[:-9] for x in file_list]
-        choices = [
+        return [
             app_commands.Choice[int](name=os.path.basename(x)[:-4], value=idx)
             for idx, x in enumerate(await utils.get_cached_mission_list(server))
             if os.path.basename(x)[:-4] in orig_files and (not current or current.casefold() in x[:-4].casefold())
-        ]
-        return choices[:25]
+        ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -98,12 +96,11 @@ async def presets_autocomplete(interaction: discord.Interaction, current: str) -
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        choices = [
+        return [
             app_commands.Choice[str](name=x.name[:-5], value=str(x))
             for x in Path(interaction.client.node.config_dir).glob('presets*.yaml')
             if not current or current.casefold() in x.name[:-5].casefold()
-        ]
-        return choices[:25]
+        ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -165,12 +162,11 @@ async def wh_item_autocomplete(interaction: discord.Interaction, current: str) -
     server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
     category = interaction.namespace.category
     try:
-        choices = [
+        return [
             app_commands.Choice[str](name=x['name'], value=x['wstype'])
             for x in sorted(server.resources.get(category, {}), key=lambda x: x['name'])
             if not current or current.casefold() in x['name'].casefold()
-        ]
-        return choices[:25]
+        ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []

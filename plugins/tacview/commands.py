@@ -27,9 +27,10 @@ async def list_tacview_files(interaction: discord.Interaction, current: str) -> 
                     cursor = await conn.execute("SELECT name FROM players WHERE ucid = %s", (ucid, ))
                     row = await cursor.fetchone()
                     if row:
-                        name = row[0]
-                path, files = await server.node.list_directory(os.path.join(path, name),
-                                                            pattern='*.acmi', is_dir=False)
+                        name = utils.slugify(row[0])
+                path, files = await server.node.list_directory(
+                    os.path.join(path, name), pattern='*.acmi', is_dir=False
+                )
             else:
                 files = []
         else:
@@ -88,9 +89,11 @@ class Tacview(Plugin):
     @utils.app_has_role('DCS Admin')
     async def record_start(self, interaction: discord.Interaction,
                            server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
-                           filename: str | None = "recording-Tacview-{ts}-{mission}"):
+                           filename: str | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
+        if not filename:
+            filename = "recording-Tacview-{ts}-{mission}"
         filename = utils.format_string(
             filename,
             ts=datetime.now().astimezone(tz=timezone.utc).strftime("%Y%m%d_%H%M%S"),

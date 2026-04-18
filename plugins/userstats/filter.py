@@ -14,7 +14,7 @@ class StatisticsFilter(ABC):
         self._period = period
 
     @property
-    def period(self) -> str:
+    def period(self) -> str | None:
         return self._period
 
     @staticmethod
@@ -403,8 +403,10 @@ class StatsPagination(Pagination):
                 if period in [None, 'all', 'day', 'week', 'month', 'year', 'today', 'yesterday']:
                     await cursor.execute('SELECT DISTINCT server_name FROM missions')
                 else:
-                    await cursor.execute('SELECT DISTINCT s.server_name FROM campaigns c, campaigns_servers s '
-                                         'WHERE c.id = s.campaign_id AND c.name ILIKE %s', (period,))
+                    await cursor.execute("""
+                        SELECT DISTINCT s.server_name FROM campaigns c, campaigns_servers s 
+                        WHERE c.id = s.campaign_id AND c.name ILIKE %s
+                    """, (period,))
                 return [x[0] async for x in cursor]
 
 
@@ -423,13 +425,13 @@ class PeriodTransformer(app_commands.Transformer):
         try:
             if not current and PeriodFilter in self.filter:
                 return [
-                    app_commands.Choice(name=x.title(), value=x) for x in PeriodFilter.list(interaction.client)
+                    app_commands.Choice[str](name=x.title(), value=x) for x in PeriodFilter.list(interaction.client)
                 ]
             periods = []
             for flt in self.filter:
                 periods.extend(flt.list(interaction.client))
             return [
-                app_commands.Choice(name=x.title(), value=x)
+                app_commands.Choice[str](name=x.title(), value=x)
                 for x in periods
                 if not current or current.casefold() in x.casefold()
             ][:25]
