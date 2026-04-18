@@ -317,7 +317,7 @@ class Server(DataObject, ABC):
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
         raise NotImplementedError()
 
-    async def send_to_dcs_sync(self, message: dict, timeout: int | None = 5) -> dict | None:
+    async def send_to_dcs_sync(self, message: dict, timeout: int | None = 10) -> dict | None:
         with PerformanceLog(f"DCS: dcsbot.{message['command']}()"):
             future = self.bus.loop.create_future()
             token = 'sync-' + str(uuid.uuid4())
