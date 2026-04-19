@@ -95,19 +95,8 @@ class ServiceBus(Service):
             raise FatalException(repr(ex)) from ex
 
     async def switch(self, master: bool):
-        from ..bot.service import BotService
-
         if master:
-            # wait for the bot service to be started
-            while not ServiceRegistry.get(BotService):
-                await asyncio.sleep(1)
-
-            self.bot = ServiceRegistry.get(BotService).bot
-            while not self.bot:
-                await asyncio.sleep(1)
-                self.bot = ServiceRegistry.get(BotService).bot
-            await self.bot.wait_until_ready()
-            await self.register_local_servers()
+            asyncio.create_task(self.register_local_servers(master))
             for node in await self.node.get_active_nodes():
                 await self.send_to_node({
                     "command": "rpc",
@@ -219,10 +208,27 @@ class ServiceBus(Service):
             }
         }, timeout=timeout)
 
-    async def register_local_servers(self):
+    async def _wait_for_bot(self):
+        from services.bot import BotService
+
+        while not ServiceRegistry.get(BotService):
+            await asyncio.sleep(1)
+
+        self.bot = ServiceRegistry.get(BotService).bot
+        while not self.bot:
+            await asyncio.sleep(1)
+            self.bot = ServiceRegistry.get(BotService).bot
+        await self.bot.wait_until_ready()
+
+    async def register_local_servers(self, master: bool):
         # we only run once
         if self._lock.locked():
             return
+
+        # wait for the bot service to be started
+        if master:
+            await self._wait_for_bot()
+
         async with self._lock:
             timeout = (10 * len(self.servers)) if self.node.locals.get('slow_system', False) else (5 * len(self.servers))
             local_servers = [x for x in self.servers.values() if not x.is_remote]
@@ -276,7 +282,10 @@ class ServiceBus(Service):
         await self.send_to_node({
             "command": "rpc",
             "service": self.__class__.__name__,
-            "method": "register_local_servers"
+            "method": "register_local_servers",
+            "params": {
+                "master": False
+            }
         }, node=node.name)
         self.log.info(f"- Remote node {node.name} registered.")
 

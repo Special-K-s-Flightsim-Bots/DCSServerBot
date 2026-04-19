@@ -23,8 +23,8 @@ from typing import Any, Coroutine
 try:
     from core import (
         NodeImpl, ServiceRegistry, ServiceInstallationError, utils, YAMLError, FatalException, COMMAND_LINE_ARGS,
-        CloudRotatingFileHandler, wait_for_internet, ProcessManager
-    )
+        CloudRotatingFileHandler, wait_for_internet, ProcessManager, InstallationException
+)
     from pid import PidFile, PidFileError
     from rich import print
     from rich.console import Console
@@ -362,7 +362,7 @@ WARNING: DCSServerBot will drop support for Pyton 3.10 soon.
                     no_autoupdate=args.noupdate,
                     restarted=args.restarted
                 ))
-            except FatalException:
+            except InstallationException:
                 from install import Install
 
                 Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')

@@ -25,6 +25,7 @@ __all__ = [
     "Node",
     "UploadStatus",
     "SortOrder",
+    "InstallationException",
     "FatalException"
 ]
 
@@ -46,6 +47,11 @@ class SortOrder(Enum):
 
 
 class FatalException(Exception):
+    def __init__(self, message: str | None = None):
+        super().__init__(message)
+
+
+class InstallationException(FatalException):
     def __init__(self, message: str | None = None):
         super().__init__(message)
 
@@ -144,7 +150,7 @@ class Node(ABC):
             config['chat_command_prefix'] = config.get('chat_command_prefix', '-')
             return config
         except FileNotFoundError:
-            raise FatalException()
+            raise InstallationException("No main.yaml found.")
         except MarkedYAMLError as ex:
             raise YAMLError(file, ex)
 

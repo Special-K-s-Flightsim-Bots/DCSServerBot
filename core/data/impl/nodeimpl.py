@@ -49,7 +49,7 @@ from zoneinfo import ZoneInfo
 
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
-from core.data.node import Node, UploadStatus, SortOrder, FatalException
+from core.data.node import Node, UploadStatus, SortOrder, FatalException, InstallationException
 from core.data.instance import Instance
 from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
@@ -295,7 +295,7 @@ class NodeImpl(Node):
                     self.all_nodes[node_name] = None
             node: dict = data.get(self.name)
             if not node:
-                raise FatalException(f'No configuration found for node {self.name} in {config_file}!')
+                raise InstallationException(f'No configuration found for node {self.name} in {config_file}!')
             dirty = False
 
             # check if we need to secure the database URL
@@ -332,7 +332,7 @@ class NodeImpl(Node):
                 with open(config_file, 'w', encoding='utf-8') as f:
                     yaml.dump(data, f)
             return node
-        raise FatalException(f"No {config_file} found. Exiting.")
+        raise InstallationException(f"No {config_file} found. Exiting.")
 
     def get_database_urls(self):
         cpool_url = self.config.get("database", self.locals.get('database'))['url']

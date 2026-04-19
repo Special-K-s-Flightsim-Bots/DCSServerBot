@@ -133,7 +133,11 @@ class BotService(Service):
         try:
             self.bot = self.init_bot()
             await self.install_fonts()
-            await self.bot.login(token=self.token)
+            token: str | None = self.token
+            if not token:
+                raise FatalException("No Discord token found! You need to configure it in the bot.yaml file.")
+
+            await self.bot.login(token=token)
 
             async def connect_with_retry() -> None:
                 delay = 5
