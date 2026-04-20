@@ -509,6 +509,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                             distance_old -= delta_time * AVG_MISSILE_SPEED # assume 1000 m/s as avg speed
                             # ignore the new shot event if the old missile is still hot and has a higher PBK (closer)
                             if 0 < distance_old < distance_new:
+                                self.log.debug(f"Punishment: Ignoring new shot event as old distance was {distance_old}.")
                                 return
                             self.log.debug(f"Punishment: Replacing old shot event as distance was {distance_old}.")
                         else:
@@ -518,7 +519,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             elif initiator and s_event:
                 # check how good our prediction was
                 orig_name = s_event.get('initiator', {}).get('name')
-                if s_event['eventName'] == 'S_EVENT_SHOT' and orig_name == initiator.name:
+                if orig_name == initiator.name:
                     self.log.debug("Punishment: Good prediction, shot hit the player.")
                 elif orig_name:
                     self.log.debug(f"Punishment: Bad prediction: {initiator.name} hit player {target.name} "
