@@ -31,6 +31,8 @@ class CleanupService(Service):
                 if file_mtime < threshold_timestamp:
                     self.log.debug(f"  => {file_path.name} is older than {delete_after} days, deleting ...")
                     await asyncio.to_thread(utils.safe_rmtree, file_path)
+            except FileNotFoundError:
+                pass
             except Exception as ex:
                 self.log.error(f"Could not delete {file_path}: {ex}")
 
