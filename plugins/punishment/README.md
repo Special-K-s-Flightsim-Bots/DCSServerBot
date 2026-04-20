@@ -151,7 +151,9 @@ The current implementation is like so:
 | Player crashed in-between the MAX_MISSILE_TIME after being hit.                   | The opponent will be rewarded with the kill.                                                                                                |
 
 > [!NOTE]
-> MAX_MISSILE_TIME is hard-coded to 60 seconds for now.
+> DCSServerBot takes several factors into account to determine the opponent with the highest probability of getting the 
+> kill. This means that the solution even works quite reliably if multiple players shot onto the evading player.
+> Tests on large servers like Growling Sidewinder have shown a ~95% hit rate of the solution.
 
 ## Discord Commands
 | Command      | Parameter | Channel | Role            | Description                                                                                                              |
