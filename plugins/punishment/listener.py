@@ -492,15 +492,16 @@ class PunishmentEventListener(EventListener["Punishment"]):
             if data['eventName'] == 'S_EVENT_SHOT':
                 shot_time, s_event = self.pending_kill.get(target.ucid, (-1, None))
                 # if there is an older shot ...
-                if shot_time > 0:
+                if shot_time > 0 and s_event:
                     delta_time = int(time.time()) - shot_time
                     if s_event.get('eventName') == 'S_EVENT_HIT':
                         # we do not overwrite hit events with shot events if they are still hot
                         if delta_time < config.get('survival_window', 300):
                             return
+                        self.log.debug(f"Punishment: Replacing old hit event as delta_time was {delta_time}.")
                     # ... check the PBK for both shots
                     else:
-                        # we consider missiles that were in the air for more than 100s as dead
+                        # we consider missiles that were in the air for more than MAX_MISSILE_LIFETIME as dead
                         if delta_time < MAX_MISSILE_LIFETIME:
                             distance_old = s_event.get('distance', 0)
                             distance_new = data.get('distance', 0)
@@ -509,6 +510,9 @@ class PunishmentEventListener(EventListener["Punishment"]):
                             # ignore the new shot event if the old missile is still hot and has a higher PBK (closer)
                             if 0 < distance_old < distance_new:
                                 return
+                            self.log.debug(f"Punishment: Replacing old shot event as distance was {distance_old}.")
+                        else:
+                            self.log.debug(f"Punishment: Replacing old shot event as delta_time was {delta_time}.")
 
             # store the shot with the highest PBK or the latest hit event
             self.pending_kill[target.ucid] = (int(time.time()), data)
