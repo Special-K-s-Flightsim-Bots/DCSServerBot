@@ -130,11 +130,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 await conn.execute("""
                     INSERT INTO pu_events (init_id, target_id, server_name, event, points) 
                     VALUES (%s, %s, %s, %s, %s) 
-                    ON CONFLICT DO UPDATE
-                        SET
-                            event  = EXCLUDED.event,
-                            points = EXCLUDED.points
-                    WHERE pu_events.points < EXCLUDED.points;
+                    ON CONFLICT DO NOTHING
                 """, (initiator.ucid, target.ucid if target else None, data['server_name'], data['eventName'],
                       data['points']))
             await self.plugin.trigger.publish({
