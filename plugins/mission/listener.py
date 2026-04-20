@@ -193,7 +193,7 @@ class MissionEventListener(EventListener["Mission"]):
                 self.mission_stats[server.name] = True
             else:
                 self.mission_stats[server.name] = False
-        return mission_stats[server.name]
+        return self.mission_stats[server.name]
 
     @event(name="sendMessage")
     async def sendMessage(self, server: Server, data: dict) -> None:
