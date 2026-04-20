@@ -20,7 +20,7 @@ from io import BytesIO
 from matplotlib.axes import Axes
 from matplotlib import pyplot as plt
 from psycopg.rows import dict_row
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, cast
 
 from .env import ReportEnv
 from .errors import UnknownGraphElement, ClassNotFound, TooManyElements, UnknownValue, NothingToPlot
@@ -81,7 +81,7 @@ def get_supported_fonts() -> set[str]:
     return _languages
 
 
-def df_to_table(ax: Axes, df: pd.DataFrame, *, col_labels: list[str] = None, fontsize: int | None = 10) -> Axes:
+def df_to_table(ax: Axes, df: pd.DataFrame, *, col_labels: list[str] = None, fontsize: int = 10) -> Axes:
     df = df.copy()
     for col in df.select_dtypes(include='timedelta64[ns]').columns:
         df[col] = df[col].dt.total_seconds().apply(
@@ -194,24 +194,24 @@ class Image(EmbedElement):
 
 
 class Ruler(EmbedElement):
-    async def render(self, header: str | None = '', ruler_length: int | None = 34, *, text: str | None = None):
+    async def render(self, header: str = '', ruler_length: int = 34, *, text: str | None = None):
         self.add_field(name=utils.print_ruler(header=header, ruler_length=ruler_length),
                        value=text or '_ _', inline=False)
 
 
 class Field(EmbedElement):
-    async def render(self, name: str, value: Any, inline: bool | None = True, default: str | None = '_ _'):
+    async def render(self, name: str, value: Any, inline: bool = True, default: str | None = '_ _'):
         self.add_field(name=utils.format_string(name, '_ _', **self.env.params),
                        value=utils.format_string(value, default, **self.env.params), inline=inline)
 
 
 class Table(EmbedElement):
-    async def render(self, values: dict | list[dict], obj: str | None = None, inline: bool | None = True,
+    async def render(self, values: dict | list[dict], obj: str | None = None, inline: bool = True,
                      ansi_colors: bool | None = False):
         if obj:
             table = self.env.params[obj]
-            _values: dict = values.copy()
-            values = list[dict]()
+            _values: dict = cast(dict, values.copy())
+            values: list[dict] = []
             if isinstance(table, list):
                 for row in table:
                     values.append({_values[k]: v for k, v in row.items() if k in _values.keys()})
@@ -237,7 +237,7 @@ class Table(EmbedElement):
 
 class Button(ReportElement):
     async def render(self, style: str, label: str, custom_id: str | None = None, url: str | None = None,
-                     disabled: bool | None = False, interaction: Interaction | None = None):
+                     disabled: bool = False, interaction: Interaction | None = None):
         b = discord.ui.Button(style=ButtonStyle(style), label=label, url=url, disabled=disabled)
         if interaction:
             await b.callback(interaction=interaction)
@@ -247,8 +247,8 @@ class Button(ReportElement):
 
 
 class GraphElement(ReportElement):
-    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int | None = 0, col: int | None = 0,
-                 colspan: int | None = 1, rowspan: int | None = 1, polar: bool | None = False):
+    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int = 0, col: int = 0,
+                 colspan: int = 1, rowspan: int = 1, polar: bool = False):
         super().__init__(env)
         self.axes = plt.subplot2grid((rows, cols), (row, col), colspan=colspan, rowspan=rowspan,
                                      fig=self.env.figure, polar=polar)
@@ -410,14 +410,14 @@ def _display_no_data(element: EmbedElement, no_data: str | dict, inline: bool):
 
 
 class SQLField(EmbedElement):
-    async def render(self, sql: str, inline: bool | None = True, no_data: str | dict | None = None,
+    async def render(self, sql: str, inline: bool = True, no_data: str | dict | None = None,
                      on_error: dict | None = None):
         try:
             async with self.apool.connection() as conn:
                 async with conn.cursor(row_factory=dict_row) as cursor:
                     await cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
-                    if cursor.rowcount > 0:
-                        row = await cursor.fetchone()
+                    row: dict | None = await cursor.fetchone()
+                    if row:
                         name = list(row.keys())[0]
                         value = row[name]
                         if isinstance(value, datetime):
@@ -437,12 +437,12 @@ class SQLField(EmbedElement):
 class SQLTable(EmbedElement):
     """
     Render the result of an SQL query as a Discord embed.
-    Internally the data is first collected into a pandas DataFrame.
+    Internally, the data is first collected into a pandas DataFrame.
     """
     async def render(
         self,
         sql: str,
-        inline: bool | None = True,
+        inline: bool = True,
         no_data: str | dict | None = None,
         ansi_colors: bool | None = False,
         on_error: dict | None = None,
@@ -457,7 +457,7 @@ class SQLTable(EmbedElement):
         no_data : str | dict | None
             Message to display if the query returns 0 rows.
         ansi_colors : bool | None, default=False
-            Wrap values in `````ansi … ```` if ``True``.
+            Wrap values in ```ansi … ``` if True.
         on_error : dict | None
             Custom error‑handling messages; each key/value pair is rendered
             as a field when an exception occurs.
@@ -514,8 +514,8 @@ class SQLTable(EmbedElement):
 
 
 class SQLRenderedTable(GraphElement):
-    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: int | None = 1,
-                 rowspan: int | None = 1, title: str | None = '', color: str | None = None,
+    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: int = 1,
+                 rowspan: int = 1, title: str | None = '', color: str | None = None,
                  fontsize: int = 12, show_no_data: bool | None = True):
         super().__init__(env, rows, cols, row, col, colspan, rowspan)
         self.title = title
@@ -578,10 +578,10 @@ class SQLRenderedTable(GraphElement):
 
 
 class BarChart(GraphElement):
-    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: int | None = 1,
-                 rowspan: int | None = 1, title: str | None = '', color: str | None = None,
-                 rotate_labels: int | None = 0, bar_labels: bool | None = False, is_time: bool | None = False,
-                 orientation: str | None = 'vertical', width: float | None = 0.5,
+    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: int = 1,
+                 rowspan: int = 1, title: str = '', color: str | None = None,
+                 rotate_labels: int = 0, bar_labels: bool | None = False, is_time: bool | None = False,
+                 orientation: str = 'vertical', width: float | None = 0.5,
                  show_no_data: bool | None = True):
         super().__init__(env, rows, cols, row, col, colspan, rowspan)
         self.title = title
@@ -638,8 +638,8 @@ class SQLBarChart(BarChart):
 
 
 class PieChart(GraphElement):
-    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: int | None = 1,
-                 rowspan: int | None = 1, title: str | None = '', colors: list[str] | None = None,
+    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: int = 1,
+                 rowspan: int = 1, title: str = '', colors: list[str] | None = None,
                  is_time: bool | None = False, show_no_data: bool | None = True, textcolor: str | None = 'black'):
         super().__init__(env, rows, cols, row, col, colspan, rowspan)
         self.title = title
@@ -658,7 +658,7 @@ class PieChart(GraphElement):
     async def render(self, values: dict[str, Any], **kwargs):
         values = {k: v for k, v in values.copy().items() if v}
         if len(values) or self.show_no_data:
-            labels = values.keys()
+            labels = list(values.keys())
             values = list(values.values())
             patches, texts, pcts = self.axes.pie(
                 values, labels=labels, autopct=lambda pct: self.func(pct, values), colors=self.colors,

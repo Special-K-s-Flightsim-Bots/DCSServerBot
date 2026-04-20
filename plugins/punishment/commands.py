@@ -292,8 +292,12 @@ class Punishment(Plugin[PunishmentEventListener]):
                 return
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("SELECT event, points, time FROM pu_events WHERE init_id = %s ORDER BY time DESC",
-                                     (ucid, ))
+                await cursor.execute("""
+                    SELECT event, points, time 
+                    FROM pu_events 
+                    WHERE init_id = %s 
+                    ORDER BY time DESC
+                """, (ucid, ))
                 if cursor.rowcount == 0:
                     await interaction.response.send_message(_('User has no penalty points.'), ephemeral=ephemeral)
                     return

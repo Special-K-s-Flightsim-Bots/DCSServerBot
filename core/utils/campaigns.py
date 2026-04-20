@@ -1,6 +1,5 @@
 from __future__ import annotations
 import discord
-from contextlib import closing
 from typing import TYPE_CHECKING, Any
 from discord import app_commands
 from psycopg.rows import dict_row
@@ -18,7 +17,7 @@ __all__ = [
 
 def get_running_campaign(node: Node, server: Server | None = None) -> tuple[Any, Any]:
     with node.pool.connection() as conn:
-        with closing(conn.cursor()) as cursor:
+        with conn.cursor() as cursor:
             if server:
                 cursor.execute("""
                     SELECT id, name FROM campaigns c, campaigns_servers s 
@@ -30,11 +29,10 @@ def get_running_campaign(node: Node, server: Server | None = None) -> tuple[Any,
                     SELECT id, name FROM campaigns
                     WHERE (now() AT TIME ZONE 'utc') BETWEEN start AND COALESCE(stop, now() AT TIME ZONE 'utc')
                 """)
-            if cursor.rowcount == 1:
-                row = cursor.fetchone()
-                return row[0], row[1]
-            else:
+            row = cursor.fetchone()
+            if not row:
                 return None, None
+            return row[0], row[1]
 
 
 def get_all_campaigns(node: Node) -> list[str]:

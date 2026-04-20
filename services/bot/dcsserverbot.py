@@ -474,13 +474,12 @@ class DCSServerBot(commands.Bot):
     async def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> discord.Member | str | None:
         async with self.apool.connection() as conn:
             cursor = await conn.execute("SELECT discord_id, name, manual FROM players WHERE ucid = %s", (ucid, ))
-            if cursor.rowcount == 1:
-                row = await cursor.fetchone()
-                if verified and row[2] is False:
-                    return row[1]
-                return self.guilds[0].get_member(row[0]) or row[1]
-            else:
+            row = await cursor.fetchone()
+            if not row:
                 return None
+            if verified and row[2] is False:
+                return row[1]
+            return self.guilds[0].get_member(row[0]) or row[1]
 
     async def get_ucid_by_member(self, member: discord.Member, verified: bool | None = False) -> str | None:
         async with self.apool.connection() as conn:

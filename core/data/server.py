@@ -129,8 +129,9 @@ class Server(DataObject, ABC):
                     ORDER BY mission_start DESC
                     LIMIT 1
                 """, (self.name, ))
-                if cursor.rowcount == 1:
-                    self._mission_id = cursor.fetchone()[0]
+                row = cursor.fetchone()
+                if row:
+                    self._mission_id = row[0]
                 else:
                     self._mission_id = -1
         return self._mission_id

@@ -350,7 +350,7 @@ class ServiceBus(Service):
 
         # set the PID
         if not server.process:
-            self.log.debug(f'  => No process of {server_name} found. Searching ...')
+            self.log.debug(f'  => No process of {server_name} stored yet, searching ...')
             server.process = await utils.find_process_async("DCS_server.exe|DCS.exe", server.instance.name)
             if not server.process:
                 self.log.warning("Could not find active DCS process. Please check, if you have started DCS with -w!")
