@@ -33,7 +33,7 @@ dcsbot.mission_stats_enabled = false
 dcsbot.eventHandler = dcsbot.eventHandler or {}
 
 local event_by_id = {}
--- local marker_num = 1
+local marker_num = 1
 
 local function get_distance(point1, point2)
     local y1, y2
@@ -47,7 +47,7 @@ local function get_distance(point1, point2)
     return math.sqrt(dx * dx + dy * dy)
 end
 
-local function is_on_runway(runway, pos)
+local function is_on_runway(runway, pos, velocity)
     -- ignore rubber banding
     if get_distance(runway.position, pos) > 3500 then
         return true
@@ -56,6 +56,18 @@ local function is_on_runway(runway, pos)
     local dx = pos.x - runway.position.x
     local dz = pos.z - runway.position.z
 
+    -- If the event is received late and the aircraft is already airborne,
+    -- project the position backwards using the velocity vector to estimate
+    -- where it crossed the runway plane.
+    if velocity ~= nil and pos.y ~= nil and runway.position.y ~= nil and pos.y > runway.position.y then
+        local vy = velocity.y or 0
+        if vy > 0 then
+            local t = (pos.y - runway.position.y) / vy
+            dx = dx - (velocity.x or 0) * t
+            dz = dz - (velocity.z or 0) * t
+        end
+    end
+
     -- Convert DCS runway.course to a "heading" used for x/z rotation
     local heading = -runway.course
 
@@ -63,8 +75,8 @@ local function is_on_runway(runway, pos)
     local proj    = dx * math.cos(heading) + dz * math.sin(heading)
     local lateral = -dx * math.sin(heading) + dz * math.cos(heading)
 
-    local length_threshold = runway.length * 1.25 / 2.0 -- add 25% to the runway length as threshold
-    local width_threshold = runway.width * 2.0 / 2.0    -- take 2x the runway width as threshold
+    local length_threshold = runway.length * 1.1 / 2.0 -- add 10% to the runway length as threshold
+    local width_threshold = runway.width * 1.25 / 2.0  -- add 25% to the runway width as threshold
     return math.abs(proj) <= length_threshold and math.abs(lateral) <= width_threshold
 end
 
@@ -142,6 +154,7 @@ function onMissionEvent(event)
                 else
                     local place = event.place:getName()
                     local airbase = Airbase.getByName(place)
+                    local velocity = msg.initiator.unit:getVelocity()
                     -- ignore takeoffs from ships and FARPs
                     if airbase:getDesc().category == Airbase.Category.AIRDROME then
                         local runways = airbase:getRunways()
@@ -159,7 +172,7 @@ function onMissionEvent(event)
                                 },
                                 length=3000,
                                 width=60
-                            }, point)
+                            }, point, velocity)
                             if not on_runway then
                             -- and add the abandoned runway as a real one
                                 on_runway = is_on_runway({
@@ -172,12 +185,12 @@ function onMissionEvent(event)
                                     },
                                     length=2463,16,
                                     width=54
-                                }, point)
+                                }, point, velocity)
                             end
                         else
                             for _, runway in pairs(runways) do
 --                                env.info("### runway=" .. net.lua2json(runway) .. " / takeoff-point=" .. net.lua2json(point))
-                                if is_on_runway(runway, point) then
+                                if is_on_runway(runway, point, velocity) then
                                     on_runway = true
                                     break
                                 end
@@ -189,16 +202,14 @@ function onMissionEvent(event)
                                 return
                             end
                             -- check for vertical takeoffs
-                            if is_vertical_takeoff(msg.initiator.unit:getVelocity()) then
+                            if is_vertical_takeoff(velocity) then
                                 return
                             end
                             msg['eventName'] = 'S_EVENT_TAXIWAY_TAKEOFF'
---[[
                             if msg.initiator.name then
                                 trigger.action.markToAll(marker_num, "Takeoff " .. msg.initiator.name, point, true, '')
                                 marker_num = marker_num + 1
                             end
-]]--
                         end
                     end
                 end
