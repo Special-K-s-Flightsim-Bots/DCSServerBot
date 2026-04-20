@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 
 _ = get_translation(__name__.split('.')[1])
 
+MAX_MISSILE_LIFETIME = 100  # max lifetime is 100s (Fox 3)
+AVG_MISSILE_SPEED = 1000    # avg speed is 1000 m/s
 
 class PunishmentEventListener(EventListener["Punishment"]):
 
@@ -198,6 +200,59 @@ class PunishmentEventListener(EventListener["Punishment"]):
             else:
                 asyncio.create_task(self._punish(data.copy()))
 
+    def _recreate_events(self, server: Server, data: dict, evt: dict):
+        initiator = server.get_player(id=data['arg1'])
+        target = evt['target']
+        if not initiator:
+            self.log.debug("Punishment: failed to recreate S_EVENT_HIT/S_EVENT_KILL for target {}".format(target.name))
+            return
+
+        # preserve the old event (to avoid modifying the original event)
+        s_event = evt.copy()
+
+        # check if we have the correct initiator
+        if initiator != evt['initiator']:
+            # replace the initiator with the correct one
+            s_event['initiator'] = {
+                "name": initiator.name,
+                "coalition": initiator.side.value,
+                "type": "UNIT",
+                "category": 0, # TODO: we can only guess it was an airplane at this stage
+                "unit_type": initiator.unit_type,
+                "unit_name": initiator.unit_name,
+                "group_name": initiator.group_name
+            }
+
+        if initiator == evt['initiator']:
+            # clear fields that are no longer relevant
+            s_event['initiator'].pop('position', None)
+            s_event['target'].pop('position', None)
+            s_event.pop('distance', None)
+
+            # generate S_EVENT_HIT
+            if s_event['eventName'] == 'S_EVENT_SHOT':
+                self.log.debug("Punishment: autocreating missing S_EVENT_HIT for player {} vs {}".format(
+                    initiator.name, target.name)
+                )
+                s_event |= {
+                    "eventName": "S_EVENT_HIT",
+                    "id": 28,
+                    "comment": "auto-generated"
+                }
+                asyncio.create_task(self.bus.send_to_node(s_event))
+
+            # generate S_EVENT_KILL
+            if s_event['eventName'] == 'S_EVENT_HIT':
+                self.log.debug("Punishment: autocreating missing S_EVENT_KILL for player {} vs {}".format(
+                    initiator.name, target.name)
+                )
+                s_event |= {
+                    "eventName": "S_EVENT_KILL",
+                    "id": 28,
+                    "comment": "auto-generated"
+                }
+                asyncio.create_task(self.bus.send_to_node(s_event))
+
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict):
         config = self.get_config(server)
@@ -250,13 +305,19 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 else:
                     evt['eventName'] = 'kill'
                 asyncio.create_task(self._check_punishment(evt))
+
             # remove pending kills
             if target:
-                self.pending_kill.pop(target.ucid, None)
+                shot_time, evt = self.pending_kill.pop(target.ucid, (-1, None))
                 task = self.awaiting_task.pop(target.ucid, None)
                 if task:
+                    # Workaround for DCS bug with missing S_EVENT_KILL events
                     task.cancel()
-                    self.log.debug(f"Missing S_EVENT_KILL for player {initiator.name} vs {target.name}, ignoring")
+                    if evt:
+                        self._recreate_events(server, data, evt)
+                    else:
+                        # there was not even a recent shot onto this player
+                        self.log.debug(f"Missing S_EVENT_KILL for player {initiator.name} vs {target.name}, ignoring")
 
         elif data['eventName'] == 'disconnect':
             shot_time, evt = self.pending_kill.pop(initiator.ucid, (-1, None))
@@ -298,6 +359,10 @@ class PunishmentEventListener(EventListener["Punishment"]):
             handle.cancel()
 
     async def _give_kill(self, server: Server, s_event: dict) -> None:
+        # clear fields that are no longer relevant
+        s_event['initiator'].pop('position', None)
+        s_event['target'].pop('position', None)
+        s_event.pop('distance', None)
         # create the pseudo-event "S_EVENT_KILL"
         s_event |= {
             "eventName": "S_EVENT_KILL",
@@ -418,17 +483,35 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     data.get('target', {}).get('coalition', 0)
             ):
                 return
+
             # we only care for real players here
-            if target and target.ucid in self.pending_kill:
-                # we do not overwrite hit events
-                if data['eventName'] == 'S_EVENT_SHOT':
-                    shot_time, s_event = self.pending_kill.get(target.ucid, (-1, None))
-                    if shot_time > 0 and s_event.get('eventName') == 'S_EVENT_HIT':
-                        delta_time = int(time.time()) - shot_time
-                        # we do not overwrite hit events if they are still hot
+            if not target or target.ucid not in self.pending_kill:
+                return
+
+            # we do not overwrite hit events
+            if data['eventName'] == 'S_EVENT_SHOT':
+                shot_time, s_event = self.pending_kill.get(target.ucid, (-1, None))
+                # if there is an older shot ...
+                if shot_time > 0:
+                    delta_time = int(time.time()) - shot_time
+                    if s_event.get('eventName') == 'S_EVENT_HIT':
+                        # we do not overwrite hit events with shot events if they are still hot
                         if delta_time < config.get('survival_window', 300):
                             return
-                self.pending_kill[target.ucid] = (int(time.time()), data)
+                    # ... check the PBK for both shots
+                    else:
+                        # we consider missiles that were in the air for more than 100s as dead
+                        if delta_time < MAX_MISSILE_LIFETIME:
+                            distance_old = s_event.get('distance', 0)
+                            distance_new = data.get('distance', 0)
+                            # calculate the traveled distance
+                            distance_old -= delta_time * AVG_MISSILE_SPEED # assume 1000 m/s as avg speed
+                            # ignore the new shot event if the old missile is still hot and has a higher PBK (closer)
+                            if 0 < distance_old < distance_new:
+                                return
+
+            # store the shot with the highest PBK or the latest hit event
+            self.pending_kill[target.ucid] = (int(time.time()), data)
 
         elif data['eventName'] == 'S_EVENT_LAND':
             initiator = server.get_player(name=data.get('initiator', {}).get('name'))

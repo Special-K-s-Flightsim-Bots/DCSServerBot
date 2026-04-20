@@ -6,6 +6,9 @@ import zipfile
 
 from aiohttp import ClientSession, ClientResponseError
 from contextlib import suppress
+
+from psycopg import sql
+
 from core import ServiceRegistry, Service, Server, Status, ServiceInstallationError, utils, proxy, Node
 from enum import Enum
 from filecmp import cmp
