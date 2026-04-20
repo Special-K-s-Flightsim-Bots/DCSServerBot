@@ -944,7 +944,7 @@ class MissionEventListener(EventListener["Mission"]):
                 self.log.debug(f"AFK: Player {player.name} joined crew slot, timer not set.")
             elif data['slot'] > 0:
                 # we can only track BIRTH events if mission stats are enabled
-                if self.get_mission_stats(server.name):
+                if self.get_mission_stats(server):
                     afk_config = server.locals.get('afk', {})
                     if afk_config and afk_config.get('check_on_join', True):
                         server.afk[player.ucid] = datetime.now(timezone.utc)
