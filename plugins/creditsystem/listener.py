@@ -96,18 +96,23 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             if old_points != player.points:
                 player.audit('mission', old_points, data.get('reason', _('Unknown mission achievement')))
 
+    def _ensure_squadron(self, server: Server, squadron_name: str) -> Squadron | None:
+        squadron = self.squadrons.get(squadron_name)
+        if not squadron:
+            campaign_id, name = utils.get_running_campaign(self.node, server)
+            if not campaign_id:
+                self.log.warning("You need an active campaign to use squadron credits!")
+                return None
+            squadron = DataObjectFactory().new(Squadron, node=self.node, name=squadron_name, campaign_id=campaign_id)
+            self.squadrons[squadron_name] = squadron
+        return squadron
+
     @event(name="addSquadronPoints")
     async def addSquadronPoints(self, server: Server, data: dict) -> None:
         if data['points'] != 0:
-            squadron = self.squadrons.get(data['squadron'])
+            squadron = self._ensure_squadron(server, data['squadron'])
             if not squadron:
-                campaign_id, name = utils.get_running_campaign(self.node, server)
-                if not campaign_id:
-                    self.log.warning("You need an active campaign to use squadron credits!")
-                    return
-                squadron = DataObjectFactory().new(Squadron, node=self.node, name=data['squadron'],
-                                                   campaign_id=campaign_id)
-                self.squadrons[data['squadron']] = squadron
+                return
             old_points = squadron.points
             squadron.points += int(data['points'])
             if old_points != squadron.points:

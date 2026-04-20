@@ -476,6 +476,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 self.pending_kill[initiator.ucid] = (-1, None)
 
         elif data['eventName'] in ['S_EVENT_SHOT', 'S_EVENT_HIT']:
+            initiator = server.get_player(name=data.get('initiator', {}).get('name'))
             target = server.get_player(name=data.get('target', {}).get('name'))
             # ignore teamkills
             if (
@@ -488,9 +489,8 @@ class PunishmentEventListener(EventListener["Punishment"]):
             if not target or target.ucid not in self.pending_kill:
                 return
 
-            # we do not overwrite hit events
+            shot_time, s_event = self.pending_kill.get(target.ucid, (-1, None))
             if data['eventName'] == 'S_EVENT_SHOT':
-                shot_time, s_event = self.pending_kill.get(target.ucid, (-1, None))
                 # if there is an older shot ...
                 if shot_time > 0 and s_event:
                     delta_time = int(time.time()) - shot_time
@@ -513,6 +513,14 @@ class PunishmentEventListener(EventListener["Punishment"]):
                             self.log.debug(f"Punishment: Replacing old shot event as distance was {distance_old}.")
                         else:
                             self.log.debug(f"Punishment: Replacing old shot event as delta_time was {delta_time}.")
+
+            # we got hit by a player
+            elif initiator:
+                # check how good our prediction was
+                if s_event['eventName'] == 'S_EVENT_SHOT' and s_event['initiator'] == initiator:
+                    self.log.debug("Punishment: Good prediction, shot hit the player.")
+                else:
+                    self.log.debug("Punishment: Bad prediction, another shot hit the player.")
 
             # store the shot with the highest PBK or the latest hit event
             self.pending_kill[target.ucid] = (int(time.time()), data)
