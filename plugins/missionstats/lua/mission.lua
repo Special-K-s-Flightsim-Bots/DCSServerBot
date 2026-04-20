@@ -33,7 +33,7 @@ dcsbot.mission_stats_enabled = false
 dcsbot.eventHandler = dcsbot.eventHandler or {}
 
 local event_by_id = {}
-local marker_num = 1
+--local marker_num = 1
 
 local function get_distance(point1, point2)
     local y1, y2
@@ -189,7 +189,6 @@ function onMissionEvent(event)
                             end
                         else
                             for _, runway in pairs(runways) do
---                                env.info("### runway=" .. net.lua2json(runway) .. " / takeoff-point=" .. net.lua2json(point))
                                 if is_on_runway(runway, point, velocity) then
                                     on_runway = true
                                     break
@@ -206,10 +205,12 @@ function onMissionEvent(event)
                                 return
                             end
                             msg['eventName'] = 'S_EVENT_TAXIWAY_TAKEOFF'
+                            --[[
                             if msg.initiator.name then
                                 trigger.action.markToAll(marker_num, "Takeoff " .. msg.initiator.name, point, true, '')
                                 marker_num = marker_num + 1
                             end
+                            ]]--
                         end
                     end
                 end
