@@ -129,7 +129,12 @@ class PunishmentEventListener(EventListener["Punishment"]):
             async with self.apool.connection() as conn:
                 await conn.execute("""
                     INSERT INTO pu_events (init_id, target_id, server_name, event, points) 
-                    VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING
+                    VALUES (%s, %s, %s, %s, %s) 
+                    ON CONFLICT DO UPDATE
+                        SET
+                            event  = EXCLUDED.event,
+                            points = EXCLUDED.points
+                    WHERE pu_events.points < EXCLUDED.points;
                 """, (initiator.ucid, target.ucid if target else None, data['server_name'], data['eventName'],
                       data['points']))
             await self.plugin.trigger.publish({
@@ -515,12 +520,13 @@ class PunishmentEventListener(EventListener["Punishment"]):
                             self.log.debug(f"Punishment: Replacing old shot event as delta_time was {delta_time}.")
 
             # we got hit by a player
-            elif initiator:
+            elif initiator and s_event:
                 # check how good our prediction was
                 if s_event['eventName'] == 'S_EVENT_SHOT' and s_event['initiator'] == initiator:
                     self.log.debug("Punishment: Good prediction, shot hit the player.")
                 else:
-                    self.log.debug("Punishment: Bad prediction, another shot hit the player.")
+                    self.log.debug(f"Punishment: Bad prediction: {initiator.name} hit player {target.name} "
+                                   f"where player {s_event['initiator'].name} was predicted.")
 
             # store the shot with the highest PBK or the latest hit event
             self.pending_kill[target.ucid] = (int(time.time()), data)
