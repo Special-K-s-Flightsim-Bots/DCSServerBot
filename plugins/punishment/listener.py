@@ -116,8 +116,8 @@ class PunishmentEventListener(EventListener["Punishment"]):
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
 
-        initiator = data['initiator']
-        target = data.get('target')
+        initiator: Player = data['initiator']
+        target: Player | None = data.get('target')
         penalty = next(item for item in config['penalties'] if item['event'] == data['eventName'])
 
         # do we have to fire an immediate action?
@@ -206,8 +206,8 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 asyncio.create_task(self._punish(data.copy()))
 
     def _recreate_events(self, server: Server, data: dict, evt: dict):
-        initiator = server.get_player(id=data['arg1'])
-        target = evt['target']
+        initiator: Player | None = server.get_player(id=data['arg1'])
+        target: Player | None = server.get_player(name=evt['target']['name'])
         if not initiator:
             self.log.debug("Punishment: failed to recreate S_EVENT_HIT/S_EVENT_KILL for target {}".format(target.name))
             return
@@ -215,8 +215,8 @@ class PunishmentEventListener(EventListener["Punishment"]):
         # preserve the old event (to avoid modifying the original event)
         s_event = evt.copy()
 
-        # check if we have the correct initiator
-        if initiator != evt['initiator']:
+        # ensure that we have the correct initiator
+        if initiator.name != evt.get('initiator', {}).get('name'):
             # replace the initiator with the correct one
             s_event['initiator'] = {
                 "name": initiator.name,
@@ -228,35 +228,34 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 "group_name": initiator.group_name
             }
 
-        if initiator == evt['initiator']:
-            # clear fields that are no longer relevant
-            s_event['initiator'].pop('position', None)
-            s_event['target'].pop('position', None)
-            s_event.pop('distance', None)
+        # clear fields that are no longer relevant
+        s_event['initiator'].pop('position', None)
+        s_event['target'].pop('position', None)
+        s_event.pop('distance', None)
 
-            # generate S_EVENT_HIT
-            if s_event['eventName'] == 'S_EVENT_SHOT':
-                self.log.debug("Punishment: autocreating missing S_EVENT_HIT for player {} vs {}".format(
-                    initiator.name, target.name)
-                )
-                s_event |= {
-                    "eventName": "S_EVENT_HIT",
-                    "id": 28,
-                    "comment": "auto-generated"
-                }
-                asyncio.create_task(self.bus.send_to_node(s_event))
+        # generate S_EVENT_HIT
+        if s_event['eventName'] == 'S_EVENT_SHOT':
+            self.log.debug("Punishment: autocreating missing S_EVENT_HIT for player {} vs {}".format(
+                initiator.name, target.name)
+            )
+            s_event |= {
+                "eventName": "S_EVENT_HIT",
+                "id": 28,
+                "comment": "auto-generated"
+            }
+            asyncio.create_task(self.bus.send_to_node(s_event))
 
-            # generate S_EVENT_KILL
-            if s_event['eventName'] == 'S_EVENT_HIT':
-                self.log.debug("Punishment: autocreating missing S_EVENT_KILL for player {} vs {}".format(
-                    initiator.name, target.name)
-                )
-                s_event |= {
-                    "eventName": "S_EVENT_KILL",
-                    "id": 28,
-                    "comment": "auto-generated"
-                }
-                asyncio.create_task(self.bus.send_to_node(s_event))
+        # generate S_EVENT_KILL
+        if s_event['eventName'] == 'S_EVENT_HIT':
+            self.log.debug("Punishment: autocreating missing S_EVENT_KILL for player {} vs {}".format(
+                initiator.name, target.name)
+            )
+            s_event |= {
+                "eventName": "S_EVENT_KILL",
+                "id": 28,
+                "comment": "auto-generated"
+            }
+            asyncio.create_task(self.bus.send_to_node(s_event))
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict):
@@ -522,11 +521,12 @@ class PunishmentEventListener(EventListener["Punishment"]):
             # we got hit by a player
             elif initiator and s_event:
                 # check how good our prediction was
-                if s_event['eventName'] == 'S_EVENT_SHOT' and s_event['initiator'] == initiator:
+                orig_name = s_event.get('initiator', {}).get('name')
+                if s_event['eventName'] == 'S_EVENT_SHOT' and orig_name == initiator.name:
                     self.log.debug("Punishment: Good prediction, shot hit the player.")
-                else:
+                elif orig_name:
                     self.log.debug(f"Punishment: Bad prediction: {initiator.name} hit player {target.name} "
-                                   f"where player {s_event['initiator'].name} was predicted.")
+                                   f"where player {orig_name} was predicted.")
 
             # store the shot with the highest PBK or the latest hit event
             self.pending_kill[target.ucid] = (int(time.time()), data)
