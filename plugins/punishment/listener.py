@@ -537,6 +537,9 @@ class PunishmentEventListener(EventListener["Punishment"]):
             target = server.get_player(name=data.get('target', {}).get('name'))
             if target:
                 self.pending_kill.pop(target.ucid, None)
+                task = self.awaiting_task.pop(target.ucid, None)
+                if task:
+                    task.cancel()
 
         elif data['eventName'] in ['S_EVENT_CRASH', 'S_EVENT_EJECTION']:
             initiator = server.get_player(name=data.get('initiator', {}).get('name'))
