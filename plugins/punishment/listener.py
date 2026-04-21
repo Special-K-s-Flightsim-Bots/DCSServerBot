@@ -1,9 +1,12 @@
 import asyncio
+import luadata
+import os
 import time
 
 from contextlib import suppress
 from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel, \
     ThreadSafeDict, Coalition, Side
+from pathlib import Path
 from plugins.competitive.commands import Competitive
 from psycopg.types.json import Json
 from typing import TYPE_CHECKING, cast
@@ -13,8 +16,6 @@ if TYPE_CHECKING:
 
 _ = get_translation(__name__.split('.')[1])
 
-MAX_MISSILE_LIFETIME = 100  # max lifetime is 100s (Fox 3)
-AVG_MISSILE_SPEED = 1000    # avg speed is 1000 m/s
 
 class PunishmentEventListener(EventListener["Punishment"]):
 
@@ -26,6 +27,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         self.pending_kill: dict[str, tuple[int, dict | None]] = ThreadSafeDict()
         self.disconnected: dict[str, tuple[int, dict | None]] = ThreadSafeDict()
         self.awaiting_task: dict[str, asyncio.TimerHandle] = ThreadSafeDict()
+        self.missile_parameters: dict[str, dict[str, float]] = self.read_missile_parameters()
 
     async def shutdown(self) -> None:
         for tasks in self.pending_forgiveness.values():
@@ -47,6 +49,45 @@ class PunishmentEventListener(EventListener["Punishment"]):
         elif command.name == 'forgive':
             return self.plugin.get_config(server).get('forgive') is not None
         return await super().can_run(command, server, player)
+
+    def read_missile_parameters(self) -> dict:
+        path = os.path.expandvars(self.node.locals.get('DCS').get('installation'))
+        if not path:
+            return {}
+        filename = Path(path) / 'Scripts' / 'scoredata.lua'
+        if not filename.exists():
+            self.log.warning("Could not find scoredata.lua, missile parameters will not be loaded")
+            return {}
+        return luadata.unserialize(filename.read_text(encoding='utf-8'), 'utf-8') or {}
+
+    def missile_threat_score(self, distance_m: float, age_s: float, weapon: str | None) -> float:
+        params = None
+        if weapon:
+            params = self.missile_parameters.get(weapon)
+        if not params:
+            params = {
+                "v_avrg": 1000,
+                "p_dstr": 0.5,
+                "t_aim": 10,
+                "d_max": 20000
+            }
+
+        v_avrg = params["v_avrg"]
+        p_dstr = params["p_dstr"]
+        t_aim = params["t_aim"]
+        d_max = params["d_max"]
+
+        if distance_m <= 0 or age_s < 0:
+            return 0.0
+
+        age_factor = max(0.0, 1.0 - (age_s / max(t_aim, 1e-6)))
+        range_factor = max(0.0, 1.0 - (distance_m / max(d_max, 1e-6)))
+        speed_factor = v_avrg / 1000.0
+
+        return p_dstr * speed_factor * range_factor * age_factor
+
+    def is_missile_hot(self, distance_m: float, age_s: float, weapon: str | None) -> bool:
+        return self.missile_threat_score(distance_m, age_s, weapon) >= 0.15
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
@@ -74,14 +115,20 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
     async def _get_flight_hours(self, player: Player) -> int:
         async with self.apool.connection() as conn:
-            cursor = await conn.execute("SELECT COALESCE(SUM(playtime), 0) FROM mv_statistics WHERE player_ucid = %s",
-                                        (player.ucid, ))
+            cursor = await conn.execute("""
+                SELECT COALESCE(SUM(playtime), 0) 
+                FROM mv_statistics 
+                WHERE player_ucid = %s
+            """, (player.ucid, ))
             return (await cursor.fetchone())[0]
 
     async def _get_punishment_points(self, player: Player) -> int:
         async with self.apool.connection() as conn:
-            cursor = await conn.execute("SELECT COALESCE(SUM(points), 0) FROM pu_events WHERE init_id = %s",
-                                        (player.ucid, ))
+            cursor = await conn.execute("""
+                SELECT COALESCE(SUM(points), 0) 
+                FROM pu_events 
+                WHERE init_id = %s
+            """, (player.ucid, ))
             return (await cursor.fetchone())[0]
 
     async def _provide_forgiveness_window(self, data: dict, window: int, key: tuple[str, str]) -> None:
@@ -501,19 +548,16 @@ class PunishmentEventListener(EventListener["Punishment"]):
                         self.log.debug(f"Punishment: Replacing old hit event as delta_time was {delta_time}.")
                     # ... check the PBK for both shots
                     else:
-                        # we consider missiles that were in the air for more than MAX_MISSILE_LIFETIME as dead
-                        if delta_time < MAX_MISSILE_LIFETIME:
-                            distance_old = s_event.get('distance', 0)
-                            distance_new = data.get('distance', 0)
-                            # calculate the traveled distance
-                            distance_old -= delta_time * AVG_MISSILE_SPEED # assume 1000 m/s as avg speed
-                            # ignore the new shot event if the old missile is still hot and has a higher PBK (closer)
-                            if 0 < distance_old < distance_new:
-                                self.log.debug(f"Punishment: Ignoring new shot event as old distance was {distance_old}.")
-                                return
-                            self.log.debug(f"Punishment: Replacing old shot event as distance was {distance_old}.")
+                        distance_old = s_event.get('distance', 0)
+                        distance_new = data.get('distance', 0)
+                        old_score = self.missile_threat_score(distance_old, delta_time, s_event['weapon']['name'])
+                        new_score = self.missile_threat_score(distance_new, 0, data['weapon']['name'])
+
+                        if new_score < old_score:
+                            self.log.debug("Punishment: Ignoring new shot event as older still has higher PBK.")
+                            return
                         else:
-                            self.log.debug(f"Punishment: Replacing old shot event as delta_time was {delta_time}.")
+                            self.log.debug(f"Punishment: Replacing old shot event as new PBK was higher.")
 
             # we got hit by a player
             elif initiator and s_event:
@@ -551,11 +595,22 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 return
 
             delta_time = int(time.time()) - shot_time
-            # give the kill to the opponent if we were hit earlier or if the shot was shortly before
-            if ((s_event['eventName'] == 'S_EVENT_SHOT' and delta_time < config.get('reslot_window', 60)) or
-                    (s_event['eventName'] == 'S_EVENT_HIT' and delta_time < config.get('survival_window', 300))):
-                # TODO: DCS Bug, change this to immediate, when S_EVENT_KILL is fixed
-                self._schedule_give_kill(server, initiator.ucid, s_event)
+            weapon = s_event.get('weapon', {}).get('name')
+            distance_old = float(s_event.get('distance', 0))
+
+            # give the kill to the opponent only if the shot is still a credible threat
+            if s_event['eventName'] == 'S_EVENT_SHOT':
+                if (
+                    delta_time < config.get('reslot_window', 60)
+                    and self.is_missile_hot(distance_old, delta_time, weapon)
+                ):
+                    # TODO: DCS Bug, change this to immediate, when S_EVENT_KILL is fixed
+                    self._schedule_give_kill(server, initiator.ucid, s_event)
+
+            elif s_event['eventName'] == 'S_EVENT_HIT':
+                if delta_time < config.get('survival_window', 300):
+                    # TODO: DCS Bug, change this to immediate, when S_EVENT_KILL is fixed
+                    self._schedule_give_kill(server, initiator.ucid, s_event)
 
         elif data['eventName'] == 'S_EVENT_TAXIWAY_TAKEOFF':
             player = server.get_player(name=data.get('initiator', {}).get('name'))

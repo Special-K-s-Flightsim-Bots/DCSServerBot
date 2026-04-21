@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from discord import Thread, PrivilegedIntentsRequired
 from discord.abc import PrivateChannel, GuildChannel
 from discord.ext import commands
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Iterable, cast
 
 if TYPE_CHECKING:
     from core import Server, NodeImpl
@@ -33,7 +33,7 @@ class DCSServerBot(commands.Bot):
         self.log = self.node.log
         self.locals = kwargs['locals']
         self.plugins = self.node.plugins
-        self.bus = ServiceRegistry.get(ServiceBus)
+        self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get(ServiceBus))
         self.eventListeners: set[EventListener] = self.bus.eventListeners
         self.audit_channel = None
         self.member: discord.Member | None = None
