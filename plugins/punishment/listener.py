@@ -1,5 +1,6 @@
 import asyncio
 import luadata
+import math
 import os
 import time
 
@@ -58,7 +59,15 @@ class PunishmentEventListener(EventListener["Punishment"]):
         if not filename.exists():
             self.log.warning("Could not find scoredata.lua, missile parameters will not be loaded")
             return {}
-        return luadata.unserialize(filename.read_text(encoding='utf-8'), 'utf-8') or {}
+        params = luadata.unserialize(filename.read_text(encoding='utf-8'), 'utf-8') or {}
+        # estimated values for a PL-12 (not in DCS)
+        params["PL-12"] = {
+            "v_avrg": 1100,
+            "p_dstr": 0.75,
+            "t_aim": 10,
+            "d_max": 30000
+        }
+        return params
 
     def missile_threat_score(self, distance_m: float, age_s: float, weapon: str | None) -> float:
         params = None
@@ -81,8 +90,13 @@ class PunishmentEventListener(EventListener["Punishment"]):
             return 0.0
 
         age_factor = max(0.0, 1.0 - (age_s / max(t_aim, 1e-6)))
-        range_factor = max(0.0, 1.0 - (distance_m / max(d_max, 1e-6)))
         speed_factor = v_avrg / 1000.0
+
+        if distance_m <= d_max:
+            range_factor = 1.0 - 0.5 * (distance_m / max(d_max, 1e-6))
+        else:
+            extra = distance_m - d_max
+            range_factor = 0.5 * math.exp(-extra / max(d_max, 1e-6))
 
         return p_dstr * speed_factor * range_factor * age_factor
 

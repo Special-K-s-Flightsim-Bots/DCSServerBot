@@ -25,7 +25,7 @@ class Main(report.EmbedElement):
             srs_users = srs_plugin.eventlistener.srs_users.get(server.name, {})
         else:
             srs_users = {}
-        players_sorted = sorted(players, key=lambda p: p.display_name)
+        players_sorted = sorted(players, key=lambda p: p.display_name.casefold())
         for player in players_sorted:
             sides[player.side]['names'].append(player.display_name)
             pending = (player.pending and player.sub_slot == 0) and in_game
