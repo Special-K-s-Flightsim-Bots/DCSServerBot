@@ -1364,7 +1364,7 @@ class RestAPI(Plugin):
             return []
         player = srs.eventlistener.srs_users.get(server_name, {}).get(nick)
         if player:
-            return player.get('radios', [])
+            return [x[0] for x in player.get('radios', [])]
         else:
             return []
 
