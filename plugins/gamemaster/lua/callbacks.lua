@@ -32,9 +32,6 @@ end
 
 function gamemaster.onPlayerChangeCoalition(playerID, side)
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: onPlayerChangeCoalition()')
-    if side == 0 then
-        return
-    end
     local msg = {
         command = 'onPlayerChangeCoalition',
         id = playerID,
