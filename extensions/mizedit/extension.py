@@ -67,7 +67,7 @@ class MizEdit(Extension):
         now = datetime.now()
         presets = config['settings']
         if isinstance(presets, dict):
-            tz = config.get('timezone')
+            tz: str | None = config.get('timezone')
             tzinfo = ZoneInfo(tz) if tz else None
             for key, value in presets.items():
                 if utils.is_in_timeframe(now, key, tz=tzinfo):
@@ -76,7 +76,7 @@ class MizEdit(Extension):
             else:
                 # no preset found for the current time, so don't change anything
                 return []
-        elif isinstance(presets, list):
+        elif isinstance(presets, list) and isinstance(presets[0], str):
             presets = random.choice(presets)
         if isinstance(presets, str):
             all_presets = [x.strip() for x in presets.split(',')]
