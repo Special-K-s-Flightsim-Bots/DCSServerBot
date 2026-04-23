@@ -56,37 +56,28 @@ local function is_on_runway(runway, pos, velocity)
     local dx = pos.x - runway.position.x
     local dz = pos.z - runway.position.z
 
-    -- Convert DCS runway.course to a "heading" used for x/z rotation
-    local heading = -runway.course
-
-    local function is_inside_rectangle(px, pz)
-        local proj    = px * math.cos(heading) + pz * math.sin(heading)
-        local lateral = -px * math.sin(heading) + pz * math.cos(heading)
-
-        local length_threshold = runway.length * 1.1 / 2.0 -- add 10% to the runway length as threshold
-        local width_threshold = runway.width * 1.25 / 2.0  -- add 25% to the runway width as threshold
-        return math.abs(proj) <= length_threshold and math.abs(lateral) <= width_threshold
-    end
-
-    if is_inside_rectangle(dx, dz) then
-        return True
-    end
-
     -- If the event is received late and the aircraft is already airborne,
     -- project the position backwards using the velocity vector to estimate
     -- where it crossed the runway plane.
-    if not on_runway and velocity ~= nil and pos.y ~= nil and runway.position.y ~= nil then
+    if velocity ~= nil and pos.y ~= nil and runway.position.y ~= nil and pos.y > runway.position.y then
         local vy = velocity.y or 0
-        if pos.y > runway.position.y and vy > 0 then
+        if vy > 0 then
             local t = (pos.y - runway.position.y) / vy
             dx = dx - (velocity.x or 0) * t
             dz = dz - (velocity.z or 0) * t
-        else
-            return False
         end
     end
 
-    return is_inside_rectangle(dx, dz)
+    -- Convert DCS runway.course to a "heading" used for x/z rotation
+    local heading = -runway.course
+
+    -- Rotate world (dx,dz) into runway-local coordinates
+    local proj    = dx * math.cos(heading) + dz * math.sin(heading)
+    local lateral = -dx * math.sin(heading) + dz * math.cos(heading)
+
+    local length_threshold = runway.length * 1.1 / 2.0 -- add 10% to the runway length as threshold
+    local width_threshold = runway.width * 1.25 / 2.0  -- add 25% to the runway width as threshold
+    return math.abs(proj) <= length_threshold and math.abs(lateral) <= width_threshold
 end
 
 -- Detect whether a velocity vector is a vertical or normal take‑off.
