@@ -69,36 +69,29 @@ class PunishmentEventListener(EventListener["Punishment"]):
         }
         return params
 
-    def missile_threat_score(self, distance_m: float, age_s: float, weapon: str | None) -> float:
+    def missile_threat_score(self, distance_old: float, age_s: float, weapon: str | None) -> float:
         params = None
         if weapon:
             params = self.missile_parameters.get(weapon)
         if not params:
             params = {
                 "v_avrg": 1000,
-                "p_dstr": 0.5,
+                "p_dstr": 0.75,
                 "t_aim": 10,
                 "d_max": 20000
             }
 
         v_avrg = params["v_avrg"]
         p_dstr = params["p_dstr"]
-        t_aim = params["t_aim"]
-        d_max = params["d_max"]
 
-        if distance_m <= 0 or age_s < 0:
+        if distance_old <= 0 or age_s < 0:
             return 0.0
 
-        age_factor = max(0.0, 1.0 - (age_s / max(t_aim, 1e-6)))
-        speed_factor = v_avrg / 1000.0
+        distance_new = distance_old - (age_s * v_avrg)
+        if distance_new <= 0:
+            return 0.0
 
-        if distance_m <= d_max:
-            range_factor = 1.0 - 0.5 * (distance_m / max(d_max, 1e-6))
-        else:
-            extra = distance_m - d_max
-            range_factor = 0.5 * math.exp(-extra / max(d_max, 1e-6))
-
-        return p_dstr * speed_factor * range_factor * age_factor
+        return distance_new * p_dstr
 
     def is_missile_hot(self, distance_m: float, age_s: float, weapon: str | None) -> bool:
         return self.missile_threat_score(distance_m, age_s, weapon) >= 0.15

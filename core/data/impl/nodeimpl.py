@@ -98,7 +98,7 @@ DEFAULT_PLUGINS = [
 
 class NodeImpl(Node):
 
-    def __init__(self, name: str, config_dir: str | None = 'config', restarted: bool = False):
+    def __init__(self, name: str, config_dir: str = 'config', restarted: bool = False):
         super().__init__(name, config_dir, restarted)
         self.node = self  # to be able to address self.node
         self._public_ip: str | None = None
@@ -219,7 +219,7 @@ class NodeImpl(Node):
 
     @override
     @property
-    def public_ip(self) -> str:
+    def public_ip(self) -> str | None:
         return self._public_ip
 
     @override
@@ -361,6 +361,29 @@ class NodeImpl(Node):
         lpool_url = lpool_url.replace('SECRET', quote(lpool_pwd) or '')
         return cpool_url, lpool_url
 
+    async def _check_postgres_version(self, version: str | None = None):
+        latest_pg_version = await utils.pg_get_latest_version(self, version)
+        if version and latest_pg_version:
+            eol_date = datetime.strptime(latest_pg_version['eolDate'], '%Y-%m-%d')
+            latest_minor = latest_pg_version['latestMinor']
+            if eol_date < datetime.now():
+                latest_pg_version = await utils.pg_get_latest_version(self)
+                if latest_pg_version:
+                    recommended = latest_pg_version['major'] + '.' + latest_pg_version['latestMinor']
+                    self.log.warning(
+                        f"Your PostgreSQL version {parse(version).major} is EOL. The latest version is {recommended}."
+                    )
+                else:
+                    self.log.warning(
+                        f"Your PostgreSQL version {parse(version).major} is EOL. "
+                        f"Please upgrade to a supported version."
+                    )
+            elif int(latest_minor) > parse(version).minor:
+                recommended = latest_pg_version['major'] + '.' + latest_pg_version['latestMinor']
+                self.log.warning(
+                    f"Your PostgreSQL version {version} is outdated. Please upgrade to {recommended}."
+                )
+
     async def init_db(self):
         async def check_db(url: str) -> str | None:
             max_attempts = self.locals.get("database", self.config.get('database')).get('max_retries', 10)
@@ -384,8 +407,7 @@ class NodeImpl(Node):
 
         cpool_url, lpool_url = self.get_database_urls()
         version = await check_db(lpool_url)
-        if parse(version).major < 14:
-            self.log.warning("Your PostgreSQL version is outdated. Please upgrade to 14 or higher!")
+        await self._check_postgres_version(version)
 
         if lpool_url != cpool_url:
             await check_db(cpool_url)
@@ -496,7 +518,8 @@ class NodeImpl(Node):
         async with self.cpool.connection() as conn:
             # check if there is an old database already
             cursor = await conn.execute("""
-                SELECT tablename FROM pg_catalog.pg_tables WHERE tablename IN ('cluster', 'nodes', 'files')
+                SELECT tablename FROM pg_catalog.pg_tables 
+                WHERE tablename IN ('cluster', 'nodes', 'files')
             """)
             tables = [x[0] async for x in cursor]
             # initial setup
@@ -674,9 +697,9 @@ class NodeImpl(Node):
                 exit(SHUTDOWN)
         return self.dcs_branch, self.dcs_version
 
-    async def update(self, warn_times: list[int], branch: str | None = None, version: str | None = None) -> int:
+    async def update(self, warn_times: list[int], branch: str = None, version: str = None) -> int:
 
-        async def do_update(branch: str, version: str | None = None) -> int:
+        async def do_update(branch: str, version: str = None) -> int:
             # disable any popup on the remote machine
             if sys.platform == 'win32':
                 startupinfo = subprocess.STARTUPINFO()
