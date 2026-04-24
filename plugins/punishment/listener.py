@@ -1,6 +1,5 @@
 import asyncio
 import luadata
-import math
 import os
 import time
 
@@ -52,10 +51,10 @@ class PunishmentEventListener(EventListener["Punishment"]):
         return await super().can_run(command, server, player)
 
     def read_missile_parameters(self) -> dict:
-        path = os.path.expandvars(self.node.locals.get('DCS').get('installation'))
-        if not path:
+        dcs_installation = self.node.locals.get('DCS').get('installation')
+        if not dcs_installation:
             return {}
-        filename = Path(path) / 'Scripts' / 'scoredata.lua'
+        filename = Path(os.path.expandvars(path)) / 'Scripts' / 'scoredata.lua'
         if not filename.exists():
             self.log.warning("Could not find scoredata.lua, missile parameters will not be loaded")
             return {}
