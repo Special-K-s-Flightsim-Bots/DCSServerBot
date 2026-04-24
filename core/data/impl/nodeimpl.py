@@ -165,6 +165,8 @@ class NodeImpl(Node):
         # Do we have a cluster?
         if len(self.all_nodes) > 1:
             self._claimed_master = await self.heartbeat()
+            if self.is_shutdown.is_set():
+                return
             self.commit_claimed_master()
             self.heartbeat_loop.start()
             self.log.info("- Starting as {} ...".format("Master" if self._master else "Agent"))
@@ -652,22 +654,30 @@ class NodeImpl(Node):
         # We do not want to run an upgrade if we are on a cloud drive. Just restart in this case.
         if not master and self.locals.get('cluster', {}).get('cloud_drive', True):
             self.log.debug("Upgrade: restart agent after master upgrade.")
-            await self.restart()
-        elif await self.upgrade_pending():
+            asyncio.create_task(self.restart())
+            return
+
+        if await self.upgrade_pending():
             if master:
                 self.log.debug("Upgrade: set update pending to TRUE.")
                 await conn.execute("""
-                    UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s
-                """, (self.guild_id, ))
+                    UPDATE cluster
+                    SET update_pending = TRUE
+                    WHERE guild_id = %s
+                """, (self.guild_id,))
+
             self.log.debug("Upgrade: launch update.py")
-            await self.shutdown(UPDATE)
-        elif master:
+            asyncio.create_task(self.shutdown(UPDATE))
+            return
+
+        if master:
             self.log.debug("Upgrade: reset update pending to FALSE.")
             await conn.execute("""
-               UPDATE cluster
-               SET update_pending = FALSE, version = %s
-               WHERE guild_id = %s
-           """, (__version__, self.guild_id))
+                UPDATE cluster
+                SET update_pending = FALSE,
+                    version        = %s
+                WHERE guild_id = %s
+            """, (__version__, self.guild_id))
 
     @override
     async def upgrade(self):
@@ -1264,6 +1274,7 @@ class NodeImpl(Node):
                                 self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
                                                  "Rolling back the cluster version to my version.")
                             await self._upgrade(True, conn)
+                            return True
 
                         await check_nodes()
                         return True
@@ -1278,6 +1289,7 @@ class NodeImpl(Node):
                             self.log.warning(f"This node uses DCSServerBot version {__version__} "
                                              f"where the master uses version {version}!")
                             await self._upgrade(False, conn)
+                            return False
 
                         if (takeover_by and takeover_by == self.name) or config.get('preferred_master', False):
                             await request_takeover()
