@@ -54,7 +54,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         dcs_installation = self.node.locals.get('DCS').get('installation')
         if not dcs_installation:
             return {}
-        filename = Path(os.path.expandvars(path)) / 'Scripts' / 'scoredata.lua'
+        filename = Path(os.path.expandvars(dcs_installation)) / 'Scripts' / 'scoredata.lua'
         if not filename.exists():
             self.log.warning("Could not find scoredata.lua, missile parameters will not be loaded")
             return {}
