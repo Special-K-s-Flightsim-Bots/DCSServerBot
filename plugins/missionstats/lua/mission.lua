@@ -218,6 +218,7 @@ function onMissionEvent(event)
                                 return
                             end
                             msg['eventName'] = 'S_EVENT_TAXIWAY_TAKEOFF'
+                            msg['velocity'] = velocity
                             --[[
                             if msg.initiator.name then
                                 trigger.action.markToAll(marker_num, "Takeoff " .. msg.initiator.name, point, true, '')
