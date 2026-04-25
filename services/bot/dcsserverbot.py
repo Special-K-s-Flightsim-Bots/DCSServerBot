@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import discord
 
 from aiohttp import ClientError
@@ -16,7 +17,19 @@ from typing import TYPE_CHECKING, Iterable, cast
 if TYPE_CHECKING:
     from core import Server, NodeImpl
 
-__all__ = ["DCSServerBot"]
+__all__ = ["DCSServerBot", "IgnoreUnknownInteraction"]
+
+
+class IgnoreUnknownInteraction(logging.Filter):
+    """Drop the noisy 'Unknown interaction' (10062) errors that happen
+    when an autocomplete callback finishes after the 3s interaction
+    token has already expired. There is nothing we can do about them."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        exc = record.exc_info[1] if record.exc_info else None
+        if isinstance(exc, discord.NotFound) and exc.code == 10062:
+            return False  # suppress
+        return True
 
 
 class DCSServerBot(commands.Bot):
