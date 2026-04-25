@@ -27,7 +27,7 @@ discord.py==2.7.1
 eyeD3==0.9.9
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.136.0
+fastapi==0.136.1
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -48,7 +48,7 @@ jsonschema==4.26.0
 lupa==2.8
 
 # Matplotlib: Python 2D plotting library
-matplotlib==3.10.8
+matplotlib==3.10.9
 
 # MGRS: Python library for handling MGRS conversions
 mgrs==1.5.4
@@ -67,7 +67,7 @@ openpyxl>=3.1.5
 pandas>=2.3.3
 
 # Packaging: A core package providing support for PEP 440 version identifiers
-packaging==26.1
+packaging==26.2
 
 # PID: Pidfile implementation by using a Unix PID file
 pid==3.0.4
@@ -118,7 +118,7 @@ sqlparse==0.5.5
 telnetlib3==4.0.2
 
 # TimezoneFinder: Find the right timezones for a given coordinate
-tzfpy[tzdata]==1.2.0
+tzfpy[tzdata]==1.3.0
 
 # tomli: Python TOML parser
 tomli==2.3.0 ; python_version < "3.11"
@@ -132,7 +132,7 @@ upnpy==1.1.8 ; python_version >= "3.14"
 miniupnpc==2.3.3 ; python_version < "3.14"
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.45.0
+uvicorn==0.46.0
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==6.0.0

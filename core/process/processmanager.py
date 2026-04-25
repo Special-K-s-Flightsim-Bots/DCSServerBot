@@ -55,7 +55,8 @@ class ProcessManager:
                 self._watcher_thread.start()
             self._initialized = True
 
-    def _get_physical_topology(self) -> dict[int, dict[int, list[int]]]:
+    @staticmethod
+    def _get_physical_topology() -> dict[int, dict[int, list[int]]]:
         """Groups logical processors by physical CoreIndex and Scheduling Class."""
         cpu_sets = get_cpu_set_information()
         topo = {}
@@ -119,7 +120,7 @@ class ProcessManager:
         self._update_load_metrics()
 
         # 1. BUILD HARDWARE STATE MAP
-        all_physical_units = []
+        all_physical_units: list[dict] = []
         logical_to_unit = {}
         for sched in sorted(self.topology.keys(), reverse=True):
             for c_idx in sorted(self.topology[sched].keys()):
@@ -152,7 +153,7 @@ class ProcessManager:
             for l in info.get('_current_assignments', []):
                 current_owner_map[l] = pid
 
-        temp_units = [dict(u, logical=list(u['logical'])) for u in all_physical_units]
+        temp_units: list[dict] = [dict(u, logical=list(u['logical'])) for u in all_physical_units]
 
         for pid in sorted_pids:
             info = self.managed_processes[pid]

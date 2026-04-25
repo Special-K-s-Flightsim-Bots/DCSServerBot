@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 
 from core.data.node import FatalException
 from core.services.base import Service
 from core.utils.helper import dynamic_import
-from typing import Type, TypeVar, Callable, TYPE_CHECKING, Generic, ClassVar, Any
+from typing import Type, TypeVar, Callable, TYPE_CHECKING, Generic, ClassVar, Any, cast
 
 if TYPE_CHECKING:
     from core import NodeImpl
@@ -18,6 +19,7 @@ T = TypeVar("T", bound=Service)
 
 class ServiceRegistry(Generic[T]):
     _instance: ClassVar[ServiceRegistry | None] = None
+    _lock = threading.Lock()    # make it thread-safe
     _node: ClassVar[NodeImpl | None] = None
     _registry: ClassVar[dict[Any, Any]] = {}
     _master_only: ClassVar[set[Any]] = set()
@@ -26,11 +28,14 @@ class ServiceRegistry(Generic[T]):
     _log: ClassVar[logging.Logger | None] = None
 
     def __new__(cls, node: NodeImpl) -> ServiceRegistry[T]:
-        if cls._instance is None:
-            cls._instance = super(ServiceRegistry, cls).__new__(cls)
-            cls._node = node
-            cls._log = logging.getLogger(f"{cls.__module__}.{cls.__name__}")
-        return cls._instance
+        if not cls._instance:
+            with cls._lock:  # Double-checked locking pattern
+                if not cls._instance:
+                    cls._instance = super(ServiceRegistry, cls).__new__(cls)
+                    cls._node = node
+                    cls._log = logging.getLogger(f"{cls.__module__}.{cls.__name__}")
+
+        return cast(ServiceRegistry[T], cls._instance)
 
     async def __aenter__(self):
         await self.run()
