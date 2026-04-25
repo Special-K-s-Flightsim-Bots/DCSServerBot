@@ -51,7 +51,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         return await super().can_run(command, server, player)
 
     def read_missile_parameters(self) -> dict:
-        dcs_installation = self.node.locals.get('DCS').get('installation')
+        dcs_installation = self.node.locals.get('DCS', {}).get('installation')
         if not dcs_installation:
             return {}
         filename = Path(os.path.expandvars(dcs_installation)) / 'Scripts' / 'scoredata.lua'
