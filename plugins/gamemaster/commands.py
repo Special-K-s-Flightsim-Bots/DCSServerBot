@@ -34,12 +34,11 @@ async def scriptfile_autocomplete(interaction: discord.Interaction, current: str
             return []
         base_dir = os.path.join(await server.get_missions_dir(), 'Scripts')
         exp_base, file_list = await server.node.list_directory(base_dir, pattern='*.lua', traverse=True)
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=os.path.relpath(x, exp_base), value=os.path.relpath(x, exp_base))
+        return [
+            app_commands.Choice[str](name=os.path.relpath(x, exp_base), value=os.path.relpath(x, exp_base))
             for x in file_list
             if not current or current.casefold() in x.casefold()
-        ]
-        return choices[:25]
+        ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -55,12 +54,13 @@ async def recipient_autocomplete(interaction: discord.Interaction, current: str)
                 FROM players p, messages m
                 WHERE p.ucid = m.player_ucid
                 AND (name ILIKE %s OR ucid ILIKE %s)
+                ORDER BY m.time DESC
+                LIMIT 25
             """, ('%' + current + '%', '%' + current + '%'))
-            choices: list[app_commands.Choice[int]] = [
-                app_commands.Choice(name=f"{row[0]} (ucid={row[1]})", value=row[1])
+            return [
+                app_commands.Choice[int](name=f"{row[0]} (ucid={row[1]})", value=row[1])
                 async for row in cursor
             ]
-            return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -77,12 +77,12 @@ async def campaign_servers_autocomplete(interaction: discord.Interaction, _curre
                 WHERE campaign_id IN (
                     SELECT id FROM campaigns WHERE name = %s 
                 ) 
+                LIMIT 25
             """, (campaign_name, ))
-            choices: list[app_commands.Choice[str]] = [
-                app_commands.Choice(name=row[0], value=row[0])
+            return [
+                app_commands.Choice[str](name=row[0], value=row[0])
                 async for row in cursor
             ]
-            return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []

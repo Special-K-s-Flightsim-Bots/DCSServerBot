@@ -373,7 +373,7 @@ function mission.onPlayerChangeSlot(id)
     msg.group_name = Sim.getUnitProperty(msg.slot, Sim.UNIT_GROUPNAME)
     msg.group_id = Sim.getUnitProperty(msg.slot, Sim.UNIT_GROUP_MISSION_ID)
     msg.unit_callsign = Sim.getUnitProperty(msg.slot, Sim.UNIT_CALLSIGN)
-    msg.unit_display_name = Sim.getUnitTypeAttribute(Sim.getUnitType(msg.slot), "DisplayName")
+    msg.unit_display_name = Sim.getUnitTypeAttribute(Sim.getUnitType(msg.slot), "DisplayName") or msg.unit_name
 
     -- DCS MC bug workaround
     if msg.sub_slot > 0 then

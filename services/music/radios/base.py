@@ -40,7 +40,7 @@ class Radio(ABC):
         self._playlist = None
         # TODO: async
         self.playlist = self._get_active_playlist()
-        self._reset_index()
+        self.idx = self._reset_index()
 
     def _get_active_playlist(self) -> str | None:
         with self.pool.connection() as conn:
@@ -79,10 +79,10 @@ class Radio(ABC):
                 """, (self.server.name, self.name, playlist))
             self._playlist = playlist
             self.songs = self._read_playlist()
-            self._reset_index()
+            self.idx = self._reset_index()
 
-    def _reset_index(self) -> None:
-        self.idx = 0 if (self._mode == Mode.REPEAT or not self.songs) else randrange(len(self.songs))
+    def _reset_index(self) -> int:
+        return 0 if (self._mode == Mode.REPEAT or not self.songs) else randrange(len(self.songs))
 
     @property
     def config(self) -> dict:

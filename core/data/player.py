@@ -80,8 +80,8 @@ class Player(DataObject):
                 AND COALESCE(b.banned_until, (now() AT TIME ZONE 'utc')) >= (now() AT TIME ZONE 'utc')
             """, (self.server.name, self.ucid))
             # existing member found?
-            if cursor.rowcount == 1:
-                row = cursor.fetchone()
+            row = cursor.fetchone()
+            if row:
                 self._member = self.bot.get_member_by_ucid(self.ucid)
                 if self._member:
                     # special handling for discord-less bots

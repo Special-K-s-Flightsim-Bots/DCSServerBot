@@ -2,6 +2,7 @@ import discord
 
 from core.data.node import Node
 from discord import app_commands
+from psycopg import sql
 from psycopg.rows import dict_row
 
 from .discord import check_roles
@@ -17,12 +18,15 @@ _all_ = [
 
 async def squadron_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     async with interaction.client.apool.connection() as conn:
-        cursor = await conn.execute("SELECT id, name FROM squadrons WHERE name ILIKE %s", ('%' + current + '%', ))
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=row[1], value=row[0])
+        cursor = await conn.execute("""
+            SELECT id, name FROM squadrons 
+            WHERE name ILIKE %s
+            LIMIT 25
+        """, ('%' + current + '%', ))
+        return [
+            app_commands.Choice[int](name=row[1], value=row[0])
             async for row in cursor
         ]
-        return choices[:25]
 
 
 async def squadron_autocomplete_admin(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -30,21 +34,27 @@ async def squadron_autocomplete_admin(interaction: discord.Interaction, current:
         # DCS Admins can access any squadron
         if not check_roles(interaction.client.roles["DCS Admin"], interaction.user):
             ucid = await interaction.client.get_ucid_by_member(interaction.user)
-            sql = f"""
+            query = sql.SQL("""
                 SELECT DISTINCT s.id, s.name
                 FROM squadrons s JOIN squadron_members m ON s.id = m.squadron_id
                 WHERE m.player_ucid = '{ucid}' AND m.admin IS TRUE
                 AND s.name ILIKE %s
-                ORDER BY s.name LIMIT 25
-                  """
+                ORDER BY s.name 
+                LIMIT 25
+            """).format(ucid=ucid)
         else:
-            sql = "SELECT id, name FROM squadrons WHERE name ILIKE %s ORDER BY name LIMIT 25"
-        cursor = await conn.execute(sql, ('%' + current + '%', ))
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=row[1], value=row[0])
+            query = sql.SQL("""
+                SELECT id, name 
+                FROM squadrons 
+                WHERE name ILIKE %s 
+                ORDER BY name 
+                LIMIT 25
+            """)
+        cursor = await conn.execute(query, ('%' + current + '%', ))
+        return [
+            app_commands.Choice[int](name=row[1], value=row[0])
             async for row in cursor
         ]
-        return choices
 
 
 def get_squadron(node: Node, *, name: str | None = None, squadron_id: int | None = None) -> dict | None:
@@ -69,15 +79,17 @@ async def squadron_users_autocomplete(interaction: discord.Interaction, current:
         if not squadron_id:
             return []
         async with interaction.client.apool.connection() as conn:
-            choices: list[app_commands.Choice[str]] = [
-                app_commands.Choice(name=row[0], value=row[1])
+            return [
+                app_commands.Choice[str](name=row[0], value=row[1])
                 async for row in await conn.execute("""
-                    SELECT p.name, s.player_ucid FROM squadron_members s, players p
+                    SELECT p.name, s.player_ucid 
+                    FROM squadron_members s, players p
                     WHERE s.player_ucid = p.ucid AND s.squadron_id = %s 
-                    AND p.name ILIKE %s 
+                    AND p.name ILIKE %s
+                    ORDER BY p.last_seen DESC
+                    LIMIT 25
                 """, (squadron_id, f'%{current}%'))
             ]
-        return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []

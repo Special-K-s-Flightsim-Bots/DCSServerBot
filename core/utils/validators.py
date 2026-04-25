@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 import logging
 import os
@@ -12,13 +14,13 @@ from pykwalify import partial_schemas
 from pykwalify.core import Core
 from pykwalify.errors import SchemaError, CoreError, PyKwalifyException, UnknownError
 from pykwalify.rule import Rule
-from typing import Any, Type
+from typing import Any, Type, ClassVar, cast
 
 logger = logging.getLogger(__name__)
 
 Text = int | str
 
-_types: dict[Type, str] = {
+_types: dict[Any, str] = {
     str: "str",
     int: "int",
     float: "float",
@@ -64,7 +66,7 @@ else:
 
 
 class NodeData:
-    _instance: 'NodeData | None' = None
+    _instance: ClassVar[NodeData | None] = None
     _lock = threading.Lock()    # make it thread-safe
 
     def __new__(cls, *args, **kwargs):
@@ -72,6 +74,8 @@ class NodeData:
             with cls._lock:  # Double-checked locking pattern
                 if not cls._instance:
                     cls._instance = super(NodeData, cls).__new__(cls)
+                    if not cls._instance:
+                        return None
                     cls._instance._initialize()
         return cls._instance
 
@@ -117,7 +121,7 @@ class NodeData:
         return self._all_instances
 
 def get_node_data() -> NodeData:
-    return NodeData()
+    return cast(NodeData, NodeData())
 
 def _is_valid(path: str) -> bool:
     if path and path.split("/")[1] in [DEFAULT_TAG, COMMAND_LINE_ARGS.node, 'backups', 'commands']:

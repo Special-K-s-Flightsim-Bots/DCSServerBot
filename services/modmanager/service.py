@@ -6,6 +6,9 @@ import zipfile
 
 from aiohttp import ClientSession, ClientResponseError
 from contextlib import suppress
+
+from psycopg import sql
+
 from core import ServiceRegistry, Service, Server, Status, ServiceInstallationError, utils, proxy, Node
 from enum import Enum
 from filecmp import cmp
@@ -273,10 +276,11 @@ class ModManagerService(Service):
         else:
             column = 'node'
         async with self.apool.connection() as conn:
-            cursor = await conn.execute(f"""
+            query = sql.SQL("""
                 SELECT version FROM mm_packages 
                 WHERE {column} = %s AND package_name = %s AND folder = %s
-            """, (reference.name, package_name, folder.value))
+            """).format(column=sql.Identifier(column))
+            cursor = await conn.execute(query, (reference.name, package_name, folder.value))
             return (await cursor.fetchone())[0] if cursor.rowcount == 1 else None
 
     async def recreate_install_log(self, reference: Server | Node, folder: Folder, package_name: str, version: str,

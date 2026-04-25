@@ -49,7 +49,7 @@ async def logistics_task_autocomplete(interaction: discord.Interaction, current:
                     ORDER BY t.created_at DESC LIMIT 25
                 """, ('%' + current + '%', '%' + current + '%', '%' + current + '%'))
             return [
-                app_commands.Choice(
+                app_commands.Choice[int](
                     name=f"#{row[0]} - {row[1][:30]} -> {row[2]} ({row[3]})",
                     value=row[0]
                 )
@@ -95,7 +95,7 @@ async def pending_task_autocomplete(interaction: discord.Interaction, current: s
                     ORDER BY t.created_at LIMIT 25
                 """, ('%' + current + '%', '%' + current + '%', '%' + current + '%'))
             return [
-                app_commands.Choice(
+                app_commands.Choice[int](
                     name=f"#{row[0]} - {row[1][:25]} (by {row[3]})",
                     value=row[0]
                 )
@@ -139,7 +139,7 @@ async def approved_task_autocomplete(interaction: discord.Interaction, current: 
                     ORDER BY t.created_at DESC LIMIT 25
                 """, ('%' + current + '%', '%' + current + '%', '%' + current + '%'))
             return [
-                app_commands.Choice(
+                app_commands.Choice[int](
                     name=f"#{row[0]} - {row[1][:20]} ({row[2]} -> {row[3]})",
                     value=row[0]
                 )
@@ -161,7 +161,7 @@ async def player_autocomplete(interaction: discord.Interaction, current: str) ->
                 LIMIT 25
             """, ('%' + current + '%',))
             return [
-                app_commands.Choice(name=row[0], value=row[1])
+                app_commands.Choice[str](name=row[0], value=row[1])
                 async for row in cursor
             ]
     except Exception as e:

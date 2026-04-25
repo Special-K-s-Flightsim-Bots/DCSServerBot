@@ -1,9 +1,12 @@
 import asyncio
+import luadata
+import os
 import time
 
 from contextlib import suppress
 from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel, \
     ThreadSafeDict, Coalition, Side
+from pathlib import Path
 from plugins.competitive.commands import Competitive
 from psycopg.types.json import Json
 from typing import TYPE_CHECKING, cast
@@ -24,6 +27,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         self.pending_kill: dict[str, tuple[int, dict | None]] = ThreadSafeDict()
         self.disconnected: dict[str, tuple[int, dict | None]] = ThreadSafeDict()
         self.awaiting_task: dict[str, asyncio.TimerHandle] = ThreadSafeDict()
+        self.missile_parameters: dict[str, dict[str, float]] = self.read_missile_parameters()
 
     async def shutdown(self) -> None:
         for tasks in self.pending_forgiveness.values():
@@ -45,6 +49,51 @@ class PunishmentEventListener(EventListener["Punishment"]):
         elif command.name == 'forgive':
             return self.plugin.get_config(server).get('forgive') is not None
         return await super().can_run(command, server, player)
+
+    def read_missile_parameters(self) -> dict:
+        dcs_installation = self.node.locals.get('DCS').get('installation')
+        if not dcs_installation:
+            return {}
+        filename = Path(os.path.expandvars(dcs_installation)) / 'Scripts' / 'scoredata.lua'
+        if not filename.exists():
+            self.log.warning("Could not find scoredata.lua, missile parameters will not be loaded")
+            return {}
+        params = luadata.unserialize(filename.read_text(encoding='utf-8'), 'utf-8') or {}
+        # estimated values for a PL-12 (not in DCS)
+        params["PL-12"] = {
+            "v_avrg": 1100,
+            "p_dstr": 0.75,
+            "t_aim": 10,
+            "d_max": 30000
+        }
+        return params
+
+    def missile_threat_score(self, distance_old: float, age_s: float, weapon: str | None) -> float:
+        params = None
+        if weapon:
+            params = self.missile_parameters.get(weapon)
+        if not params:
+            params = {
+                "v_avrg": 1000,
+                "p_dstr": 0.75,
+                "t_aim": 10,
+                "d_max": 20000
+            }
+
+        v_avrg = params["v_avrg"]
+        p_dstr = params["p_dstr"]
+
+        if distance_old <= 0 or age_s < 0:
+            return 0.0
+
+        distance_new = distance_old - (age_s * v_avrg)
+        if distance_new <= 0:
+            return 0.0
+
+        return distance_new * p_dstr
+
+    def is_missile_hot(self, distance_m: float, age_s: float, weapon: str | None) -> bool:
+        return self.missile_threat_score(distance_m, age_s, weapon) >= 0.15
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
@@ -72,14 +121,20 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
     async def _get_flight_hours(self, player: Player) -> int:
         async with self.apool.connection() as conn:
-            cursor = await conn.execute("SELECT COALESCE(SUM(playtime), 0) FROM mv_statistics WHERE player_ucid = %s",
-                                        (player.ucid, ))
+            cursor = await conn.execute("""
+                SELECT COALESCE(SUM(playtime), 0) 
+                FROM mv_statistics 
+                WHERE player_ucid = %s
+            """, (player.ucid, ))
             return (await cursor.fetchone())[0]
 
     async def _get_punishment_points(self, player: Player) -> int:
         async with self.apool.connection() as conn:
-            cursor = await conn.execute("SELECT COALESCE(SUM(points), 0) FROM pu_events WHERE init_id = %s",
-                                        (player.ucid, ))
+            cursor = await conn.execute("""
+                SELECT COALESCE(SUM(points), 0) 
+                FROM pu_events 
+                WHERE init_id = %s
+            """, (player.ucid, ))
             return (await cursor.fetchone())[0]
 
     async def _provide_forgiveness_window(self, data: dict, window: int, key: tuple[str, str]) -> None:
@@ -114,8 +169,8 @@ class PunishmentEventListener(EventListener["Punishment"]):
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
 
-        initiator = data['initiator']
-        target = data.get('target')
+        initiator: Player = data['initiator']
+        target: Player | None = data.get('target')
         penalty = next(item for item in config['penalties'] if item['event'] == data['eventName'])
 
         # do we have to fire an immediate action?
@@ -127,7 +182,8 @@ class PunishmentEventListener(EventListener["Punishment"]):
             async with self.apool.connection() as conn:
                 await conn.execute("""
                     INSERT INTO pu_events (init_id, target_id, server_name, event, points) 
-                    VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING
+                    VALUES (%s, %s, %s, %s, %s) 
+                    ON CONFLICT DO NOTHING
                 """, (initiator.ucid, target.ucid if target else None, data['server_name'], data['eventName'],
                       data['points']))
             await self.plugin.trigger.publish({
@@ -198,6 +254,58 @@ class PunishmentEventListener(EventListener["Punishment"]):
             else:
                 asyncio.create_task(self._punish(data.copy()))
 
+    def _recreate_events(self, server: Server, data: dict, evt: dict):
+        initiator: Player | None = server.get_player(id=data['arg1'])
+        target: Player | None = server.get_player(name=evt['target']['name'])
+        if not initiator:
+            self.log.debug("Punishment: failed to recreate S_EVENT_HIT/S_EVENT_KILL for target {}".format(target.name))
+            return
+
+        # preserve the old event (to avoid modifying the original event)
+        s_event = evt.copy()
+
+        # ensure that we have the correct initiator
+        if initiator.name != evt.get('initiator', {}).get('name'):
+            # replace the initiator with the correct one
+            s_event['initiator'] = {
+                "name": initiator.name,
+                "coalition": initiator.side.value,
+                "type": "UNIT",
+                "category": 0, # TODO: we can only guess it was an airplane at this stage
+                "unit_type": initiator.unit_type,
+                "unit_name": initiator.unit_name,
+                "group_name": initiator.group_name
+            }
+
+        # clear fields that are no longer relevant
+        s_event['initiator'].pop('position', None)
+        s_event['target'].pop('position', None)
+        s_event.pop('distance', None)
+
+        # generate S_EVENT_HIT
+        if s_event['eventName'] == 'S_EVENT_SHOT':
+            self.log.debug("Punishment: autocreating missing S_EVENT_HIT for player {} vs {}".format(
+                initiator.name, target.name)
+            )
+            s_event |= {
+                "eventName": "S_EVENT_HIT",
+                "id": 28,
+                "comment": "auto-generated"
+            }
+            asyncio.create_task(self.bus.send_to_node(s_event))
+
+        # generate S_EVENT_KILL
+        if s_event['eventName'] == 'S_EVENT_HIT':
+            self.log.debug("Punishment: autocreating missing S_EVENT_KILL for player {} vs {}".format(
+                initiator.name, target.name)
+            )
+            s_event |= {
+                "eventName": "S_EVENT_KILL",
+                "id": 28,
+                "comment": "auto-generated"
+            }
+            asyncio.create_task(self.bus.send_to_node(s_event))
+
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict):
         config = self.get_config(server)
@@ -250,13 +358,19 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 else:
                     evt['eventName'] = 'kill'
                 asyncio.create_task(self._check_punishment(evt))
+
             # remove pending kills
             if target:
-                self.pending_kill.pop(target.ucid, None)
+                shot_time, evt = self.pending_kill.pop(target.ucid, (-1, None))
                 task = self.awaiting_task.pop(target.ucid, None)
                 if task:
+                    # Workaround for DCS bug with missing S_EVENT_KILL events
                     task.cancel()
-                    self.log.debug(f"Missing S_EVENT_KILL for player {initiator.name} vs {target.name}, ignoring")
+                    if evt:
+                        self._recreate_events(server, data, evt)
+                    else:
+                        # there was not even a recent shot onto this player
+                        self.log.debug(f"Missing S_EVENT_KILL for player {initiator.name} vs {target.name}, ignoring")
 
         elif data['eventName'] == 'disconnect':
             shot_time, evt = self.pending_kill.pop(initiator.ucid, (-1, None))
@@ -298,6 +412,10 @@ class PunishmentEventListener(EventListener["Punishment"]):
             handle.cancel()
 
     async def _give_kill(self, server: Server, s_event: dict) -> None:
+        # clear fields that are no longer relevant
+        s_event['initiator'].pop('position', None)
+        s_event['target'].pop('position', None)
+        s_event.pop('distance', None)
         # create the pseudo-event "S_EVENT_KILL"
         s_event |= {
             "eventName": "S_EVENT_KILL",
@@ -411,6 +529,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 self.pending_kill[initiator.ucid] = (-1, None)
 
         elif data['eventName'] in ['S_EVENT_SHOT', 'S_EVENT_HIT']:
+            initiator = server.get_player(name=data.get('initiator', {}).get('name'))
             target = server.get_player(name=data.get('target', {}).get('name'))
             # ignore teamkills
             if (
@@ -418,17 +537,46 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     data.get('target', {}).get('coalition', 0)
             ):
                 return
+
             # we only care for real players here
-            if target and target.ucid in self.pending_kill:
-                # we do not overwrite hit events
-                if data['eventName'] == 'S_EVENT_SHOT':
-                    shot_time, s_event = self.pending_kill.get(target.ucid, (-1, None))
-                    if shot_time > 0 and s_event.get('eventName') == 'S_EVENT_HIT':
-                        delta_time = int(time.time()) - shot_time
-                        # we do not overwrite hit events if they are still hot
+            if not target or target.ucid not in self.pending_kill:
+                return
+
+            shot_time, s_event = self.pending_kill.get(target.ucid, (-1, None))
+            if data['eventName'] == 'S_EVENT_SHOT':
+                # if there is an older shot ...
+                if shot_time > 0 and s_event:
+                    delta_time = int(time.time()) - shot_time
+                    if s_event.get('eventName') == 'S_EVENT_HIT':
+                        # we do not overwrite hit events with shot events if they are still hot
                         if delta_time < config.get('survival_window', 300):
                             return
-                self.pending_kill[target.ucid] = (int(time.time()), data)
+                        self.log.debug(f"Punishment: Replacing old hit event as delta_time was {delta_time}.")
+                    # ... check the PBK for both shots
+                    else:
+                        distance_old = s_event.get('distance', 0)
+                        distance_new = data.get('distance', 0)
+                        old_score = self.missile_threat_score(distance_old, delta_time, s_event['weapon']['name'])
+                        new_score = self.missile_threat_score(distance_new, 0, data['weapon']['name'])
+
+                        if new_score < old_score:
+                            self.log.debug("Punishment: Ignoring new shot event as older still has higher PBK.")
+                            return
+                        else:
+                            self.log.debug(f"Punishment: Replacing old shot event as new PBK was higher.")
+
+            # we got hit by a player
+            elif initiator and s_event:
+                # check how good our prediction was
+                orig_name = s_event.get('initiator', {}).get('name')
+                if orig_name == initiator.name:
+                    self.log.debug("Punishment: Good prediction, shot hit the player.")
+                elif orig_name:
+                    self.log.debug(f"Punishment: Bad prediction: {initiator.name} hit player {target.name} "
+                                   f"where player {orig_name} was predicted.")
+
+            # store the shot with the highest PBK or the latest hit event
+            self.pending_kill[target.ucid] = (int(time.time()), data)
 
         elif data['eventName'] == 'S_EVENT_LAND':
             initiator = server.get_player(name=data.get('initiator', {}).get('name'))
@@ -439,6 +587,9 @@ class PunishmentEventListener(EventListener["Punishment"]):
             target = server.get_player(name=data.get('target', {}).get('name'))
             if target:
                 self.pending_kill.pop(target.ucid, None)
+                task = self.awaiting_task.pop(target.ucid, None)
+                if task:
+                    task.cancel()
 
         elif data['eventName'] in ['S_EVENT_CRASH', 'S_EVENT_EJECTION']:
             initiator = server.get_player(name=data.get('initiator', {}).get('name'))
@@ -450,11 +601,22 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 return
 
             delta_time = int(time.time()) - shot_time
-            # give the kill to the opponent if we were hit earlier or if the shot was shortly before
-            if ((s_event['eventName'] == 'S_EVENT_SHOT' and delta_time < config.get('reslot_window', 60)) or
-                    (s_event['eventName'] == 'S_EVENT_HIT' and delta_time < config.get('survival_window', 300))):
-                # TODO: DCS Bug, change this to immediate, when S_EVENT_KILL is fixed
-                self._schedule_give_kill(server, initiator.ucid, s_event)
+            weapon = s_event.get('weapon', {}).get('name')
+            distance_old = float(s_event.get('distance', 0))
+
+            # give the kill to the opponent only if the shot is still a credible threat
+            if s_event['eventName'] == 'S_EVENT_SHOT':
+                if (
+                    delta_time < config.get('reslot_window', 60)
+                    and self.is_missile_hot(distance_old, delta_time, weapon)
+                ):
+                    # TODO: DCS Bug, change this to immediate, when S_EVENT_KILL is fixed
+                    self._schedule_give_kill(server, initiator.ucid, s_event)
+
+            elif s_event['eventName'] == 'S_EVENT_HIT':
+                if delta_time < config.get('survival_window', 300):
+                    # TODO: DCS Bug, change this to immediate, when S_EVENT_KILL is fixed
+                    self._schedule_give_kill(server, initiator.ucid, s_event)
 
         elif data['eventName'] == 'S_EVENT_TAXIWAY_TAKEOFF':
             player = server.get_player(name=data.get('initiator', {}).get('name'))

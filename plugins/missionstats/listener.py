@@ -3,7 +3,7 @@ import asyncio
 from core import EventListener, PersistentReport, Server, Coalition, Channel, event, Report, get_translation, \
     ThreadSafeDict, Side
 from discord.ext import tasks
-from typing import TYPE_CHECKING, Counter
+from typing import TYPE_CHECKING, Counter, Any
 
 if TYPE_CHECKING:
     from .commands import MissionStatistics
@@ -117,7 +117,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
         if data['eventName'] == 'S_EVENT_BASE_CAPTURED':
             pass
 
-        def get_value(values: dict, index1, index2):
+        def get_value(values: dict, index1, index2) -> Any | None:
             if index1 not in values:
                 return None
             if index2 not in values[index1]:
@@ -135,15 +135,15 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
         target_type = get_value(data, 'target', 'type')
         if (config.get('persist_ai_statistics', False) or (init_player and init_type == 'UNIT') or
                 (target_player and target_type == 'UNIT')):
-            init_type = get_value(data, 'initiator', 'type')
+            init_type: str | None = get_value(data, 'initiator', 'type')
             if init_type:
-                init_cat = self.CATEGORY[init_type].get(
+                init_cat: str | None = self.CATEGORY[init_type].get(
                     get_value(data, 'initiator', 'category'), 'Unknown')
             else:
                 init_cat = None
-            target_type = get_value(data, 'target', 'type')
+            target_type: str | None = get_value(data, 'target', 'type')
             if target_type:
-                target_cat = self.CATEGORY[target_type].get(
+                target_cat: str | None = self.CATEGORY[target_type].get(
                     get_value(data, 'target', 'category'), 'Unknown')
             else:
                 target_cat = None

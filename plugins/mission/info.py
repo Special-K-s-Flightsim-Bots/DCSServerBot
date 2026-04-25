@@ -3,6 +3,7 @@ import discord
 from core import report, Side, Player, DataObjectFactory, Member, utils
 from datetime import datetime, timezone
 from psycopg.rows import dict_row
+from plugins.mission.players import UNIT_TYPES
 from plugins.srs.commands import SRS
 from typing import cast
 
@@ -145,7 +146,7 @@ class ServerInfo(report.EmbedElement):
             await report.Ruler(self.env).render(header='Current Activity', ruler_length=ruler_length)
             self.add_field(name='Active on Server', value=player.server.display_name)
             self.add_field(name='DCS Name', value=player.display_name)
-            self.add_field(name='Slot', value=player.unit_type if player.slot != -1 else 'Spectator')
+            self.add_field(name='Slot', value=player.unit_type if player.side != Side.NEUTRAL else 'Spectator')
 
 
 class Footer(report.EmbedElement):
@@ -183,8 +184,7 @@ class PlayerInfo(report.EmbedElement):
                        value='Blue' if player.side == Side.BLUE else 'Red' if player.side == Side.RED else '_ _')
         if player.slot != -1:
             self.add_field(name="Slot", value=player.unit_callsign)
-
-            self.add_field(name="Module", value=player.unit_display_name)
+            self.add_field(name="Module", value=UNIT_TYPES.get(player.unit_type, player.unit_display_name))
             srs_plugin = cast(SRS, self.bot.cogs.get('SRS'))
             if srs_plugin:
                 srs_users = srs_plugin.eventlistener.srs_users.get(player.server.name, {})

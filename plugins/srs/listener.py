@@ -219,6 +219,8 @@ class SRSEventListener(EventListener["SRS"]):
                 atc_freqs = airbase['frequencyList']
             else:
                 for idx, freq in enumerate(atc_freqs):
+                    if not isinstance(freq, str):
+                        continue
                     if freq.endswith('AM'):
                         atc_freqs[idx] = (int(freq[:-2]) * 1000, 0)
                     elif freq.endswith('FM'):

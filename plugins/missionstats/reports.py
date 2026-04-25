@@ -377,14 +377,12 @@ class Nemesis(report.EmbedElement):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(sql, {"ucid": ucid})
-                if cursor.rowcount == 0:
+                row: dict | None = await cursor.fetchone()
+                if not row:
                     if flt.period and flt.period != 'all':
                         self.embed.description = "You have not been killed by anybody in this period."
                     else:
                         self.embed.description = "You have not been killed by anybody yet."
-                    return
-                row: dict | None = await cursor.fetchone()
-                if not row:
                     return
                 for k,v in row.items():
                     self.embed.add_field(name=k, value=v)
@@ -425,14 +423,12 @@ class Antagonist(report.EmbedElement):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(sql, {"ucid": ucid})
-                if cursor.rowcount == 0:
+                row: dict | None = await cursor.fetchone()
+                if not row:
                     if flt.period and flt.period != 'all':
                         self.embed.description = "You have not killed anybody in this period."
                     else:
                         self.embed.description = "You have not killed anybody yet."
-                    return
-                row: dict | None = await cursor.fetchone()
-                if not row:
                     return
                 for k,v in row.items():
                     self.embed.add_field(name=k, value=v)

@@ -206,8 +206,8 @@ class Cloud(Plugin[CloudListener]):
                     query += ' WHERE discord_id = %s'
                     member = member.id
                 await conn.execute(query, (member, ))
-            elif linked_users is True:
-                query += " WHERE discord_id <> '-1'"
+            elif linked_users:
+                query += " WHERE discord_id <> -1"
             await conn.execute(query)
         await interaction.response.send_message(_('Resync with cloud triggered.'), ephemeral=ephemeral)
 
@@ -455,10 +455,10 @@ class Cloud(Plugin[CloudListener]):
                     SELECT count(distinct node) as num_bots, count(distinct instance) as num_servers 
                     FROM instances WHERE last_seen > (DATE(now() AT TIME ZONE 'utc') - interval '1 week')
                 """)
-                if cursor.rowcount == 0:
+                row = await cursor.fetchone()
+                if not row:
                     num_bots = num_servers = 0
                 else:
-                    row = await cursor.fetchone()
                     num_bots = row[0]
                     num_servers = row[1]
         try:

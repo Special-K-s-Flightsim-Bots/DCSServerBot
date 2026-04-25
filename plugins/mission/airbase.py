@@ -13,7 +13,7 @@ class Info(report.EmbedElement):
 
     @staticmethod
     def render_liquids(embed: discord.Embed, data: dict):
-        warehouse = data.get('warehouse')
+        warehouse: dict = data.get('warehouse', {})
 
         if not warehouse['liquids']:
             embed.add_field(name=_('Liquids'), value="```n/a```", inline=False)
@@ -30,7 +30,7 @@ class Info(report.EmbedElement):
 
     @staticmethod
     def render_weapons(embed: discord.Embed, data: dict):
-        warehouse = data.get('warehouse')
+        warehouse: dict = data.get('warehouse', {})
 
         if data['unlimited']['weapon']:
             embed.add_field(name=_('Weapons'), value="```" + _("unlimited") + "```", inline=False)
@@ -132,7 +132,7 @@ class Info(report.EmbedElement):
 
     @staticmethod
     def render_aircraft(embed: discord.Embed, data: dict):
-        warehouse = data.get('warehouse')
+        warehouse: dict = data.get('warehouse', {})
 
         if data['unlimited']['aircraft']:
             embed.add_field(name=_('Aircraft'), value="```" + _("unlimited") + "```", inline=False)

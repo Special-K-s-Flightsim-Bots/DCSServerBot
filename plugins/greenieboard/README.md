@@ -104,6 +104,7 @@ DEFAULT:
     NC: {"rating": 0, "grade": "No count", "color": "#FFFFFF", "legend": "NO COUNT"}
     _n: {color: '#000000', legend: 'Night pass'}
   credits: true                   # People should get credits for their landings (see CreditSystem)
+  min_flight_time: 600            # Minimum flight time in seconds to be considered as valid for the board (default: 600)
   Moose.AIRBOSS:
     basedir: airboss              # Trapsheets will be stored in Saved Games\<instance>\airboss
   FunkMan:                        # if you want to use the FunkMan integration

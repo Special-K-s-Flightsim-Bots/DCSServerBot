@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import aiohttp
 import asyncio
 import base64
 import builtins
+import certifi
 import functools
 import hashlib
 import importlib
@@ -16,6 +18,7 @@ import pkgutil
 import re
 import secrets
 import shutil
+import ssl
 import string
 import tempfile
 import threading
@@ -31,6 +34,7 @@ from datetime import datetime, timedelta, timezone, tzinfo
 from difflib import unified_diff
 from importlib import import_module
 from lupa.lua51 import LuaSyntaxError
+from packaging.version import parse
 from pathlib import Path
 from typing import TYPE_CHECKING, Generator, Iterable, Callable, Any
 from urllib.parse import urlparse
@@ -86,7 +90,8 @@ __all__ = [
     "format_dict_pretty",
     "show_dict_diff",
     "to_valid_pyfunc_name",
-    "pg_interval_to_seconds"
+    "pg_interval_to_seconds",
+    "pg_get_latest_version"
 ]
 
 logger = logging.getLogger(__name__)
@@ -414,24 +419,44 @@ def get_all_players(
     :return: A list of tuples containing the UCID and name of players from the database.
 
     """
-    sql = "SELECT p.ucid, p.name FROM players p{} WHERE length(p.ucid) = 32"
-    sub_sql = ""
+    clauses = ["length(p.ucid) = 32"]
+    params: list[object] = []
+    join_watchlist = False
+    search_lc = search.lower() if search else None
+
     if watchlist:
-        sub_sql = " JOIN watchlist w ON p.ucid = w.player_ucid"
+        join_watchlist = True
     elif watchlist is False:
-        sql += " AND p.ucid NOT IN (SELECT player_ucid FROM watchlist)"
+        clauses.append("p.ucid NOT IN (SELECT player_ucid FROM watchlist)")
+
     if vip:
-        sql += " AND p.vip IS NOT FALSE"
-    if linked is not None:
-        if linked:
-            sql += " AND p.discord_id != -1 AND p.manual IS TRUE"
+        clauses.append("p.vip IS NOT FALSE")
+
+    if linked:
+        clauses.append("p.discord_id != -1 AND p.manual IS TRUE")
+    elif linked is False:
+        clauses.append("p.manual IS FALSE")
+
+    if search_lc is not None:
+        if is_ucid(search_lc):
+            clauses.append("p.ucid = %s")
+            params.append(search_lc)
         else:
-            sql += " AND p.manual IS FALSE"
-    if search is not None:
-        sql += f" AND (p.name ILIKE '%{search}%' OR p.ucid ILIKE '%{search}%') LIMIT 25"
-    sql = sql.format(sub_sql)
+            clauses.append("(p.name ILIKE %s OR p.ucid ILIKE %s)")
+            pattern = f"%{search_lc}%"
+            params.extend([pattern, pattern])
+
+    sql = "SELECT p.ucid, p.name FROM players p"
+    if join_watchlist:
+        sql += " JOIN watchlist w ON p.ucid = w.player_ucid"
+
+    sql += " WHERE " + " AND ".join(clauses)
+    sql += " ORDER BY last_seen DESC LIMIT 25"
+
     with self.pool.connection() as conn:
-        return [(row[0], row[1]) for row in conn.execute(sql)]
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            return [(row[0], row[1]) for row in cur.fetchall()]
 
 
 def is_ucid(ucid: str | None) -> bool:
@@ -1487,3 +1512,29 @@ def pg_interval_to_seconds(interval: str) -> int:
         total_seconds += value * _UNIT_TO_SECONDS[unit.lower()]
 
     return total_seconds
+
+
+async def pg_get_latest_version(node: Node, version: str | None = None) -> dict | None:
+    ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+
+    async with aiohttp.ClientSession(
+        connector=aiohttp.TCPConnector(ssl=ssl_ctx)
+    ) as session:
+        async with session.get(
+            "https://www.postgresql.org/versions.json",
+            proxy=node.proxy,
+            proxy_auth=node.proxy_auth,
+        ) as resp:
+            if resp.status != 200:
+                return None
+            data = await resp.json(encoding="utf-8")
+
+    # if we did not pass a version, return the latest available
+    if not version:
+        return data[-1]
+
+    my_version = parse(version)
+    check = next((x for x in data if x['major'] == str(my_version.major)), None)
+    if not check:
+        return None
+    return check

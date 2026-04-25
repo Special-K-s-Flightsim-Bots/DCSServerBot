@@ -194,7 +194,14 @@ async def selection_list(interaction: discord.Interaction, data: list, embed_for
 
 
 class SelectView(View):
-    def __init__(self, *, placeholder: str, options: list[SelectOption], min_values: int, max_values: int):
+    def __init__(
+            self,
+            *,
+            placeholder: str | None,
+            options: list[SelectOption],
+            min_values: int | None,
+            max_values: int | None
+    ):
         super().__init__()
         self.result = None
         select: Select = cast(Select, self.children[0])
@@ -235,7 +242,7 @@ class SelectView(View):
 async def selection(interaction: discord.Interaction | commands.Context, *, title: str | None = None,
                     placeholder: str | None = None, embed: discord.Embed = None,
                     options: list[SelectOption], min_values: int | None = 1,
-                    max_values: int | None = 1, ephemeral: bool = False) -> list | str |  int | None:
+                    max_values: int | None = 1, ephemeral: bool | None = False) -> list | str |  int | None:
     """
     This function generates a selection menu on Discord with provided options.
     If only one option is present, it immediately returns that option's value.
@@ -811,7 +818,7 @@ def escape_string(msg: str) -> str:
     return re.sub(r"([\\_*~`|>#+\-={}!.\[\]()])", r"\\\1", msg)
 
 
-def print_ruler(*, ruler_length: int | None = 34, header: str | None = '') -> str:
+def print_ruler(*, ruler_length: int = 34, header: str = '') -> str:
     if header:
         header = ' ' + header + ' '
     filler = int((ruler_length - len(header) / 2.5) / 2)
@@ -828,7 +835,7 @@ def normalize_name(name: str | None = None) -> str | None:
     return name.strip().lower()
 
 
-def match(name: str, member_list: list[discord.Member], min_score: int | None = 70) -> discord.Member | None:
+def match(name: str, member_list: list[discord.Member], min_score: int = 70) -> discord.Member | None:
     """
     Match the given name with members in the member_list based on fuzzy string matching.
 
@@ -850,7 +857,7 @@ def match(name: str, member_list: list[discord.Member], min_score: int | None = 
     ]:
         return None
 
-    name = normalize_name(name)
+    name: str | None = normalize_name(name)
     weights = [3, 2, 1]
     user_lists = [
         [normalize_name(getattr(member, attr)) for member in member_list]
@@ -898,19 +905,42 @@ def find_similar_names(list1: list[str], list2: list[str], threshold: int = 90) 
     return similar_names
 
 
-@cache_with_expiration(30)
-def get_all_linked_members(interaction: discord.Interaction) -> list[discord.Member]:
+async def get_all_linked_members(
+    interaction: discord.Interaction,
+    search: str | None = None,
+) -> list[discord.Member]:
+    """Return up to 25 members that are linked in the `players` table
+    and (optionally) whose display name contains *search*.
+
+    The function streams rows from the DB, looks up each member in the
+    guild cache and stops as soon as 25 matches have been found.
     """
-    :param interaction: the discord Interaction
-    :return: A list of discord.Member objects representing all the members linked to DCS accounts in the bot's guild.
-    """
-    members: list[discord.Member] = []
-    with interaction.client.pool.connection() as conn:
-        for row in conn.execute("SELECT DISTINCT discord_id FROM players WHERE discord_id <> -1"):
-            member = interaction.guild.get_member(row[0])
-            if member:
-                members.append(member)
-    return members
+    guild = interaction.guild
+    search_lc = search.lower() if search else None
+
+    results: list[discord.Member] = []
+
+    async with interaction.client.apool.connection() as conn:
+        sql = "SELECT DISTINCT discord_id, ucid FROM players WHERE discord_id <> -1"
+        if is_ucid(search_lc):
+            sql += ' AND ucid = %(ucid)s'
+
+        async for row in await conn.execute(sql, {"ucid": search_lc}):
+            mid = row[0]
+            ucid = row[1]
+
+            member = guild.get_member(mid)
+            if not member:
+                continue  # member not cached – skip
+
+            if search_lc and not (search_lc in member.display_name.lower() or search_lc in ucid):
+                continue
+
+            results.append(member)
+            if len(results) == 25:
+                break
+
+    return results
 
 
 class ServerTransformer(app_commands.Transformer):
@@ -936,9 +966,9 @@ class ServerTransformer(app_commands.Transformer):
         ```
     """
 
-    def __init__(self, *, status: list[Status] = None, maintenance: bool | None = None):
+    def __init__(self, *, status: list[Status] = None, maintenance: bool = None):
         super().__init__()
-        self.status: list[Status] = status
+        self.status: list[Status] | None = status
         self.maintenance = maintenance
 
     @staticmethod
@@ -1000,9 +1030,9 @@ class ServerTransformer(app_commands.Transformer):
 
             if (not current and server and server.status != Status.UNREGISTERED and
                     (not self.status or server.status in self.status)):
-                return [app_commands.Choice(name=server.name, value=server.name)]
-            choices: list[app_commands.Choice[str]] = [
-                app_commands.Choice(name=name, value=name)
+                return [app_commands.Choice[str](name=server.name, value=server.name)]
+            return [
+                app_commands.Choice[str](name=name, value=name)
                 for name, value in interaction.client.servers.items()
                 if (value.status != Status.UNREGISTERED and
                     (not self.status or value.status in self.status) and
@@ -1010,8 +1040,7 @@ class ServerTransformer(app_commands.Transformer):
                     (not is_admin or not value.locals.get('managed_by') or utils.check_roles(value.locals.get('managed_by'), interaction.user)) and
                     (not current or current.casefold() in name.casefold())
                 )
-            ]
-            return choices[:25]
+            ][:25]
         except Exception as ex:
             interaction.client.log.exception(ex)
             return []
@@ -1035,10 +1064,10 @@ class NodeTransformer(app_commands.Transformer):
             all_nodes = [interaction.client.node.name]
             all_nodes.extend(await interaction.client.node.get_active_nodes())
             return [
-                app_commands.Choice(name=x, value=x)
+                app_commands.Choice[str](name=x, value=x)
                 for x in all_nodes
                 if not current or current.casefold() in x.casefold()
-            ]
+            ][:25]
         except Exception as ex:
             interaction.client.log.exception(ex)
             return []
@@ -1079,10 +1108,10 @@ class InstanceTransformer(app_commands.Transformer):
             else:
                 instances = list(node.instances.keys())
             return [
-                app_commands.Choice(name=x, value=x)
+                app_commands.Choice[str](name=x, value=x)
                 for x in instances
                 if not current or current.casefold() in x.casefold()
-            ]
+            ][:25]
         except Exception as ex:
             interaction.client.log.exception(ex)
             return []
@@ -1098,14 +1127,13 @@ async def airbase_autocomplete(interaction: discord.Interaction, current: str) -
         server: Server = await ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server or not server.current_mission:
             return []
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name="{}".format(x['name'] if x.get('type', '') != 'FARP' else f"FARP {x['name']}"),
+        return [
+            app_commands.Choice[int](name="{}".format(x['name'] if x.get('type', '') != 'FARP' else f"FARP {x['name']}"),
                                 value=idx)
             for idx, x in enumerate(server.current_mission.airbases)
             if not current or current.casefold() in x['name'].casefold() or
                current.casefold() in x.get('code', x.get('type')).casefold()
-        ]
-        return choices[:25]
+        ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -1137,12 +1165,11 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
         if not server:
             return []
         base_dir = await server.get_missions_dir()
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=get_name(base_dir, x), value=idx)
+        return sorted([
+            app_commands.Choice[int](name=get_name(base_dir, x), value=idx)
             for idx, x in enumerate(await get_cached_mission_list(server))
             if not current or current.casefold() in get_name(base_dir, x).casefold()
-        ]
-        return sorted(choices, key=lambda choice: choice.name)[:25]
+        ], key=lambda choice: choice.name)[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -1154,7 +1181,7 @@ async def group_autocomplete(interaction: discord.Interaction, current: str) -> 
         return []
     server: Server = await ServerTransformer().transform(interaction, interaction.namespace.server)
     return [
-        app_commands.Choice(name=group_name, value=group_name)
+        app_commands.Choice[str](name=group_name, value=group_name)
         for group_name in set(player.group_name for player in server.get_active_players() if player.group_id != 0)
         if not current or current.casefold() in group_name
     ][:25]
@@ -1170,7 +1197,7 @@ async def date_autocomplete(_interaction: discord.Interaction, current: str) -> 
             yield end_date - timedelta(days=days_back)
 
     return [
-        app_commands.Choice(name=x.strftime('%Y-%m-%d'), value=x.strftime('%Y-%m-%d'))
+        app_commands.Choice[str](name=x.strftime('%Y-%m-%d'), value=x.strftime('%Y-%m-%d'))
         for x in get_date_range(current)
     ][:25]
 
@@ -1210,16 +1237,21 @@ class UserTransformer(app_commands.Transformer):
         ret = []
         if self.sel_type in [PlayerType.ALL, PlayerType.PLAYER]:
             ret.extend([
-                app_commands.Choice[str](name='✈ ' + name + (' (' + ucid + ')' if show_ucid else ''),
-                                    value=ucid)
+                app_commands.Choice[str](
+                    name='✈ ' + name + (' (' + ucid + ')' if show_ucid else ''),
+                    value=ucid
+                )
                 for ucid, name in get_all_players(interaction.client, self.linked, self.watchlist, search=current)
-            ])
-        if (self.linked is None or self.linked) and self.sel_type in [PlayerType.ALL, PlayerType.MEMBER]:
+            ][:25])
+        # we do not add linked accounts, if the result above fills the return list already
+        if len(ret) < 25 and self.sel_type in [PlayerType.ALL, PlayerType.MEMBER] and (self.linked is None or self.linked):
             ret.extend([
-                app_commands.Choice(name='@' + member.display_name, value=str(member.id))
-                for member in get_all_linked_members(interaction)
-                if not current or current.casefold() in member.display_name.casefold()
-            ])
+                app_commands.Choice[str](
+                    name='@' + member.display_name,
+                    value=str(member.id)
+                )
+                for member in await get_all_linked_members(interaction, search=current)
+            ][:25])
         return ret[:25]
 
 
@@ -1241,22 +1273,22 @@ class PlayerTransformer(app_commands.Transformer):
         if not await interaction.command._check_can_run(interaction):
             return []
         try:
+            current_lc = current.casefold() if current else None
             if self.active:
                 server: Server = await ServerTransformer().transform(interaction, interaction.namespace.server)
                 if not server:
                     return []
-                choices = [
+                return [
                     app_commands.Choice[str](name=x.name, value=x.ucid)
                     for x in server.get_active_players()
                     if ((not self.watchlist or x.watchlist == self.watchlist) and (not self.vip or x.vip == self.vip)
-                        and (not current or current.casefold() in x.name.casefold() or current.casefold() in x.ucid))
-                ]
+                        and (not current_lc or current_lc in x.name.casefold() or current_lc in x.ucid))
+                ][:25]
             else:
-                choices = [
-                    app_commands.Choice(name=f"{ucid} ({name})", value=ucid)
-                    for ucid, name in get_all_players(interaction.client, self.watchlist, self.vip, search=current)
-                ]
-            return choices[:25]
+                return [
+                    app_commands.Choice[str](name=f"{ucid} ({name})", value=ucid)
+                    for ucid, name in get_all_players(interaction.client, self.watchlist, self.vip, search=current_lc)
+                ][:25]
         except Exception as ex:
             interaction.client.log.exception(ex)
             return []
@@ -1273,12 +1305,14 @@ async def server_selection(
         title: str,
         multi_select: bool | None = False,
         ephemeral: bool | None = True,
-        filter_func: Callable[[Server], bool] = _server_filter
+        filter_func: Callable[[Server], bool] | None = _server_filter
 ) -> Server | list[Server] | None:
     if not filter_func:
         filter_func = _server_filter
 
-    all_servers = bot.get_servers(manager=interaction.user if isinstance(interaction, discord.Interaction) else interaction.author)
+    all_servers = bot.get_servers(
+        manager=interaction.user if isinstance(interaction, discord.Interaction) else interaction.author
+    )
     if not all_servers:
         return []
     elif len(all_servers) == 1:
@@ -1380,7 +1414,7 @@ class ConfigModal(Modal):
             elif v.get('type') == bool:
                 component = discord.ui.Checkbox(
                     custom_id=k,
-                    default=old_values.get(k, v.get('default', False))
+                    default=old_values.get(k) or v.get('default', False)
                 )
             else:
                 raise ValueError(f"{v.get('type')} is not a valid config type!")

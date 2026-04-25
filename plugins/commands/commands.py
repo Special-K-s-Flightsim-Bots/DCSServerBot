@@ -47,7 +47,13 @@ async def process_autocomplete(interaction: discord.Interaction, _current: int) 
     if not await interaction.command._check_can_run(interaction):
         return []
     plugin = interaction.client.cogs['Commands']
-    return [app_commands.Choice(name=f"{name} ({p.pid})", value=p.pid) for p, name in plugin.processes.items()]
+    return [
+        app_commands.Choice[int](
+            name=f"{name} ({p.pid})",
+            value=p.pid
+        )
+        for p, name in plugin.processes.items()
+    ][:25]
 
 
 class Commands(Plugin):

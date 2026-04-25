@@ -158,6 +158,20 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
         case = data.get('case', 1 if not night else 3)
         wire = data.get('wire')
         async with self.apool.connection() as conn:
+            min_flight_time = self.get_config(server).get('min_flight_time')
+            if min_flight_time:
+                cursor = await conn.execute("""
+                    SELECT EXTRACT(EPOCH FROM (NOW() AT TIME ZONE 'utc' - MAX(time))) FROM missionstats 
+                    WHERE mission_id = %s 
+                    AND init_id = %s 
+                    AND event = 'S_EVENT_TAKEOFF'
+                """, (server.mission_id, player.ucid))
+                flight_time = await cursor.fetchone()
+                if flight_time and flight_time[0] < min_flight_time:
+                    # ignore this event, as the player has not flown for the minimum flight time
+                    self.log.debug(f"Greenieboard: Player {player.name} has not flown for the minimum flight time.")
+                    return
+
             await conn.execute("""
                 INSERT INTO traps (mission_id, player_ucid, unit_type, grade, comment, place, trapcase, wire, 
                                    night, points, trapsheet) 

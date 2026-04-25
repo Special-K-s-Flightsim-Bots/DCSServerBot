@@ -4,7 +4,7 @@ import sys
 import uuid
 import matplotlib.figure
 
-from core import EventListener, Server, event, Player, PersistentReport, Channel, get_translation
+from core import EventListener, Server, event, PersistentReport, Channel, get_translation
 from io import BytesIO
 from matplotlib import pyplot as plt
 from typing import Literal, TYPE_CHECKING
@@ -22,7 +22,7 @@ class FunkManEventListener(EventListener["FunkMan"]):
     def __init__(self, plugin: "FunkMan"):
         super().__init__(plugin)
         self.config = self.get_config()
-        path = self.config.get('install')
+        path: str = self.config['install']
         sys.path.append(path)
         from funkman.utils.utils import _GetVal
         self.funkplot = None
@@ -123,7 +123,7 @@ class FunkManEventListener(EventListener["FunkMan"]):
 
     async def update_rangeboard(self, server: Server, what: Literal['strafe', 'bomb']):
         try:
-            # update the server specific board
+            # update the server-specific board
             config = self.plugin.get_config(server)
             if config.get(f'{what}_board', False):
                 channel_id = int(config.get(f'{what}_channel', server.channels[Channel.STATUS]))
@@ -159,7 +159,7 @@ class FunkManEventListener(EventListener["FunkMan"]):
     @event(name="moose_bomb_result")
     async def moose_bomb_result(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
-        player: Player = server.get_player(name=data['player'])
+        player = server.get_player(name=data['player'])
         if player:
             async with self.apool.connection() as conn:
                 await conn.execute("""
@@ -180,7 +180,7 @@ class FunkManEventListener(EventListener["FunkMan"]):
     @event(name="moose_strafe_result")
     async def moose_strafe_result(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
-        player: Player = server.get_player(name=data['player'])
+        player = server.get_player(name=data['player'])
         if player:
             async with self.apool.connection() as conn:
                 await conn.execute("""

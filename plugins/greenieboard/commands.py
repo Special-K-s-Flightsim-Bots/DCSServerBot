@@ -34,18 +34,26 @@ async def trap_users_autocomplete(interaction: discord.Interaction, current: str
         return []
     try:
         show_ucid = utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user)
+        if current:
+            where = "WHERE p.name ILIKE %(current)s OR p.ucid ILIKE %(current)s"
+        else:
+            where = ''
+        query = f"""
+            SELECT DISTINCT p.name, p.ucid 
+            FROM players p 
+            JOIN traps t ON p.ucid = t.player_ucid
+            {where}
+            ORDER BY 1
+            LIMIT 25
+        """
         async with interaction.client.apool.connection() as conn:
-            choices: list[app_commands.Choice[str]] = [
-                app_commands.Choice(name=row[0] + (' (' + row[1] + ')' if show_ucid else ''), value=row[1])
-                async for row in await conn.execute("""
-                    SELECT DISTINCT p.name, p.ucid 
-                    FROM players p 
-                    JOIN traps t ON p.ucid = t.player_ucid 
-                    ORDER BY 1
-                """)
-                if not current or current.casefold() in row[0].casefold() or current.casefold() in row[1].casefold()
+            return [
+                app_commands.Choice[str](
+                    name=row[0] + (' (' + row[1] + ')' if show_ucid else ''),
+                    value=row[1]
+                )
+                async for row in await conn.execute(query, {"current": '%' + current.casefold() + '%'})
             ]
-        return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -156,7 +164,8 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
     async def prune(self, conn: psycopg.AsyncConnection, days: int) -> None:
         self.log.debug('Pruning Greenieboard ...')
         await conn.execute("""
-            DELETE FROM traps WHERE time < (DATE(NOW() AT TIME ZONE 'UTC') - %s::interval)
+            DELETE FROM traps 
+            WHERE time < (DATE(NOW() AT TIME ZONE 'UTC') - %s::interval)
         """,(f'{days} days', ))
         self.log.debug('Greenieboard pruned.')
 
@@ -178,7 +187,7 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
             name = interaction.user.display_name
         else:
             ucid = user
-            user = await self.bot.get_member_or_name_by_ucid(ucid)
+            user: discord.Member | str | None = await self.bot.get_member_or_name_by_ucid(ucid)
             if isinstance(user, discord.Member):
                 name = user.display_name
             else:
@@ -263,9 +272,10 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
     async def reset(self, interaction: discord.Interaction,
                     user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
+
+        sql = 'DELETE FROM traps'
         if not user:
             message = _('Do you want to reset all traps?')
-            sql = 'DELETE FROM traps'
             ucid = None
         else:
             if isinstance(user, discord.Member):
@@ -279,7 +289,7 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
                 ucid = user
             message = _('Do you want to reset all traps for user {}').format(
                 user.display_name if isinstance(user, discord.Member) else user)
-            sql = 'DELETE FROM traps WHERE player_ucid = %(ucid)s'
+            sql += ' WHERE player_ucid = %(ucid)s'
         if not await utils.yn_question(interaction, message, ephemeral=ephemeral):
             await interaction.followup.send(_('Aborted'), ephemeral=ephemeral)
             return

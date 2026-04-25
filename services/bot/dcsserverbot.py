@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from discord import Thread, PrivilegedIntentsRequired
 from discord.abc import PrivateChannel, GuildChannel
 from discord.ext import commands
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Iterable, cast
 
 if TYPE_CHECKING:
     from core import Server, NodeImpl
@@ -33,7 +33,7 @@ class DCSServerBot(commands.Bot):
         self.log = self.node.log
         self.locals = kwargs['locals']
         self.plugins = self.node.plugins
-        self.bus = ServiceRegistry.get(ServiceBus)
+        self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get(ServiceBus))
         self.eventListeners: set[EventListener] = self.bus.eventListeners
         self.audit_channel = None
         self.member: discord.Member | None = None
@@ -474,13 +474,12 @@ class DCSServerBot(commands.Bot):
     async def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> discord.Member | str | None:
         async with self.apool.connection() as conn:
             cursor = await conn.execute("SELECT discord_id, name, manual FROM players WHERE ucid = %s", (ucid, ))
-            if cursor.rowcount == 1:
-                row = await cursor.fetchone()
-                if verified and row[2] is False:
-                    return row[1]
-                return self.guilds[0].get_member(row[0]) or row[1]
-            else:
+            row = await cursor.fetchone()
+            if not row:
                 return None
+            if verified and row[2] is False:
+                return row[1]
+            return self.guilds[0].get_member(row[0]) or row[1]
 
     async def get_ucid_by_member(self, member: discord.Member, verified: bool | None = False) -> str | None:
         async with self.apool.connection() as conn:

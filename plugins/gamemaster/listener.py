@@ -429,7 +429,7 @@ class GameMasterEventListener(EventListener["GameMaster"]):
         admin = self.bot.get_admin_channel(server)
         if admin:
             await admin.send("```" + _("Player {} ({}) acknowledged their message{}.").format(
-                player.display_name, player.ucid, 's' if cursor.rowcount > 1 else '') + "```")
+                player.name, player.ucid, 's' if cursor.rowcount > 1 else '') + "```")
 
     @chat_command(name="popup", help=_("send a popup message"), roles=['DCS Admin', 'GameMaster'])
     async def popup(self, server: Server, player: Player, params: list[str]):

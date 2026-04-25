@@ -43,13 +43,14 @@ async def tournament_autocomplete(interaction: discord.Interaction, current: str
         cursor = await conn.execute("""
             SELECT tournament_id, campaign 
             FROM tm_tournaments 
-            WHERE campaign ILIKE %s ORDER BY campaign
+            WHERE campaign ILIKE %s 
+            ORDER BY campaign
+            LIMIT 25
         """, ('%' + current + '%', ))
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=row[1], value=row[0])
+        return [
+            app_commands.Choice[int](name=row[1], value=row[0])
             async for row in cursor
         ]
-        return choices[:25]
 
 
 async def active_tournament_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -61,12 +62,12 @@ async def active_tournament_autocomplete(interaction: discord.Interaction, curre
             AND c.start <= NOW() AT TIME ZONE 'UTC'
             AND COALESCE(c.stop, NOW() AT TIME ZONE 'UTC') >= NOW() AT TIME ZONE 'UTC'
             ORDER BY campaign
+            LIMIT 25
         """, ('%' + current + '%', ))
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=row[1], value=row[0])
+        return [
+            app_commands.Choice[int](name=row[1], value=row[0])
             async for row in cursor
         ]
-        return choices[:25]
 
 
 async def squadron_autocomplete(interaction: discord.Interaction, current: str,
@@ -74,7 +75,7 @@ async def squadron_autocomplete(interaction: discord.Interaction, current: str,
     if not utils.check_roles(interaction.client.roles["GameMaster"], interaction.user):
         ucid = await interaction.client.get_ucid_by_member(interaction.user)
         squadron_admin_sql = """
-        JOIN squadron_members sm ON sm.squadron_id = sq.id AND sm.player_ucid = %(ucid)s AND sm.admin IS TRUE
+            JOIN squadron_members sm ON sm.squadron_id = sq.id AND sm.player_ucid = %(ucid)s AND sm.admin IS TRUE
         """
     else:
         ucid = None
@@ -101,12 +102,12 @@ async def squadron_autocomplete(interaction: discord.Interaction, current: str,
                 WHEN 'ACCEPTED' THEN 3
                 ELSE 4
             END, sq.name
+            LIMIT 25
         """, {"tournament_id": tournament_id, "name": '%' + current + '%', "ucid": ucid})
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=f"{row[1]} ({row[2]})" if config == 'all' else row[1], value=row[0])
+        return [
+            app_commands.Choice[int](name=f"{row[1]} ({row[2]})" if config == 'all' else row[1], value=row[0])
             async for row in cursor
         ]
-        return choices[:25]
 
 
 async def all_squadron_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -133,18 +134,18 @@ async def stage_autocomplete(interaction: discord.Interaction, _current: str) ->
         """, (tournament_id,))
         stage = (await cursor.fetchone())[0]
     return [
-        app_commands.Choice(name=stage, value=stage),
-        app_commands.Choice(name=stage+1, value=stage+1),
+        app_commands.Choice[int](name=stage, value=stage),
+        app_commands.Choice[int](name=stage+1, value=stage+1),
     ]
 
 
-async def server_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+async def server_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     tournament_id = interaction.namespace.tournament
     async with interaction.client.apool.connection() as conn:
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=row[0], value=row[0])
+        return [
+            app_commands.Choice[str](name=row[0], value=row[0])
             async for row in await conn.execute("""
                 SELECT s.server_name 
                 FROM tm_tournaments t 
@@ -155,9 +156,9 @@ async def server_autocomplete(interaction: discord.Interaction, current: str) ->
                 AND COALESCE(c.stop, NOW() AT TIME ZONE 'UTC') >= NOW() AT TIME ZONE 'UTC'
                 AND s.server_name ILIKE %s
                 ORDER BY s.server_name
+                LIMIT 25
             """, (tournament_id, '%' + current + '%', ))
         ]
-        return choices[:25]
 
 
 async def all_matches_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -165,8 +166,8 @@ async def all_matches_autocomplete(interaction: discord.Interaction, current: st
         return []
     tournament_id = interaction.namespace.tournament
     async with interaction.client.apool.connection() as conn:
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=row[1] + ' vs ' + row[2], value=row[0])
+        choices = [
+            app_commands.Choice[int](name=row[1] + ' vs ' + row[2], value=row[0])
             async for row in await conn.execute("""
                 SELECT m.match_id, s1.name, s2.name 
                 FROM tm_tournaments t
@@ -186,8 +187,8 @@ async def active_matches_autocomplete(interaction: discord.Interaction, current:
         return []
     tournament_id = interaction.namespace.tournament
     async with interaction.client.apool.connection() as conn:
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=row[1] + ' vs ' + row[2], value=row[0])
+        choices = [
+            app_commands.Choice[int](name=row[1] + ' vs ' + row[2], value=row[0])
             async for row in await conn.execute("""
                 SELECT m.match_id, s1.name, s2.name 
                 FROM tm_tournaments t
@@ -215,14 +216,17 @@ async def match_squadrons_autocomplete(interaction: discord.Interaction, _curren
         return []
     match_id = interaction.namespace.match
     async with interaction.client.apool.connection() as conn:
-        cursor = await conn.execute("SELECT squadron_blue, squadron_red FROM tm_matches WHERE match_id = %s",
-                                    (match_id, ))
+        cursor = await conn.execute("""
+            SELECT squadron_blue, squadron_red 
+            FROM tm_matches 
+            WHERE match_id = %s
+        """, (match_id, ))
         squadron_blue_id, squadron_red_id = await cursor.fetchone()
         squadron_blue = utils.get_squadron(interaction.client.node, squadron_id=squadron_blue_id)
         squadron_red = utils.get_squadron(interaction.client.node, squadron_id=squadron_red_id)
         return [
-            app_commands.Choice(name=squadron_blue['name'], value=squadron_blue_id),
-            app_commands.Choice(name=squadron_red['name'], value=squadron_red_id)
+            app_commands.Choice[int](name=squadron_blue['name'], value=squadron_blue_id),
+            app_commands.Choice[int](name=squadron_red['name'], value=squadron_red_id)
         ]
 
 
@@ -241,11 +245,11 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
     return []
 
 
-async def date_autocomplete(_interaction: discord.Interaction, _current: str) -> list[app_commands.Choice[str]]:
+async def date_autocomplete(_interaction: discord.Interaction, _current: str) -> list[app_commands.Choice[int]]:
     now = int(time())
     day_start = now - (now % 86400)
     return [
-        app_commands.Choice(
+        app_commands.Choice[int](
             name=(datetime.fromtimestamp(day_start + (i * 86400), tz=timezone.utc)).strftime("%Y-%m-%d"),
             value=day_start + (i * 86400)
         )
@@ -256,28 +260,30 @@ async def date_autocomplete(_interaction: discord.Interaction, _current: str) ->
 async def time_autocomplete(interaction: discord.Interaction, _current: str) -> list[app_commands.Choice[int]]:
     tournament_id = interaction.namespace.tournament
     async with interaction.client.apool.connection() as conn:
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=row[0].strftime("%H:%M"), value=row[0].hour * 3600 + row[0].minute * 60)
+        return [
+            app_commands.Choice[int](name=row[0].strftime("%H:%M"), value=row[0].hour * 3600 + row[0].minute * 60)
             async for row in await conn.execute("""
-                SELECT start_time FROM tm_available_times WHERE tournament_id = %s
+                SELECT start_time 
+                FROM tm_available_times 
+                WHERE tournament_id = %s
+                LIMIT 25
             """, (tournament_id, ))
         ]
-        return choices[:25]
 
 
 async def tickets_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     tournament_id = interaction.namespace.tournament
     squadron_id = interaction.namespace.squadron
     async with interaction.client.apool.connection() as conn:
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=row[0], value=row[0])
+        return [
+            app_commands.Choice[int](name=row[0], value=row[0])
             async for row in await conn.execute("""
                 SELECT ticket_name 
                 FROM tm_tickets 
                 WHERE tournament_id = %s AND squadron_id = %s AND ticket_count > 0 AND ticket_name ILIKE %s
+                LIMIT 25
             """, (tournament_id, squadron_id, '%' + current + '%'))
         ]
-        return choices[:25]
 
 
 class Tournament(Plugin[TournamentEventListener]):
@@ -364,9 +370,7 @@ class Tournament(Plugin[TournamentEventListener]):
                               embed: discord.Embed | None = None):
         async with self.apool.connection() as conn:
             async for row in await conn.execute("""
-                SELECT p.discord_id
-                FROM players p JOIN squadron_members m ON p.ucid = m.player_ucid
-                WHERE m.squadron_id = %s AND m.admin IS TRUE
+                SELECT co_ucid FROM squadrons WHERE id = %s
             """, (squadron_id,)):
                 user = self.bot.get_user(row[0])
                 if user:

@@ -130,7 +130,7 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
 
         # check if we are allowed to display the list
         if (
-                (config.get('discord') and not utils.check_roles(config['discord'], interaction.user)) or
+            (config.get('discord') and not utils.check_roles(config['discord'], interaction.user)) or
                 utils.is_restricted(interaction)
         ):
             return []
@@ -220,12 +220,16 @@ async def all_servers_autocomplete(interaction: discord.Interaction, current: st
         return []
     async with interaction.client.apool.connection() as conn:
         cursor = await conn.execute("""
-            SELECT server_name FROM servers WHERE server_name ILIKE %s
+            SELECT server_name 
+            FROM servers 
+            WHERE server_name ILIKE %s 
+            ORDER BY server_name
+            LIMIT 25
         """, ('%' + current + '%', ))
         return [
             app_commands.Choice[str](name=row[0], value=row[0])
             async for row in cursor
-        ][:25]
+        ]
 
 
 async def extensions_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -1288,7 +1292,15 @@ Please make sure you forward the following ports:
         ephemeral = utils.get_ephemeral(interaction)
         await server.init_extensions()
 
-        ext_cls = utils.str_to_class(f'extensions.{extension.lower()}.extension.{extension}')
+        try:
+            ext_cls = utils.str_to_class(f'extensions.{extension.lower()}.extension.{extension}')
+        except ModuleNotFoundError:
+            await interaction.response.send_message(
+                f'Extension "{extension}" not found. Please check the spelling and try again.',
+                ephemeral=ephemeral
+            )
+            return
+
         config = {}
         if getattr(ext_cls, 'CONFIG_DICT', None):
             # read the old extension values if there are any
@@ -1372,7 +1384,16 @@ Please make sure you forward the following ports:
             extension: str
     ) -> None:
         ephemeral = utils.get_ephemeral(interaction)
-        ext_cls = utils.str_to_class(f'extensions.{extension.lower()}.extension.{extension}')
+
+        try:
+            ext_cls = utils.str_to_class(f'extensions.{extension.lower()}.extension.{extension}')
+        except ModuleNotFoundError:
+            await interaction.response.send_message(
+                f'Extension "{extension}" not found. Please check the spelling and try again.',
+                ephemeral=ephemeral
+            )
+            return
+
         if not issubclass(ext_cls, InstallableExtension):
             await interaction.response.send_message(
                 _("Extension {} can not be updated.").format(extension),
@@ -1409,7 +1430,16 @@ Please make sure you forward the following ports:
             extension: str
     ) -> None:
         ephemeral = utils.get_ephemeral(interaction)
-        ext_cls = utils.str_to_class(f'extensions.{extension.lower()}.extension.{extension}')
+
+        try:
+            ext_cls = utils.str_to_class(f'extensions.{extension.lower()}.extension.{extension}')
+        except ModuleNotFoundError:
+            await interaction.response.send_message(
+                f'Extension "{extension}" not found. Please check the spelling and try again.',
+                ephemeral=ephemeral
+            )
+            return
+
         if not issubclass(ext_cls, InstallableExtension):
             await interaction.response.send_message(
                 _("Extension {} can not be repaired.").format(extension),
@@ -1444,7 +1474,15 @@ Please make sure you forward the following ports:
         ephemeral = utils.get_ephemeral(interaction)
         await server.init_extensions()
 
-        ext_cls = utils.str_to_class(f'extensions.{extension.lower()}.extension.{extension}')
+        try:
+            ext_cls = utils.str_to_class(f'extensions.{extension.lower()}.extension.{extension}')
+        except ModuleNotFoundError:
+            await interaction.response.send_message(
+                f'Extension "{extension}" not found. Please check the spelling and try again.',
+                ephemeral=ephemeral
+            )
+            return
+
         if getattr(ext_cls, 'CONFIG_DICT', None):
             # read the old extension values if there are any
             config = await server.config_extension(extension)

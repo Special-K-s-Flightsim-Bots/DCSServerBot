@@ -8,7 +8,7 @@ from core.services.registry import ServiceRegistry
 from core.utils import async_cache, cache_with_expiration
 from pathlib import Path
 from psycopg import sql
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from typing_extensions import override
 
 # ruamel YAML support
@@ -34,7 +34,7 @@ class NodeProxy(Node):
         self.log = self.local_node.log
         self._public_ip = public_ip
         self.locals = self.read_locals()
-        self.bus = ServiceRegistry.get(ServiceBus)
+        self.bus = cast(ServiceBus, ServiceRegistry.get(ServiceBus))
         self.slow_system = self.locals.get('slow_system', False)
         self.dcs_version = dcs_version
         self.is_remote = True

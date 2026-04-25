@@ -49,7 +49,7 @@ from zoneinfo import ZoneInfo
 
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
-from core.data.node import Node, UploadStatus, SortOrder, FatalException
+from core.data.node import Node, UploadStatus, SortOrder, FatalException, InstallationException
 from core.data.instance import Instance
 from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
@@ -98,7 +98,7 @@ DEFAULT_PLUGINS = [
 
 class NodeImpl(Node):
 
-    def __init__(self, name: str, config_dir: str | None = 'config', restarted: bool = False):
+    def __init__(self, name: str, config_dir: str = 'config', restarted: bool = False):
         super().__init__(name, config_dir, restarted)
         self.node = self  # to be able to address self.node
         self._public_ip: str | None = None
@@ -165,6 +165,8 @@ class NodeImpl(Node):
         # Do we have a cluster?
         if len(self.all_nodes) > 1:
             self._claimed_master = await self.heartbeat()
+            if self.is_shutdown.is_set():
+                return
             self.commit_claimed_master()
             self.heartbeat_loop.start()
             self.log.info("- Starting as {} ...".format("Master" if self._master else "Agent"))
@@ -219,7 +221,7 @@ class NodeImpl(Node):
 
     @override
     @property
-    def public_ip(self) -> str:
+    def public_ip(self) -> str | None:
         return self._public_ip
 
     @override
@@ -295,7 +297,7 @@ class NodeImpl(Node):
                     self.all_nodes[node_name] = None
             node: dict = data.get(self.name)
             if not node:
-                raise FatalException(f'No configuration found for node {self.name} in {config_file}!')
+                raise InstallationException(f'No configuration found for node {self.name} in {config_file}!')
             dirty = False
 
             # check if we need to secure the database URL
@@ -332,7 +334,7 @@ class NodeImpl(Node):
                 with open(config_file, 'w', encoding='utf-8') as f:
                     yaml.dump(data, f)
             return node
-        raise FatalException(f"No {config_file} found. Exiting.")
+        raise InstallationException(f"No {config_file} found. Exiting.")
 
     def get_database_urls(self):
         cpool_url = self.config.get("database", self.locals.get('database'))['url']
@@ -361,6 +363,29 @@ class NodeImpl(Node):
         lpool_url = lpool_url.replace('SECRET', quote(lpool_pwd) or '')
         return cpool_url, lpool_url
 
+    async def _check_postgres_version(self, version: str | None = None):
+        latest_pg_version = await utils.pg_get_latest_version(self, version)
+        if version and latest_pg_version:
+            eol_date = datetime.strptime(latest_pg_version['eolDate'], '%Y-%m-%d')
+            latest_minor = latest_pg_version['latestMinor']
+            if eol_date < datetime.now():
+                latest_pg_version = await utils.pg_get_latest_version(self)
+                if latest_pg_version:
+                    recommended = latest_pg_version['major'] + '.' + latest_pg_version['latestMinor']
+                    self.log.warning(
+                        f"Your PostgreSQL version {parse(version).major} is EOL. The latest version is {recommended}."
+                    )
+                else:
+                    self.log.warning(
+                        f"Your PostgreSQL version {parse(version).major} is EOL. "
+                        f"Please upgrade to a supported version."
+                    )
+            elif int(latest_minor) > parse(version).minor:
+                recommended = latest_pg_version['major'] + '.' + latest_pg_version['latestMinor']
+                self.log.warning(
+                    f"Your PostgreSQL version {version} is outdated. Please upgrade to {recommended}."
+                )
+
     async def init_db(self):
         async def check_db(url: str) -> str | None:
             max_attempts = self.locals.get("database", self.config.get('database')).get('max_retries', 10)
@@ -384,8 +409,7 @@ class NodeImpl(Node):
 
         cpool_url, lpool_url = self.get_database_urls()
         version = await check_db(lpool_url)
-        if parse(version).major < 14:
-            self.log.warning("Your PostgreSQL version is outdated. Please upgrade to 14 or higher!")
+        await self._check_postgres_version(version)
 
         if lpool_url != cpool_url:
             await check_db(cpool_url)
@@ -496,7 +520,8 @@ class NodeImpl(Node):
         async with self.cpool.connection() as conn:
             # check if there is an old database already
             cursor = await conn.execute("""
-                SELECT tablename FROM pg_catalog.pg_tables WHERE tablename IN ('cluster', 'nodes', 'files')
+                SELECT tablename FROM pg_catalog.pg_tables 
+                WHERE tablename IN ('cluster', 'nodes', 'files')
             """)
             tables = [x[0] async for x in cursor]
             # initial setup
@@ -629,22 +654,30 @@ class NodeImpl(Node):
         # We do not want to run an upgrade if we are on a cloud drive. Just restart in this case.
         if not master and self.locals.get('cluster', {}).get('cloud_drive', True):
             self.log.debug("Upgrade: restart agent after master upgrade.")
-            await self.restart()
-        elif await self.upgrade_pending():
+            asyncio.create_task(self.restart())
+            return
+
+        if await self.upgrade_pending():
             if master:
                 self.log.debug("Upgrade: set update pending to TRUE.")
                 await conn.execute("""
-                    UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s
-                """, (self.guild_id, ))
+                    UPDATE cluster
+                    SET update_pending = TRUE
+                    WHERE guild_id = %s
+                """, (self.guild_id,))
+
             self.log.debug("Upgrade: launch update.py")
-            await self.shutdown(UPDATE)
-        elif master:
+            asyncio.create_task(self.shutdown(UPDATE))
+            return
+
+        if master:
             self.log.debug("Upgrade: reset update pending to FALSE.")
             await conn.execute("""
-               UPDATE cluster
-               SET update_pending = FALSE, version = %s
-               WHERE guild_id = %s
-           """, (__version__, self.guild_id))
+                UPDATE cluster
+                SET update_pending = FALSE,
+                    version        = %s
+                WHERE guild_id = %s
+            """, (__version__, self.guild_id))
 
     @override
     async def upgrade(self):
@@ -674,9 +707,9 @@ class NodeImpl(Node):
                 exit(SHUTDOWN)
         return self.dcs_branch, self.dcs_version
 
-    async def update(self, warn_times: list[int], branch: str | None = None, version: str | None = None) -> int:
+    async def update(self, warn_times: list[int], branch: str = None, version: str = None) -> int:
 
-        async def do_update(branch: str, version: str | None = None) -> int:
+        async def do_update(branch: str, version: str = None) -> int:
             # disable any popup on the remote machine
             if sys.platform == 'win32':
                 startupinfo = subprocess.STARTUPINFO()
@@ -1241,6 +1274,7 @@ class NodeImpl(Node):
                                 self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
                                                  "Rolling back the cluster version to my version.")
                             await self._upgrade(True, conn)
+                            return True
 
                         await check_nodes()
                         return True
@@ -1255,6 +1289,7 @@ class NodeImpl(Node):
                             self.log.warning(f"This node uses DCSServerBot version {__version__} "
                                              f"where the master uses version {version}!")
                             await self._upgrade(False, conn)
+                            return False
 
                         if (takeover_by and takeover_by == self.name) or config.get('preferred_master', False):
                             await request_takeover()

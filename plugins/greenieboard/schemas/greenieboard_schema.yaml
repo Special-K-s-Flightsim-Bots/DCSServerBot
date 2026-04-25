@@ -9,6 +9,7 @@ schema;default_schema:
     persistent_board: {type: bool, nullable: false}
     persistent_channel: {type: int, nullable: false}
     credits: {type: bool, nullable: false}
+    min_flight_time: {type: int, nullable: false}
     squadrons:
       type: seq
       nullable: false

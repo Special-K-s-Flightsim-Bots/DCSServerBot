@@ -186,6 +186,15 @@ class MissionEventListener(EventListener["Mission"]):
     async def before_check(self):
         await self.bot.wait_until_ready()
 
+    def get_mission_stats(self, server: Server) -> bool:
+        if server.name not in self.mission_stats:
+            # check if missionstats are enabled
+            if self.get_config(server, plugin_name='missionstats').get('enabled', True):
+                self.mission_stats[server.name] = True
+            else:
+                self.mission_stats[server.name] = False
+        return self.mission_stats[server.name]
+
     @event(name="sendMessage")
     async def sendMessage(self, server: Server, data: dict) -> None:
         channel_id = int(data['channel'])
@@ -376,6 +385,8 @@ class MissionEventListener(EventListener["Mission"]):
             admin_channel = self.bot.get_admin_channel(server)
             if admin_channel:
                 channels['admin'] = admin_channel.id
+
+        # load parameters into DCS
         asyncio.create_task(server.send_to_dcs({
             'command': 'loadParams',
             'plugin': self.plugin_name,
@@ -389,6 +400,7 @@ class MissionEventListener(EventListener["Mission"]):
                 "smart_bans": server.locals.get('smart_bans', True)
             }
         }))
+
         # init the profanity filter
         if server.locals.get('profanity_filter', False):
             asyncio.create_task(self._upload_whitelist(server))
@@ -416,6 +428,7 @@ class MissionEventListener(EventListener["Mission"]):
             self.bot.locals.get('autorole', {}).get('online')
         )
 
+        # initialize players
         server.afk.clear()
         server.players_by_id.clear()
         for p in data['players']:
@@ -444,6 +457,7 @@ class MissionEventListener(EventListener["Mission"]):
             afk_config = server.locals.get('afk', {})
             if afk_config and afk_config.get('check_on_join', True) and p['slot'] == -1:
                 server.afk[player.ucid] = datetime.now(timezone.utc)
+                self.log.debug(f"AFK: Player {player.name} on spectators, timer set.")
 
         # clean up inactive players
         active_ucids = [p['ucid'] for p in data['players'] if p['active']]
@@ -456,12 +470,6 @@ class MissionEventListener(EventListener["Mission"]):
         # check if we are idle
         if not server.is_populated():
             server.idle_since = datetime.now(tz=timezone.utc)
-
-        # check if missionstats are enabled
-        if self.get_config(server, plugin_name='missionstats').get('enabled', True):
-            self.mission_stats[server.name] = True
-        else:
-            self.mission_stats[server.name] = False
 
         # remove roles
         if autorole:
@@ -725,9 +733,9 @@ class MissionEventListener(EventListener["Mission"]):
                         asyncio.create_task(player.member.move_to(voice))
 
         # add the player to the afk list
-        afk_config = server.locals.get('afk', {})
-        if afk_config and afk_config.get('check_on_join', True):
+        if server.locals.get('afk', {}).get('check_on_join', True):
             server.afk[player.ucid] = datetime.now(timezone.utc)
+            self.log.debug(f"AFK: Player {player.name} started, timer set.")
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
@@ -854,6 +862,7 @@ class MissionEventListener(EventListener["Mission"]):
     async def _stop_player(self, server: Server, player: Player):
         player.active = False
         server.afk.pop(player.ucid, None)
+        self.log.debug(f"AFK: Player {player.name} stopped, timer cleared.")
         await server.send_to_dcs({
             "command": "deleteMenu",
             "groupID": player.group_id
@@ -928,17 +937,21 @@ class MissionEventListener(EventListener["Mission"]):
             # (re-)initialize the AFK timer unless a CA slot is selected
             if data['unit_type'] in ['artillery_commander', 'instructor', 'forward_observer', 'observer']:
                 server.afk.pop(player.ucid, None)
+                self.log.debug(f"AFK: Player {player.name} joined CA slot, timer not set.")
             # multi-crew slots must not be checked for AFK
             elif data['sub_slot'] > 0:
                 server.afk.pop(player.ucid, None)
+                self.log.debug(f"AFK: Player {player.name} joined crew slot, timer not set.")
             elif data['slot'] > 0:
                 # we can only track BIRTH events if mission stats are enabled
-                if self.mission_stats[server.name]:
+                if self.get_mission_stats(server):
                     afk_config = server.locals.get('afk', {})
                     if afk_config and afk_config.get('check_on_join', True):
                         server.afk[player.ucid] = datetime.now(timezone.utc)
+                        self.log.debug(f"AFK: Player {player.name} joined slot, timer set.")
                 else:
                     server.afk.pop(player.ucid, None)
+                    self.log.debug(f"AFK: Player {player.name} joined coalition, timer not set as mission stats are disabled.")
 
             if 'change_slot' not in self.get_config(server).get('event_filter', []):
                 if data['slot'] != -1:
@@ -966,6 +979,7 @@ class MissionEventListener(EventListener["Mission"]):
         if afk_config and afk_config.get('check_on_join', True):
             # (re-)initialize the AFK timer
             server.afk[player.ucid] = datetime.now(timezone.utc)
+            self.log.debug(f"AFK: Player {player.name} joined coalition, timer set.")
 
         # reset player
         await player.update(data | {
@@ -1089,10 +1103,7 @@ class MissionEventListener(EventListener["Mission"]):
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         config = self.get_config(server)
         if data['eventName'] == 'S_EVENT_BIRTH':
-            _player = data.get('initiator', {}).get('name')
-            if not _player:
-                return
-            player = server.get_player(name=_player)
+            player = server.get_player(name=data.get('initiator', {}).get('name'), active=True)
             if not player:
                 return
 
@@ -1106,14 +1117,16 @@ class MissionEventListener(EventListener["Mission"]):
                     asyncio.create_task(self.send_atis(server, player, place))
 
                 # (re-)initialize the AFK timer if someone has spawned on an airfield
-                afk_config = server.locals.get('afk', {})
-                if afk_config and afk_config.get('check_on_spawn', False):
+                if server.locals.get('afk', {}).get('check_on_spawn', False):
                     server.afk[player.ucid] = datetime.now(timezone.utc)
+                    self.log.debug(f"AFK: {player.name} spawned on {place} and timer set.")
                 else:
                     server.afk.pop(player.ucid, None)
+                    self.log.debug(f"AFK: {player.name} spawned on {place} but timer not set.")
             else:
                 # airspawns should reset any timer
                 server.afk.pop(player.ucid, None)
+                self.log.debug(f"AFK: {player.name} spawned in air, timer not set.")
 
             # Build menu
             menu = await filter_menu(self, read_menu_config(self, server), server, player)
@@ -1128,26 +1141,21 @@ class MissionEventListener(EventListener["Mission"]):
                     })
 
         elif data['eventName'] == 'S_EVENT_TAKEOFF':
-            _player = data.get('initiator', {}).get('name')
-            if not _player:
-                return
-            player = server.get_player(name=_player)
+            player = server.get_player(name=data.get('initiator', {}).get('name'), active=True)
             if not player:
                 return
             # clear the AFK timer on takeoff
             server.afk.pop(player.ucid, None)
+            self.log.debug(f"AFK: {player.name} took off, timer cleared.")
 
         elif data['eventName'] == 'S_EVENT_LAND':
-            _player = data.get('initiator', {}).get('name')
-            if not _player:
-                return
-            player = server.get_player(name=_player)
+            player = server.get_player(name=data.get('initiator', {}).get('name'), active=True)
             if not player:
                 return
             # (re-)initialize the AFK timer if someone has landed
-            afk_config = server.locals.get('afk', {})
-            if afk_config and afk_config.get('check_after_landing', False):
+            if server.locals.get('afk', {}).get('check_after_landing', False):
                 server.afk[player.ucid] = datetime.now(timezone.utc)
+                self.log.debug(f"AFK: {player.name} landed, timer set.")
 
         elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
             initiator = data.get('initiator', {})

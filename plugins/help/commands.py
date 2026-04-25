@@ -51,7 +51,7 @@ async def commands_autocomplete(interaction: discord.Interaction, current: str) 
     try:
         prefix = interaction.client.locals.get('command_prefix', '.')
         return [
-            app_commands.Choice(
+            app_commands.Choice[str](
                 name="{prefix}{name}".format(prefix='/' if isinstance(cmd, Command) else prefix, name=name),
                 value=name
             )
