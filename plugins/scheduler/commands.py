@@ -1229,10 +1229,12 @@ class Scheduler(Plugin[SchedulerListener]):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
 
+        stopped = False
         if server.status in [Status.RUNNING, Status.PAUSED]:
             if await utils.yn_question(interaction, question='Server has to be stopped to change its configuration.\n'
                                                              'Do you want to stop it?'):
                 await server.stop()
+                stopped = True
             else:
                 await interaction.followup.send('Aborted.')
                 return
@@ -1252,6 +1254,12 @@ class Scheduler(Plugin[SchedulerListener]):
                     await server.update_channels(channels)
                 await interaction.followup.send(f'Server configuration for server "{server.display_name}" updated.',
                                                 ephemeral=ephemeral)
+            if stopped:
+                await server.start()
+        except (asyncio.TimeoutError, TimeoutError):
+            await interaction.followup.send(f'Timeout while starting server "{server.display_name}".\n'
+                                            f'Please check the server manually.',
+                                            ephemeral=ephemeral)
         finally:
             try:
                 await msg.delete()
