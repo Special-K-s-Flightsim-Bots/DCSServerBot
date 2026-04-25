@@ -30,6 +30,7 @@ try:
     from rich.console import Console
     from rich.logging import RichHandler
     from rich.text import Text
+    from services.bot import IgnoreUnknownInteraction
 
     # ruamel YAML support
     from ruamel.yaml import YAML
@@ -96,6 +97,9 @@ class Main:
         # Change 3rd-party logging
         logging.getLogger(name='asyncio').setLevel(logging.WARNING)
         logging.getLogger(name='discord').setLevel(logging.ERROR)
+        logging.getLogger(name='discord.app_commands.tree').addFilter(
+            IgnoreUnknownInteraction()
+        )
         logging.getLogger(name="eye3d").setLevel(logging.ERROR)
         logging.getLogger(name='git').setLevel(logging.WARNING)
         logging.getLogger(name='matplotlib').setLevel(logging.ERROR)

@@ -1,2 +1,2 @@
-from .service import BotService
-from .dcsserverbot import DCSServerBot
+from .service import *
+from .dcsserverbot import *
