@@ -99,6 +99,9 @@ class RestAPI(Plugin):
             dependencies = None
 
         self.router = APIRouter(prefix=prefix, dependencies=dependencies)
+        if not self.router:
+            return
+
         ## Airbase Routes
         self.router.add_api_route(
             "/airbases", self.airbases,
@@ -131,7 +134,6 @@ class RestAPI(Plugin):
             summary="Airbase Warehouse",
             tags=["Airbase"]
         )
-        
         self.router.add_api_route(
             "/airbase/warehouse/item", self.set_warehouse_item,
             methods=["POST"],
@@ -140,7 +142,6 @@ class RestAPI(Plugin):
             summary="Set Quantity of an Airbase Warehouse Item",
             tags=["Airbase"]
         )
-        
         self.router.add_api_route(
             "/airbase/capture", self.capture_airbase,
             methods=["POST"],
@@ -207,6 +208,23 @@ class RestAPI(Plugin):
             summary="Link Discord to DCS",
             tags=["Info"]
         )
+        self.router.add_api_route(
+            "/current_server", self.current_server,
+            methods = ["GET"],
+            response_model = str | None,
+            description = "Server name a player is flying on",
+            summary = "Current Server",
+            tags = ["Info"]
+        )
+        self.router.add_api_route(
+            "/player_squadrons", self.player_squadrons,
+            methods = ["POST"],
+            response_model = list[PlayerSquadron],
+            description = "List of player squadrons",
+            summary = "Player Squadrons",
+            tags = ["Info"]
+        )
+
         ##Statistics Routes
         self.router.add_api_route(
             "/leaderboard", self.leaderboard,
@@ -265,14 +283,6 @@ class RestAPI(Plugin):
             tags = ["Statistics"]
         )
         self.router.add_api_route(
-            "/current_server", self.current_server,
-            methods = ["GET"],
-            response_model = str | None,
-            description = "Server name a player is flying on",
-            summary = "Current Server",
-            tags = ["Info"]
-        )
-        self.router.add_api_route(
             "/player_info", self.player_info,
             methods = ["POST"],
             response_model = PlayerInfo,
@@ -296,6 +306,8 @@ class RestAPI(Plugin):
             summary = "Carrier Traps",
             tags = ["Statistics"]
         )
+
+        # Credits routes
         self.router.add_api_route(
             "/credits", self.credits,
             methods = ["POST"],
@@ -312,15 +324,8 @@ class RestAPI(Plugin):
             summary = "Squadron Credits",
             tags = ["Credits"]
         )
-        self.router.add_api_route(
-            "/player_squadrons", self.player_squadrons,
-            methods = ["POST"],
-            response_model = list[PlayerSquadron],
-            description = "List of player squadrons",
-            summary = "Player Squadrons",
-            tags = ["Info"]
-        )
-        
+
+        # Helper routes
         self.router.add_api_route(
             "/convertCoordinates", self.convertCoordinates,
             methods = ["GET"],
@@ -335,11 +340,10 @@ class RestAPI(Plugin):
             response_model=GroupWaypointsResponse,
             description="Get the lat/lon waypoints for a named group in the current mission.",
             summary="Group Waypoints",
-            tags=["Mission"]
+            tags=["Utilities"]
         )
-        
-        
-        
+
+        # Instance routes
         self.router.add_api_route(
             "/instance/start", self.instance_start,
             methods = ["POST"],
@@ -348,7 +352,6 @@ class RestAPI(Plugin):
             summary = "Start a server instance.",
             tags = ["Instance Control"]
         )
-        
         self.router.add_api_route(
             "/instance/stop", self.instance_stop,
             methods = ["POST"],
@@ -357,7 +360,6 @@ class RestAPI(Plugin):
             summary = "Stop a server instance.",
             tags = ["Instance Control"]
         )
-        
         self.router.add_api_route(
             "/instance/restart", self.instance_restart,
             methods = ["POST"],
@@ -366,6 +368,8 @@ class RestAPI(Plugin):
             summary = "Restart a server instance.",
             tags = ["Instance Control"]
         )
+
+        # Mission routes
         self.router.add_api_route(
             "/instance/missions", self.instance_missions,
             methods = ["GET"],
@@ -374,7 +378,6 @@ class RestAPI(Plugin):
             summary = "Mission listing for a server instance.",
             tags = ["Mission Control"]
         )
-        
         self.router.add_api_route(
             "/instance/mission/pause", self.instance_mission_pause,
             methods = ["POST"],
@@ -383,7 +386,6 @@ class RestAPI(Plugin):
             summary = "Pause mission for a server instance.",
             tags = ["Mission Control"]
         )
-        
         self.router.add_api_route(
             "/instance/mission/unpause", self.instance_mission_unpause,
             methods = ["POST"],
@@ -392,7 +394,6 @@ class RestAPI(Plugin):
             summary = "Unpause mission for a server instance.",
             tags = ["Mission Control"]
         )
-        
         self.router.add_api_route(
             "/instance/mission/restart", self.instance_mission_restart,
             methods = ["POST"],
@@ -401,7 +402,6 @@ class RestAPI(Plugin):
             summary = "Restart mission for a server instance.",
             tags = ["Mission Control"]
         )
-        
         self.router.add_api_route(
             "/instance/mission/load", self.instance_mission_load,
             methods = ["POST"],
@@ -410,15 +410,15 @@ class RestAPI(Plugin):
             summary = "Load mission for a server instance.",
             tags = ["Mission Control"]
         )
-        
         self.router.add_api_route(
             "/mission/upload", self.mission_upload,
             methods=["POST"],
             response_model=MissionUploadResponse,
             description="Upload a .miz mission file to the server.",
             summary="Upload mission file",
-            tags=["Mission Control"]
+            tags=["Mission"]
         )
+
         self.app.include_router(self.router)
 
     def get_endpoint_config(self, endpoint: str):
@@ -656,7 +656,6 @@ class RestAPI(Plugin):
     # Endpoint:   /instance/mission/load
     # Method:     [POST]
     # Params:     - server_name   [required]
-    
     async def mission_upload(self,
         server_name: str = Query(..., description="Name of the server to upload the mission to"),
         file: UploadFile = File(..., description="Mission file (.miz)"),
@@ -701,7 +700,6 @@ class RestAPI(Plugin):
     ## string: convertable
     ## enum: mgrs | latlon | meters
     ## ----------------------------------------------
-
     async def convertCoordinates(self, server_name: str = Query(...), coordinates: str = Query(...)):
         """Return all meters for a given lat/lon on a server."""
         # Resolve server
@@ -893,7 +891,6 @@ class RestAPI(Plugin):
             waypoints=sorted_waypoints
         )
 
-        
     async def airbases(self, server_name: str = Query(...)):
         """Return all airbases for a given server."""
         # Resolve server
@@ -1000,17 +997,11 @@ class RestAPI(Plugin):
             "coalition": coalition
         }, timeout=60)
 
-        # return CaptureAirbaseResponse(
-        #     server_name=server_name,
-        #     airbase=airbase_name,
-        #     coalition=coalition
-        # )
-        
-        return {
-            "server_name": server_name,
-            "airbase_name": airbase_name,
-            "coalition": coalition
-        }
+        return AirbaseCaptureResponse(
+            server_name=server_name,
+            airbase_name=airbase_name,
+            coalition=coalition
+        )
 
     @async_cache
     async def get_ucid(self, nick: str, date: str | datetime | None = None) -> str:
@@ -1120,13 +1111,14 @@ class RestAPI(Plugin):
         if resolved_server_name:
             server = self.bot.servers.get(resolved_server_name)
             current_players = len(server.get_active_players()) if server else 0
+            where_clause = "AND m.server_name = %(server_name)s"
+            params = {"server_name": resolved_server_name}
         else:
             for server in self.bot.servers.values():
                 current_players += len(server.get_active_players())
+            where_clause = ""
+            params = {}
 
-        # Use resolved name for database queries
-        where_clause = f"AND m.server_name = '{resolved_server_name}'" if resolved_server_name else ""
-        
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 # Get basic statistics for different periods using monitoring plugin pattern
@@ -1136,7 +1128,7 @@ class RestAPI(Plugin):
                     '30d': "s.hop_on > (now() AT TIME ZONE 'utc') - interval '30 days'"
                 }
                 
-                stats = {"current_players": current_players}
+                stats: dict[str, Any] = {"current_players": current_players}
                 
                 for period_key, time_filter in periods.items():
                     # Use same SQL structure as ServerUsage in monitoring plugin
@@ -1152,7 +1144,7 @@ class RestAPI(Plugin):
                         AND {time_filter}
                         {where_clause}
                     """
-                    await cursor.execute(sql)
+                    await cursor.execute(sql, params)
                     row = await cursor.fetchone()
                     
                     if row:
@@ -1183,7 +1175,7 @@ class RestAPI(Plugin):
                     FROM date_series ds
                     LEFT JOIN daily_counts dc ON ds.date = dc.date
                     ORDER BY ds.date
-                """)
+                """, params)
                 
                 daily_data = await cursor.fetchall()
                 stats["daily_trend"] = [
@@ -1205,7 +1197,7 @@ class RestAPI(Plugin):
                     GROUP BY 1
                     ORDER BY 2 DESC
                     LIMIT 5
-                """)
+                """, params)
                 theatres_data = await cursor.fetchall()
                 stats["top_theatres"] = [
                     {
@@ -1226,7 +1218,7 @@ class RestAPI(Plugin):
                     GROUP BY 1
                     ORDER BY 2 DESC
                     LIMIT 3
-                """)
+                """, params)
                 missions_data = await cursor.fetchall()
                 stats["top_missions"] = [
                     {
@@ -1248,7 +1240,7 @@ class RestAPI(Plugin):
                     GROUP BY s.slot 
                     ORDER BY 3 DESC 
                     LIMIT 10
-                """)
+                """, params)
                 modules_data = await cursor.fetchall()
                 stats["top_modules"] = [
                     {
@@ -1260,23 +1252,15 @@ class RestAPI(Plugin):
                     for row in modules_data
                 ]
 
-                # Add additional server metrics from mv_serverstats
-                if resolved_server_name:
-                    mv_where_clause = "WHERE server_name = %(server_name)s"
-                    mv_params = {"server_name": resolved_server_name}
-                else:
-                    mv_where_clause = ""
-                    mv_params = {}
-                    
                 await cursor.execute(f"""
                     SELECT SUM("totalSorties") AS total_sorties,
                            SUM("totalKills") AS total_kills,
                            SUM("totalDeaths") AS total_deaths,
                            SUM("totalPvPKills") AS total_pvp_kills,
                            SUM("totalPvPDeaths") AS total_pvp_deaths
-                    FROM mv_serverstats
-                    {mv_where_clause}
-                """, mv_params)
+                    FROM mv_serverstats m
+                    {where_clause}
+                """, params)
                 mv_row = await cursor.fetchone()
                 
                 if mv_row:
