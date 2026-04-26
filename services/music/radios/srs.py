@@ -46,6 +46,8 @@ class SRSRadio(Radio):
                 kwargs['song'] = self.current
                 await self.server.sendChatMessage(Coalition.ALL, utils.format_string(server_config['chat'], **kwargs))
             await asyncio.to_thread(proc.wait)
+        except psutil.NoSuchProcess:
+            pass
         except Exception as ex:
             self.log.exception(ex)
         finally:

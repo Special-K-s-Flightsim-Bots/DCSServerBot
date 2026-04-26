@@ -204,12 +204,12 @@ class ModManagerService(Service):
         path = urlparse(url).path
         return path.lstrip('/')
 
-    async def download(self, url: str, folder: Folder, version: str, *, force: bool | None = False) -> None:
+    async def download(self, url: str, folder: Folder, version: str | None, *, force: bool | None = False) -> None:
         config = self.get_config()
         path = os.path.expandvars(config[folder.value])
         filename = url.split('/')[-1]
         outpath = os.path.join(path, filename)
-        if version not in outpath:
+        if version and version not in outpath:
             outpath = os.path.join(path, filename)[:-4] + f'_v{version}.zip'
         self.log.info(f"  => ModManager: Downloading {folder.value}/{os.path.basename(outpath)} ...")
         async with ClientSession() as session:

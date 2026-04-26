@@ -264,14 +264,21 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             # TODO: rewrite that code, so the initiator is not needed
             win_coalition = self.COALITION[data['initiator']['coalition']]
             lose_coalition = self.COALITION[(data['initiator']['coalition'] % 2) + 1]
-            name = data['place']['name']
+            name = data.get('place', {}).get('name')
+            # in the unlikely event that we do not have a name, return
+            if not name:
+                return
             # workaround for DCS base capture bug:
-            if name in stats['coalitions'][win_coalition.name]['airbases'] or \
-                    name not in stats['coalitions'][lose_coalition.name]['airbases']:
+            if (
+                    name in stats['coalitions'][win_coalition.name]['airbases'] or
+                    name not in stats['coalitions'][lose_coalition.name]['airbases']
+            ):
                 return
 
             wc = stats['coalitions'][win_coalition.name]
-            wc.setdefault('airbases', []).append(name)
+            if not wc.get('airbases'):
+                wc['airbases'] = []
+            wc['airbases'].append(name)
             wc['captures'] = wc.get('captures', 0) + 1
             lc = stats['coalitions'][lose_coalition.name]
             if name in lc['airbases']:

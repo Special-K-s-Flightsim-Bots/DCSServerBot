@@ -887,7 +887,7 @@ class MissionEventListener(EventListener["Mission"]):
 
     @event(name="onPlayerStop")
     async def onPlayerStop(self, server: Server, data: dict) -> None:
-        if data['id'] == 1:
+        if data['id'] == 1 or 'ucid' not in data:
             return
         player = server.get_player(ucid=data['ucid'])
         if player:
