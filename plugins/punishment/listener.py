@@ -82,6 +82,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         v_avrg = params["v_avrg"]
         p_dstr = params["p_dstr"]
+        d_max = params["d_max"]
 
         if distance_old <= 0 or age_s < 0:
             return 0.0
@@ -90,7 +91,19 @@ class PunishmentEventListener(EventListener["Punishment"]):
         if distance_new <= 0:
             return 0.0
 
-        return distance_new * p_dstr
+        # Up to d_max, keep the configured endgame probability.
+        if distance_old <= d_max:
+            energy_factor = 1.0
+        else:
+            # Past d_max, missile energy gradually decays.
+            # At roughly 3.5x d_max, consider the missile out of useful energy.
+            max_energy_range = d_max * 3.5
+            if distance_old >= max_energy_range:
+                return 0.0
+
+            energy_factor = 1.0 - ((distance_old - d_max) / (max_energy_range - d_max))
+
+        return p_dstr * energy_factor
 
     def is_missile_hot(self, distance_m: float, age_s: float, weapon: str | None) -> bool:
         return self.missile_threat_score(distance_m, age_s, weapon) >= 0.15
@@ -543,10 +556,11 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 return
 
             shot_time, s_event = self.pending_kill.get(target.ucid, (-1, None))
+            now = int(time.time())
             if data['eventName'] == 'S_EVENT_SHOT':
                 # if there is an older shot ...
                 if shot_time > 0 and s_event:
-                    delta_time = int(time.time()) - shot_time
+                    delta_time = now - shot_time
                     if s_event.get('eventName') == 'S_EVENT_HIT':
                         # we do not overwrite hit events with shot events if they are still hot
                         if delta_time < config.get('survival_window', 300):
@@ -576,7 +590,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                                    f"where player {orig_name} was predicted.")
 
             # store the shot with the highest PBK or the latest hit event
-            self.pending_kill[target.ucid] = (int(time.time()), data)
+            self.pending_kill[target.ucid] = (now, data)
 
         elif data['eventName'] == 'S_EVENT_LAND':
             initiator = server.get_player(name=data.get('initiator', {}).get('name'))

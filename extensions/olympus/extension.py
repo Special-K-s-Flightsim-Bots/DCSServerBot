@@ -12,7 +12,6 @@ import subprocess
 import sys
 
 from core import utils, Server, get_translation, PortType, Port, ProcessManager, InstallableExtension
-from packaging.version import Version, InvalidVersion
 from threading import Thread
 from typing import cast
 from typing_extensions import override
@@ -81,6 +80,8 @@ class Olympus(InstallableExtension):
                     instance=server.instance.name
                 )
                 self.log.debug("- Running Olympus process found.")
+        else:
+            self.process = None
 
         if self.version == '1.0.3':
             self.backend_tag = 'server'

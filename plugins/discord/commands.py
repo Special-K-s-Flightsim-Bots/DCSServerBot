@@ -3,11 +3,13 @@ import discord
 from core import Plugin, command, utils, get_translation, Group
 from datetime import timedelta
 from discord import app_commands, Permissions
+from discord.abc import GuildChannel
 from discord.ext import commands
-
-from plugins.discord.views import HealthcheckView
 from services.bot import DCSServerBot
 from services.cron.actions import purge_channel
+from typing import cast
+
+from .views import HealthcheckView
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -30,7 +32,10 @@ class Discord(Plugin):
             if config['ping_everyone'].get('timeout', False) and not self.bot.member.guild_permissions.moderate_members:
                 self.log.warning(f"{self.__class__.__name__}: Bot is missing permission to timeout members!")
         if 'reaction' in config:
-            channel = self.bot.get_channel(config['reaction']['channel'])
+            channel: GuildChannel | None = cast(GuildChannel, self.bot.get_channel(config['reaction']['channel']))
+            if not channel:
+                self.log.warning(f"{self.__class__.__name__}: Reaction channel {config['reaction']['channel']} not found!")
+                return
             message = await self.bot.fetch_embed('reaction', channel)
             if not message:
                 guild = self.bot.guilds[0]

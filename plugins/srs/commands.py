@@ -23,17 +23,17 @@ async def frequency_autocomplete(interaction: discord.Interaction, _current: flo
             return []
         if player:
             return [
-                app_commands.Choice[float](name=utils.format_frequency(x), value=x/1000000)
-                for p in eventlistener.srs_users[server.name].values()
+                app_commands.Choice[float](name=utils.format_frequency(x), value=x[0]/1000000)
+                for p in eventlistener.srs_users.get(server.name, {}).values()
                 if p['player_name'] == player.name
                 for x in sorted(p['radios'])
             ]
         elif coalition:
             return [
-                app_commands.Choice[float](name=utils.format_frequency(x), value=x/1000000)
+                app_commands.Choice[float](name=utils.format_frequency(x), value=x[0]/1000000)
                 for x in sorted({
                     radio
-                    for p in eventlistener.srs_users[server.name].values()
+                    for p in eventlistener.srs_users.get(server.name, {}).values()
                     if p['side'] == coalition
                     for radio in p['radios']
                 })

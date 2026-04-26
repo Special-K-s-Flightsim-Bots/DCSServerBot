@@ -452,9 +452,13 @@ class DCSServerBot(commands.Bot):
                 embed.add_field(name='Server', value=server.display_name)
             if kwargs:
                 for name, value in kwargs.items():
-                    embed.add_field(name=name.title(),
-                                    value=value.mention if isinstance(value, discord.Member) else value[:1024],
-                                    inline=False)
+                    embed.add_field(
+                        name=name.title(),
+                        value=value.mention if isinstance(value, discord.Member) else
+                        value[:1024] if isinstance(value, str) else
+                        str(value),
+                        inline=False
+                    )
             embed.set_footer(text=datetime.now(timezone.utc).strftime("%y-%m-%d %H:%M:%S"))
             try:
                 await audit_channel.send(content=content, embed=embed,

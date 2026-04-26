@@ -1435,8 +1435,10 @@ class Mission(Plugin[MissionEventListener]):
     async def _list(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
         if server.status != Status.RUNNING:
-            await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
-                                                    ephemeral=True)
+            await interaction.response.send_message(
+                _("Server {} is {}.").format(server.display_name, server.status.value.lower()),
+                ephemeral=True
+            )
             return
         report = Report(self.bot, self.plugin_name, 'players.json')
         env = await report.render(server=server, sides=utils.get_sides(interaction.client, interaction, server))

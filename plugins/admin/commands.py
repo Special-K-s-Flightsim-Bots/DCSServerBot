@@ -476,7 +476,13 @@ class Admin(Plugin[AdminEventListener]):
                      slow: bool | None = False, check_extra_files: bool | None = False,
                      warn_time: app_commands.Range[int, 0] = 60):
         ephemeral = utils.get_ephemeral(interaction)
-        await interaction.response.defer(thinking=True, ephemeral=ephemeral)
+        if not await utils.yn_question(
+                interaction,
+                _("Do you want to run a DCS World repair on node {name}?").format(name=node.name)
+        ):
+            await interaction.followup.send(_("Aborted."))
+            return
+
         await self.bot.audit(f"started a repair of DCS World on node {node.name}.", user=interaction.user)
         msg = await interaction.followup.send(_("Repairing DCS World, please wait ..."), ephemeral=ephemeral)
         try:
