@@ -12,6 +12,7 @@ import psutil
 import shutil
 import sys
 import tempfile
+import time
 import traceback
 
 if sys.platform == 'win32':
@@ -39,7 +40,8 @@ from pathlib import Path
 from psycopg.errors import UndefinedTable
 from typing import TYPE_CHECKING, Any, Iterable
 from typing_extensions import override
-from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
+from watchdog.events import (FileSystemEventHandler, DirCreatedEvent, FileCreatedEvent, DirDeletedEvent,
+                             FileDeletedEvent, DirMovedEvent, FileMovedEvent)
 from watchdog.observers import Observer, ObserverType
 
 # ruamel YAML support
@@ -59,34 +61,74 @@ __all__ = ["ServerImpl"]
 
 
 class MissionFileSystemEventHandler(FileSystemEventHandler):
-    def __init__(self, server: Server, loop: asyncio.AbstractEventLoop):
+    DEBOUNCE_WINDOW = 2.0           # seconds
+    TEMP_SUFFIXES = ('.tmp', '.part', '.swp', '~')
+    IGNORE_PREFIX = '.'             # hidden files
+
+    def __init__(self, server, loop):
+        super().__init__()
         self.server = server
         self.log = server.log
         self.loop = loop
         self.deleted: dict[str, int] = {}
+        self._seen: dict[str, float] = {}
 
-    @override
-    def on_created(self, event: FileSystemEvent):
-        path: str = os.path.normpath(event.src_path)
-        # ignore non-mission files and such that are in the .dcssb folder
-        if not (path.endswith('.miz') or path.endswith('.sav')) or '.dcssb' in path:
+    def _is_debounced(self, path):
+        now = time.monotonic()
+        last = self._seen.get(path, 0)
+        if now - last < self.DEBOUNCE_WINDOW:
+            return True
+        self._seen[path] = now
+        return False
+
+    def _is_valid_mission_file(self, path):
+        name = os.path.basename(path)
+        if name.startswith(self.IGNORE_PREFIX):
+            return False
+        if any(name.endswith(suf) for suf in self.TEMP_SUFFIXES):
+            return False
+        return path.endswith('.miz') or path.endswith('.sav')
+
+    def _wait_for_stable_file(self, path, timeout=5.0):
+        start = time.monotonic()
+        while time.monotonic() - start < timeout:
+            try:
+                size1 = os.path.getsize(path)
+            except FileNotFoundError:
+                return False
+            time.sleep(0.5)
+            try:
+                size2 = os.path.getsize(path)
+            except FileNotFoundError:
+                return False
+            if size1 == size2:
+                return True
+        return False
+
+    # ----------------------------------------------------------------------
+    # Core handlers
+    # ----------------------------------------------------------------------
+    def on_created(self, event: DirCreatedEvent | FileCreatedEvent) -> None:
+        path = os.path.normpath(event.src_path)
+        if not self._is_valid_mission_file(path):
             return
+        if self._is_debounced(path):
+            return
+
+        if not self._wait_for_stable_file(path):
+            self.log.warning(f"File {path} never stabilized – skipping.")
+            return
+
         if path in self.deleted:
-            asyncio.run_coroutine_threadsafe(self.server.addMission(path, idx=self.deleted[path]), self.loop)
-            del self.deleted[path]
+            idx = self.deleted.pop(path)
+            asyncio.run_coroutine_threadsafe(self.server.addMission(path, idx=idx), self.loop)
         else:
             asyncio.run_coroutine_threadsafe(self.server.addMission(path), self.loop)
+
         self.log.info(f"=> New mission {os.path.basename(path)[:-4]} added to server {self.server.name}.")
 
-    @override
-    def on_moved(self, event: FileSystemMovedEvent):
-        self.on_deleted(event)
-        self.on_created(FileSystemEvent(event.dest_path))
-
-    @override
-    def on_deleted(self, event: FileSystemEvent):
-        path: str = os.path.normpath(event.src_path)
-        # ignore non-mission files
+    def on_deleted(self, event: DirDeletedEvent | FileDeletedEvent) -> None:
+        path = os.path.normpath(event.src_path)
         if not path.endswith('.miz'):
             return
         missions = self.server.settings['missionList']
@@ -97,12 +139,14 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
         if path in missions:
             idx = missions.index(path) + 1
             asyncio.run_coroutine_threadsafe(self.server.deleteMission(idx), self.loop)
-            # cache the index of the line to re-add the file at the correct position afterward
-            # if a cloud drive did a delete/add instead of a modification
             self.deleted[path] = idx
             self.log.info(f"=> Mission {os.path.basename(path)[:-4]} deleted from server {self.server.name}.")
         else:
             self.log.debug(f"Mission file {path} got deleted from disk.")
+
+    def on_moved(self, event: DirMovedEvent | FileMovedEvent) -> None:
+        self.on_deleted(event)
+        self.on_created(event)
 
 
 @dataclass
@@ -156,7 +200,7 @@ class ServerImpl(Server):
             # if someone managed to destroy the mission list, fix it...
             if 'missionList' not in self._settings:
                 self._settings['missionList'] = []
-                self._settings['listStartIndex'] = 0
+                self._settings['listStartIndex'] = self.settings['current'] = 0
             elif isinstance(self._settings['missionList'], dict):
                 self._settings['missionList'] = list(self._settings['missionList'].values())
         return self._settings
@@ -232,7 +276,7 @@ class ServerImpl(Server):
                 new_start = self._settings['missionList'].index(current_mission)
             except ValueError:
                 new_start = 0
-            self._settings['listStartIndex'] = new_start + 1
+            self._settings['listStartIndex'] = self._settings['current'] = new_start + 1
 
     async def _load_mission_list(self):
         try:
@@ -257,8 +301,7 @@ class ServerImpl(Server):
             if self._status == Status.UNREGISTERED and status == Status.SHUTDOWN:
                 if self.locals.get('autoscan', False):
                     self._init_mission_list()
-                else:
-                    self._make_missions_unique()
+                self._make_missions_unique()
             elif self._status in [Status.UNREGISTERED, Status.LOADING] and new_status in [Status.RUNNING, Status.PAUSED]:
                 # only check the mission list if we started that server
                 if self._status == Status.LOADING:
@@ -551,7 +594,7 @@ class ServerImpl(Server):
                     idx = missions.index(start_mission) + 1
                 except ValueError:
                     idx = 1
-                self.settings['listStartIndex'] = idx
+                self.settings['listStartIndex'] = self.settings['current'] = idx
             self.log.warning('Removed non-existent missions from serverSettings.lua')
         self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.instance.name))
         try:
@@ -1059,8 +1102,7 @@ class ServerImpl(Server):
         if self.status == Status.STOPPED:
             try:
                 idx = mission_list.index(filename) + 1
-                self.settings['listStartIndex'] = idx
-                self.settings['current'] = idx
+                self.settings['listStartIndex'] = self.settings['current'] = idx
                 return await self.start()
             except ValueError:
                 return False
