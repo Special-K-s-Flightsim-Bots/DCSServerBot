@@ -9,11 +9,11 @@ if errorlevel 9009 (
     exit /B 9009
 )
 
-python -c "import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)" >NUL 2>&1
+python -c "import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)" >NUL 2>&1
 if errorlevel 1 (
     echo.
     echo ***  ERROR  ***
-    echo DCSServerBot requires Python >= 3.10.
+    echo DCSServerBot requires Python >= 3.11.
     exit /B 1
 )
 

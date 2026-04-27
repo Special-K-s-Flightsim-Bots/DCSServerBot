@@ -166,12 +166,8 @@ You need the following software to run DCSServerBot:
 
 #### a) Python
 You need to have [Python](https://www.python.org/downloads/) 3.11 or higher installed. 
-Please make sure that you tick "Add python.exe to PATH" during your Python installation.
-
-> [!WARNING]
-> Python 3.14 is still very new, and many third-party libraries are either not or not fully supported yet.
-> The bot should install with 3.14, though, but you cannot expect the same performance as with 3.13 yet.
-> That said – use 3.14 at your own risk.
+> [!IMPORTANT]
+> Please make sure that you tick "Add python.exe to PATH" during your Python installation.
 
 #### b) PostgreSQL
 DCSServerBot needs a database to store information in. I decided to use [PostgreSQL](https://www.postgresql.org/download/), as it has great performance
@@ -226,11 +222,11 @@ installation, and you will install a variant that works without.
 
 ### Download
 Best is to use ```git clone https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git``` as you then always have 
-the newest fixes, independent of and release version. Otherwise, download the latest release version as ZIP and extract 
+the newest fixes, independent of the release version. Otherwise, download the latest release version as ZIP and extract 
 it somewhere on your PC running the DCS server(s) and give it write permissions, if needed. 
 
 > [!CAUTION]
-> Make sure that the bots installation directory can only be seen by yourself and is not exposed to anybody 
+> Make sure that the bot's installation directory can only be seen by yourself and is not exposed to anybody 
 > outside via www etc. as it contains sensitive data. Do NEVER expose any of the DCSServerBot ports to the
 > outside world also.
 
@@ -257,7 +253,7 @@ When finished, the bot should launch successfully and maybe even start your serv
 > non-Discord setup. If you have no idea what to put in a specific parameter, that is usually a good sign to just
 > skip it.
 
-You can start the installer with these parameters:
+You can start the installer with these _optional_ parameters (if unsure, do _not_ use them):
 ```
 Usage: install.cmd [-h] [-n NODE] [-c CONFIG] [-u USER] [-d DATABASE]
 
@@ -265,8 +261,8 @@ Welcome to DCSServerBot!
 
 options:
   -h, --help                        Show this help message and exit
-  -n NODE, --node NODE              Node name (default = hostname)
-  -c CONFIG, --config CONFIG        Path to configuration
+  -n NODE, --node NODE              Node name (default = hostname of the PC running the bot)
+  -c CONFIG, --config CONFIG        Path to configuration (default = ./config)
   -u USER, --user USER              Database username (default = dcsserverbot)
   -d DATABASE, --database DATABASE  Database name (default = dcsserverbot)
 ```

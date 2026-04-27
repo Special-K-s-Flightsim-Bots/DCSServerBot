@@ -387,7 +387,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         elif data['eventName'] == 'disconnect':
             shot_time, evt = self.pending_kill.pop(initiator.ucid, (-1, None))
-            if shot_time == -1 or not evt:
+            if shot_time == -1 or not evt or data['arg4'] != 0:
                 return
 
             delta_time = int(time.time()) - shot_time

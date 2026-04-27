@@ -896,7 +896,7 @@ class MissionEventListener(EventListener["Mission"]):
             else:
                 await self._stop_player(server, player)
 
-    async def _disconnect(self, server: Server, player: Player | None):
+    async def _disconnect(self, server: Server, player: Player | None, on_error: bool = False):
         if not player or player.connected is False:
             return
 
@@ -911,7 +911,7 @@ class MissionEventListener(EventListener["Mission"]):
                         "name": player.name,
                         "type": "UNIT"
                     },
-                    "comment": "auto-generated",
+                    "comment": "auto-generated (network)" if on_error else "auto-generated",
                     "server_name": server.name
                 }
             ))
@@ -1006,7 +1006,7 @@ class MissionEventListener(EventListener["Mission"]):
             if data['arg1'] == 1:
                 return
             player = server.get_player(id=data['arg1'], active=True)
-            await self._disconnect(server, player)
+            await self._disconnect(server, player, data['arg4'] != 0)
             return
 
         # check the event filter first
