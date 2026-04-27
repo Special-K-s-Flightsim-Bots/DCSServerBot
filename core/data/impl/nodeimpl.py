@@ -633,6 +633,8 @@ class NodeImpl(Node):
             # ignore rate limits
             if ex.status != 403:
                 raise
+        except IndexError:
+            self.log.error(f"Corrupt response from GitHub: {repr(result)}")
         return False
 
     @override

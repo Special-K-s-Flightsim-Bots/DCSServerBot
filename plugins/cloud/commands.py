@@ -394,6 +394,10 @@ class Cloud(Plugin[CloudListener]):
                         LIMIT 10
                     """)
                     rows = await cursor.fetchall()
+                    if not rows:
+                        # all is synced, no need to poll every 10s
+                        self.cloud_sync.change_interval(minutes=5.0)
+                        return
 
                     for row in rows:
                         await cursor.execute("""
