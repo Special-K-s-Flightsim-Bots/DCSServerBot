@@ -403,7 +403,7 @@ class Cloud(Plugin[CloudListener]):
                         await cursor.execute("""
                             SELECT DISTINCT x.name, x.discord_id, min(time) AS linked_at, max(time) AS last_seen FROM  
                             (
-                                SELECT name, discord_id, last_seen AS time FROM players
+                                SELECT name, discord_id, COALESCE(last_seen, first_seen) AS time FROM players
                                 WHERE ucid = %(ucid)s AND manual = TRUE AND discord_id != -1
                                 UNION
                                 SELECT DISTINCT name, discord_id, min(time) AS time FROM players_hist
