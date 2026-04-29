@@ -414,11 +414,12 @@ class Cloud(Plugin[CloudListener]):
                             ORDER BY 3
                         """, {"ucid": row['ucid']})
                         async for player in cursor:
+                            linked_at = player['linked_at'] or player['last_seen']
                             await self.post('register_player', {
                                 "ucid": row['ucid'],
                                 "name": player['name'],
                                 "discord_id": player['discord_id'],
-                                "linked_at": player['linked_at'].isoformat(),
+                                "linked_at": linked_at.isoformat(),
                                 "last_seen": player['last_seen'].isoformat()
                             })
                         await cursor.execute("""
