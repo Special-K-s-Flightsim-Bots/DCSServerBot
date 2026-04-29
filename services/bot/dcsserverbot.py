@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import discord
+import sys
 
 from aiohttp import ClientError
 from core import Channel, utils, Status, PluginError, Group, Node, DEFAULT_CHANNEL_PERMISSIONS, \
@@ -12,7 +13,7 @@ from datetime import datetime, timezone
 from discord import Thread, PrivilegedIntentsRequired
 from discord.abc import PrivateChannel, GuildChannel
 from discord.ext import commands
-from typing import TYPE_CHECKING, Iterable, cast
+from typing import TYPE_CHECKING, Iterable, cast, Any
 
 if TYPE_CHECKING:
     from core import Server, NodeImpl
@@ -329,14 +330,15 @@ class DCSServerBot(commands.Bot):
                 asyncio.create_task(self.audit(message="Discord Bot started."))
             else:
                 self.log.warning('- Discord connection re-established.')
-        except FatalException:
-            raise
         except (discord.HTTPException, RuntimeError) as ex:
             self.log.warning(f"Discord connection error: {repr(ex)}")
-            pass
-        except Exception as ex:
+
+    async def on_error(self, event_method: str, /, *args: Any, **kwargs: Any) -> None:
+        ex = sys.exc_info()[1]
+        if isinstance(ex, FatalException):
             self.log.exception(ex)
-            raise
+            exit(-2)
+        await super().on_error(event_method, *args, **kwargs)
 
     async def on_command_error(self, ctx: commands.Context, err: Exception):
         if isinstance(err, commands.CommandNotFound):
