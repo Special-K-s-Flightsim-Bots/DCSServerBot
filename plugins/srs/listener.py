@@ -176,7 +176,7 @@ class SRSEventListener(EventListener["SRS"]):
         return {
             "frequency": frequency,
             "modulation": modulation,
-            "coalition": 1 if player.coalition == Coalition.RED else 2
+            "coalition": player.side.value
         }
 
     @event(name="onMissionEvent")
@@ -190,7 +190,7 @@ class SRSEventListener(EventListener["SRS"]):
             if not player or player.sub_slot > 0:
                 return
 
-            place = data.get('place', {}).get('name')
+            place: str | None = data.get('place', {}).get('name')
             if not place:
                 return
 
@@ -202,13 +202,13 @@ class SRSEventListener(EventListener["SRS"]):
             default_freqs = (
                 config.
                 get('atc_frequencies', {}).
-                get(player.coalition.value, {}).
+                get(player.side.name.lower(), {}).
                 get('*')
             )
             atc_freqs: list[Any] = (
                 config.
                 get('atc_frequencies', {}).
-                get(player.coalition.value, {}).
+                get(player.side.name.lower(), {}).
                 get(airbase_type, default_freqs)
             )
             # we accept lists of frequencies
