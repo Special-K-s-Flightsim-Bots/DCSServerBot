@@ -5,6 +5,8 @@ import atexit
 import importlib
 import inspect
 import json
+import sqlite3
+
 import luadata
 import os
 import pkgutil
@@ -704,6 +706,16 @@ class ServerImpl(Server):
             p = psutil.NORMAL_PRIORITY_CLASS
         self.process.nice(p)
 
+    def _cleanup_sqlite(self):
+        sqlite_path = os.path.join(self.instance.home, 'Config', 'serverdata.sqlite3')
+        with sqlite3.connect(sqlite_path) as conn:
+            cur = conn.cursor()
+            # we need to delete all net sessions regularly to obey the GDPR requirements
+            cur.execute("DELETE FROM net_sessions;")
+            conn.commit()
+            conn.execute("VACUUM;")
+            conn.commit()
+
     @override
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
         if not utils.is_desanitized(self.node):
@@ -711,6 +723,7 @@ class ServerImpl(Server):
                 raise Exception("Your DCS installation is not desanitized properly to be used with DCSServerBot!")
             else:
                 utils.desanitize(self)
+        await asyncio.to_thread(self._cleanup_sqlite)
         self.status = Status.LOADING
         await self.init_extensions()
         await self.prepare_extensions()
