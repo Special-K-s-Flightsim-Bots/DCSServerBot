@@ -1252,19 +1252,15 @@ class Scheduler(Plugin[SchedulerListener]):
                     if not self.bot.locals.get('channels', {}).get('admin'):
                         channels['admin'] = server.locals.get('channels', {}).get('admin', -1)
                     await server.update_channels(channels)
-                await interaction.followup.send(f'Server configuration for server "{server.display_name}" updated.',
-                                                ephemeral=ephemeral)
+                await msg.edit(content=f'Configuration for server "{server.display_name}" updated.', embed=None, view=None)
+            else:
+                await msg.edit(content="Aborted.", embed=None, view=None)
             if stopped:
                 await server.start()
         except (asyncio.TimeoutError, TimeoutError):
             await interaction.followup.send(f'Timeout while starting server "{server.display_name}".\n'
                                             f'Please check the server manually.',
                                             ephemeral=ephemeral)
-        finally:
-            try:
-                await msg.delete()
-            except discord.NotFound:
-                pass
 
     @group.command(name='rename', description='Rename a DCS server')
     @app_commands.guild_only()
