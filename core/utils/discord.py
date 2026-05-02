@@ -213,9 +213,7 @@ class SelectView(View):
 
     @discord.ui.select()
     async def callback(self, interaction: Interaction, select: Select):
-        # noinspection PyUnresolvedReferences
         if not interaction.response.is_done():
-            # noinspection PyUnresolvedReferences
             await interaction.response.defer()
         if select.max_values > 1:
             self.result = select.values
@@ -223,17 +221,13 @@ class SelectView(View):
             self.result = select.values[0]
         self.stop()
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label='OK', style=ButtonStyle.green, custom_id='sl_ok')
     async def on_ok(self, interaction: Interaction, _: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label='Cancel', style=ButtonStyle.red, custom_id='sl_cancel')
     async def on_cancel(self, interaction: Interaction, _: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = None
         self.stop()
@@ -260,11 +254,9 @@ async def selection(interaction: discord.Interaction | commands.Context, *, titl
     msg = None
     try:
         if isinstance(interaction, discord.Interaction):
-            # noinspection PyUnresolvedReferences
             if interaction.response.is_done():
                 msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             else:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
                 msg = await interaction.original_response()
         else:
@@ -282,18 +274,14 @@ class YNQuestionView(View):
         super().__init__(timeout=120)
         self.result = None
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label='Yes', style=ButtonStyle.green, custom_id='yn_yes')
     async def on_yes(self, interaction: Interaction, _: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = True
         self.stop()
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label='No', style=ButtonStyle.red, custom_id='yn_no')
     async def on_no(self, interaction: Interaction, _: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = False
         self.stop()
@@ -341,26 +329,20 @@ class PopulatedQuestionView(View):
         super().__init__(timeout=120)
         self.result = None
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label='Yes', style=ButtonStyle.green, custom_id='pl_yes')
     async def on_yes(self, interaction: Interaction, _: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = 'yes'
         self.stop()
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label='Later', style=ButtonStyle.primary, custom_id='pl_later', emoji='⏱')
     async def on_later(self, interaction: Interaction, _: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = 'later'
         self.stop()
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label='Cancel', style=ButtonStyle.red, custom_id='pl_cancel')
     async def on_cancel(self, interaction: Interaction, _: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
@@ -1551,42 +1533,34 @@ class DirectoryPicker(discord.ui.View):
     @discord.ui.select(min_values=0, max_values=1, placeholder="Pick a directory ...")
     async def on_select(self, interaction: discord.Interaction, select: Select):
         try:
-            # noinspection PyUnresolvedReferences
             await interaction.response.defer()
             self.dir = os.path.relpath(select.values[0], self.base_dir)
             await self.refresh(interaction)
         except Exception as ex:
             interaction.client.log.exception(ex)
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label="Upload", style=ButtonStyle.green, row=2)
     async def on_upload(self, interaction: discord.Interaction, _button: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label="Up", style=ButtonStyle.secondary)
     async def on_up(self, interaction: discord.Interaction, _button: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if self.dir:
             self.dir = os.path.dirname(self.dir)
             await self.refresh(interaction)
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label="Create", style=ButtonStyle.primary)
     async def on_create(self, interaction: discord.Interaction, _button: Button):
         class TextModal(Modal, title="Create Directory"):
             name = TextInput(label="Name", max_length=80, required=True)
 
             async def on_submit(derived, interaction: discord.Interaction) -> None:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.defer()
                 derived.stop()
 
         modal = TextModal()
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         if not await modal.wait():
             new_name = re.sub(r'[\\/\.]', '', modal.name.value)
@@ -1597,10 +1571,8 @@ class DirectoryPicker(discord.ui.View):
                 self.dir = modal.name.value
             await self.refresh(interaction)
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label="Cancel", style=ButtonStyle.red, row=2)
     async def on_cancel(self, interaction: discord.Interaction, _button: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.base_dir = self.dir = None
         self.stop()
@@ -1621,7 +1593,6 @@ class UploadView(DirectoryPicker):
         return embed
 
     async def on_overwrite(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.overwrite = not self.overwrite
         cast(Button, self.children[-1]).label = '✔️ Overwrite' if self.overwrite else '❌ Overwrite'
@@ -1638,7 +1609,7 @@ class NodeUploadHandler:
         self.channel = message.channel
         self.log = node.log
         self.bot = ServiceRegistry.get(BotService).bot
-        self.patterns: list[re.Pattern[str]] = [
+        self.patterns: list[re.Pattern[str] | str] = [
             re.compile(p, flags=re.IGNORECASE) if isinstance(p, str) else p
             for p in patterns
         ]
@@ -1963,7 +1934,6 @@ class DatabaseModal(Modal):
                 await cur.execute(query, list(validated_data.values()))
                 self.response = await cur.fetchone()
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(
             f"Data successfully inserted into {self.table_name}!",
             ephemeral=True
@@ -1973,14 +1943,12 @@ class DatabaseModal(Modal):
         """Handle any errors that occur during modal submission"""
         if isinstance(error, ValueError):
             # Handle validation errors
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 f"Validation error: {str(error)}",
                 ephemeral=True
             )
         else:
             # Handle other errors
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 f"An error occurred: {str(error)}",
                 ephemeral=True

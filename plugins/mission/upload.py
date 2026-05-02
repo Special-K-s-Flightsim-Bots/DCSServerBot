@@ -22,19 +22,34 @@ class MissionUploadHandler(ServerUploadHandler):
     async def handle_attachment(self, directory: str, att: discord.Attachment) -> UploadStatus:
         try:
             ctx = await self.bot.get_context(self.message)
+            mission_rewrite = self.server.locals.get('mission_rewrite', True)
             rc = await self.server.uploadMission(att.filename, att.url, force=self.overwrite, missions_dir=directory)
             if rc in [UploadStatus.FILE_IN_USE, UploadStatus.WRITE_ERROR]:
-                if self.server.is_populated():
-                    what = await utils.populated_question(ctx, _('This mission is currently active.\n'
-                                                                 'Do you want me to stop the DCS-server to replace it?'))
+                question = _("Do you want to replace the running mission?")
+                message = None
+                if not mission_rewrite:
+                    if self.server.is_populated():
+                        what = await utils.populated_question(ctx, question=question)
+                    else:
+                        message = _("The server needs to be stopped.")
+                        if await utils.yn_question(ctx, question=question, message=message):
+                            what = 'yes'
+                        else:
+                            what = 'no'
                 else:
-                    what = 'yes'
+                    if await utils.yn_question(ctx, question=question, message=message):
+                        what = 'yes'
+                    else:
+                        what = 'no'
+
                 if what == 'yes':
-                    await self.server.stop()
-                    self.log.debug(f"Mission upload: Server {self.server.name} stopped.")
+                    if mission_rewrite:
+                        rc = await self.server.uploadMission(att.filename, att.url, force=True, missions_dir=directory)
+                    else:
+                        await self.server.stop()
                 elif what == 'later':
-                    await self.server.uploadMission(att.filename, att.url, orig=True, force=True, missions_dir=directory)
-                    await self.channel.send(_('Mission "{mission}" uploaded to server {server}\n'
+                    rc = await self.server.uploadMission(att.filename, att.url, force=True, missions_dir=directory)
+                    await self.channel.send(_('Mission "{mission}" uploaded to server {server}.\n'
                                               'It will be loaded when server is empty or on the next restart.').format(
                         mission=os.path.basename(att.filename)[:-4], server=self.server.display_name))
                     # we return the old rc (file in use), to not force a mission load
@@ -68,8 +83,8 @@ class MissionUploadHandler(ServerUploadHandler):
                       'As you have "autoscan" enabled, it might take some seconds to appear in your mission list.'
                       ).format(mission=name, server=self.server.display_name))
             else:
-                self.log.debug(f"Mission {name} was uploaded and added.")
-                await self.channel.send(_('Mission "{mission}" uploaded to server {server}').format(
+                self.log.debug(f'Mission "{name}" was uploaded and added.')
+                await self.channel.send(_('Mission "{mission}" uploaded to server {server}.').format(
                     mission=name, server=self.server.display_name))
             return rc
         except Exception as ex:
@@ -89,27 +104,28 @@ class MissionUploadHandler(ServerUploadHandler):
     async def _load_mission(self, filename: str):
         ctx = await self.bot.get_context(self.message)
         name = utils.escape_string(os.path.basename(filename)[:-4])
-        if (self.server.status != Status.SHUTDOWN and
-                await utils.yn_question(ctx, _('Do you want to load mission {}?').format(name))):
-            extensions = [
-                x.name for x in self.server.extensions.values()
-                if getattr(x, 'beforeMissionLoad').__module__ != 'core.extension'
-            ]
-            if len(extensions):
-                modify = await utils.yn_question(ctx, _("Do you want to apply extensions before mission start?"))
+        if self.server.status == Status.SHUTDOWN:
+            return
+
+        extensions = [
+            x.name for x in self.server.extensions.values()
+            if getattr(x, 'beforeMissionLoad').__module__ != 'core.extension'
+        ]
+        if len(extensions):
+            modify = await utils.yn_question(ctx, _("Do you want to apply extensions before mission start?"))
+        else:
+            modify = False
+        msg = await self.channel.send(_('Loading mission "{}" ...').format(name))
+        try:
+            if not await self.server.loadMission(filename, modify_mission=modify, use_orig=True):
+                await msg.edit(content=_('Mission "{}" NOT loaded.').format(name))
             else:
-                modify = False
-            msg = await self.channel.send(_('Loading mission {} ...').format(name))
-            try:
-                if not await self.server.loadMission(filename, modify_mission=modify, use_orig=False):
-                    await msg.edit(content=_('Mission {} NOT loaded.').format(name))
-                else:
-                    await self.bot.audit(f"loaded mission {name}", server=self.server, user=self.message.author)
-                    await msg.edit(content=_('Mission {} loaded.').format(name))
-            except (TimeoutError, asyncio.TimeoutError):
-                await msg.edit(content=_('Timeout while loading mission {}!').format(name))
-                await self.bot.audit(f"Timeout while trying to load mission {name}",
-                                     server=self.server)
+                await self.bot.audit(f"loaded mission {name}", server=self.server, user=self.message.author)
+                await msg.edit(content=_('Mission "{}" loaded.').format(name))
+        except (TimeoutError, asyncio.TimeoutError):
+            await msg.edit(content=_('Timeout while loading mission "{}"!').format(name))
+            await self.bot.audit(f"Timeout while trying to load mission {name}",
+                                 server=self.server)
 
     async def post_upload(self, uploaded: list[discord.Attachment]):
         if len(uploaded) != 1:
@@ -121,9 +137,12 @@ class MissionUploadHandler(ServerUploadHandler):
             self.log.error(msg)
             await self.channel.send(_(msg))
             return
+
+        ctx = await self.bot.get_context(self.message)
+        message = _("Do you want to load the new mission?")
+        current_mission = await self.server.get_current_mission_file()
         if self.server.is_populated():
-            ctx = await self.bot.get_context(self.message)
-            rc = await utils.populated_question(ctx, _("Do you want to stop the server and load the new mission?"))
+            rc = await utils.populated_question(ctx, question=message)
             if not rc:
                 await self.channel.send("Aborted.")
                 return
@@ -138,11 +157,7 @@ class MissionUploadHandler(ServerUploadHandler):
                 await self.channel.send(
                     _('Mission {} will be loaded when server is empty or on the next restart.').format(filename))
                 return
-            else:
-                await self.server.stop()
-        if not self.server.current_mission or self.server.current_mission.filename != filename:
-            await self._load_mission(filename)
-        if self.server.status == Status.STOPPED:
-            await self.server.start()
-            await self.channel.send(_('Server {} started and mission {} loaded.').format(
-                self.server.display_name, filename))
+        elif not current_mission or os.path.basename(filename) != os.path.basename(current_mission):
+            if not await utils.yn_question(ctx, question=message):
+                return
+        await self._load_mission(filename)

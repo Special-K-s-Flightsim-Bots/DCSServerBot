@@ -156,8 +156,9 @@ class ServerProxy(Server):
         }, node=self.node.name, timeout=timeout)
 
     @override
-    async def uploadMission(self, filename: str, url: str, *, missions_dir: str = None, force: bool = False,
-                            orig = False) -> UploadStatus:
+    async def uploadMission(
+            self, filename: str, url: str, *, missions_dir: str = None, force: bool = False
+    ) -> UploadStatus:
         timeout = 120 if not self.node.slow_system else 240
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -324,7 +325,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
 
     @override
-    async def addMission(self, path: str, *, idx: int | None = -1, autostart: bool | None = False) -> list[str]:
+    async def addMission(self, path: str, *, idx: int = -1, autostart: bool = False) -> list[str]:
         timeout = 60 if not self.node.slow_system else 120
         return await self.bus.send_to_node_sync({
             "command": "rpc",
