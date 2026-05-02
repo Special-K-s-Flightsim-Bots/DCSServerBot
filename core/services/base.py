@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import inspect
 import logging
 import os
@@ -101,7 +100,6 @@ def proxy(_func: Callable[..., Any] | None = None, *, timeout: float = 60):
 
 
 class Service(ABC):
-    dependencies: list[type[Service]] = None
 
     def __init__(self, node: NodeImpl, name: str | None = None):
         self.name = name or self.__class__.__name__
@@ -115,25 +113,56 @@ class Service(ABC):
         self._config = dict[str, dict]()
 
     async def start(self, *args, **kwargs):
+        """Start this service. If called from a cascade, we only start
+        ourselves; otherwise we first ask the registry to start all
+        dependencies, then start ourselves."""
+
         from .registry import ServiceRegistry
 
-        self.log.info(f'  => Starting Service {self.name} ...')
-        if self.dependencies:
-            for dependency in self.dependencies:
-                for i in range(30):
-                    if ServiceRegistry.get(dependency).is_running():
-                        break
-                    self.log.debug(f"Waiting for service {dependency} ...")
-                    await asyncio.sleep(.1)
-                else:
-                    raise TimeoutError(f"Timeout during start of Service {self.__class__.__name__}, "
-                                       f"dependent service {dependency.__name__} is not running.")
-                self.log.debug(f"Dependent service {dependency.__name__} is running.")
-        self.running = True
+        # Registry-driven call – we are already inside a cascade
+        if getattr(self, "_in_registry_cascade", False):
+            self.log.info(f'  => Starting Service {self.name} ...')
+            self.running = True
+            return
+
+        # Direct start – trigger dependency startup first
+        self._in_registry_cascade = True
+        try:
+            await ServiceRegistry.start_service(self.__class__)
+        finally:
+            self._in_registry_cascade = False
+
+        # After dependencies are up, start ourselves
+        # (but only if we haven’t already been started by the cascade)
+        if not self.running:
+            self.log.info(f'  => Starting Service {self.name} ...')
+            self.running = True
 
     async def stop(self, *args, **kwargs):
-        self.running = False
-        self.log.info(f'  => Service {self.name} stopped.')
+        """Stop this service.  If called from a cascade, we only stop
+        ourselves; otherwise we first ask the registry to kill all
+        dependents, then stop ourselves."""
+
+        from .registry import ServiceRegistry
+
+        # Registry‑driven call – we are already inside a cascade
+        if getattr(self, "_in_registry_cascade", False):
+            self.running = False
+            self.log.info(f'  => Service {self.name} stopped.')
+            return
+
+        # Direct stop – trigger the cascade first
+        self._in_registry_cascade = True
+        try:
+            await ServiceRegistry.stop_service(self.__class__)
+        finally:
+            self._in_registry_cascade = False
+
+        # After dependents are gone, stop ourselves
+        # (but only if we haven’t already been stopped by the cascade)
+        if self.running:
+            self.running = False
+            self.log.info(f'  => Service {self.name} stopped.')
 
     async def switch(self, master: bool):
         ...

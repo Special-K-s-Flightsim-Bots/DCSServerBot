@@ -8,12 +8,12 @@ from pathlib import Path
 from services.bot import BotService
 from services.cron.actions import purge_channel
 
-@ServiceRegistry.register()
-class CleanupService(Service):
+
+@ServiceRegistry.register(agent_only=True)
+class AgentCleanupService(Service):
 
     def __init__(self, node):
         super().__init__(node=node, name="Cleanup")
-        self.bot = None
 
     async def start(self, *args, **kwargs):
         await super().start()
@@ -52,6 +52,42 @@ class CleanupService(Service):
                 tasks.append(check_and_delete(file_path))
         await utils.run_parallel_nofail(*tasks)
 
+    async def do_cleanup(self, instance: Instance | None = None) -> None:
+        try:
+            if not instance:
+                return
+
+            for name, config in self.get_config(instance.server).items():
+                self.log.debug(f"- Running cleanup for {name} ...")
+                if 'directory' in config:
+                    await self.do_directory_cleanup(instance, config)
+        except Exception:
+            self.log.exception("Error in cleanup:", exc_info=True)
+
+    async def run(self):
+        if not self.locals:
+            return
+        for instance in self.node.instances.values():
+            asyncio.create_task(self.do_cleanup(instance))
+
+    async def wait_until_ready(self):
+        return
+
+    @tasks.loop(hours=12)
+    async def schedule(self):
+        await self.run()
+
+    @schedule.before_loop
+    async def before_schedule(self):
+        await self.wait_until_ready()
+
+
+@ServiceRegistry.register(depends_on=[BotService], master_only=True)
+class MasterCleanupService(AgentCleanupService):
+    def __init__(self, node):
+        super().__init__(node=node)
+        self.bot = None
+
     async def do_channel_cleanup(self, config: dict):
         try:
             await purge_channel(self.node, config['channel'], int(config.get('delete_after', 0)), config.get('ignore'))
@@ -61,29 +97,21 @@ class CleanupService(Service):
     async def do_cleanup(self, instance: Instance | None = None) -> None:
         try:
             if instance:
-                for name, config in self.get_config(instance.server).items():
-                    self.log.debug(f"- Running cleanup for {name} ...")
-                    if 'directory' in config:
-                        await self.do_directory_cleanup(instance, config)
+                await super().do_cleanup(instance)
             else:
                 for name, config in self.get_config().items():
-                    if self.node.master and 'channel' in config:
+                    if 'channel' in config:
                         self.log.debug(f"- Running channel cleanup ...")
                         await self.do_channel_cleanup(config)
         except Exception:
             self.log.exception("Error in cleanup:", exc_info=True)
 
-    @tasks.loop(hours=12)
-    async def schedule(self):
+    async def run(self):
         if not self.locals:
             return
-        if self.node.master:
-            asyncio.create_task(self.do_cleanup())
-        for instance in self.node.instances.values():
-            asyncio.create_task(self.do_cleanup(instance))
+        asyncio.create_task(super().do_cleanup())
+        await super().run()
 
-    @schedule.before_loop
-    async def before_schedule(self):
-        if self.node.master:
-            self.bot = ServiceRegistry.get(BotService).bot
-            await self.bot.wait_until_ready()
+    async def wait_until_ready(self):
+        self.bot = ServiceRegistry.get(BotService).bot
+        await self.bot.wait_until_ready()

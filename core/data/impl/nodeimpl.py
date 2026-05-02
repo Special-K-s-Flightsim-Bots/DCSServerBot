@@ -1274,7 +1274,7 @@ class NodeImpl(Node):
                         if parse(version) != parse(__version__):
                             if parse(version) > parse(__version__):
                                 self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
-                                                 "Rolling back the cluster version to my version.")
+                                                 "Trying to fix that ...")
                             await self._upgrade(True, conn)
                             return True
 
@@ -1287,11 +1287,18 @@ class NodeImpl(Node):
                             # We have the lock, but the table says someone else is master
                             await lock_conn.execute("SELECT pg_advisory_unlock(%s)", (lock_key, ))
 
-                        if parse(version) != parse(__version__):
+                        if parse(version) > parse(__version__):
                             self.log.warning(f"This node uses DCSServerBot version {__version__} "
-                                             f"where the master uses version {version}!")
+                                             f"where the master uses version {version}!\n"
+                                             f"Trying to upgrade to the latest version ...")
                             await self._upgrade(False, conn)
                             return False
+
+                        elif parse(version) < parse(__version__):
+                            if await is_node_alive(master, config.get('heartbeat', 30)):
+                                self.log.warning(f"This node uses DCSServerBot version {__version__} "
+                                                 f"where the master uses version {version}!\n"
+                                                 f"Check if autoupdate is enabled and if you are on the same branch!!")
 
                         if (takeover_by and takeover_by == self.name) or config.get('preferred_master', False):
                             await request_takeover()

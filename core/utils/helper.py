@@ -20,6 +20,7 @@ import secrets
 import shutil
 import ssl
 import string
+import sys
 import tempfile
 import threading
 import time
@@ -36,7 +37,7 @@ from importlib import import_module
 from lupa.lua51 import LuaSyntaxError
 from packaging.version import parse
 from pathlib import Path
-from typing import TYPE_CHECKING, Generator, Iterable, Callable, Any
+from typing import TYPE_CHECKING, Generator, Iterable, Callable, Any, Coroutine
 from urllib.parse import urlparse
 
 # ruamel YAML support
@@ -74,6 +75,7 @@ __all__ = [
     "dynamic_import",
     "async_cache",
     "cache_with_expiration",
+    "asyncio_run",
     "ThreadSafeDict",
     "SettingsDict",
     "RemoteSettingsDict",
@@ -757,6 +759,16 @@ def cache_with_expiration(expiration: int):
         return sync_wrapper
 
     return decorator
+
+
+def asyncio_run(func: Coroutine[Any, Any, Any]) -> Any:
+    if sys.platform == "win32" and sys.version_info >= (3, 14):
+        import selectors
+
+        # noinspection PyArgumentList
+        return asyncio.run(func, loop_factory=lambda: asyncio.SelectorEventLoop(selectors.SelectSelector()))
+    else:
+        return asyncio.run(func)
 
 
 class ThreadSafeDict(dict):

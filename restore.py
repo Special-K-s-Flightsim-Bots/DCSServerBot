@@ -358,12 +358,5 @@ if __name__ == '__main__':
         # set the asyncio event loop policy
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-    if sys.version_info >= (3, 14):
-        import selectors
-
-        rc = asyncio.run(
-            Restore(args.node, args.config).run(),
-            loop_factory=lambda: asyncio.SelectorEventLoop(selectors.SelectSelector()),
-        )
-    else:
-        asyncio.run(Restore(args.node, args.config).run())
+    rc = utils.asyncio_run(Restore(args.node, args.config).run())
+    exit(rc)
