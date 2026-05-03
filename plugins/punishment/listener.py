@@ -367,7 +367,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             target = server.get_player(id=data['arg4'])
             # TODO: Workaround for DCS bug
             if target and initiator.side != target.side:
-                data['arg3'] = target.side.value
+                data['arg6'] = target.side.value
             if data['arg1'] != data['arg4'] and data['arg3'] == data['arg6']:
                 if target:
                     evt['target'] = target
