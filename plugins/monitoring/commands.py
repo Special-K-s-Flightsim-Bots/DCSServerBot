@@ -4,7 +4,7 @@ import psycopg
 import re
 
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Server, command, \
-    ValueNotInRange, ServiceRegistry
+    ValueNotInRange, ServiceRegistry, PluginInstallationError
 from datetime import datetime, timezone
 from discord import app_commands
 from discord.ext import tasks
@@ -64,7 +64,7 @@ class Monitoring(Plugin[MonitoringListener]):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[MonitoringListener] = None):
         super().__init__(bot, eventlistener)
-        self.service = ServiceRegistry.get(MonitoringService)
+        self._service = None
         self.io_counters = {}
         self.net_io_counters = None
 
@@ -76,6 +76,14 @@ class Monitoring(Plugin[MonitoringListener]):
     async def cog_unload(self):
         self.cleanup.cancel()
         await super().cog_unload()
+
+    @property
+    def service(self) -> MonitoringService:
+        if self._service is None:
+            self._service = ServiceRegistry.get(MonitoringService)
+            if not self._service:
+                raise PluginInstallationError(plugin=self.plugin_name, reason="MonitoringService not loaded!")
+        return self._service
 
     async def install(self) -> bool:
         if await super().install():

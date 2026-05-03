@@ -121,11 +121,19 @@ class Music(Plugin[MusicEventListener]):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[MusicEventListener] = None):
         super().__init__(bot, eventlistener)
-        self.service = ServiceRegistry.get(MusicService)
-        if not self.service:
-            raise PluginInstallationError(plugin=self.plugin_name, reason="MusicService not loaded!")
-        if not self.service.locals:
-            raise PluginInstallationError(plugin=self.plugin_name, reason=r"No config\services\music.yaml found!")
+        self._service = None
+
+    @property
+    def service(self) -> MusicService:
+        if not self._service:
+            self._service = ServiceRegistry.get(MusicService)
+            if not self._service:
+                raise PluginInstallationError(plugin=self.plugin_name, reason="MusicService not loaded!")
+            if not self._service.locals:
+                raise PluginInstallationError(plugin=self.plugin_name, reason=r"No config\services\music.yaml found!")
+        return self._service
+
+    @property
 
     def get_config(self, server: Server | None = None, *, plugin_name: str | None = None,
                    use_cache: bool | None = True) -> dict:

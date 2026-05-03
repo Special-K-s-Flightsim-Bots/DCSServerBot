@@ -136,9 +136,15 @@ class ModManager(Plugin):
             self.log.warning(
                 f"  => ModManager: your modmanager.yaml belongs into {self.node.config_dir}/services/modmanager.yaml, "
                 f"not in {self.node.config_dir}/plugins!")
-        self.service: ModManagerService = ServiceRegistry.get(ModManagerService)
-        if not self.service:
-            raise PluginInstallationError(plugin=self.plugin_name, reason='ModManager service not loaded.')
+        self._service = None
+
+    @property
+    def service(self) -> ModManagerService:
+        if not self._service:
+            self._service = ServiceRegistry.get(ModManagerService)
+            if not self._service:
+                raise PluginInstallationError(plugin=self.plugin_name, reason='ModManager service not loaded.')
+        return self._service
 
     # New command group "/mods"
     mods = Group(name="mods", description=_("Commands to manage custom mods in your DCS server"))
