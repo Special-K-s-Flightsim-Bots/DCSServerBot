@@ -168,8 +168,7 @@ class ServerProxy(Server):
                 "filename": filename,
                 "url": url,
                 "missions_dir": missions_dir,
-                "force": force,
-                "orig": orig
+                "force": force
             },
             "server_name": self.name
         }, timeout=timeout, node=self.node.name)
