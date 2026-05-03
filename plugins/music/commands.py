@@ -133,8 +133,6 @@ class Music(Plugin[MusicEventListener]):
                 raise PluginInstallationError(plugin=self.plugin_name, reason=r"No config\services\music.yaml found!")
         return self._service
 
-    @property
-
     def get_config(self, server: Server | None = None, *, plugin_name: str | None = None,
                    use_cache: bool | None = True) -> dict:
         if plugin_name:
