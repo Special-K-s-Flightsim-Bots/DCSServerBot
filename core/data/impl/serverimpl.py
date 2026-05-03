@@ -131,7 +131,7 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 
     def on_deleted(self, event: DirDeletedEvent | FileDeletedEvent) -> None:
         path = os.path.normpath(event.src_path)
-        if not path.endswith('.miz'):
+        if not self._is_valid_mission_file(path):
             return
         missions = self.server.settings['missionList']
         if '.dcssb' not in path:
