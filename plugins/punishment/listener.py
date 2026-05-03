@@ -349,6 +349,9 @@ class PunishmentEventListener(EventListener["Punishment"]):
             target = server.get_player(id=data['arg3'])
             if target:
                 evt['target'] = target
+                # TODO: Workaround for DCS bug
+                if initiator.side != target.side:
+                    return
             # check collision
             if data['arg2'] == initiator.unit_display_name:
                 evt['eventName'] = 'collision_hit'
@@ -362,6 +365,9 @@ class PunishmentEventListener(EventListener["Punishment"]):
         elif data['eventName'] == 'kill':
             # check team-kills
             target = server.get_player(id=data['arg4'])
+            # TODO: Workaround for DCS bug
+            if target and initiator.side != target.side:
+                data['arg3'] = target.side.value
             if data['arg1'] != data['arg4'] and data['arg3'] == data['arg6']:
                 if target:
                     evt['target'] = target

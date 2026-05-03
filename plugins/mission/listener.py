@@ -1022,6 +1022,9 @@ class MissionEventListener(EventListener["Mission"]):
             # filter AI-only events
             if not player1 and not server.locals.get('display_ai_chat', False):
                 return
+            # TODO: Workaround for DCS bug
+            if player1 and player1.side != player2.side:
+                return
             side = player1.side if player1 else player2.side if player2 else Side.UNKNOWN
             self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
                 ('player ' + player1.name) if player1 else 'AI',
@@ -1041,16 +1044,17 @@ class MissionEventListener(EventListener["Mission"]):
             # filter AI-only events
             if not player1 and not player2 and not server.locals.get('display_ai_chat', False):
                 return
-            side = Side(data['arg3'])
-            self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
+            initiator_side = player1.side if player1 else Side(data['arg3'])
+            target_side = player2.side if player2 else Side(data['arg6'])
+            self.send_dcs_event(server, initiator_side, self.EVENT_TEXTS[initiator_side][data['eventName']].format(
                 ('player ' + player1.name) if player1 is not None else 'AI',
-                data['arg2'] or 'SCENERY', Side(data['arg6']).name,
+                data['arg2'] or 'SCENERY', target_side.name,
                 ('player ' + player2.name) if player2 is not None else 'AI',
                 data['arg5'] or 'SCENERY', data['arg7'] or 'Cannon/Bomblet'))
 
             # report teamkills from players to admins (only on public servers)
             if server.is_public() and player1 and player2 and data['arg1'] != data['arg4'] \
-                    and data['arg3'] == data['arg6']:
+                    and initiator_side == target_side:
                 # do not report if the punishment plugin is active and teamkills are punished
                 if self.bot.cogs.get('Punishment'):
                     _config = self.get_config(server, plugin_name='punishment')

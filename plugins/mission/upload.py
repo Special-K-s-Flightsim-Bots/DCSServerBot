@@ -128,7 +128,7 @@ class MissionUploadHandler(ServerUploadHandler):
                                  server=self.server)
 
     async def post_upload(self, uploaded: list[discord.Attachment]):
-        if len(uploaded) != 1:
+        if len(uploaded) != 1 or self.server.status == Status.SHUTDOWN:
             return
         # if only one mission was uploaded, ask if it should be loaded and load it
         filename = await self._wait_for_mission(uploaded[0])

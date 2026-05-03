@@ -416,12 +416,12 @@ class CompetitiveListener(EventListener["Competitive"]):
                         victim=print_crew(victims), victim_module=victims[0].unit_display_name,
                         weapon=data['arg7'] or 'Guns')))
                 # on team-kills the enemy squadron gets the kill points
-                if data['arg3'] == data['arg6']:
+                if killers[0].side == victims[0].side:
                     if self.get_config(server).get('credit_on_leave', False):
                         await award_squadron(server, match, victims[0])
                 await remove_players(match, server, victims)
             # no, then we don't count team-kills
-            elif data['arg3'] != data['arg6']:
+            elif killers[0].side != victims[0].side:
                 await self.rank_teams(killers, victims)
                 if self.get_config(server).get('silent', False):
                     return
