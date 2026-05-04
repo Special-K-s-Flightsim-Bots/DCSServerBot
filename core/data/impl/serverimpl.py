@@ -707,14 +707,19 @@ class ServerImpl(Server):
         self.process.nice(p)
 
     def _cleanup_sqlite(self):
-        sqlite_path = os.path.join(self.instance.home, 'Config', 'serverdata.sqlite3')
-        with sqlite3.connect(sqlite_path) as conn:
-            cur = conn.cursor()
-            # we need to delete all net sessions regularly to obey the GDPR requirements
-            cur.execute("DELETE FROM net_sessions;")
-            conn.commit()
-            conn.execute("VACUUM;")
-            conn.commit()
+        try:
+            sqlite_path = os.path.join(self.instance.home, 'Config', 'serverdata.sqlite3')
+            if not os.path.exists(sqlite_path):
+                return
+            with sqlite3.connect(sqlite_path) as conn:
+                cur = conn.cursor()
+                # we need to delete all net sessions regularly to obey the GDPR requirements
+                cur.execute("DELETE FROM net_sessions;")
+                conn.commit()
+                conn.execute("VACUUM;")
+                conn.commit()
+        except sqlite3.OperationalError:
+            pass
 
     @override
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
