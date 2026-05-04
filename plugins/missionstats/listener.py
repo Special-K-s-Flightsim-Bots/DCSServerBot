@@ -1,7 +1,7 @@
 import asyncio
 
 from core import EventListener, PersistentReport, Server, Coalition, Channel, event, Report, get_translation, \
-    ThreadSafeDict, Side
+    ThreadSafeDict, Side, utils
 from discord.ext import tasks
 from typing import TYPE_CHECKING, Counter, Any
 
@@ -65,10 +65,10 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
         super().__init__(plugin)
         self.mission_stats = {}
         self.update: dict[str, bool] = ThreadSafeDict()
-        self.do_update.start()
+        utils.safe_start(self.do_update)
 
     async def shutdown(self):
-        self.do_update.cancel()
+        await utils.safe_cancel(self.do_update)
         self.mission_stats.clear()
 
     @event(name="getMissionSituation")

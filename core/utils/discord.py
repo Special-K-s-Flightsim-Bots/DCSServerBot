@@ -15,6 +15,7 @@ from core.translations import get_translation
 from datetime import datetime, timedelta
 from discord import app_commands, Interaction, SelectOption, ButtonStyle
 from discord.ext import commands
+from discord.ext.tasks import Loop
 from discord.ui import Button, View, Select, Item, Modal, TextInput
 from enum import Enum, auto
 from fuzzywuzzy import fuzz
@@ -59,6 +60,8 @@ __all__ = [
     "match",
     "find_similar_names",
     "get_all_linked_members",
+    "safe_start",
+    "safe_cancel",
     "NodeTransformer",
     "InstanceTransformer",
     "ServerTransformer",
@@ -123,7 +126,7 @@ async def wait_for_single_reaction(interaction: discord.Interaction, message: di
     # cancel pending tasks
     for task in pending:
         task.cancel()
-        await task
+    await asyncio.gather(*pending, return_exceptions=True)
 
     if not done:
         raise TimeoutError
@@ -923,6 +926,19 @@ async def get_all_linked_members(
                 break
 
     return results
+
+
+def safe_start(loop: Loop):
+    if not loop.is_running():
+        loop.start()
+
+
+async def safe_cancel(loop: Loop):
+    loop.cancel()
+    task = loop.get_task()
+    if task:
+        with suppress(asyncio.CancelledError):
+            await task
 
 
 class ServerTransformer(app_commands.Transformer):

@@ -20,14 +20,14 @@ class Pretense(Plugin):
 
     async def cog_load(self) -> None:
         await super().cog_load()
-        self.update_leaderboard.start()
         config = self.get_config()
         if config:
             interval = config.get('update_interval', 120)
             self.update_leaderboard.change_interval(seconds=interval)
+        utils.safe_start(self.update_leaderboard)
 
     async def cog_unload(self) -> None:
-        self.update_leaderboard.cancel()
+        await utils.safe_cancel(self.update_leaderboard)
         await super().cog_unload()
 
     # New command group "/mission"

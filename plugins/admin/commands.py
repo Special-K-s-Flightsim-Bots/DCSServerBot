@@ -276,10 +276,10 @@ class Admin(Plugin[AdminEventListener]):
     async def cog_load(self):
         await super().cog_load()
         self.cleanup.add_exception_type(psycopg.DatabaseError)
-        self.cleanup.start()
+        utils.safe_start(self.cleanup)
 
     async def cog_unload(self):
-        self.cleanup.cancel()
+        await utils.safe_cancel(self.cleanup)
         await super().cog_unload()
 
     def read_locals(self) -> dict:

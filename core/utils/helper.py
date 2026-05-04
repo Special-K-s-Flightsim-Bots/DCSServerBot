@@ -574,10 +574,12 @@ def matches_cron(datetime_obj: datetime, cron_string: str):
 
 def dynamic_import(package_name: str):
     package = importlib.import_module(package_name)
-    for loader, module_name, is_pkg in pkgutil.walk_packages(package.__path__):
+    prefix = package.__name__ + '.'
+
+    for loader, module_name, is_pkg in pkgutil.walk_packages(package.__path__, prefix):
         if is_pkg:
             try:
-                globals()[module_name] = importlib.import_module(f"{package_name}.{module_name}")
+                importlib.import_module(module_name)
             except Exception as ex:
                 logger.error(f"Failed to import {module_name} due to {ex}, skipping.")
 

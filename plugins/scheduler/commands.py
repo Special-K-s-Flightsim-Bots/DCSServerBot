@@ -32,10 +32,10 @@ class Scheduler(Plugin[SchedulerListener]):
 
     async def cog_load(self) -> None:
         await super().cog_load()
-        self.check_state.start()
+        utils.safe_start(self.check_state)
 
     async def cog_unload(self):
-        self.check_state.cancel()
+        await utils.safe_cancel(self.check_state)
         await super().cog_unload()
 
     def read_locals(self) -> dict:

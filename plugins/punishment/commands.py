@@ -31,11 +31,11 @@ class Punishment(Plugin[PunishmentEventListener]):
     async def cog_load(self) -> None:
         await super().cog_load()
         self.decay.add_exception_type(psycopg.DatabaseError)
-        self.decay.start()
+        utils.safe_start(self.decay)
         asyncio.create_task(self.trigger.subscribe())
 
     async def cog_unload(self):
-        self.decay.cancel()
+        await utils.safe_cancel(self.decay)
         await self.trigger.close()
         await super().cog_unload()
 

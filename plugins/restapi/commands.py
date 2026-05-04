@@ -51,16 +51,15 @@ class RestAPI(Plugin):
     async def cog_load(self) -> None:
         await super().cog_load()
         self.refresh_views.add_exception_type(psycopg.DatabaseError)
-        self.refresh_views.start()
+        utils.safe_start(self.refresh_views)
         asyncio.create_task(self.init_webservice())
 
     async def cog_unload(self) -> None:
-        self.refresh_views.cancel()
+        await utils.safe_cancel(self.refresh_views)
         if self.app and self.router:
             # Remove our routes from the main app to prevent duplicates on reload
             for route in self.router.routes:
                 self.app.routes.remove(route)
-
         await super().cog_unload()
 
     async def init_webservice(self):

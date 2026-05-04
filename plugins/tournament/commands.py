@@ -297,11 +297,11 @@ class Tournament(Plugin[TournamentEventListener]):
         if self.get_config().get('autostart_matches', False):
             self.match_scheduler.add_exception_type(psycopg.OperationalError)
             self.match_scheduler.add_exception_type(ValueError)
-            self.match_scheduler.start()
+            utils.safe_start(self.match_scheduler)
 
     async def cog_unload(self) -> None:
         if self.get_config().get('autostart_matches', False):
-            self.match_scheduler.cancel()
+            await utils.safe_cancel(self.match_scheduler)
         self._info_channel = None
         await super().cog_unload()
 

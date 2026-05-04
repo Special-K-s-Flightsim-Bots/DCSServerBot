@@ -331,7 +331,7 @@ class DCSServerBot(commands.Bot):
             else:
                 self.log.warning('- Discord connection re-established.')
         except (discord.HTTPException, RuntimeError) as ex:
-            self.log.warning(f"Discord connection error: {repr(ex)}")
+            raise FatalException(f"Discord connection error: {repr(ex)}")
 
     async def on_error(self, event_method: str, /, *args: Any, **kwargs: Any) -> None:
         ex = sys.exc_info()[1]

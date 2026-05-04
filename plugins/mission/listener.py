@@ -94,15 +94,15 @@ class MissionEventListener(EventListener["Mission"]):
         self.restart_pending: dict[str, bool] = {}
         self.mission_stats: dict[str, bool] = {}
         # start schedulers
-        self.print_queue.start()
-        self.update_player_embed.start()
-        self.update_mission_embed.start()
+        utils.safe_start(self.print_queue)
+        utils.safe_start(self.update_player_embed)
+        utils.safe_start(self.update_mission_embed)
 
     async def shutdown(self):
-        self.print_queue.cancel()
+        await utils.safe_cancel(self.print_queue)
         await self.work_queue()
-        self.update_player_embed.cancel()
-        self.update_mission_embed.cancel()
+        await utils.safe_cancel(self.update_player_embed)
+        await utils.safe_cancel(self.update_mission_embed)
 
     async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
         if command.name == '911' and not self.bot.get_admin_channel(server):

@@ -189,24 +189,26 @@ class Mission(Plugin[MissionEventListener]):
     async def cog_load(self) -> None:
         await super().cog_load()
         self.update_channel_name.add_exception_type(AttributeError)
-        self.update_channel_name.start()
-        self.afk_check.start()
+        utils.safe_start(self.update_channel_name)
+        utils.safe_start(self.afk_check)
         self.check_for_unban.add_exception_type(psycopg.DatabaseError)
-        self.check_for_unban.start()
+        utils.safe_start(self.check_for_unban)
         self.expire_token.add_exception_type(psycopg.DatabaseError)
-        self.expire_token.start()
+        utils.safe_start(self.expire_token)
         if self.bot.locals.get('autorole', {}):
             self.check_roles.add_exception_type(psycopg.DatabaseError)
             self.check_roles.add_exception_type(discord.errors.DiscordException)
-            self.check_roles.start()
+            utils.safe_start(self.check_roles)
 
     async def cog_unload(self):
+        tasks = []
         if self.bot.locals.get('autorole', {}):
-            self.check_roles.stop()
-        self.expire_token.cancel()
-        self.check_for_unban.cancel()
-        self.afk_check.cancel()
-        self.update_channel_name.cancel()
+            tasks.append(utils.safe_cancel(self.check_roles))
+        tasks.append(utils.safe_cancel(self.expire_token))
+        tasks.append(utils.safe_cancel(self.check_for_unban))
+        tasks.append(utils.safe_cancel(self.afk_check))
+        tasks.append(utils.safe_cancel(self.update_channel_name))
+        await asyncio.gather(*tasks)
         await super().cog_unload()
 
     async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:

@@ -15,7 +15,6 @@ from core import Plugin, utils, PaginationReport, Group, DEFAULT_TAG, PluginConf
 from datetime import timedelta
 from discord import app_commands, DiscordServerError
 from discord.ext import commands, tasks
-from psycopg import sql
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.bot.dummy import DummyBot
@@ -72,31 +71,33 @@ class Cloud(Plugin[CloudListener]):
             self.cloud_bans.add_exception_type(discord.Forbidden)
             self.cloud_bans.add_exception_type(psycopg.DatabaseError)
             self.cloud_bans.add_exception_type(DiscordServerError)
-            self.cloud_bans.start()
+            utils.safe_start(self.cloud_bans)
         if 'token' in self.config:
             self.cloud_sync.add_exception_type(IndexError)
             self.cloud_sync.add_exception_type(aiohttp.ClientError)
             self.cloud_sync.add_exception_type(psycopg.DatabaseError)
-            self.cloud_sync.start()
+            utils.safe_start(self.cloud_sync)
         if self.config.get('register', True):
-            self.register.start()
+            utils.safe_start(self.register)
         if self.config.get('upload_errors', True):
             cloud_logger = CloudLoggingHandler(node=self.node, url=self.base_url + '/errors/')
             self.log.root.addHandler(cloud_logger)
 
     async def cog_unload(self) -> None:
+        tasks = []
         if self.config.get('register', True):
-            self.register.cancel()
+            tasks.append(utils.safe_cancel(self.register))
         if self.config.get('upload_errors', True):
             for handler in self.log.root.handlers:
                 if isinstance(handler, CloudLoggingHandler):
                     self.log.removeHandler(handler)
         if 'token' in self.config:
-            self.cloud_sync.cancel()
+            tasks.append(utils.safe_cancel(self.cloud_sync))
         if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
-            self.cloud_bans.cancel()
+            tasks.append(utils.safe_cancel(self.cloud_bans))
         if self._session:
             asyncio.create_task(self._session.close())
+        await asyncio.gather(*tasks)
         await super().cog_unload()
 
     def read_locals(self) -> dict:
