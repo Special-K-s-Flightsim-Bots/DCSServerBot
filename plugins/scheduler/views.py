@@ -3,11 +3,17 @@ import discord
 import luadata
 import os
 
-from core import Server
+from core import Server, utils
 from discord import ButtonStyle, ChannelType
 from discord.ui import Button, ChannelSelect
 from io import BytesIO
+from pathlib import Path
 from services.bot import DCSServerBot
+from typing import cast
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 
 class ServerModal(discord.ui.Modal):
@@ -436,15 +442,24 @@ class ConfigView(discord.ui.View):
     @discord.ui.button(label='Save', style=ButtonStyle.green, emoji='💾', row=4)
     async def on_save(self, interaction: discord.Interaction, _: Button):
         await interaction.response.defer()
+        bot = cast(DCSServerBot, interaction.client)
         old_name = self.server.name
         new_name = self.config['name']
         if old_name != new_name:
             await self.server.rename(new_name=new_name, update_settings=True)
-            interaction.client.servers[new_name] = self.server
-            if old_name in interaction.client.servers:
-                del interaction.client.servers[old_name]
+            bot.servers[new_name] = self.server
+            if old_name in bot.servers:
+                del bot.servers[old_name]
         for key, value in self.config.items():
             self.server.settings[key] = value
+        # make sure we change any existing overwriting in the servers.yaml file
+        if self.server.locals.get('serverSettings'):
+            config = os.path.join(bot.node.config_dir, 'servers.yaml')
+            data = yaml.load(Path(config).read_text(encoding='utf-8'))
+            utils.update_in_place(data[self.server.name].get('serverSettings', {}), self.server.settings)
+            with Path(config).open('w', encoding='utf-8') as f:
+                yaml.dump(data, f)
+            await self.server.reload()
         self.stop()
 
     @discord.ui.button(label='Download', style=ButtonStyle.primary, emoji='📤', row=4)

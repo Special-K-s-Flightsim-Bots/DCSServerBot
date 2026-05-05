@@ -81,6 +81,7 @@ __all__ = [
     "RemoteSettingsDict",
     "tree_delete",
     "deep_merge",
+    "update_in_place",
     "hash_password",
     "run_parallel_nofail",
     "safe_set_result",
@@ -1095,6 +1096,37 @@ def deep_merge(d1: Mapping[str, Any], d2: Mapping[str, Any]) -> Mapping[str, Any
             result[key] = value
 
     return result
+
+
+def update_in_place(d1: dict, d2: dict) -> dict:
+    """
+    Update *d1* in place, replacing values with those from *d2*
+    only for keys that already exist in *d1*.
+
+    Keys that appear only in *d2* are ignored; keys that appear only in *d1*
+    retain their original values.
+
+    Parameters
+    ----------
+    d1 : dict
+        The dictionary to be updated.
+    d2 : dict
+        The source of replacement values.
+
+    Returns
+    -------
+    dict
+        The updated dictionary *d1*.
+    """
+
+    for k, v1 in d1.items():
+        if k in d2:
+            v2 = d2[k]
+            if isinstance(v1, dict) and isinstance(v2, dict):
+                update_in_place(v1, v2)
+            else:
+                d1[k] = v2
+    return d1
 
 
 def hash_password(password: str) -> str:

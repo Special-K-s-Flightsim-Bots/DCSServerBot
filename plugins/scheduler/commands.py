@@ -115,7 +115,7 @@ class Scheduler(Plugin[SchedulerListener]):
         else:
             for instance in data.values():
                 change_instance(instance)
-        with open(config, mode='w', encoding='utf-8') as outfile:
+        with Path(config).open(mode='w', encoding='utf-8') as outfile:
             yaml.dump(data, outfile)
         self.locals = self.read_locals()
 
