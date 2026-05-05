@@ -634,7 +634,9 @@ class ServerImpl(Server):
             return None
         return _ext(
             self,
-            self.node.locals.get('extensions', {}).get(name, {}) | (DEFAULT_EXTENSIONS | self.locals.get('extensions', {}))[name]
+            self.node.locals.get('extensions', {}).get(name, {}) | (
+                    DEFAULT_EXTENSIONS | self.locals.get('extensions', {})
+            ).get(name, {})
         )
 
     @override
