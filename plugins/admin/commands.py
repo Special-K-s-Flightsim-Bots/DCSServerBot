@@ -1376,7 +1376,7 @@ Please make sure you forward the following ports:
         embed = discord.Embed(colour=discord.Colour.blue())
         embed.description = _("Enabled extensions on server {}").format(server.display_name)
         for ext in extensions:
-            embed.add_field(name=ext['name'], value=ext['version'])
+            embed.add_field(name=ext['name'], value=ext.get('version', 'n/a'))
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
     @ext.command(description=_('Update Extension'))

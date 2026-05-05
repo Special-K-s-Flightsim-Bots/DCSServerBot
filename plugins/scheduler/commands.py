@@ -389,16 +389,23 @@ class Scheduler(Plugin[SchedulerListener]):
             await server.stop()
         filename = (await server.getMissionList())[new_mission - 1]
         preset_files = rconf.get('presets', os.path.join(self.node.config_dir, 'presets.yaml'))
-        new_filename = await server.modifyMission(
-            filename,
-            [utils.get_preset(self.node, x, preset_files) for x in rconf['settings']],
-            use_orig=use_orig
-        )
-        if new_filename != filename:
-            self.log.info(f"{self.__cog_name__}: New mission written: {new_filename}")
-            await server.replaceMission(new_mission, new_filename)
+        presets = []
+        for line in rconf['settings']:
+            preset = utils.get_preset(self.node, line, preset_files)
+            if not preset:
+                self.log.warning(f"Preset \"{line}\" not found in presets files {preset_files}!")
+                continue
+            presets.append(preset)
+        if presets:
+            new_filename = await server.modifyMission(filename, presets, use_orig=use_orig)
+            if new_filename != filename:
+                self.log.info(f"{self.__cog_name__}: New mission written: {new_filename}")
+                await server.replaceMission(new_mission, new_filename)
+            else:
+                self.log.info(f"{self.__cog_name__}: Mission {filename} overwritten.")
         else:
-            self.log.info(f"{self.__cog_name__}: Mission {filename} overwritten.")
+            new_filename = filename
+            self.log.warning("No presets provided, restarting mission (unchanged).")
 
         # start the server again
         if server.status == Status.STOPPED:
