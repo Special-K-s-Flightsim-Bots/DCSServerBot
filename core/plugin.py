@@ -260,7 +260,6 @@ class Plugin(commands.Cog, Generic[TEventListener], metaclass=PluginMeta):
         self.bus = ServiceRegistry.get(ServiceBus)
         if self.eventlistener:
             self.bus.register_eventListener(self.eventlistener)
-        asyncio.create_task(self.wait_until_ready())
         self.log.info(f'  => {self.__cog_name__} loaded.')
 
     async def cog_unload(self) -> None:
@@ -514,10 +513,6 @@ class Plugin(commands.Cog, Generic[TEventListener], metaclass=PluginMeta):
 
     async def on_ready(self) -> None:
         pass
-
-    async def wait_until_ready(self):
-        await self.bot.wait_until_ready()
-        await self.on_ready()
 
 
 class PluginError(Exception, ABC):

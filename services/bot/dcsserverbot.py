@@ -264,7 +264,6 @@ class DCSServerBot(commands.Bot):
                                    (self.guilds[0].name, self.guilds[0].id))
 
         try:
-            await self.wait_until_ready()
             if not self.guilds:
                 self.log.error("You need to invite your bot to a Discord server!")
                 raise FatalException()
@@ -325,6 +324,11 @@ class DCSServerBot(commands.Bot):
                         cmd.mention = f"</{cmd.name}:{app_ids[cmd.name]}>"
 
                 self.synced = True
+
+                # run on_ready() in your plugins
+                for cog in self.cogs.values():
+                    asyncio.create_task(cog.on_ready())
+
                 self.log.info('  => Discord Commands registered.')
                 self.log.info('- Discord Bot started, accepting commands.')
                 asyncio.create_task(self.audit(message="Discord Bot started."))
