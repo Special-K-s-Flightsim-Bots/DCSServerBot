@@ -1047,11 +1047,14 @@ class RestAPI(Plugin):
                     params = {}
                     
                 await cursor.execute(f"""
-                    SELECT SUM("totalPlayers") AS "totalPlayers", SUM("totalPlaytime") AS "totalPlaytime",
-                           SUM("avgPlaytime") AS "avgPlaytime",
-                           SUM("totalSorties") AS "totalSorties", SUM("totalKills") AS "totalKills",
-                           SUM("totalDeaths") AS "totalDeaths", SUM("totalPvPKills") AS "totalPvPKills",
-                           SUM("totalPvPDeaths") AS "totalPvPDeaths" 
+                    SELECT COALESCE(SUM("totalPlayers"), 0) AS "totalPlayers", 
+                           COALESCE(SUM("totalPlaytime"), 0) AS "totalPlaytime",
+                           COALESCE(SUM("avgPlaytime"), 0) AS "avgPlaytime",
+                           COALESCE(SUM("totalSorties"), 0) AS "totalSorties", 
+                           COALESCE(SUM("totalKills"), 0) AS "totalKills",
+                           COALESCE(SUM("totalDeaths"), 0) AS "totalDeaths", 
+                           COALESCE(SUM("totalPvPKills"), 0) AS "totalPvPKills",
+                           COALESCE(SUM("totalPvPDeaths"), 0) AS "totalPvPDeaths" 
                     FROM mv_serverstats
                     {where_clause}
                 """, params)
