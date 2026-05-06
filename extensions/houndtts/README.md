@@ -13,8 +13,12 @@ MyNode:
       # [...]
       extensions:
         HoundTTS: 
-          enabled: true     # enable this extension (default: true)
-          autoupdate: true  # automatically update to the latest HoundTTS version (default: true)
+          enabled: true           # enable this extension (default: true)
+          autoupdate: true        # automatically update to the latest HoundTTS version (default: true)
+          DEFAULT_PROVIDER: sapi  # See HoundTTS documentation
+          DEFAULT_VOICE: ''       # See HoundTTS documentation
+          DEFAULT_CULTURE: en-US  # See HoundTTS documentation
+          DEFAULT_GENDER: female  # See HoundTTS documentation
 ```
 
 > [!NOTE]

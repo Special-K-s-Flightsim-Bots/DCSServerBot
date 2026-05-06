@@ -625,7 +625,7 @@ class ServerImpl(Server):
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
             self.process = None
 
-    def load_extension(self, name: str) -> Extension | None:
+    def load_extension(self, name: str, config: dict | None = None) -> Extension | None:
         if '.' not in name:
             _extension = f'extensions.{name.lower()}.extension.{name}'
         else:
@@ -634,12 +634,11 @@ class ServerImpl(Server):
         if not _ext:
             self.log.error(f"Extension {name} could not be found!")
             return None
-        return _ext(
-            self,
-            self.node.locals.get('extensions', {}).get(name, {}) | (
+        if not config:
+            config = self.node.locals.get('extensions', {}).get(name, {}) | (
                     DEFAULT_EXTENSIONS | self.locals.get('extensions', {})
             ).get(name, {})
-        )
+        return _ext(self, config)
 
     @override
     async def init_extensions(self) -> list[str]:
@@ -1285,7 +1284,7 @@ class ServerImpl(Server):
     async def enable_extension(self, name: str, config: dict | None = None) -> bool:
         ext = self.extensions.get(name)
         if not ext:
-            ext = self.load_extension(name)
+            ext = self.load_extension(name, config)
             self.extensions[name] = ext
         if await ext.enable():
             await self.config_extension(name, (config or {}) | {"enabled": True})

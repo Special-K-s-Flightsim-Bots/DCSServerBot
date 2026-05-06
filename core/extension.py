@@ -177,7 +177,7 @@ class InstallableExtension(Extension):
         return self.config.get('autoupdate', False)
 
     @override
-    async def prepare(self):
+    async def prepare(self) -> bool:
         # check if the extension is installed
         if not self.is_installed() and not await self.install():
             self.log.warning(f"  => {self.name}: Mod not installed, skipping.")
