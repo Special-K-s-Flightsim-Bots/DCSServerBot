@@ -5,7 +5,7 @@ import threading
 
 from collections import defaultdict, deque
 from core.data.node import FatalException
-from core.services.base import Service
+from core.services.base import Service, ServiceProxy
 from core.utils.helper import dynamic_import
 from typing import Type, TypeVar, Callable, TYPE_CHECKING, Generic, ClassVar, Any, cast, Iterable
 
@@ -28,6 +28,7 @@ class ServiceRegistry(Generic[T]):
     _deps: ClassVar[dict[Any, set[Any]]] = defaultdict(set)
     _rev_deps: ClassVar[dict[Any, set[Any]]] = defaultdict(set)
     _singletons: ClassVar[dict[Any, Any]] = {}
+    _proxies: ClassVar[dict[Any, ServiceProxy]] = {}
     _log: ClassVar[logging.Logger | None] = None
 
     def __new__(cls, node: NodeImpl) -> ServiceRegistry[T]:
@@ -58,20 +59,35 @@ class ServiceRegistry(Generic[T]):
             depends_on: Iterable[Type[T]] | None = None
     ) -> Callable[[Type[T]], Type[T]]:
         def inner_wrapper(wrapped_class: Type[T]) -> Type[T]:
-            ServiceRegistry._registry[t or wrapped_class] = wrapped_class
+            key = t or wrapped_class
+            service_name = key.__name__
+
+            for existing_key, existing_class in ServiceRegistry._registry.items():
+                if existing_key.__name__ == service_name and existing_key is not key:
+                    raise RuntimeError(
+                        f'Duplicate service registration for "{service_name}": '
+                        f'{existing_class.__module__}.{existing_class.__qualname__} and '
+                        f'{wrapped_class.__module__}.{wrapped_class.__qualname__}. '
+                        f'Use one canonical import path only.'
+                    )
+
+            ServiceRegistry._registry[key] = wrapped_class
+
             if master_only:
-                ServiceRegistry._master_only.add(t or wrapped_class)
+                ServiceRegistry._master_only.add(key)
             elif agent_only:
-                ServiceRegistry._agent_only.add(t or wrapped_class)
+                ServiceRegistry._agent_only.add(key)
             if plugin:
-                ServiceRegistry._plugins[t or wrapped_class] = plugin
+                ServiceRegistry._plugins[key] = plugin
+
             # Add dependencies
             deps = depends_on or []
-            cls._deps[t or wrapped_class] = set(deps)
+            cls._deps[key] = set(deps)
             for d in deps:
                 if d not in cls._registry:
                     raise KeyError(f"Dependency {d!r} not registered")
-                cls._rev_deps[d].add(t or wrapped_class)
+                cls._rev_deps[d].add(key)
+
             # Check for cycles
             cls._detect_cycle()
             return wrapped_class
@@ -81,8 +97,7 @@ class ServiceRegistry(Generic[T]):
     @classmethod
     def new(cls, t: Type[T], *args, **kwargs) -> T:
         instance = ServiceRegistry.get(t)
-        if not instance:
-            # noinspection PyArgumentList
+        if not instance or isinstance(instance, ServiceProxy):
             instance = ServiceRegistry._registry[t](node=ServiceRegistry._node, *args, **kwargs)
             ServiceRegistry._singletons[t] = instance
         return instance
@@ -93,22 +108,44 @@ class ServiceRegistry(Generic[T]):
             for key, value in ServiceRegistry._singletons.items():
                 if key.__name__ == t:
                     return value
+
+            for key in ServiceRegistry._registry.keys():
+                if key.__name__ == t:
+                    if ServiceRegistry.master_only(key) and ServiceRegistry._node and not ServiceRegistry._node.master:
+                        if key not in ServiceRegistry._proxies:
+                            ServiceRegistry._proxies[key] = ServiceProxy(key)
+                        return cast(T, ServiceRegistry._proxies[key])
+                    return None
+
             return None
-        else:
-            return ServiceRegistry._singletons.get(t, None)
+
+        instance = ServiceRegistry._singletons.get(t, None)
+        if instance:
+            return instance
+
+        if ServiceRegistry.master_only(t) and ServiceRegistry._node and not ServiceRegistry._node.master:
+            if t not in ServiceRegistry._proxies:
+                ServiceRegistry._proxies[t] = ServiceProxy(t)
+            return cast(T, ServiceRegistry._proxies[t])
+
+        return None
 
     @classmethod
     def can_run(cls, t: Type[T]) -> bool:
         # check master only
-        if ServiceRegistry.master_only(t) and not ServiceRegistry._node.master:
+        if ServiceRegistry.master_only(t) and not (ServiceRegistry._node.master or ServiceRegistry._node.claimed_master):
             return False
-        elif ServiceRegistry.agent_only(t) and ServiceRegistry._node.master:
+        elif ServiceRegistry.agent_only(t) and (ServiceRegistry._node.master or ServiceRegistry._node.claimed_master):
             return False
         # check plugin dependencies
         plugin = ServiceRegistry._plugins.get(t)
         if plugin and plugin not in ServiceRegistry._node.plugins:
             return False
         return True
+
+    @classmethod
+    def clear_proxies(cls) -> None:
+        cls._proxies.clear()
 
     @classmethod
     def master_only(cls, t: Type[T]) -> bool:
@@ -270,24 +307,37 @@ class ServiceRegistry(Generic[T]):
         cls._log.info("- Starting Services ...")
         dynamic_import('services')
 
-        # ️Filter the services that are actually allowed to run
+        # Filter the services that are actually allowed to run
         candidates = [
             s for s in cls.services().keys() if cls.can_run(s)
         ]
 
-        # Compute a safe start order
+        # Compute one global dependency-safe order.
         start_order = cls._topo_sort(candidates, reverse=False)
 
-        # Start them one-by-one through the same dependency-aware path
-        # that is used for starting a single service.
+        # Start every service once. Do not call start_service() here,
+        # because start_service() expands dependencies again.
         for svc_type in start_order:
             try:
-                await cls.start_service(svc_type)
-            except Exception as exc:
+                if not cls.can_run(svc_type):
+                    continue
+
+                svc = cls.new(svc_type)
+                if svc.is_running():
+                    continue
+
+                svc._in_registry_cascade = True
+                try:
+                    await svc.start()
+                    cls._singletons[svc_type] = svc
+                finally:
+                    svc._in_registry_cascade = False
+
+            except Exception as ex:
                 svc = cls.get(svc_type)
                 name = svc.name if svc else svc_type.__name__
-                cls._log.error(f"  => Service {name} NOT started.", exc_info=exc)
-                if isinstance(exc, FatalException):
+                cls._log.error(f"  => Service {name} NOT started: {ex}")
+                if isinstance(ex, FatalException):
                     raise
                 # keep going – other services may still start
 
@@ -345,4 +395,5 @@ class ServiceRegistry(Generic[T]):
                 await svc.stop()
 
         cls._singletons.clear()
+        cls._proxies.clear()
         cls._log.info("- Services stopped.")

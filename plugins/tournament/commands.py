@@ -338,7 +338,7 @@ class Tournament(Plugin[TournamentEventListener]):
     def get_info_channel(self) -> discord.TextChannel | None:
         if not self._info_channel:
             config = self.get_config()
-            channel_id = config.get('channels', {}).get('info')
+            channel_id: int | None = config.get('channels', {}).get('info')
             if channel_id and self.bot.check_channel(int(channel_id)):
                 self._info_channel = self.bot.get_channel(channel_id)
         return self._info_channel
@@ -1261,7 +1261,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
     @utils.app_has_role('GameMaster')
-    async def generate(self, interaction: discord.Interaction, tournament_id: int, num_groups: int | None = 4):
+    async def generate(self, interaction: discord.Interaction, tournament_id: int, num_groups: int = 4):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         tournament = await self.get_tournament(tournament_id)

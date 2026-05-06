@@ -17,14 +17,12 @@ import zipfile
 
 from configparser import RawConfigParser
 from contextlib import suppress
-from core import (Extension, utils, ServiceRegistry, Autoexec, get_translation, InstallException, Server,
+from core import (Extension, utils, Autoexec, get_translation, InstallException, Server,
                   ServerMaintenanceManager, PortType, Port, ProcessManager)
 from discord.ext import tasks
 from io import BytesIO
 from json import JSONDecodeError
 from packaging.version import parse
-from services.bot import BotService
-from services.servicebus import ServiceBus
 from threading import Thread
 from typing_extensions import override
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
@@ -85,7 +83,6 @@ class SRS(Extension, FileSystemEventHandler):
     def __init__(self, server: Server, config: dict):
         self.cfg = RawConfigParser()
         self.cfg.optionxform = str
-        self.bus = ServiceRegistry.get(ServiceBus)
         self.process: psutil.Process | None = None
         self.observer: Observer | None = None
         self.first_run = True
@@ -686,15 +683,7 @@ class SRS(Extension, FileSystemEventHandler):
                     self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
                     await self.do_update(version)
                     self.log.info("DCS-SRS updated.")
-                    bus = ServiceRegistry.get(ServiceBus)
-                    await bus.send_to_node({
-                        "command": "rpc",
-                        "service": BotService.__name__,
-                        "method": "audit",
-                        "params": {
-                            "message": f"{self.name} updated to version {version} on node {self.node.name}."
-                        }
-                    })
+                    await self.bot.audit(f"{self.name} updated to version {version} on node {self.node.name}.")
                     config = self.config.get('announce')
                     if config:
                         servers = []
@@ -712,18 +701,10 @@ class SRS(Extension, FileSystemEventHandler):
                                         value='\n'.join([f'- {x}' for x in servers]), inline=False)
                         embed.set_footer(
                             text=config.get('footer', 'Please make sure you update your DCS-SRS client also!'))
-                        params = {
-                            "channel": config['channel'],
-                            "embed": embed.to_dict()
-                        }
+                        params = {}
                         if 'mention' in config:
                             params['mention'] = config['mention']
-                        await bus.send_to_node({
-                            "command": "rpc",
-                            "service": BotService.__name__,
-                            "method": "send_message",
-                            "params": params
-                        })
+                        await self.bot.send_message(channel=config['channel'], embed=embed.to_dict(), **params)
 
             except Exception as ex:
                 self.log.error(f"DCS-SRS update failed: {ex}")

@@ -1519,7 +1519,7 @@ class Logbook(Plugin[LogbookEventListener]):
     )
     @app_commands.autocomplete(squadron=logbook_squadron_autocomplete, qualification=qualification_autocomplete)
     async def qualification_expiring(self, interaction: discord.Interaction,
-                                     days: Optional[int] = 30,
+                                     days: int = 30,
                                      squadron: Optional[int] = None,
                                      qualification: Optional[int] = None):
         ephemeral = utils.get_ephemeral(interaction)

@@ -387,20 +387,20 @@ class Admin(Plugin[AdminEventListener]):
                         value=ban['reason'])
         await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
-    @dcs.command(description=_('Update your DCS installations'))
+    @dcs.command(name="update", description=_('Update your DCS installations'))
     @app_commands.guild_only()
     @app_commands.check(utils.restricted_check)
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(warn_time=_("Time in seconds to warn users before shutdown"))
     @app_commands.autocomplete(branch=get_dcs_branches)
     @app_commands.autocomplete(version=get_dcs_versions)
-    async def update(self, interaction: discord.Interaction,
-                     node: app_commands.Transform[Node, utils.NodeTransformer],
-                     warn_time: app_commands.Range[int, 0] = 60,
-                     announce: bool = True,
-                     branch: str | None = None,
-                     version: str | None = None,
-                     force: bool | None = False):
+    async def dcs_update(self, interaction: discord.Interaction,
+                         node: app_commands.Transform[Node, utils.NodeTransformer],
+                         warn_time: app_commands.Range[int, 0] = 60,
+                         announce: bool = True,
+                         branch: str | None = None,
+                         version: str | None = None,
+                         force: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         _branch, old_version = await node.get_dcs_branch_and_version()
@@ -989,7 +989,7 @@ class Admin(Plugin[AdminEventListener]):
     @utils.app_has_role('Admin')
     async def shell(self, interaction: discord.Interaction,
                     node: app_commands.Transform[Node, utils.NodeTransformer],
-                    cmd: str, timeout: app_commands.Range[int, 10, 300] | None = 60):
+                    cmd: str, timeout: app_commands.Range[int, 10, 300] = 60):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
         try:
@@ -1379,11 +1379,11 @@ Please make sure you forward the following ports:
             embed.add_field(name=ext['name'], value=ext.get('version', 'n/a'))
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
-    @ext.command(description=_('Update Extension'))
+    @ext.command(name="update", description=_('Update Extension'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(extension=enabled_extensions_autocomplete)
-    async def update(
+    async def ext_update(
             self,
             interaction: discord.Interaction,
             server: app_commands.Transform[Server, utils.ServerTransformer],

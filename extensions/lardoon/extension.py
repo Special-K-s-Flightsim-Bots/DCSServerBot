@@ -143,7 +143,7 @@ class Lardoon(Extension):
                 type(self)._tacview_dirs[tacview_dir] = set()
             type(self)._tacview_dirs[tacview_dir].add(self.server.name)
         else:
-            self._schedule.start()
+            utils.safe_start(self._schedule)
         return await super().startup()
 
     def terminate(self) -> bool:
@@ -169,6 +169,7 @@ class Lardoon(Extension):
                 return self.terminate()
             return True
         else:
+            # we do not wait here due to not being async
             self._schedule.cancel()
             return self.terminate()
 
@@ -246,7 +247,7 @@ class Lardoon(Extension):
     @tasks.loop(count=1)
     async def schedule(self):
         if self.config.get('use_single_process', True):
-            self._schedule.start()
+            utils.safe_start(self._schedule)
         return
 
     @override

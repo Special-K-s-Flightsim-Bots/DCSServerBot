@@ -16,6 +16,7 @@ from core.data.dataobject import DataObject
 
 if TYPE_CHECKING:
     from core import Server, NodeImpl
+    from .registry import ServiceRegistry
 
 # ruamel YAML support
 from pykwalify.errors import PyKwalifyException
@@ -130,6 +131,7 @@ class Service(ABC):
         try:
             await ServiceRegistry.start_service(self.__class__)
         finally:
+            self.log.info(f'  => Service {self.name} started.')
             self._in_registry_cascade = False
 
         # After dependencies are up, start ourselves
@@ -216,3 +218,119 @@ class Service(ABC):
 class ServiceInstallationError(Exception):
     def __init__(self, service: str, reason: str):
         super().__init__(f'Service "{service.title()}" could not be installed: {reason}')
+
+
+class ServiceProxy:
+    def __init__(self, service_type: type, *, timeout: int | float | None = 30.0):
+        self._service_type = service_type
+        self._service_name = service_type.__name__
+        self._timeout = timeout
+
+    @property
+    def name(self) -> str:
+        return self._service_name
+
+    @property
+    def running(self) -> bool:
+        return True
+
+    def is_running(self) -> bool:
+        return True
+
+    def get_ports(self) -> dict:
+        return {}
+
+    async def start(self, *args, **kwargs):
+        return None
+
+    async def stop(self, *args, **kwargs):
+        return None
+
+    async def switch(self, master: bool):
+        return None
+
+    def __repr__(self) -> str:
+        return f"<ServiceProxy service={self._service_name}>"
+
+    def __getattr__(self, method_name: str) -> Callable[..., Any]:
+        if method_name.startswith("_"):
+            raise AttributeError(method_name)
+
+        method = getattr(self._service_type, method_name, None)
+        if method is None or not callable(method):
+            raise AttributeError(
+                f"{self._service_name!s} proxy only supports method calls. "
+                f"Attribute {method_name!r} is not a callable service method."
+            )
+
+        async def rpc_method(*args, **kwargs):
+            from .registry import ServiceRegistry
+            from services.servicebus import ServiceBus
+
+            bus = ServiceRegistry.get(ServiceBus)
+            if not bus:
+                raise RuntimeError("ServiceBus is not available; cannot perform RPC call.")
+
+            params = self._build_params(method_name, args, kwargs)
+
+            return await bus.send_to_node_sync({
+                "command": "rpc",
+                "service": self._service_name,
+                "method": method_name,
+                "params": params
+            }, timeout=self._timeout)
+
+        return rpc_method
+
+    def _build_params(self, method_name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> dict[str, Any]:
+        params = dict(kwargs)
+
+        method: Callable | None = getattr(self._service_type, method_name, None)
+        if method:
+            signature = inspect.signature(method)
+            parameter_names = [
+                name for name, parameter in signature.parameters.items()
+                if name != "self"
+                and parameter.kind in (
+                    inspect.Parameter.POSITIONAL_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD
+                )
+            ]
+
+            if len(args) > len(parameter_names):
+                raise TypeError(
+                    f"{self._service_name}.{method_name}() takes {len(parameter_names)} positional arguments "
+                    f"but {len(args)} were given"
+                )
+
+            for name, value in zip(parameter_names, args):
+                if name in params:
+                    raise TypeError(f"{self._service_name}.{method_name}() got multiple values for argument '{name}'")
+                params[name] = value
+
+        elif args:
+            raise TypeError(
+                f"Can not call {self._service_name}.{method_name}() with positional arguments because "
+                f"the method does not exist on the service type."
+            )
+
+        return self._serialize_params(params)
+
+    def _serialize_params(self, params: dict[str, Any]) -> dict[str, Any]:
+        from enum import Enum
+        from core import Server, Node, Instance
+
+        def serialize(value: Any) -> Any:
+            if isinstance(value, Enum):
+                return value.value
+            if isinstance(value, (Server, Node, Instance)):
+                return value.name
+            if isinstance(value, dict):
+                return {key: serialize(val) for key, val in value.items()}
+            if isinstance(value, list):
+                return [serialize(item) for item in value]
+            if isinstance(value, tuple):
+                return [serialize(item) for item in value]
+            return value
+
+        return {key: serialize(value) for key, value in params.items()}

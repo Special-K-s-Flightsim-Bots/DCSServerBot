@@ -35,7 +35,7 @@ fuzzywuzzy==0.18.0
 geopandas==1.1.3
 
 # GitPython: Python library for interacting with git repositories
-GitPython>=3.1.47
+GitPython>=3.1.49
 
 # Jinja web template framework
 jinja2==3.1.6
@@ -74,10 +74,10 @@ pid==3.0.4
 pip-tools==7.5.3
 
 # Psycopg: PostgreSQL database adapter for Python
-psycopg[binary]==3.3.3
+psycopg[binary]==3.3.4
 
 # Psycopg Pool: PostgreSQL database adapter pool for Python
-psycopg-pool==3.3.0
+psycopg-pool==3.3.1
 
 # PSUtil: Cross-platform library to access system details and process utilities
 psutil==7.2.2
@@ -89,7 +89,7 @@ pykwalify==1.8.0
 python-Levenshtein==0.27.3
 
 # python-multipart: A library for parsing multipart/form-data input requests
-python-multipart==0.0.26
+python-multipart==0.0.27
 
 # Pywin32: Set of Python extensions for MS Windows
 pywin32==311 ; sys_platform == 'win32'
@@ -116,7 +116,7 @@ sqlparse==0.5.5
 telnetlib3==4.0.2
 
 # TimezoneFinder: Find the right timezones for a given coordinate
-tzfpy[tzdata]==1.3.0
+tzfpy[tzdata]==1.3.1
 
 # tomli: Python TOML parser
 tomli_w==1.2.0

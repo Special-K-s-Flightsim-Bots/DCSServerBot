@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 import asyncio
 import logging
 import os
 import re
 
-from core import Service, ServiceRegistry, Status
+from core import Service, ServiceRegistry, Status, NodeImpl
 from datetime import datetime
 from logging.handlers import QueueHandler, RotatingFileHandler
 from queue import Queue
@@ -29,7 +30,7 @@ __all__ = [
 class HeaderWidget:
     """Display header with clock."""
 
-    def __init__(self, service: "Dashboard"):
+    def __init__(self, service: Dashboard):
         self.service = service
         self.node = service.node
         self.log = service.log
@@ -56,7 +57,7 @@ class HeaderWidget:
 class ServersWidget:
     """Displaying List of Servers"""
 
-    def __init__(self, service: "Dashboard"):
+    def __init__(self, service: Dashboard):
         self.service = service
         self.node = service.node
         self.bus = service.bus
@@ -91,7 +92,7 @@ class ServersWidget:
 class NodeWidget:
     """Displaying Bot Info"""
 
-    def __init__(self, service: "Dashboard"):
+    def __init__(self, service: Dashboard):
         self.service = service
         self.node = service.node
         self.bus = service.bus
@@ -137,10 +138,10 @@ class RichQueueHandler(QueueHandler):
 class LogWidget:
     """Display log messages"""
 
-    def __init__(self, service: "Dashboard"):
+    def __init__(self, service: Dashboard):
         self.service = service
         self.queue = service.queue
-        self.buffer: list[tuple[int, "ConsoleRenderable"]] = []
+        self.buffer: list[tuple[int, ConsoleRenderable]] = []
         self.handler = service.old_handler
         self.console = Console(record=True)
         config = self.service.get_config().get("log", {})
@@ -203,7 +204,7 @@ class LogWidget:
 
         return record
 
-    def _measure_renderable_lines(self, renderable: "ConsoleRenderable", width: int) -> int:
+    def _measure_renderable_lines(self, renderable: ConsoleRenderable, width: int) -> int:
         with self.console.capture() as capture:
             self.console.print(renderable, width=width)
         return len(capture.get().splitlines()) or 1
@@ -305,7 +306,7 @@ class LogWidget:
 @ServiceRegistry.register(depends_on=[ServiceBus])
 class Dashboard(Service):
 
-    def __init__(self, node):
+    def __init__(self, node: NodeImpl):
         super().__init__(node)
         self.console = Console()
         self.layout = None
@@ -377,6 +378,7 @@ class Dashboard(Service):
         await super().stop()
 
     async def switch(self, master: bool):
+        await super().switch(master)
         await self.stop()
         await self.start()
 

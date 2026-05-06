@@ -168,7 +168,7 @@ class NodeImpl(Node):
             if self.is_shutdown.is_set():
                 return
             self.commit_claimed_master()
-            self.heartbeat_loop.start()
+            utils.safe_start(self.heartbeat_loop)
             self.log.info("- Starting as {} ...".format("Master" if self._master else "Agent"))
         else:
             self._claimed_master = True
@@ -204,8 +204,7 @@ class NodeImpl(Node):
         return self
 
     async def __aexit__(self, _type, _value, _traceback):
-        if self.heartbeat_loop.is_running():
-            self.heartbeat_loop.cancel()
+        await utils.safe_cancel(self.heartbeat_loop)
         await self.close_db()
 
     @override
@@ -236,26 +235,6 @@ class NodeImpl(Node):
     @property
     def listen_port(self) -> Port:
         return Port(self.locals.get('listen_port', 10042), PortType.UDP)
-
-    async def audit(self, message, *, user: discord.Member | str | None = None,
-                    server: Server | None = None, **kwargs):
-        from services.bot import BotService
-        from services.servicebus import ServiceBus
-
-        if self.master:
-            await ServiceRegistry.get(BotService).bot.audit(message, user=user, server=server, **kwargs)
-        else:
-            params = {
-                "message": message,
-                "user": f"<@{user.id}>" if isinstance(user, discord.Member) else user,
-                "server": server.name if server else ""
-            } | kwargs
-            await ServiceRegistry.get(ServiceBus).send_to_node({
-                "command": "rpc",
-                "service": BotService.__name__,
-                "method": "audit",
-                "params": params
-            })
 
     def register_callback(self, what: str, name: str, func: Callable[[], Awaitable[Any]]):
         if what == 'before_dcs_update':
@@ -1040,7 +1019,6 @@ class NodeImpl(Node):
         else:
             return await _get_latest_versions_auth()
 
-
     @override
     async def get_latest_version(self, branch: str) -> str | None:
         versions = await self.get_available_dcs_versions(branch)
@@ -1054,7 +1032,7 @@ class NodeImpl(Node):
         if 'DCS' in self.locals:
             if self.locals['DCS'].get('autoupdate', False):
                 if not self.locals['DCS'].get('cloud', False) or self.master:
-                    self.autoupdate.start()
+                    utils.safe_start(self.autoupdate)
             else:
                 new_version = await self.is_dcs_update_available()
                 if new_version:
@@ -1074,7 +1052,7 @@ class NodeImpl(Node):
                 await conn.execute("DELETE FROM nodes WHERE guild_id = %s AND node = %s", (self.guild_id, self.name))
         if 'DCS' in self.locals and self.locals['DCS'].get('autoupdate', False):
             if not self.locals['DCS'].get('cloud', False) or self.master:
-                self.autoupdate.cancel()
+                await utils.safe_cancel(self.autoupdate)
 
     async def heartbeat(self) -> bool:
         lock_key = zlib.crc32(f"DCSSB:{self.guild_id}".encode("utf-8"))
@@ -1152,6 +1130,12 @@ class NodeImpl(Node):
             return (await cursor.fetchone())[0] == 1
 
         async def request_takeover():
+            # Make sure we are considered alive (on early takeovers due to preferred_master)
+            await lock_conn.execute("""
+                INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
+                ON CONFLICT (guild_id, node) DO UPDATE 
+                SET last_seen = (NOW() AT TIME ZONE 'UTC')
+            """, (self.guild_id, self.name))
             # "Intent" signal only. Does NOT change cluster.master.
             await lock_conn.execute("""
                 INSERT INTO cluster (guild_id, master, version, takeover_requested_by)
@@ -1160,11 +1144,14 @@ class NodeImpl(Node):
                 SET takeover_requested_by = excluded.takeover_requested_by
             """, (self.guild_id, self.name, __version__, self.name))
 
-        async def try_become_master() -> bool:
-            cur = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key,))
-            got = (await cur.fetchone())[0]
-            if not got:
-                return False
+        async def try_become_master(wait: bool = False) -> bool:
+            if wait:
+                await lock_conn.execute("SELECT pg_advisory_lock(%s)", (lock_key,))
+            else:
+                cur = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key,))
+                got = (await cur.fetchone())[0]
+                if not got:
+                    return False
 
             await lock_conn.execute("""
                 INSERT INTO cluster (guild_id, master, version, takeover_requested_by)
@@ -1269,7 +1256,6 @@ class NodeImpl(Node):
                             if not (await cursor.fetchone())[0]:
                                 self.log.info("  => Another node still holds the master lock, waiting ...")
                                 return False
-                            holds_lock = True
 
                         if parse(version) != parse(__version__):
                             if parse(version) > parse(__version__):
@@ -1302,7 +1288,7 @@ class NodeImpl(Node):
 
                         if (takeover_by and takeover_by == self.name) or config.get('preferred_master', False):
                             await request_takeover()
-                            return await try_become_master()
+                            return await try_become_master(wait=True)
 
                         if await is_node_alive(master, config.get('heartbeat', 30)):
                             return False
@@ -1820,7 +1806,6 @@ class NodeImpl(Node):
             for cls in ServiceRegistry.services().keys():
                 service = ServiceRegistry.get(cls)
                 if service and not isinstance(service, BotService):
-                    assert service is not None
                     tasks.append(service.stop())
             await utils.run_parallel_nofail(*tasks)
 
@@ -1846,7 +1831,6 @@ class NodeImpl(Node):
             for cls in ServiceRegistry.services().keys():
                 service = ServiceRegistry.get(cls)
                 if service and not isinstance(service, BotService):
-                    assert service is not None
                     service.reload()
                     tasks.append(service.start())
             results = await asyncio.gather(*tasks, return_exceptions=True)

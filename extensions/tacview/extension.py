@@ -5,13 +5,11 @@ import re
 import shutil
 import sys
 
-from core import (utils, ServiceRegistry, Server, get_translation, InstallException, DISCORD_FILE_SIZE_LIMIT, Status,
+from core import (utils, Server, get_translation, InstallException, DISCORD_FILE_SIZE_LIMIT, Status,
                   PortType, Port, InstallableExtension)
 from datetime import datetime
 from extensions.tacview.recorder import TacviewRecorder
 from packaging.version import parse
-from services.bot import BotService
-from services.servicebus import ServiceBus
 from typing import Any
 from typing_extensions import override
 
@@ -68,7 +66,6 @@ class Tacview(InstallableExtension):
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
-        self.bus = ServiceRegistry.get(ServiceBus)
         self.log_pos = -1
         self.exp = re.compile(TACVIEW_PATTERN_MATCH)
         self._inst_path = None
@@ -328,17 +325,12 @@ class Tacview(InstallableExtension):
                 self.log.warning(f"Can't upload, TACVIEW file {filename} too large!")
                 return
             try:
-                await self.bus.send_to_node_sync({
-                    "command": "rpc",
-                    "service": BotService.__name__,
-                    "method": "send_message",
-                    "params": {
-                        "channel": int(target[4:-1]),
-                        "content": _("Tacview file for server {}").format(self.server.name),
-                        "server": self.server.name,
-                        "filename": filename
-                    }
-                })
+                await self.bot.send_message(
+                    channel=int(target[4:-1]),
+                    content=_("Tacview file for server {}").format(self.server.name),
+                    server=self.server.name,
+                    filename=filename
+                )
                 self.log.debug(f"TACVIEW file {filename} uploaded.")
             except AttributeError:
                 self.log.warning(f"Can't upload TACVIEW file {filename}, "
@@ -462,15 +454,11 @@ class Tacview(InstallableExtension):
 
     async def update(self, version: str | None = None) -> bool:
         if await super().update(version):
-            await ServiceRegistry.get(ServiceBus).send_to_node({
-                "command": "rpc",
-                "service": BotService.__name__,
-                "method": "audit",
-                "params": {
-                    "message": _("Tacview updated to version {version} on instance {instance}.").format(
-                        version=version, instance=self.server.instance.name)
-                }
-            })
+            await self.bot.audit(
+                message=_("Tacview updated to version {version} on instance {instance}.").format(
+                    version=version, instance=self.server.instance.name
+                )
+            )
             return True
         else:
             return False

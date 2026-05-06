@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import os
@@ -5,15 +7,20 @@ import psutil
 
 from core import Server, Status, Coalition, utils
 from extensions.srs import SRS
-from services.music.radios.base import Radio
+from services.music.radios import Radio
 from plugins.music.utils import get_tag
-from typing import cast
+from typing import cast, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from services.music import MusicService
+
+__all__ = ["SRSRadio"]
 
 
 class SRSRadio(Radio):
 
-    def __init__(self, name: str, server: Server):
-        super().__init__(name, server)
+    def __init__(self, service: MusicService, name: str, server: Server):
+        super().__init__(service, name, server)
         self.process: psutil.Process | None = None
 
     async def play(self, file: str) -> None:

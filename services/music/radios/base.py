@@ -1,11 +1,17 @@
+from __future__ import annotations
+
 import asyncio
 import os
 
 from abc import ABC
-from core import Server, ServiceRegistry
+from core import Server, utils
 from discord.ext import tasks
 from enum import Enum
 from random import randrange
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from services.music import MusicService
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -25,11 +31,9 @@ class Mode(Enum):
 
 class Radio(ABC):
 
-    def __init__(self, name: str, server: Server):
-        from services.music import MusicService
-
+    def __init__(self, service: MusicService, name: str, server: Server):
         self.name = name
-        self.service: MusicService = ServiceRegistry.get(MusicService)
+        self.service = service
         self.log = self.service.log
         self.pool = self.service.pool
         self.apool = self.service.apool
@@ -103,14 +107,10 @@ class Radio(ABC):
         return self.queue_worker.is_running()
 
     async def stop(self) -> None:
-        if self.queue_worker.is_running():
-            self.queue_worker.cancel()
-            while self.queue_worker.is_running():
-                await asyncio.sleep(0.5)
+        await utils.safe_cancel(self.queue_worker)
 
     async def start(self) -> None:
-        if not self.queue_worker.is_running():
-            self.queue_worker.start()
+        utils.safe_start(self.queue_worker)
 
     async def play(self, file: str) -> None:
         ...

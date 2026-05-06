@@ -7,7 +7,7 @@ def read(path, encoding="utf-8", _multival=False):
 
     :param path: The path to the file.
     :param encoding: The encoding used to read the file. Defaults to "utf-8".
-    :param multival: Flag indicating if the file contains multiple serialized values. Defaults to False.
+    :param _multival: Flag indicating if the file contains multiple serialized values. Defaults to False.
     :return: The unserialized contents of the file.
     """
     with open(path, mode="r", encoding=encoding) as file:

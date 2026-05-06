@@ -22,9 +22,12 @@ async def report(file: str, channel: int, node: Node, persistent: bool | None = 
                              embed_name=os.path.basename(file)[:-5])
         await r.render(node=node, server=server)
     else:
-        r = Report(bot, 'cron', file)
-        env = await r.render(node=node, server=server)
-        await bot.get_channel(channel).send(embed=env.embed)
+        try:
+            r = Report(bot, 'cron', file)
+            env = await r.render(node=node, server=server)
+            await bot.get_channel(channel).send(embed=env.embed)
+        except FileNotFoundError:
+            node.log.error(f"Cron: Report file {file} not found!")
 
 
 async def restart(node: Node, server: Server | None = None, shutdown: bool | None = False,
@@ -110,7 +113,7 @@ async def purge_channel(node: Node, channel: int | list[int], older_than: int = 
     for c in channels:
         channel = bot.get_channel(c)
         if not channel:
-            node.log.warning(f"Channel {c} not found!")
+            node.log.error(f"Cron: Can't delete messages in channel <#{c}>: Not found")
             return
 
         try:
@@ -120,25 +123,25 @@ async def purge_channel(node: Node, channel: int | list[int], older_than: int = 
             if older_than is not None:
                 now = datetime.now(tz=timezone.utc)
                 before = now - timedelta(days=older_than)
-                node.log.debug(f"Deleting messages older than {older_than} days in channel {channel.name} ...")
+                node.log.debug(f"Cron: Deleting messages older than {older_than} days in channel {channel.name} ...")
             elif before_id is not None:
                 before = (await channel.fetch_message(before_id)).created_at
-                node.log.debug(f"Deleting messages older than {before_id} in channel {channel.name} ...")
+                node.log.debug(f"Cron: Deleting messages older than {before_id} in channel {channel.name} ...")
             else:
                 before = None
             if after_id is not None:
                 after = (await channel.fetch_message(after_id)).created_at
-                node.log.debug(f"Deleting messages younger than {after_id} in channel {channel.name} ...")
+                node.log.debug(f"Cron: Deleting messages younger than {after_id} in channel {channel.name} ...")
             else:
                 after = None
             deleted_messages = await channel.purge(limit=None, after=after, before=before, check=check, bulk=True)
             node.log.debug(f"Purged {len(deleted_messages)} messages from channel {channel.name}.")
         except discord.NotFound:
-            node.log.warning(f"Can't delete messages in channel {channel.name}: Not found")
+            node.log.error(f"Cron: Can't delete messages in channel {channel.name}: Not found")
         except discord.Forbidden:
-            node.log.warning(f"Can't delete messages in channel {channel.name}: Missing permissions")
+            node.log.error(f"Cron: Can't delete messages in channel {channel.name}: Missing permissions")
         except discord.HTTPException:
-            node.log.error(f"Failed to delete message in channel {channel.name}", exc_info=True)
+            node.log.error(f"Cron: Failed to delete message in channel {channel.name}", exc_info=True)
 
 
 async def dcs_update(node: Node, warn_times: list[int] | None = None):

@@ -6,12 +6,14 @@ import os
 import sys
 
 from core import ServiceRegistry, Service, Server, proxy
+from services.servicebus import ServiceBus
 
 from .radios import Radio, Mode
-from ..servicebus import ServiceBus
 
 # we don't want any irrelevant log entries from eyed3
 logging.getLogger(name='eyed3.mp3.headers').setLevel(logging.FATAL)
+
+__all__ = ["MusicService"]
 
 
 @ServiceRegistry.register(plugin='music', depends_on=[ServiceBus])
@@ -56,7 +58,9 @@ class MusicService(Service):
             if not self.radios.get(server.name):
                 self.radios[server.name] = {}
             if not self.radios[server.name].get(name):
-                radio: Radio = getattr(sys.modules['services.music.radios'], config['type'])(name=name, server=server)
+                radio: Radio = getattr(sys.modules['services.music.radios'], config['type'])(
+                    service=self, name=name, server=server
+                )
                 self.radios[server.name][name] = radio
 
     @proxy

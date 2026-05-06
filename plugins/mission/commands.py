@@ -536,7 +536,7 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.autocomplete(path=mizfile_autocomplete)
     async def add(self, interaction: discord.Interaction,
                   server: app_commands.Transform[Server, utils.ServerTransformer], path: str,
-                  autostart: bool | None = False):
+                  autostart: bool = False):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
 

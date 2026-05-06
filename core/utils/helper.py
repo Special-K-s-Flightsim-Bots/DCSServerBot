@@ -486,7 +486,7 @@ def get_presets(node: Node) -> Iterable[str]:
     return presets
 
 
-def get_preset(node: Node, name: str, filename: str | list[str] | None = None) -> dict | None:
+def get_preset(node: Node, name: str, filename: str | list[str] | None = None) -> dict | list | None:
     """
     :param node: The node where the configuration is stored.
     :param name: The name of the preset to retrieve.
