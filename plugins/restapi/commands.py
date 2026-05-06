@@ -1258,6 +1258,7 @@ class RestAPI(Plugin):
                            SUM("totalPvPKills") AS total_pvp_kills,
                            SUM("totalPvPDeaths") AS total_pvp_deaths
                     FROM mv_serverstats m
+                    WHERE 1 = 1
                     {where_clause}
                 """, params)
                 mv_row = await cursor.fetchone()
