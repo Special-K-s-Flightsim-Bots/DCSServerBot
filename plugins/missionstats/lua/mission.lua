@@ -10,6 +10,27 @@ local GROUP_CATEGORY = {
 	[Group.Category.SHIP] = 'Ships'
 }
 
+-- --------------------------------------------------------------
+--  Air‑base / runway definitions
+-- --------------------------------------------------------------
+local MISSING_RUNWAYS = {
+    ["Tbilisi-Lochini"] = {
+        course   = -2.181661564992912,
+        name     = "13L",
+        position = { y = 479.7552, x = -315401, z = 896638 },
+        length   = 2463.16,
+        width    = 54
+    },
+
+    ["Bilbeis Air Base"] = {
+        course   = -2.967,
+        name     = "17R",
+        position = { y = 28.04, x = 39326, z = 34977 },
+        length   = 1524,
+        width    = 42
+    }
+}
+
 -- MOOSE
 world.event.S_EVENT_NEW_CARGO = world.event.S_EVENT_MAX + 1000
 world.event.S_EVENT_DELETE_CARGO = world.event.S_EVENT_MAX + 1001
@@ -173,39 +194,18 @@ function onMissionEvent(event)
                         local runways = airbase:getRunways()
                         local on_runway = false
 
-                        -- workaround DCS bug
-                        if place == 'Tbilisi-Lochini' then
-                            on_runway = is_on_runway({
-                                course=-2.2334115505219,
-                                Name=13,
-                                position={
-                                    y=479.7552,
-                                    x=-315553,
-                                    z=896476
-                                },
-                                length=3000,
-                                width=60
-                            }, point, velocity)
-                            if not on_runway then
-                            -- and add the abandoned runway as a real one
-                                on_runway = is_on_runway({
-                                    course=-2.181661564992912,
-                                    Name="13L",
-                                    position={
-                                        y=479,7552,
-                                        x=-315401,
-                                        z=896638
-                                    },
-                                    length=2463,16,
-                                    width=54
-                                }, point, velocity)
+                        for _, runway in pairs(runways) do
+                            if is_on_runway(runway, point, velocity) then
+                                on_runway = true
+                                break
                             end
-                        else
-                            for _, runway in pairs(runways) do
-                                if is_on_runway(runway, point, velocity) then
-                                    on_runway = true
-                                    break
-                                end
+                        end
+
+                        -- check and allow missing runways
+                        if not on_runway then
+                            local runway = MISSING_RUNWAYS[place]
+                            if runway then
+                                on_runway = is_on_runway(runway, point, velocity)
                             end
                         end
                         if not on_runway then
