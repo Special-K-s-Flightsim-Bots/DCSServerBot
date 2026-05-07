@@ -212,13 +212,13 @@ class Lardoon(Extension):
             else:
                 cwd = os.path.join(self.server.instance.home, 'Config')
 
+            self.log.debug(f"{self.name}: Running {cmd} {' '.join(args)} in {cwd}")
             proc = subprocess.Popen([cmd] + args, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = proc.communicate()
-            if proc.returncode != 0:
-                if stderr:
-                    self.log.error(stderr.decode('utf-8'))
+            if stderr:
+                self.log.error(f"{self.name}: {stderr.decode('utf-8')}")
             if self.config.get('debug', False) and stdout:
-                self.log.debug(stdout.decode('utf-8'))
+                self.log.error(f"{self.name}: {stdout.decode('utf-8')}")
 
         # make sure we're running on the correct schedule
         minutes = self.config.get('minutes', 5)
