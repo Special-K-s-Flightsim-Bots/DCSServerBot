@@ -13,16 +13,16 @@ msgstr ""
 
 # /missionstats
 msgid "Display Mission Statistics"
-msgstr "显示任务统计数据"
+msgstr "显示任务统计"
 
 msgid "Mission statistics not initialized yet or not active for this server."
-msgstr "该服务器的任务统计信息尚未初始化或不活跃."
+msgstr "该服务器的任务统计尚未初始化，或当前未启用."
 
 msgid "Data can only be displayed in a private coalition channel!"
-msgstr "数据只能在私人联盟频道中展示!"
+msgstr "数据只能在私密阵营频道中显示!"
 
 msgid "Current Situation"
-msgstr "现状"
+msgstr "当前态势"
 
 msgid ""
 "Airbases / FARPs\n"
@@ -32,22 +32,22 @@ msgid ""
 "Ships\n"
 "Structures"
 msgstr ""
-"空军基地 / FARPs\n"
+"机场 / FARPs\n"
 "飞机\n"
 "直升机\n"
-"地面部队\n"
+"地面单位\n"
 "舰船\n"
-"建筑"
+"建筑物"
 
 msgid "Achievements"
 msgstr "成就"
 
 # /sorties
 msgid "Display statistics about sorties"
-msgstr "显示出击统计信息"
+msgstr "显示出击统计"
 
 msgid "No sorties found for this player."
-msgstr "未找到该玩家的出击次数."
+msgstr "未找到该玩家的出击记录."
 
 msgid "Module"
 msgstr "模块"
@@ -61,19 +61,18 @@ msgstr "总飞行时间"
 msgid ""
 "Flighttime is the time you were airborne from takeoff to landing / leave or\n"
 "airspawn to landing / leave."
-msgstr ""
-"飞行时间是指从起飞到降落 / 离开或\n"
-"空中重生到着陆 / 离开."
+msgstr "飞行时间是指您从起飞到降落 / 离开，或\n"
+"从空中出生到降落 / 离开的在空时间."
 
 # /modulestats
 msgid "Module statistics"
 msgstr "模块统计"
 
 msgid "You need to chose a module!"
-msgstr "您需要选择一个模块!"
+msgstr "您需要选择一个机型!"
 
 msgid "Usages"
-msgstr "用法"
+msgstr "使用次数"
 
 msgid "Total Playtime"
 msgstr "总游戏时间"
@@ -104,15 +103,15 @@ msgid "Refuelings"
 msgstr "加油"
 
 msgid "No refuelings found for this user."
-msgstr "未找到玩家加油数据."
+msgstr "未找到该用户的空中加油数据."
 
 # /nemesis
 msgid "Find who killed you most"
-msgstr "找出杀死你最多的人"
+msgstr "找出击杀您次数最多的人"
 
 # /antagonist
 msgid "Find who you've killed the most"
-msgstr "找出你杀死最多的人"
+msgstr "找出您击杀次数最多的人"
 
 # Listener
 msgid "Airplanes"
@@ -122,13 +121,13 @@ msgid "Helicopters"
 msgstr "直升机"
 
 msgid "Ground Units"
-msgstr "地面部队"
+msgstr "地面单位"
 
 msgid "Ships"
 msgstr "舰船"
 
 msgid "Structures"
-msgstr "建筑"
+msgstr "建筑物"
 
 msgid "Unknown"
 msgstr "未知"
@@ -137,10 +136,10 @@ msgid "BLUE coalition has captured {}."
 msgstr "蓝方已占领 {}."
 
 msgid "BLUE coalition has captured {} from RED coalition."
-msgstr "蓝方已从红方手中夺取了 {} ."
+msgstr "蓝方已从红方手中夺取 {}."
 
 msgid "RED coalition has captured {}."
 msgstr "红方已占领 {}."
 
 msgid "RED coalition has captured {} from BLUE coalition."
-msgstr "红方已从蓝方手中夺取了 {} ."
+msgstr "红方已从蓝方手中夺取 {}."

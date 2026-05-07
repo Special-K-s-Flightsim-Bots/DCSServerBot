@@ -18,7 +18,7 @@ msgid "Usage"
 msgstr "用法"
 
 msgid "<> mandatory, [] non-mandatory"
-msgstr "<> 强制的, [] 非强制的"
+msgstr "<> 为必填项，[] 为可选项"
 
 msgid "{} Help"
 msgstr "{} 帮助"
@@ -30,10 +30,10 @@ msgid "Description"
 msgstr "描述"
 
 msgid "There are no commands for your role in this plugin."
-msgstr "此插件中没有适合您角色的命令."
+msgstr "此插件中没有可供您当前角色使用的命令."
 
 msgid "Use /help [command] if you want help for a specific command."
-msgstr "如果你需要特定命令的帮助，请使用 /help [command] ."
+msgstr "如果您想查看某个特定命令的帮助，请使用 `/help [command]`."
 
 msgid "Select the plugin you want help for"
 msgstr "选择您需要帮助的插件"
@@ -42,7 +42,7 @@ msgid "The help command"
 msgstr "帮助命令"
 
 msgid "Command {} not found."
-msgstr "命令 {} 未找到."
+msgstr "未找到命令 {}."
 
 msgid "You don't have the permission to use this command."
 msgstr "您无权使用此命令."
@@ -59,7 +59,7 @@ msgid ""
 "_ _\n"
 msgstr ""
 "\n"
-"具有 {} 角色的成员可以在此 discord 中使用以下机器人命令:\n"
+"拥有 {} 角色的成员可在此 Discord 中使用以下机器人命令:\n"
 "_ _\n"
 
 msgid ""
@@ -68,11 +68,11 @@ msgid ""
 "_ _\n"
 msgstr ""
 "\n"
-"以下机器人命令可在此 discord 中使用:\n"
+"以下机器人命令可在此 Discord 中使用:\n"
 "_ _\n"
 
 msgid "Please provide a role for channel output."
-msgstr "请提供频道输出的角色."
+msgstr "请为频道输出指定一个角色."
 
 msgid "Unknown option {}!"
 msgstr "未知选项 {}!"

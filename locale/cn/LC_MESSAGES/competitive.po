@@ -13,43 +13,43 @@ msgstr ""
 
 # /trueskill
 msgid "Display your TrueSkill:tm: rating"
-msgstr "显示你的 TrueSkill:tm: 评级"
+msgstr "显示您的 TrueSkill:tm: 评级"
 
 msgid "Use {} to link your account."
-msgstr "使用 {} 来关联你的账户."
+msgstr "请使用 {} 关联您的账号."
 
 msgid "TrueSkill:tm: rating of player {name}: {rating:.2f}."
-msgstr "TrueSkill:tm: 玩家 {name} 的评级: {rating:.2f}"
+msgstr "玩家 {name} 的 TrueSkill:tm: 评级为: {rating:.2f}."
 
 # # LISTENER
 msgid "Your TrueSkill rating is: {}"
-msgstr "你的 TrueSkill 评级是: {}"
+msgstr "您的 TrueSkill 评级为: {}"
 
 msgid "You're not allowed to re-join the same match!"
-msgstr "你不能重新加入同一场比赛!"
+msgstr "您不能重新加入同一场比赛!"
 
 msgid "Player {name} ({rating}) joined the {side} team!"
-msgstr "玩家 {name} ({rating}) 加入了 {side} 队伍!"
+msgstr "玩家 {name}（{rating}）已加入 {side} 队!"
 
 msgid "The match is on! If you die, crash or leave now, you lose!"
-msgstr "比赛开始了！如果你现在死亡、崩溃或离开，你将失败!"
+msgstr "比赛开始！如果您现在死亡、坠毁或离开，您就会判负!"
 
 msgid "You won against {loser}! Your new rating is {rating}"
-msgstr "你赢了 {loser}! 你的新评级是 {rating}"
+msgstr "您战胜了 {loser}！您的新评级为 {rating}"
 
 msgid "You lost against {winner}! Your new rating is {rating}"
-msgstr "你输给了 {winner}! 你的新评级是 {rating}"
+msgstr "您输给了 {winner}！您的新评级为 {rating}"
 
 # -skill
 msgid "Display your rating"
-msgstr "显示你的评级"
+msgstr "显示您的评级"
 
 msgid ""
 "The match is over, {} won!\n"
 "\n"
 "The following players are still alive:\n"
 msgstr ""
-"比赛结束了，{} 赢了!\n"
+"比赛结束，{} 获胜！\n"
 "\n"
 "以下玩家仍然存活:\n"
 
@@ -58,27 +58,27 @@ msgid ""
 "This is the log of your last match:\n"
 msgstr ""
 "\n"
-"这是你最后一场比赛的日志:\n"
+"这是您上一场比赛的日志:\n"
 
 msgid ""
 "\n"
 "Your new rating is as follows:\n"
 msgstr ""
 "\n"
-"你的新评级如下:\n"
+"您的新评级如下:\n"
 
 # Log
 msgid "{killer} in {killer_module} {what} {victim} in {victim_module} with {weapon}"
-msgstr "{killer} 在 {killer_module} 使用 {weapon} {what} {victim}，地点在 {victim_module}"
+msgstr "{killer} 驾驶 {killer_module} 使用 {weapon}{what}{victim}（{victim_module}）"
 
 msgid "killed"
-msgstr "被杀"
+msgstr "击杀了"
 
 msgid "team-killed"
-msgstr "全队阵亡"
+msgstr "误杀了友军"
 
 msgid "{player} in {module} died ({event})"
-msgstr "{player} 在 {module} 死亡 ({event})"
+msgstr "{player} 驾驶 {module} 死亡（{event}）"
 
 msgid "self-kill"
 msgstr "自杀"
@@ -93,4 +93,4 @@ msgid "disconnect"
 msgstr "断开连接"
 
 msgid "change_slot"
-msgstr "改变战位"
+msgstr "切换席位"

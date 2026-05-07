@@ -12,24 +12,57 @@ msgstr ""
 "X-Generator: Poedit 3.4.1\n"
 
 msgid "To which server do you want to upload this transponder file to?"
-msgstr "您要将此转发器文件上传到哪个服务器?"
+msgstr "您想将此应答机文件上传到哪个服务器?"
 
 msgid "LotAtc is not configured on any server."
-msgstr "任何服务器上均未配置 LotAtc."
+msgstr "所有服务器上都未配置 LotAtc."
 
 msgid "Transponder file {} uploaded."
-msgstr "转发器文件 {} 已上传."
+msgstr "应答机文件 {} 已上传."
 
 msgid "Transponder file {} could not be uploaded!"
 msgstr "无法上传应答器文件 {}!"
+
+# Listener
+msgid "GCI {} on station."
+msgstr "GCI {} 已就位."
+
+msgid "GCI {} offline."
+msgstr "GCI {} 已离线."
+
+msgid "{num} {coalition} GCI{s} on station."
+msgstr "{coalition} 方当前有 {num} 名 GCI{s} 在岗."
+
+msgid "{coalition} GCI \"{name}\" on station."
+msgstr "{coalition} 方 GCI \"{name}\" 已就位."
+
+msgid "{coalition} GCI \"{name}\" offline."
+msgstr "{coalition} 方 GCI \"{name}\" 已离线."
 
 # Report
 msgid "Information about {coalition} GCI \"{name}\""
 msgstr "关于 {coalition} GCI \"{name}\" 的信息"
 
+# -gcis
+msgid "Shows active GCIs"
+msgstr "显示当前活跃的 GCI"
+
+msgid "You need to join a side to show their GCIs"
+msgstr "你需要先加入一方阵营，才能查看该方的 GCI"
+
+msgid ""
+"The following GCIs are active on the {coalition} side:\n"
+"{gcis}"
+msgstr ""
+"{coalition} 方当前活跃的 GCI 如下:\n"
+"{gcis}"
+
+msgid "No GCIs are active on the {} side."
+msgstr "{} 方当前没有活跃的 GCI."
+
 # -gci
 msgid "Info about a GCI"
-msgstr "有关 GCI 的信息"
+msgstr "显示 GCI 信息"
 
 msgid "Usage: {prefix}{command} <name>"
 msgstr "用法: {prefix}{command} <name>"

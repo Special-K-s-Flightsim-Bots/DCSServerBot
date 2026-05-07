@@ -12,25 +12,25 @@ msgstr ""
 "X-Generator: Poedit 3.4.1\n"
 
 msgid "LSO Grade"
-msgstr "LSO 等级"
+msgstr "LSO 评级"
 
 msgid "Result for {player} at carrier {carriername} [{carriertype}]"
-msgstr "玩家 {player} 在航空母舰 {carriername} [{carriertype}]上的结果"
+msgstr "{player} 在航母 {carriername} [{carriertype}] 上的着舰结果"
 
 msgid "Grade"
-msgstr "等级"
+msgstr "评级"
 
 msgid "Points"
 msgstr "分数"
 
 msgid "Details"
-msgstr "细节"
+msgstr "详情"
 
 msgid "Groove"
-msgstr "槽"
+msgstr "进场航线"
 
 msgid "Wire"
-msgstr "索"
+msgstr "拦阻索"
 
 msgid "Case"
 msgstr "Case"
@@ -39,4 +39,4 @@ msgid "Wind"
 msgstr "风"
 
 msgid "Aircraft"
-msgstr "飞机"
+msgstr "机型"

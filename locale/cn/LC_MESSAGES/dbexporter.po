@@ -12,7 +12,7 @@ msgstr ""
 "X-Generator: Poedit 3.4.1\n"
 
 msgid "Exports database tables as json."
-msgstr "将数据库表导出为 json."
+msgstr "将数据库表导出为 JSON."
 
 msgid "Database dumped to ./export"
-msgstr "数据库转储至 ./export"
+msgstr "数据库已导出到 `./export`"

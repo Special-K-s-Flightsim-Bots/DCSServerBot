@@ -13,45 +13,45 @@ msgstr ""
 
 # /cloud status
 msgid "Test the cloud-connection"
-msgstr "测试云连接"
+msgstr "测试云端连接"
 
 msgid "Checking cloud connection ..."
-msgstr "检查云连接中..."
+msgstr "正在检查云端连接 ..."
 
 msgid "\nCloud TOKEN configured and valid."
-msgstr "\n云 TOKEN 已配置且有效."
+msgstr "\nCloud TOKEN 已配置且有效."
 
 msgid "\nCloud TOKEN configured, but invalid!"
-msgstr "\n云 TOKEN 已配置，但无效!"
+msgstr "\nCloud TOKEN 已配置，但无效!"
 
 msgid "\nGet a cloud TOKEN, if you want to use cloud statistics!"
-msgstr "\n如果你想使用云统计数据，请获取一个云 TOKEN!"
+msgstr "\n如果您想使用云端统计，请先获取 Cloud TOKEN!"
 
 msgid "Cloud connection established."
 msgstr "云连接已建立."
 
 msgid "Cloud not connected!"
-msgstr "云未连接!"
+msgstr "云端未连接!"
 
 # /cloud resync
 msgid "Resync statistics with the cloud"
-msgstr "与云重新同步统计数据"
+msgstr "将统计数据与云端重新同步"
 
 msgid "No cloud sync configured!"
 msgstr "未配置云同步!"
 
 msgid "Resync with cloud triggered."
-msgstr "已触发与云的重新同步."
+msgstr "已触发与云端的重新同步."
 
 # /cloud statistics
 msgid "Generate Cloud Statistics"
-msgstr "生成云统计数据"
+msgstr "生成云端统计"
 
 msgid "Cloud statistics are not activated in this Discord!"
-msgstr "在这个 Discord 中未激活云统计数据!"
+msgstr "此 Discord 中未启用云端统计!"
 
 msgid "Use {} to link your account."
-msgstr "使用 {} 来关联你的账户."
+msgstr "请使用 {} 关联您的账号."
 
 msgid "No cloud-based statistics found for this user."
-msgstr "未找到该用户的云统计数据."
+msgstr "未找到该用户的云端统计数据."

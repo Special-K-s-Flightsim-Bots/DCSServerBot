@@ -17,41 +17,41 @@ msgstr "管理 DCS 安装的命令"
 
 # /dcs ban
 msgid "Bans a user by name or ucid"
-msgstr "根据姓名或 ucid 封禁用户"
+msgstr "按名称或 UCID 封禁用户"
 
 msgid "Reason"
 msgstr "原因"
 
 msgid "Days (empty = forever)"
-msgstr "天 (空 = 永久)"
+msgstr "天数（留空表示永久）"
 
 msgid "Ban Details"
 msgstr "封禁详情"
 
 msgid "Member {} is not linked!"
-msgstr "成员 {} 未链接!"
+msgstr "成员 {} 尚未关联!"
 
 msgid "{} is not a valid UCID!"
 msgstr "{} 不是有效的 UCID!"
 
 msgid "Player {} banned on all servers"
-msgstr "玩家 {} 在所有服务器上封禁"
+msgstr "已在所有服务器封禁玩家 {}"
 
 msgid " for {} days."
-msgstr " (持续 {} 天)."
+msgstr "（{} 天）"
 
 # /dcs unban
 msgid "Unbans a user by name or ucid"
-msgstr "通过姓名或 ucid 解除对用户的禁令"
+msgstr "按名称或 UCID 解封用户"
 
 msgid "Player {} unbanned on all servers."
-msgstr "玩家 {} 在所有服务器上被解禁."
+msgstr "已在所有服务器解封玩家 {}."
 
 msgid "Shows active bans"
-msgstr "显示有效封禁"
+msgstr "显示当前封禁"
 
 msgid "User with UCID {} is not banned."
-msgstr "UCID为 {} 的玩家未被封禁."
+msgstr "UCID 为 {} 的用户未被封禁."
 
 # /dcs bans
 msgid "Ban Information"
@@ -64,110 +64,125 @@ msgid "never"
 msgstr "永不"
 
 msgid "Banned by: {}"
-msgstr "被 {} 封禁"
+msgstr "封禁人: {}"
 
 msgid "Exp.: {}"
-msgstr "经验值: {}"
+msgstr "到期时间: {}"
 
 # /dcs update
 msgid "Update your DCS installations"
-msgstr "更新您的 DCS World 主程序"
+msgstr "更新 DCS 主程序"
 
 msgid "Time in seconds to warn users before shutdown"
-msgstr "关闭前警告用户的时间（秒）"
+msgstr "关机前向用户发出警告的秒数"
 
 msgid "Can't get version information from ED, possible auth-server outage!"
-msgstr "无法从 ED 获取版本信息，可能是身份验证服务器中断!"
+msgstr "无法从 ED 获取版本信息，可能是认证服务器出现故障!"
 
 msgid "Your installed version {version} is the latest on branch {branch}."
-msgstr "您安装的版本 {version} 是分支 {branch} 上的最新版本."
+msgstr "您当前安装的 {version} 已是分支 {branch} 的最新版本."
 
 msgid ""
 "Would you like to update from version {old_version}@{old_branch} to {new_version}@{new_branch}?\n"
 "All running DCS servers will be shut down!"
 msgstr ""
-"您想从版本 {old_version}@{old_branch} 更新到 {new_version}@{new_branch} 吗?\n"
-"所有正在运行的DCS服务器都将会关闭!"
+"是否要将版本从 {old_version}@{old_branch} 更新到 {new_version}@{new_branch}?\n"
+"所有正在运行的 DCS 服务器都将被关闭!"
 
 msgid "Updating DCS World to the newest version, please wait ..."
-msgstr "正在更新DCS World至最新版本，请等待 ..."
+msgstr "正在将 DCS World 更新到最新版本，请稍候 ..."
 
 msgid "DCS updated to version {version}@{branch} on node {name}."
-msgstr "DCS 已更新至节点 {name} 上的版本 {version}@{branch}."
+msgstr "节点 {name} 上的 DCS 已更新到版本 {version}@{branch}."
+
+msgid "DCS World could not be updated on node {name} due to missing disk space!"
+msgstr "由于磁盘空间不足，节点 {name} 上的 DCS World 无法完成更新!"
+
+msgid ""
+"DCS World updated to version {version}@{branch} on node {name}.\n"
+"The updater has requested a **reboot** of the system!"
+msgstr ""
+"节点 {name} 上的 DCS World 已更新到版本 {version}@{branch}.\n"
+"更新程序要求对系统执行 **重启**!"
 
 msgid "Error while updating DCS on node {name}, code={rc}"
-msgstr "更新节点 {name} 上的 DCS 时出错，代码={rc}"
+msgstr "更新节点 {name} 上的 DCS 时出错，返回码={rc}"
 
 msgid "The update takes longer than 10 minutes, please check back regularly, if it has finished."
-msgstr "更新需要10多分钟。请定期检查流程."
+msgstr "此次更新耗时可能超过 10 分钟，请定期检查是否已完成."
 
 msgid "Can't update branch {}. You might need to provide proper DCS credentials to do so."
-msgstr "无法更新分支 {}。您可能需要提供正确的 DCS 凭证才能执行此操作."
+msgstr "无法更新分支 {}。您可能需要提供正确的 DCS 凭据才能继续."
 
 # /dcs install
 msgid "Install modules in your DCS server"
-msgstr "在您的 DCS 服务器中安装模块"
+msgstr "在 DCS 服务器中安装模块"
 
 msgid "Shutdown all servers on node {} for the installation?"
-msgstr "关闭节点 {} 上的所有服务器以进行安装吗?"
+msgstr "要为安装操作关闭节点 {} 上的所有服务器吗?"
 
 msgid "Installing module {module} on node {node}, please wait ..."
-msgstr "在节点 {node} 上安装模块 {module}，请等待 ..."
+msgstr "正在节点 {node} 上安装模块 {module}，请稍候 ..."
 
 msgid "Module {module} installed on node {node}."
-msgstr "模块 {module} 安装在节点 {node} 上."
+msgstr "模块 {module} 已安装到节点 {node}."
 
 # /dcs uninstall
 msgid "Uninstall modules from your DCS server"
 msgstr "从 DCS 服务器卸载模块"
 
 msgid "Shutdown all servers on node {} for the uninstallation?"
-msgstr "关闭节点 {} 上的所有服务器以进行卸载?"
+msgstr "要为卸载操作关闭节点 {} 上的所有服务器吗?"
 
 msgid "Aborted."
 msgstr "已中止."
 
 msgid "Module {module} uninstalled on node {node}."
-msgstr "已在节点 {node} 上卸载模块 {module}."
+msgstr "模块 {module} 已从节点 {node} 卸载."
 
 # /download
 msgid "Download files from your server"
-msgstr "从您的服务器下载文件"
+msgstr "从服务器下载文件"
+
+msgid "File {file} not found in directory {dir}."
+msgstr "在目录 {dir} 中未找到文件 {file}."
 
 msgid "File sent as a DM."
-msgstr "文件以私信形式发送."
+msgstr "文件已通过私信发送."
 
 msgid "Here is your file:"
-msgstr "这是你的文件:"
+msgstr "这是您的文件:"
 
 msgid "File too large. You need a higher boost level for your server."
-msgstr "文件太大了. 您的 Discord 服务器需要提升级别."
+msgstr "文件过大。您的 Discord 服务器需要更高的等级."
 
 msgid "File sent to the configured channel."
-msgstr "文件已发送到配置的 Discord 频道."
+msgstr "文件已发送到已配置的频道."
 
 msgid "File copied to the specified location."
 msgstr "文件已复制到指定位置."
 
 # /prune
 msgid "Prune unused data in the database"
-msgstr "清除数据库中未使用的数据"
+msgstr "清理数据库中的无用数据"
 
 msgid ":warning: Database Prune :warning:"
-msgstr ":警告: 数据库清理! :警告:"
+msgstr ":warning: 数据库清理 :warning:"
 
 msgid ""
 "You are going to delete data from your database. Be advised.\n"
 "\n"
 "Please select the data to be pruned:"
 msgstr ""
-"注意!您想从数据库中删除数据!当心! 请选择要删除的数据:"
+"警告：您即将从数据库中删除数据。\n"
+"\n"
+"请选择要清理的数据:"
 
 msgid "We are going to delete all data of user {}. Are you sure?"
-msgstr "我们将删除用户 {} 的所有数据。你确定吗?"
+msgstr "即将删除用户 {} 的全部数据。您确定吗?"
 
 msgid "We are going to delete all data of server {}. Are you sure?"
-msgstr "我们将删除服务器 {} 上的所有数据。你确定吗?"
+msgstr "即将删除服务器 {} 的全部数据。您确定吗?"
 
 msgid "Data of user {} deleted."
 msgstr "用户 {} 数据已删除."
@@ -176,24 +191,24 @@ msgid "Data of server {} deleted."
 msgstr "服务器 {} 数据已删除."
 
 msgid "No players to prune."
-msgstr "未找到可删除的玩家."
+msgstr "没有可清理的玩家数据."
 
 msgid ""
 "This will delete {} players incl. their stats from the database.\n"
 "Are you sure?"
 msgstr ""
-"这将从数据库中删除 {} 名玩家及其统计数据.\n"
-"你确定吗?"
+"这将从数据库中删除 {} 名玩家及其统计数据。\n"
+"您确定吗?"
 
 msgid ""
 "This will delete all data older than {} days from the database.\n"
 "Are you sure?"
 msgstr ""
-"这将从数据库中删除所有超过 {} 天的数据.\n"
-"你确定吗?"
+"这将从数据库中删除所有早于 {} 天前的数据。\n"
+"您确定吗?"
 
 msgid "All data older than {} days pruned."
-msgstr "删除所有超过 {} 天的数据."
+msgstr "已清理所有早于 {} 天前的数据."
 
 # /node
 msgid "Commands to manage your nodes"
@@ -205,7 +220,7 @@ msgstr "节点统计信息"
 
 # /node list
 msgid "Status of all nodes"
-msgstr "所有节点的状态"
+msgstr "所有节点状态"
 
 msgid "DCSServerBot Cluster Overview"
 msgstr "DCSServerBot 集群概述"
@@ -224,10 +239,10 @@ msgstr "状态"
 
 # /node upgrade / restart
 msgid "Do you want to {} all nodes?"
-msgstr "您想要 {} 所有节点吗?"
+msgstr "是否要对所有节点执行 {}?"
 
 msgid "Do you want to {method} node {node}?"
-msgstr "您是否要 {method} 节点 {node}?"
+msgstr "是否要对节点 {node} 执行 {method}?"
 
 msgid "upgrade"
 msgstr "升级"
@@ -239,16 +254,16 @@ msgid "restart"
 msgstr "重启"
 
 msgid "Node {node} - {method} sent."
-msgstr "节点 {node} - 已发送 {method}."
+msgstr "已向节点 {node} 发送 {method} 指令."
 
 msgid "All nodes are"
-msgstr "所有节点均为"
+msgstr "所有节点"
 
 msgid "Master is"
-msgstr "主程序"
+msgstr "主节点"
 
 msgid " going to {} **NOW**."
-msgstr "即将 {} ."
+msgstr "将**立即**执行 {}."
 
 # /node shutdown
 msgid "Shuts a specific node down"
@@ -260,33 +275,33 @@ msgstr "重启特定节点"
 
 # /node offline
 msgid "Shuts down all servers, enables maintenance"
-msgstr "关闭所有服务器，进行维护"
+msgstr "关闭所有服务器并启用维护模式"
 
 msgid "Shuts all servers down (default: on)"
-msgstr "关闭所有服务器（默认：开启）"
+msgstr "关闭所有服务器（默认开启）"
 
 msgid "Node {} is now offline."
-msgstr "节点 {} 现已离线."
+msgstr "节点 {} 已离线."
 
 # /node online
 msgid "Clears the maintenance mode for all servers"
-msgstr "清除所有服务器的维护模式"
+msgstr "关闭所有服务器的维护模式"
 
 msgid "Start all your servers (default: off)"
-msgstr "启动所有服务器（默认：关闭）"
+msgstr "启动所有服务器（默认关闭）"
 
 msgid "Node {} is now online."
-msgstr "节点 {} 现已上线."
+msgstr "节点 {} 已上线."
 
 # /node upgrade
 msgid "Upgrade DCSServerBot"
-msgstr "升级更新 DCSServerBot"
+msgstr "升级 DCSServerBot"
 
 msgid "There is no upgrade available for "
 msgstr "没有可用的更新 "
 
 msgid "your cluster"
-msgstr "你的集群"
+msgstr "您的集群"
 
 msgid "node {}"
 msgstr "节点 {}"
@@ -299,7 +314,7 @@ msgid "Run a shell command on a node"
 msgstr "在节点上运行 shell 命令"
 
 msgid "```Command executed.```"
-msgstr "```命令执行.```"
+msgstr "```命令已执行。```"
 
 # /reload
 msgid "Reloads a plugin"
@@ -322,10 +337,10 @@ msgid "Add/create an instance\n"
 msgstr "添加/创建实例\n"
 
 msgid "Either select an existing instance or enter the name of a new one"
-msgstr "选择现有实例或输入新实例的名称"
+msgstr "请选择现有实例，或输入新实例名称"
 
 msgid "Take this instance configuration as a reference"
-msgstr "以此实例配置为参考"
+msgstr "以此实例配置作为参考"
 
 msgid "Instance \"{}\" created.\n"
 "Do you want to configure a server for this instance?"
@@ -336,13 +351,13 @@ msgid "Server {server} assigned to instance {instance}."
 msgstr "服务器 {server} 已分配给实例 {instance}."
 
 msgid "Instance {} created blank with no server assigned."
-msgstr "实例 {} 被创建为空，没有分配服务器."
+msgstr "实例 {} 已创建，但未分配服务器."
 
 msgid ""
 "Instance {instance} added to node {node}.Please make sure you forward the following ports:```- DCS Port:    "
 "{dcs_port} (TCP/UDP)- WebGUI Port: {webgui_port} (TCP)```"
 msgstr ""
-"实例 {instance} 已添加到节点 {node}.请确保转发以下端口:```- DCS 端口:    "
+"实例 {instance} 已添加到节点 {node}。请确保已转发以下端口:```- DCS 端口:    "
 "{dcs_port} (TCP/UDP)- WebGUI 端口: {webgui_port} (TCP)```"
 
 msgid "Instance {instance} could not be added to node {node}, see log."
@@ -363,10 +378,10 @@ msgid "Do you really want to delete instance {}?"
 msgstr "你真的想删除实例 {} 吗?"
 
 msgid "Do you want to remove the directory\n{}?"
-msgstr "你想删除目录 {} 吗?"
+msgstr "是否要删除目录\n{}?"
 
 msgid "Instance {instance} removed from node {node}."
-msgstr "实例 {instance} 从节点 {node} 中移除."
+msgstr "实例 {instance} 已从节点 {node} 移除."
 
 msgid "Instance {} could not be deleted, because the directory is in use."
 msgstr "实例 {} 无法被删除，因为目录正在使用中."
@@ -389,7 +404,7 @@ msgstr "实例 {} 无法重命名，因为目录正在使用中."
 
 # Config upload
 msgid "To which server do you want to upload this configuration to?"
-msgstr "你想将此配置上传到哪个服务器?"
+msgstr "您想将此配置上传到哪个服务器?"
 
 msgid "Error while uploading file to node {}!"
 msgstr "上传文件到节点 {} 时出错!"

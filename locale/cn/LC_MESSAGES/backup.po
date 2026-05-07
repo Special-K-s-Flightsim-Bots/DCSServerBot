@@ -13,32 +13,35 @@ msgstr ""
 
 # /backup
 msgid "Backup your data"
-msgstr "备份你的数据"
+msgstr "备份您的数据"
+
+msgid "Backup of {} started ..."
+msgstr "{} 的备份已开始 ..."
 
 msgid "Backup of {} completed."
-msgstr " {} 的备份已完成."
+msgstr "{} 的备份已完成."
 
 msgid "Backup of {} failed. Please check log for details."
-msgstr " {} 的备份失败。请检查日志以获取详细信息."
+msgstr "{} 的备份失败。请检查日志了解详情."
 
 # /recover
 msgid "Recover your data from an existing backup"
-msgstr "从现有备份中恢复你的数据"
+msgstr "从现有备份中恢复您的数据"
 
 msgid ""
 "I am going to recover your {what} from {date}.\n"
 "This will delete **ALL** data that was there before.\n"
 "Are you 100% sure that you want to do that?"
 msgstr ""
-"我将从 {date} 恢复你的 {what}.\n"
-"这将删除之前的 **所有** 数据.\n"
-"你百分之百确定你想这样做吗?"
+"我将从 {date} 恢复您的 {what}。\n"
+"这将删除此前的 **全部** 数据。\n"
+"您是否百分之百确定要继续?"
 
 msgid "Aborted."
-msgstr "中止."
+msgstr "已中止."
 
 msgid "Recovery of {} completed."
-msgstr " {} 的恢复已完成."
+msgstr "{} 的恢复已完成."
 
 msgid "Recovery of {} failed. Please check log for details."
-msgstr " {} 恢复失败。请检查日志以获取详细信息."
+msgstr "{} 恢复失败。请检查日志了解详情."

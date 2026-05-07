@@ -12,21 +12,21 @@ msgstr "管理 DCS 任务的命令"
 
 # /mission info
 msgid "Info about the running mission"
-msgstr "有关正在运行的任务的信息"
+msgstr "显示当前运行任务的信息"
 
 # /mission manage
 msgid "Manage the active mission"
-msgstr "管理活动任务"
+msgstr "管理当前任务"
 
 # /mission atis
 msgid "Information about a specific airport"
-msgstr "有关特定机场的信息"
+msgstr "显示指定机场的信息"
 
 msgid "airport"
 msgstr "机场"
 
 msgid "Airport for ATIS information"
-msgstr "机场 ATIS 信息"
+msgstr "要查询 ATIS 信息的机场"
 
 msgid "Server {} is not running."
 msgstr "服务器 {} 未运行."
@@ -44,12 +44,12 @@ msgid "Rotates to the next mission\n"
 msgstr "轮换至下一个任务\n"
 
 msgid "Can't restart server {server} as it is {status}!"
-msgstr "无法重新启动服务器 {server} 因为它的状态为 {status}!"
+msgstr "服务器 {server} 当前为 {status}，无法重启!"
 
 msgid "A restart is currently pending.\n"
 "Would you still like to {} the mission?"
-msgstr "目前正在等待重启.\n"
-"您仍想 {} 该任务吗?"
+msgstr "当前已有重启操作待执行。\n"
+"您仍要对任务执行 {} 吗?"
 
 msgid "restart"
 msgstr "重启"
@@ -58,39 +58,39 @@ msgid "rotate"
 msgstr "轮换"
 
 msgid "Do you really want to {} the mission?"
-msgstr "您确实要{}该任务吗?"
+msgstr "您确定要对任务执行 {} 吗?"
 
 msgid "Mission will {}, when server is empty."
-msgstr "当服务器为空时，任务将{}."
+msgstr "服务器空置时，任务将执行 {}."
 
 msgid "!!! Mission will be {what} in {when}!!!"
-msgstr "!!! 任务将进行 {what} 在 {when} 之后!!!"
+msgstr "!!! 任务将在 {when} 后{what}!!!"
 
 msgid "restarted"
-msgstr "重新启动"
+msgstr "重启"
 
 msgid "rotated"
 msgstr "轮换"
 
 msgid "!!! Mission will be {} NOW !!!"
-msgstr "!!! 任务现在将 {} !!!"
+msgstr "!!! 任务将立即{} !!!"
 
 msgid " Reason: {}"
 msgstr " 原因: {}"
 
 msgid "Mission will be {what} in {when} (warning users before)..."
-msgstr "任务将在 {when} 完成 {what} (之前警告用户)..."
+msgstr "任务将在 {when} 后{what}（已提前警告用户）..."
 
 msgid "Mission will {} now, please wait ..."
-msgstr "任务现在将 {} 请等待 ..."
+msgstr "任务现在将{}，请稍候 ..."
 
 msgid "Mission {}."
-msgstr "任务 {}."
+msgstr "任务已{}."
 
 msgid "Timeout while the mission {what}.\n"
 "Please check with {command}, if the mission is running."
-msgstr "执行任务 {what} 时超时."
-"请使用 {command} 检查任务是否正在运行."
+msgstr "任务{what}时超时。\n"
+"请使用 {command} 检查任务是否仍在运行."
 
 # /mission load
 msgid "Loads a mission\n"
@@ -103,13 +103,16 @@ msgid "change"
 msgstr "更换"
 
 msgid "Mission {} will be loaded when server is empty or on the next restart."
-msgstr "当服务器为空或下次重启时，任务 {} 将被加载."
+msgstr "任务 {} 将在服务器空置时或下次重启时加载."
 
 msgid "Loading mission {} ..."
 msgstr "正在加载任务 {} ..."
 
 msgid "Mission {} loaded."
 msgstr "任务 {} 已加载."
+
+msgid "Mission {} NOT loaded. Check that you have installed the pre-requisites (terrains, mods)."
+msgstr "任务 {} 未能加载。请检查是否已安装所需前置内容（地图、模组）."
 
 msgid "Timeout while loading mission {}!"
 msgstr "加载任务 {} 超时!"
@@ -144,7 +147,7 @@ msgid "Mission \"{}\" removed from list."
 msgstr "任务 \"{}\" 已从列表中删除."
 
 msgid "Delete \"{}\" also from disk?"
-msgstr "是否也从磁盘中删除 \"{}\" ?"
+msgstr "是否同时从磁盘删除 \"{}\"?"
 
 msgid "Mission \"{}\" deleted."
 msgstr "任务 \"{}\" 已删除."
@@ -162,7 +165,7 @@ msgstr "删除任务超时.\n"
 
 # /mission pause
 msgid "Pauses the current running mission"
-msgstr "暂停当前​​正在运行的任务"
+msgstr "暂停当前正在运行的任务"
 
 msgid "Mission on server \"{}\" paused."
 msgstr "服务器 \"{}\" 上的任务已暂停."
@@ -191,27 +194,27 @@ msgid "No presets available, please configure them in {}."
 msgstr "没有可用的预设，请在 {} 中配置它们."
 
 msgid "There is an error in your {}. Please check the file structure."
-msgstr "您的 {} 中有错误.请检查文件结构."
+msgstr "您的 {} 中存在错误。请检查文件结构."
 
 msgid "Do you want to restart the server for a mission change?"
 msgstr "您是否要重新启动服务器以更改任务?"
 
 msgid "Mission will be changed when server is empty."
-msgstr "当服务器空时任务将会改变."
+msgstr "服务器空置时将切换任务."
 
 msgid "Changing mission ..."
 msgstr "正在更换任务 ..."
 
 msgid "The following preset were applied: {}."
-msgstr "应用了以下预设: {}."
+msgstr "已应用以下预设: {}."
 
 msgid "\nMission reloaded."
-msgstr "\n重新加载任务."
+msgstr "\n任务已重新加载."
 
 msgid "Timeout during restart of mission!\n"
 "Please check, if the mission is running or if it somehow got corrupted."
-msgstr "任务重新开始时超时!\n"
-"请检查任务是否正在运行或是否因某种原因损坏."
+msgstr "任务重启时超时!\n"
+"请检查任务是否仍在运行，或是否已损坏."
 
 # /mission save_preset
 msgid "Save mission preset\n"
@@ -225,16 +228,16 @@ msgstr "预设 \"{}\" 已添加."
 
 # /mission rollback
 msgid "Rollback to the original mission file after any modifications"
-msgstr "修改后回滚至原始任务文件"
+msgstr "在任意修改后回滚到原始任务文件"
 
 msgid "Please stop your server first to rollback the running mission."
 msgstr "请先停止您的服务器以回滚正在运行的任务."
 
 msgid "No \".orig\" file there, the mission was never changed."
-msgstr "没有 \".orig\" 文件, 任务从未改变."
+msgstr "未找到 \".orig\" 文件，说明任务从未被修改过."
 
 msgid "Mission {} has been rolled back."
-msgstr "任务 {} 已撤销."
+msgstr "任务 {} 已回滚."
 
 # /player
 msgid "Commands to manage DCS players"
@@ -252,7 +255,7 @@ msgid "Player not found."
 msgstr "未找到玩家."
 
 msgid "Player {name} (ucid={ucid}) kicked."
-msgstr "玩家 {name} (ucid={ucid}) 已踢出."
+msgstr "玩家 {name}（ucid={ucid}）已被踢出."
 
 # /player ban
 msgid "Bans an active player"
@@ -268,20 +271,20 @@ msgid "n/a"
 msgstr "n/a"
 
 msgid "Days (empty = forever)"
-msgstr "日期 (空 = 永久)"
+msgstr "天数（留空表示永久）"
 
 msgid "Player {} banned on all servers "
-msgstr "玩家 {} 在所有服务器上封禁 "
+msgstr "已在所有服务器封禁玩家 {}"
 
 msgid "for {} days."
-msgstr "持续 {} 天."
+msgstr "（{} 天）"
 
 # /player spec
 msgid "Moves a player to spectators\n"
 msgstr "将玩家移至观众席\n"
 
 msgid "You have been moved to spectators. Reason: {}"
-msgstr "您已被移至观众席. 原因: {}"
+msgstr "您已被移至观众席。原因: {}"
 
 msgid "Player \"{}\" moved to spectators."
 msgstr "玩家 \"{}\" 移至观众席."
@@ -303,7 +306,7 @@ msgid "Server"
 msgstr "服务器"
 
 msgid "No player is AFK for more than {} minutes."
-msgstr "没有玩家离线超过 {} 分钟."
+msgstr "没有玩家 AFK 超过 {} 分钟."
 
 # /player exempt
 msgid "Exempt player from AFK kicks"
@@ -316,7 +319,7 @@ msgid "User added to the exemption list."
 msgstr "用户已添加到豁免名单."
 
 msgid "Player is on the list already. Do you want to remove them?"
-msgstr "玩家已在列表中.要将其移除吗?"
+msgstr "该玩家已在列表中。要将其移除吗?"
 
 msgid "Aborted."
 msgstr "已中止."
@@ -353,30 +356,30 @@ msgstr "由以下人员拍摄"
 
 # /watch add
 msgid "Puts a player onto the watchlist"
-msgstr "将一名玩家放入观察名单"
+msgstr "将玩家加入观察名单"
 
 msgid "Member {} is not linked!"
 msgstr "成员 {} 未链接!"
 
 msgid "Player {} was already on the watchlist."
-msgstr "玩家 {} 已在监视列表中."
+msgstr "玩家 {} 已在观察名单中."
 
 msgid "Player {} is now on the watchlist."
-msgstr "玩家 {} 现已进入监视列表."
+msgstr "玩家 {} 已加入观察名单."
 
 # /watch delete
 msgid "Removes a player from the watchlist"
-msgstr "从观察名单中移除一名玩家"
+msgstr "将玩家从观察名单移除"
 
 msgid "Player {} removed from the watchlist."
-msgstr "玩家 {} 从监视列表中移除."
+msgstr "玩家 {} 已从观察名单移除."
 
 # /watch list
 msgid "Shows the watchlist"
-msgstr "显示监视列表"
+msgstr "显示观察名单"
 
 msgid "The watchlist is currently empty."
-msgstr "监视列表目前是空的."
+msgstr "观察名单当前为空."
 
 msgid "These players are currently on the watchlist:"
 msgstr "这些玩家目前在观察名单上:"
@@ -442,7 +445,7 @@ msgid "Shows player information"
 msgstr "显示玩家信息"
 
 msgid "This user does not exist. Try {} to find them in the historic data."
-msgstr "该用户不存在。请尝试 {} 在历史数据中找到他们."
+msgstr "该用户不存在。请尝试使用 {} 在历史数据中查找."
 
 # /linkcheck
 msgid "Show players that could be linked"
@@ -452,7 +455,7 @@ msgid "Unlinked Players"
 msgstr "未链接的玩家"
 
 msgid "These players could be possibly linked:"
-msgstr "这些玩家可以链接:"
+msgstr "以下玩家可能可以关联:"
 
 msgid "ID"
 msgstr "ID"
@@ -464,10 +467,10 @@ msgid "Member"
 msgstr "成员"
 
 msgid "Press a number to link this specific user."
-msgstr "按数字链接此特定用户."
+msgstr "按对应数字以关联该用户."
 
 msgid "No unmatched member could be matched."
-msgstr "未匹配的成员无法匹配."
+msgstr "没有可匹配的未关联成员."
 
 msgid "DCS player {player} linked to member {member}."
 msgstr "DCS 玩家 {player} 已与成员 {member} 建立链接."
@@ -512,7 +515,7 @@ msgstr "您已经有一个经过验证的 DCS 帐户！.\n"
 
 # /player inactive
 msgid "Shows inactive players"
-msgstr "显示不活跃的玩家"
+msgstr "显示不活跃玩家"
 
 # Mission Uploads
 msgid "To which server do you want to upload this mission to?"
@@ -533,18 +536,18 @@ msgid "Error while uploading: {}"
 msgstr "上传时出错: {}"
 
 msgid "Mission \"{mission}\" uploaded to server {server} and NOT added."
-msgstr "任务 \"{mission}\" 已上传至服务器 {server} 且尚未添加."
+msgstr "任务 \"{mission}\" 已上传到服务器 {server}，但尚未加入任务列表."
 
 msgid "Mission \"{mission}\" uploaded to server {server}.\n"
 "As you have \"autoscan\" enabled, it might take some seconds to appear in your mission list."
 msgstr "任务 \"{mission}\" 已上传至服务器 {server}.\n"
-"由于您启用了 \"自动扫描\", 它可能需要几秒钟才能出现在您的任务列表中."
+"由于您已启用 \"autoscan\"，它可能需要几秒钟才会出现在任务列表中."
 
 msgid "Error while uploading: File not found in severSettings.lua!"
 msgstr "上传时出错: 在 severSettings.lua 中未找到文件!"
 
 msgid "Mission \"{mission}\" uploaded to server {server} and added."
-msgstr "任务 \"{mission}\" 已上传至服务器 {server} 并添加."
+msgstr "任务 \"{mission}\" 已上传到服务器 {server} 并加入任务列表."
 
 msgid "Do you want to apply extensions before mission start?"
 msgstr "您想在任务开始前应用扩展吗?"

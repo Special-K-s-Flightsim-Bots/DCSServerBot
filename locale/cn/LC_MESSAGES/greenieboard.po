@@ -13,11 +13,11 @@ msgstr ""
 
 # /traps
 msgid "Commands to display and manage carrier traps"
-msgstr "显示和管理航母着舰的命令"
+msgstr "显示和管理航母着舰记录的命令"
 
 # /traps info
 msgid "Show carrier landing qualifications"
-msgstr "显示航母着舰资格"
+msgstr "显示航母着舰评级"
 
 msgid "No carrier landings recorded for this user."
 msgstr "未为此用户记录任何航母着舰数据."
@@ -30,20 +30,23 @@ msgstr "选择用于着舰的飞机"
 
 # /traps board
 msgid "Display the current Greenieboard"
-msgstr "显示当前的 Greenieboard"
+msgstr "显示当前 Greenieboard"
 
 # /traps add
 msgid "Adds a trap to the Greenieboard"
-msgstr "将一次着舰添加到 Greenieboard"
+msgstr "向 Greenieboard 添加一条着舰记录"
+
+msgid "You need to specify grades in your greenieboard.yaml to use {}!"
+msgstr "要使用 {}，您需要在 `greenieboard.yaml` 中配置 `grades`!"
 
 msgid "You need to specify ratings in your greenieboard.yaml to use {}!"
-msgstr "你需要在你的 greenieboard.yaml 中指定评级才能使用 {}!"
+msgstr "要使用 {}，您需要在 `greenieboard.yaml` 中配置 `ratings`!"
 
 msgid "Trap added."
-msgstr "着舰已添加."
+msgstr "着舰记录已添加."
 
 msgid "Aborted,"
-msgstr "已中止,"
+msgstr "已中止."
 
 msgid "Time (HH24:MI)"
 msgstr "时间 (HH24:MI)"
@@ -55,36 +58,52 @@ msgid "Grade"
 msgstr "等级"
 
 msgid "LSO Comment"
-msgstr "LSO 评价"
+msgstr "LSO 评语"
 
 msgid "Wire"
 msgstr "拦阻索"
 
 msgid "Enter the trap details"
-msgstr "输入着舰详细信息"
+msgstr "请输入着舰详细信息"
 
 msgid "Case needs to be one of 1, 2 or 3."
-msgstr "Case 需要是 1, 2 或者 3."
+msgstr "Case 必须为 1、2 或 3."
 
 msgid "Grade has to be one of {}."
-msgstr "等级必须是以下之一 {}."
+msgstr "Grade 必须是 {} 之一."
 
 msgid "Wire needs to be one of 1 to 4."
 msgstr "拦阻索必须是 1 到 4."
+
+# /traps reset
+msgid "Resets all traps"
+msgstr "重置所有着舰记录"
+
+msgid "Do you want to reset all traps?"
+msgstr "您确定要重置所有着舰记录吗?"
+
+msgid "User {} is not linked!"
+msgstr "用户 {} 尚未关联!"
+
+msgid "Do you want to reset all traps for user {}"
+msgstr "您确定要重置用户 {} 的所有着舰记录吗?"
+
+msgid "All traps reset."
+msgstr "所有着舰记录已重置."
 
 # Listener
 msgid "Carrier Landing"
 msgstr "航母着舰"
 
 msgid "Landing on {place} with grade {grade}."
-msgstr "在 {place} 着舰，等级 {grade}."
+msgstr "在 {place} 着舰，评级为 {grade}."
 
 # Reports
 msgid "Date/Time"
 msgstr "日期/时间"
 
 msgid "Plane"
-msgstr "计划"
+msgstr "机型"
 
 msgid "Carrier"
 msgstr "航母"
@@ -93,20 +112,20 @@ msgid "Points"
 msgstr "分数"
 
 msgid "LSO Grade: {}"
-msgstr "LSO 评分: {}"
+msgstr "LSO 评级: {}"
 
 msgid " (a little)\n"
-msgstr " (稍微)\n"
+msgstr "（稍微）\n"
 
 msgid " (a lot!)\n"
-msgstr " (非常!)\n"
+msgstr "（很多！）\n"
 
 msgid " (ignored)\n"
-msgstr " (脱索)\n"
+msgstr "（忽略）\n"
 
 # Highscore
 msgid "Traps"
-msgstr "挂索"
+msgstr "着舰次数"
 
 msgid "No data available."
 msgstr "没有可用数据."
@@ -116,7 +135,7 @@ msgid "Pilot"
 msgstr "飞行员"
 
 msgid "Avg"
-msgstr "平均值"
+msgstr "平均分"
 
 msgid ""
 "\n"
@@ -124,12 +143,12 @@ msgid ""
 "Night landings have round markers."
 msgstr ""
 "\n"
-"最近的着舰记录会被添加到前面.\n"
-"夜间着舰有圆形标记."
+"最新的着舰记录会显示在最前面。\n"
+"夜间着舰会以圆形标记显示."
 
 msgid ""
 "\n"
 "Last recorded trap: {time:%y-%m-%d %H:%M:%S}"
 msgstr ""
 "\n"
-"最后记录的着舰: {time:%y-%m-%d %H:%M:%S}"
+"最近记录的着舰时间: {time:%y-%m-%d %H:%M:%S}"

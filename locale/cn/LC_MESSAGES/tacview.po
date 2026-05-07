@@ -19,7 +19,7 @@ msgid "Tacview not installed on server {}!"
 msgstr "服务器 {} 上未安装 Tacview!"
 
 msgid "Tacview configuration changed on server {}."
-msgstr "Tacview 配置已在服务器 {} 上发生更改."
+msgstr "服务器 {} 上的 Tacview 配置已更改."
 
 msgid "Server {} needs to be shut down to configure Tacview."
 msgstr "需要关闭服务器 {} 才能配置 Tacview."
@@ -38,7 +38,7 @@ msgid "Tacview is not configured on node {}!"
 msgstr "节点 {} 上未配置 Tacview!"
 
 msgid "Tacview installed on server {}."
-msgstr "Tacview 安装在服务器 {} 上."
+msgstr "Tacview 已安装到服务器 {}."
 
 msgid "Tacview could not be installed on server {}!"
 msgstr "无法在服务器 {} 上安装 Tacview!"
@@ -48,7 +48,7 @@ msgstr "需要关闭服务器 {} 才能安装 Tacview."
 
 # /tacview uninstall
 msgid "Uninstall Tacview"
-msgstr "卸载Tacview"
+msgstr "卸载 Tacview"
 
 msgid "Uninstalling Tacview on server {} ..."
 msgstr "正在卸载服务器 {} 上的 Tacview ..."
