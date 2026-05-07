@@ -638,6 +638,8 @@ class ServerImpl(Server):
             config = self.node.locals.get('extensions', {}).get(name, {}) | (
                     DEFAULT_EXTENSIONS | self.locals.get('extensions', {})
             ).get(name, {})
+        else:
+            config = self.node.locals.get('extensions', {}).get(name, {}) | config
         return _ext(self, config)
 
     @override

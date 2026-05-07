@@ -14,7 +14,8 @@ MyNode:
       bind: 0.0.0.0:3113            # IP and port the (single) Lardoon server is listening to
       url: https://myfancyhost.com  # Alternate hostname to be displayed in your status embed 
       minutes: 5                    # Number of minutes the Lardoon database is updated
-      use_single_process: true      # Start one Lardoon process instead of one per node (default: true) 
+      use_single_process: true      # Start one Lardoon process instead of one per instance (default: true) 
+      master_only: true             # Cluster only: if you only want one lardoon instance on the master node (default: false)
       auto_affinity:                # Optional: set core affinity
         min_cores: 1                # Min. number of cores to be used
         max_cores: 1                # Max. number of cores to be used
