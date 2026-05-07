@@ -4,3 +4,64 @@ schema;houndtts_schema:
   mapping:
     enabled: {type: bool, nullable: false}
     autoupdate: {type: bool, nullable: false}
+    debug: {type: bool, nullable: false}
+    DEFAULT_PROVIDER: {type: str, nullable: false}
+    DEFAULT_VOICE: {type: str, nullable: false}
+    DEFAULT_CULTURE: {type: str, nullable: false}
+    DEFAULT_GENDER: {type: str, nullable: false}
+    provider:
+      type: map
+      nullable: false
+      mapping:
+        Piper:
+          type: map
+          nullable: false
+          mapping:
+            path: {type: str, nullable: false, func: dir_exists}
+            voice_path: {type: str, nullable: false, func: dir_exists}
+            threads: {type: int, nullable: false, range: {min: 1}}
+            max_concurrent: {type: int, nullable: false, range: {min: 1}}
+        Google:
+          type: map
+          nullable: false
+          mapping:
+            credentials_file: {type: str, nullable: false, func: file_exists}
+        Azure:
+          type: map
+          nullable: false
+          mapping:
+            key: {type: str, nullable: false}
+            region: {type: str, nullable: false}
+        ElevenLabs:
+          type: map
+          nullable: false
+          mapping:
+            api_key: {type: str, nullable: false}
+            model_id: {type: str, nullable: false}
+        AWS:
+          type: map
+          nullable: false
+          mapping:
+            access_key_id: {type: str, nullable: false}
+            secret_key: {type: str, nullable: false}
+            region: {type: str, nullable: false}
+            engine: {type: str, nullable: false}
+        OpenAI:
+          type: map
+          nullable: false
+          mapping:
+            api_key: {type: str, nullable: false}
+            endpoint: {type: url, nullable: false}
+            model: {type: str, nullable: false}
+            chat_model: {type: str, nullable: false}
+        LibreTranslate:
+          type: map
+          nullable: false
+          mapping:
+            api_key: {type: str, nullable: false}
+            endpoint: {type: url, nullable: false}
+        Discord:
+          type: map
+          nullable: false
+          mapping:
+            bot_token: {type: str, nullable: false}

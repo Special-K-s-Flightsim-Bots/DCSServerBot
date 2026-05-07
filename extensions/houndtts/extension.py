@@ -3,7 +3,7 @@ import re
 import shutil
 
 from configparser import RawConfigParser
-from core import Server, utils, InstallableExtension
+from core import Server, utils, InstallableExtension, Autoexec
 from extensions.srs import SRS
 from typing import Any, cast, TextIO
 from typing_extensions import override
@@ -69,6 +69,9 @@ class HoundTTS(InstallableExtension):
     def get_config_path(self) -> str:
         return os.path.join(self.server.instance.home, 'Config', 'HoundTTS.lua')
 
+    def get_ini_path(self) -> str:
+        return os.path.join(self.server.instance.home, 'Config', 'HoundTTS-credentials.ini')
+
     @staticmethod
     def parse(value: str) -> Any:
         if value.startswith('{'):
@@ -108,7 +111,7 @@ class HoundTTS(InstallableExtension):
                     cfg[key] = self.parse(value)
 
         # read ini file
-        ini_file = os.path.join(self.server.instance.home, 'Config', 'HoundTTS-credentials.ini')
+        ini_file = self.get_ini_path()
         if not os.path.exists(ini_file):
             return {}
         self.ini.read(ini_file, encoding='utf-8')
@@ -144,18 +147,36 @@ class HoundTTS(InstallableExtension):
             except Exception as ex:
                 self.log.error(f"Error during uninstall of {self.name}: {str(ex)}")
                 return False
+        config_file = self.get_config_path()
+        if os.path.exists(config_file):
+            os.remove(config_file)
+        ini_file = self.get_ini_path()
+        if os.path.exists(ini_file):
+            os.remove(ini_file)
         return True
+
+    def _maybe_update_config(self, section: str, key: str, value: Any):
+        if not value:
+            return False
+        if section not in self.ini:
+            self.ini[section] = {}
+        if not self.ini[section].get(key) or Autoexec.parse(self.ini[section][key]) != value:
+            self.ini.set(section, key, value)
+            self.log.info(f"  => {self.server.name}: [{section}][{key}] set to {value}")
+            return True
+        return False
 
     @override
     async def prepare(self) -> bool:
-        credentials = os.path.join(self.server.instance.home, 'Config', 'HoundTTS-credentials.ini')
-        if not os.path.exists(credentials):
-            shutil.copy2(credentials + '.example', credentials)
+        ini = self.get_ini_path()
+        if not os.path.exists(ini):
+            shutil.copy2(ini + '.example', ini)
         config = self.get_config_path()
         if not os.path.exists(config):
             shutil.copy2(config + '.example', config)
             self.locals = self.load_config()
 
+        # write config file
         dirty = False
         if not self.locals:
             self.locals = self.load_config()
@@ -172,6 +193,7 @@ class HoundTTS(InstallableExtension):
             new_locals = self.locals.copy() | self.config.copy()
             new_locals.pop('enabled', None)
             new_locals.pop('autoupdate', None)
+            new_locals.pop('debug', None)
             if new_locals != self.locals:
                 self.locals = new_locals
                 dirty = True
@@ -189,4 +211,45 @@ class HoundTTS(InstallableExtension):
                                 outfile.write(f"{key} = {self.unparse(self.locals.get(key, ''))}\n")
                         else:
                             outfile.write(f"{line}")
+            self.locals = self.load_config()
+
+        # write ini file
+        dirty = False
+        dirty |= self._maybe_update_config('General', 'log_level', 'debug' if self.config.get('debug', False) else 'error')
+        for name, provider in self.config.get('providers', {}):
+            if name == 'Piper':
+                dirty |= self._maybe_update_config('Piper', 'path', provider.get('path'))
+                dirty |= self._maybe_update_config('Piper', 'voice_path', provider.get('voice_path'))
+                dirty |= self._maybe_update_config('Piper', 'threads', provider.get('threads'))
+                dirty |= self._maybe_update_config('Piper', 'max_concurrent', provider.get('max_concurrent'))
+            elif name == 'Google':
+                dirty |= self._maybe_update_config('Google', 'credentials_file', provider.get('credentials_file'))
+            elif name == 'Azure':
+                dirty |= self._maybe_update_config('Azure', 'key', provider.get('key'))
+                dirty |= self._maybe_update_config('Azure', 'region', provider.get('region'))
+            elif name == 'ElevenLabs':
+                dirty |= self._maybe_update_config('ElevenLabs', 'api_key', provider.get('api_key'))
+                dirty |= self._maybe_update_config('ElevenLabs', 'model_id', provider.get('model_id', 'eleven_turbo_v2'))
+            elif name == 'AWS':
+                dirty |= self._maybe_update_config('AWS', 'access_key', provider.get('access_key'))
+                dirty |= self._maybe_update_config('AWS', 'secret_key', provider.get('secret_key'))
+                dirty |= self._maybe_update_config('AWS', 'region', provider.get('region'))
+                dirty |= self._maybe_update_config('AWS', 'engine', provider.get('engine', 'standard'))
+            elif name == 'OpenAI':
+                dirty |= self._maybe_update_config('OpenAI', 'api_key', provider.get('api_key'))
+                dirty |= self._maybe_update_config('OpenAI', 'endpoint', provider.get('endpoint', 'https://api.openai.com/'))
+                dirty |= self._maybe_update_config('OpenAI', 'model', provider.get('model', 'tts-1'))
+                dirty |= self._maybe_update_config('OpenAI', 'chat_model', provider.get('chat_model', 'gpt-4o-mini'))
+            elif name == 'LibreTranslate':
+                dirty |= self._maybe_update_config('LibreTranslate', 'api_key', provider.get('api_key'))
+                dirty |= self._maybe_update_config('LibreTranslate', 'endpoint', provider.get('endpoint', 'http://localhost:5000'))
+            elif name == 'Discord':
+                # TODO: this could be us!
+                dirty |= self._maybe_update_config('Discord', 'bot_token', provider.get('bot_token'))
+
+        if dirty:
+            with open(self.get_ini_path(), mode='w', encoding='utf-8') as ini:
+                self.ini.write(ini)
+            self.locals = self.load_config()
+
         return True
