@@ -123,6 +123,14 @@ class Main:
         pfh.doRollover()
         perf_logger.addHandler(pfh)
 
+        # Rotate async_errors.log
+        async_log = os.path.join('logs', 'async_errors.log')
+        async_old = async_log.replace('.log', '.old')
+        if os.path.exists(async_old):
+            os.remove(async_old)
+        if os.path.exists(async_log):
+            os.rename(async_log, async_old)
+
     @staticmethod
     def reveal_passwords(config_dir: str):
         print("[yellow]These are your hidden secrets:[/]")

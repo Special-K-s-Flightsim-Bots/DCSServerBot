@@ -102,7 +102,7 @@ mapping:
               autoscan: {type: bool, nullable: false}
               server_user: {type: str, nullable: false, range: {min: 1}}
               max_hung_minutes: {type: int, range: {min: 0}, nullable: false}
-              affinity: {type: any, nullable: false, func: deprecated, enum: ['Use "auto_affinity" instead!']}
+              affinity: {type: any, nullable: false, func: str_or_list}
               auto_affinity:
                 type: map
                 nullable: false

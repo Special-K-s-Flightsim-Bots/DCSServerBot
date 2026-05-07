@@ -94,7 +94,8 @@ __all__ = [
     "show_dict_diff",
     "to_valid_pyfunc_name",
     "pg_interval_to_seconds",
-    "pg_get_latest_version"
+    "get_latest_postgres_version",
+    "get_latest_python_version"
 ]
 
 logger = logging.getLogger(__name__)
@@ -1560,27 +1561,63 @@ def pg_interval_to_seconds(interval: str) -> int:
     return total_seconds
 
 
-async def pg_get_latest_version(node: Node, version: str | None = None) -> dict | None:
+async def get_latest_postgres_version(node: Node, version: str | None = None) -> dict | None:
     ssl_ctx = ssl.create_default_context(cafile=certifi.where())
 
-    async with aiohttp.ClientSession(
-        connector=aiohttp.TCPConnector(ssl=ssl_ctx)
-    ) as session:
-        async with session.get(
-            "https://www.postgresql.org/versions.json",
-            proxy=node.proxy,
-            proxy_auth=node.proxy_auth,
-        ) as resp:
-            if resp.status != 200:
-                return None
-            data = await resp.json(encoding="utf-8")
+    try:
+        async with aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(ssl=ssl_ctx)
+        ) as session:
+            async with session.get(
+                "https://www.postgresql.org/versions.json",
+                proxy=node.proxy,
+                proxy_auth=node.proxy_auth,
+            ) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json(encoding="utf-8")
 
-    # if we did not pass a version, return the latest available
-    if not version:
-        return data[-1]
+        # if we did not pass a version, return the latest available
+        if not version:
+            return data[-1]
 
-    my_version = parse(version)
-    check = next((x for x in data if x['major'] == str(my_version.major)), None)
-    if not check:
+        my_version = parse(version)
+        check = next((x for x in data if x['major'] == str(my_version.major)), None)
+        if not check:
+            return None
+        return check
+    except Exception:
         return None
-    return check
+
+
+async def get_latest_python_version(node: Node, version: str | None = None) -> dict | None:
+    ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+
+    try:
+        async with aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(ssl=ssl_ctx)
+        ) as session:
+            async with session.get(
+                "https://endoflife.date/api/v1/products/python",
+                proxy=node.proxy,
+                proxy_auth=node.proxy_auth,
+            ) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json(encoding="utf-8")
+
+        releases = data.get('result', {}).get('releases', [])
+        if not releases:
+            return None
+
+        # if we did not pass a version, return the latest available
+        if not version:
+            return releases[0]
+
+        my_version = parse(version)
+        check = next((x for x in releases if x['name'] == f"{my_version.major}.{my_version.minor}"), None)
+        if not check:
+            return None
+        return check
+    except Exception:
+        return None

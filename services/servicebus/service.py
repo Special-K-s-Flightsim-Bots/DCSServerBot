@@ -739,7 +739,7 @@ class ServiceBus(Service):
 
         # support sync responses though broadcast
         if 'channel' in data and str(data['channel']).startswith('sync-'):
-            server: Server = self.servers.get(server_name)
+            server: Server | None = self.servers.get(server_name)
             if not server:
                 # we should never be here
                 self.log.warning(f'Message received for unregistered server {server_name}, ignoring.')
@@ -763,12 +763,19 @@ class ServiceBus(Service):
                 f"Command {data['command']} for unknown server {server_name} received, ignoring")
             return
 
-        await server.send_to_dcs(data)
+        if str(data.get('channel', '')).startswith('sync-'):
+            token = data['channel']
+            data = await server.send_to_dcs_sync(data)
+            if data:
+                data['channel'] = token
+                await self.send_to_node(data)
+        else:
+            await server.send_to_dcs(data)
 
     async def rpc(self, obj: object, data: dict) -> dict | None:
         if 'method' in data:
             method_name = data['method']
-            func: Callable = reduce(lambda attr, part: getattr(attr, part, None), method_name.split('.'), obj)
+            func: Callable | None = reduce(lambda attr, part: getattr(attr, part, None), method_name.split('.'), obj)
             if not func:
                 raise ValueError(f"Call to non-existing function {method_name}()")
 
@@ -1028,7 +1035,7 @@ class ServiceBus(Service):
                     while True:
                         data = await derived.message_queue[server_name].get()
 
-                        server: Server = self.servers.get(server_name)
+                        server: Server | None = self.servers.get(server_name)
                         if not server:
                             return
 

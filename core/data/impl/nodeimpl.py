@@ -158,7 +158,6 @@ class NodeImpl(Node):
             self.plugins.append('cloud')
 
     async def _post_init(self):
-        self.locals = self.read_locals()
         if 'DCS' in self.locals:
             await self.get_dcs_branch_and_version()
         await self.init_db()
@@ -186,11 +185,15 @@ class NodeImpl(Node):
             system(f"title DCSServerBot v{self.bot_version}.{self.sub_version} - {self.node.name}")
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
 
+        # read locals
+        self.locals = self.read_locals()
+
         # check GIT and branch
         self._check_branch_version()
 
         # check Python-version
         self.log.info(f'- Python version {platform.python_version()} detected.')
+        await self._check_python_version()
 
         # check UAC
         if utils.is_uac_enabled():
@@ -274,7 +277,7 @@ class NodeImpl(Node):
             for node_name in data.keys():
                 if node_name not in self.all_nodes:
                     self.all_nodes[node_name] = None
-            node: dict = data.get(self.name)
+            node: dict | None = data.get(self.name)
             if not node:
                 raise InstallationException(f'No configuration found for node {self.name} in {config_file}!')
             dirty = False
@@ -342,27 +345,54 @@ class NodeImpl(Node):
         lpool_url = lpool_url.replace('SECRET', quote(lpool_pwd) or '')
         return cpool_url, lpool_url
 
-    async def _check_postgres_version(self, version: str | None = None):
-        latest_pg_version = await utils.pg_get_latest_version(self, version)
+    async def _check_python_version(self):
+        version = platform.python_version()
+        latest_python_version = await utils.get_latest_python_version(self, version)
+        if latest_python_version:
+            if not latest_python_version['isMaintained']:
+                latest_python_version = await utils.get_latest_python_version(self)
+                if latest_python_version:
+                    recommended = latest_python_version['latest']['name']
+                    self.log.warning(
+                        f"Your Python version {parse(version).major} is EOL. Please upgrade to {recommended}."
+                    )
+                else:
+                    self.log.warning(
+                        f"Your Python version {parse(version).major} is EOL. "
+                        f"Please upgrade to a supported version."
+                    )
+            elif latest_python_version['isEoas']:
+                self.log.info(f"  => Your Python version is EOS and will be unsupported "
+                              f"as of {latest_python_version['eolFrom']}.")
+            elif parse(latest_python_version['latest']['name']) > parse(version):
+                recommended = latest_python_version['latest']['name']
+                self.log.warning(
+                    f"Your Python version {version} is outdated. Please upgrade to {recommended}."
+                )
+
+    async def _check_postgres_version(self, version: str | None = None, *, name: str | None = None):
+        name = f"{name}: " if name else ""
+        latest_pg_version = await utils.get_latest_postgres_version(self, version)
         if version and latest_pg_version:
             eol_date = datetime.strptime(latest_pg_version['eolDate'], '%Y-%m-%d')
             latest_minor = latest_pg_version['latestMinor']
             if eol_date < datetime.now():
-                latest_pg_version = await utils.pg_get_latest_version(self)
+                latest_pg_version = await utils.get_latest_postgres_version(self)
                 if latest_pg_version:
                     recommended = latest_pg_version['major'] + '.' + latest_pg_version['latestMinor']
                     self.log.warning(
-                        f"Your PostgreSQL version {parse(version).major} is EOL. The latest version is {recommended}."
+                        f"{name}Your PostgreSQL version {parse(version).major} is EOL. "
+                        f"Please upgrade to {recommended}."
                     )
                 else:
                     self.log.warning(
-                        f"Your PostgreSQL version {parse(version).major} is EOL. "
+                        f"{name}Your PostgreSQL version {parse(version).major} is EOL. "
                         f"Please upgrade to a supported version."
                     )
             elif int(latest_minor) > parse(version).minor:
                 recommended = latest_pg_version['major'] + '.' + latest_pg_version['latestMinor']
                 self.log.warning(
-                    f"Your PostgreSQL version {version} is outdated. Please upgrade to {recommended}."
+                    f"{name}Your PostgreSQL version {version} is outdated. Please upgrade to {recommended}."
                 )
 
     async def init_db(self):
@@ -388,10 +418,13 @@ class NodeImpl(Node):
 
         cpool_url, lpool_url = self.get_database_urls()
         version = await check_db(lpool_url)
-        await self._check_postgres_version(version)
 
         if lpool_url != cpool_url:
-            await check_db(cpool_url)
+            await self._check_postgres_version(version, name="nodes.yaml")
+            version = await check_db(cpool_url)
+            await self._check_postgres_version(version, name="main.yaml")
+        else:
+            await self._check_postgres_version(version)
 
         self.log.info(f"- Connection to PostgreSQL {version} established.")
 
