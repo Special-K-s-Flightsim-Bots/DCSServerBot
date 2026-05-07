@@ -725,7 +725,14 @@ class ServiceBus(Service):
                 f"Command {data['command']} for unknown server {server_name} received, ignoring")
             return
 
-        await server.send_to_dcs(data)
+        if str(data.get('channel', '')).startswith('sync-'):
+            token = data['channel']
+            data = await server.send_to_dcs_sync(data)
+            if data:
+                data['channel'] = token
+                await self.send_to_node(data)
+        else:
+            await server.send_to_dcs(data)
 
     async def rpc(self, obj: object, data: dict) -> dict | None:
         if 'method' in data:
