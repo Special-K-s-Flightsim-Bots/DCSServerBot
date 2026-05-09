@@ -76,18 +76,34 @@ msgstr "Lädt ein LUA-File in eine Mission"
 msgid "Script loaded."
 msgstr "Skript geladen."
 
+# /reset_coalition
+msgid "Reset coalition cooldown"
+msgstr "Koalitionsbindung zurücksetzen"
+
+msgid "The coalition system is not enabled on this server."
+msgstr "Das Koalitionssystem ist auf diesem Server nicht aktiv."
+
+msgid "Do you want to reset the coalition-bindings from player {}?"
+msgstr "Möchtest Du die Koalition des Spielers {} zurücksetzen?"
+
+msgid "Coalition bindings for player {} reset."
+msgstr "Koalition des Spielers {} zurückgesetzt."
+
+msgid "The bot is missing the \"Manage Roles\" permission!"
+msgstr "Der Bot benötigt die \"Manage Roles\"-Berechtigung!"
+
 # /reset_coalitions
-msgid "Mass coalition leave for users"
-msgstr "Setzt alle Koalitionen zurück"
+msgid "Reset all coalition cooldowns"
+msgstr "Reset aller Koalitionsbindungen"
 
 msgid "Do you want to mass-reset all coalition-bindings from your players?"
 msgstr "Möchtest Du die Koalitionen all Deiner Spieler zurücksetzen?"
 
+msgid "Coalition bindings reset for all players on server {}."
+msgstr "Koalitionsbindungen von allen Spielern auf Server {} zurückgesetzt."
+
 msgid "Coalition bindings reset for all players."
 msgstr "Koalitionen aller Spieler zurückgesetzt."
-
-msgid "The bot is missing the \"Manage Roles\" permission!"
-msgstr "Der Bot braucht die \"Manage Roles\"-Berechtigung!"
 
 # /campaign
 msgid "Commands to manage DCS campaigns"
@@ -122,6 +138,16 @@ msgstr "Information zur Kampagne"
 msgid "Campaign Overview"
 msgstr "Kampagnen-Info"
 
+# /campaign edit
+msgid "Edit Campaign"
+msgstr "Kampagne editieren"
+
+msgid "Campaign not found."
+msgstr "Kampagne konnte nicht gefunden werden."
+
+msgid "Campaign {} updated."
+msgstr "Kampagne {} aktualisiert."
+
 # /campaign add
 msgid "Add a campaign"
 msgstr "Erstelle Kampagne"
@@ -150,6 +176,13 @@ msgstr "Server {server} wurde zur Kampagne {campaign} zugefügt."
 
 msgid "Server {server} is already part of the campaign {campaign}!"
 msgstr "Server {server} ist bereits Teil der Kampagne {campaign}!"
+
+# /campaign delete_server
+msgid "Delete a server from a campaign\n"
+msgstr "Lösche Server von einer Kampagne\n"
+
+msgid "Server {server} deleted from campaign {campaign}."
+msgstr "Server {server} von Kampagne {campaign} gelöscht."
 
 # /campaign delete
 msgid "Delete a campaign"
@@ -190,6 +223,19 @@ msgstr "Unbekannter Benutzer {}!"
 
 msgid "Message will be displayed to the user."
 msgstr "Nachricht wird dem Nutzer bei nächster Gelegenheit präsentiert."
+
+# /message list
+msgid "Lists active messages"
+msgstr "Zeigt aktive Nachrichten"
+
+# /message edit
+msgid "Edit or delete a user-message"
+msgstr "Ändere oder lösche Nachrichten"
+
+msgid "No messages found."
+msgstr "Keine Nachricht gefunden."
+
+
 
 # Upload of embeds
 msgid "Error while updating embed!"

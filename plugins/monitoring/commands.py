@@ -4,7 +4,7 @@ import psycopg
 import re
 
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Server, command, \
-    ValueNotInRange, ServiceRegistry, PluginInstallationError
+    ValueNotInRange, ServiceRegistry, PluginInstallationError, get_translation
 from datetime import datetime, timezone
 from discord import app_commands
 from discord.ext import tasks
@@ -22,6 +22,8 @@ from ..userstats.filter import StatisticsFilter, PeriodFilter, CampaignFilter, M
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class ServerLoadFilter(PeriodFilter):
@@ -144,7 +146,10 @@ class Monitoring(Plugin[MonitoringListener]):
                                     'min': value.get('min_fps', 30),
                                     'period': value.get('period', 5),
                                     'mentioning': value.get('mentioning', True),
-                                    'message': value.get('message', 'The FPS of server {server.name} are below {min_fps} for longer than {period} minutes!')
+                                    'message': value.get(
+                                        'message',
+                                        _('The FPS of server {server.name} are below {min_fps} '
+                                          'for longer than {period} minutes!'))
                                 }
                             }
                         )
@@ -174,7 +179,7 @@ class Monitoring(Plugin[MonitoringListener]):
             if env.buffer:
                 env.buffer.close()
 
-    @command(description='Displays the load of your DCS servers')
+    @command(description=_('Displays the load of your DCS servers'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(_server="server")
@@ -195,7 +200,7 @@ class Monitoring(Plugin[MonitoringListener]):
         except ValueNotInRange as ex:
             await interaction.followup.send(ex, ephemeral=utils.get_ephemeral(interaction))
 
-    @command(description='Shows servers statistics')
+    @command(description=_('Shows servers statistics'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.rename(_server="server")

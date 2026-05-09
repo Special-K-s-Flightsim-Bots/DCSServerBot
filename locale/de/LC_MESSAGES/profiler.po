@@ -1,0 +1,24 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+# /profiler start
+msgid "Start profiler"
+msgstr "Starte den Profiler"
+
+msgid "Profiler {} is already loaded."
+msgstr "Profiler {} ist bereits geladen."
+
+msgid "Starting profiler ..."
+msgstr "Starte den Profiler ..."
+
+# /profiler stopp
+msgid "Stop profiler"
+msgstr "Stoppe den Profiler"
+
+msgid "Stopping profiler ..."
+msgstr "Stoppe den Profiler ..."

@@ -1,0 +1,58 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+# /srs
+msgid "Commands to manage DCS-SRS"
+msgstr "Kommandos zum Verwalten von SRS"
+
+# /srs list
+msgid "List of active SRS users"
+msgstr "Zeigt aktive SRS-Benutzer"
+
+msgid "You are not allowed to see the {} players."
+msgstr "Du darfst nur Spieler Deiner eigenen Koalition sehen."
+
+msgid "{} Players on SRS"
+msgstr "{} Spieler auf SRS"
+
+msgid "Name"
+msgstr "Name"
+
+msgid "Radios"
+msgstr "Funkkanäle"
+
+msgid "Only the first 2 radios are displayed per user."
+msgstr "Nur die ersten 2 Funkgeräte werden angezeigt."
+
+msgid "No {} players on SRS."
+msgstr "Zurzeit sind keine Spieler der Koalition {} auf SRS."
+
+# /srs tts
+msgid "Send a TTS message"
+msgstr "Sende eine TTS-Nachricht"
+
+msgid "The server to send the TTS message to"
+msgstr "Server, an den die TTS-Nachricht gesendet werden soll"
+
+msgid "The message to send"
+msgstr "Die Nachricht"
+
+msgid "Limit the frequencies to this player"
+msgstr "Zeige nur Frequenzen dieses Spielers an"
+
+msgid "Limit the frequencies to this coalition"
+msgstr "Zeige nur Frequenzen dieser Koalition an"
+
+msgid "The frequency to send the message to"
+msgstr "Frequenz, an die die Nachticht gesendet werden soll"
+
+msgid "Message sent."
+msgstr "Nachricht gesendet."
+
+msgid "Failed to send TTS message."
+msgstr "TTS-Nachricht konnte nicht gesendet werden."

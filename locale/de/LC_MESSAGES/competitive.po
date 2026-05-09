@@ -6,15 +6,51 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Language: de\n"
 
-# /trueskill
-msgid "Display your TrueSkill:tm: rating"
-msgstr "Zeit Dein TrueSkill:tm:-Rating"
+# /trueskill rating
+msgid "Display TrueSkill:tm: ratings"
+msgstr "Zeigt TrueSkill:tm:-Ratings"
 
-msgid "Use {} to link your account."
-msgstr "Nutze {}, um Dein DCS-Konto mit Deinem Discord-Konto zu verknüpfen."
+msgid "TrueSkill:tm: rating: {rating:.2f}."
+msgstr "Das TrueSkill:tm:-Rating ist: {rating:.2f}"
 
-msgid "TrueSkill:tm: rating of player {name}: {rating:.2f}."
-msgstr "Das TrueSkill:tm:-Rating von Spieler {name} ist: {rating:.2f}"
+# /trueskill history
+msgid "Display TrueSkill:tm: history"
+msgstr "Zeige TrueSkill:tm:-Historie"
+
+msgid "User {} is not linked."
+msgstr "Nutzer {} ist nicht verlinkt."
+
+# /trueskill delete
+msgid "Delete TrueSkill:tm: ratings"
+msgstr "Lösche TrueSkill:tm: ratings"
+
+msgid "Do you really want to delete TrueSkill:tm: ratings for this user?"
+msgstr "Möchtest Du die TrueSkill:tm:-Ratings dieses Nutzers wirklich löschen?"
+
+msgid "Do you really want to delete the TrueSkill:tm: ratings for all users?"
+msgstr "Möchtest Du die TrueSkill:tm:-Ratings **aller** Nutzer wirklich löschen?"
+
+msgid "TrueSkill:tm: ratings deleted."
+msgstr "TrueSkill:tm:-Ratings gelöscht."
+
+# /trueskill regenerate
+msgid "Regenerate TrueSkill:tm: ratings"
+msgstr "Regeneriere TrueSkill:tm:-Ratings"
+
+msgid "Do you want to regenerate the TrueSkill:tm: ratings for this user?"
+msgstr "Möchtest Du die TrueSkill:tm:-Ratings dieses Nutzers neu erzeugen?"
+
+msgid "Do you really want to regenerate **all** TrueSkill:tm: ratings?"
+msgstr "Möchtest Du wirklich **alle** TrueSkill:tm:-Ratings neu erzeugen?"
+
+msgid "Member is not linked to a player."
+msgstr "Nutzer ist zu keinem Spieler verlinkt."
+
+msgid "TrueSkill:tm: ratings deleted.\nGenerating new values now ..."
+msgstr "TrueSkill:tm:-Ratings wurden gelöscht.\nGeneriere neue Ratings ..."
+
+msgid "TrueSkill:tm: ratings regenerated."
+msgstr "TrueSkill:tm:-Ratings regeneriert."
 
 ## LISTENER
 msgid "Your TrueSkill rating is: {}"

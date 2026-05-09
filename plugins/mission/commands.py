@@ -2204,7 +2204,7 @@ class Mission(Plugin[MissionEventListener]):
         env = await report.render(period=f"{number} {period}")
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
-    @player.command(description=_('Analyses two suspects of being the same person'))
+    @player.command(description=_('Check if 2 players are the same'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def compare(self, interaction: discord.Interaction,
@@ -2297,7 +2297,7 @@ class Mission(Plugin[MissionEventListener]):
     # New command group "/mission"
     menu = Group(name="menu", description=_("Commands to manage mission menus"))
 
-    @menu.command(description=_('Validate the menu.yaml'))
+    @menu.command(description=_('Validate the menus.yaml'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def validate(self, interaction: discord.Interaction):
