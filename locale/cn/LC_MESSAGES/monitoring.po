@@ -1,0 +1,31 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh\n"
+
+msgid "The FPS of server {server.name} are below {min_fps} for longer than {period} minutes!"
+msgstr "服务器 {server.name} 的 FPS 已连续 {period} 分钟低于 {min_fps}！"
+
+# /serverload
+msgid "Displays the load of your DCS servers"
+msgstr "显示你的 DCS 服务器负载"
+
+# /serverstats
+msgid "Shows servers statistics"
+msgstr "显示服务器统计信息"
+
+# LISTENER
+msgid "Server {server} FPS ({fps}) has been below {min_fps} for more than {period} minutes."
+msgstr "服务器 {server} 的 FPS（{fps}）已超过 {period} 分钟低于 {min_fps}。"
+
+msgid "Server Performance Low!"
+msgstr "服务器性能低下！"
+
+msgid "Server {server} RAM usage is {ram} GB, exceeding the maximum of {max_ram} GB for more than {period} minutes."
+msgstr "服务器 {server} 的内存使用量为 {ram} GB，已连续超过 {period} 分钟高于最大值 {max_ram} GB。"
+
+msgid "Excessive RAM consumption!"
+msgstr "内存占用过高！"
