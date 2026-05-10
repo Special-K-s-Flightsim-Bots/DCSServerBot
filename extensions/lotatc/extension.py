@@ -384,9 +384,11 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
             return
         try:
             version = await self.get_latest_version()
-            if version != self.version:
+            installed = self.get_inst_version()[1]
+            if version != installed:
                 self.log.info(f"A new LotAtc update is available. Updating to version {version} ...")
                 await asyncio.to_thread(self.do_update)
+                installed = self.get_inst_version()[1]
                 self.log.info("LotAtc updated.")
                 bus = ServiceRegistry.get(ServiceBus)
                 await bus.send_to_node({
@@ -428,6 +430,8 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
                         "method": "send_message",
                         "params": params
                     })
+            if installed != self.version and not self.is_running():
+                await self.update_instance(True)
         except Exception as ex:
             self.log.error(f"LotAtc update failed: {ex}")
 
