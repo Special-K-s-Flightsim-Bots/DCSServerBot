@@ -25,7 +25,7 @@ def install_requirements() -> subprocess.CompletedProcess:
     # First, ensure pip-tools are installed
     subprocess.run([
         sys.executable,
-        '-m', 'pip', 'install', 'pip-tools'
+        '-m', 'pip', 'install', '-U', 'pip-tools'
     ])
 
     # Then run pip-sync to synchronize the environment with requirements.txt
