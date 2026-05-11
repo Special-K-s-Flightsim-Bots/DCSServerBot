@@ -89,7 +89,7 @@ pykwalify==1.8.0
 python-Levenshtein==0.27.3
 
 # python-multipart: A library for parsing multipart/form-data input requests
-python-multipart==0.0.27
+python-multipart==0.0.28
 
 # Pywin32: Set of Python extensions for MS Windows
 pywin32==311 ; sys_platform == 'win32'

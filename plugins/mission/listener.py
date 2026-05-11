@@ -1061,9 +1061,8 @@ class MissionEventListener(EventListener["Mission"]):
                     if any(x for x in _config.get('penalties', []) if x.get('event', "") == 'kill'):
                        return
 
-                name = ('Member ' + player1.member.mention) \
-                    if player1.member else ('Player ' + player1.display_name)
-                message = f"{name} (ucid={player1.ucid}) is killing team members."
+                target_name = f"player {player2.display_name}" if player2 else 'an AI'
+                message = f"Player {player1.display_name} (ucid={player1.ucid}) team-killed {target_name}."
                 # show the server name on central admin channels
                 if self.bot.locals.get('channels', {}).get('admin'):
                     message = f"{server.display_name}: " + message

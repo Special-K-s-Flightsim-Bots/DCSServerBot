@@ -135,8 +135,16 @@ async def wait_for_single_reaction(interaction: discord.Interaction, message: di
     return react
 
 
-async def selection_list(interaction: discord.Interaction, data: list, embed_formatter, num: int = 5,
-                         marker: int = -1, marker_emoji='🔄'):
+async def selection_list(
+        interaction: discord.Interaction,
+        data: list,
+        embed_formatter,
+        *,
+        num: int = 5,
+        marker: int = -1,
+        marker_emoji='🔄',
+        no_selection: bool = False
+):
     """
     :param interaction: A discord.Interaction instance representing the interaction event.
     :param data: A list of data to display in the embeds.
@@ -144,6 +152,7 @@ async def selection_list(interaction: discord.Interaction, data: list, embed_for
     :param num: An integer representing the number of data to display per page, default is 5.
     :param marker: An integer representing the marker index, default is -1.
     :param marker_emoji: A string representing the emoji for the marker, default is '🔄'.
+    :param no_selection: A boolean indicating whether to have a selection or display only, default is False (selection).
     :return: An integer representing the index of the selected item, or -1 if no item is selected or an error occurs.
 
     This method is used to display a paginated selection list based on the given data. It sends embeds with reaction buttons for navigation and selection. The user can navigate through the
@@ -164,11 +173,12 @@ async def selection_list(interaction: discord.Interaction, data: list, embed_for
             message = await interaction.followup.send(embed=embed)
             if j > 0:
                 await message.add_reaction('◀️')
-            for i in range(1, max_i + 1):
-                if (j * num + i) != marker:
-                    await message.add_reaction(chr(0x30 + i) + '\u20E3')
-                else:
-                    await message.add_reaction(marker_emoji)
+            if not no_selection:
+                for i in range(1, max_i + 1):
+                    if (j * num + i) != marker:
+                        await message.add_reaction(chr(0x30 + i) + '\u20E3')
+                    else:
+                        await message.add_reaction(marker_emoji)
             await message.add_reaction('⏹️')
             if ((j + 1) * num) < len(data):
                 await message.add_reaction('▶️')
