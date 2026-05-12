@@ -218,9 +218,9 @@ class Lardoon(Extension):
             proc = subprocess.Popen([cmd] + args, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = proc.communicate()
             if stderr:
-                self.log.error(f"{self.name}: {stderr.decode('utf-8')}")
+                self.log.debug(f"{self.name}: {stderr.decode('utf-8')}")
             if self.config.get('debug', False) and stdout:
-                self.log.error(f"{self.name}: {stdout.decode('utf-8')}")
+                self.log.debug(f"{self.name}: {stdout.decode('utf-8')}")
 
         # make sure we're running on the correct schedule
         minutes = self.config.get('minutes', 5)

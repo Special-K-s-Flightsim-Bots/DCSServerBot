@@ -811,10 +811,16 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
     @tasks.loop(hours=1)
     async def refresh_views(self):
-        async with self.apool.connection() as conn:
-            await conn.execute("""
-                REFRESH MATERIALIZED VIEW CONCURRENTLY mv_statistics;
-            """)
+        try:
+            async with self.apool.connection() as conn:
+                await conn.execute("""
+                    REFRESH MATERIALIZED VIEW CONCURRENTLY mv_statistics;
+                """)
+        except psycopg.errors.FeatureNotSupported:
+            async with self.apool.connection() as conn:
+                await conn.execute("""
+                    REFRESH MATERIALIZED VIEW mv_statistics;
+                """)
 
     @refresh_views.before_loop
     async def before_refresh_views(self):

@@ -2206,20 +2206,26 @@ class Mission(Plugin[MissionEventListener]):
 
     @player.command(description=_('Check if 2 players are the same'))
     @app_commands.guild_only()
+    @app_commands.describe(player1='First UCID to compare', player2='Second UCID to compare')
     @utils.app_has_role('DCS Admin')
-    async def compare(self, interaction: discord.Interaction,
-                      player1: app_commands.Transform[discord.Member | str, utils.UserTransformer],
-                      player2: app_commands.Transform[discord.Member | str, utils.UserTransformer]):
+    async def compare(self, interaction: discord.Interaction, player1: str, player2: str):
         await interaction.response.defer()
         ephemeral = utils.get_ephemeral(interaction)
         if isinstance(player1, discord.Member):
             ucid1 = await self.bot.get_ucid_by_member(member=player1, verified=True)
         else:
             ucid1 = player1
+        if not ucid1:
+            await interaction.followup.send("Player 1 could not be found.")
+            return
+
         if isinstance(player2, discord.Member):
             ucid2 = await self.bot.get_ucid_by_member(member=player2, verified=True)
         else:
             ucid2 = player2
+        if not ucid2:
+            await interaction.followup.send("Player 2 could not be found.")
+            return
 
         if ucid1 == ucid2:
             await interaction.followup.send(_("You have provided the same UCID twice."), ephemeral=ephemeral)
@@ -2650,9 +2656,11 @@ class Mission(Plugin[MissionEventListener]):
             return
 
         ctx = await self.bot.get_context(message)
-        server = self.bot.get_server(message, admin_only=True)
+        server: Server | None = self.bot.get_server(message, admin_only=True)
         if not server:
-            server = await utils.server_selection(self.bot, ctx, title=_("To which server do you want to upload?"))
+            server: Server | None = await utils.server_selection(
+                self.bot, ctx, title=_("To which server do you want to upload?")
+            )
 
         if not server:
             await message.channel.send(_("Aborted."))
