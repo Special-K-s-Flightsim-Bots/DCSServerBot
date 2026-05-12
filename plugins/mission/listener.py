@@ -573,7 +573,7 @@ class MissionEventListener(EventListener["Mission"]):
         self.restart_pending[server.name] = False
         # If the server is PAUSED and smooth_pause is configured, start it for some seconds and pause it again
         # to let all scripts load properly.
-        if server.settings.get('advanced', {}).get('resume_mode', 0) == 2:
+        if server.settings.get('advanced', {}).get('resume_mode', 0) in [0, 2]:
             smooth_pause = server.locals.get('smooth_pause', 0)
             if smooth_pause > 0:
                 asyncio.create_task(self._smooth_pause(server, smooth_pause))

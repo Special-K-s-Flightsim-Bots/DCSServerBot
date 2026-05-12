@@ -72,7 +72,7 @@ class SchedulerListener(EventListener["Scheduler"]):
             elif 'times' in restart:
                 config = self.get_config(server)
                 tz = (
-                    ZoneInfo(str(config['timezone']))
+                    ZoneInfo(config['timezone'])
                     if 'timezone' in config
                     else None
                 )
@@ -103,7 +103,12 @@ class SchedulerListener(EventListener["Scheduler"]):
 
             return None
 
-    async def run(self, server: Server, method: str, **kwargs) -> None:
+    async def run(self, server: Server, method: dict | str, **kwargs) -> None:
+        if isinstance(method, dict):
+            if 'sleep' in method:
+                await asyncio.sleep(method['sleep'])
+            method = method['command']
+
         if method.startswith('load:'):
             await server.send_to_dcs({
                 "command": "do_script_file",
@@ -175,11 +180,24 @@ class SchedulerListener(EventListener["Scheduler"]):
                 self.bot.loop.call_soon(asyncio.create_task, self.plugin.run_action(server, server.on_mission_end.copy()))
                 server.on_mission_end.clear()
 
-    @event(name="onSimulationStart")
-    async def onSimulationStart(self, server: Server, _data: dict) -> None:
-        config = self.plugin.get_config(server)
-        if config and 'onSimulationStart' in config:
-            asyncio.create_task(self.run(server, config['onSimulationStart']))
+    @event(name="onMissionLoadBegin")
+    async def onMissionLoadBegin(self, server: Server, _data: dict) -> None:
+        config = self.plugin.get_config(server) or {}
+        if not config or 'onSimulationStart' not in config:
+            return
+
+        rconf = config['onSimulationStart']
+        sleep = rconf.get('sleep', 0) if isinstance(rconf, dict) else 0
+
+        # if the server is going to run, we do not need to smooth pause
+        if server.settings.get('advanced', {}).get('resume_mode', 0) == 1:
+            return
+
+        # make sure that smooth_pause is enabled and set high enough to allow our script to be loaded
+        smooth_pause = server.locals.get('smooth_pause', 0)
+        if smooth_pause < (sleep + 10):
+            server.locals['smooth_pause'] = sleep + 10
+            self.log.info(f"Scheduler: Adjusted smooth_pause to {sleep + 10}s to allow the command.")
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, _data: dict) -> None:
@@ -196,6 +214,12 @@ class SchedulerListener(EventListener["Scheduler"]):
         config = self.plugin.get_config(server)
         if config and 'onMissionEnd' in config:
             asyncio.create_task(self.run(server, config['onMissionEnd'], winner=data['arg1'], msg=data['arg2']))
+
+    @event(name="onSimulationStart")
+    async def onSimulationStart(self, server: Server, _data: dict) -> None:
+        config = self.plugin.get_config(server)
+        if config and 'onSimulationStart' in config:
+            asyncio.create_task(self.run(server, config['onSimulationStart']))
 
     @event(name="onSimulationStop")
     async def onSimulationStop(self, server: Server, _data: dict) -> None:

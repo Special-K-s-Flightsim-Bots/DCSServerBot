@@ -146,7 +146,7 @@ class Scheduler(Plugin[SchedulerListener]):
         # ------------------------------------------------------------------
         now = datetime.now()
         tz = (
-            ZoneInfo(config.get('timezone'))
+            ZoneInfo(config['timezone'])
             if 'timezone' in config
             else None
         )
@@ -671,7 +671,7 @@ class Scheduler(Plugin[SchedulerListener]):
     def _handle_mission_time(server: Server, _config: dict, rconf: dict, warn_time: int) -> int | None:
         """
         *mission_time* – check the maximum duration a mission is allowed
-        to run.  If the current mission would exceed that duration,
+        to run.  If the current mission exceeds that duration,
         return the time left until the threshold.
         """
         mission = server.current_mission
@@ -727,7 +727,7 @@ class Scheduler(Plugin[SchedulerListener]):
         *cron* – evaluate the cron expression at the *restart_time* that would occur after *warn_time* seconds.
         """
         tzinfo = (
-            ZoneInfo(config.get('timezone'))
+            ZoneInfo(config['timezone'])
             if 'timezone' in config
             else None
         )
@@ -854,10 +854,17 @@ class Scheduler(Plugin[SchedulerListener]):
             else:
                 embed.description += "\n- {}".format(_("Starting without a mission ..."))
             await msg.edit(embed=embed)
+
             for i in range(1, 4):
                 try:
-                    task = asyncio.create_task(self.launch_dcs(server, interaction.user, modify_mission=run_extensions,
-                                                               use_orig=use_orig))
+                    task = asyncio.create_task(
+                        self.launch_dcs(
+                            server,
+                            interaction.user,
+                            modify_mission=run_extensions,
+                            use_orig=use_orig
+                        )
+                    )
                     # wait until the server is loading
                     await server.wait_for_status_change(status=[Status.LOADING], timeout=180)
                     embed.description += "\n- {}".format(_("Launching ..."))
@@ -916,8 +923,8 @@ class Scheduler(Plugin[SchedulerListener]):
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
     async def startup(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
-                      maintenance: bool | None = False, run_extensions: bool | None = True,
-                      use_orig: bool | None = True, mission_id: int | None = None):
+                      maintenance: bool = False, run_extensions: bool = True,
+                      use_orig: bool = True, mission_id: int = None):
 
         if server.status == Status.STOPPED:
             await interaction.response.send_message(
@@ -1015,10 +1022,11 @@ class Scheduler(Plugin[SchedulerListener]):
             raise
         except Exception as ex:
             self.log.exception(ex)
-            embed.description += "\n- {}".format(_("Something went wrong. Please check the dcssb*.log."))
-            embed.description += "\n{}".format(_("Exception: {}").format(repr(ex)))
-            embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
-            await msg.edit(embed=embed)
+            if msg:
+                embed.description += "\n- {}".format(_("Something went wrong. Please check the dcssb*.log."))
+                embed.description += "\n{}".format(_("Exception: {}").format(repr(ex)))
+                embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
+                await msg.edit(embed=embed)
             raise
 
     @group.command(description=_('Shuts a DCS server down\n'))
@@ -1086,8 +1094,8 @@ class Scheduler(Plugin[SchedulerListener]):
                           status=[
                               Status.RUNNING, Status.PAUSED, Status.STOPPED
                           ])],
-                      delay: int | None = 120, force: bool | None = False, run_extensions: bool | None = True,
-                      use_orig: bool | None = True, mission_id: int | None = None):
+                      delay: int = 120, force: bool = False, run_extensions: bool = True,
+                      use_orig: bool = True, mission_id: int = None):
 
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
@@ -1177,12 +1185,13 @@ class Scheduler(Plugin[SchedulerListener]):
                     await msg.edit(content=_("DCS server \"{}\" started.").format(server.display_name))
                     await self.bot.audit('started the server', server=server, user=interaction.user)
             except (TimeoutError, asyncio.TimeoutError):
-                embed = utils.create_warning_embed(
-                    title=_("Timeout while starting server \"{}\"!").format(server.display_name),
-                    text=_("Please check manually, if the server has started.\n"
-                           "If not, check the dcs.log for errors.")
-                )
-                await msg.edit(content="", embed=embed)
+                if msg:
+                    embed = utils.create_warning_embed(
+                        title=_("Timeout while starting server \"{}\"!").format(server.display_name),
+                        text=_("Please check manually, if the server has started.\n"
+                               "If not, check the dcs.log for errors.")
+                    )
+                    await msg.edit(content="", embed=embed)
                 return
         elif server.status == Status.SHUTDOWN:
             await interaction.response.send_message(
@@ -1219,6 +1228,7 @@ class Scheduler(Plugin[SchedulerListener]):
                 ):
             await interaction.followup.send(_("Aborted."), ephemeral=ephemeral)
             return
+
         msg = None
         try:
             msg = await interaction.followup.send(

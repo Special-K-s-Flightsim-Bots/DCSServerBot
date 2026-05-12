@@ -240,6 +240,17 @@ The following environment variables can be used in the "run" command:
 | dcs_home         | Saved Games directory         |
 | server           | internal server datastructure |
 
+Examples:
+```yaml
+  onSimulationStart: load:Scripts/net/start.lua   # We will run a specific lua script on server start
+```
+
+```yaml
+  onSimulationStart:
+    sleep: 10                            # sleep 10 seconds before loading the script
+    command: load:Scripts/net/start.lua  # load the script into your mission
+```
+
 ## Discord Commands
 
 | Command                | Parameter                                  | Channel       | Role      | Description                                                                                                                                                                      |
