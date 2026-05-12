@@ -543,12 +543,11 @@ class Cloud(Plugin[CloudListener]):
         async with self.apool.connection() as conn:
             for link in links:
                 await conn.execute("""
-                    INSERT INTO players (ucid, name, discord_id, manual) 
-                    VALUES (%s, %s, %s, TRUE)
-                    ON CONFLICT (ucid) DO UPDATE 
-                        SET discord_id = EXCLUDED.discord_id,
-                            manual = TRUE
-                """, (link['ucid'], link['name'], member.id))
+                    UPDATE players 
+                       SET discord_id = %s, 
+                           manual = TRUE 
+                    WHERE ucid = %s 
+                """, (member.id, link['ucid']))
 
 
 async def setup(bot: DCSServerBot):

@@ -1251,7 +1251,7 @@ class UserTransformer(app_commands.Transformer):
                 )
                 for ucid, name in get_all_players(interaction.client, self.linked, self.watchlist, search=current)
             ][:25])
-        # we do not add linked accounts, if the result above fills the return list already
+        # we do not add linked accounts if the result above fills the return list already
         if len(ret) < 25 and self.sel_type in [PlayerType.ALL, PlayerType.MEMBER] and (self.linked is None or self.linked):
             ret.extend([
                 app_commands.Choice[str](
