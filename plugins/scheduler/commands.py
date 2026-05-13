@@ -454,7 +454,6 @@ class Scheduler(Plugin[SchedulerListener]):
 
     async def run_action(self, server: Server, rconf: dict):
         method = rconf['method']
-        mission_list = await server.getMissionList()
 
         if method == 'shutdown' or rconf.get('shutdown', False):
             self.log.debug(f"{self.__cog_name__}: Shutting down server {server.name} ...")
@@ -467,6 +466,13 @@ class Scheduler(Plugin[SchedulerListener]):
             await server.stop()
             await self.bot.audit(f"{self.__cog_name__} stopped DCS Server {server.name}",
                                  server=server)
+            return
+
+        try:
+            mission_list = await server.getMissionList()
+        except TimeoutError:
+            self.log.warning(f"{self.__cog_name__}: Timeout getting mission list from server {server.name}, "
+                             f"skipping {method} action")
             return
 
         # select the new mission id
