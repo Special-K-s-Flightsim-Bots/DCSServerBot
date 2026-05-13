@@ -27,9 +27,9 @@ class Profiler(Plugin):
     async def start(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED])],
-                    profiler: Literal['Chrome', 'Callgrind'] | None = 'Chrome',
+                    profiler: Literal['Chrome', 'Callgrind'] = 'Chrome',
                     verbose: bool | None = False):
-        p = self.profilers.get(server.name)
+        p: str | None = self.profilers.get(server.name)
         if not p:
             await server.send_to_dcs({
                 'command': 'loadProfiler',
@@ -38,7 +38,6 @@ class Profiler(Plugin):
             self.profilers[server.name] = profiler.lower()
 
         elif p != profiler.lower():
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Profiler {} is already loaded.").format(p.title()),
                                                     ephemeral=True)
             return
@@ -48,7 +47,6 @@ class Profiler(Plugin):
             'channel': interaction.channel.id,
             'verbose': verbose
         }))
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Starting profiler ..."), ephemeral=utils.get_ephemeral(interaction))
 
     @profile.command(description=_('Stop profiler'))
@@ -62,7 +60,6 @@ class Profiler(Plugin):
             'command': 'stopProfiling',
             'channel': interaction.channel.id
         }))
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Stopping profiler ..."), ephemeral=utils.get_ephemeral(interaction))
 
 

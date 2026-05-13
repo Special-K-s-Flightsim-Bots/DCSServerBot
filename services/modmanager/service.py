@@ -6,15 +6,13 @@ import zipfile
 
 from aiohttp import ClientSession, ClientResponseError
 from contextlib import suppress
-
-from psycopg import sql
-
 from core import ServiceRegistry, Service, Server, Status, ServiceInstallationError, utils, proxy, Node
 from enum import Enum
 from filecmp import cmp
 from functools import total_ordering
 from packaging import version
 from pathlib import Path, PurePosixPath
+from psycopg import sql
 from urllib.parse import urlparse
 
 from ..servicebus import ServiceBus
@@ -46,13 +44,14 @@ class ModManagerService(Service):
 
     def __init__(self, node):
         super().__init__(node=node, name="ModManager")
-        if not os.path.exists(os.path.join(self.node.config_dir, 'services', 'modmanager.yaml')):
-            raise ServiceInstallationError(service='ModManager', reason="config/services/modmanager.yaml missing!")
-        self.bus = ServiceRegistry.get(ServiceBus)
+        if not self.locals:
+            raise ServiceInstallationError(service=self.name, reason="config/services/modmanager.yaml missing!")
+        self.bus = None
         self.temp_packages = []
 
     async def start(self):
         await super().start()
+        self.bus = ServiceRegistry.get(ServiceBus)
         config = self.get_config()
         for folder in Folder:
             os.makedirs(os.path.expandvars(config[folder.value]), exist_ok=True)

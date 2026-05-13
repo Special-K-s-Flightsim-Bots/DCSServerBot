@@ -19,7 +19,7 @@ from core.services.registry import ServiceRegistry
 from discord import app_commands, Interaction
 from discord.app_commands import locale_str
 from discord.app_commands.commands import CommandCallback, GroupT, P, T
-from discord.ext import commands, tasks
+from discord.ext import commands
 from discord.utils import MISSING, _shorten
 from packaging.version import parse
 from pathlib import Path
@@ -237,14 +237,12 @@ class PluginMeta(type(commands.Cog), ABCMeta):
 class Plugin(commands.Cog, Generic[TEventListener], metaclass=PluginMeta):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None, name: str | None = None):
-        from services.servicebus import ServiceBus
-
         super().__init__()
         self.plugin_name = name or type(self).__module__.split('.')[-2]
         self.plugin_version = getattr(sys.modules['plugins.' + self.plugin_name], '__version__')
         self.bot: DCSServerBot = bot
         self.node = bot.node
-        self.bus = ServiceRegistry.get(ServiceBus)
+        self.bus = None
         self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.pool = self.bot.pool
         self.apool = self.bot.apool
@@ -254,10 +252,12 @@ class Plugin(commands.Cog, Generic[TEventListener], metaclass=PluginMeta):
             self.change_commands(self.locals['commands'], {x.name: x for x in self.get_app_commands()})
         self._config = dict[str, dict]()
         self.eventlistener: TEventListener = eventlistener(self) if eventlistener else None
-        self.wait_for_on_ready.start()
 
     async def cog_load(self) -> None:
+        from services.servicebus import ServiceBus
+
         await self.install()
+        self.bus = ServiceRegistry.get(ServiceBus)
         if self.eventlistener:
             self.bus.register_eventListener(self.eventlistener)
         self.log.info(f'  => {self.__cog_name__} loaded.')
@@ -513,14 +513,6 @@ class Plugin(commands.Cog, Generic[TEventListener], metaclass=PluginMeta):
 
     async def on_ready(self) -> None:
         pass
-
-    @tasks.loop(count=1)
-    async def wait_for_on_ready(self):
-        await self.on_ready()
-
-    @wait_for_on_ready.before_loop
-    async def before_on_ready(self):
-        await self.bot.wait_until_ready()
 
 
 class PluginError(Exception, ABC):

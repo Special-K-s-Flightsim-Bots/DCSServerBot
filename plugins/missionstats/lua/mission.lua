@@ -10,24 +10,26 @@ local GROUP_CATEGORY = {
 	[Group.Category.SHIP] = 'Ships'
 }
 
--- MOOSE
-world.event.S_EVENT_NEW_CARGO = world.event.S_EVENT_MAX + 1000
-world.event.S_EVENT_DELETE_CARGO = world.event.S_EVENT_MAX + 1001
-world.event.S_EVENT_NEW_ZONE = world.event.S_EVENT_MAX + 1002
-world.event.S_EVENT_DELETE_ZONE = world.event.S_EVENT_MAX + 1003
-world.event.S_EVENT_NEW_ZONE_GOAL = world.event.S_EVENT_MAX + 1004
-world.event.S_EVENT_DELETE_ZONE_GOAL = world.event.S_EVENT_MAX + 1005
-world.event.S_EVENT_REMOVE_UNIT = world.event.S_EVENT_MAX + 1006
-world.event.S_EVENT_PLAYER_ENTER_AIRCRAFT = world.event.S_EVENT_MAX + 1007
-world.event.S_EVENT_NEW_DYNAMIC_CARGO = world.event.S_EVENT_MAX + 1008
-world.event.S_EVENT_DYNAMIC_CARGO_LOADED = world.event.S_EVENT_MAX + 1009
-world.event.S_EVENT_DYNAMIC_CARGO_UNLOADED = world.event.S_EVENT_MAX + 1010
-world.event.S_EVENT_DYNAMIC_CARGO_REMOVED = world.event.S_EVENT_MAX + 1011
+-- --------------------------------------------------------------
+--  Air‑base / runway definitions
+-- --------------------------------------------------------------
+local MISSING_RUNWAYS = {
+    ["Tbilisi-Lochini"] = {
+        course   = -2.181661564992912,
+        name     = "13L",
+        position = { y = 479.7552, x = -315401, z = 896638 },
+        length   = 2463.16,
+        width    = 54
+    },
 
--- ECW
-world.event.S_EVENT_ECW_TROOP_DROP   = world.event.S_EVENT_MAX + 1050
-world.event.S_EVENT_ECW_TROOP_KILL   = world.event.S_EVENT_MAX + 1051
-world.event.S_EVENT_ECW_TROOP_PICKUP = world.event.S_EVENT_MAX + 1052
+    ["Bilbeis Air Base"] = {
+        course   = -2.967,
+        name     = "17R",
+        position = { y = 28.04, x = 39326, z = 34977 },
+        length   = 1524,
+        width    = 42
+    }
+}
 
 dcsbot.mission_stats_enabled = false
 dcsbot.eventHandler = dcsbot.eventHandler or {}
@@ -173,39 +175,18 @@ function onMissionEvent(event)
                         local runways = airbase:getRunways()
                         local on_runway = false
 
-                        -- workaround DCS bug
-                        if place == 'Tbilisi-Lochini' then
-                            on_runway = is_on_runway({
-                                course=-2.2334115505219,
-                                Name=13,
-                                position={
-                                    y=479.7552,
-                                    x=-315553,
-                                    z=896476
-                                },
-                                length=3000,
-                                width=60
-                            }, point, velocity)
-                            if not on_runway then
-                            -- and add the abandoned runway as a real one
-                                on_runway = is_on_runway({
-                                    course=-2.181661564992912,
-                                    Name="13L",
-                                    position={
-                                        y=479,7552,
-                                        x=-315401,
-                                        z=896638
-                                    },
-                                    length=2463,16,
-                                    width=54
-                                }, point, velocity)
+                        for _, runway in pairs(runways) do
+                            if is_on_runway(runway, point, velocity) then
+                                on_runway = true
+                                break
                             end
-                        else
-                            for _, runway in pairs(runways) do
-                                if is_on_runway(runway, point, velocity) then
-                                    on_runway = true
-                                    break
-                                end
+                        end
+
+                        -- check and allow missing runways
+                        if not on_runway then
+                            local runway = MISSING_RUNWAYS[place]
+                            if runway then
+                                on_runway = is_on_runway(runway, point, velocity)
                             end
                         end
                         if not on_runway then

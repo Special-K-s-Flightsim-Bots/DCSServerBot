@@ -22,19 +22,19 @@ msgid "You need the DCS Admin role to use this command!"
 msgstr "您需要 DCS 管理员角色才能使用此命令!"
 
 msgid "Member {} is not linked to any DCS user!"
-msgstr "成员 {} 未与任何 DCS 用户关联!"
+msgstr "成员 {} 未关联任何 DCS 用户!"
 
 msgid "Use {} to link your account."
-msgstr "使用 {} 链接您的帐户."
+msgstr "请使用 {} 关联您的账号."
 
 msgid "{} has no campaign credits."
-msgstr "{} 没有活动积分."
+msgstr "{} 没有战役积分."
 
 msgid "Campaign Credits for {}"
-msgstr " {} 的活动积分"
+msgstr "{} 的战役积分"
 
 msgid "Campaign"
-msgstr "活动"
+msgstr "战役"
 
 msgid "Credits"
 msgstr "积分"
@@ -50,59 +50,59 @@ msgstr "日志仅显示最后 10 个事件."
 
 # /credits donate (admin)
 msgid "{} needs to properly link their DCS account to receive donations."
-msgstr "{} 需要正确关联其 DCS 帐户才能接收捐款."
+msgstr "{} 需要先正确关联 DCS 账号，才能接收捐赠."
 
 msgid "It seems like there is no campaign running on your server(s)."
-msgstr "您的服务器上似乎没有正在运行的活动."
+msgstr "您的服务器上似乎没有正在进行的战役."
 
 msgid "Campaign Credits"
-msgstr "活动积分"
+msgstr "战役积分"
 
 msgid "Member {} would overrun the configured maximum points with this donation. Aborted."
-msgstr "会员 {} 的此次捐赠将超出允许的最大积分数. 已中止."
+msgstr "此次捐赠会使成员 {} 超出配置的积分上限。已中止."
 
 msgid "Donation from member {}"
-msgstr "来自会员 {} 的捐赠"
+msgstr "来自成员 {} 的捐赠"
 
 msgid "Credit points change by Admin {}"
-msgstr "管理员更改信用点数 {}"
+msgstr "管理员 {} 调整积分"
 
 msgid "You just received {} credit points from an Admin."
-msgstr "您刚刚从管理员处收到 {} 积分."
+msgstr "您刚刚收到管理员发放的 {} 积分."
 
 msgid ", you just received {} credit points from an Admin."
-msgstr ", 您刚刚从管理员处收到 {} 积分."
+msgstr "，您刚刚收到管理员发放的 {} 积分."
 
 msgid "Your credits were decreased by {} credit points by an Admin."
-msgstr "管理员已将您的积分减少了 {} 个积分."
+msgstr "管理员已扣除您 {} 积分."
 
 msgid ", your credits were decreased by {} credit points by an Admin."
-msgstr ", 管理员已将您的积分减少了 {} 个积分."
+msgstr "，管理员已扣除您 {} 积分."
 
 msgid "Donated {credits} points to {name}."
-msgstr "向 {name} 捐赠了 {credits} 积分."
+msgstr "已向 {name} 捐赠 {credits} 积分."
 
 # /credits donate (normal)
 msgid "Donate credits to another member"
-msgstr "向其他会员捐赠积分"
+msgstr "向其他成员捐赠积分"
 
 msgid "You can't donate to yourself."
-msgstr "你不能给自己捐款."
+msgstr "您不能给自己捐赠积分."
 
 msgid "Your donation has to be > 0."
-msgstr "您的捐款必须大于零."
+msgstr "捐赠积分必须大于 0."
 
 msgid "You need to properly link your DCS account to give donations!"
-msgstr "您需要正确链接您的DCS账户才能进行捐赠!"
+msgstr "您需要先正确关联 DCS 账号，才能进行捐赠!"
 
 msgid "You don't have any credit points to donate."
 msgstr "您没有任何积分可以捐赠."
 
 msgid "You can't donate {donation} credit points, you only have {total}!"
-msgstr "您不能捐赠 {donation} 积分, 您只有 {total}!"
+msgstr "您无法捐赠 {donation} 积分，您当前只有 {total}!"
 
 msgid "Donation to member {}"
-msgstr "向会员 {} 捐款"
+msgstr "向成员 {} 捐赠"
 
 msgid "You just received {donation} credit points from {member}!"
 msgstr "您刚刚收到来自 {member} 的 {donation} 积分!"
@@ -115,7 +115,7 @@ msgid "Initial points received"
 msgstr "已收到初始积分"
 
 msgid "{name}, you currently have {credits} credit points."
-msgstr "{name}, 您目前有 {credits} 个积分."
+msgstr "{name}，您当前有 {credits} 积分."
 
 msgid "Unknown mission achievement"
 msgstr "未知任务成就"
@@ -126,23 +126,26 @@ msgstr "杀死 {}"
 
 # -credits
 msgid "You currently have {} credit points"
-msgstr "您目前有 {} 个信用点"
+msgstr "您当前有 {} 积分"
 
 # -donate
 msgid "Donate credits to another player"
-msgstr "捐赠积分给其他玩家"
+msgstr "向其他玩家捐赠积分"
+
+msgid "Usage: {prefix}{command} player points"
+msgstr "用法: {prefix}{command} 玩家 积分"
 
 msgid "Usage: {}donate player points"
-msgstr "用法: {}捐赠玩家积分"
+msgstr "用法: {}donate 玩家 积分"
 
 msgid "Player {} not found."
-msgstr "未找到玩家 {} ."
+msgstr "未找到玩家 {}."
 
 msgid "Player {} would overrun the configured maximum points with this donation. Aborted."
-msgstr "玩家 {} 的此次捐赠将超出允许的最大积分数. 已中止.."
+msgstr "此次捐赠会使玩家 {} 超出配置的积分上限。已中止."
 
 msgid "Donation to player {}"
-msgstr "向玩家 {} 捐款"
+msgstr "向玩家 {} 捐赠"
 
 msgid "Donation from player {}"
 msgstr "来自玩家 {} 的捐赠"
@@ -155,16 +158,19 @@ msgstr "玩家 {name} 向您捐赠了 {donation} 个积分"
 
 # -tip
 msgid "Tip a GCI with points"
-msgstr "用积分给 GCI 打赏"
+msgstr "给 GCI 打赏积分"
+
+msgid "Usage: {prefix}{command} points [gci_number]"
+msgstr "用法: {prefix}{command} 积分 [gci编号]"
 
 msgid "Usage: {}tip points [gci_number]"
-msgstr "用法: {}提示点 [gci_number]"
+msgstr "用法: {}tip 积分 [gci编号]"
 
 msgid "There is currently no {} GCI active."
-msgstr "目前没有 {} GCI 处于活动状态"
+msgstr "当前没有处于活动状态的 {} GCI."
 
 msgid "Multiple GCIs found, use \"{}tip points gci_number\"."
-msgstr "发现多个 GCI, 使用 \"{}tip points gci_number\"."
+msgstr "找到多个 GCI，请使用 \"{}tip points gci_number\"."
 
 msgid "You've donated {donation} credit points to GCI {name}."
 msgstr "您已向 GCI {name} 捐赠了 {donation} 积分."

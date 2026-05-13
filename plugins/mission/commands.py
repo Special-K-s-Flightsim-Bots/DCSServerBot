@@ -189,24 +189,26 @@ class Mission(Plugin[MissionEventListener]):
     async def cog_load(self) -> None:
         await super().cog_load()
         self.update_channel_name.add_exception_type(AttributeError)
-        self.update_channel_name.start()
-        self.afk_check.start()
+        utils.safe_start(self.update_channel_name)
+        utils.safe_start(self.afk_check)
         self.check_for_unban.add_exception_type(psycopg.DatabaseError)
-        self.check_for_unban.start()
+        utils.safe_start(self.check_for_unban)
         self.expire_token.add_exception_type(psycopg.DatabaseError)
-        self.expire_token.start()
+        utils.safe_start(self.expire_token)
         if self.bot.locals.get('autorole', {}):
             self.check_roles.add_exception_type(psycopg.DatabaseError)
             self.check_roles.add_exception_type(discord.errors.DiscordException)
-            self.check_roles.start()
+            utils.safe_start(self.check_roles)
 
     async def cog_unload(self):
+        tasks = []
         if self.bot.locals.get('autorole', {}):
-            self.check_roles.stop()
-        self.expire_token.cancel()
-        self.check_for_unban.cancel()
-        self.afk_check.cancel()
-        self.update_channel_name.cancel()
+            tasks.append(utils.safe_cancel(self.check_roles))
+        tasks.append(utils.safe_cancel(self.expire_token))
+        tasks.append(utils.safe_cancel(self.check_for_unban))
+        tasks.append(utils.safe_cancel(self.afk_check))
+        tasks.append(utils.safe_cancel(self.update_channel_name))
+        await asyncio.gather(*tasks)
         await super().cog_unload()
 
     async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
@@ -534,7 +536,7 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.autocomplete(path=mizfile_autocomplete)
     async def add(self, interaction: discord.Interaction,
                   server: app_commands.Transform[Server, utils.ServerTransformer], path: str,
-                  autostart: bool | None = False):
+                  autostart: bool = False):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
 
@@ -2202,22 +2204,28 @@ class Mission(Plugin[MissionEventListener]):
         env = await report.render(period=f"{number} {period}")
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
-    @player.command(description=_('Analyses two suspects of being the same person'))
+    @player.command(description=_('Check if 2 players are the same'))
     @app_commands.guild_only()
+    @app_commands.describe(player1='First UCID to compare', player2='Second UCID to compare')
     @utils.app_has_role('DCS Admin')
-    async def compare(self, interaction: discord.Interaction,
-                      player1: app_commands.Transform[discord.Member | str, utils.UserTransformer],
-                      player2: app_commands.Transform[discord.Member | str, utils.UserTransformer]):
+    async def compare(self, interaction: discord.Interaction, player1: str, player2: str):
         await interaction.response.defer()
         ephemeral = utils.get_ephemeral(interaction)
         if isinstance(player1, discord.Member):
             ucid1 = await self.bot.get_ucid_by_member(member=player1, verified=True)
         else:
             ucid1 = player1
+        if not ucid1:
+            await interaction.followup.send("Player 1 could not be found.")
+            return
+
         if isinstance(player2, discord.Member):
             ucid2 = await self.bot.get_ucid_by_member(member=player2, verified=True)
         else:
             ucid2 = player2
+        if not ucid2:
+            await interaction.followup.send("Player 2 could not be found.")
+            return
 
         if ucid1 == ucid2:
             await interaction.followup.send(_("You have provided the same UCID twice."), ephemeral=ephemeral)
@@ -2295,7 +2303,7 @@ class Mission(Plugin[MissionEventListener]):
     # New command group "/mission"
     menu = Group(name="menu", description=_("Commands to manage mission menus"))
 
-    @menu.command(description=_('Validate the menu.yaml'))
+    @menu.command(description=_('Validate the menus.yaml'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def validate(self, interaction: discord.Interaction):
@@ -2648,9 +2656,11 @@ class Mission(Plugin[MissionEventListener]):
             return
 
         ctx = await self.bot.get_context(message)
-        server = self.bot.get_server(message, admin_only=True)
+        server: Server | None = self.bot.get_server(message, admin_only=True)
         if not server:
-            server = await utils.server_selection(self.bot, ctx, title=_("To which server do you want to upload?"))
+            server: Server | None = await utils.server_selection(
+                self.bot, ctx, title=_("To which server do you want to upload?")
+            )
 
         if not server:
             await message.channel.send(_("Aborted."))

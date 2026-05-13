@@ -1,0 +1,24 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+
+# /profiler start
+msgid "Start profiler"
+msgstr "Iniciar analizador de rendimiento"
+
+msgid "Profiler {} is already loaded."
+msgstr "El analizador de rendimiento {} ya está cargado."
+
+msgid "Starting profiler ..."
+msgstr "Iniciando analizador de rendimiento ..."
+
+# /profiler stopp
+msgid "Stop profiler"
+msgstr "Detener analizador de rendimiento"
+
+msgid "Stopping profiler ..."
+msgstr "Deteniendo analizador de rendimiento ..."

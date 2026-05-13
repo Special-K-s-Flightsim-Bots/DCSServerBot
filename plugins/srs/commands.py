@@ -127,56 +127,6 @@ class SRS(Plugin[SRSEventListener]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("No update for DCS-SRS available."))
 
-    @staticmethod
-    async def _configure(interaction: discord.Interaction,
-                         server: Server,
-                         enabled: bool = None,
-                         autoconnect: bool = None) -> dict | None:
-        config = server.instance.locals.get('extensions', {}).get('SRS', {})
-        modal = utils.ConfigModal(title=_("SRS Configuration"),
-                                  config=SRSExt.CONFIG_DICT,
-                                  old_values=config)
-        await interaction.response.send_modal(modal)
-        if await modal.wait():
-            return None
-        blue_password = modal.value.get('blue_password')
-        if blue_password == '.':
-            blue_password = ""
-        red_password = modal.value.get('red_password')
-        if red_password == '.':
-            red_password = ""
-        return {
-            "enabled": enabled or config.get('enabled', True),
-            "autoconnect": autoconnect or config.get('autoconnect', True),
-            "port": int(modal.value.get('port')),
-            "blue_password": blue_password,
-            "red_password": red_password
-        }
-
-    @srs.command(description=_('Configure SRS'))
-    @app_commands.guild_only()
-    @app_commands.check(utils.restricted_check)
-    @utils.app_has_role('DCS Admin')
-    async def configure(self, interaction: discord.Interaction,
-                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
-                        enabled: bool | None = None, autoconnect: bool | None = None):
-        ephemeral = utils.get_ephemeral(interaction)
-        if 'SRS' not in await server.init_extensions():
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                _("SRS not installed on server {}").format(server.display_name), ephemeral=True)
-            return
-        if server.status in [Status.STOPPED, Status.SHUTDOWN]:
-            config = await self._configure(interaction, server, enabled, autoconnect)
-            await server.config_extension("SRS", config)
-            await interaction.followup.send(
-                _("SRS configuration changed on server {}.").format(server.display_name), ephemeral=ephemeral)
-        else:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                _("Server {} needs to be shut down to configure SRS.").format(server.display_name),
-                ephemeral=True)
-
     @srs.command(description=_('Repair DCS-SRS'))
     @app_commands.guild_only()
     @app_commands.check(utils.restricted_check)
@@ -214,11 +164,11 @@ class SRS(Plugin[SRSEventListener]):
     @srs.command(description=_('Send a TTS message'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.describe(server="The server to send the TTS message to")
-    @app_commands.describe(text="The message to send")
-    @app_commands.describe(player="Limit the frequencies to this player")
-    @app_commands.describe(coalition="Limit the frequencies to this coalition")
-    @app_commands.describe(frequency="The frequency to send the message to")
+    @app_commands.describe(server=_("The server to send the TTS message to"))
+    @app_commands.describe(text=_("The message to send"))
+    @app_commands.describe(player=_("Limit the frequencies to this player"))
+    @app_commands.describe(coalition=_("Limit the frequencies to this coalition"))
+    @app_commands.describe(frequency=_("The frequency to send the message to"))
     @app_commands.autocomplete(frequency=frequency_autocomplete)
     async def tts(self, interaction: discord.Interaction,
                   server: app_commands.Transform[Server, utils.ServerTransformer(

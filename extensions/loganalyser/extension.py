@@ -11,7 +11,6 @@ from core import Extension, Server, ServiceRegistry, Status, Coalition, utils, g
 from datetime import datetime
 from dateutil.parser import isoparse
 from packaging.version import parse
-from services.bot import BotService
 from services.servicebus import ServiceBus
 from typing import Callable, cast
 from typing_extensions import override
@@ -193,19 +192,6 @@ class LogAnalyser(Extension):
             Coalition.ALL, self.config.get('message_unlist', 'Server is going to restart in {}!').format(
                 utils.format_time(warn_time)))
 
-    async def send_alert(self, title: str, message: str):
-        params = {
-            "title": title,
-            "message": message,
-            'server': self.server.name
-        }
-        await self.bus.send_to_node({
-            "command": "rpc",
-            "service": BotService.__name__,
-            "method": "alert",
-            "params": params
-        })
-
     async def unlisted(self, _idx: int, _line: str, _match: re.Match):
         if not self.config.get('restart_on_unlist', False):
             return
@@ -217,7 +203,7 @@ class LogAnalyser(Extension):
             warn_tasks = [self._send_warning(self.server, t) for t in wait_times if t > 0]
             # Gather tasks then wait
             await utils.run_parallel_nofail(*warn_tasks)
-        await self.node.audit("restart due to unlisting from the ED server list", server=self.server)
+        await self.bot.audit(message="restart due to unlisting from the ED server list", server=self.server)
         await self.server.restart(modify_mission=False)
 
     async def _send_audit_msg(self, filename: str, target_line: int, error_message: str, context: int = 5):
@@ -248,7 +234,7 @@ class LogAnalyser(Extension):
             except PermissionError:
                 self.log.debug(f"Can't open file {filename} for reading!")
         kwargs['error'] = f"Line {target_line}: {error_message}"
-        await self.node.audit("A LUA error occurred!", server=self.server, **kwargs)
+        await self.bot.audit(message="A LUA error occurred!", server=self.server, **kwargs)
 
     async def script_error(self, _idx: int, _line: str, match: re.Match):
         filename, line_number, error_message = match.groups()
@@ -286,17 +272,12 @@ class LogAnalyser(Extension):
             mission_name = self.server.current_mission.name if self.server.current_mission else f"on server {self.server.name}"
             embed = utils.create_warning_embed(
                 title='Outdated Moose version found!',
-                text=f"Mission {mission_name} is using an outdated Moose version. "
-                     f"Please upgrade to the latest version {moose_version}.")
+                text=f"You are using an outdated Moose version.\n"
+                     f"Please upgrade to version {moose_version}.")
+            embed.add_field(name="Server", value=self.server.display_name, inline=False)
+            embed.add_field(name="Mission", value=mission_name, inline=False)
             try:
-                await self.bus.send_to_node_sync({
-                    "command": "rpc",
-                    "service": BotService.__name__,
-                    "method": "send_message",
-                    "params": {
-                        "embed": embed.to_dict()
-                    }
-                })
+                await self.bot.send_message(embed=dict(embed.to_dict()))
             except Exception as ex:
                 self.log.exception(ex)
 
@@ -314,22 +295,17 @@ class LogAnalyser(Extension):
             mist_version = await self.get_latest_mist_version()
         except ClientResponseError:
             return
-        version = match.group(1)
+        version: str = match.group(1)
         if parse(version) < parse(mist_version):
             mission_name = self.server.current_mission.name if self.server.current_mission else f"on server {self.server.name}"
             embed = utils.create_warning_embed(
                 title='Outdated MIST version found!',
-                text=f"Mission {mission_name} is using MIST version {version}, which is outdated. "
-                     f"Please upgrade to the latest version {mist_version}.")
+                text=f"You are using MIST version {version}, which is outdated.\n"
+                     f"Please upgrade to version {mist_version}.")
+            embed.add_field(name="Server", value=self.server.display_name, inline=False)
+            embed.add_field(name="Mission", value=mission_name, inline=False)
             try:
-                await self.bus.send_to_node_sync({
-                    "command": "rpc",
-                    "service": BotService.__name__,
-                    "method": "send_message",
-                    "params": {
-                        "embed": embed.to_dict()
-                    }
-                })
+                await self.bot.send_message(embed=dict(embed.to_dict()))
             except Exception as ex:
                 self.log.exception(ex)
 
@@ -345,9 +321,12 @@ class LogAnalyser(Extension):
         filename = await self.server.get_current_mission_file()
         theatre = await self.server.get_current_mission_theatre()
         if theatre:
-            await self.send_alert(title="Terrain Missing!",
-                                  message=f"Terrain {theatre} is not installed on this server!\n"
-                                          f"You can't run mission {filename}.")
+            await self.bot.alert(
+                title="Terrain Missing!",
+                message=f"Terrain {theatre} is not installed on this server!\n"
+                        f"You can't run mission {filename}.",
+                server=self.server
+            )
 
     async def restart_server(self, _idx: int, line: str, _match: re.Match):
         self.log.warning(f"Server restarting due to critical error: {line.rstrip()}")

@@ -1,12 +1,14 @@
 import asyncio
 import math
 
-from core import EventListener, Plugin, event, Server, utils, ServiceRegistry
+from core import EventListener, Plugin, event, Server, utils, ServiceRegistry, get_translation
 from services.bot import BotService
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .commands import Monitoring
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class MonitoringListener(EventListener["Monitoring"]):
@@ -36,11 +38,11 @@ class MonitoringListener(EventListener["Monitoring"]):
                 if self.minutes_fps[server.name] == period:
                     message = utils.format_string(
                         config.get("message",
-                                   "Server {server} FPS ({fps}) has been below {min_fps} for more than "
-                                   "{period} minutes."),
+                                   _("Server {server} FPS ({fps}) has been below {min_fps} for more than "
+                                     "{period} minutes.")),
                         server=server.name, fps=round(fps, 2), min_fps=min_fps, period=period)
                     if config.get("mentioning", True):
-                        asyncio.create_task(ServiceRegistry.get(BotService).alert(title="Server Performance Low!",
+                        asyncio.create_task(ServiceRegistry.get(BotService).alert(title=_("Server Performance Low!"),
                                                                                   message=message, server=server))
                     else:
                         admin_channel = self.bot.get_admin_channel(server)
@@ -83,11 +85,11 @@ class MonitoringListener(EventListener["Monitoring"]):
                 if self.minutes_ram[server.name] == period and not self.warning_sent[server.name]:
                     message = utils.format_string(
                         config.get("message",
-                                   "Server {server} RAM usage is {ram} GB, exceeding the maximum of {max_ram} GB "
-                                   "for more than {period} minutes."),
+                                   _("Server {server} RAM usage is {ram} GB, exceeding the maximum of {max_ram} GB "
+                                     "for more than {period} minutes.")),
                         server=server.name, ram=round(ram, 2), max_ram=max_ram, period=period)
                     if config.get("mentioning", True):
-                        asyncio.create_task(ServiceRegistry.get(BotService).alert(title="Excessive RAM consumption!",
+                        asyncio.create_task(ServiceRegistry.get(BotService).alert(title=_("Excessive RAM consumption!"),
                                                                                   message=message, server=server))
                     else:
                         admin_channel = self.bot.get_admin_channel(server)

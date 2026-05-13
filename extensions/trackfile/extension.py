@@ -1,11 +1,8 @@
 import os
 import shutil
 
-from core import Extension, DISCORD_FILE_SIZE_LIMIT, ServiceRegistry, Server, get_translation, utils, Autoexec, \
-    InstanceImpl
+from core import Extension, DISCORD_FILE_SIZE_LIMIT, get_translation, utils, Autoexec, InstanceImpl
 from pathlib import Path
-from services.bot import BotService
-from services.servicebus import ServiceBus
 from typing import cast
 from typing_extensions import override
 
@@ -21,10 +18,6 @@ class Trackfile(Extension):
             "required": True
         },
     }
-
-    def __init__(self, server: Server, config: dict):
-        super().__init__(server, config)
-        self.bus = ServiceRegistry.get(ServiceBus)
 
     @override
     async def startup(self, *, quiet: bool = False) -> bool:
@@ -45,17 +38,12 @@ class Trackfile(Extension):
                 self.log.warning(f"Can't upload, track file {filename} too large!")
                 return
             try:
-                await self.bus.send_to_node_sync({
-                    "command": "rpc",
-                    "service": BotService.__name__,
-                    "method": "send_message",
-                    "params": {
-                        "channel": int(target[4:-1]),
-                        "content": _("Track file for server {}").format(self.server.name),
-                        "server": self.server.name,
-                        "filename": str(filename)
-                    }
-                })
+                await self.bot.send_message(
+                    channel=int(target[4:-1]),
+                    content=_("Track file for server {}").format(self.server.name),
+                    server=self.server.name,
+                    filename=str(filename)
+                )
                 self.log.debug(f"Track file {filename} uploaded.")
             except AttributeError:
                 self.log.warning(f"Can't upload track file {filename}, "

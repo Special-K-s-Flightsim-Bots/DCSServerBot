@@ -94,15 +94,15 @@ class MissionEventListener(EventListener["Mission"]):
         self.restart_pending: dict[str, bool] = {}
         self.mission_stats: dict[str, bool] = {}
         # start schedulers
-        self.print_queue.start()
-        self.update_player_embed.start()
-        self.update_mission_embed.start()
+        utils.safe_start(self.print_queue)
+        utils.safe_start(self.update_player_embed)
+        utils.safe_start(self.update_mission_embed)
 
     async def shutdown(self):
-        self.print_queue.cancel()
+        await utils.safe_cancel(self.print_queue)
         await self.work_queue()
-        self.update_player_embed.cancel()
-        self.update_mission_embed.cancel()
+        await utils.safe_cancel(self.update_player_embed)
+        await utils.safe_cancel(self.update_mission_embed)
 
     async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
         if command.name == '911' and not self.bot.get_admin_channel(server):
@@ -573,7 +573,7 @@ class MissionEventListener(EventListener["Mission"]):
         self.restart_pending[server.name] = False
         # If the server is PAUSED and smooth_pause is configured, start it for some seconds and pause it again
         # to let all scripts load properly.
-        if server.settings.get('advanced', {}).get('resume_mode', 0) == 2:
+        if server.settings.get('advanced', {}).get('resume_mode', 0) in [0, 2]:
             smooth_pause = server.locals.get('smooth_pause', 0)
             if smooth_pause > 0:
                 asyncio.create_task(self._smooth_pause(server, smooth_pause))
@@ -896,7 +896,7 @@ class MissionEventListener(EventListener["Mission"]):
             else:
                 await self._stop_player(server, player)
 
-    async def _disconnect(self, server: Server, player: Player | None):
+    async def _disconnect(self, server: Server, player: Player | None, on_error: bool = False):
         if not player or player.connected is False:
             return
 
@@ -911,7 +911,7 @@ class MissionEventListener(EventListener["Mission"]):
                         "name": player.name,
                         "type": "UNIT"
                     },
-                    "comment": "auto-generated",
+                    "comment": "auto-generated (network)" if on_error else "auto-generated",
                     "server_name": server.name
                 }
             ))
@@ -1006,7 +1006,7 @@ class MissionEventListener(EventListener["Mission"]):
             if data['arg1'] == 1:
                 return
             player = server.get_player(id=data['arg1'], active=True)
-            await self._disconnect(server, player)
+            await self._disconnect(server, player, data['arg4'] != 0)
             return
 
         # check the event filter first
@@ -1021,6 +1021,9 @@ class MissionEventListener(EventListener["Mission"]):
                 return
             # filter AI-only events
             if not player1 and not server.locals.get('display_ai_chat', False):
+                return
+            # TODO: Workaround for DCS bug
+            if player1 and player1.side != player2.side:
                 return
             side = player1.side if player1 else player2.side if player2 else Side.UNKNOWN
             self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
@@ -1041,25 +1044,25 @@ class MissionEventListener(EventListener["Mission"]):
             # filter AI-only events
             if not player1 and not player2 and not server.locals.get('display_ai_chat', False):
                 return
-            side = Side(data['arg3'])
-            self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
+            initiator_side = player1.side if player1 else Side(data['arg3'])
+            target_side = player2.side if player2 else Side(data['arg6'])
+            self.send_dcs_event(server, initiator_side, self.EVENT_TEXTS[initiator_side][data['eventName']].format(
                 ('player ' + player1.name) if player1 is not None else 'AI',
-                data['arg2'] or 'SCENERY', Side(data['arg6']).name,
+                data['arg2'] or 'SCENERY', target_side.name,
                 ('player ' + player2.name) if player2 is not None else 'AI',
                 data['arg5'] or 'SCENERY', data['arg7'] or 'Cannon/Bomblet'))
 
             # report teamkills from players to admins (only on public servers)
             if server.is_public() and player1 and player2 and data['arg1'] != data['arg4'] \
-                    and data['arg3'] == data['arg6']:
+                    and initiator_side == target_side:
                 # do not report if the punishment plugin is active and teamkills are punished
                 if self.bot.cogs.get('Punishment'):
                     _config = self.get_config(server, plugin_name='punishment')
                     if any(x for x in _config.get('penalties', []) if x.get('event', "") == 'kill'):
                        return
 
-                name = ('Member ' + player1.member.mention) \
-                    if player1.member else ('Player ' + player1.display_name)
-                message = f"{name} (ucid={player1.ucid}) is killing team members."
+                target_name = f"player {player2.display_name}" if player2 else 'an AI'
+                message = f"Player {player1.display_name} (ucid={player1.ucid}) team-killed {target_name}."
                 # show the server name on central admin channels
                 if self.bot.locals.get('channels', {}).get('admin'):
                     message = f"{server.display_name}: " + message

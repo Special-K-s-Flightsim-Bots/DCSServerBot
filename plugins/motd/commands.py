@@ -22,10 +22,10 @@ class MOTD(Plugin[MOTDListener]):
 
     async def cog_load(self) -> None:
         await super().cog_load()
-        self.nudge.start()
+        utils.safe_start(self.nudge)
 
     async def cog_unload(self):
-        self.nudge.cancel()
+        await utils.safe_cancel(self.nudge)
         for server in self.bot.servers.values():
             await self._cancel_handles(server)
         await super().cog_unload()

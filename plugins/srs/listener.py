@@ -1,6 +1,6 @@
 import asyncio
 
-from core import EventListener, event, Server, Player, get_translation, Side, Coalition, const, utils, chat_command
+from core import EventListener, event, Server, Player, get_translation, Side, const, utils, chat_command
 from plugins.mission.commands import Mission
 from typing import cast, TYPE_CHECKING, Any
 
@@ -198,7 +198,7 @@ class SRSEventListener(EventListener["SRS"]):
             if not airbase:
                 return
 
-            airbase_type = airbase['type']
+            airbase_type = airbase.get('type', 'FARP')
             default_freqs = (
                 config.
                 get('atc_frequencies', {}).

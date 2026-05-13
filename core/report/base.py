@@ -167,7 +167,7 @@ class Report:
         """
         if isinstance(element, dict):
             element_args = parse_params(params, element.get('params', params.copy()))
-            class_name = element.get('class') or element.get('type')
+            class_name: str | None = element.get('class') or element.get('type')
             element_class = None
 
             # Dynamically retrieve the class instance
@@ -424,8 +424,8 @@ class PersistentReport(Report):
                  channel_id: Channel | int | None = Channel.STATUS, server: Server | None = None):
         super().__init__(bot, plugin, filename)
         self.server = server
-        self.embed_name: str = embed_name
-        self.channel_id: Channel | int = channel_id
+        self.embed_name = embed_name
+        self.channel_id = channel_id
 
     async def render(self, *args, **kwargs) -> ReportEnv:
         env = None

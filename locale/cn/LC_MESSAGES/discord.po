@@ -1,0 +1,91 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh\n"
+
+# /clear
+msgid "Clear Discord messages"
+msgstr "清除 Discord 消息"
+
+msgid "Delete messages older than x days (0 = all)"
+msgstr "删除早于 x 天的消息（0 = 全部）"
+
+msgid "Deleting messages ..."
+msgstr "正在删除消息..."
+
+msgid "All messages deleted."
+msgstr "所有消息已删除。"
+
+# /addrole
+msgid "Adds a role to a member"
+msgstr "为成员添加角色"
+
+msgid "Member {member} already has role {role}."
+msgstr "成员 {member} 已经拥有角色 {role}。"
+
+msgid "Role {role} added to {member}."
+msgstr "已将角色 {role} 添加给 {member}。"
+
+msgid "You don't have permission to add role {role} to {member}."
+msgstr "你没有权限将角色 {role} 添加给 {member}。"
+
+# /delrole
+msgid "Removes a role from a member"
+msgstr "移除成员角色"
+
+msgid "Member {member} doesn't have role {role}."
+msgstr "成员 {member} 没有角色 {role}。"
+
+msgid "Role {role} removed from {member}."
+msgstr "已从 {member} 移除角色 {role}。"
+
+msgid "You don't have permission to remove role {role} from {member}."
+msgstr "你没有权限从 {member} 移除角色 {role}。"
+
+# /discord healthcheck
+msgid "Run a healthcheck of your discord server"
+msgstr "运行 Discord 服务器健康检查"
+
+msgid "Please give the bot __temporary__ administrative permissions in this Discord server to run this command."
+msgstr "请在此 Discord 服务器中临时授予机器人管理员权限，以运行此命令。"
+
+msgid "Admin Roles"
+msgstr "管理员角色"
+
+msgid "Members"
+msgstr "成员"
+
+msgid "Elevated Roles"
+msgstr "高权限角色"
+
+msgid "Everyone Ping"
+msgstr "@everyone 提及"
+
+msgid "External Apps"
+msgstr "外部应用"
+
+msgid "No critical permissions found."
+msgstr "未发现关键权限。"
+
+msgid "Channels"
+msgstr "频道"
+
+msgid "You allow everyone to view {} channels."
+msgstr "你允许所有人查看 {} 个频道。"
+
+msgid "The recommended approach is to have one landing channel and a role for users."
+msgstr "推荐做法是保留一个入口频道，并为用户分配相应角色。"
+
+msgid "Public Channels"
+msgstr "公开频道"
+
+# Rest
+msgid "Kicked for falling into the bot trap."
+msgstr "因触发机器人陷阱而被踢出。"
+
+msgid "Mentioning everyone"
+msgstr "提及所有人"
+

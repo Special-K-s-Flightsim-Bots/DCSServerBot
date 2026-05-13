@@ -188,7 +188,7 @@ class EventListener(Generic[TPlugin], metaclass=EventListenerMetaABC):
         await command(self, server, player, data.get('params'))
 
     async def shutdown(self) -> None:
-        pass
+        ...
 
     async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
         if not command.enabled or (command.roles and not player.has_discord_roles(command.roles)):

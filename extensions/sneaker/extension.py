@@ -7,8 +7,7 @@ import os
 import psutil
 import subprocess
 
-from core import Extension, Status, ServiceRegistry, Server, utils, get_translation, PortType, Port, ProcessManager
-from services.servicebus import ServiceBus
+from core import Extension, Status, Server, utils, get_translation, PortType, Port, ProcessManager
 from threading import Thread
 from typing_extensions import override
 
@@ -39,7 +38,6 @@ class Sneaker(Extension):
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
-        self.bus = ServiceRegistry.get(ServiceBus)
         if self.enabled and (not type(self)._process or not type(self)._process.is_running()):
             cmd = self.get_exe_path()
             if not cmd:

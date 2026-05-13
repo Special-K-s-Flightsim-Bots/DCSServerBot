@@ -1,2 +1,2 @@
-from .service import MusicService
+from .service import *
 from .radios import *

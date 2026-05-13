@@ -94,7 +94,7 @@ msgstr "Timeout während die Mission {what} wurde."
 
 # /mission load
 msgid "Loads a mission\n"
-msgstr "Lädt eine Mission\n"
+msgstr "Lädt eine Mission\n\n"
 
 msgid "Can't load mission on server {server} as it is {status}!"
 msgstr "Server {server} ist im Status {status}, kann keine Mission laden."
@@ -185,7 +185,7 @@ msgstr "Server {server} ist im Status {status} und kann nicht fortgesetzt werden
 
 # /mission modify
 msgid "Modify mission with a preset\n"
-msgstr "Ändere die Mission\n"
+msgstr "Ändere die Mission\n\n"
 
 msgid "Chose an alternate presets file"
 msgstr "Wähle eine alternative Presets-Datei"
@@ -238,6 +238,29 @@ msgstr "Es gibt keine passende \".orig\"-Datei. Die Mission wurde vermutlich nie
 
 msgid "Mission {} has been rolled back."
 msgstr "Mission {} wurde zurückgerollt."
+
+# /mission fog
+msgid "Sets fog in the running mission"
+msgstr "Ändere Nebel in der Mission"
+
+msgid "Thickness has to be in the range 100-5000"
+msgstr "\"Thickness\" muss zwischen 100 und 5000 liegen"
+
+msgid "Visibility has to be in the range 100-100000"
+msgstr "\"Visibility\" muss zwischen 100 und 10000 liegen"
+
+msgid "Current Fog Settings:\n- Thickness: {thickness:.2f}m\n- Visibility:\t{visibility:.2f}m"
+msgstr "Aktueller Nebel:\n- Dichte (Thickness): {thickness:.2f}m\n- Sichtbarkeit (Visibility):\t{visibility:.2f}m"
+
+# /mission fog_animation
+msgid "Runs a fog animation"
+msgstr "Animiere Nebel in der Mission"
+
+msgid "You have more than 25 presets created, you can only choose from 25!"
+msgstr "Du hast mehr als 25 Presets. Discord erlaubt nur eine Selektion von 25!"
+
+msgid "There is no manual fog preset in your {}"
+msgstr "Deine Presets-Datei {} enthält keinen Preset für Nebel-Animationen."
 
 # /player
 msgid "Commands to manage DCS players"
@@ -339,6 +362,9 @@ msgid "Sends a chat message to a player\n"
 msgstr "Sendet einem Spieler eine Nachricht\n"
 
 # /player screenshot
+msgid "Take a screenshot"
+msgstr "Mache Bildschirmfoto"
+
 msgid "Server can not take screenshots."
 msgstr "Der Server kann keine Bildschirmaufnahmen machen."
 
@@ -447,6 +473,17 @@ msgstr "Zeigt Spieler-Infos"
 msgid "This user does not exist. Try {} to find them in the historic data."
 msgstr "Dieser Spieler existiert nicht. Versuche ihn mit {} zu finden."
 
+# /player inactive
+msgid "Shows inactive users"
+msgstr "Zeigt inaktive Spieler"
+
+# /player compare
+msgid "Check if 2 players are the same"
+msgstr "Prüfe ob 2 Spieler identisch sind"
+
+msgid "You have provided the same UCID twice."
+msgstr "Du hast dieselbe UCID zweimal angegeben."
+
 # /linkcheck
 msgid "Show players that could be linked"
 msgstr "Prüft Verbindungen"
@@ -516,6 +553,13 @@ msgstr "Deine Benutzer wurden bereits verknüpft.\n"
 # /player inactive
 msgid "Shows inactive players"
 msgstr "Zeigt inaktive Spieler"
+
+# /menu validate
+msgid "Validate the menus.yaml"
+msgstr "Prüfe die menus.yaml"
+
+msgid "No menus.yaml found."
+msgstr "Keine menus.yaml gefunden."
 
 # Mission Uploads
 msgid "To which server do you want to upload this mission to?"

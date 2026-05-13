@@ -51,4 +51,6 @@ msgstr "Nutze {}, um Dein DCS-Konto mit Deinem Discord-Konto zu verknüpfen."
 msgid "No cloud-based statistics found for this user."
 msgstr "Für diesen Nutzer konnten keine Cloud-Statistiken gefunden werden."
 
-
+# /serverlist
+msgid "List registered DCS servers"
+msgstr "Liste aller Cloud-Server"

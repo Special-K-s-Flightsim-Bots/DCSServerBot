@@ -139,7 +139,7 @@ class WebService(Service):
                         if i < 4:
                             await asyncio.sleep(1)
                             continue
-                        self.log.error(f"{self.name}: Could not bind to port {self.config.port} after retries. {ex}")
+                        self.log.error(f"{self.name}: Could not bind to port {self.config.port} after {i} retries.")
                     else:
                         self.log.exception(f"{self.name}: Uvicorn crashed: {ex}")
                     break

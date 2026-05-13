@@ -11,7 +11,6 @@ from core import Plugin, utils, Report, Status, Server, Coalition, Channel, comm
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
-from discord.utils import MISSING
 from jsonschema import ValidationError
 from jsonschema.validators import validate
 from psycopg.rows import dict_row
@@ -54,7 +53,6 @@ async def recipient_autocomplete(interaction: discord.Interaction, current: str)
                 FROM players p, messages m
                 WHERE p.ucid = m.player_ucid
                 AND (name ILIKE %s OR ucid ILIKE %s)
-                ORDER BY m.time DESC
                 LIMIT 25
             """, ('%' + current + '%', '%' + current + '%'))
             return [
@@ -516,15 +514,51 @@ class GameMaster(Plugin[GameMasterEventListener]):
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def _list(self, interaction: discord.Interaction):
+        def formatter(rows, _marker, _marker_emoji):
+            embed = discord.Embed(title=_('Messages'), color=discord.Color.blue())
+            ids = []
+            receiver = []
+            time = []
+            for i in range(0, len(rows)):
+                row = rows[i]
+                ids.append(chr(0x30 + i + 1) + '\u20E3')
+                receiver.append(row['name'])
+                time.append(row['time'].strftime('%Y-%m-%d %H:%M:%S'))
+            embed.add_field(name=_("No."), value="\n".join(ids), inline=True)
+            embed.add_field(name=_("Receiver"), value="\n".join(receiver), inline=True)
+            embed.add_field(name=_("Time"), value="\n".join(time), inline=True)
+            return embed
+
         await interaction.response.defer()
-        report = Report(self.bot, self.plugin_name, 'messages.json')
-        env = await report.render()
-        try:
-            file = discord.File(fp=env.buffer, filename=env.filename) if env.buffer else MISSING
-            await interaction.followup.send(embed=env.embed, file=file, ephemeral=True)
-        finally:
-            if env.buffer:
-                env.buffer.close()
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT m.sender, p.name, p.ucid, m.message, m.ack, m.time 
+                    FROM messages m JOIN players p ON m.player_ucid = p.ucid 
+                    ORDER BY id DESC
+                """)
+                rows = await cursor.fetchall()
+                n = await utils.selection_list(interaction, rows, formatter)
+                if n >= 0:
+                    row = rows[n]
+                    await self._edit(interaction, row['ucid'], ephemeral=False)
+
+    async def _edit(self, interaction: discord.Interaction, ucid: str, ephemeral: bool = False):
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("SELECT * FROM messages WHERE player_ucid = %s ORDER BY id", (ucid, ))
+                messages = await cursor.fetchall()
+        if not messages:
+            await interaction.followup.send(_("No messages found."), ephemeral=ephemeral)
+        user = await self.bot.get_member_or_name_by_ucid(ucid)
+        if user:
+            view = MessageView(messages, user)
+            embed = await view.render()
+            msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+            try:
+                await view.wait()
+            finally:
+                await msg.delete()
 
     @message.command(description=_('Edit or delete a user-message'))
     @app_commands.guild_only()
@@ -533,20 +567,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
     async def edit(self, interaction: discord.Interaction, ucid: str):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("SELECT * FROM messages WHERE player_ucid = %s ORDER BY id", (ucid, ))
-                messages = await cursor.fetchall()
-        if not messages:
-            await interaction.followup.send(_("No messages found."), ephemeral=ephemeral)
-        user = await self.bot.get_member_or_name_by_ucid(ucid)
-        view = MessageView(messages, user)
-        embed = await view.render()
-        msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
-        try:
-            await view.wait()
-        finally:
-            await msg.delete()
+        await self._edit(interaction, ucid, ephemeral)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):

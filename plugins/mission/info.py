@@ -119,15 +119,33 @@ class UCIDs(report.EmbedElement):
 
 class History(report.EmbedElement):
     async def render(self, member: discord.Member | str, ruler_length: int):
-        sql = 'SELECT name, min(time) AS time FROM players_hist p WHERE p.ucid '
         if isinstance(member, discord.Member):
-            sql += f"IN (SELECT ucid FROM players WHERE discord_id = {member.id})"
+            inner = f"IN (SELECT ucid FROM players WHERE discord_id = %(member)s)"
         else:
-            sql += f"= '{member}'"
-        sql += ' GROUP BY name ORDER BY time DESC LIMIT 10'
+            inner = f"= %(member)s"
+
+        query = f"""
+            WITH name_changes AS (
+                SELECT
+                    ucid,
+                    name,
+                    time,
+                    LAG(name) OVER (PARTITION BY ucid ORDER BY time) AS prev_name
+                FROM players_hist
+                WHERE ucid {inner}
+            )
+            SELECT ucid,
+                   name,
+                   time
+            FROM   name_changes
+            WHERE  name <> prev_name
+               OR prev_name IS NULL 
+            ORDER BY time DESC 
+            LIMIT 10;                  
+        """
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(sql)
+                await cursor.execute(query, {"member": member.id if isinstance(member, discord.Member) else member})
                 rows = await cursor.fetchall()
         if rows:
             await report.Ruler(self.env).render(header='Change History', ruler_length=ruler_length)

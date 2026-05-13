@@ -15,13 +15,10 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
-from core import (utils, Server, ServiceRegistry, get_translation, InstallException, PortType, Port,
-                  InstallableExtension)
+from core import utils, Server, get_translation, InstallException, PortType, Port, InstallableExtension, Status
 from discord.ext import tasks
 from extensions.srs import SRS
 from packaging.version import parse
-from services.bot import BotService
-from services.servicebus import ServiceBus
 from typing import cast
 from typing_extensions import override
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
@@ -40,6 +37,7 @@ __all__ = [
 class LotAtc(InstallableExtension, FileSystemEventHandler):
     _ports: dict[int, str] = {}
     _json_ports: dict[int, str] = {}
+    _lock = asyncio.Lock()
 
     CONFIG_DICT = {
         "port": {
@@ -84,7 +82,6 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
                 raise InstallException("LotAtc 2.5+ does not run on Windows Server 2016 anymore!")
 
         self.observer: Observer | None = None
-        self.bus = ServiceRegistry.get(ServiceBus)
         self.gcis = {
             "blue": {},
             "red": {}
@@ -94,6 +91,12 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
     @override
     def load_config(self) -> dict:
         cfg = {}
+        # fix a potentially missing config.lua
+        config_path = os.path.join(self.home, 'config.lua')
+        if not os.path.exists(config_path):
+            major_version, _ = self.get_inst_version()
+            from_path = os.path.join(self.get_inst_path(), 'server', major_version)
+            shutil.copy2(os.path.join(from_path, 'config.lua'), config_path)
         for path in [os.path.join(self.home, 'config.lua'), os.path.join(self.home, 'config.custom.lua')]:
             try:
                 with open(path, mode='r', encoding='utf-8') as file:
@@ -118,12 +121,12 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
 
         await self.update_instance(False)
         config = self.config.copy()
-        if 'enabled' in config:
-            del config['enabled']
-        if 'show_passwords' in config:
-            del config['show_passwords']
-        if 'host' in config:
-            del config['host']
+        config.pop('installation', None)
+        config.pop('enabled', None)
+        config.pop('show_passwords', None)
+        config.pop('host', None)
+        config.pop('autoupdate', None)
+
         # create the default config
         config['dedicated_mode'] = True
         config['dump_json_stats'] = True
@@ -250,11 +253,7 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
 
     @override
     def is_installed(self) -> bool:
-        if (not os.path.exists(os.path.join(self.home, 'bin', 'lotatc.dll')) or
-                not os.path.exists(os.path.join(self.home, 'config.lua'))):
-            self.log.error(f"  => {self.server.name}: Can't load extension, LotAtc not correctly installed.")
-            return False
-        return True
+        return os.path.exists(os.path.join(self.home, 'bin', 'lotatc.dll'))
 
     @override
     async def startup(self, *, quiet: bool = False) -> bool:
@@ -332,20 +331,23 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
 
     @override
     async def update(self, version: str | None = None) -> bool:
-        available = await self.get_latest_version()
-        if available != version:
-            raise InstallException(f"LotAtc {version} is not available!")
+        async with self._lock:
+            available = await self.get_latest_version()
+            if available != version:
+                raise InstallException(f"LotAtc {version} is not available!")
 
-        installed = self.get_inst_version()[1]
-        # update the base installation of LotAtc
-        if available != installed:
-            await asyncio.to_thread(self.do_update)
             installed = self.get_inst_version()[1]
+            # update the base installation of LotAtc
+            if available != installed:
+                await asyncio.to_thread(self.do_update)
+                installed = self.get_inst_version()[1]
+
         # update the mod
-        if installed != self.version:
-            return await self.update_instance(True)
-        self.log.debug(f"  => {self.name}: Instance {self.server.instance.name} is already up to date.")
-        return False
+        if self.server.status not in [Status.RUNNING, Status.PAUSED]:
+            if installed != self.version:
+                return await self.update_instance(True)
+            self.log.debug(f"  => {self.name}: Instance {self.server.instance.name} is already up to date.")
+        return True
 
     @override
     async def install(self, version: str | None = None) -> bool:
@@ -388,15 +390,7 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
                 self.log.info(f"A new LotAtc update is available. Updating to version {version} ...")
                 await asyncio.to_thread(self.do_update)
                 self.log.info("LotAtc updated.")
-                bus = ServiceRegistry.get(ServiceBus)
-                await bus.send_to_node({
-                    "command": "rpc",
-                    "service": BotService.__name__,
-                    "method": "audit",
-                    "params": {
-                        "message": f"{self.name} updated to version {version} on node {self.node.name}."
-                    }
-                })
+                await self.bot.audit(message=f"{self.name} updated to version {version} on node {self.node.name}.")
                 config = self.config.get('announce')
                 if config:
                     servers = []
@@ -416,18 +410,10 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
                                     value='\n'.join([f'- {x}' for x in servers]), inline=False)
                     embed.set_footer(
                         text=config.get('footer', 'Please make sure you update your LotAtc client also!'))
-                    params = {
-                        "channel": config['channel'],
-                        "embed": embed.to_dict()
-                    }
+                    params = {}
                     if 'mention' in config:
                         params['mention'] = config['mention']
-                    await bus.send_to_node({
-                        "command": "rpc",
-                        "service": BotService.__name__,
-                        "method": "send_message",
-                        "params": params
-                    })
+                    await self.bot.send_message(channel=config['channel'], embed=dict(embed.to_dict()), **params)
         except Exception as ex:
             self.log.error(f"LotAtc update failed: {ex}")
 

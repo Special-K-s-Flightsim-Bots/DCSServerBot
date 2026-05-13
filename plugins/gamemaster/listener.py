@@ -51,7 +51,7 @@ class GameMasterEventListener(EventListener["GameMaster"]):
         self.chat_log[server.name].setLevel(logging.INFO)
         formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
-        filename = os.path.join('logs', f'{utils.slugify(server.name)}-chat.log')
+        filename = os.path.join('logs', f'{utils.slugify(server.instance.name)}-chat.log')
         fh = CloudRotatingFileHandler(filename, encoding='utf-8',
                                       maxBytes=int(server.locals['chat_log'].get('size', 1048576)),
                                       backupCount=int(server.locals['chat_log'].get('count', 10)))

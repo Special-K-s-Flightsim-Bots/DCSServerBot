@@ -8,29 +8,29 @@ msgstr ""
 
 # /pretense stats
 msgid "Display the Pretense stats"
-msgstr "显示 Pretense 统计数据"
+msgstr "显示 Pretense 统计"
 
 msgid "No player_stats.json found on this server! Is Pretense active?"
-msgstr "此服务器上未找到 player_stats.json！Pretense 是否处于活动状态?"
+msgstr "此服务器上未找到 `player_stats.json`！Pretense 是否正在运行?"
 
 # /pretense reset
 msgid "Reset Pretense progress"
 msgstr "重置 Pretense 进度"
 
 msgid "Server {} needs to be shut down to reset the Pretense progress!"
-msgstr "需要关闭服务器 {} 来重置 Pretense 进度！"
+msgstr "需要先关闭服务器 {}，才能重置 Pretense 进度!"
 
 msgid "Do you really want to reset the Pretense progress?"
-msgstr "您确实要重置 Pretense 进度吗?"
+msgstr "您确定要重置 Pretense 进度吗?"
 
 msgid "Aborted."
 msgstr "已中止."
 
 msgid "Pretense persistence reset."
-msgstr "Pretense 持久性重置."
+msgstr "Pretense 持久化数据已重置."
 
 msgid "Pretense statistics reset."
-msgstr "Pretense 统计信息重置."
+msgstr "Pretense 统计数据已重置."
 
 # Reports
 msgid "Rankings as of <t:{}:f>:"
@@ -46,16 +46,16 @@ msgid "Rank"
 msgstr "等级"
 
 msgid "E-1 Airman basic"
-msgstr "E-1 菜鸟飞行员"
+msgstr "E-1 列兵飞行员"
 
 msgid "E-2 Airman"
-msgstr "E-2 飞行员"
+msgstr "E-2 空军士兵"
 
 msgid "E-3 Airman first class"
-msgstr "E-3 一级飞行员"
+msgstr "E-3 一等空军士兵"
 
 msgid "E-4 Senior airman"
-msgstr "E-4 资深飞行员"
+msgstr "E-4 高级空军士兵"
 
 msgid "E-5 Staff sergeant"
 msgstr "E-5 参谋士官"
@@ -79,7 +79,7 @@ msgid "O-2 First lieutenant"
 msgstr "O-2 中尉"
 
 msgid "O-3 Captain"
-msgstr "O-3 队长"
+msgstr "O-3 上尉"
 
 msgid "O-4 Major"
 msgstr "O-4 少校"
@@ -100,4 +100,4 @@ msgid "O-9 Lieutenant general"
 msgstr "O-9 中将"
 
 msgid "O-10 General"
-msgstr "O-10 将军"
+msgstr "O-10 上将"

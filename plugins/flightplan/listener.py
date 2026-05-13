@@ -1,7 +1,6 @@
 import asyncio
 import discord
 import json
-import logging
 
 from core import EventListener, Server, Player, event, chat_command, get_translation
 from datetime import datetime, timedelta, timezone

@@ -11,11 +11,9 @@ import sys
 import zipfile
 
 from contextlib import suppress
-from core import Extension, MizFile, utils, DEFAULT_TAG, Server, ServiceRegistry, UnsupportedMizFileException
+from core import Extension, MizFile, utils, DEFAULT_TAG, Server, UnsupportedMizFileException
 from io import BytesIO
 from packaging.version import parse
-from services.bot import BotService
-from services.servicebus import ServiceBus
 from typing_extensions import override
 
 # TOML
@@ -91,15 +89,7 @@ class RealWeather(Extension):
                 await self.do_update(version)
                 self._version = version.lstrip('v')
                 self.log.info("DCS Real Weather updated.")
-                bus = ServiceRegistry.get(ServiceBus)
-                await bus.send_to_node({
-                    "command": "rpc",
-                    "service": BotService.__name__,
-                    "method": "audit",
-                    "params": {
-                        "message": f"DCS Real Weather updated to version {version} on node {self.node.name}."
-                    }
-                })
+                await self.bot.audit(message=f"DCS Real Weather updated to version {version} on node {self.node.name}.")
         except Exception as ex:
             self.log.exception(ex)
 

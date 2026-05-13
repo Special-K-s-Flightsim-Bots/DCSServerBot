@@ -1,0 +1,91 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+# /clear
+msgid "Clear Discord messages"
+msgstr "Discord Nachrichten löschen"
+
+msgid "Delete messages older than x days (0 = all)"
+msgstr "Lösche Nachrichten älter als x Tage (0 = alle)"
+
+msgid "Deleting messages ..."
+msgstr "Lösche Nachrichten ..."
+
+msgid "All messages deleted."
+msgstr "Alle Nachrichten gelöscht."
+
+# /addrole
+msgid "Adds a role to a member"
+msgstr "Rollenzuweisung an Mitglieder"
+
+msgid "Member {member} already has role {role}."
+msgstr "Mitglied {member} hat die Rolle {role} bereits."
+
+msgid "Role {role} added to {member}."
+msgstr "Rolle {role} an Mitglied {member} zugewiesen."
+
+msgid "You don't have permission to add role {role} to {member}."
+msgstr "Du hast keine Berechtigung, die Rolle {role} an Mitglied {member} zuzuweisen."
+
+# /delrole
+msgid "Removes a role from a member"
+msgstr "Rolle entfernen"
+
+msgid "Member {member} doesn't have role {role}."
+msgstr "Mitglied {member} hat die Rolle {role} nicht."
+
+msgid "Role {role} removed from {member}."
+msgstr "Rolle {role} wurde von Mitglied {member} entfernt."
+
+msgid "You don't have permission to remove role {role} from {member}."
+msgstr "Du hast keine Berechtigung, die Rolle {role} von Mitglied {member} zu entfernen."
+
+# /discord healthcheck
+msgid "Run a healthcheck of your discord server"
+msgstr "Healthcheck für Discord"
+
+msgid "Please give the bot __temporary__ administrative permissions in this Discord server to run this command."
+msgstr "Bitte gib dem Bot __temporäre__ Administrator-Rechte in Discord, um dieses Kommando auszuführen."
+
+msgid "Admin Roles"
+msgstr "Administrative Rollen"
+
+msgid "Members"
+msgstr "Mitglieder"
+
+msgid "Elevated Roles"
+msgstr "Privilegierte Rollen"
+
+msgid "Everyone Ping"
+msgstr "Ping \"everyone\""
+
+msgid "External Apps"
+msgstr "Externe Applikationen"
+
+msgid "No critical permissions found."
+msgstr "Keine kritischen Berechtigungen gefunden."
+
+msgid "Channels"
+msgstr "Kanäle"
+
+msgid "You allow everyone to view {} channels."
+msgstr "Jeder in Discord kann {} Kanäle sehen."
+
+msgid "The recommended approach is to have one landing channel and a role for users."
+msgstr "Die Empfehlung ist, nur einen Kanal für \"everyone\" zu öffnen und dann eine dedizierte Rolle für verifizierte Mitglieder zu vergeben."
+
+msgid "Public Channels"
+msgstr "Öffentliche Kanäle"
+
+# Rest
+msgid "Kicked for falling into the bot trap."
+msgstr "Wurde gekickt, weil er in die Bot-Falle getappt ist."
+
+msgid "Mentioning everyone"
+msgstr "Nachricht an \"everyone\""
+

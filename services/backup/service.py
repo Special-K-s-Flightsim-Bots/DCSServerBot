@@ -7,14 +7,15 @@ import subprocess
 import sys
 import time
 
-from core import ServiceRegistry, Service, utils
+from core import ServiceRegistry, Service, utils, ServiceInstallationError
 from datetime import datetime
 from discord.ext import tasks
 from pathlib import Path, PureWindowsPath
 from urllib.parse import urlparse, unquote
 from zipfile import ZipFile
 
-from ..servicebus.service import ServiceBus
+from ..bot import BotService
+from ..servicebus import ServiceBus
 
 __all__ = ["BackupService"]
 
@@ -25,10 +26,16 @@ class BackupService(Service):
     def __init__(self, node):
         super().__init__(node=node, name="Backup")
         if not self.locals:
-            self.log.debug("  - No backup.yaml configured, skipping backup service.")
-            return
+            raise ServiceInstallationError(service=self.name, reason="config/services/backup.yaml missing!")
         if self._secure_password():
             self.save_config()
+        self._bot: BotService | None = None
+
+    @property
+    def bot(self) -> BotService | None:
+        if not self._bot:
+            self._bot = ServiceRegistry.get(BotService)
+        return self._bot
 
     def _secure_password(self):
         config = self.locals['backups'].get('database')
@@ -38,22 +45,22 @@ class BackupService(Service):
         return False
 
     async def start(self):
-        if not self.locals:
-            return
         await super().start()
-        self.schedule.start()
+        utils.safe_start(self.schedule)
         delete_after = self.locals.get('delete_after', 'never')
-        if isinstance(delete_after, int) or delete_after.isnumeric():
-            self.delete.start()
+        if self.node.master and (isinstance(delete_after, int) or delete_after.isnumeric()):
+            utils.safe_start(self.delete)
 
     async def stop(self, *args, **kwargs):
-        if not self.locals:
-            return
-        self.schedule.cancel()
+        await utils.safe_cancel(self.schedule)
         delete_after = self.locals.get('delete_after', 'never')
-        if isinstance(delete_after, int) or delete_after.isnumeric():
-            self.delete.cancel()
+        if self.node.master and (isinstance(delete_after, int) or delete_after.isnumeric()):
+            await utils.safe_cancel(self.delete)
         await super().stop()
+
+    async def switch(self, master: bool):
+        await super().switch(master)
+        self._bot = None
 
     def _mkdir(self) -> Path:
         target = os.path.expandvars(self.locals.get('target'))
@@ -140,58 +147,60 @@ class BackupService(Service):
 
     def _backup_bot(self) -> bool:
         self.log.info("Backing up DCSServerBot ...")
-        target = self._mkdir()
-        config = self.locals['backups'].get('bot')
-        filename = "bot_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
-        zf = ZipFile(target / filename, mode="w")
         try:
-            for directory in config.get('directories', [self.node.config_dir, 'reports']):
-                self.zip_path(zf, "", directory)
+            target = self._mkdir()
+            config = self.locals['backups'].get('bot')
+            filename = "bot_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
+            with ZipFile(target / filename, mode="w") as zf:
+                for directory in config.get('directories', [self.node.config_dir, 'reports']):
+                    self.zip_path(zf, "", directory)
             self.log.info("Backup of DCSServerBot complete.")
             return True
-        except Exception:
+        except Exception as ex:
             self.log.error(f'Backup of DCSServerBot failed.', exc_info=True)
             return False
-        finally:
-            zf.close()
 
     async def backup_servers(self) -> bool:
         return await asyncio.to_thread(self._backup_servers)
 
     def _backup_servers(self) -> bool:
-        target = self._mkdir()
-        config = self.locals['backups'].get('servers')
-        rc = True
+        try:
+            target = self._mkdir()
+            config = self.locals['backups'].get('servers')
+            rc = True
 
-        for server_name, server in ServiceRegistry.get(ServiceBus).servers.items():
-            if server.is_remote:
-                continue
-            self.log.info(f'Backing up server "{server_name}" ...')
-            filename = f"{server.instance.name}_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
-            directories = config.get('directories', ['Config', 'Scripts'])
-            root_dir = server.instance.home
-            with ZipFile(target / filename, mode="w") as zf:
-                try:
-                    for directory in directories:
-                        parts = PureWindowsPath(directory).parts
-                        if parts[0].lower() == 'missions':
-                            mission_dir = os.path.normpath(server.instance.missions_dir).rstrip(os.sep)
-                            to_backup = os.path.join(os.path.dirname(mission_dir), directory)
-                            if not os.path.exists(to_backup):
-                                self.log.warning(f"{self.name}: Directory {to_backup} not found, skipping.")
-                                continue
-                            self.zip_path(zf, os.path.dirname(mission_dir), directory)
-                        else:
-                            to_backup = os.path.join(root_dir, directory)
-                            if not os.path.exists(to_backup):
-                                self.log.warning(f"{self.name}: Directory {to_backup} not found, skipping.")
-                                continue
-                            self.zip_path(zf, root_dir, directory)
-                    self.log.info(f'Backup of server "{server_name}" complete.')
-                except Exception:
-                    self.log.error(f'Backup of server "{server_name}" failed.', exc_info=True)
-                    rc = False
-        return rc
+            for server_name, server in ServiceRegistry.get(ServiceBus).servers.items():
+                if server.is_remote:
+                    continue
+                self.log.info(f'Backing up server "{server_name}" ...')
+                filename = f"{server.instance.name}_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
+                directories = config.get('directories', ['Config', 'Scripts'])
+                root_dir = server.instance.home
+                with ZipFile(target / filename, mode="w") as zf:
+                    try:
+                        for directory in directories:
+                            parts = PureWindowsPath(directory).parts
+                            if parts[0].lower() == 'missions':
+                                mission_dir = os.path.normpath(server.instance.missions_dir).rstrip(os.sep)
+                                to_backup = os.path.join(os.path.dirname(mission_dir), directory)
+                                if not os.path.exists(to_backup):
+                                    self.log.warning(f"{self.name}: Directory {to_backup} not found, skipping.")
+                                    continue
+                                self.zip_path(zf, os.path.dirname(mission_dir), directory)
+                            else:
+                                to_backup = os.path.join(root_dir, directory)
+                                if not os.path.exists(to_backup):
+                                    self.log.warning(f"{self.name}: Directory {to_backup} not found, skipping.")
+                                    continue
+                                self.zip_path(zf, root_dir, directory)
+                        self.log.info(f'Backup of server "{server_name}" complete.')
+                    except Exception:
+                        self.log.error(f'Backup of server "{server_name}" failed.', exc_info=True)
+                        rc = False
+            return rc
+        except Exception as ex:
+            self.log.error(f'Backup of all servers failed.', exc_info=True)
+            return False
 
     async def backup_database(self) -> bool:
         path = self.locals['backups']['database'].get('path')
@@ -209,62 +218,66 @@ class BackupService(Service):
         Create a tar archive of the database located at `path/pg_dump.exe`.
         Returns True on success, False otherwise.
         """
-        target = self._mkdir()
-
-        pg_dump = Path(path) / "pg_dump.exe"
-        if not pg_dump.exists():
-            raise FileNotFoundError(f"pg_dump not found: {pg_dump}")
-
-        lpool_url = self.node.get_database_urls()[1]    # (ignore cpool)
-        url = urlparse(lpool_url)
-
-        username = self.locals['backups'].get('database', {}).get('username', 'postgres')
         try:
-            password = utils.get_password(username, self.node.config_dir)
-        except ValueError:
-            username = url.username or username
-            password = unquote(url.password) or ""
+            target = self._mkdir()
 
-        database = url.path.strip('/') or 'postgres'          # fallback
-        filename = f"db_{datetime.now():%Y%m%d_%H%M%S}.tar"
+            pg_dump = Path(path) / "pg_dump.exe"
+            if not pg_dump.exists():
+                raise FileNotFoundError(f"pg_dump not found: {pg_dump}")
 
-        args = [
-            str(pg_dump),                # <-- absolute path – see comment
-            '--no-owner',
-            '--no-privileges',
-            '-U', username,
-            '-F', 't',
-            '-f', str(target / filename),
-            '-d', database,
-            '-h', url.hostname or 'localhost',
-        ]
+            lpool_url = self.node.get_database_urls()[1]    # (ignore cpool)
+            url = urlparse(lpool_url)
 
-        # 3. Set the password in the environment – Postgres reads this
-        env = os.environ.copy()
-        env['PGPASSWORD'] = password
+            username = self.locals['backups'].get('database', {}).get('username', 'postgres')
+            try:
+                password = utils.get_password(username, self.node.config_dir)
+            except ValueError:
+                username = url.username or username
+                password = unquote(url.password) or ""
 
-        self.log.info(f'Backing up database "{database}" ...')
+            database = url.path.strip('/') or 'postgres'          # fallback
+            filename = f"db_{datetime.now():%Y%m%d_%H%M%S}.tar"
 
-        try:
-            subprocess.run(
-                args,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-                text=True,
-                env=env,
-                check=True          # Raise if returncode != 0
-            )
-        except subprocess.CalledProcessError as exc:
-            self.log.error(
-                f"Backup failed (code {exc.returncode}): {exc.stderr.strip()}"
-            )
+            args = [
+                str(pg_dump),                # <-- absolute path – see comment
+                '--no-owner',
+                '--no-privileges',
+                '-U', username,
+                '-F', 't',
+                '-f', str(target / filename),
+                '-d', database,
+                '-h', url.hostname or 'localhost',
+            ]
+
+            # 3. Set the password in the environment – Postgres reads this
+            env = os.environ.copy()
+            env['PGPASSWORD'] = password
+
+            self.log.info(f'Backing up database "{database}" ...')
+
+            try:
+                subprocess.run(
+                    args,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    env=env,
+                    check=True          # Raise if returncode != 0
+                )
+            except subprocess.CalledProcessError as exc:
+                self.log.error(
+                    f"Backup failed (code {exc.returncode}): {exc.stderr.strip()}"
+                )
+                return False
+            except FileNotFoundError as exc:
+                self.log.error(f"Could not launch pg_dump: {exc}")
+                return False
+
+            self.log.info(f"Backup of database {database} complete.")
+            return True
+        except Exception as ex:
+            self.log.error(f"Backup of database failed.", exc_info=True)
             return False
-        except FileNotFoundError as exc:
-            self.log.error(f"Could not launch pg_dump: {exc}")
-            return False
-
-        self.log.info(f"Backup of database {database} complete.")
-        return True
 
     async def restart(self):
         for node in self.node.all_nodes.values():
@@ -333,7 +346,14 @@ class BackupService(Service):
             ret = await asyncio.gather(*tasks, return_exceptions=True)
             for r in ret:
                 if isinstance(r, Exception):
+                    asyncio.create_task(
+                        self.bot.alert(
+                            title="Backup failed!",
+                            message=f"An automated backup on node {self.node} failed: {repr(r)}"
+                        )
+                    )
                     self.log.error("Backup task failed: ", exc_info=r)
+
         except Exception as ex:
             self.log.exception(ex)
 
@@ -342,6 +362,7 @@ class BackupService(Service):
         try:
             path = os.path.expandvars(self.locals['target'])
             if not os.path.exists(path):
+                self.log.warning(f"Backup target directory {path} does not exist, skipping cleanup.")
                 return
             delete_after = int(self.locals['delete_after'])
             threshold_time = time.time() - delete_after * 86400

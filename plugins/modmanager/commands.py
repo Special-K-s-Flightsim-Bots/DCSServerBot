@@ -9,6 +9,7 @@ from discord.ext import commands
 from discord.ui import View, Select, Button, Modal, TextInput, Label
 from services.bot import DCSServerBot
 from services.modmanager import ModManagerService, Folder
+from typing import cast
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -50,7 +51,7 @@ async def get_available_mods(
 async def installed_mods_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service = ServiceRegistry.get(ModManagerService)
+    service = cast(ModManagerService, ServiceRegistry.get(ModManagerService))
     try:
         server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
@@ -68,7 +69,7 @@ async def installed_mods_autocomplete(interaction: discord.Interaction, current:
 async def available_mods_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service = ServiceRegistry.get(ModManagerService)
+    service = cast(ModManagerService, ServiceRegistry.get(ModManagerService))
     try:
         server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
@@ -136,9 +137,15 @@ class ModManager(Plugin):
             self.log.warning(
                 f"  => ModManager: your modmanager.yaml belongs into {self.node.config_dir}/services/modmanager.yaml, "
                 f"not in {self.node.config_dir}/plugins!")
-        self.service: ModManagerService = ServiceRegistry.get(ModManagerService)
-        if not self.service:
-            raise PluginInstallationError(plugin=self.plugin_name, reason='ModManager service not loaded.')
+        self._service = None
+
+    @property
+    def service(self) -> ModManagerService:
+        if not self._service:
+            self._service = ServiceRegistry.get(ModManagerService)
+            if not self._service:
+                raise PluginInstallationError(plugin=self.plugin_name, reason='ModManager service not loaded.')
+        return self._service
 
     # New command group "/mods"
     mods = Group(name="mods", description=_("Commands to manage custom mods in your DCS server"))

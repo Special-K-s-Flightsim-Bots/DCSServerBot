@@ -18,11 +18,11 @@ class DBExporter(Plugin):
         os.makedirs('export', exist_ok=True)
         if self.get_config().get('autoexport', False):
             self.schedule.add_exception_type(psycopg.Error)
-            self.schedule.start()
+            utils.safe_start(self.schedule)
 
     async def cog_unload(self):
         if self.get_config().get('autoexport', False):
-            self.schedule.cancel()
+            await utils.safe_cancel(self.schedule)
         await super().cog_unload()
 
     async def do_export(self, table_filter: list[str]):

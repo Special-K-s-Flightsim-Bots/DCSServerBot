@@ -173,7 +173,7 @@ schema;instance_realweather_schema:
           mapping:
             enable: {type: bool, nullable: false}
             system-time: {type: bool, nullable: false}
-            offset: {type: str, pattern: '^[+-]?\d+h(\d+m)?$', nullable: false, range: {min: 1}}
+            offset: {type: str, pattern: '^[+-]?(?:0|(?:\d+(?:\.\d+)?h(?:\d+m)?))$', nullable: false, range: {min: 1}}
         date:
           type: map
           nullable: false
@@ -181,7 +181,7 @@ schema;instance_realweather_schema:
           mapping:
             enable: {type: bool, nullable: false}
             system-date: {type: bool, nullable: false}
-            offset: {type: str, nullable: false, range: {min: 1}}
+            offset: {type: str, pattern: '^[+-]?(?:0|(?:(?:\d+y)?(?:\d+m)?(?:\d+d)?))$', nullable: false, range: {min: 1}}
         weather:
           type: map
           nullable: false

@@ -2,7 +2,7 @@ import asyncio
 import trueskill
 
 from core import EventListener, event, Server, Status, Player, chat_command, Side, get_translation, ChatCommand, \
-    Coalition, ThreadSafeDict
+    Coalition, ThreadSafeDict, utils
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from discord.ext import tasks
@@ -99,10 +99,11 @@ class CompetitiveListener(EventListener["Competitive"]):
         self.in_match: dict[str, dict[str, Match]] = {}
         self.home_base: dict[str, dict[str, str]] = {}
         self.active_servers: set[str] = set()
-        self.check_matches.start()
+        utils.safe_start(self.check_matches)
 
     async def shutdown(self) -> None:
-        self.check_matches.cancel()
+        await utils.safe_cancel(self.check_matches)
+        await super().shutdown()
 
     async def processEvent(self, name: str, server: Server, data: dict) -> None:
         try:
@@ -416,12 +417,12 @@ class CompetitiveListener(EventListener["Competitive"]):
                         victim=print_crew(victims), victim_module=victims[0].unit_display_name,
                         weapon=data['arg7'] or 'Guns')))
                 # on team-kills the enemy squadron gets the kill points
-                if data['arg3'] == data['arg6']:
+                if killers[0].side == victims[0].side:
                     if self.get_config(server).get('credit_on_leave', False):
                         await award_squadron(server, match, victims[0])
                 await remove_players(match, server, victims)
             # no, then we don't count team-kills
-            elif data['arg3'] != data['arg6']:
+            elif killers[0].side != victims[0].side:
                 await self.rank_teams(killers, victims)
                 if self.get_config(server).get('silent', False):
                     return

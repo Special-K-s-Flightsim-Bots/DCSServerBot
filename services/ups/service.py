@@ -1,6 +1,6 @@
 import asyncio
 
-from core import Service, ServiceRegistry, Coalition, Status
+from core import Service, ServiceRegistry, Coalition, Status, utils
 from discord.ext import tasks
 from services.cron.actions import halt
 from services.servicebus import ServiceBus
@@ -19,11 +19,10 @@ class UPSService(Service):
         if not self.get_config():
             return
         await super().start()
-        self.monitoring.start()
+        utils.safe_start(self.monitoring)
 
     async def stop(self):
-        if self.monitoring.is_running():
-            self.monitoring.cancel()
+        await utils.safe_cancel(self.monitoring)
         await super().stop()
 
     @tasks.loop(minutes=1.0)

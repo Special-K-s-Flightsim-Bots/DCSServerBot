@@ -17,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from psycopg import OperationalError
 from pykwalify.errors import SchemaError
-from typing import Any, Coroutine
+from typing import Any
 
 # DCSServerBot imports
 try:
@@ -123,6 +123,14 @@ class Main:
         pfh.doRollover()
         perf_logger.addHandler(pfh)
 
+        # Rotate async_errors.log
+        async_log = os.path.join('logs', 'async_errors.log')
+        async_old = async_log.replace('.log', '.old')
+        if os.path.exists(async_old):
+            os.remove(async_old)
+        if os.path.exists(async_log):
+            os.rename(async_log, async_old)
+
     @staticmethod
     def reveal_passwords(config_dir: str):
         print("[yellow]These are your hidden secrets:[/]")
@@ -135,7 +143,7 @@ class Main:
 
     async def start_service(self, registry: ServiceRegistry, cls: Any) -> None:
         try:
-            await registry.new(cls).start()
+            await registry.start_service(cls)
         except Exception as ex:
             self.log.error(f"  - {ex.__str__()}")
             self.log.error(f"  => {cls.__name__} NOT loaded.")
@@ -183,10 +191,18 @@ class Main:
                         await asyncio.sleep(1)
                         continue
 
+                    # clear proxies
+                    registry.clear_proxies()
+
                     # switch master
                     if self.node.claimed_master:
                         self.log.info("Taking over as the MASTER node ...")
-                        # start all the master-only services
+                        # stop all agent-only services
+                        tasks = []
+                        for cls in [x for x in registry.services().keys() if registry.agent_only(x)]:
+                            tasks.append(registry.get(cls).stop())
+                        await asyncio.gather(*tasks)
+                        # start all master-only services
                         tasks = []
                         for cls in [x for x in registry.services().keys() if registry.master_only(x)]:
                             tasks.append(self.start_service(registry, cls))
@@ -196,27 +212,38 @@ class Main:
 
                         # switch all others services / register the agent nodes
                         tasks = []
-                        for cls in [x for x in registry.services().keys() if not registry.master_only(x)]:
+                        for cls in [
+                            x for x in registry.services().keys()
+                            if not registry.master_only(x) or registry.agent_only(x)
+                        ]:
                             service = registry.get(cls)
                             if service:
                                 tasks.append(service.switch(True))
                         await asyncio.gather(*tasks)
                     else:
                         self.log.info("Second MASTER found, stepping back to AGENT configuration.")
-
+                        # stop all master-only services
                         tasks = []
-                        for cls in registry.services().keys():
-                            if registry.master_only(cls):
-                                tasks.append(registry.get(cls).stop())
+                        for cls in [x for x in registry.services().keys() if registry.master_only(x)]:
+                            tasks.append(registry.get(cls).stop())
                         await asyncio.gather(*tasks)
+                        # start all agent-only services
+                        tasks = []
+                        for cls in [x for x in registry.services().keys() if registry.agent_only(x)]:
+                            tasks.append(self.start_service(registry, cls))
+                        await asyncio.gather(*tasks)
+                        # now we are the agent
                         self.node.commit_claimed_master()
 
+                        # switch all others services
                         tasks = []
-                        for cls in registry.services().keys():
-                            if not registry.master_only(cls):
-                                service = registry.get(cls)
-                                if service:
-                                    tasks.append(service.switch(False))
+                        for cls in [
+                            x for x in registry.services().keys()
+                            if not registry.master_only(x) or registry.agent_only(x)
+                        ]:
+                            service = registry.get(cls)
+                            if service:
+                                tasks.append(service.switch(False))
                         await asyncio.gather(*tasks)
             except OperationalError:
                 db_available = False
@@ -284,15 +311,6 @@ async def restore_node(name: str, config_dir: str, restarted: bool) -> int:
     return await restore.run(Path('restore'), delete=True)
 
 
-def myasyncio_run(func: Coroutine[Any, Any, Any]) -> Any:
-    if sys.platform == "win32" and sys.version_info >= (3, 14):
-        import selectors
-
-        return asyncio.run(func, loop_factory=lambda: asyncio.SelectorEventLoop(selectors.SelectSelector()))
-    else:
-        return asyncio.run(func)
-
-
 if __name__ == "__main__":
     console = Console()
 
@@ -314,7 +332,7 @@ if __name__ == "__main__":
     if args.ping:
         # wait for an internet connection to be available (after system reboots)
         log.info("Waiting for the network ...")
-        if not myasyncio_run(wait_for_internet(host="8.8.8.8", timeout=300.0)):
+        if not utils.asyncio_run(wait_for_internet(host="8.8.8.8", timeout=300.0)):
             print("Internet connection not available. Exiting.")
             exit(-1)
         log.info("Network connection available.\n")
@@ -347,7 +365,7 @@ WARNING: DCSServerBot will drop support for Pyton 3.10 soon.
 
     # Call the restore process
     if os.path.exists('restore'):
-        rc = myasyncio_run(restore_node(name=args.node, config_dir=args.config, restarted=args.restarted))
+        rc = utils.asyncio_run(restore_node(name=args.node, config_dir=args.config, restarted=args.restarted))
         if rc:
             exit(rc)
         else:
@@ -360,7 +378,7 @@ WARNING: DCSServerBot will drop support for Pyton 3.10 soon.
 
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
-                rc = myasyncio_run(run_node(
+                rc = utils.asyncio_run(run_node(
                     name=args.node,
                     config_dir=args.config,
                     no_autoupdate=args.noupdate,
@@ -370,7 +388,7 @@ WARNING: DCSServerBot will drop support for Pyton 3.10 soon.
                 from install import Install
 
                 Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
-                rc = myasyncio_run(run_node(
+                rc = utils.asyncio_run(run_node(
                     name=args.node,
                     config_dir=args.config,
                     no_autoupdate=args.noupdate,

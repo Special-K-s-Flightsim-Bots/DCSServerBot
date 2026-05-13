@@ -6,6 +6,7 @@ import logging
 import os
 import psutil
 import psycopg
+import psycopg_pool
 import shutil
 import sys
 
@@ -36,14 +37,22 @@ class MonitoringService(Service):
 
     def __init__(self, node):
         super().__init__(node, name="Monitoring")
-        self.bus = ServiceRegistry.get(ServiceBus)
+        self.bus = None
         self.io_counters = {}
         self.net_io_counters = None
         self.space_warning_sent: dict[str, bool] = {}
         self.space_alert_sent: dict[str, bool] = {}
+        self._bot = None
+
+    @property
+    def bot(self) -> BotService:
+        if not self._bot:
+            self._bot = ServiceRegistry.get(BotService)
+        return self._bot
 
     async def start(self):
         await super().start()
+        self.bus = cast(ServiceBus, ServiceRegistry.get(ServiceBus))
         if sys.platform == 'win32' and 'DCS' in self.node.locals:
             install_drive = os.path.splitdrive(os.path.expandvars(self.node.locals['DCS']['installation']))[0]
             self.space_warning_sent[install_drive] = False
@@ -53,7 +62,7 @@ class MonitoringService(Service):
                 self.space_alert_sent['C:'] = False
         self.check_autoexec()
         self.monitoring.add_exception_type(psycopg.DatabaseError)
-        self.monitoring.start()
+        utils.safe_start(self.monitoring)
         if self.get_config().get('time_sync', False):
             time_server = self.get_config().get('time_server', None)
             if time_server:
@@ -78,13 +87,17 @@ class MonitoringService(Service):
                     # not implemented for UNIX
                     pass
 
-            self.time_sync.start()
+            utils.safe_start(self.time_sync)
 
     async def stop(self):
         if self.get_config().get('time_sync', False):
-            self.time_sync.cancel()
-        self.monitoring.cancel()
+            await utils.safe_cancel(self.time_sync)
+        await utils.safe_cancel(self.monitoring)
         await super().stop()
+
+    async def switch(self, master: bool):
+        await super().switch(master)
+        self._bot = None
 
     def check_autoexec(self):
         for instance in self.node.instances.values():
@@ -100,25 +113,10 @@ class MonitoringService(Service):
             except Exception as ex:
                 self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
 
-    async def send_alert(self, title: str, message: str, **kwargs):
-        params = {
-            "title": title,
-            "message": message
-        }
-        if 'server' in kwargs:
-            params['server'] = kwargs['server'].name
-
-        await self.bus.send_to_node({
-            "command": "rpc",
-            "service": BotService.__name__,
-            "method": "alert",
-            "params": params
-        })
-
     async def warn_admins(self, server: Server, title: str, message: str) -> None:
         message += f"\nLatest dcs-<timestamp>.log can be pulled with /download\n" \
                    f"If the scheduler is configured for this server, it will relaunch it automatically."
-        await self.send_alert(title, message, server=server)
+        await self.bot.alert(title, message, server=server)
 
     async def check_popups(self):
         # check for blocked processes due to window popups
@@ -155,7 +153,7 @@ class MonitoringService(Service):
                                              f"maintenance mode.")
                             return
                         await server.shutdown(force=True)
-                        await self.node.audit(f'Server killed due to a popup with title "{title}".',
+                        await self.bot.audit(f'Server killed due to a popup with title "{title}".',
                                               server=server)
 
     async def kill_hung_server(self, server: Server):
@@ -188,7 +186,7 @@ class MonitoringService(Service):
         else:
             await server.shutdown(True)
         server.process = None
-        await self.node.audit("Server killed due to a hung state.", server=server)
+        await self.bot.audit("Server killed due to a hung state.", server=server)
         server.status = Status.SHUTDOWN
         if server.locals.get('ping_admin_on_crash', True):
             await self.warn_admins(server, title=f'Server \"{server.name}\" unreachable', message=message)
@@ -215,7 +213,7 @@ class MonitoringService(Service):
                     self.log.warning(title + ' ' + message)
                     if server.locals.get('ping_admin_on_crash', True):
                         await self.warn_admins(server, title=title, message=message)
-                    await self.node.audit(f'Server died.', server=server)
+                    await self.bot.audit(f'Server died.', server=server)
                 server.status = Status.SHUTDOWN
                 return
             # No, check if the process is still doing something
@@ -248,17 +246,20 @@ class MonitoringService(Service):
 
     async def nodestats(self):
         bus = ServiceRegistry.get(ServiceBus)
-        pstats: dict = self.apool.get_stats()
-        async with self.apool.connection() as conn:
-            await conn.execute("""
-                INSERT INTO nodestats (
-                    node, pool_available, requests_queued, requests_wait_ms, dcs_queue, asyncio_queue
-                )
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (self.node.name, pstats.get('pool_available', 0), pstats.get('requests_queued', 0),
-                  pstats.get('requests_wait_ms', 0), sum(x.qsize() for x in bus.udp_server.message_queue.values()),
-                  len(asyncio.all_tasks(self.bus.loop))))
-        self.apool.pop_stats()
+        try:
+            pstats: dict = self.apool.get_stats()
+            async with self.apool.connection() as conn:
+                await conn.execute("""
+                    INSERT INTO nodestats (
+                        node, pool_available, requests_queued, requests_wait_ms, dcs_queue, asyncio_queue
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (self.node.name, pstats.get('pool_available', 0), pstats.get('requests_queued', 0),
+                      pstats.get('requests_wait_ms', 0), sum(x.qsize() for x in bus.udp_server.message_queue.values()),
+                      len(asyncio.all_tasks(self.bus.loop))))
+            self.apool.pop_stats()
+        except psycopg_pool.PoolClosed:
+            pass
 
     def _pull_load_params(self, server: Server) -> dict:
         process = server.process
@@ -362,8 +363,10 @@ class MonitoringService(Service):
                         bytes_total=self.convert_bytes(total)
                     )
                     self.log.error(message)
-                    await self.send_alert(title=f"Your DCS drive on node {self.node.name} is running out of space!",
-                                          message=message)
+                    await self.bot.alert(
+                        title=f"Your DCS drive on node {self.node.name} is running out of space!",
+                        message=message
+                    )
                     self.space_alert_sent[drive] = True
             elif free < total * warn_pct:
                 if not self.space_warning_sent[drive]:
@@ -374,7 +377,7 @@ class MonitoringService(Service):
                         bytes_total=self.convert_bytes(total)
                     )
                     self.log.warning(message)
-                    await self.node.audit(f"**Your DCS drive on node {self.node.name} is running out of space!**\n"
+                    await self.bot.audit(f"**Your DCS drive on node {self.node.name} is running out of space!**\n"
                                           f"{message}")
                     self.space_warning_sent[drive] = True
 
@@ -403,9 +406,8 @@ class MonitoringService(Service):
 
     @monitoring.before_loop
     async def before_loop(self):
-        if self.node.master:
-            bot = ServiceRegistry.get(BotService).bot
-            await bot.wait_until_ready()
+        if self.node.master and self.bot and self.bot.bot:
+            await self.bot.bot.wait_until_ready()
 
     @tasks.loop(hours=12)
     async def time_sync(self):

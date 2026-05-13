@@ -6,12 +6,14 @@ import os
 import sys
 
 from core import ServiceRegistry, Service, Server, proxy
+from services.servicebus import ServiceBus
 
 from .radios import Radio, Mode
-from ..servicebus import ServiceBus
 
 # we don't want any irrelevant log entries from eyed3
 logging.getLogger(name='eyed3.mp3.headers').setLevel(logging.FATAL)
+
+__all__ = ["MusicService"]
 
 
 @ServiceRegistry.register(plugin='music', depends_on=[ServiceBus])
@@ -29,7 +31,7 @@ class MusicService(Service):
             return super().get_config(server)['radios'][radio_name]
 
     @property
-    def music_dir(self):
+    def music_dir(self) -> str:
         music_dir = os.path.expandvars(self.get_config()['music_dir'])
         if not os.path.exists(music_dir):
             os.makedirs(music_dir)
@@ -46,17 +48,20 @@ class MusicService(Service):
 
     @proxy
     async def init_radios(self, server: Server, radio_name: str | None = None) -> None:
-        if not self.get_config(server):
+        config = self.get_config(server)
+        if not config or 'radios' not in config:
             self.log.debug(
                 f"No config/services/music.yaml found or no entry for server {server.name} configured.")
             return
-        for name, config in self.get_config(server)['radios'].items():
+        for name, cfg in config['radios'].items():
             if radio_name and name != radio_name:
                 continue
             if not self.radios.get(server.name):
                 self.radios[server.name] = {}
             if not self.radios[server.name].get(name):
-                radio: Radio = getattr(sys.modules['services.music.radios'], config['type'])(name=name, server=server)
+                radio: Radio = getattr(sys.modules['services.music.radios'], cfg['type'])(
+                    service=self, name=name, server=server
+                )
                 self.radios[server.name][name] = radio
 
     @proxy

@@ -132,7 +132,7 @@ class BotService(Service):
         await super().start()
         try:
             self.bot = self.init_bot()
-            await self.install_fonts()
+            await self._install_fonts()
             token: str | None = self.token
             if not token:
                 raise FatalException("No Discord token found! You need to configure it in the bot.yaml file.")
@@ -188,9 +188,12 @@ class BotService(Service):
                 pass
             except Exception as ex:
                 self.log.debug(f"Ignored connect task failure during shutdown: {ex}")
+            finally:
+                self._connect_task = None
 
         if self.bot:
             await self.bot.close()
+            self.bot = None
         await super().stop()
 
     async def alert(self, title: str, message: str, server: Server | None = None) -> None:
@@ -217,7 +220,7 @@ class BotService(Service):
         except Exception:
             self.log.warning("Audit message discarded due to master takeover: " + message)
 
-    async def install_fonts(self):
+    async def _install_fonts(self):
         font_dir = Path('fonts')
         if not font_dir.exists() or not font_dir.is_dir():
             return
@@ -236,7 +239,7 @@ class BotService(Service):
         for f in font_manager.findSystemFonts('fonts'):
             font_manager.fontManager.addfont(f)
 
-    async def send_message(self, channel: int | None = -1, content: str | None = None,
+    async def send_message(self, channel: int = -1, content: str | None = None,
                            server: Server | None = None, filename: str | None = None,
                            embed: dict | None = None, mention: list | None = None):
         _channel = self.bot.get_channel(channel)

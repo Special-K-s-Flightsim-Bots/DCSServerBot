@@ -158,7 +158,6 @@ class NodeImpl(Node):
             self.plugins.append('cloud')
 
     async def _post_init(self):
-        self.locals = self.read_locals()
         if 'DCS' in self.locals:
             await self.get_dcs_branch_and_version()
         await self.init_db()
@@ -168,7 +167,7 @@ class NodeImpl(Node):
             if self.is_shutdown.is_set():
                 return
             self.commit_claimed_master()
-            self.heartbeat_loop.start()
+            utils.safe_start(self.heartbeat_loop)
             self.log.info("- Starting as {} ...".format("Master" if self._master else "Agent"))
         else:
             self._claimed_master = True
@@ -186,11 +185,15 @@ class NodeImpl(Node):
             system(f"title DCSServerBot v{self.bot_version}.{self.sub_version} - {self.node.name}")
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
 
+        # read locals
+        self.locals = self.read_locals()
+
         # check GIT and branch
         self._check_branch_version()
 
         # check Python-version
         self.log.info(f'- Python version {platform.python_version()} detected.')
+        await self._check_python_version()
 
         # check UAC
         if utils.is_uac_enabled():
@@ -204,8 +207,7 @@ class NodeImpl(Node):
         return self
 
     async def __aexit__(self, _type, _value, _traceback):
-        if self.heartbeat_loop.is_running():
-            self.heartbeat_loop.cancel()
+        await utils.safe_cancel(self.heartbeat_loop)
         await self.close_db()
 
     @override
@@ -236,26 +238,6 @@ class NodeImpl(Node):
     @property
     def listen_port(self) -> Port:
         return Port(self.locals.get('listen_port', 10042), PortType.UDP)
-
-    async def audit(self, message, *, user: discord.Member | str | None = None,
-                    server: Server | None = None, **kwargs):
-        from services.bot import BotService
-        from services.servicebus import ServiceBus
-
-        if self.master:
-            await ServiceRegistry.get(BotService).bot.audit(message, user=user, server=server, **kwargs)
-        else:
-            params = {
-                "message": message,
-                "user": f"<@{user.id}>" if isinstance(user, discord.Member) else user,
-                "server": server.name if server else ""
-            } | kwargs
-            await ServiceRegistry.get(ServiceBus).send_to_node({
-                "command": "rpc",
-                "service": BotService.__name__,
-                "method": "audit",
-                "params": params
-            })
 
     def register_callback(self, what: str, name: str, func: Callable[[], Awaitable[Any]]):
         if what == 'before_dcs_update':
@@ -295,7 +277,7 @@ class NodeImpl(Node):
             for node_name in data.keys():
                 if node_name not in self.all_nodes:
                     self.all_nodes[node_name] = None
-            node: dict = data.get(self.name)
+            node: dict | None = data.get(self.name)
             if not node:
                 raise InstallationException(f'No configuration found for node {self.name} in {config_file}!')
             dirty = False
@@ -363,27 +345,54 @@ class NodeImpl(Node):
         lpool_url = lpool_url.replace('SECRET', quote(lpool_pwd) or '')
         return cpool_url, lpool_url
 
-    async def _check_postgres_version(self, version: str | None = None):
-        latest_pg_version = await utils.pg_get_latest_version(self, version)
+    async def _check_python_version(self):
+        version = platform.python_version()
+        latest_python_version = await utils.get_latest_python_version(self, version)
+        if latest_python_version:
+            if not latest_python_version['isMaintained']:
+                latest_python_version = await utils.get_latest_python_version(self)
+                if latest_python_version:
+                    recommended = latest_python_version['latest']['name']
+                    self.log.warning(
+                        f"Your Python version {parse(version).major} is EOL. Please upgrade to {recommended}."
+                    )
+                else:
+                    self.log.warning(
+                        f"Your Python version {parse(version).major} is EOL. "
+                        f"Please upgrade to a supported version."
+                    )
+            elif latest_python_version['isEoas']:
+                self.log.info(f"  => Your Python version is EOS and will be unsupported "
+                              f"as of {latest_python_version['eolFrom']}.")
+            elif parse(latest_python_version['latest']['name']) > parse(version):
+                recommended = latest_python_version['latest']['name']
+                self.log.warning(
+                    f"Your Python version {version} is outdated. Please upgrade to {recommended}."
+                )
+
+    async def _check_postgres_version(self, version: str | None = None, *, name: str | None = None):
+        name = f"{name}: " if name else ""
+        latest_pg_version = await utils.get_latest_postgres_version(self, version)
         if version and latest_pg_version:
             eol_date = datetime.strptime(latest_pg_version['eolDate'], '%Y-%m-%d')
             latest_minor = latest_pg_version['latestMinor']
             if eol_date < datetime.now():
-                latest_pg_version = await utils.pg_get_latest_version(self)
+                latest_pg_version = await utils.get_latest_postgres_version(self)
                 if latest_pg_version:
                     recommended = latest_pg_version['major'] + '.' + latest_pg_version['latestMinor']
                     self.log.warning(
-                        f"Your PostgreSQL version {parse(version).major} is EOL. The latest version is {recommended}."
+                        f"{name}Your PostgreSQL version {parse(version).major} is EOL. "
+                        f"Please upgrade to {recommended}."
                     )
                 else:
                     self.log.warning(
-                        f"Your PostgreSQL version {parse(version).major} is EOL. "
+                        f"{name}Your PostgreSQL version {parse(version).major} is EOL. "
                         f"Please upgrade to a supported version."
                     )
             elif int(latest_minor) > parse(version).minor:
                 recommended = latest_pg_version['major'] + '.' + latest_pg_version['latestMinor']
                 self.log.warning(
-                    f"Your PostgreSQL version {version} is outdated. Please upgrade to {recommended}."
+                    f"{name}Your PostgreSQL version {version} is outdated. Please upgrade to {recommended}."
                 )
 
     async def init_db(self):
@@ -409,10 +418,13 @@ class NodeImpl(Node):
 
         cpool_url, lpool_url = self.get_database_urls()
         version = await check_db(lpool_url)
-        await self._check_postgres_version(version)
 
         if lpool_url != cpool_url:
-            await check_db(cpool_url)
+            await self._check_postgres_version(version, name="nodes.yaml")
+            version = await check_db(cpool_url)
+            await self._check_postgres_version(version, name="main.yaml")
+        else:
+            await self._check_postgres_version(version)
 
         self.log.info(f"- Connection to PostgreSQL {version} established.")
 
@@ -633,6 +645,8 @@ class NodeImpl(Node):
             # ignore rate limits
             if ex.status != 403:
                 raise
+        except IndexError:
+            self.log.error(f"Corrupt response from GitHub: {repr(result)}")
         return False
 
     @override
@@ -1038,7 +1052,6 @@ class NodeImpl(Node):
         else:
             return await _get_latest_versions_auth()
 
-
     @override
     async def get_latest_version(self, branch: str) -> str | None:
         versions = await self.get_available_dcs_versions(branch)
@@ -1052,7 +1065,7 @@ class NodeImpl(Node):
         if 'DCS' in self.locals:
             if self.locals['DCS'].get('autoupdate', False):
                 if not self.locals['DCS'].get('cloud', False) or self.master:
-                    self.autoupdate.start()
+                    utils.safe_start(self.autoupdate)
             else:
                 new_version = await self.is_dcs_update_available()
                 if new_version:
@@ -1072,7 +1085,7 @@ class NodeImpl(Node):
                 await conn.execute("DELETE FROM nodes WHERE guild_id = %s AND node = %s", (self.guild_id, self.name))
         if 'DCS' in self.locals and self.locals['DCS'].get('autoupdate', False):
             if not self.locals['DCS'].get('cloud', False) or self.master:
-                self.autoupdate.cancel()
+                await utils.safe_cancel(self.autoupdate)
 
     async def heartbeat(self) -> bool:
         lock_key = zlib.crc32(f"DCSSB:{self.guild_id}".encode("utf-8"))
@@ -1150,6 +1163,12 @@ class NodeImpl(Node):
             return (await cursor.fetchone())[0] == 1
 
         async def request_takeover():
+            # Make sure we are considered alive (on early takeovers due to preferred_master)
+            await lock_conn.execute("""
+                INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
+                ON CONFLICT (guild_id, node) DO UPDATE 
+                SET last_seen = (NOW() AT TIME ZONE 'UTC')
+            """, (self.guild_id, self.name))
             # "Intent" signal only. Does NOT change cluster.master.
             await lock_conn.execute("""
                 INSERT INTO cluster (guild_id, master, version, takeover_requested_by)
@@ -1158,11 +1177,14 @@ class NodeImpl(Node):
                 SET takeover_requested_by = excluded.takeover_requested_by
             """, (self.guild_id, self.name, __version__, self.name))
 
-        async def try_become_master() -> bool:
-            cur = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key,))
-            got = (await cur.fetchone())[0]
-            if not got:
-                return False
+        async def try_become_master(wait: bool = False) -> bool:
+            if wait:
+                await lock_conn.execute("SELECT pg_advisory_lock(%s)", (lock_key,))
+            else:
+                cur = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key,))
+                got = (await cur.fetchone())[0]
+                if not got:
+                    return False
 
             await lock_conn.execute("""
                 INSERT INTO cluster (guild_id, master, version, takeover_requested_by)
@@ -1267,12 +1289,11 @@ class NodeImpl(Node):
                             if not (await cursor.fetchone())[0]:
                                 self.log.info("  => Another node still holds the master lock, waiting ...")
                                 return False
-                            holds_lock = True
 
                         if parse(version) != parse(__version__):
                             if parse(version) > parse(__version__):
                                 self.log.warning("We are the master, but the cluster seems to have a newer version.\n"
-                                                 "Rolling back the cluster version to my version.")
+                                                 "Trying to fix that ...")
                             await self._upgrade(True, conn)
                             return True
 
@@ -1285,15 +1306,22 @@ class NodeImpl(Node):
                             # We have the lock, but the table says someone else is master
                             await lock_conn.execute("SELECT pg_advisory_unlock(%s)", (lock_key, ))
 
-                        if parse(version) != parse(__version__):
+                        if parse(version) > parse(__version__):
                             self.log.warning(f"This node uses DCSServerBot version {__version__} "
-                                             f"where the master uses version {version}!")
+                                             f"where the master uses version {version}!\n"
+                                             f"Trying to upgrade to the latest version ...")
                             await self._upgrade(False, conn)
                             return False
 
+                        elif parse(version) < parse(__version__):
+                            if await is_node_alive(master, config.get('heartbeat', 30)):
+                                self.log.warning(f"This node uses DCSServerBot version {__version__} "
+                                                 f"where the master uses version {version}!\n"
+                                                 f"Check if autoupdate is enabled and if you are on the same branch!!")
+
                         if (takeover_by and takeover_by == self.name) or config.get('preferred_master', False):
                             await request_takeover()
-                            return await try_become_master()
+                            return await try_become_master(wait=True)
 
                         if await is_node_alive(master, config.get('heartbeat', 30)):
                             return False
@@ -1811,7 +1839,6 @@ class NodeImpl(Node):
             for cls in ServiceRegistry.services().keys():
                 service = ServiceRegistry.get(cls)
                 if service and not isinstance(service, BotService):
-                    assert service is not None
                     tasks.append(service.stop())
             await utils.run_parallel_nofail(*tasks)
 
@@ -1837,7 +1864,6 @@ class NodeImpl(Node):
             for cls in ServiceRegistry.services().keys():
                 service = ServiceRegistry.get(cls)
                 if service and not isinstance(service, BotService):
-                    assert service is not None
                     service.reload()
                     tasks.append(service.start())
             results = await asyncio.gather(*tasks, return_exceptions=True)

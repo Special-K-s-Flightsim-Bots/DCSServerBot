@@ -130,14 +130,14 @@ class Discord(Plugin):
 
     disc = Group(name='discord', description="Discord commands")
 
-    @disc.command(name='healthcheck', description="Run a healthcheck of your discord server")
+    @disc.command(name='healthcheck', description=_("Run a healthcheck of your discord server"))
     @app_commands.guild_only()
     @app_commands.default_permissions(administrator=True)
     async def healthcheck(self, interaction: discord.Interaction):
         if not self.bot.member.guild_permissions.administrator:
             await interaction.response.send_message(
-                "Please give the bot __temporary__ administrative permissions in this "
-                "Discord server to run this command.", ephemeral=True)
+                _("Please give the bot __temporary__ administrative permissions in this "
+                  "Discord server to run this command."), ephemeral=True)
             return
 
         # check roles
@@ -173,32 +173,32 @@ class Discord(Plugin):
         embed = discord.Embed(colour=discord.Colour.blue())
         embed.title = f"Healthcheck for {guild.name}"
         # Roles
-        embed.add_field(name="Admin Roles", value='\n'.join([x.name for x in admin_roles]))
-        embed.add_field(name="Members", value='\n'.join([
+        embed.add_field(name=_("Admin Roles"), value='\n'.join([x.name for x in admin_roles]))
+        embed.add_field(name=_("Members"), value='\n'.join([
             x.display_name + (' (🤖)' if x in all_bots else '') for x in admins
         ]))
         embed.add_field(name=utils.print_ruler(header="Elevated Roles"), value='_ _', inline=False)
-        embed.add_field(name="Elevated Roles", value='\n'.join([x.mention for x in elevated_roles]))
-        embed.add_field(name="Members", value='\n'.join([
+        embed.add_field(name=_("Elevated Roles"), value='\n'.join([x.mention for x in elevated_roles]))
+        embed.add_field(name=_("Members"), value='\n'.join([
             x.mention + (' (🤖)' if x in all_bots else '') for x in elevated
         ]))
         embed.add_field(name=utils.print_ruler(header="⚠️ Critical Roles ⚠️"), value='_ _', inline=False)
         if everyone_ping or external_apps:
-            embed.add_field(name="Everyone Ping", value='\n'.join([x.name for x in everyone_ping]))
-            embed.add_field(name="External Apps", value='\n'.join([x.name for x in external_apps]))
+            embed.add_field(name=_("Everyone Ping"), value='\n'.join([x.name for x in everyone_ping]))
+            embed.add_field(name=_("External Apps"), value='\n'.join([x.name for x in external_apps]))
             embed.set_footer(text="🤖 = Discord Bot")
             view = HealthcheckView(everyone_ping, external_apps)
         else:
-            embed.add_field(name='_ _', value="No critical permissions found.", inline=False)
+            embed.add_field(name='_ _', value=_("No critical permissions found."), inline=False)
             view = None
         # Channels
         if len(channels_for_everyone) > 1:
-            embed.add_field(name=utils.print_ruler(header="Channels"), value='_ _', inline=False)
+            embed.add_field(name=utils.print_ruler(header=_("Channels")), value='_ _', inline=False)
             if len(channels_for_everyone) > 10:
-                embed.add_field(name=f"You allow everyone to view {len(channels_for_everyone)} channels.",
-                                value="The recommended approach is to have one landing channel and a role for users.")
+                embed.add_field(name=_("You allow everyone to view {} channels.").format(len(channels_for_everyone)),
+                                value=_("The recommended approach is to have one landing channel and a role for users."))
             else:
-                embed.add_field(name="Public Channels", value='\n'.join(x.mention for x in channels_for_everyone),
+                embed.add_field(name=_("Public Channels"), value='\n'.join(x.mention for x in channels_for_everyone),
                                 inline=False)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         try:
@@ -251,7 +251,7 @@ class Discord(Plugin):
         if payload.emoji.name == '🤖':
             self.log.warning(f"Member {payload.member.display_name} fell into the bot trap!")
             if payload.member.id != self.bot.owner_id:
-                await self.bot.audit(f"Kicked for falling into the bot trap.", member=payload.member)
+                await self.bot.audit(_("Kicked for falling into the bot trap."), member=payload.member)
                 try:
                     await payload.member.kick(reason="Bot user")
                 except discord.Forbidden:
@@ -307,12 +307,12 @@ class Discord(Plugin):
             timeout = config.get('timeout', 60)
             if timeout:
                 try:
-                    await message.author.timeout(timedelta(minutes=1), reason="Mentioning everyone")
+                    await message.author.timeout(timedelta(minutes=1), reason=_("Mentioning everyone"))
                 except discord.Forbidden:
                     self.log.warning('DCSServerBot is missing permission "Time out members"!')
             elif config.get('kick', False):
                 try:
-                    await message.author.kick(reason="Mentioning everyone")
+                    await message.author.kick(reason=_("Mentioning everyone"))
                 except discord.Forbidden:
                     self.log.warning('DCSServerBot is missing permission "Kick, Approve and Reject Members"!')
             await message.delete()

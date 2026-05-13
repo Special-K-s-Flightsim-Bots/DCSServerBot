@@ -5,6 +5,8 @@ import atexit
 import importlib
 import inspect
 import json
+import sqlite3
+
 import luadata
 import os
 import pkgutil
@@ -129,7 +131,7 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 
     def on_deleted(self, event: DirDeletedEvent | FileDeletedEvent) -> None:
         path = os.path.normpath(event.src_path)
-        if not path.endswith('.miz'):
+        if not self._is_valid_mission_file(path):
             return
         missions = self.server.settings['missionList']
         if '.dcssb' not in path:
@@ -623,7 +625,7 @@ class ServerImpl(Server):
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
             self.process = None
 
-    def load_extension(self, name: str) -> Extension | None:
+    def load_extension(self, name: str, config: dict | None = None) -> Extension | None:
         if '.' not in name:
             _extension = f'extensions.{name.lower()}.extension.{name}'
         else:
@@ -632,12 +634,13 @@ class ServerImpl(Server):
         if not _ext:
             self.log.error(f"Extension {name} could not be found!")
             return None
-        return _ext(
-            self,
-            self.node.locals.get('extensions', {}).get(name, {}) | (
+        if not config:
+            config = self.node.locals.get('extensions', {}).get(name, {}) | (
                     DEFAULT_EXTENSIONS | self.locals.get('extensions', {})
             ).get(name, {})
-        )
+        else:
+            config = self.node.locals.get('extensions', {}).get(name, {}) | config
+        return _ext(self, config)
 
     @override
     async def init_extensions(self) -> list[str]:
@@ -706,6 +709,21 @@ class ServerImpl(Server):
             p = psutil.NORMAL_PRIORITY_CLASS
         self.process.nice(p)
 
+    def _cleanup_sqlite(self):
+        try:
+            sqlite_path = os.path.join(self.instance.home, 'Config', 'serverdata.sqlite3')
+            if not os.path.exists(sqlite_path):
+                return
+            with sqlite3.connect(sqlite_path) as conn:
+                cur = conn.cursor()
+                # we need to delete all net sessions regularly to obey the GDPR requirements
+                cur.execute("DELETE FROM net_sessions;")
+                conn.commit()
+                conn.execute("VACUUM;")
+                conn.commit()
+        except sqlite3.OperationalError:
+            pass
+
     @override
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
         if not utils.is_desanitized(self.node):
@@ -713,6 +731,7 @@ class ServerImpl(Server):
                 raise Exception("Your DCS installation is not desanitized properly to be used with DCSServerBot!")
             else:
                 utils.desanitize(self)
+        await asyncio.to_thread(self._cleanup_sqlite)
         self.status = Status.LOADING
         await self.init_extensions()
         await self.prepare_extensions()
@@ -883,34 +902,38 @@ class ServerImpl(Server):
             """, (self.node.name, self.name))
 
     @override
-    async def uploadMission(self, filename: str, url: str, *, missions_dir: str = None, force: bool = False,
-                            orig = False) -> UploadStatus:
+    async def uploadMission(
+            self,
+            filename: str,
+            url: str,
+            *,
+            missions_dir: str = None,
+            force: bool = False
+    ) -> UploadStatus:
         if not missions_dir:
             missions_dir = self.instance.missions_dir
         filename = os.path.normpath(os.path.join(missions_dir, filename))
         secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
         orig_filename = secondary + '.orig'
 
-        if orig:
-            filename = orig_filename
-            add = False
-        else:
-            for idx, name in enumerate(await self.getMissionList()):
-                if (name == filename) or (name == secondary):
-                    if self.current_mission and idx == int(self.settings['listStartIndex']) - 1:
-                        if not force:
-                            return UploadStatus.FILE_IN_USE
-                    add = True
-                    break
-            else:
-                add = self.locals.get('autoadd', True)
+        for idx, name in enumerate(await self.getMissionList()):
+            if (name == filename) or (name == secondary):
+                if self.current_mission and idx == int(self.settings['listStartIndex']) - 1:
+                    if not force:
+                        return UploadStatus.FILE_IN_USE
+                    else:
+                        filename = utils.create_writable_mission(filename)
+                break
+
         rc = await self.node.write_file(filename, url, force)
         if rc != UploadStatus.OK:
             return rc
-        if (force or not self.locals.get('autoscan', False)) and add:
+
+        if (force or not self.locals.get('autoscan', False)) and self.locals.get('autoadd', True):
             await self.addMission(filename)
-        elif os.path.exists(orig_filename):
-            os.remove(orig_filename)
+        # replace the original file with the new one
+        if os.path.exists(orig_filename):
+            shutil.copy2(filename, orig_filename)
         return UploadStatus.OK
 
     @override
@@ -923,7 +946,8 @@ class ServerImpl(Server):
             # get the orig file
             orig_filename = utils.get_orig_file(new_filename)
             # and copy the orig file over
-            shutil.copy2(orig_filename, new_filename)
+            if orig_filename:
+                shutil.copy2(orig_filename, new_filename)
         elif new_filename != filename:
             shutil.copy2(filename, new_filename)
         if preset:
@@ -1012,20 +1036,26 @@ class ServerImpl(Server):
                 (password, self.name))
 
     @override
-    async def addMission(self, path: str, *, idx: int | None = -1, autostart: bool | None = False) -> list[str]:
+    async def addMission(self, path: str, *, idx: int = -1, autostart: bool = False) -> list[str]:
         path = os.path.normpath(path)
-        secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
-        orig = secondary + '.orig'
-        if os.path.exists(orig):
-            os.remove(orig)
+        if '.dcssb' not in path:
+            mission = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
+        else:
+            mission = os.path.join(os.path.dirname(path).replace('.dcssb', ''), os.path.basename(path))
+
         missions = await self.getMissionList()
-        if path in missions or secondary in missions:
-            # the mission is already in the list. check if we need to reset a .dcssb copy
-            if secondary in missions:
-                await self.replaceMission(missions.index(secondary) + 1, path)
-                with suppress(Exception):
-                    os.remove(secondary)
+        # we have this mission in the list already
+        if path in missions or mission in missions:
+            # if the replacement mission is in the list only, update it with the new mission
+            if mission in missions:
+                idx = missions.index(mission) + 1
+                missions = await self.replaceMission(idx, path)
+            else:
+                idx = missions.index(path) + 1
+            if autostart:
+                self.settings['listStartIndex'] = idx
             return missions
+
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             data = await self.send_to_dcs_sync({
                 "command": "addMission",
@@ -1041,7 +1071,7 @@ class ServerImpl(Server):
                 missions.append(path)
             self.settings['missionList'] = missions
             if autostart:
-                self.settings['listStartIndex'] = missions.index(path if path in missions else secondary) + 1
+                self.settings['listStartIndex'] = missions.index(path) + 1
         return self.settings['missionList']
 
     @override
@@ -1256,7 +1286,7 @@ class ServerImpl(Server):
     async def enable_extension(self, name: str, config: dict | None = None) -> bool:
         ext = self.extensions.get(name)
         if not ext:
-            ext = self.load_extension(name)
+            ext = self.load_extension(name, config)
             self.extensions[name] = ext
         if await ext.enable():
             await self.config_extension(name, (config or {}) | {"enabled": True})

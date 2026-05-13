@@ -19,22 +19,22 @@ msgstr "Backup von {} abgeschlossen."
 msgid "Backup of {} failed. Please check log for details."
 msgstr "Backup von {} fehlgeschlagen. Für Details, schaue bitte ins Logfile."
 
-# /recover
-msgid "Recover your data from an existing backup"
+# /restore
+msgid "Restore your data from an existing backup"
 msgstr "Stelle Daten wieder her"
 
-msgid "I am going to recover your {what} from {date}.\n"
-"This will delete **ALL** data that was there before.\n"
-"Are you 100% sure that you want to do that?"
+msgid "I am about to restore your {what} from {date}.\n"
+"This action will completely overwrite any existing data.\n"
+"Are you absolutely certain that you want to proceed?"
 msgstr "Ich stelle jetzte das Backup zu {what} vom Datum {date} wieder her.\n"
-"Das wird **ALLE** anderen Daten überschreiben.\n"
-"Bist Du Dir 100% sicher, dass Du das tun möchtest?"
+"Das wird **ALLE** Deine Daten überschreiben.\n"
+"Bist Du Dir absolut sicher, dass Du fortfahren möchtest?"
 
 msgid "Aborted."
 msgstr "Abgebrochen."
 
-msgid "Recovery of {} completed."
-msgstr "Wiederherstellung von {} abgeschlossen."
+msgid "Restore of {} triggered. The node will now restart."
+msgstr "Der Node wird zur Wiederherstellung von {} neu gestartet."
 
 msgid "Recovery of {} failed. Please check log for details."
 msgstr "Wiederherstellung von {} fehlgeschlagen. Für Details, schaue bitte ins Logfile."

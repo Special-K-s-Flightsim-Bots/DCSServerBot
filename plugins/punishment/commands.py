@@ -31,11 +31,11 @@ class Punishment(Plugin[PunishmentEventListener]):
     async def cog_load(self) -> None:
         await super().cog_load()
         self.decay.add_exception_type(psycopg.DatabaseError)
-        self.decay.start()
+        utils.safe_start(self.decay)
         asyncio.create_task(self.trigger.subscribe())
 
     async def cog_unload(self):
-        self.decay.cancel()
+        await utils.safe_cancel(self.decay)
         await self.trigger.close()
         await super().cog_unload()
 
@@ -103,16 +103,20 @@ class Punishment(Plugin[PunishmentEventListener]):
             # we must not punish for reslots here
             self.eventlistener.pending_kill.pop(ucid, None)
             await server.kick(player, reason)
-            message = _("Player {player} (ucid={ucid}) kicked by {kicked_by} for {reason}.").format(
-                player=player.name, ucid=player.ucid, kicked_by=self.bot.member.display_name, reason=reason)
+            message = _("Player {player} (ucid={ucid}) kicked from {server} by {kicked_by} for {reason}.").format(
+                player=player.name, ucid=player.ucid, server=player.server.name,
+                kicked_by=self.bot.member.display_name, reason=reason
+            )
 
         elif punishment['action'] == 'move_to_spec':
             # we must not punish for reslots here
             self.eventlistener.pending_kill.pop(ucid, None)
             await server.move_to_spectators(player)
             await player.sendUserMessage(_("You've been kicked back to spectators because of: {}.").format(reason))
-            message = _("Player {player} (ucid={ucid}) moved to spectators by {spec_by} for {reason}.").format(
-                player=player.name, ucid=player.ucid, spec_by=self.bot.member.display_name, reason=reason)
+            message = _("Player {player} (ucid={ucid}) moved to spectators on {server} by {spec_by} for {reason}.").format(
+                player=player.name, ucid=player.ucid, server=player.server.name,
+                spec_by=self.bot.member.display_name, reason=reason
+            )
 
         elif punishment['action'] == 'warn':
             await player.sendUserMessage(_("{name}, you have been punished for: {reason}!").format(name=player.name,

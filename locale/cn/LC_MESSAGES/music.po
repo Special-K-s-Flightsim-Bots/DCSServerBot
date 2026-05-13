@@ -8,17 +8,17 @@ msgstr ""
 
 # /music
 msgid "Commands to manage music in your (DCS) server"
-msgstr "用于控制 DCS 服务器上的音乐的命令"
+msgstr "管理您（DCS）服务器内音乐的命令"
 
 # /music player
 msgid "Music Player"
 msgstr "音乐播放器"
 
 msgid "You don't have any playlists to play. Please create one with {}."
-msgstr "您没有可播放的播放列表.请使用 {} 创建一个."
+msgstr "您没有可播放的播放列表。请使用 {} 创建一个."
 
 msgid "Frequency"
-msgstr "频道频率"
+msgstr "频率"
 
 msgid "Coalition"
 msgstr "阵营"
@@ -42,7 +42,7 @@ msgid "Title"
 msgstr "标题"
 
 msgid "Artist"
-msgstr "艺术家"
+msgstr "艺人"
 
 msgid "Album"
 msgstr "专辑"
@@ -57,7 +57,7 @@ msgid "Pick a song from the list"
 msgstr "从列表中选择一首歌曲"
 
 msgid "Use /music play to access all songs in the list.\n"
-msgstr "使用 /music play 访问列表中的所有歌曲.\n"
+msgstr "使用 `/music play` 可访问列表中的所有歌曲。\n"
 
 msgid "Pick a playlist to play"
 msgstr "选择要播放的播放列表"
@@ -90,16 +90,16 @@ msgid "Volume"
 msgstr "音量"
 
 msgid "Coalition (1=red | 2=blue)"
-msgstr "阵营 (1=红方 | 2=蓝方)"
+msgstr "阵营（1=红方 | 2=蓝方）"
 
 msgid "Display Name"
 msgstr "显示名称"
 
 msgid "Modulation must be one of AM | FM!"
-msgstr "调制必须是 AM 或者 FM!"
+msgstr "调制方式必须为 AM 或 FM!"
 
 msgid "Coalition must be 1 or 2!"
-msgstr "阵营必须是 1 或者 2!"
+msgstr "阵营必须是 1 或 2!"
 
 # /music play
 msgid "Play a song or a playlist\n"
@@ -112,7 +112,7 @@ msgid "Now playing {} ..."
 msgstr "正在播放 {} ..."
 
 msgid "Radio {} started."
-msgstr "电台 {} 已开始."
+msgstr "电台 {} 已启动."
 
 # /music stop
 msgid "Stop playing"
@@ -123,7 +123,7 @@ msgstr "电台 {} 已停止."
 
 # /playlist
 msgid "Commands to manage music playlists"
-msgstr "用于管理播放列表的命令"
+msgstr "管理音乐播放列表的命令"
 
 # /playlist add
 msgid "Add a song to a playlist"
@@ -137,7 +137,7 @@ msgid "Add all available songs to a playlist"
 msgstr "将所有可用歌曲添加到播放列表"
 
 msgid "Do you really want to add ALL songs to the playlist?"
-msgstr "您确实要将所有歌曲添加到播放列表中吗?"
+msgstr "您确定要将所有歌曲加入播放列表吗?"
 
 # /playlist delete
 msgid "Remove a song from a playlist"
@@ -147,14 +147,14 @@ msgid "Playlist {} deleted."
 msgstr "播放列表 {} 已删除."
 
 msgid "{title} has been removed from playlist {playlist}."
-msgstr "{title} 已从播放列表 {playlist} 中删除"
+msgstr "{title} 已从播放列表 {playlist} 中移除."
 
 # upload
 msgid "File exists. Do you want to overwrite it?"
-msgstr "文件已存在. 是​​否要覆盖它?"
+msgstr "文件已存在。是否要覆盖?"
 
 msgid "Song {} uploaded."
 msgstr "歌曲 {} 已上传."
 
 msgid "Error {status} while reading file {file}!"
-msgstr "读取文件 {file} 时发生错误 {status} !"
+msgstr "读取文件 {file} 时发生错误 {status}!"

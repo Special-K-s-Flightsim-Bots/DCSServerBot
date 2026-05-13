@@ -20,12 +20,12 @@ class CreditSystem(Plugin[CreditSystemListener]):
         await super().cog_load()
         config = self.get_config()
         if config.get('leaderboard'):
-            self.update_leaderboard.start()
+            utils.safe_start(self.update_leaderboard)
 
     async def cog_unload(self) -> None:
         config = self.get_config()
         if config.get('leaderboard'):
-            self.update_leaderboard.cancel()
+            await utils.safe_cancel(self.update_leaderboard)
         await super().cog_unload()
 
     async def get_credits(self, ucid: str) -> list[dict]:

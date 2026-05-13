@@ -19,15 +19,17 @@ class CronService(Service):
         self.bus = None
 
     async def start(self, *args, **kwargs):
-        if self.locals:
-            await super().start()
-            self.bus = ServiceRegistry.get(ServiceBus)
-            self.schedule.start()
+        if not self.locals:
+            return
+        await super().start()
+        self.bus = ServiceRegistry.get(ServiceBus)
+        utils.safe_start(self.schedule)
 
     async def stop(self, *args, **kwargs):
-        if self.locals:
-            self.schedule.cancel()
-            await super().stop()
+        if not self.locals:
+            return
+        await utils.safe_cancel(self.schedule)
+        await super().stop()
 
     def get_config(self, server: Server | None = None, **kwargs) -> dict:
         if not server:

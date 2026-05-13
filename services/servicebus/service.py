@@ -54,6 +54,8 @@ class ServiceBus(Service):
         self.init_servers()
         self.udp_server = None
         self.executor = None
+        self.intercom_subscribe_task = None
+        self.broadcasts_subscribe_task = None
 
         if 'DCS' in self.locals and self.node.locals['DCS'].get('desanitize', True):
             if not self.node.locals['DCS'].get('cloud', False) or self.master:
@@ -85,9 +87,14 @@ class ServiceBus(Service):
                 """, (self.node.guild_id, ))
 
             # subscribe to the intercom and broadcast channels
-            asyncio.create_task(self.intercom_channel.subscribe())
-            asyncio.create_task(self.broadcasts_channel.subscribe())
-            # check master
+            self.intercom_subscribe_task = self.intercom_channel.observe_task(asyncio.create_task(
+                self.intercom_channel.subscribe(),
+                name="intercom_channel_subscribe"
+            ))
+            self.broadcasts_subscribe_task = self.broadcasts_channel.observe_task(asyncio.create_task(
+                self.broadcasts_channel.subscribe(),
+                name="broadcasts_channel_subscribe"
+            ))
             await self.switch(self.master)
 
         except Exception as ex:
@@ -95,6 +102,7 @@ class ServiceBus(Service):
             raise FatalException(repr(ex)) from ex
 
     async def switch(self, master: bool):
+        await super().switch(master)
         if master:
             asyncio.create_task(self.register_local_servers(master))
             for node in await self.node.get_active_nodes():
@@ -131,6 +139,31 @@ class ServiceBus(Service):
                 }
             })
 
+    async def _stop_subscribe_tasks(self):
+        tasks = [
+            task for task in [
+                self.intercom_subscribe_task,
+                self.broadcasts_subscribe_task
+            ] if task and not task.done()
+        ]
+
+        self.intercom_subscribe_task = None
+        self.broadcasts_subscribe_task = None
+
+        if not tasks:
+            return
+
+        for task in tasks:
+            task.cancel()
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for result in results:
+            if isinstance(result, asyncio.CancelledError):
+                continue
+            elif isinstance(result, Exception):
+                self.log.exception(result)
+
     async def stop(self):
         if self.udp_server:
             self.log.debug("- Processing unprocessed messages ...")
@@ -152,6 +185,7 @@ class ServiceBus(Service):
             })
             self.log.debug('- Unregistered from Master node.')
         await self.intercom_channel.close()
+        await self._stop_subscribe_tasks()
         await super().stop()
 
     @property
@@ -314,9 +348,11 @@ class ServiceBus(Service):
                 self.log.warning(f'No configuration found for node "{node.name}" in nodes.yaml!')
 
         self.node.all_nodes[node.name] = node
-        while not self.bot or not ServiceRegistry.get(BotService):
+        while not self.bot:
             await asyncio.sleep(1)
-            self.bot = ServiceRegistry.get(BotService).bot
+            service = ServiceRegistry.get(BotService)
+            if service:
+                self.bot = ServiceRegistry.get(BotService).bot
         await self.bot.wait_until_ready()
         await self.register_remote_servers(node)
 
@@ -599,6 +635,8 @@ class ServiceBus(Service):
                 self.listeners.pop(token, None)
 
     def _serialize(self, obj: Any) -> Any:
+        if inspect.isawaitable(obj):
+            raise TypeError(f"RPC returned an awaitable object instead of a value: {obj!r}")
         if hasattr(obj, 'to_dict'):
             return {'_class': f"{obj.__class__.__module__}.{obj.__class__.__name__}"} | obj.to_dict()
         elif isinstance(obj, Enum):
@@ -701,7 +739,7 @@ class ServiceBus(Service):
 
         # support sync responses though broadcast
         if 'channel' in data and str(data['channel']).startswith('sync-'):
-            server: Server = self.servers.get(server_name)
+            server: Server | None = self.servers.get(server_name)
             if not server:
                 # we should never be here
                 self.log.warning(f'Message received for unregistered server {server_name}, ignoring.')
@@ -737,7 +775,7 @@ class ServiceBus(Service):
     async def rpc(self, obj: object, data: dict) -> dict | None:
         if 'method' in data:
             method_name = data['method']
-            func: Callable = reduce(lambda attr, part: getattr(attr, part, None), method_name.split('.'), obj)
+            func: Callable | None = reduce(lambda attr, part: getattr(attr, part, None), method_name.split('.'), obj)
             if not func:
                 raise ValueError(f"Call to non-existing function {method_name}()")
 
@@ -791,12 +829,10 @@ class ServiceBus(Service):
 
             # Log performance and execute the function
             with PerformanceLog(f"RPC: {obj.__class__.__name__}.{method_name}()"):
-                if inspect.iscoroutinefunction(func):
-                    # If the function is asynchronous, await it directly
-                    return await func(**kwargs)
-                else:
-                    # For synchronous functions, we need to execute them without to_thread() because of loop access
-                    return func(**kwargs)
+                result = func(**kwargs)
+                if inspect.isawaitable(result):
+                    return await result
+                return result
 
         elif 'params' in data:
             for key, value in data['params'].items():
@@ -999,7 +1035,7 @@ class ServiceBus(Service):
                     while True:
                         data = await derived.message_queue[server_name].get()
 
-                        server: Server = self.servers.get(server_name)
+                        server: Server | None = self.servers.get(server_name)
                         if not server:
                             return
 

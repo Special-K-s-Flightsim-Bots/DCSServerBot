@@ -20,17 +20,17 @@ msgid "Push MGRS coordinates with screenshots to DCS Battleground"
 msgstr "将 MGRS 坐标和截图推送到 DCS Battleground"
 
 msgid "The second parameter needs to be a MGRS coordinate (ex: 38TLN0274366889)."
-msgstr "第二个参数需要是 MGRS 坐标 (例如: 38TLN0274366889)."
+msgstr "第二个参数必须是 MGRS 坐标（例如: 38TLN0274366889）。"
 
 msgid "Recon data added - {side} side - {server}"
-msgstr "侦察数据已添加 - {side} 方阵营 - {server}"
+msgstr "侦察数据已添加 - {side} 方 - {server}"
 
 msgid "Coalitions have to be enabled and you need to use this command in one of your coalition channels!"
-msgstr "必须启用阵营，并且你需要在你的一个阵营频道中使用此命令!"
+msgstr "必须启用阵营功能，并且您需要在对应阵营频道中使用此命令!"
 
 # /battlegound reset
 msgid "Delete recon data on a specified server"
-msgstr "在指定的服务器上删除侦察数据"
+msgstr "删除指定服务器上的侦察数据"
 
 msgid "Recon data deleted for server {}."
 msgstr "服务器 {} 的侦察数据已删除."

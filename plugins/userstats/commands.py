@@ -54,8 +54,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     async def cog_load(self) -> None:
         await super().cog_load()
         if self.locals:
-            self.persistent_highscore.start()
-            self.refresh_views.start()
+            utils.safe_start(self.persistent_highscore)
+            utils.safe_start(self.refresh_views)
             self.refresh_views.add_exception_type(psycopg.DatabaseError)
             if not self.locals.get(DEFAULT_TAG, {}).get('squadrons', {}).get('self_join', True):
                 super().change_commands({
@@ -67,7 +67,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
     async def cog_unload(self):
         if self.locals:
-            self.persistent_highscore.cancel()
+            await utils.safe_cancel(self.refresh_views)
+            await utils.safe_cancel(self.persistent_highscore)
         await super().cog_unload()
 
     async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
@@ -654,7 +655,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             return
 
         # Detect the stats-filter to use if necessary
-        flt = StatisticsFilter.detect(self.bot, period) if period else None
+        flt = StatisticsFilter.detect(self.bot, period) if period else PeriodFilter()
 
         # Determine the report file and embed name
         file = highscore.get('report',
@@ -810,10 +811,16 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
     @tasks.loop(hours=1)
     async def refresh_views(self):
-        async with self.apool.connection() as conn:
-            await conn.execute("""
-                REFRESH MATERIALIZED VIEW CONCURRENTLY mv_statistics;
-            """)
+        try:
+            async with self.apool.connection() as conn:
+                await conn.execute("""
+                    REFRESH MATERIALIZED VIEW CONCURRENTLY mv_statistics;
+                """)
+        except psycopg.errors.FeatureNotSupported:
+            async with self.apool.connection() as conn:
+                await conn.execute("""
+                    REFRESH MATERIALIZED VIEW mv_statistics;
+                """)
 
     @refresh_views.before_loop
     async def before_refresh_views(self):

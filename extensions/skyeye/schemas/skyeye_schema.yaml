@@ -22,7 +22,7 @@ schema;skyeye_config:
     name: {type: str, nullable: false, range: {min: 1}}
     debug: {type: bool, nullable: false}
     log: {type: str, nullable: false, range: {min: 1}}
-    affinity: { type: any, func: deprecated, enum: ['Use "auto_affinity" instead.'] }
+    affinity: {type: any, nullable: false, func: str_or_list}
     config: {type: str, nullable: false, range: {min: 1}}
     coalition: {type: str, enum: ['blue', 'red'], nullable: false}
     recognizer: {type: str, enum: ['openai-whisper-local', 'openai-whisper-api'], nullable: false}

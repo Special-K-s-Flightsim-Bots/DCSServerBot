@@ -3,7 +3,6 @@ import luadata
 import os
 import time
 
-from contextlib import suppress
 from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel, \
     ThreadSafeDict, Coalition, Side
 from pathlib import Path
@@ -30,11 +29,9 @@ class PunishmentEventListener(EventListener["Punishment"]):
         self.missile_parameters: dict[str, dict[str, float]] = self.read_missile_parameters()
 
     async def shutdown(self) -> None:
-        for tasks in self.pending_forgiveness.values():
-            for task in tasks:
-                task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await task
+        tasks = [t for sub in self.pending_forgiveness.values() for t in sub]
+        for t in tasks: t.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
     async def processEvent(self, name: str, server: Server, data: dict) -> None:
         try:
@@ -349,6 +346,9 @@ class PunishmentEventListener(EventListener["Punishment"]):
             target = server.get_player(id=data['arg3'])
             if target:
                 evt['target'] = target
+                # TODO: Workaround for DCS bug
+                if initiator.side != target.side:
+                    return
             # check collision
             if data['arg2'] == initiator.unit_display_name:
                 evt['eventName'] = 'collision_hit'
@@ -362,6 +362,12 @@ class PunishmentEventListener(EventListener["Punishment"]):
         elif data['eventName'] == 'kill':
             # check team-kills
             target = server.get_player(id=data['arg4'])
+            # TODO: Workaround for DCS bug
+            if initiator and initiator.side.value != data['arg3']:
+                data['arg3'] = initiator.side.value
+            if target and target.side.value != data['arg6']:
+                data['arg6'] = target.side.value
+
             if data['arg1'] != data['arg4'] and data['arg3'] == data['arg6']:
                 if target:
                     evt['target'] = target
@@ -387,7 +393,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         elif data['eventName'] == 'disconnect':
             shot_time, evt = self.pending_kill.pop(initiator.ucid, (-1, None))
-            if shot_time == -1 or not evt:
+            if shot_time == -1 or not evt or data['arg4'] != 0:
                 return
 
             delta_time = int(time.time()) - shot_time
@@ -697,10 +703,9 @@ class PunishmentEventListener(EventListener["Punishment"]):
             return
 
         # wait for all tasks to be finished
-        for task in all_tasks:
-            task.cancel()
-            with suppress(asyncio.CancelledError):
-                await task
+        for t in all_tasks:
+            t.cancel()
+        await asyncio.gather(*all_tasks, return_exceptions=True)
 
         for initiator in initiators:
             offender = server.get_player(ucid=initiator)

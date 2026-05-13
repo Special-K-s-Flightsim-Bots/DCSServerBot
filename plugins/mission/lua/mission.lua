@@ -342,6 +342,18 @@ function dcsbot.getAirbase(name, channel)
     local alt = Terrain.GetHeight(position.x, position.z)
     local warehouse = airbase:getWarehouse()
 
+    local category = airbase:getDesc().category
+    local type
+    if category == Airbase.Category.AIRDROME then
+        type = "Airbase"
+    elseif category == Airbase.Category.HELIPAD then
+        type = "FARP"
+    elseif category == Airbase.Category.SHIP then
+        type = "Carrier"
+    else
+        type = "Unknown"
+    end
+
     local msg = {
         command = "getAirbase",
         name = airbase:getName(),
@@ -349,6 +361,8 @@ function dcsbot.getAirbase(name, channel)
         lat = lat,
         lng = lng,
         alt = alt,
+        type = type,
+        category = category,
         coalition = airbase:getCoalition(),
         radio_silent = airbase:getRadioSilentMode(),
         auto_capture = airbase:autoCaptureIsOn(),

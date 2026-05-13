@@ -105,6 +105,23 @@ msgstr "Du hast eine Spende über {donation} Credits von {member} erhalten!"
 msgid ", you just received {donation} credit points from {member}!"
 msgstr ", Du hast einen Spende über {donation} Credits von {member} erhalten!"
 
+# /credits reset
+msgid "Reset credits for a player or a whole campaign"
+msgstr "Lösche Credits für Spieler/Kampagne"
+
+msgid "I'm going to delete the campaign credits of user\n"
+"{} for the running campaign."
+msgstr "Ich lösche jetzt die Credits des Benutzers {} für die aktuelle Kampagne."
+
+msgid "I'm going to delete all campaign credits for the running campaign."
+msgstr "Ich lösche jetzte **alle** Credits der laufenden Kampagne."
+
+msgid "Aborted."
+msgstr "Abgebrochen."
+
+msgid "Campaign credits have been deleted."
+msgstr "Kampagnen-Credits wurden gelöscht."
+
 ## LISTENER
 msgid "Initial points received"
 msgstr "Initiale Credits erhalten"

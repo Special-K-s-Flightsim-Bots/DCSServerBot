@@ -4,16 +4,16 @@ import asyncio
 import logging
 
 from abc import ABC
-
 from aiohttp import ClientResponseError
-
-from core import Status
+from core import Status, utils
 from core.services.registry import ServiceRegistry
-from typing import TYPE_CHECKING
+from discord.ext.tasks import Loop
+from typing import TYPE_CHECKING, cast
 from typing_extensions import override
 
 if TYPE_CHECKING:
     from core import Server, Port
+    from services.bot import BotService
 
 __all__ = [
     "Extension",
@@ -41,6 +41,8 @@ class Extension(ABC):
     CONFIG_DICT = {}
 
     def __init__(self, server: Server, config: dict):
+        from services.servicebus import ServiceBus
+
         self.node = server.node
         self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.pool = self.node.pool
@@ -48,6 +50,7 @@ class Extension(ABC):
         self.lock = asyncio.Lock()
         self.config: dict = config
         self.server: Server = server
+        self.bus = cast(ServiceBus, ServiceRegistry.get(ServiceBus))
         self.running = False
         self.locals: dict = {}
         if self.config.get('name'):
@@ -58,10 +61,15 @@ class Extension(ABC):
             return
         self.locals = self.load_config()
         if self.__class__.__name__ not in Extension.started_schedulers:
-            schedule = getattr(self, 'schedule', None)
+            schedule: Loop | None = getattr(self, 'schedule', None)
             if schedule:
-                schedule.start()
-            Extension.started_schedulers.add(self.__class__.__name__)
+                utils.safe_start(schedule)
+                Extension.started_schedulers.add(self.__class__.__name__)
+
+    @property
+    def bot(self) -> BotService:
+        from services.bot import BotService
+        return cast(BotService, ServiceRegistry.get(BotService))
 
     def load_config(self) -> dict:
         return dict()
@@ -169,7 +177,7 @@ class InstallableExtension(Extension):
         return self.config.get('autoupdate', False)
 
     @override
-    async def prepare(self):
+    async def prepare(self) -> bool:
         # check if the extension is installed
         if not self.is_installed() and not await self.install():
             self.log.warning(f"  => {self.name}: Mod not installed, skipping.")

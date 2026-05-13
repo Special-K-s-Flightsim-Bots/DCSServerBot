@@ -2,6 +2,7 @@ import asyncio
 import discord
 import re
 
+from contextlib import suppress
 from core import EventListener, event, Server, utils, get_translation, Coalition, DataObjectFactory, Player, Report
 from datetime import datetime, timedelta
 from discord.utils import MISSING
@@ -480,7 +481,8 @@ class TournamentEventListener(EventListener["Tournament"]):
         if self.tasks.get(server.name):
             task = self.tasks.pop(server.name)
             task.cancel()
-            await task
+            with suppress(asyncio.CancelledError):
+                await task
 
         # do we have a winner?
         if winner in ['blue', 'red']:

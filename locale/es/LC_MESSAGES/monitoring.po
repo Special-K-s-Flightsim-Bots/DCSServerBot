@@ -1,0 +1,31 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+
+msgid "The FPS of server {server.name} are below {min_fps} for longer than {period} minutes!"
+msgstr "¡Los FPS del servidor {server.name} llevan más de {period} minutos por debajo de {min_fps}!"
+
+# /serverload
+msgid "Displays the load of your DCS servers"
+msgstr "Muestra la carga de tus servidores DCS"
+
+# /serverstats
+msgid "Shows servers statistics"
+msgstr "Estadísticas del servidor"
+
+# LISTENER
+msgid "Server {server} FPS ({fps}) has been below {min_fps} for more than {period} minutes."
+msgstr "Los FPS ({fps}) del servidor {server} llevan más de {period} minutos por debajo de {min_fps}."
+
+msgid "Server Performance Low!"
+msgstr "¡Rendimiento del servidor bajo!"
+
+msgid "Server {server} RAM usage is {ram} GB, exceeding the maximum of {max_ram} GB for more than {period} minutes."
+msgstr "El uso de RAM del servidor {server} es de {ram} GB, superando el máximo de {max_ram} GB durante más de {period} minutos."
+
+msgid "Excessive RAM consumption!"
+msgstr "¡Consumo excesivo de RAM!"

@@ -13,11 +13,11 @@ if [ -z "$python_version" ]; then
 fi
 
 # Required minimum Python version
-required_version="3.10"
+required_version="3.11"
 
 # Compare Python versions
 if [ "$(printf '%s\n' "$required_version" "$python_version" | sort -V | head -n1)" != "$required_version" ]; then
-    echo "Python version must be >= 3.10. Detected version: $python_version"
+    echo "Python version must be >= $required_version. Detected version: $python_version"
     echo "Please upgrade your Python installation."
     exit 1
 fi

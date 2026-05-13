@@ -14,13 +14,11 @@ import tempfile
 import zipfile
 
 from contextlib import suppress
-from core import utils, ServiceRegistry, get_translation, ProcessManager, Extension
+from core import utils, get_translation, ProcessManager, Extension
 from logging.handlers import RotatingFileHandler
 from io import BytesIO
 from packaging.version import parse
 from pathlib import Path
-from services.bot import BotService
-from services.servicebus import ServiceBus
 from threading import Thread
 from typing import Any
 from typing_extensions import override
@@ -289,15 +287,7 @@ class SkyEye(Extension):
                 await self.do_update(version)
                 self._version = version.lstrip('v')
                 self.log.info("SkyEye updated.")
-                bus = ServiceRegistry.get(ServiceBus)
-                await bus.send_to_node({
-                    "command": "rpc",
-                    "service": BotService.__name__,
-                    "method": "audit",
-                    "params": {
-                        "message": f"{self.name} updated to version {version} on node {self.node.name}."
-                    }
-                })
+                await self.bot.audit(message=f"{self.name} updated to version {version} on node {self.node.name}.")
         except Exception as ex:
             self.log.exception(ex)
 

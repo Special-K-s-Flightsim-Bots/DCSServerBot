@@ -409,7 +409,7 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def addMission(self, path: str, *, idx: int | None = -1, autostart: bool | None = False) -> list[str]:
+    async def addMission(self, path: str, *, idx: int = -1, autostart: bool = False) -> list[str]:
         raise NotImplementedError()
 
     @abstractmethod
@@ -442,8 +442,9 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def uploadMission(self, filename: str, url: str, *, missions_dir: str = None, force: bool = False,
-                            orig = False) -> UploadStatus:
+    async def uploadMission(
+            self, filename: str, url: str, *, missions_dir: str = None, force: bool = False
+    ) -> UploadStatus:
         raise NotImplementedError()
 
     @abstractmethod

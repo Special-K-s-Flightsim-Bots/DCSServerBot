@@ -6,22 +6,36 @@ from datetime import timedelta, datetime
 from discord.ext import tasks
 from pathlib import Path
 from services.bot import BotService
+from services.servicebus import ServiceBus
 from services.cron.actions import purge_channel
 
-@ServiceRegistry.register()
+__all__ = ["CleanupService"]
+
+
+@ServiceRegistry.register(depends_on=[ServiceBus])
 class CleanupService(Service):
 
     def __init__(self, node):
         super().__init__(node=node, name="Cleanup")
-        self.bot = None
+        self._bot: BotService | None = None
+
+    @property
+    def bot(self) -> BotService | None:
+        if not self._bot:
+            self._bot = ServiceRegistry.get(BotService)
+        return self._bot
 
     async def start(self, *args, **kwargs):
         await super().start()
-        self.schedule.start()
+        utils.safe_start(self.schedule)
 
     async def stop(self, *args, **kwargs):
-        self.schedule.cancel()
+        await utils.safe_cancel(self.schedule)
         await super().stop()
+
+    async def switch(self, master: bool):
+        await super().switch(master)
+        self._bot = None
 
     async def do_directory_cleanup(self, instance: Instance, config: dict) -> None:
 
@@ -65,25 +79,32 @@ class CleanupService(Service):
                     self.log.debug(f"- Running cleanup for {name} ...")
                     if 'directory' in config:
                         await self.do_directory_cleanup(instance, config)
-            else:
+            elif self.node.master:
                 for name, config in self.get_config().items():
-                    if self.node.master and 'channel' in config:
+                    if 'channel' in config:
                         self.log.debug(f"- Running channel cleanup ...")
                         await self.do_channel_cleanup(config)
         except Exception:
             self.log.exception("Error in cleanup:", exc_info=True)
 
-    @tasks.loop(hours=12)
-    async def schedule(self):
+    async def run(self):
         if not self.locals:
             return
-        if self.node.master:
-            asyncio.create_task(self.do_cleanup())
         for instance in self.node.instances.values():
             asyncio.create_task(self.do_cleanup(instance))
+        asyncio.create_task(self.do_cleanup())
+
+    @tasks.loop(hours=12)
+    async def schedule(self):
+        await self.run()
 
     @schedule.before_loop
     async def before_schedule(self):
         if self.node.master:
-            self.bot = ServiceRegistry.get(BotService).bot
-            await self.bot.wait_until_ready()
+            for i in range(10):
+                if self.bot:
+                    break
+                await asyncio.sleep(1)
+            if not self.bot or not self.bot.bot:
+                return
+            await self.bot.bot.wait_until_ready()

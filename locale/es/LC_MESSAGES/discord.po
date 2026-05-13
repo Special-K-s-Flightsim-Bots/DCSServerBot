@@ -1,0 +1,90 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+
+# /clear
+msgid "Clear Discord messages"
+msgstr "Borrar mensajes de Discord"
+
+msgid "Delete messages older than x days (0 = all)"
+msgstr "Eliminar mensajes con más de x días de antigüedad (0 = todos)"
+
+msgid "Deleting messages ..."
+msgstr "Eliminando mensajes ..."
+
+msgid "All messages deleted."
+msgstr "Todos los mensajes eliminados."
+
+# /addrole
+msgid "Adds a role to a member"
+msgstr "Asignar un rol a un miembro"
+
+msgid "Member {member} already has role {role}."
+msgstr "El miembro {member} ya tiene el rol {role}."
+
+msgid "Role {role} added to {member}."
+msgstr "Rol {role} asignado a {member}."
+
+msgid "You don't have permission to add role {role} to {member}."
+msgstr "No tienes permiso para asignar el rol {role} al miembro {member}."
+
+# /delrole
+msgid "Removes a role from a member"
+msgstr "Eliminar un rol de un miembro"
+
+msgid "Member {member} doesn't have role {role}."
+msgstr "El miembro {member} no tiene el rol {role}."
+
+msgid "Role {role} removed from {member}."
+msgstr "Rol {role} eliminado del miembro {member}."
+
+msgid "You don't have permission to remove role {role} from {member}."
+msgstr "No tienes permiso para eliminar el rol {role} del miembro {member}."
+
+# /discord healthcheck
+msgid "Run a healthcheck of your discord server"
+msgstr "Ejecutar un chequeo del estado del servidor de Discord"
+
+msgid "Please give the bot __temporary__ administrative permissions in this Discord server to run this command."
+msgstr "Por favor, otorga al bot permisos de administrador __temporales__ en este servidor de Discord para ejecutar este comando."
+
+msgid "Admin Roles"
+msgstr "Roles administrativos"
+
+msgid "Members"
+msgstr "Miembros"
+
+msgid "Elevated Roles"
+msgstr "Roles con privilegios"
+
+msgid "Everyone Ping"
+msgstr "Mención \"everyone\""
+
+msgid "External Apps"
+msgstr "Aplicaciones externas"
+
+msgid "No critical permissions found."
+msgstr "No se encontraron permisos críticos."
+
+msgid "Channels"
+msgstr "Canales"
+
+msgid "You allow everyone to view {} channels."
+msgstr "Permites que todos vean {} canales."
+
+msgid "The recommended approach is to have one landing channel and a role for users."
+msgstr "Lo recomendable es tener un único canal público y asignar un rol específico a los miembros verificados."
+
+msgid "Public Channels"
+msgstr "Canales públicos"
+
+# Rest
+msgid "Kicked for falling into the bot trap."
+msgstr "Expulsado por ser detectado como bots."
+
+msgid "Mentioning everyone"
+msgstr "Mención a \"everyone\""

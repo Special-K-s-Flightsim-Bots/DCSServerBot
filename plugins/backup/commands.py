@@ -57,10 +57,18 @@ async def date_autocomplete(interaction: discord.Interaction, current: str) -> l
 class Backup(Plugin):
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
-        self.service = ServiceRegistry.get(BackupService)
+        self._service = None
         if not self.locals:
             raise PluginInstallationError(reason=f"No config/services/{self.plugin_name}.yaml file found!",
                                           plugin=self.plugin_name)
+
+    @property
+    def service(self) -> BackupService:
+        if self._service is None:
+            self._service = ServiceRegistry.get(BackupService)
+            if not self._service:
+                raise PluginInstallationError(plugin=self.plugin_name, reason="BackupService not loaded!")
+        return self._service
 
     def read_locals(self) -> dict:
         config_file = os.path.join(self.node.config_dir, 'services', 'backup.yaml')

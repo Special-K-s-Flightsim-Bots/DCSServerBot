@@ -1,0 +1,425 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: cn\n"
+
+# /server
+msgid "Commands to manage a DCS server"
+msgstr "管理 DCS 服务器的命令"
+
+# /server list
+msgid "List of all registered servers"
+msgstr "列出所有已注册的服务器"
+
+msgid "No servers registered."
+msgstr "没有已注册的服务器。"
+
+msgid "All Servers"
+msgstr "所有服务器"
+
+msgid "Server"
+msgstr "服务器"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Player"
+msgstr "玩家"
+
+msgid "Maintenance flag set."
+msgstr "已设置维护标记。"
+
+msgid "Starting DCS server, please wait ..."
+msgstr "正在启动 DCS 服务器，请稍候..."
+
+msgid "Using mission \"{}\" ..."
+msgstr "正在使用任务 \"{}\" ..."
+
+msgid "Applying extensions"
+msgstr "正在应用扩展"
+
+msgid " to the original mission file ..."
+msgstr " 到原始任务文件..."
+
+msgid " to the current mission file ..."
+msgstr " 到当前任务文件..."
+
+msgid "Starting without a mission ..."
+msgstr "无任务启动..."
+
+msgid "Launching ..."
+msgstr "正在启动..."
+
+msgid "Server \"{}\" started."
+msgstr "服务器 \"{}\" 已启动。"
+
+msgid "Server is in maintenance mode!\n"
+"Use {} to reset maintenance mode."
+msgstr "服务器处于维护模式！\n"
+"请使用 {} 重置维护模式。"
+
+msgid "Maintenance flag cleared."
+msgstr "已清除维护标记。"
+
+msgid "Server started successfully."
+msgstr "服务器已成功启动。"
+
+msgid "The server crashed during startup. Trying again ({}/3) ..."
+msgstr "服务器在启动期间崩溃。正在重试 ({}/3)..."
+
+msgid "The server is crashing during startup. Check the dcs.log for errors."
+msgstr "服务器在启动期间持续崩溃。请检查 `dcs.log` 中的错误。"
+
+msgid "Timeout while launching. Please check if the server has started properly."
+msgstr "启动超时。请检查服务器是否已正常启动。"
+
+msgid "Something went wrong. Please check the dcssb*.log."
+msgstr "出现错误。请检查 `dcssb*.log`。"
+
+msgid "Exception: {}"
+msgstr "异常：{}"
+
+# /server startup
+msgid "Launches a DCS server\n\n"
+msgstr "启动一个 DCS 服务器\n\n"
+
+msgid "Change the mission based on the original uploaded mission file."
+msgstr "基于原始上传的任务文件更改任务。"
+
+msgid "Server \"{name}\" is stopped.\nPlease use {command} instead."
+msgstr "服务器 \"{name}\" 已停止。\n请改用 {command}。"
+
+msgid "Server \"{name}\" is {status}.\nPlease wait or use {command} force instead."
+msgstr "服务器 \"{name}\" 当前状态为 {status}。\n请等待或使用 {command} force。"
+
+msgid "Server \"{}\" is started already."
+msgstr "服务器 \"{}\" 已经启动。"
+
+msgid "Launching DCS Server \"{}\""
+msgstr "正在启动 DCS 服务器 \"{}\""
+
+# /server shutdown
+msgid "Shuts a DCS server down\n"
+msgstr "关闭一个 DCS 服务器\n"
+
+msgid "Deleted pending on-empty trigger."
+msgstr "已删除待执行的 on-empty 触发器。"
+
+msgid "Killing the DCS server, please wait ..."
+msgstr "正在强制终止 DCS 服务器，请稍候..."
+
+msgid "Gracefully stopping the DCS server, please wait ..."
+msgstr "正在平稳停止 DCS 服务器，请稍候..."
+
+msgid "Wait until shut down ..."
+msgstr "等待关闭完成..."
+
+msgid "DCS server \"{}\" shut down."
+msgstr "DCS 服务器 \"{}\" 已关闭。"
+
+msgid "Server shut down successfully."
+msgstr "服务器已成功关闭。"
+
+msgid "Timeout while shutting down. Please check if the server has shut down properly."
+msgstr "关闭超时。请检查服务器是否已正常关闭。"
+
+msgid "DCS server \"{}\" is already shut down."
+msgstr "DCS 服务器 \"{}\" 已经关闭。"
+
+msgid "Server is in state {}.\n"
+"Do you want to force a shutdown?"
+msgstr "服务器当前状态为 {}。\n"
+"你想强制关闭吗？"
+
+msgid "Do you want to shut down server \"{}\"?"
+msgstr "你想关闭服务器 \"{}\" 吗？"
+
+msgid "Aborted."
+msgstr "已取消。"
+
+msgid "Shutdown postponed when server is empty."
+msgstr "服务器清空后再关闭。"
+
+msgid "Shutting down DCS Server \"{}\""
+msgstr "正在关闭 DCS 服务器 \"{}\""
+
+# /server restart
+msgid "Restarts a DCS server\n\n"
+msgstr "重启一个 DCS 服务器\n\n"
+
+msgid "Do you want to restart DCS server \"{}\"?"
+msgstr "你想重启 DCS 服务器 \"{}\" 吗？"
+
+msgid "People are currently flying on this server!"
+msgstr "当前有玩家正在此服务器上飞行！"
+
+msgid "\nA restart is pending already. If you continue, the restart will be voided."
+msgstr "\n已有一个重启正在等待执行。如果继续，当前重启将被取消。"
+
+msgid "Restarting DCS Server \"{}\""
+msgstr "正在重启 DCS 服务器 \"{}\""
+
+msgid "Already pending restart was cancelled."
+msgstr "已取消原本待执行的重启。"
+
+msgid "!!! Server will restart in {} !!!"
+msgstr "!!! 服务器将在 {} 后重启 !!!"
+
+msgid "Restart is delayed for {}. Waiting ..."
+msgstr "重启已延后 {}。等待中..."
+
+msgid "!!! Server will restart NOW !!!"
+msgstr "!!! 服务器现在将立即重启 !!!"
+
+# /server start
+msgid "Starts a stopped DCS server"
+msgstr "启动已停止的 DCS 服务器"
+
+msgid "Starting server \"{}\" ..."
+msgstr "正在启动服务器 \"{}\"..."
+
+msgid "Error while starting server \"{}\"!"
+msgstr "启动服务器 \"{}\" 时出错！"
+
+msgid "Please check manually, if the server has started.\n"
+"If not, check the dcs.log for errors."
+msgstr "请手动检查服务器是否已启动。\n"
+"如果没有，请检查 `dcs.log` 中的错误。"
+
+msgid "Timeout while starting server \"{}\"!"
+msgstr "启动服务器 \"{}\" 超时！"
+
+msgid "Server \"{server}\" is shut down. Use {command} to start it up."
+msgstr "服务器 \"{server}\" 已关闭。请使用 {command} 启动它。"
+
+msgid "Server \"{}\" is already started."
+msgstr "服务器 \"{}\" 已经启动。"
+
+msgid "Server \"{server}\" is still {status}, please wait ..."
+msgstr "服务器 \"{server}\" 仍处于 {status} 状态，请稍候..."
+
+# /server stop
+msgid "Stops a running DCS server"
+msgstr "停止一个正在运行的 DCS 服务器"
+
+msgid "Do you want to stop server \"{}\"?"
+msgstr "你想停止服务器 \"{}\" 吗？"
+
+msgid "Stopping server \"{}\" ..."
+msgstr "正在停止服务器 \"{}\"..."
+
+msgid "Server \"{}\" stopped."
+msgstr "服务器 \"{}\" 已停止。"
+
+msgid "Timeout while stopping server \"{}\"!"
+msgstr "停止服务器 \"{}\" 超时！"
+
+msgid "Please check manually, if the server has stopped.\n"
+"If not, check the dcs.log for errors."
+msgstr "请手动检查服务器是否已停止。\n"
+"如果没有，请检查 `dcs.log` 中的错误。"
+
+# /server password
+msgid "Change the password or coalition passwords of a DCS server"
+msgstr "更改 DCS 服务器密码或阵营密码"
+
+msgid "Enter Password"
+msgstr "输入密码"
+
+msgid "New password"
+msgstr "新密码"
+
+msgid " for coalition {}:"
+msgstr " 用于阵营 {}："
+
+msgid "Password will be changed on next server restart."
+msgstr "密码将在服务器下次重启时更改。"
+
+msgid "Password changed."
+msgstr "密码已更改。"
+
+# /server config
+msgid "Configure a DCS server"
+msgstr "配置 DCS 服务器"
+
+msgid "It has to be stopped to change its configuration."
+msgstr "必须先停止服务器才能更改其配置。"
+
+msgid "Configuration for server \"{}\" updated."
+msgstr "服务器 \"{}\" 的配置已更新。"
+
+# /server rename
+msgid "Rename a DCS server\n"
+msgstr "重命名一个 DCS 服务器\n"
+
+msgid "Server \"{}\" has to be shut down for renaming."
+msgstr "服务器 \"{}\" 必须先关闭才能重命名。"
+
+msgid "The server has this name already. Aborted."
+msgstr "服务器已使用该名称。已取消。"
+
+msgid "Server \"{old_name}\" renamed to \"{new_name}\"."
+msgstr "服务器已从 \"{old_name}\" 重命名为 \"{new_name}\"。"
+
+# /server migrate
+msgid "Migrate a server from one instance to another"
+msgstr "将服务器从一个实例迁移到另一个实例"
+
+msgid "Server \"{server}\" is already bound to instance \"{node}:{instance}\"."
+msgstr "服务器 \"{server}\" 已绑定到实例 \"{node}:{instance}\"。"
+
+msgid "It will be unlinked from instance \"{}\" to allow the migration."
+msgstr "它将与实例 \"{}\" 解除关联，以便执行迁移。"
+
+msgid "This is necessary to migrate the server."
+msgstr "这是迁移服务器所必需的。"
+
+msgid "Server \"{server}\" migrated to instance \"{node}:{instance}\"."
+msgstr "服务器 \"{server}\" 已迁移到实例 \"{node}:{instance}\"。"
+
+# /server timeleft
+msgid "Time until server / mission restart"
+msgstr "距离服务器/任务重启的时间"
+
+msgid "No restart configured for this server."
+msgstr "此服务器未配置重启。"
+
+msgid "Server is in maintenance mode, it will not restart."
+msgstr "服务器处于维护模式，不会重启。"
+
+msgid "Please try again in a minute."
+msgstr "请一分钟后再试。"
+
+msgid "Server \"{}\""
+msgstr "服务器 \"{}\""
+
+msgid "The mission on server \"{}\""
+msgstr "服务器 \"{}\" 上的任务"
+
+# {Server xyz} .. will .. {restart} .. {in 10 minutes} .. {, if all players have left}
+msgid "{item} will {what} {when1}{when2}"
+msgstr "{item} 将在 {when1}{when2} {what}"
+
+msgid "restart"
+msgstr "重启"
+
+msgid "shutdown"
+msgstr "关闭"
+
+msgid "now"
+msgstr "现在"
+
+msgid "if all players have left."
+msgstr "如果所有玩家都已离开。"
+
+msgid "after {}"
+msgstr "{} 后"
+
+msgid "immediately"
+msgstr "立即"
+
+msgid ", if the mission is unpaused again."
+msgstr "，如果任务再次取消暂停。"
+
+# /server cleanup
+msgid "Clear the temp directory"
+msgstr "清理临时目录"
+
+msgid "This is necessary to clear the temp directory."
+msgstr "这是清理临时目录所必需的。"
+
+msgid "Server \"{}\" cleaned up."
+msgstr "服务器 \"{}\" 已清理完成。"
+
+# /server lock
+msgid "Locks a DCS server"
+msgstr "锁定一个 DCS 服务器"
+
+msgid "Server \"{}\" locked."
+msgstr "服务器 \"{}\" 已锁定。"
+
+msgid "Timeout while locking server \"{}\"!"
+msgstr "锁定服务器 \"{}\" 超时！"
+
+# /server unlock
+msgid "Unlocks a DCS server"
+msgstr "解锁一个 DCS 服务器"
+
+msgid "Server \"{}\" unlocked."
+msgstr "服务器 \"{}\" 已解锁。"
+
+msgid "Timeout while unlocking server \"{}\"!"
+msgstr "解锁服务器 \"{}\" 超时！"
+
+# /scheduler
+msgid "Commands to manage the Scheduler"
+msgstr "管理调度器的命令"
+
+# /scheduler maintenance
+msgid "Sets the server's maintenance flag"
+msgstr "设置服务器维护标记"
+
+msgid "Server is configured for a pending restart.\n"
+"Setting the maintenance flag will abort this restart.\n"
+"Are you sure?"
+msgstr "服务器已配置待执行的重启。\n"
+"设置维护标记将中止此次重启。\n"
+"你确定吗？"
+
+msgid "Maintenance mode set for server \"{}\"."
+msgstr "已为服务器 \"{}\" 设置维护模式。"
+
+msgid "Server \"{}\" is already in maintenance mode."
+msgstr "服务器 \"{}\" 已处于维护模式。"
+
+# /scheduler clear
+msgid "Clears the server's maintenance flag"
+msgstr "清除服务器维护标记"
+
+msgid "Maintenance mode cleared for server \"{}\"."
+msgstr "已取消服务器 \"{}\" 的维护模式。"
+
+msgid "Server \"{}\" is not in maintenance mode."
+msgstr "服务器 \"{}\" 未处于维护模式。"
+
+# LISTENER
+
+# -maintenance
+msgid "enable maintenance mode"
+msgstr "启用维护模式"
+
+msgid "Maintenance mode enabled."
+msgstr "维护模式已启用。"
+
+msgid "Maintenance mode is already active."
+msgstr "维护模式已处于启用状态。"
+
+# -clear
+msgid "disable maintenance mode"
+msgstr "禁用维护模式"
+
+msgid "Maintenance mode disabled."
+msgstr "维护模式已禁用。"
+
+msgid "Maintenance mode wasn't enabled."
+msgstr "维护模式此前未启用。"
+
+# -timeleft
+msgid "Time to the next restart"
+msgstr "距离下次重启的时间"
+
+msgid "Maintenance mode active, mission will not restart."
+msgstr "维护模式已启用，任务不会重启。"
+
+# {The server} .. will .. {restart} .. {in 5 minutes} .. {, if the server is empty}
+msgid "The server"
+msgstr "服务器"
+
+msgid "The mission"
+msgstr "任务"
+
+msgid "in {}"
+msgstr "{} 后"

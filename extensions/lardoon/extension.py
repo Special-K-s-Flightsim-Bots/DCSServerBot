@@ -37,9 +37,11 @@ class Lardoon(Extension):
         },
         "minutes": {
             "type": int,
-            "label": _("Scan (min)")
+            "label": _("Scan (min)"),
+            "default": 5,
+            "required": True
         },
-        "use_singleprocess": {
+        "use_single_process": {
             "type": bool,
             "label": _("Use Single Process"),
             "default": True
@@ -143,7 +145,7 @@ class Lardoon(Extension):
                 type(self)._tacview_dirs[tacview_dir] = set()
             type(self)._tacview_dirs[tacview_dir].add(self.server.name)
         else:
-            self._schedule.start()
+            utils.safe_start(self._schedule)
         return await super().startup()
 
     def terminate(self) -> bool:
@@ -169,6 +171,7 @@ class Lardoon(Extension):
                 return self.terminate()
             return True
         else:
+            # we do not wait here due to not being async
             self._schedule.cancel()
             return self.terminate()
 
@@ -216,9 +219,9 @@ class Lardoon(Extension):
             proc = subprocess.Popen([cmd] + args, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = proc.communicate()
             if stderr:
-                self.log.error(f"{self.name}: {stderr.decode('utf-8')}")
+                self.log.debug(f"{self.name}: {stderr.decode('utf-8')}")
             if self.config.get('debug', False) and stdout:
-                self.log.error(f"{self.name}: {stdout.decode('utf-8')}")
+                self.log.debug(f"{self.name}: {stdout.decode('utf-8')}")
 
         # make sure we're running on the correct schedule
         minutes = self.config.get('minutes', 5)
@@ -245,8 +248,10 @@ class Lardoon(Extension):
 
     @tasks.loop(count=1)
     async def schedule(self):
+        if self.config.get('master_only', False) and not self.node.master:
+            return
         if self.config.get('use_single_process', True):
-            self._schedule.start()
+            utils.safe_start(self._schedule)
         return
 
     @override
