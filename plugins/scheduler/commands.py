@@ -249,7 +249,7 @@ class Scheduler(Plugin[SchedulerListener]):
         times: list | dict = warn.get('times', [0])
         if isinstance(times, list):
             warn_times = sorted(times, reverse=True)
-            warn_text = warn.get('message', '!!! {item} will {what} in {when} !!!')
+            warn_text: str = warn.get('message', '!!! {item} will {what} in {when} !!!')
         elif isinstance(times, dict):
             warn_times = sorted(times.keys(), reverse=True)
         else:
@@ -274,12 +274,21 @@ class Scheduler(Plugin[SchedulerListener]):
                 return
             if server.status == Status.RUNNING:
                 if isinstance(times, dict):
-                    warn_text = times[warn_time]
-                message = warn_text.format(item=item, what=action, when=utils.format_time(warn_time))
-                await server.sendPopupMessage(Coalition.ALL, message, server.locals.get('message_timeout', 10))
-                await server.sendChatMessage(Coalition.ALL, message)
-                if 'sound' in warn:
-                    await server.playSound(Coalition.ALL, utils.format_string(warn['sound'], time=warn_time))
+                    if isinstance(times[warn_time], str):
+                        _warn_text = times[warn_time]
+                        _sound: str | None = warn.get('sound')
+                    else:
+                        _warn_text = times[warn_time].get('message', warn_text)
+                        _sound: str | None = times[warn_time].get('sound', warn.get('sound'))
+                else:
+                    _warn_text = warn_text
+                    _sound: str | None = warn.get('sound')
+
+                msg = _warn_text.format(item=item, what=action, when=utils.format_time(warn_time))
+                await server.sendPopupMessage(Coalition.ALL, msg, server.locals.get('message_timeout', 10))
+                await server.sendChatMessage(Coalition.ALL, msg)
+                if _sound:
+                    await server.playSound(Coalition.ALL, utils.format_string(_sound, time=warn_time))
             with suppress(Exception):
                 events_channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
                 if events_channel:

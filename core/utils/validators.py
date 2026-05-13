@@ -200,10 +200,8 @@ def any_of(value, rule_obj, path):
         try:
             _validate_schema(_load_schema(include_name, path), value, path)
             break
-        except SchemaError as ex:
+        except (SchemaError, CoreError) as ex:
             errors.append(ex)
-        except CoreError:
-            pass
     else:
         msg = []
         new_path = set()
@@ -231,7 +229,7 @@ def seq_or_map(value, rule_obj, path):
 
 def _scalar_or_map(t: Type, value: Any, rule_obj: Rule, path: str):
     if isinstance(value, dict):
-        _validate_schema(_load_schema(rule_obj.schema_str.get('enum')[0], path), value, path)
+        _validate_schema(_load_schema(rule_obj.enum[0], path), value, path)
     elif not isinstance(value, t):
         raise SchemaError(msg=f"Value {value} is not {t.__name__} or dict.", path=path)
     rule_obj.enum = None

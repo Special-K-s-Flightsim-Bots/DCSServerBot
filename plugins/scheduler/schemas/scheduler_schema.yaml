@@ -45,7 +45,14 @@ schema;warn_map:
   type: map
   nullable: false
   mapping:
-    regex;(^\d+$): {type: str, nullable: false, range: {min: 1}}
+    regex;(^\d+$): {type: any, nullable: false, enum: ['warn_message'], func: str_or_map}
+
+schema;warn_message:
+  type: map
+  nullable: false
+  mapping:
+    message: {type: str, nullable: false}
+    sound: {type: str, nullable: false}
 
 schema;warn_seq:
   type: seq
@@ -96,10 +103,17 @@ schema;element_schema:
       nullable: false
       func: seq_or_map
       enum: ['action_seq', 'action_map']
-    onSimulationStart: { type: any, nullable: false, func: str_or_dict }
-    onSimulationStop: { type: any, nullable: false, func: str_or_dict }
-    onMissionEnd: { type: any, nullable: false, func: str_or_dict }
-    onShutdown: { type: any, nullable: false, func: str_or_dict }
+    onSimulationStart: { type: any, nullable: false, enum: ['command_schema'], func: str_or_map }
+    onSimulationStop: { type: any, nullable: false, enum: ['command_schema'], func: str_or_map }
+    onMissionEnd: { type: any, nullable: false, enum: ['command_schema'], func: str_or_map }
+    onShutdown: { type: any, nullable: false, enum: ['command_schema'], func: str_or_map }
+
+schema;command_schema:
+  type: map
+  nullable: false
+  mapping:
+    command: {type: str, nullable: false, pattern: '^(load|lua|call|run):.+$'}
+    sleep: {type: int, nullable: false}
 
 type: map
 func: check_main_structure
