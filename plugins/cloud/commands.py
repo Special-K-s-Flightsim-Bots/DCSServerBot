@@ -49,6 +49,7 @@ class Cloud(Plugin[CloudListener]):
             }
             if 'token' in self.config:
                 headers['Authorization'] = f"Bearer {self.config['token']}"
+            headers['X-Guild-Id'] = str(self.node.guild_id)
             self.client = {
                 "guild_id": self.bot.guilds[0].id,
                 "guild_name": self.bot.guilds[0].name,
@@ -72,12 +73,11 @@ class Cloud(Plugin[CloudListener]):
             self.cloud_bans.add_exception_type(psycopg.DatabaseError)
             self.cloud_bans.add_exception_type(DiscordServerError)
             utils.safe_start(self.cloud_bans)
-        if 'token' in self.config:
+        if self.config.get('register', True):
             self.cloud_sync.add_exception_type(IndexError)
             self.cloud_sync.add_exception_type(aiohttp.ClientError)
             self.cloud_sync.add_exception_type(psycopg.DatabaseError)
             utils.safe_start(self.cloud_sync)
-        if self.config.get('register', True):
             utils.safe_start(self.register)
         if self.config.get('upload_errors', True):
             cloud_logger = CloudLoggingHandler(node=self.node, url=self.base_url + '/errors/')
@@ -85,13 +85,12 @@ class Cloud(Plugin[CloudListener]):
 
     async def cog_unload(self) -> None:
         tasks = []
-        if self.config.get('register', True):
-            tasks.append(utils.safe_cancel(self.register))
         if self.config.get('upload_errors', True):
             for handler in self.log.root.handlers:
                 if isinstance(handler, CloudLoggingHandler):
                     self.log.removeHandler(handler)
-        if 'token' in self.config:
+        if self.config.get('register', True):
+            tasks.append(utils.safe_cancel(self.register))
             tasks.append(utils.safe_cancel(self.cloud_sync))
         if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
             tasks.append(utils.safe_cancel(self.cloud_bans))
@@ -179,8 +178,14 @@ class Cloud(Plugin[CloudListener]):
                     message += _('\nCloud TOKEN configured and valid.')
                 except aiohttp.ClientError:
                     message += _('\nCloud TOKEN configured, but invalid!')
+            elif self.config.get('register', True):
+                try:
+                    await self.get('verify')
+                    message += _('\nCloud sync configured and valid.')
+                except aiohttp.ClientError:
+                    message += _("\nYou need a cloud TOKEN, if you want to use cloud statistics!")
             else:
-                message += _("\nGet a cloud TOKEN, if you want to use cloud statistics!")
+                message += _("\nCloud sync is disabled. Set 'register' to true in cloud.yaml to enable it.")
             await interaction.followup.send(message, ephemeral=ephemeral)
         except aiohttp.ClientError:
             await interaction.followup.send(_('Cloud not connected!'), ephemeral=ephemeral)
@@ -195,7 +200,7 @@ class Cloud(Plugin[CloudListener]):
                      member: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None,
                      linked_users: bool | None = None):
         ephemeral = utils.get_ephemeral(interaction)
-        if 'token' not in self.config:
+        if 'register' not in self.config:
             await interaction.response.send_message(_('No cloud sync configured!'), ephemeral=True)
             return
         async with self.apool.connection() as conn:
@@ -217,7 +222,7 @@ class Cloud(Plugin[CloudListener]):
     @utils.app_has_role('DCS')
     async def statistics(self, interaction: discord.Interaction,
                          user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None):
-        if 'token' not in self.config:
+        if 'register' not in self.config:
             await interaction.response.send_message(_('Cloud statistics are not activated in this Discord!'),
                                                     ephemeral=True)
             return
@@ -530,7 +535,7 @@ class Cloud(Plugin[CloudListener]):
     async def on_member_join(self, member: discord.Member):
         # only auto-link players if we participate in cloud stats
         config = self.get_config()
-        if not config.get('token'):
+        if not config.get('register', True):
             return
 
         ucid = await self.bot.get_ucid_by_member(member)

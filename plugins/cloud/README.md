@@ -9,9 +9,9 @@ for every active user into the cloud.
 Users can use Discord commands to see their overall stats (`/cloud statistics`), like they are used to see with `/statistics`.
 
 > [!NOTE]
-> I am happy to provide you access to the cloud service, with a token, provided by me. 
-> The service comes free of charge but without any liabilities or guarantees, you can use it or leave it, 
-> and so can I revoke any token at any time, especially if I see misuse of the system.
+> I am happy to provide anybody that uses the bot access to the cloud service. 
+> The service comes free of charge, but without any liabilities or guarantees, you can use it or leave it.
+> The system works most reliably with a token that you can get for free from me.
 
 ## DGSA: Global Ban System
 If you opt in to the cloud plugin and even have not opted in to the cloud statistics, you can still use the global ban

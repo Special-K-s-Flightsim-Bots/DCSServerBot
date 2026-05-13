@@ -153,8 +153,11 @@ class CloudListener(EventListener["Cloud"]):
             pass
 
     @event(name="onMemberLinked")
-    async def onMemberLinked(self, _server: Server, data: dict) -> None:
+    async def onMemberLinked(self, server: Server, data: dict) -> None:
         if data.get('origin') == 'cloud':
+            return
+
+        if not self.get_config(server).get('token'):
             return
 
         async with self.apool.connection() as conn:
@@ -167,10 +170,11 @@ class CloudListener(EventListener["Cloud"]):
             await self._cloud_register(ucid=data['ucid'], name=row[0], discord_id=data['discord_id'])
 
     @event(name="onMemberUnlinked")
-    async def onMemberUnlinked(self, _server: Server, data: dict) -> None:
+    async def onMemberUnlinked(self, server: Server, data: dict) -> None:
         if data.get('origin') == 'cloud':
             return
-        await self._cloud_unregister(ucid=data['ucid'])
+        if self.get_config(server).get('token'):
+            await self._cloud_unregister(ucid=data['ucid'])
 
     async def update_cloud_data(self, server: Server, player: Player):
         if not server.current_mission:
@@ -208,7 +212,7 @@ class CloudListener(EventListener["Cloud"]):
         if data['id'] == 1 or 'ucid' not in data:
             return
         config = self.plugin.get_config(server)
-        if 'token' not in config:
+        if 'register' not in config:
             return
         player = server.get_player(ucid=data['ucid'])
         if not player or player.side == Side.NEUTRAL:
