@@ -224,7 +224,7 @@ class Info(report.EmbedElement):
         if 'code' in airbase:
             self.add_field(name=_('Code'), value=airbase['code'] or 'n/a')
         else:
-            self.add_field(name=_('Type'), value=airbase['type'])
+            self.add_field(name=_('Type'), value=airbase.get('type', 'FARP'))
         self.add_field(name=_('Coalition'), value=Side(data['coalition']).name.title())
         self.add_field(name='_ _', value='_ _')
         self.add_field(name=_('Dynamic Spawns'),

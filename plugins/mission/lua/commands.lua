@@ -178,6 +178,7 @@ function dcsbot.getAirbases(json)
             end
             airbase.id = airdrome.id
             airbase.type = airdrome.airbaseType or 'Airbase'
+            airbase.category = 0 -- Airbase.Category.AIRDROME
             airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(airdrome.reference_point.x, airdrome.reference_point.y)
             airbase.alt = Terrain.GetHeight(airdrome.reference_point.x, airdrome.reference_point.y)
             airbase.mgrs =  Terrain.GetMGRScoordinates(airdrome.reference_point.x, airdrome.reference_point.y)
@@ -222,6 +223,7 @@ function dcsbot.getAirbases(json)
         local airbase = {}
         airbase.name = carrier.name
         airbase.type = 'Carrier'
+        airbase.category = 2  -- Airbase.Category.SHIP
         airbase.coalition = carrier.coalition
         airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(carrier.x, carrier.y)
         airbase.alt = Terrain.GetHeight(carrier.x, carrier.y)
@@ -239,6 +241,7 @@ function dcsbot.getAirbases(json)
         local airbase = {}
         airbase.name = farp.name
         airbase.type = 'FARP'
+        airbase.category = 1  -- Airbase.Category.HELIPAD
         airbase.coalition = farp.coalition
         airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(farp.x, farp.y)
         airbase.alt = Terrain.GetHeight(farp.x, farp.y)

@@ -96,10 +96,10 @@ schema;element_schema:
       nullable: false
       func: seq_or_map
       enum: ['action_seq', 'action_map']
-    onSimulationStart: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
-    onSimulationStop: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
-    onMissionEnd: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
-    onShutdown: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
+    onSimulationStart: { type: any, nullable: false, func: str_or_dict }
+    onSimulationStop: { type: any, nullable: false, func: str_or_dict }
+    onMissionEnd: { type: any, nullable: false, func: str_or_dict }
+    onShutdown: { type: any, nullable: false, func: str_or_dict }
 
 type: map
 func: check_main_structure

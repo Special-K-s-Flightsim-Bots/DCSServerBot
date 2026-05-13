@@ -198,7 +198,7 @@ class SRSEventListener(EventListener["SRS"]):
             if not airbase:
                 return
 
-            airbase_type = airbase['type']
+            airbase_type = airbase.get('type', 'FARP')
             default_freqs = (
                 config.
                 get('atc_frequencies', {}).

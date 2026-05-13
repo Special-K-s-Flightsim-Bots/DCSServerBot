@@ -182,7 +182,7 @@ class SchedulerListener(EventListener["Scheduler"]):
 
     @event(name="onMissionLoadBegin")
     async def onMissionLoadBegin(self, server: Server, _data: dict) -> None:
-        config = self.plugin.get_config(server) or {}
+        config = self.plugin.get_config(server)
         if not config or 'onSimulationStart' not in config:
             return
 
