@@ -218,11 +218,12 @@ def sanitize_string(s: str) -> str:
 
     return s
 
-
-SECONDS_IN_DAY = 86400
-SECONDS_IN_HOUR = 3600
 SECONDS_IN_MINUTE = 60
-TIME_LABELS = [("d", "day"), ("h", "hour"), ("m", "minute")]
+SECONDS_IN_HOUR = SECONDS_IN_MINUTE * 60
+SECONDS_IN_DAY = SECONDS_IN_HOUR * 24
+SECONDS_IN_YEAR = SECONDS_IN_DAY * 365
+
+TIME_LABELS = [("y", "year"), ("d", "day"), ("h", "hour"), ("m", "minute")]
 
 
 def format_time_units(units, label_single, label_plural=None):
