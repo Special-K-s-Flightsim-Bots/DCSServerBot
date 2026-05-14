@@ -320,8 +320,8 @@ class SRS(Extension, FileSystemEventHandler):
                     self.process = await asyncio.to_thread(run_subprocess)
                     if not self.observer:
                         self.start_observer()
-            except psutil.NoSuchProcess:
-                self.log.error(f"Error during launch of {self.get_exe_path()}!")
+            except Exception as ex:
+                self.log.error(f"Error during launch of {self.get_exe_path()}: {ex}")
                 return False
         # Give SRS 10s to start
         for _ in range(0, 10):

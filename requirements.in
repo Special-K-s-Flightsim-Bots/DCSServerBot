@@ -98,7 +98,7 @@ pywin32==311 ; sys_platform == 'win32'
 pywinauto==0.6.9 ; sys_platform == 'win32'
 
 # Requests: Python HTTP library
-requests==2.33.1
+requests==2.34.1
 
 # Rich: Python library for rich text and beautiful formatting in the terminal
 rich==15.0.0

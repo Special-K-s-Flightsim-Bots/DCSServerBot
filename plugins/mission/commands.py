@@ -21,6 +21,7 @@ from discord import Interaction, app_commands, SelectOption
 from discord.app_commands import Range, describe
 from discord.ext import commands, tasks
 from io import BytesIO
+from mgrs.core import MGRSError
 from openpyxl.utils import get_column_letter
 from pathlib import Path
 from psycopg.rows import dict_row
@@ -2334,23 +2335,30 @@ class Mission(Plugin[MissionEventListener]):
             if not lat or not lon:
                 await interaction.response.send_message("Latitude and longitude must be provided", ephemeral=True)
                 return
-            mgrs = utils.dd_to_mgrs(lat, lon)
-            await interaction.response.send_message(f"**MGRS**: {mgrs}")
+            try:
+                mgrs = utils.dd_to_mgrs(lat, lon)
+                await interaction.response.send_message(f"**MGRS**: {mgrs}")
+            except MGRSError as ex:
+                await interaction.response.send_message(str(ex), ephemeral=True)
+
         elif mode == 'MGRS => Lat/Lon':
             if not mgrs:
                 await interaction.response.send_message("MGRS must be provided", ephemeral=True)
                 return
-            mgrs = mgrs.replace(' ', '')
-            lat, lon = utils.mgrs_to_dd(mgrs)
-            d, m, s, f = utils.dd_to_dms(lat)
-            lat_dms = ('N' if d > 0 else 'S') + ' {:02d}°{:02d}\'{:02d}.{:02d}"'.format(
-                int(abs(d)), int(abs(m)), int(abs(s)), int(abs(f)))
-            d, m, s, f = utils.dd_to_dms(lon)
-            lon_dms = ('E' if d > 0 else 'W') + ' {:03d}°{:02d}\'{:02d}.{:02d}"'.format(
-                int(abs(d)), int(abs(m)), int(abs(s)), int(abs(f)))
-            await interaction.response.send_message(f"**DD**: {lat:.7f}, {lon:.7f}\n"
-                                                    f"**DMS**: {lat_dms}, {lon_dms}\n"
-                                                    f"**DDM**: {utils.dd_to_dmm(lat, lon)}")
+            try:
+                mgrs = mgrs.replace(' ', '')
+                lat, lon = utils.mgrs_to_dd(mgrs)
+                d, m, s, f = utils.dd_to_dms(lat)
+                lat_dms = ('N' if d > 0 else 'S') + ' {:02d}°{:02d}\'{:02d}.{:02d}"'.format(
+                    int(abs(d)), int(abs(m)), int(abs(s)), int(abs(f)))
+                d, m, s, f = utils.dd_to_dms(lon)
+                lon_dms = ('E' if d > 0 else 'W') + ' {:03d}°{:02d}\'{:02d}.{:02d}"'.format(
+                    int(abs(d)), int(abs(m)), int(abs(s)), int(abs(f)))
+                await interaction.response.send_message(f"**DD**: {lat:.7f}, {lon:.7f}\n"
+                                                        f"**DMS**: {lat_dms}, {lon_dms}\n"
+                                                        f"**DDM**: {utils.dd_to_dmm(lat, lon)}")
+            except MGRSError as ex:
+                await interaction.response.send_message(str(ex), ephemeral=True)
         else:
             await interaction.response.send_message("Invalid conversion mode", ephemeral=True)
 
