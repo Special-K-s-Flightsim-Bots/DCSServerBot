@@ -11,7 +11,6 @@ from core.translations import get_translation
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from psutil import Process
 from typing import TYPE_CHECKING, Any
 
 from .dataobject import DataObject
@@ -47,7 +46,6 @@ class Server(DataObject, ABC):
     _mission_id: int = field(default=None, compare=False)
     players: dict[str, Player] = field(default_factory=dict, compare=False)
     players_by_id: dict[int, Player] = field(default_factory=dict, compare=False)
-    process: Process | None = field(default=None, compare=False)
     _maintenance: bool = field(compare=False, default=False)
     restart_pending: bool = field(default=False, compare=False)
     on_mission_end: dict = field(default_factory=dict, compare=False)
