@@ -457,7 +457,6 @@ class Scheduler(Plugin[SchedulerListener]):
 
         if method == 'shutdown' or rconf.get('shutdown', False):
             self.log.debug(f"{self.__cog_name__}: Shutting down server {server.name} ...")
-
             # set the maintenance flag on shutdown unless specified otherwise
             if method == 'shutdown':
                 server.maintenance = rconf.get('maintenance', True)
