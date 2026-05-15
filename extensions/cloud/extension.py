@@ -123,7 +123,8 @@ class Cloud(Extension):
             await self.post('unregister_server', payload)
             self.log.debug(f"Server {self.server.name} unregistered from the cloud.")
         except aiohttp.ClientError as ex:
-            self.log.warning(f"Could not unregister server {self.server.name} from the cloud.", exc_info=ex)
+            self.log.warning(f"Could not unregister server {self.server.name} from the cloud.")
+            self.log.debug(f"Error: {ex}")
             self.log.debug(payload)
 
     @override

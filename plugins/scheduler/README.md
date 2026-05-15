@@ -231,13 +231,16 @@ startup:
 
 ### method
 
-| Parameter | Description                                                                                                              |
-|:----------|:-------------------------------------------------------------------------------------------------------------------------|
-| restart   | Restart the configured mission.                                                                                          |
-| rotate    | Rotate to the next mission in the mission list.                                                                          |
-| load      | Load another mission. Optional parameter no_reload to not reload an already running mission.                             |
-| stop      | Stop the running server.                                                                                                 |
-| shutdown  | Shutdown the running server. You can also shutdown during restart, load and rotate with the `shutdown: true` parameter.  |
+| Parameter | Description                                                                                                                     |
+|:----------|:--------------------------------------------------------------------------------------------------------------------------------|
+| restart   | Restart the configured mission.                                                                                                 |
+| rotate    | Rotate to the next mission in the mission list.                                                                                 |
+| load      | Load another mission. Optional parameter no_reload to not reload an already running mission.                                    |
+| stop      | Stop the running server.                                                                                                        |
+| shutdown  | Shutdown the running server. You can also shutdown during restart, load and rotate with the `shutdown: true` parameter.         |
+
+> [!NOTE]
+> The shutdown method will set the maintenance flag, unless you specify `maintenance: false` in the action section.
 
 ### on-commands
 
