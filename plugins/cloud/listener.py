@@ -27,7 +27,8 @@ class CloudListener(EventListener["Cloud"]):
                 'ucid': ucid,
                 'name': name,
                 'discord_id': discord_id,
-                'linked_at': datetime.now(tz=timezone.utc).isoformat()
+                'linked_at': datetime.now(tz=timezone.utc).isoformat(),
+                'last_seen': datetime.now(tz=timezone.utc).isoformat()
             })
         except aiohttp.ClientError:
             pass
