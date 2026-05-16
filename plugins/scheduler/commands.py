@@ -247,9 +247,9 @@ class Scheduler(Plugin[SchedulerListener]):
             return
 
         times: list | dict = warn.get('times', [0])
+        warn_text: str = warn.get('message', '!!! {item} will {what} in {when} !!!')
         if isinstance(times, list):
             warn_times = sorted(times, reverse=True)
-            warn_text: str = warn.get('message', '!!! {item} will {what} in {when} !!!')
         elif isinstance(times, dict):
             warn_times = sorted(times.keys(), reverse=True)
         else:
@@ -304,9 +304,9 @@ class Scheduler(Plugin[SchedulerListener]):
         await utils.run_parallel_nofail(*tasks)
 
         if warn.get('countdown'):
-            timer = min(restart_in, min(warn_times))
+            timer: int = min(restart_in, min(warn_times))
             countdown = warn['countdown'].get('time', 10)
-            warn_text = warn.get('message', warn['countdown'].get('message', 0))
+            warn_text: str | None = warn.get('message', warn['countdown'].get('message', warn_text))
             while timer > countdown:
                 await asyncio.sleep(1)
                 timer -= 1
