@@ -206,7 +206,7 @@ class CloudListener(EventListener["Cloud"]):
             try:
                 await self.plugin.post('upload', row)
             except aiohttp.ClientError:
-                self.log.warning('Cloud service not available atm, skipping statistics upload.')
+                self.log.debug('Cloud service not available atm, skipping statistics upload.')
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:

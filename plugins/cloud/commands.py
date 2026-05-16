@@ -88,14 +88,14 @@ class Cloud(Plugin[CloudListener]):
         if self.config.get('upload_errors', True):
             for handler in self.log.root.handlers:
                 if isinstance(handler, CloudLoggingHandler):
-                    self.log.removeHandler(handler)
+                    self.log.root.removeHandler(handler)
         if self.config.get('register', True):
             tasks.append(utils.safe_cancel(self.register))
             tasks.append(utils.safe_cancel(self.cloud_sync))
         if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
             tasks.append(utils.safe_cancel(self.cloud_bans))
         if self._session:
-            asyncio.create_task(self._session.close())
+            tasks.append(self._session.close())
         await asyncio.gather(*tasks)
         await super().cog_unload()
 
@@ -140,6 +140,9 @@ class Cloud(Plugin[CloudListener]):
                 async with session_method(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth, **kwargs) as response:
                     return await response.json()
             except (aiohttp.ClientError, asyncio.TimeoutError) as ex:
+                if isinstance(ex, aiohttp.ClientResponseError) and ex.status == 403:
+                    raise ex
+
                 last_error = ex
 
                 # Reset broken/stale sessions before retrying
@@ -450,7 +453,7 @@ class Cloud(Plugin[CloudListener]):
                         await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
                         if self.cloud_sync.minutes == 5.0:
                             self.cloud_sync.change_interval(seconds=10)
-                except (aiohttp.ClientError, TypeError):
+                except (aiohttp.ClientError, TypeError) as ex:
                     if self.cloud_sync.minutes == 0.0:
                         self.cloud_sync.change_interval(minutes=5.0)
 
