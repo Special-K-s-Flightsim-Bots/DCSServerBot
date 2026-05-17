@@ -1008,11 +1008,16 @@ class Scheduler(Plugin[SchedulerListener]):
                     await msg.edit(embed=embed)
                 task = asyncio.create_task(self.teardown_dcs(server, interaction.user))
 
-            await server.wait_for_status_change(status=[Status.SHUTTING_DOWN], timeout=180)
-            embed.description += "\n- {}".format(_("Wait until shut down ..."))
-            embed.set_thumbnail(url=TRAFFIC_LIGHTS['amber'])
-            await msg.edit(embed=embed)
-            await server.wait_for_status_change(status=[Status.STOPPED, Status.SHUTDOWN], timeout=180)
+            await server.wait_for_status_change(
+                status=[Status.SHUTTING_DOWN, Status.STOPPED, Status.SHUTDOWN],
+                timeout=180
+            )
+            if server.status == Status.SHUTTING_DOWN:
+                embed.description += "\n- {}".format(_("Wait until shut down ..."))
+                embed.set_thumbnail(url=TRAFFIC_LIGHTS['amber'])
+                await msg.edit(embed=embed)
+                await server.wait_for_status_change(status=[Status.STOPPED, Status.SHUTDOWN], timeout=180)
+
             # wait for the process to vanish
             await task
 
