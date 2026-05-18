@@ -27,12 +27,16 @@ class Main(report.EmbedElement):
             srs_users = {}
         players_sorted = sorted(players, key=lambda p: p.display_name.casefold())
         for player in players_sorted:
-            sides[player.side]['names'].append(player.display_name)
             pending = (player.pending and player.sub_slot == 0) and in_game
-            if player.side != Side.NEUTRAL and not pending:
+            if pending:
+                continue
+            sides[player.side]['names'].append(player.display_name)
+            if player.side != Side.NEUTRAL:
                 unit = UNIT_TYPES.get(player.unit_type, player.unit_display_name)
                 if player.sub_slot > 0:
                     unit += ' (crew)'
+                elif player.pending and unit != 'Spectator':
+                    unit = f'⏳ _{unit}_'
                 sides[player.side]['units'].append(unit)
             else:
                 sides[Side.NEUTRAL]['units'].append('Spectator')
