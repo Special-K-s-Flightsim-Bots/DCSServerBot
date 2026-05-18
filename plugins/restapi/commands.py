@@ -1373,10 +1373,16 @@ class RestAPI(Plugin):
         for server in filter_servers([s for s in self.bot.servers.values() if not server_name or s.name == server_name]):
             data: dict[str, Any] = {
                 'name': server.name,
+                'description': server.settings.get('description', ''),
                 'status': server.status.value,
                 'address': f"{server.node.public_ip}:{server.settings.get('port', 10308)}",
                 'password': server.settings.get('password', ''),
                 'restart_time': server.restart_time,
+                'max_players': server.settings.get('maxPlayers', 16),
+                'require_pure_clients': server.settings.get('require_pure_clients', False),
+                'require_pure_models': server.settings.get('require_pure_models', False),
+                'require_pure_scripts': server.settings.get('require_pure_scripts', False),
+                'require_pure_textures': server.settings.get('require_pure_textures', False)
             }
             if server.current_mission:
                 mission = data['mission'] = {}

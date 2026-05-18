@@ -343,16 +343,10 @@ if __name__ == "__main__":
         Main.reveal_passwords(args.config)
         exit(-2)
 
-    # Require Python >= 3.10
-    if sys.version_info < (3,10):
-        print("ERROR: DCSServerBot requires Python >= 3.10.")
+    # Require Python >= 3.11
+    if sys.version_info < (3,11):
+        print("ERROR: DCSServerBot requires Python >= 3.11.")
         sys.exit(-2)
-    elif sys.version_info < (3,11):
-        print(
-"""
-WARNING: DCSServerBot will drop support for Pyton 3.10 soon.
-         Please upgrade to Python 3.11+
-""")
 
     # Add certificates
     os.environ["SSL_CERT_FILE"] = certifi.where()
