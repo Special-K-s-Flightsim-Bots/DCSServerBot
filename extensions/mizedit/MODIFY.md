@@ -1,211 +1,238 @@
 # Using the "modify"-Preset
-To use the "modify"-Preset, you need to understand some of the basic concepts first. 
-A DCS miz file that carries your mission is basically a ZIP file, consisting of several configuration files inside. 
-MizEdit can amend these files and with that the whole mission. 
-Now, let's take a look at these files and talk about the purpose of them.
 
-### mission
-This file is the main file inside the miz file. It holds your units, their waypoints (routes), time and weather
-information of the mission, any mission triggers and basic mission options.
+MizEdit's `modify` DSL lets you search and modify Lua tables inside DCS `.miz` files.
 
-### options
-This file holds additional options and will be overwriting people's Saved Games\DCS.server\Config\options.lua file.
+A `.miz` file is a ZIP archive containing three Lua table files:
 
-### warehouses
-This file holds information about airports, especially their warehouse information but also information about dynamic
-spawns.
+| File | Contents                                                             |
+|------|----------------------------------------------------------------------|
+| `mission` | Units, routes, weather, triggers, coalition data — the main mission  |
+| `options` | Mission options (overrides the player's `options.lua`)               |
+| `warehouses` | Airport warehouse data and dynamic spawn configuration               |
 
-All these files are basically lua tables. To change a mission, you unpack it, amend these files and repack it again to
-a new miz file. That's exactly what MizEdit is doing.
+MizEdit unpacks the `.miz`, amends these Lua tables, and repacks into a new `.miz` file.
 
-## Lua Table Navigation
-As we need to "navigate" all around the basic Lua files inside your miz file, we need some kind of path description 
-first that helps us find the respective elements that we want to change:
+---
 
-| Character | Description                                                                             |
-|-----------|-----------------------------------------------------------------------------------------|
-| /node     | Select this element from the datastructure at this point.                               |
-| *         | Walk over all elements in a list or table.                                              |
-| $         | Whatever comes after this is evaluated as Python code.                                  |
-| \[x\]     | Select the n-th element from a list (starts with 1) or a specific element from a table. |
-| \[x,y\]   | Selects these elements from a list (starts with 1) or from a table.                     |
-| '{xx}'    | Replace with the variable value of xx ('...' needed, if xx is a string.                 |
+## DSL Overview
 
-
-### Finding Elements
-To do so, we use the "for-each" keyword, which selects every element that fits a specific expression. We can use two
-additional keywords "select" and "where" to navigate more precisely through the lua structure.
-
-Let me show you two examples:
-```yaml
-MyFancyPreset:
-  modify:
-    file: mission  # default, can be any of "mission", "options" or "warehouses", see above
-    for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-```
-This selects some carriers from your blue coalition. 
-
-Now let's write the same thing a bit different:
-```yaml
-MyFancyPreset:
-  modify:
-    file: mission
-    for-each: coalition/blue/country/*/ship/group/*
-    where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-```
-In theory, this does the very same. It processes over some carriers on the blue coalition. The difference is that
-the "reference" element meaning the element on which we will work in a bit is a carrier unit in the first example
-and all groups **containing** any of the carriers in the second example.
-
-Now let's see why we might need that difference:
-```yaml
-MyFancyPreset:
-  modify:
-    file: mission
-    for-each: coalition/blue/country/*/ship/group/*
-    where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-    select: route/points/*/task/params/tasks/$'{id}' == 'WrappedAction'/params/action/$'{id}' == 'ActivateBeacon'/params
-```
-This does the following:
-- Find any blue group ... 
-- ... that contains a carrier of the listed type.
-- Then select all task parameters of that group (!) where the task id == "WrappedAction", and the action id is "ActivateBeacon".
-
-## Changing Elements
-Now that we can find elements, we need to do something with them. We can either delete them, amend them or even insert
-new elements.
+Every `modify` block follows this structure:
 
 ```yaml
-MyFancyPreset:
+PresetName:
   modify:
-    file: mission
-    for-each: coalition/blue/country/*/ship/group/*
-    where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-    select: route/points/*/task/params/tasks/$'{id}' == 'WrappedAction'/params/action/$'{id}' == 'ActivateBeacon'/params
-    replace:
-      modeChannel: X
-      channel: $'{reference[units][0][type]}'[-2:]
-      frequency:
-        $'{reference[units][0][type]}'[-2:] == '72': 1158000000
-        $'{reference[units][0][type]}'[-2:] == '73': 1160000000
-```
-The "modeChannel" parameter is replaced with "X". Next, the channel is updated using the built-in variable "reference," 
-which, in this context, points to each "group" returned by the for-each statement.
-Within each group, we locate the units and select the first one using `[0]`. From this unit, we retrieve its type, 
-which corresponds to one of the carrier types (CVN_71 to CVN_75). We then extract the last two characters from the type 
-name, representing the carrier number (e.g., 71 to 75). This number is then assigned as the TACAN channel.<br>
-
-The following step involves setting the frequency. For this, we use a list of possible frequency options, ensuring 
-that only one option is valid at a time. To determine the correct frequency, we recalculate the carrier number
-(as described above) and match it with one from the predefined list of carrier types. In this example, only two carrier 
-types (72 and 73) are included. The corresponding frequency is then selected based on the matched carrier type.
-
-If we now look at CVN_73, for instance, this will be the result:
-```lua
-["params"] = 
-{
-    ["modeChannel"] = "X"
-    ["channel"] = "73"
-    ["frequency"] = 1160000000
-}
+    file: mission          # which Lua file to modify: mission | options | warehouses
+    variables: ...         # optional: extract or define variables
+    if: ...                # optional: condition that must be true
+    for-each: <path>       # required: path to elements to iterate
+    where: ...             # optional: filter on the reference element
+    select: <path>         # optional: navigate deeper to the element to change
+    replace: ...           # modify existing values
+    delete: ...            # remove elements
+    insert: ...            # add new keys/values
+    merge: ...             # merge two Lua tables
+    run: <python.func>     # call a Python function for complex logic
+    debug: true            # optional: verbose logging
 ```
 
-> [!NOTE]
-> Besides "replace" you can also use: 
-> - delete: delete something from your mission, a unit type, for instance, random failures, a whole coalition, etc.
-> - merge: merge two parts of your mission file, like blue and neutral countries to create a new blue. 
+---
 
-## Variables
-Sometimes it might be necessary to use variables inside your code. Some are preset already, like 
-{reference} or one of the results of the selected element, some can be set on your own like so:
+## Path Navigation
+
+Paths navigate the Lua table tree from root to leaf:
+
+| Syntax | Meaning                                                                                                       |
+|--------|---------------------------------------------------------------------------------------------------------------|
+| `/node` | Descend into a named key                                                                                      |
+| `*` | Iterate all elements in a list or table                                                                       |
+| `[x]` | Select the n-th element from a **Lua list** (1-based) or a specific key from a table                          |
+| `[x,y]` | Select multiple elements                                                                                      |
+| `$'...'` | Evaluate the content as a **Python expression** (returns a boolean for filtering, or a value for replacement) |
+| `'{var}'` | Substitute a previously defined variable's value                                                              |
+
+**Important on indexing:** Lua lists are 1-based, so `[1]` is the first element. However, when accessing data via Python expressions (inside `$'...'` or `reference`), use Python 0-based indexing: `reference[units][0]`.
+
+---
+
+## Finding Elements
+
+### `for-each` — sets the iteration and the reference element
+
+`for-each` defines which elements to iterate over. The matched element becomes the **reference element** — the context you work with.
+
 ```yaml
-MyFancyPreset:
-  modify:
-    variables:
-      theatre: theatre                          # fills the mission's theatre into the {theatre} variable
-      temperature: weather/season/temperature   # fills the mission's temperature into the {temperature} variable
-      speed: 40                                 # sets a fixed value for speed
-      rand: '$random.randint(1, 10)'            # fills some random number between 1 and 10 into ${rand}
-      mylist: '$list(range(1, {rand}))'         # creates a list ${mylist} of numbers starting from 1 to the result of the random pick above
+for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
 ```
-You can work with these variables later on, for instance, to create some randomness in your mission. 
-To use a variable, add `{variablename}` in your code.
+
+This walks the mission tree and selects every individual carrier **unit** matching the type list. The reference element is each unit.
+
+### `where` — filters without changing the reference
+
+`where` filters which reference elements to process, but does NOT change what the reference points to.
+
+```yaml
+for-each: coalition/blue/country/*/ship/group/*
+where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
+```
+
+This iterates all groups, but only processes groups **containing** a matching carrier. The reference element is each **group** (not the unit). This matters when you need to modify group-level data like routes.
+
+**Rule:** Use `for-each` alone when you want to modify the iterated elements directly. Add `where` when you need to filter by a child property but work on the parent.
+
+### `select` — navigates deeper to the target
+
+`select` navigates from the reference element to the specific sub-element to modify. The reference stays the same.
+
+```yaml
+for-each: coalition/blue/country/*/ship/group/*
+where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CN_74','CVN_75']
+select: route/points/*/task/params/tasks/$'{id}' == 'WrappedAction'/params/action/$'{id}' == 'ActivateBeacon'/params
+```
+
+This finds blue carrier groups, then drills into their route tasks to find TACAN beacon parameters.
+
+---
+
+## Modification Operations
+
+### `replace` — overwrite values
+
+Simple replacement:
+
+```yaml
+replace:
+  frequency: 371000000
+  modeChannel: X
+```
+
+**Conditional replacement** (switch/case): When a `replace` value is a mapping, each key is a Python expression. The first expression that evaluates to `True` determines the value:
+
+```yaml
+replace:
+  frequency:
+    $'{reference[units][0][type]}'[-2:] == '72': 1158000000
+    $'{reference[units][0][type]}'[-2:] == '73': 1160000000
+```
+
+### `delete` — remove elements
+
+```yaml
+delete: $'{type}' == 'FA-18C_hornet'
+```
+
+### `insert` — add new keys/values
+
+Use `insert` when the target key doesn't exist yet:
+
+```yaml
+insert:
+  Radio:
+    - channels:
+        - 243
+```
+
+### `merge` — combine Lua tables
+
+Merges two parts of a mission file together, e.g., merging neutral country data into blue:
+
+```yaml
+merge:
+  source: coalition/neutral
+  target: coalition/blue
+```
+
+---
+
+## Built-in Variables
+
+The following variables are available in all `modify` blocks:
+
+| Variable | Description                                                                                                                            |
+|----------|----------------------------------------------------------------------------------------------------------------------------------------|
+| `{reference}` | The current reference element (set by `for-each`). Access properties like `{reference[units][0][type]}`. Uses Python 0-based indexing. |
+| `{type}` | The type name of the current element (when iterating units)                                                                            |
+
+---
+
+## Custom Variables
+
+Extract values from the mission or define your own:
+
+```yaml
+variables:
+  theatre: theatre                          # extract from mission
+  temperature: weather/season/temperature   # extract nested value
+  speed: 40                                 # fixed value
+  rand: '$random.randint(1, 10)'            # Python random
+  mylist: '$list(range(1, {rand}))'         # use other variables
+```
+
+Reference variables with `{variablename}` in paths and expressions.
+
+---
 
 ## Conditions
-If you only want to run the script under specific conditions, you can add an "if"-condition like so:
+
+Run the modification only when a condition is met:
+
 ```yaml
-MyFancyPreset:
-  modify:
-    variable:
-      start_time: start_time
-      theatre: theatre
-    if: ${start_time} > 20000 and '{theatre}' == 'Caucasus'
-    # ... continue ...
+variables:
+  start_time: start_time
+  theatre: theatre
+if: ${start_time} > 20000 and '{theatre}' == 'Caucasus'
 ```
 
+---
 
-## Running Python Code for complex changes
-You can run a specific python function on the result of a for-each call:
+## Python Functions
+
+For complex logic, call a Python function:
+
 ```yaml
-relocate_carrier:
-    modify:
-        variables:
-            wind: weather/wind/atGround
-        for-each: coalition/*/country/*/ship/group/*
-        where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75', "Stennis", "LHA_Tarawa"]
-        run: core.utils.mizedit.relocate_carrier
+variables:
+  wind: weather/wind/atGround
+for-each: coalition/*/country/*/ship/group/*
+where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75', "Stennis", "LHA_Tarawa"]
+run: core.utils.mizedit.relocate_carrier
 ```
 
-This will call a function that takes specific parameters:
+The function receives three arguments:
 
-| Parameter | Definition             |
+| Parameter | Description            |
 |-----------|------------------------|
-| data      | The selected element.  |
-| reference | The reference element. |
-| kwargs    | Variables              |
+| `data` | The selected element   |
+| `reference` | The reference element  |
+| `kwargs` | All defined variables  |
 
 ```python
 def my_function(data: dict, reference: dict, **kwargs) -> dict:
-    ...
+    # modify data in place or return a replacement dict
+    return data
 ```
 
-In the above example, it will call a function to relocate the carriers in a mission to allow a proper recovery.
+See the DCSServerBot source for available built-in functions.
+
+---
+
+## Debugging
+
+Set `debug: true` to enable verbose logging. The log shows which elements were matched and what changes were made. Check the DCSServerBot log file for output.
+
+---
 
 ## Examples
-Here are some examples that you can copy and amend to your needs.
 
-#### Example 1: Search all CVN carriers in your mission:
-> coalition/[blue,red]/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
+### Example 1: Change carrier frequencies (simple replacement)
 
-will walk the mission tree like so:
-```
-|_ coalition
-   |_ blue
-      |_ country
-         |_ ... all countries ...
-            |_ ship
-               |_ group
-                   |_ ... all groups ...
-                       |_ units
-                             |_ elements where ["type"] is one of ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-   |_ red
-      |_ country
-         |_ ... all countries ...
-            |_ ship
-               |_ group
-                   |_ ... all groups ...
-                       |_ units
-                             |_ elements where ["type"] is one of ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-```
+Select every blue carrier unit and set its frequency based on type:
 
-#### Example 2a: Change the carrier's frequency for the blue coalition to 3 + carrier type + 000000 (w. g. CVN-71 ⇒ 371000000)
 ```yaml
-MyFancyPreset:
+SetCarrierFreqs:
   modify:
     file: mission
     for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
     replace:
-      frequency: 
+      frequency:
         "$'{type}' == 'CVN_71'": 371000000
         "$'{type}' == 'CVN_72'": 372000000
         "$'{type}' == 'CVN_73'": 373000000
@@ -213,21 +240,23 @@ MyFancyPreset:
         "$'{type}' == 'CVN_75'": 375000000
 ```
 
-#### Example 2b: Shorter version of the above, using a Python calculation
+Shorter version using a Python calculation:
+
 ```yaml
-MyFancyPreset:
+SetCarrierFreqs:
   modify:
-    file: mission  
+    file: mission
     for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-    replace: 
+    replace:
       frequency: $int('3' + '{type}'[-2:] + '000000')
 ```
 
-#### Example 3: Changing the TACAN Frequency
-This is more complex, as we either need to search the carrier but to change the TACAN, we need to change some different
-structure in the mission file.
+### Example 2: Change TACAN frequencies (deep navigation with `where` + `select`)
+
+TACAN data is nested inside the group's route, not on the unit itself. We use `for-each` to iterate groups, `where` to filter for carrier groups, and `select` to reach the beacon parameters:
+
 ```yaml
-MyFancyPreset:
+SetTACAN:
   modify:
     file: mission
     for-each: coalition/blue/country/*/ship/group/*
@@ -241,7 +270,12 @@ MyFancyPreset:
         $'{reference[units][0][type]}'[-2:] == '73': 1160000000
 ```
 
-#### Example 4: Set the first radio-preset of all blue F-14Bs to 243
+Here `{reference}` points to the group (from `for-each`), so `{reference[units][0][type]}` gets the first unit's type name. The `[-2:]` slice extracts the carrier number (e.g. "72" from "CVN_72").
+
+### Example 3: Set radio presets (with `insert`)
+
+Set the first radio channel of all blue F-14Bs. Uses `insert` to add the `Radio` key if it doesn't exist:
+
 ```yaml
 ChangeRadios:
   modify:
@@ -256,7 +290,8 @@ ChangeRadios:
             - 243
 ```
 
-#### Example 5: Delete all Hornets from your mission
+### Example 4: Delete all Hornets (with `delete`)
+
 ```yaml
 DeleteAllHornets:
   modify:
@@ -265,7 +300,8 @@ DeleteAllHornets:
     delete: $'{type}' == 'FA-18C_hornet'
 ```
 
-#### Example 6: Change all blue warehouses to dynamic cargo
+### Example 5: Enable dynamic cargo on blue warehouses (different target file)
+
 ```yaml
 EnableDynamicCargo:
   modify:
@@ -276,3 +312,20 @@ EnableDynamicCargo:
       dynamicCargo: true
 ```
 
+### Example 6: Search path walkthrough
+
+The path `coalition/[blue,red]/country/*/ship/group/*/units/$'{type}' in ['CVN_71'..'CVN_75']` walks the tree:
+
+```
+|_ coalition
+   |_ blue
+      |_ country
+         |_ ... all countries ...
+            |_ ship
+               |_ group
+                  |_ ... all groups ...
+                      |_ units
+                            |_ elements where ["type"] is one of ['CVN_71'..'CVN_75']
+   |_ red
+      |_ ... same structure ...
+```
