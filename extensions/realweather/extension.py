@@ -208,6 +208,9 @@ class RealWeather(Extension):
             return new_filename, True
         except UnsupportedMizFileException:
             raise RealWeatherException(f"{self.name}: Could not process mission due to an internal error.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise
         finally:
             os.remove(tmpname)
 
