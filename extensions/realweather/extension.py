@@ -163,6 +163,7 @@ class RealWeather(Extension):
                 # double-check that no mission_unpacked dir is there
                 cleanup()
                 # run RW
+                self.log.debug(f"{self.name}: Running Real Weather: {self.get_rw_exe()} in {cwd}")
                 process = subprocess.Popen(
                     [self.get_rw_exe()],
                     stdout=subprocess.PIPE,
