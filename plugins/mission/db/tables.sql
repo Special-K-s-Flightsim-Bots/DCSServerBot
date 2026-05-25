@@ -27,7 +27,7 @@ BEGIN
   OR NEW.manual     IS DISTINCT FROM OLD.manual THEN
 
     INSERT INTO players_hist (ucid, discord_id, name, manual, time)
-    VALUES (NEW.ucid, NEW.discord_id, NEW.name, NEW.manual, (now() AT TIME ZONE 'UTC'));
+    VALUES (OLD.ucid, OLD.discord_id, OLD.name, OLD.manual, OLD.last_seen);
   END IF;
 
   RETURN NEW;

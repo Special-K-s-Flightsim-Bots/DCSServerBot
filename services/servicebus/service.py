@@ -993,7 +993,7 @@ class ServiceBus(Service):
 
             def _handle_raw_payload(derived, payload: bytes):
                 try:
-                    msg_data = json.loads(payload.decode("utf-8"))
+                    msg_data = json.loads(payload.decode("utf-8", errors="ignore"))
                 except json.JSONDecodeError:
                     self.log.warning(f"Invalid JSON {payload}")
                     return
