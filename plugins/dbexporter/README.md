@@ -10,12 +10,14 @@ processing, if needed.
 ## Configuration
 As DBExporter is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - dbexporter
 ```
 
 As usual, you can configure this plugin with a simple yaml file in config/plugins/dbexporter.yaml:
 ```yaml
+# config/plugins/dbexporter.yaml
 DEFAULT:
   autoexport: true  # if true, the configured tables are exported every hour
   tablefilter:      # define which tables should be exported

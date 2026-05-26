@@ -23,6 +23,7 @@ A comprehensive logistics mission system for DCSServerBot with full DCS in-game 
 
 1. Add `logistics` to `opt_plugins` in your `config/main.yaml`:
    ```yaml
+   # config/main.yaml
    opt_plugins:
      - logistics
    ```

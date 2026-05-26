@@ -56,11 +56,13 @@ dive to the ground and hit it, the one that generates the last crash event in DC
 ## Configuration
 As Competitive is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - competitive
 ```
 If you want to disable the plugin for one or more servers, you can do it by creating a config/plugins/competitive.yaml:
 ```yaml
+# config/plugins/competitive.yaml
 DCS.server:
   enabled: false        # optional: disable the plugin (default: true)
   silent: false         # optional: silent mode, only calculate TrueSkill:tm: ratings, but do not tell anybody about it (default: false)

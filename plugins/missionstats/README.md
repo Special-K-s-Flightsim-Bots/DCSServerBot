@@ -8,6 +8,7 @@ Missionstats need the Userstats plugin to be loaded first (default).
 
 The configuration is held in config/plugins/missionstats.yaml:
 ```yaml
+# config/plugins/missionstats.yaml
 DCS.dcs_serverrelease:
   enabled: true                   # false: disable mission statistics gathering (default: true)
   display: true                   # false: don't show mission statistics in your status channel (default: true)

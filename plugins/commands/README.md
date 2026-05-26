@@ -5,6 +5,7 @@ It can be used to start specific tasks on your PC, send a specific event to DCS 
 ## Configuration
 As Commands is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - commands
 ```
@@ -15,6 +16,7 @@ to launch DCS from a specific command (not really useful as you have `/server st
 as a shell command. 
 
 ```yaml
+# config/plugins/commands.yaml
 commands:
   startup:              # Create a command /startup
     roles:              # that can be run by the DCS Admin role

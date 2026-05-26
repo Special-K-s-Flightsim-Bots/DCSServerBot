@@ -3,6 +3,7 @@
 real-time control through a map interface. It is a mod that needs to be installed into your servers. Best you can do
 is to download the latest ZIP file from [here](https://github.com/Pax1601/DCSOlympus/releases/latest) and provide it to the [ModManager](../../services/modmanager/README.md) service like so:
 ```yaml
+# config/services/modmanager.yaml
 DEFAULT:
   SavedGames: '%USERPROFILE%\Documents\ModManager\SavedGames'
   RootFolder: '%USERPROFILE%\Documents\ModManager\RootFolder'
@@ -26,6 +27,7 @@ Then you can add the DCS Olympus extension like so to your nodes.yaml:
 
 ### Version 1.0.4 or higher
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   extensions:
@@ -71,11 +73,12 @@ MyNode:
         Olympus:
           enabled: false                  # Don't enable DCS Olympus on your instance2
 ```
-> ⚠️ **Attention!**<br>
+> [!IMPORTANT]
 > You need to forward the frontend port from your router to the PC running DCS and DCS Olympus.
 
 ### Version 1.0.3 (deprecated)
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   extensions:

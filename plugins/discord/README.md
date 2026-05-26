@@ -4,11 +4,13 @@ Add some helper commands to your Discord server.
 ## Configuration
 As Discord is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - discord
 ```
 You can configure the plugin with an optional `config\plugins\discord.yaml`:
 ```yaml
+# config/plugins/discord.yaml
 DEFAULT:
   ping_everyone:                # Handling of unauthorized @everyone or @here pings
     report: true                # create an audit report (default: true)

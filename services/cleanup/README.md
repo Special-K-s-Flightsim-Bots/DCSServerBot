@@ -7,6 +7,7 @@ The configuration is held in config/services/cleanup.yaml and is straight forwar
 or channels as you want to clean up in here.
 
 ```yaml
+# config/services/cleanup.yaml
 DEFAULT:
   dcs.log:                                # Name (can be anything but needs to be unique)
     directory: "{instance.home}/Logs"     # The directory to clean up

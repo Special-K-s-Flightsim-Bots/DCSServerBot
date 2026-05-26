@@ -7,6 +7,7 @@ via the in-game chat and a popup. Same if the GCI leaves their slot again.
 
 ## Configuration
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   extensions:

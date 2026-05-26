@@ -7,6 +7,7 @@ Per default, the extension does not need any configuration.
 You can use `/extension configure <LogAnalyser>` to configure the extension.
 This will add an entry in your `nodes.yaml` like so:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   instances:

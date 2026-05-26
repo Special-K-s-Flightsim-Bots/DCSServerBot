@@ -6,6 +6,7 @@ For more information, refer to the [HoundTTS documentation](https://github.com/u
 You can use `/extension enable <HoundTTS>` to enable the extension.
 This will add an entry in your `nodes.yaml` like so:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   instances:

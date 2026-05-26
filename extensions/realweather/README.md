@@ -9,6 +9,7 @@ DCSServerBot.
 ## Configuration
 The configuration for RealWeather goes into your nodes.yaml:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   extensions:

@@ -27,6 +27,7 @@ The YAML files are stored in ./config/plugins, and it is a good habit to provide
 As each plugin might need a different configuration for each server and maybe some default configuration,
 the layout of the config files is as follows:
 ```YAML
+# config/plugins/myplugin.yaml
 DEFAULT:
   name: I am the default section
 DCS.dcs_serverrelease:

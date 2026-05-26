@@ -311,6 +311,7 @@ for the sake of documentation.
 This file holds the main information about DCSServerBot. You can configure which plugins are loaded here, for instance.
 
 ```yaml
+# config/main.yaml
 guild_id: 112233445566    # Your Discord server ID. Right-click on your server and select "Copy Server ID". On non-discord installations this number is filled for you.
 guild_name: My Group      # Non-Discord only: your DCS group name
 autoupdate: true          # use the bots autoupdate functionality, default is false
@@ -352,6 +353,7 @@ For a cluster installation you want to describe all your nodes and instances on 
 (auto-)migrate stuff in-between the cluster!
 
 ```yaml
+# config/nodes.yaml
 NODENAME:                       # this will usually be your hostname
   listen_port: 10042            # On which port should the bot listen? Default is 10042
   listen_address: 127.0.0.1     # Optional: On which interface should the bot listen? Default is 127.0.0.1 (localhost only).
@@ -445,6 +447,7 @@ This is to decouple the server configuration from the physical node (aka the "DC
 will learn to love it, especially when you decide to move a server from one instance to another or even from one node to 
 another. This is much easier with a non-coupled approach like that.
 ```yaml
+# config/servers.yaml
 DEFAULT:
   messages:                     # General messages for servers. You can overwrite any in any server.
     greeting_message_members: "{player.name}, welcome back to {server.name}!"
@@ -537,6 +540,7 @@ See [MizEdit](./extensions/mizedit/README.md) for further details.
 This is your Discord-bot configuration.
 
 ```yaml
+# config/services/bot.yaml
 token: SECRET_DISCORD_TOKEN                     # Your TOKEN, as received from the discord developer portal. The bot will auto-move this to a secret place.
 owner: 1122334455667788                         # The Discord ID of the owner. Right-click on your Discord user, select "Copy User ID". If unsure, use the bot user.
 automatch: true                                 # Use the bot's auto-matching functionality (see below), default is false.
@@ -820,6 +824,7 @@ For Discord, you need to keep the command structure in mind, meaning, if you hav
 or a single one (like /help). If you want to change any of the commands, go to your respective plugin configuration and
 add a top-level section like so:
 ```yaml
+# config/plugins/admin.yaml
 commands:
   dcs:
     bans:
@@ -834,6 +839,7 @@ documentation of it, and make it only available for people that own the Admin ro
 
 If you want to change in-game chat commands, you can do it like so:
 ```yaml
+# config/plugins/mission.yaml
 chat_commands:
   911:
     enabled: false

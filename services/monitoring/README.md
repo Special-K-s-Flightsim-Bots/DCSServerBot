@@ -10,6 +10,7 @@ number of heartbeats a server can miss can be configured in your instance config
 ## Configuration
 The (optional) configuration file for this service has to be placed into config\services\monitoring.yaml:
 ```yaml
+# config/services/monitoring.yaml
 DEFAULT:
   time_sync: true           # sync the PC time with a time-server every 12 hrs, default: false
   time_server: pool.ntp.org # and use this non-default time-server for it, default: Windows default
@@ -34,6 +35,7 @@ To configure the DCS server monitoring, you can change these values in your node
 
 ### nodes.yaml
 ```yaml
+# config/nodes.yaml
 MyNode:
   DCS.dcs_serverrelease:
     max_hung_minutes: 5   # maximum heartbeats a server can miss (default: 3)
@@ -41,6 +43,7 @@ MyNode:
 
 ### plugins/scheduler.yaml
 ```yaml
+# config/plugins/scheduler.yaml
 DCS.dcs_serverrelease:
   schedule:
     00-24: YYYYYYY  # the server (and its DCS_server.exe process) should run 24x7

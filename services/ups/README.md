@@ -5,6 +5,7 @@ a power failure.
 ## Configuration
 The configuration file for this service has to be placed into config\services\upsservice.yaml:
 ```yaml
+# config/services/upsservice.yaml
 DEFAULT:
   device: nutdev1       # UPS device name
   host: 192.168.178.123 # UPS host (the host running the NUT server)
@@ -21,6 +22,7 @@ To configure the DCS server monitoring, you can change these values in your node
 
 ### nodes.yaml
 ```yaml
+# config/nodes.yaml
 MyNode:
   DCS.dcs_serverrelease:
     max_hung_minutes: 5   # maximum heartbeats a server can miss (default: 3)
@@ -28,6 +30,7 @@ MyNode:
 
 ### plugins/scheduler.yaml
 ```yaml
+# config/plugins/scheduler.yaml
 DCS.dcs_serverrelease:
   schedule:
     00-24: YYYYYYY  # the server (and its DCS_server.exe process) should run 24x7

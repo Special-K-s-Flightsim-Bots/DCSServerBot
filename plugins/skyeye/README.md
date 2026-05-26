@@ -8,8 +8,9 @@ They will be automatically used by Skyeye if uploaded.
 ## Configuration
 As SkyEye is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
-  - lotatc
+  - skyeye
 ```
 
 > [!NOTE]

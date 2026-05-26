@@ -8,6 +8,7 @@ the [SRS](../../extensions/srs/README.md) extension.
 ## Configuration
 As LotAtc is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - lotatc
 ```
@@ -16,6 +17,7 @@ In the default case, you do not need any additional configuration. There is an e
 people from joining your server, if they are GCIs on station. This is to prevent cheating (if you have the password,
 you could open LotAtc and fly.) The configuration goes into config\plugins\lotatc.yaml:
 ```yaml
+# config/plugins/lotatc.yaml
 DEFAULT:
   kick_gci: true  # you must not play if you are a GCI (you will be moved to spectators). Default is false. 
   exemptions:     # as always, allow for exemptions...

@@ -8,6 +8,7 @@ After you have installed DCSServerBot, a file named config/services/bot.yaml wil
 requirements:
 
 ```yaml
+# config/services/bot.yaml
 token: SECRET DISCORD TOKEN COMES HERE          # Your TOKEN, as received from the discord developer portal.
 owner: 1122334455667788                         # The ID of your bot user. Right click, select "Copy User ID".
 command_prefix: .                               # Optional: only used for the commands plugin       
@@ -59,6 +60,7 @@ them, you need to provide some kind of role-mapping.
 ### Configuration
 Your bot.yaml might look like this:
 ```yaml
+# config/services/bot.yaml
 no_discord: true
 roles:
   Admin:

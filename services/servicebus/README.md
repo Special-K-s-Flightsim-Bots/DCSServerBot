@@ -10,6 +10,7 @@ There is no dedicated configuration of the servicebus itself. Nevertheless, ther
 communication. All of them are in your nodes.yaml file.
 
 ```yaml
+# config/nodes.yaml
 MyNode:
   listen_address: 0.0.0.0   # The interface the bot is listening to. Default: all interfaces (0.0.0.0)
   listen_port: 10042        # The bots listen port (default: 10042, same as FunkMan)

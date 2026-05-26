@@ -8,6 +8,7 @@ away due to punishment points a player gets due to team-kills or the like.
 ## Configuration
 The CreditSystem is configured with a file named config\plugins\creditsystem.yaml. You'll find a sample file in that directory:
 ```yaml
+# config/plugins/creditsystem.yaml
 DEFAULT:                # valid for all servers
   initial_points: 10    # The initial points a player gets (default = 0).
   max_points: 100       # The maximum points a player can get (default = unlimited).

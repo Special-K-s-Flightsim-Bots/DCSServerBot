@@ -23,6 +23,7 @@ for virtual squadrons including flight statistics, qualifications, awards, and f
 
 1. Add `logbook` to `opt_plugins` in your `config/main.yaml`:
    ```yaml
+   # config/main.yaml
    opt_plugins:
      - logbook
    ```

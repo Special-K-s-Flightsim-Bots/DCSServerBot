@@ -5,6 +5,7 @@ it needs some setup and understanding of how everything works. Let's dig into it
 ## DCSServerBot Setup
 You need to activate these optional plugins in your main.yaml to run tournaments:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - competitive # for TrueSkill™️ ratings and match handling
   - tournament  # tournament handling   
@@ -15,6 +16,7 @@ Besides the creation of tournaments, which is a task for the Admin role, each ta
 requires a member of the GameMaster role to run them. 
 GameMaster is one of the bot roles that you can set up in your config/services/bot.yaml like so:
 ```yaml
+# config/services/bot.yaml
 roles:
   Admin:
     - 112233445566778899   # Admin
@@ -31,6 +33,7 @@ roles:
 ### Plugin Configuration
 To configure the tournament plugin, create a file config\plugins\tournament.yaml like so:
 ```yaml
+# config/plugins/tournament.yaml
 DEFAULT:
   use_signup_form: false      # Do you want the participating squadrons to write an application form on signup? (default: false)
   match_generation: trueskill # One of trueskill or standard (see below)
@@ -89,6 +92,7 @@ You also want to configure the [Competitive plugin](../competitive/README.md).
 Create a config\plugins\competitive.yaml like so:
 
 ```yaml
+# config/plugins/competitive.yaml
 DEFAULT:
   enabled: true         # Optional: we want to gather TrueSkill™️ ratings on all our instances
 MyNode:

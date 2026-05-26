@@ -5,6 +5,7 @@ Simple extension to upload a trackfile on mission change to either Discord or a 
 You can use `/extension enable <Trackfile>` to enable the extension.
 This will add an entry in your `nodes.yaml` like so:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   instances:

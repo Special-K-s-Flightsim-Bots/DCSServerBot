@@ -7,6 +7,7 @@ and configure which playlist should be played on which server and which frequenc
 ## Configuration
 To activate the Music Service, you need to add an optional plugin to your main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - music
 ```
@@ -14,6 +15,7 @@ opt_plugins:
 As per usual, the Music service itself is configured with a yaml file in config/services/music.yaml.
 
 ```yaml
+# config/services/music.yaml
 DEFAULT:
   music_dir: G:\My Drive\Music    # Directory where your music is (or where it is uploaded). For clusters, it should be a cloud drive like here.
   popup: Now playing {song} on {frequency}{modulation}  # optional - popup message when a song starts to play

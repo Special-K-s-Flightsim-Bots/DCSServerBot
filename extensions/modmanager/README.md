@@ -6,6 +6,7 @@ embed in Discord. Nice addition for your users, if you show them what to install
 You can use `/extension enable <ModManager>` to enable the extension.
 This will add an entry in your `nodes.yaml` like so:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   instances:

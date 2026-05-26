@@ -1,6 +1,6 @@
 # Using the "modify"-Preset
 
-MizEdit's `modify` DSL lets you search and modify Lua tables inside DCS `.miz` files.
+MizEdit's `modify` DSL (Domain Specific Language) lets you search and modify Lua tables inside DCS `.miz` files.
 
 A `.miz` file is a ZIP archive containing three Lua table files:
 
@@ -50,7 +50,8 @@ Paths navigate the Lua table tree from root to leaf:
 | `$'...'` | Evaluate the content as a **Python expression** (returns a boolean for filtering, or a value for replacement) |
 | `'{var}'` | Substitute a previously defined variable's value                                                              |
 
-**Important on indexing:** Lua lists are 1-based, so `[1]` is the first element. However, when accessing data via Python expressions (inside `$'...'` or `reference`), use Python 0-based indexing: `reference[units][0]`.
+**Important on indexing:** Lua lists are 1-based, so `[1]` is the first element. However, when accessing data via Python 
+expressions (inside `$'...'` or `reference`), use Python 0-based indexing: `reference[units][0]`.
 
 ---
 
@@ -227,6 +228,7 @@ Set `debug: true` to enable verbose logging. The log shows which elements were m
 Select every blue carrier unit and set its frequency based on type:
 
 ```yaml
+# config/presets.yaml
 SetCarrierFreqs:
   modify:
     file: mission
@@ -243,6 +245,7 @@ SetCarrierFreqs:
 Shorter version using a Python calculation:
 
 ```yaml
+# config/presets.yaml
 SetCarrierFreqs:
   modify:
     file: mission
@@ -256,6 +259,7 @@ SetCarrierFreqs:
 TACAN data is nested inside the group's route, not on the unit itself. We use `for-each` to iterate groups, `where` to filter for carrier groups, and `select` to reach the beacon parameters:
 
 ```yaml
+# config/presets.yaml
 SetTACAN:
   modify:
     file: mission
@@ -277,6 +281,7 @@ Here `{reference}` points to the group (from `for-each`), so `{reference[units][
 Set the first radio channel of all blue F-14Bs. Uses `insert` to add the `Radio` key if it doesn't exist:
 
 ```yaml
+# config/presets.yaml
 ChangeRadios:
   modify:
     file: mission
@@ -293,6 +298,7 @@ ChangeRadios:
 ### Example 4: Delete all Hornets (with `delete`)
 
 ```yaml
+# config/presets.yaml
 DeleteAllHornets:
   modify:
     file: mission
@@ -303,6 +309,7 @@ DeleteAllHornets:
 ### Example 5: Enable dynamic cargo on blue warehouses (different target file)
 
 ```yaml
+# config/presets.yaml
 EnableDynamicCargo:
   modify:
     file: warehouses

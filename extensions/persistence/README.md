@@ -7,6 +7,7 @@ of DCS World, this extension only offers a small subset of what these libraries 
 To use this extension, use `/extension enable <Persistence>`. 
 This will add an entry in your `nodes.yaml` like so:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   instances:

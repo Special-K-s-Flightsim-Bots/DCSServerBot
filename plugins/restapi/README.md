@@ -5,12 +5,14 @@ You can use it to power the [DCS Statistics Dasboard](https://github.com/Penfold
 ## Configuration
 As RestAPI is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - restapi
 ```
 
 You can configure the RestAPI endpoints in your config\plugins\restapi.yaml like so:
 ```yaml
+# config/plugins/restapi.yaml
 DEFAULT:
   prefix: /stats            # Optional: use this prefix
   api_key: aaabbbcccc       # Optional: API key to be used to secure the API

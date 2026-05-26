@@ -7,12 +7,14 @@ or if you even want to use slot blocking based on SRS – then you want to insta
 ## Configuration
 As SRS is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - srs
 ```
 
 If you want to use the slot blocking feature, you need to create a config/plugins/srs.yaml file like so:
 ```yaml
+# config/plugins/srs.yaml
 DEFAULT:
   message_no_srs: You need to use SRS to play on this server!
   enforce_srs: true   # Block slots until SRS is activated. People cannot use slots if not on SRS!

@@ -6,6 +6,7 @@ You can specify, which folders / patterns you want to offer your admins to downl
 command. There is a default list being loaded, if no list is provided.
 
 ```yaml
+# config/plugins/admin.yaml
 DEFAULT:  # The DEFAULT section is valid for all your servers
   downloads:
   # that's for your DCS logs. It should work for all your servers.

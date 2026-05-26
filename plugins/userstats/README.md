@@ -13,6 +13,7 @@ other statistics commands where it makes sense.
 The plugin can be configured via yaml in config/plugins/userstats.yaml. If such a file does not exist, create one.
 
 ```yaml
+# config/plugins/userstats.yaml
 DEFAULT:
   wipe_stats_on_leave: true # wipe user statistics if they leave your Discord server (default: true)
   squadrons:

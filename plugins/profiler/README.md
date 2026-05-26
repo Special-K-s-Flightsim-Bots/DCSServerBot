@@ -14,12 +14,14 @@ Both profilers have pros and cons. Please refer to the respective documentation 
 ## Configuration
 As Profiler is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - profiler
 ```
 
 The plugin itself is configured with a file named config/plugins/profiler.yaml. You'll find a sample in ./samples:
 ```yaml
+# config/plugins/profiler.yaml
 DCS.dcsserver_release:
   profiler: chrome        # one of chrome, callgrind
   attach_on_launch: true  # attach the profiler on mission launch (default: true)

@@ -20,6 +20,7 @@ DCSServerBot allows you to create custom user menus that people can use via the 
 The default usecase is to call chat commands with them.<br>
 To configure the menu, you need to create a file "config/menus.yaml" in your configuration directory like so:
 ```yaml
+# config/menus.yaml
 DEFAULT:
   - DCSServerBot:                   # This is the name of the F10-Root menu (multiple possible)
       - Help:                       # Top-Level command below the root menu
@@ -86,6 +87,7 @@ Afterward, all warehouses of this coalition will be filled with the respective i
 ## Configuration
 You can configure the behavior of the mission plugin with an optional config/plugins/mission.yaml:
 ```yaml
+# config/plugins/mission.yaml
 DEFAULT:
   messages:
     ban_username: Inappropriate username.

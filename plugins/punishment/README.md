@@ -6,12 +6,14 @@ Some ideas of this plugin are based on [Slmod](https://github.com/mrSkortch/DCS-
 ## Configuration
 As Punishment is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - punishment
 ```
 
 The plugin itself is configured with a file named config/plugins/punishment.yaml. You'll find a sample in ./samples:
 ```yaml
+# config/plugins/punishment.yaml
 DEFAULT:
   reslot_window: 60           # If you reslot or reconnect in-between this time in seconds (default: 60) after being shot at, a reslot event will be triggered.
   survival_window: 300        # If you survived this time in seconds (default: 300) after being shot at, the opponent will not get a kill.

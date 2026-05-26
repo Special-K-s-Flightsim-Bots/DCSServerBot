@@ -13,6 +13,7 @@ Unzip the file to a directory of your choice. This will be called the "installat
 ## Configuration
 Then you can configure the SkyEye extension in your nodes.yaml like so:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   extensions:
@@ -61,6 +62,7 @@ MyNode:
 
 ### Optional: Multiple SkyEye configurations per server (for red/blue, multiple AWACS, etc.)
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   extensions:

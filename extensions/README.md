@@ -10,6 +10,7 @@ Python code? Well then - write your own extension!</br>
 Just implement a python class, extend core.Extension and configure it in your nodes.yaml:
 
 ```python
+# extensions/myextension/extension.py
 from core import Extension
 from discord.ext import tasks
 from typing import Optional
@@ -53,6 +54,7 @@ class MyExtension(Extension):
 
 You can then use this extension in your nodes.yaml like so:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   extensions:
