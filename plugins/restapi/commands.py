@@ -1421,7 +1421,7 @@ class RestAPI(Plugin):
                 "unit_type": player.unit_type if player.unit_type != '?' else "",
                 "callsign": player.unit_callsign,
                 "radios": await self.get_srs_channels(server.name, player.name)
-            }) for player in server.players.values()]
+            }) for player in server.get_active_players()]
 
             # add weather information
             config = self.get_endpoint_config('servers')
