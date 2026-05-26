@@ -109,7 +109,10 @@ class BackupService(Service):
                 FROM pg_settings 
                 WHERE name = 'data_directory';
             """)
-            version, location = await cursor.fetchone()
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            version, location = row
         if os.path.exists(location):
             # we need to remove the "data" directory
             return os.path.dirname(location)
