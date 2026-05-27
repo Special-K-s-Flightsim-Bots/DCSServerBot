@@ -770,12 +770,6 @@ class Scheduler(Plugin[SchedulerListener]):
             if server.status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTTING_DOWN]:
                 continue
             config = self.get_config(server)
-            if server.maintenance:
-                if not config.get('startup', {}).get('clear_maintenance'):
-                    continue
-                server.maintenance = False
-                self.log.warning(f"Maintenance mode cleared on server {server.name}.")
-
             # if no config is defined for this server, ignore it
             if config:
                 try:
@@ -810,10 +804,19 @@ class Scheduler(Plugin[SchedulerListener]):
     @check_state.before_loop
     async def before_check(self):
         await self.bot.wait_until_ready()
+        # wait for all servers to be registered
         while True:
             if all(server.status != Status.UNREGISTERED for server in self.bot.servers.values()):
                 break
             await asyncio.sleep(1)
+        # reset maintenance flag
+        for server_name, server in self.bot.servers.items():
+            config = self.get_config(server)
+            if server.maintenance:
+                if not config.get('startup', {}).get('clear_maintenance'):
+                    continue
+                server.maintenance = False
+                self.log.warning(f"Maintenance mode auto-cleared on server {server.name}.")
 
     group = Group(name="server", description=_("Commands to manage a DCS server"))
 
