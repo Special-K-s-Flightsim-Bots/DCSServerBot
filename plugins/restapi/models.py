@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 
 
 class UserEntry(BaseModel):
+    ucid: str = Field(..., description="DCS account ID")
+    discord_id: int = Field(..., description="Discord user ID")
     nick: str = Field(..., description="Player nickname")
     date: datetime = Field(..., description="Last seen timestamp")
     current_server: Optional[str] = Field(None, description="Current server")

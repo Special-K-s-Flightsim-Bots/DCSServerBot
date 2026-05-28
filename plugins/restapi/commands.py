@@ -1640,7 +1640,9 @@ class RestAPI(Plugin):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
-                    SELECT 
+                    SELECT
+                        ucid,
+                        discord_id,
                         name AS "nick", 
                         DATE_TRUNC('second', last_seen) AS "date" 
                     FROM players 
@@ -1648,6 +1650,8 @@ class RestAPI(Plugin):
                     ORDER BY 2 DESC
                 """, ('%' + nick + '%',))
                 return [UserEntry.model_validate({
+                    "ucid": result['ucid'],
+                    "discord_id": result['discord_id'],
                     "nick": result["nick"],
                     "date": result["date"],
                     "current_server": await self.current_server(result["nick"], result["date"])
@@ -1927,12 +1931,17 @@ class RestAPI(Plugin):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
-                    SELECT p.name AS "nick", DATE_TRUNC('second', p.last_seen) AS "date"  
+                    SELECT p.ucid, 
+                           p.discord_id, 
+                           p.name AS "nick", 
+                           DATE_TRUNC('second', p.last_seen) AS "date"  
                     FROM players p JOIN squadron_members sm ON sm.player_ucid = p.ucid
                                    JOIN squadrons s ON sm.squadron_id = s.id
                     WHERE s.name = %s
                 """, (name, ))
                 return [UserEntry.model_validate({
+                    "ucid": result['ucid'],
+                    "discord_id": result['discord_id'],
                     "nick": result["nick"],
                     "date": result["date"],
                     "current_server": await self.current_server(result["nick"], result["date"])
