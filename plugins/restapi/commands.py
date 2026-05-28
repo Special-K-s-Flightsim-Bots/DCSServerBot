@@ -1635,20 +1635,36 @@ class RestAPI(Plugin):
 
         return Highscore.model_validate(highscore)
 
-    async def getuser(self, nick: str = Form(...)):
-        self.log.debug(f'Calling /getuser with nick="{nick}"')
+    async def getuser(self, nick: str = Form(None), discord_id: str = Form(None)):
+        self.log.debug(f'Calling /getuser with nick="{nick}", discord_id="{discord_id}"')
+        if not nick and not discord_id:
+            raise HTTPException(status_code=400, detail="You must provide either nick or discord_id")
+
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
-                    SELECT
-                        ucid,
-                        discord_id,
-                        name AS "nick", 
-                        DATE_TRUNC('second', last_seen) AS "date" 
-                    FROM players 
-                    WHERE name ILIKE %s 
-                    ORDER BY 2 DESC
-                """, ('%' + nick + '%',))
+                if discord_id:
+                    query = """
+                            SELECT ucid,
+                                   discord_id,
+                                   name                            AS "nick",
+                                   DATE_TRUNC('second', last_seen) AS "date"
+                            FROM players
+                            WHERE discord_id = %s
+                            ORDER BY 2 DESC
+                            """
+                    params = (discord_id,)
+                else:
+                    query = """
+                            SELECT ucid,
+                                   discord_id,
+                                   name                            AS "nick",
+                                   DATE_TRUNC('second', last_seen) AS "date"
+                            FROM players
+                            WHERE name ILIKE %s
+                            ORDER BY 2 DESC
+                            """
+                    params = ('%' + nick + '%',)
+                await cursor.execute(query, params)
                 return [UserEntry.model_validate({
                     "ucid": result['ucid'],
                     "discord_id": result['discord_id'],

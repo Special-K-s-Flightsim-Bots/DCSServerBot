@@ -362,8 +362,8 @@ class NodeImpl(Node):
                         f"Please upgrade to a supported version."
                     )
             elif latest_python_version['isEoas']:
-                self.log.info(f"  => Your Python version is EOS and will be unsupported "
-                              f"as of {latest_python_version['eolFrom']}.")
+                self.log.debug(f"  => Your Python version is EOS and will be unsupported "
+                               f"as of {latest_python_version['eolFrom']}.")
             elif parse(latest_python_version['latest']['name']) > parse(version):
                 recommended = latest_python_version['latest']['name']
                 self.log.warning(
