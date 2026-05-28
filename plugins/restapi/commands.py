@@ -1650,7 +1650,7 @@ class RestAPI(Plugin):
                                    DATE_TRUNC('second', last_seen) AS "date"
                             FROM players
                             WHERE discord_id = %s
-                            ORDER BY 2 DESC
+                            ORDER BY 4 DESC
                             """
                     params = (discord_id,)
                 else:
@@ -1661,7 +1661,7 @@ class RestAPI(Plugin):
                                    DATE_TRUNC('second', last_seen) AS "date"
                             FROM players
                             WHERE name ILIKE %s
-                            ORDER BY 2 DESC
+                            ORDER BY 4 DESC
                             """
                     params = ('%' + nick + '%',)
                 await cursor.execute(query, params)
