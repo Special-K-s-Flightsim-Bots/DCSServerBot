@@ -923,7 +923,7 @@ class ServerImpl(Server):
 
                 return filename if not dirty else new_filename
             except Exception as ex:
-                self.log.error(ex)
+                self.log.exception(ex)
                 if filename != new_filename and os.path.exists(new_filename):
                     os.remove(new_filename)
                 return filename

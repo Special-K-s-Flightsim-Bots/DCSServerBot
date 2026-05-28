@@ -17,8 +17,8 @@ schema;node_realweather_schema:
           nullable: false
           allowempty: true
           mapping:
-            enable: {type: bool, nullable: false}
-            file: {type: str, nullable: false, range: {min: 1}}
+            enable: {type: bool, nullable: false, enum: [true]}
+            file: {type: str, nullable: false, pattern: "realweather.log"}
             max-size: {type: int, nullable: false}
             max-backups: {type: int, nullable: false}
             max-age: {type: int, nullable: false}
@@ -103,8 +103,8 @@ schema;instance_realweather_schema:
           nullable: false
           allowempty: true
           mapping:
-            enable: {type: bool, nullable: false}
-            file: {type: str, nullable: false, range: {min: 1}}
+            enable: {type: bool, nullable: false, enum: [true]}
+            file: {type: str, nullable: false, pattern: "realweather.log"}
             max-size: {type: int, nullable: false}
             max-backups: {type: int, nullable: false}
             max-age: {type: int, nullable: false}

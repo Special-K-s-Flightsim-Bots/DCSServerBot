@@ -23,10 +23,11 @@ MyNode:
         RealWeather:
           enabled: true   # optional to disable the extension, default: true
           debug: true     # see outputs of RealWeather, default: false
-          options:
+          realweather:
             log:
               enable: true
               file: realweather.log
+          options:
             weather:
               enable: true
               icao: PGUM
@@ -72,7 +73,7 @@ MyNode:
             date:
               enable: true
               system-date: true
-              offset: "0"
+              offset: '0'
 ```
 > [!NOTE]
 > You can find a list of supported parameters in the config.toml provided by DCS-real-weather.
