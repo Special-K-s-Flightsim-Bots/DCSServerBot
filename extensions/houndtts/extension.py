@@ -28,7 +28,8 @@ class HoundTTS(InstallableExtension):
                 "google",
                 "elevenlabs",
                 "aws",
-                "polly"
+                "polly",
+                "supertonic"
             ],
             "min_values": 0,
             "max_values": 1,
@@ -246,6 +247,14 @@ class HoundTTS(InstallableExtension):
             elif name == 'Discord':
                 # TODO: this could be us!
                 dirty |= self._maybe_update_config('Discord', 'bot_token', provider.get('bot_token'))
+            elif name == 'Supertonic':
+                dirty |= self._maybe_update_config('Supertonic', 'path', provider.get('path'))
+                dirty |= self._maybe_update_config('Supertonic', 'model_path', provider.get('model_path'))
+                dirty |= self._maybe_update_config('Supertonic', 'voice_style', provider.get('voice_style'))
+                dirty |= self._maybe_update_config('Supertonic', 'voice_style_path', provider.get('voice_style_path'))
+                dirty |= self._maybe_update_config('Supertonic', 'total_steps', provider.get('total_steps'))
+                dirty |= self._maybe_update_config('Supertonic', 'threads', provider.get('threads'))
+                dirty |= self._maybe_update_config('Supertonic', 'max_concurrent', provider.get('max_concurrent'))
 
         if dirty:
             with open(self.get_ini_path(), mode='w', encoding='utf-8') as ini:
