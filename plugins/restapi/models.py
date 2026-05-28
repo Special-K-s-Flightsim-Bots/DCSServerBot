@@ -511,6 +511,21 @@ class TrapEntry(BaseModel):
     }
 
 
+class EventEntry(BaseModel):
+    mission_id: int = Field(..., description="Mission ID")
+    event: str = Field(..., description="Event type")
+    init_id: int = Field(..., description="Initiator UCID")
+    init_type: str = Field(..., description="Initiator type")
+    init_cat: str = Field(..., description="Initiator category")
+    target_id: int | None = Field(None, description="Target UCID")
+    target_type: str | None = Field(None, description="Target type")
+    target_cat: str | None = Field(None, description="Target category")
+    weapon: str | None = Field(None, description="Weapon used in the event")
+    place: str | None = Field(None, description="Event location")
+    comment: str | None = Field(None, description="Event comment")
+    time: datetime = Field(..., description="Event time")
+
+
 class SquadronCampaignCredit(BaseModel):
     campaign: str | None = Field(None, description="Campaign name")
     credits: float | None = Field(None, description="Squadron's credits in the campaign")

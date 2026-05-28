@@ -21,11 +21,12 @@ from typing import Any, Literal, cast
 
 from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
                      CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
-                     PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats, 
+                     PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats,
                      AirbasesResponse, AirbaseInfoResponse, AirbaseWarehouseResponse, AirbaseSetWarehouseItemResponse,
                      AirbaseCaptureResponse, ConvertCoordinates, MissionRestartResponse, MissionLoadResponse,
                      MissionPauseResponse, MissionUnpauseResponse, MissionsResponse, ServerStartResponse,
-                     ServerStopResponse, ServerRestartResponse, MissionUploadResponse, GroupWaypointsResponse)
+                     ServerStopResponse, ServerRestartResponse, MissionUploadResponse, GroupWaypointsResponse,
+                     EventEntry)
 from ..srs.commands import SRS
 
 app: FastAPI | None = None
@@ -303,6 +304,14 @@ class RestAPI(Plugin):
             response_model = list[TrapEntry],
             description = "Get traps for players",
             summary = "Carrier Traps",
+            tags = ["Statistics"]
+        )
+        self.router.add_api_route(
+            "/events", self.events,
+            methods = ["GET"],
+            response_model = list[EventEntry],
+            description = "Get mission events for players",
+            summary = "Mission Events",
             tags = ["Statistics"]
         )
 
@@ -1941,6 +1950,26 @@ class RestAPI(Plugin):
                     LIMIT {limit} OFFSET {offset}
                 """, {"ucid": ucid, "server_name": resolved_server_name})
                 return [TrapEntry.model_validate(result) for result in await cursor.fetchall()]
+
+    async def events(self,
+                     init_id: str = Query(...),
+                     start_time: datetime = Query(...),
+                     end_time: datetime = Query(...),
+                     offset: int | None = Query(default=0),
+                     limit: int | None = Query(default=10)):
+        if limit:
+            sql_part = f"LIMIT {limit} OFFSET {offset}"
+        else:
+            sql_part = ""
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(f"""
+                    SELECT * FROM missionstats 
+                    WHERE init_id = %s
+                      AND time between %s AND %s
+                      {sql_part}
+                """, (init_id, start_time, end_time))
+                return [EventEntry.model_validate(result) for result in await cursor.fetchall()]
 
     async def squadron_members(self, name: str = Form(...)):
         self.log.debug(f'Calling /squadron_members with name="{name}"')
