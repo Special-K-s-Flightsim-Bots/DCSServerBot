@@ -134,5 +134,10 @@ class Cloud(Extension):
 
     @override
     def shutdown(self, *, quiet: bool = False) -> bool:
-        self.loop.create_task(self.cloud_unregister())
+        async def _shutdown():
+            await self.cloud_unregister()
+            if self._session and not self._session.closed:
+                await self._session.close()
+
+        self.loop.create_task(_shutdown())
         return super().shutdown(quiet=True)
