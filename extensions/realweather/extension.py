@@ -1,7 +1,3 @@
-import logging
-from pathlib import Path
-
-import aiofiles
 import aiohttp
 import asyncio
 import certifi
@@ -9,8 +5,10 @@ import os
 import re
 import shutil
 import ssl
+import subprocess
 import tempfile
 import sys
+import zipfile
 
 from contextlib import suppress
 from core import Extension, MizFile, utils, DEFAULT_TAG, Server, UnsupportedMizFileException
@@ -131,11 +129,6 @@ class RealWeather(Extension):
         if icao and icao != self.config.get('options', {}).get('weather', {}).get('icao'):
             if 'options' not in cfg:
                 cfg['options'] = {}
-            # we enable the log hard in here
-            cfg['options']['log'] = self.config.get('log', {}) | {
-                "enabled": True,
-                "file": "realweather.log"
-            }
             if 'weather' not in cfg['options']:
                 cfg['options']['weather'] = {"enable": True}
             cfg['options']['weather']['icao'] = icao
@@ -177,38 +170,35 @@ class RealWeather(Extension):
                 # double-check that no mission_unpacked dir is there
                 cleanup()
                 # run RW
-                rc = utils.run_elevated(self.get_rw_exe(), cwd=cwd)
-                if rc != 0:
-                    errors = []
-                    with open(Path(get_logfile())) as logfile:
-                        for line in logfile:
-                            parts = line.split('\t')
-                            if len(parts) < 3:
-                                continue
-                            if line.split(' ')[1] == 'ERROR':
-                                errors.append(' '.join(line.split(' ')[2:]))
-
-                    message = "Error during {}: {}\n{}".format(self.name, rc, ''.join(errors))
+                self.log.debug(f"{self.name}: Running Real Weather: {self.get_rw_exe()} in {cwd}")
+                process = subprocess.Popen(
+                    [self.get_rw_exe()],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    cwd=cwd
+                )
+                stdout, stderr = process.communicate()
+                if process.returncode != 0:
+                    text = stdout.decode('utf-8', errors='replace') if isinstance(stdout,
+                                                                                  (bytes, bytearray)) else stdout
+                    error = ANSI_ESCAPE_RE.sub('', text or '')
+                    message = f"Error during {self.name}: {process.returncode} - {error}"
                     if self.config.get('ignore_errors', False):
                         self.log.error(message)
                     else:
                         raise RealWeatherException(message)
                     return
 
-                debug = self.config.get('debug', False)
+                text = stdout.decode('utf-8', errors='replace') if isinstance(stdout,
+                                                                              (bytes, bytearray)) else stdout
+                output = ANSI_ESCAPE_RE.sub('', text or '')
+                metar = next((x for x in output.split('\n') if 'METAR:' in x), "")
                 remarks = self.locals.get('realweather', {}).get('mission', {}).get('brief', {}).get('remarks', '')
-                if debug:
-                    levels = logging.getLevelNamesMapping()
-                with open(Path(get_logfile())) as logfile:
-                    for line in logfile:
-                        if debug:
-                            parts = line.strip('\n').split('\t')
-                            if len(parts) > 2:
-                                self.log.debug('RW: ' + ' '.join(parts[2:]))
-                        if 'METAR:' in line:
-                            matches = re.search(rf"(?<=METAR: )(.*)(?= {remarks})", line)
-                            if matches:
-                                self.metar = matches.group(0)
+                matches = re.search(rf"(?<=METAR: )(.*)(?= {remarks})", metar)
+                if matches:
+                    self.metar = matches.group(0)
+                if self.config.get('debug', False):
+                    self.log.debug(output)
 
             async with type(self)._lock:
                 try:
@@ -225,6 +215,9 @@ class RealWeather(Extension):
             return new_filename, True
         except UnsupportedMizFileException:
             raise RealWeatherException(f"{self.name}: Could not process mission due to an internal error.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise
         finally:
             os.remove(tmpname)
 
