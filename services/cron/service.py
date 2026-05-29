@@ -96,6 +96,8 @@ class CronService(Service):
 
     @schedule.before_loop
     async def before_loop(self):
+        # avoid any race conditions on bot startups
+        await asyncio.sleep(60)
         if self.node.master:
             bot = ServiceRegistry.get(BotService).bot
             await bot.wait_until_ready()
