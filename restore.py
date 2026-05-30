@@ -262,6 +262,10 @@ class Restore:
         if rc > 1:
             console.print(_("[red]Failed to restore database.[/]"))
             return False
+        # cleanup instances and nodes to not cause any clashes
+        async with await AsyncConnection.connect(conninfo=conninfo, autocommit=True) as conn:
+            await conn.execute("DELETE FROM instances")
+            await conn.execute("DELETE FROM nodes")
         return True
 
     async def restore_instance(self, console: Console, backup_file: Path) -> bool:
