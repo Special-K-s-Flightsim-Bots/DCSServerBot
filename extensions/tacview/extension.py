@@ -328,7 +328,7 @@ class Tacview(InstallableExtension):
                 await self.bot.send_message(
                     channel=int(target[4:-1]),
                     content=_("Tacview file for server {}").format(self.server.name),
-                    server=self.server.name,
+                    server=self.server,
                     filename=filename
                 )
                 self.log.debug(f"TACVIEW file {filename} uploaded.")
@@ -445,7 +445,7 @@ class Tacview(InstallableExtension):
                     await outfile.writelines(lines_to_keep)
             else:
                 os.remove(export_file)
-        options = self.server.options.get('plugins')
+        options: dict | None = self.server.options.get('plugins')
         if options:
             options['Tacview'] |= {'tacviewModuleEnabled': False}
             self.server.options['plugins'] = options
