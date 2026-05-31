@@ -167,6 +167,33 @@ class BackupService(Service):
         return await asyncio.to_thread(self._backup_servers)
 
     def _backup_servers(self) -> bool:
+
+        def zip_dir_with_prefix(zf: ZipFile, src: Path, prefix: str = 'Missions'):
+            """
+            Add every file (and empty directory) under *src* to *zf*.
+            Inside the archive the root will be *prefix*.
+
+            Example
+            -------
+            src = /srv/ServerA/CustomMissions/Level1/file.txt
+            prefix = 'Missions'
+
+            -> archive entry :  Missions/Level1/file.txt
+            """
+            src = Path(src).resolve()
+            for item in src.rglob('*'):  # walk the whole subtree
+                if item.is_file():
+                    # path relative to the mission‑root
+                    rel = item.relative_to(src)
+                    arcname = Path(prefix) / rel
+                    zf.write(item, arcname=str(arcname))
+                elif item.is_dir():
+                    # optional: add empty directory entries (zip will add them
+                    # automatically if a file inside exists, but we keep it for
+                    # completeness)
+                    dir_arc = Path(prefix) / item.relative_to(src)
+                    zf.writestr(str(dir_arc) + '/', '')
+
         try:
             target = self._mkdir()
             config = self.locals['backups'].get('servers')
@@ -200,9 +227,7 @@ class BackupService(Service):
                                     )
                                     continue
 
-                                # `mission_dir.parent` is the directory that contains the "missions"
-                                # folder – that's what the original code used with `os.path.dirname`.
-                                self.zip_path(zf, mission_dir.parent, directory)
+                                zip_dir_with_prefix(zf, to_backup, prefix='Missions')
 
                             else:
                                 # Non‑missions directories – use the supplied root directory.
