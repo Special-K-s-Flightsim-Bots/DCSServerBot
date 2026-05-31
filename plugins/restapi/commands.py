@@ -1952,7 +1952,7 @@ class RestAPI(Plugin):
                 return [TrapEntry.model_validate(result) for result in await cursor.fetchall()]
 
     async def events(self,
-                     init_id: str = Query(...),
+                     ucid: str = Query(...),
                      start_time: datetime = Query(...),
                      end_time: datetime = Query(...),
                      offset: int | None = Query(default=0),
@@ -1965,10 +1965,10 @@ class RestAPI(Plugin):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(f"""
                     SELECT * FROM missionstats 
-                    WHERE init_id = %s
+                    WHERE (init_id = %s or target_id = %s)
                       AND time between %s AND %s
                       {sql_part}
-                """, (init_id, start_time, end_time))
+                """, (ucid, start_time, end_time))
                 return [EventEntry.model_validate(result) for result in await cursor.fetchall()]
 
     async def squadron_members(self, name: str = Form(...)):
