@@ -222,10 +222,13 @@ class BackupService(Service):
                                 )
 
                                 if not to_backup.exists():
-                                    self.log.warning(
-                                        f"{self.name}: Directory {to_backup} not found, skipping."
-                                    )
-                                    continue
+                                    # Fallback
+                                    to_backup = Path(root_dir) / 'Missions' / directory
+                                    if not to_backup.exists():
+                                        self.log.warning(
+                                            f"{self.name}: Directory {to_backup} not found, skipping."
+                                        )
+                                        continue
 
                                 zip_dir_with_prefix(zf, to_backup, prefix='Missions')
 
