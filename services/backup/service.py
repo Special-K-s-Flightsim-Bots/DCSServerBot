@@ -182,20 +182,41 @@ class BackupService(Service):
                 with ZipFile(target / filename, mode="w") as zf:
                     try:
                         for directory in directories:
+                            # Split the incoming Windows path (e.g. "missions\foo\bar") into parts.
                             parts = PureWindowsPath(directory).parts
+
                             if parts[0].lower() == 'missions':
-                                mission_dir = os.path.normpath(server.instance.missions_dir).rstrip(os.sep)
-                                to_backup = os.path.join(os.path.dirname(mission_dir), directory)
-                                if not os.path.exists(to_backup):
-                                    self.log.warning(f"{self.name}: Directory {to_backup} not found, skipping.")
+                                # Absolute path to the server's *missions* folder.
+                                mission_dir = Path(server.instance.missions_dir).resolve()
+
+                                # The full path that we want to back‑up.
+                                to_backup = (
+                                    mission_dir.joinpath(*parts[1:]) if len(parts) > 1 else mission_dir
+                                )
+
+                                if not to_backup.exists():
+                                    self.log.warning(
+                                        f"{self.name}: Directory {to_backup} not found, skipping."
+                                    )
                                     continue
-                                self.zip_path(zf, os.path.dirname(mission_dir), directory)
+
+                                # `mission_dir.parent` is the directory that contains the "missions"
+                                # folder – that's what the original code used with `os.path.dirname`.
+                                self.zip_path(zf, mission_dir.parent, directory)
+
                             else:
-                                to_backup = os.path.join(root_dir, directory)
-                                if not os.path.exists(to_backup):
-                                    self.log.warning(f"{self.name}: Directory {to_backup} not found, skipping.")
+                                # Non‑missions directories – use the supplied root directory.
+                                to_backup = Path(root_dir) / directory
+
+                                if not to_backup.exists():
+                                    self.log.warning(
+                                        f"{self.name}: Directory {to_backup} not found, skipping."
+                                    )
                                     continue
+
+                                # Pass the *absolute* root directory to `zip_path`.
                                 self.zip_path(zf, root_dir, directory)
+
                         self.log.info(f'Backup of server "{server_name}" complete.')
                     except Exception:
                         self.log.error(f'Backup of server "{server_name}" failed.', exc_info=True)
