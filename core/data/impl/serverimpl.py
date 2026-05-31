@@ -602,7 +602,7 @@ class ServerImpl(Server):
             self.log.warning('Removed non-existent missions from serverSettings.lua')
         self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.instance.name))
         try:
-            # Old affinity (now deprecated)
+            # Old affinity
             affinity = self.locals.get('affinity')
             if isinstance(affinity, str):
                 affinity = [int(x.strip()) for x in affinity.split(',')]
