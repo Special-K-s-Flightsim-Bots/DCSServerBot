@@ -1965,10 +1965,10 @@ class RestAPI(Plugin):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(f"""
                     SELECT * FROM missionstats 
-                    WHERE (init_id = %s or target_id = %s)
-                      AND time between %s AND %s
+                    WHERE (init_id = %(ucid)s or target_id = %(ucid)s)
+                      AND time between %(start_time)s AND %(end_time)s
                       {sql_part}
-                """, (ucid, start_time, end_time))
+                """, {"ucid": ucid, "start_time": start_time, "end_time": end_time})
                 return [EventEntry.model_validate(result) for result in await cursor.fetchall()]
 
     async def squadron_members(self, name: str = Form(...)):
