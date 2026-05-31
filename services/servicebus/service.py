@@ -392,7 +392,7 @@ class ServiceBus(Service):
                 self.log.warning("Could not find active DCS process. Please check, if you have started DCS with -w!")
             else:
                 # Old affinity
-                affinity = self.locals.get('affinity')
+                affinity = server.locals.get('affinity')
                 if isinstance(affinity, str):
                     affinity = [int(x.strip()) for x in affinity.split(',')]
                 elif isinstance(affinity, int):
