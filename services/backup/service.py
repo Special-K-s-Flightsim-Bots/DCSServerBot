@@ -223,7 +223,7 @@ class BackupService(Service):
 
                                 if not to_backup.exists():
                                     # Fallback
-                                    to_backup = Path(root_dir) / 'Missions' / directory
+                                    to_backup = Path(root_dir) / directory
                                     if not to_backup.exists():
                                         self.log.warning(
                                             f"{self.name}: Directory {to_backup} not found, skipping."
