@@ -22,7 +22,8 @@ Evening:
 Late Evening:
   start_time: 22:00
 Slight Breeze:
-  clouds: Preset1
+  clouds:
+    preset: Preset1
   wind:
     at8000:
       speed: 0
@@ -34,7 +35,8 @@ Slight Breeze:
       speed: 0
       dir: 20
 Rainy:
-  clouds: RainyPreset1
+  clouds:
+    preset: RainyPreset1
   wind:
     at8000:
       speed: 10
@@ -46,7 +48,8 @@ Rainy:
       speed: 1
       dir: 20
 Heavy Storm:
-  clouds: RainyPreset3
+  clouds:
+    preset: RainyPreset3
   wind:
     at8000:
       speed: 25
