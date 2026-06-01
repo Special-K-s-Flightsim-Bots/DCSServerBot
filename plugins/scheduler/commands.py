@@ -299,7 +299,7 @@ class Scheduler(Plugin[SchedulerListener]):
         tasks = [
             asyncio.create_task(do_warn(i))
             for i in warn_times
-            if math.ceil(i/(60 if i >= 60 else 1)) <= math.ceil(restart_in/(60 if i >= 60 else 1))
+            if math.ceil(i / (60 if i >= 60 else 1)) <= math.ceil(restart_in / (60 if i >= 60 else 1))
         ]
         await utils.run_parallel_nofail(*tasks)
 

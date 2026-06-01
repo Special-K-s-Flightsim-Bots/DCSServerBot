@@ -37,6 +37,7 @@ from ..userstats.filter import PeriodFilter
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
 
 _ = get_translation(__name__.split('.')[1])
@@ -716,8 +717,18 @@ class Mission(Plugin[MissionEventListener]):
         if presets_file is None:
             presets_file = os.path.join(self.node.config_dir, 'presets.yaml')
         try:
-            with open(presets_file, mode='r', encoding='utf-8') as infile:
-                presets = yaml.load(infile)
+            validation = self.node.config.get('validation', 'lazy')
+            if validation in ['strict', 'lazy']:
+                schema_files = [
+                    'schemas/presets_schema.yaml',
+                    'extensions/realweather/schemas/realweather_schema.yaml'
+                ]
+                utils.validate(presets_file, schema_files, raise_exception=(validation == 'strict'))
+
+            presets = yaml.load(Path(presets_file).read_text(encoding='utf-8'))
+        except MarkedYAMLError:
+            await interaction.response.send_message(
+                _("Can't load presets file {}.").format(presets_file), ephemeral=True)
         except FileNotFoundError:
             await interaction.response.send_message(
                 _('No presets available, please configure them in {}.').format(presets_file), ephemeral=True)

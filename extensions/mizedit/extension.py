@@ -38,8 +38,21 @@ class MizEdit(Extension):
         presets = {}
         if not isinstance(presets_file, list):
             presets_file = [presets_file]
+
+        validation = self.node.config.get('validation', 'lazy')
+        if validation in ['strict', 'lazy']:
+            schema_files = [
+                'schemas/presets_schema.yaml',
+                'extensions/realweather/schemas/realweather_schema.yaml'
+            ]
+        else:
+            schema_files = []
+
         for file in presets_file:
             try:
+                if schema_files:
+                    utils.validate(file, schema_files, raise_exception=(validation == 'strict'))
+
                 presets |= yaml.load(Path(file).read_text(encoding='utf-8'))
                 if not isinstance(presets, dict):
                     raise ValueError("File must contain a dictionary, not a list!")
