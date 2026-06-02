@@ -514,10 +514,10 @@ class TrapEntry(BaseModel):
 class EventEntry(BaseModel):
     mission_id: int = Field(..., description="Mission ID")
     event: str = Field(..., description="Event type")
-    init_id: int = Field(..., description="Initiator UCID")
-    init_type: str = Field(..., description="Initiator type")
-    init_cat: str = Field(..., description="Initiator category")
-    target_id: int | None = Field(None, description="Target UCID")
+    init_id: str = Field(..., description="Initiator UCID")
+    init_type: str | None = Field(None, description="Initiator type")
+    init_cat: str | None = Field(None, description="Initiator category")
+    target_id: str | None = Field(None, description="Target UCID")
     target_type: str | None = Field(None, description="Target type")
     target_cat: str | None = Field(None, description="Target category")
     weapon: str | None = Field(None, description="Weapon used in the event")
@@ -525,6 +525,27 @@ class EventEntry(BaseModel):
     comment: str | None = Field(None, description="Event comment")
     time: datetime = Field(..., description="Event time")
 
+    model_config = {
+        "json_encoders": {
+            datetime: lambda v: v.isoformat()
+        },
+        "json_schema_extra": {
+            "example": {
+                "mission_id": 1,
+                "event": "S_EVENT_KILL",
+                "init_id": "aabbccddeeffgghhiiffkk1234567890",
+                "init_type": "FA-18C_hornet",
+                "init_cat": "Airplanes",
+                "target_id": "aabbccddeeffgghhiiffkk1234567890",
+                "target_type": "FA-18C_hornet",
+                "target_cat": "Airplanes",
+                "weapon": "Mk-12",
+                "place": "Over the Pacific",
+                "comment": "First kill of the day!",
+                "time": "2023-10-01T12:00:00",
+            }
+        }
+    }
 
 class SquadronCampaignCredit(BaseModel):
     campaign: str | None = Field(None, description="Campaign name")
