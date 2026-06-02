@@ -17,6 +17,12 @@ schema;files_map:
     target: {type: str, nullable: false}
 
 schema;modify_schema:
+  type: any
+  nullable: false
+  func: seq_or_map
+  enum: ['modify_seq', 'modify_map']
+
+schema;modify_map:
   type: map
   nullable: false
   mapping:
@@ -48,6 +54,11 @@ schema;modify_schema:
       mapping:
         regex;(.+): {type: any, nullable: false}
     run: {type: str, nullable: false}
+
+schema;modify_seq:
+  type: seq
+  sequence:
+    - include: modify_schema
 
 schema;preset_map:
   type: map
