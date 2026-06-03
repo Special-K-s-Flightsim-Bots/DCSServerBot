@@ -279,6 +279,7 @@ class ModuleStats(BaseModel):
     kills: int | None = Field(None, description="Number of kills with this module")
     deaths: int | None = Field(None, description="Number of deaths with this module")
     kdr: Decimal | None = Field(None, description="Kill/Death ratio with this module")
+    playtime: int | None = Field(None, description="Total playtime with this module in seconds")
 
     model_config = {
         "json_encoders": {
@@ -289,7 +290,8 @@ class ModuleStats(BaseModel):
                 "module": "F/A-18C",
                 "kills": 30,
                 "deaths": 10,
-                "kdr": 3.0
+                "kdr": 3.0,
+                "playtime": 3600
             }
         }
     }

@@ -1854,7 +1854,8 @@ class RestAPI(Plugin):
                    SUM(s.kills) AS "kills",
                    SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) AS "deaths",
                    CASE WHEN SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground) = 0 
-                        THEN SUM(s.kills) ELSE SUM(s.kills)::DECIMAL / SUM((s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground)::DECIMAL) END AS "kdr" 
+                        THEN SUM(s.kills) ELSE SUM(s.kills)::DECIMAL / SUM((s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams + s.deaths_ground)::DECIMAL) END AS "kdr",
+                   SUM(s.playtime) AS "playtime"     
             FROM mv_statistics s
             WHERE s.player_ucid = %(ucid)s 
             {where}
