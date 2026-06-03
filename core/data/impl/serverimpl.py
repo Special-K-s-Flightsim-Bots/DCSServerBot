@@ -545,14 +545,22 @@ class ServerImpl(Server):
             try:
                 # update servers.yaml
                 update_config(old_name, new_name, update_settings)
+                if old_name:
+                    # update extensions
+                    for ext in self.extensions.values():
+                        ext.rename_server(old_name, new_name)
+
                 self.name = new_name
             except Exception:
                 # rollback config
                 if old_name:
                     update_config(new_name, old_name, update_settings)
+                    await update_cluster(old_name)
+                    await update_database(new_name, old_name)
                 raise
         except Exception:
             self.log.exception(f"Error during renaming of server {old_name} to {new_name}: ", exc_info=True)
+            return
 
     async def unlink(self):
         if self.name == 'n/a':
