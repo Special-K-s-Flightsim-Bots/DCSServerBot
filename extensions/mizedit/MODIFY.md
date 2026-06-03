@@ -19,6 +19,7 @@ MizEdit unpacks the `.miz`, amends these Lua tables, and repacks into a new `.mi
 Every `modify` block follows this structure:
 
 ```yaml
+# config/presets.yaml
 PresetName:
   modify:
     file: mission          # which Lua file to modify: mission | options | warehouses
