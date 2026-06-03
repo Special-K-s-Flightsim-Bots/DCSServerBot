@@ -9,7 +9,7 @@ from core import (Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, S
                   Server, async_cache)
 from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
-from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, File, UploadFile
+from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, File, UploadFile, Response
 from fastapi.security import APIKeyHeader
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
@@ -304,6 +304,14 @@ class RestAPI(Plugin):
             response_model = list[TrapEntry],
             description = "Get traps for players",
             summary = "Carrier Traps",
+            tags = ["Statistics"]
+        )
+        self.router.add_api_route(
+            "/traps/img", self.traps_image,
+            methods = ["GET"],
+            response_model = bytes,
+            description = "Get trap image for a player",
+            summary = "Carrier Trap Image",
             tags = ["Statistics"]
         )
         self.router.add_api_route(
@@ -1942,7 +1950,7 @@ class RestAPI(Plugin):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 ucid = await self.get_ucid(nick, date)
                 await cursor.execute(f"""
-                    SELECT t.unit_type, t.grade, t.comment, t.place, t.trapcase, t.wire, t.night, t.points, t.time
+                    SELECT t.id, t.unit_type, t.grade, t.comment, t.place, t.trapcase, t.wire, t.night, t.points, t.time
                     FROM traps t
                     {join}
                     {where}
@@ -1950,6 +1958,17 @@ class RestAPI(Plugin):
                     LIMIT {limit} OFFSET {offset}
                 """, {"ucid": ucid, "server_name": resolved_server_name})
                 return [TrapEntry.model_validate(result) for result in await cursor.fetchall()]
+
+    async def traps_image(self, trap_id: int = Query(...)):
+        self.log.debug(f'Calling /traps_image with trap_id="{trap_id}"')
+        async with self.apool.connection() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("SELECT trapsheet FROM traps WHERE id = %s", (trap_id, ))
+                row: dict | None = await cursor.fetchone()
+                if not row or not row[0]:
+                    raise HTTPException(status_code=404, detail="Trap image not found")
+
+                return Response(content=row[0], media_type="image/png")
 
     async def events(self,
                      ucid: str = Query(...),

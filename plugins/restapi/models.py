@@ -481,6 +481,7 @@ class CampaignCredits(BaseModel):
 
 
 class TrapEntry(BaseModel):
+    id: int = Field(..., description="Trap ID")
     unit_type: str = Field(..., description="Type of aircraft")
     grade: str = Field(..., description="Landing grade")
     comment: str = Field(..., description="Landing comment")
