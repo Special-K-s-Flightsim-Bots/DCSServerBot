@@ -159,6 +159,9 @@ class Extension(ABC):
     async def change_config(self, config: dict):
         self.config |= config
 
+    def rename_server(self, old_name: str, new_name: str):
+        pass
+
 
 class InstallableExtension(Extension):
     def __init__(self, server: Server, config: dict, repo: str | None = None, package_name: str | None = None):

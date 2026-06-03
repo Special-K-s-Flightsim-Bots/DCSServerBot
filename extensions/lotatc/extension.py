@@ -432,3 +432,14 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
     @override
     def is_available(self) -> bool:
         return os.path.exists(self.get_inst_path())
+
+    @override
+    def rename_server(self, old_name: str, new_name: str):
+        for port, server_name in type(self)._ports.items():
+            if server_name == old_name:
+                type(self)._ports[port] = new_name
+                break
+        for port, server_name in type(self)._json_ports.items():
+            if server_name == old_name:
+                type(self)._json_ports[port] = new_name
+                break

@@ -475,3 +475,14 @@ class Tacview(InstallableExtension):
         if config.get('target') and not self.config.get('target'):
             asyncio.create_task(self.check_log())
         await super().change_config(config)
+
+    @override
+    def rename_server(self, old_name: str, new_name: str):
+        for port, server_name in type(self)._rtt_ports.items():
+            if server_name == old_name:
+                type(self)._rtt_ports[port] = new_name
+                break
+        for port, server_name in type(self)._rcp_ports.items():
+            if server_name == old_name:
+                type(self)._rcp_ports[port] = new_name
+                break
