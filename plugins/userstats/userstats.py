@@ -69,7 +69,7 @@ class PlaytimesPerPlane(report.GraphElement):
         for label in self.axes.get_xticklabels():
             label.set_rotation(30)
             label.set_ha('right')
-        self.axes.set_title('Airframe Hours per Aircraft', color='white', fontsize=25)
+        self.axes.set_title('Airframe Hours per Aircraft', color='white', fontsize=25, pad=20)
         self.axes.set_yticks([])
         for i in range(0, len(values)):
             self.axes.annotate('{:.1f} h'.format(values[i]), xy=(
@@ -112,7 +112,7 @@ class PlaytimesPerServer(report.GraphElement):
             patches, texts, pcts = self.axes.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
                                                  wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
             plt.setp(pcts, color='black', fontweight='bold')
-            self.axes.set_title('Server Time', color='white', fontsize=25)
+            self.axes.set_title('Server Time', color='white', fontsize=25, pad=20)
             self.axes.axis('equal')
         else:
             self.axes.set_visible(False)
@@ -150,7 +150,7 @@ class PlaytimesPerMap(report.GraphElement):
             patches, texts, pcts = self.axes.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
                                                  wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
             plt.setp(pcts, color='black', fontweight='bold')
-            self.axes.set_title('Time per Map', color='white', fontsize=25)
+            self.axes.set_title('Time per Map', color='white', fontsize=25, pad=20)
             self.axes.axis('equal')
         else:
             self.axes.set_visible(False)
@@ -184,7 +184,7 @@ class RecentActivities(report.GraphElement):
                     labels.append(row['day'])
                     values.append(float(row['playtime']) / 3600.0)
 
-        self.axes.set_title('Recent Activities', color='white', fontsize=25)
+        self.axes.set_title('Recent Activities', color='white', fontsize=25, pad=20)
         self.axes.set_yticks([])
         self.axes.bar(labels, values, width=0.5, color='mediumaquamarine')
         if values:
@@ -199,10 +199,15 @@ class RecentActivities(report.GraphElement):
 class FlightPerformance(report.GraphElement):
 
     async def render(self, member: discord.Member | str, server_name: str, flt: StatisticsFilter):
-        sql = 'SELECT SUM(ejections) as "Ejections", SUM(crashes-ejections) as "Crashes\n(Pilot dead)", ' \
-              'SUM(landings) as "Landings" FROM statistics s, ' \
-              'players p, missions m WHERE s.player_ucid = p.ucid ' \
-              'AND s.mission_id = m.id '
+        sql = """
+            SELECT SUM(takeoffs) as "Takeoffs", 
+                   SUM(ejections) as "Ejections", 
+                   SUM(crashes-ejections) as "Crashes\n(Pilot dead)",   
+                   SUM(landings) as "Landings" 
+            FROM statistics s, players p, missions m 
+            WHERE s.player_ucid = p.ucid 
+              AND s.mission_id = m.id
+        """
         if isinstance(member, discord.Member):
             sql += 'AND p.discord_id = %s '
         else:
@@ -231,7 +236,7 @@ class FlightPerformance(report.GraphElement):
                 self.axes.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
                               wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
             plt.setp(pcts, color='black', fontweight='bold')
-            self.axes.set_title('Flying', color='white', fontsize=25)
+            self.axes.set_title('Flying', color='white', fontsize=25, pad=20)
             self.axes.axis('equal')
         else:
             self.axes.set_visible(False)
@@ -296,7 +301,7 @@ class KDRatio(report.MultiGraphElement):
                                           wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'},
                                           normalize=True)
             plt.setp(pcts, color='black', fontweight='bold')
-            ax.set_title('Kill/Death-Ratio', color='white', fontsize=25)
+            ax.set_title('Kill/Death-Ratio', color='white', fontsize=25, pad=20)
             ax.axis('equal')
         else:
             ax.set_visible(False)
@@ -342,7 +347,7 @@ class KDRatio(report.MultiGraphElement):
                 if int(values[i]) > 0:
                     ax.text(xpos, ypos, f"{values[i]}", ha='center', color='black')
 
-            ax.set_title('Killed by\nPlayer', color='white', fontsize=15)
+            ax.set_title('Killed by\nPlayer', color='white', fontsize=15, pad=20)
             ax.axis('off')
             ax.set_xlim(- 2.5 * width, 2.5 * width)
             ax.legend(labels, fontsize=15, loc=3, ncol=6, mode='expand',
@@ -391,7 +396,7 @@ class KDRatio(report.MultiGraphElement):
                 if int(values[i]) > 0:
                     ax.text(xpos, ypos, f"{values[i]}", ha='center', color='black')
 
-            ax.set_title('Player\nkilled by', color='white', fontsize=15)
+            ax.set_title('Player\nkilled by', color='white', fontsize=15, pad=20)
             ax.axis('off')
             ax.set_xlim(- 2.5 * width, 2.5 * width)
             if legend:
