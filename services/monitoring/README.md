@@ -7,6 +7,8 @@ Servers that are considered RUNNING, PAUSED or STOPPED will be monitored for any
 crashes of the respective DCS.exe or DCS_server.exe process. A heartbeat will be sent to DCS every minute. The maximum
 number of heartbeats a server can miss can be configured in your instance configuration in nodes.yaml
 
+Also, if you do not have a static IP address, you can use the bot to auto restart your servers on IP changes.
+
 ## Configuration
 The (optional) configuration file for this service has to be placed into config\services\monitoring.yaml:
 ```yaml
@@ -14,6 +16,9 @@ The (optional) configuration file for this service has to be placed into config\
 DEFAULT:
   time_sync: true           # sync the PC time with a time-server every 12 hrs, default: false
   time_server: pool.ntp.org # and use this non-default time-server for it, default: Windows default
+  ignore_ip_changes: false  # If you don't have a fixed IP, the bot will automatically restart your servers on a change of your public IP. If you don't want that, set this to true.
+  messages:
+    ip_change: Server is being restarted due to an IP change!
   thresholds:
     Drive:              # You cannot disable the drive check. If you do not specify anything, these values will be taken as default. 
       warn: 10          # Warn, if your drive where DCS is installed (or your C: drive), gets below 10% (default: 10)

@@ -10,6 +10,12 @@ schema;element_schema:
   type: map
   nullable: false
   mapping:
+    messages:
+      type: map
+      nullable: false
+      mapping:
+        ban_username: {type: str, nullable: false, range: {min: 1}}
+        ban_evasion: {type: str, nullable: false, range: {min: 1}}
     event_filter:
       type: seq
       nullable: false
