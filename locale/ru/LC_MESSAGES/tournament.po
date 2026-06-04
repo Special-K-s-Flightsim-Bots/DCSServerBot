@@ -1,0 +1,646 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ru\n"
+
+msgid "# Members"
+msgstr "Project-Id-Version: 1.0\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\nLanguage: ru\n# Участники"
+
+msgid "# Players per Side"
+msgstr "# Игроки за сторону"
+
+msgid "# Signups"
+msgstr "# Заявки"
+
+msgid "## :warning: Attention all Squadron Leaders! :warning:\nA new tournament has been created:\n\n```{}```"
+msgstr "## :warning: Внимание всем командирам эскадрилий! :warning:\n"
+                        "Создан новый турнир:\n"
+                        "\n"
+                        "```{}```"
+
+msgid "## Error during the startup of server\n{}: Timeout"
+msgstr "## Ошибка при запуске сервера\n{}: Таймаут"
+
+msgid "### Stand proud, {}!\n_Through fire and thunder you prevailed,\nWhen others faltered, you stood strong,\nVictory is where you belong!_"
+msgstr "### Гордитесь, {}!\n"
+                        "_Сквозь огонь и гром ты победил,\n"
+                        "Когда другие дрогнули, ты стоял твёрдо,\n"
+                        "Победа — твоё законное место!_"
+
+msgid "**Get your team ready!**\n"
+msgstr "**Готовьте команду!**\n"
+
+msgid ", this is your private channel during the upcoming match!"
+msgstr ", это ваш приватный канал на время предстоящего матча!"
+
+msgid "- Creating squadron channels ..."
+msgstr "- Создание каналов эскадрилий ..."
+
+msgid "- Match {} vs {} was marked as won by {} due to a forfeit."
+msgstr "- Матч {} vs {} был отмечен как выигранный {} (техническое поражение)."
+
+msgid ":warning: To participate in the tournament, your squadron must have an assigned role.\n"
+"Contact the tournament host to receive your role assignment."
+msgstr ":warning: Для участия в турнире вашей эскадрилии должна быть назначена роль.\n"
+"Свяжитесь с организатором турнира для получения роли."
+
+msgid ":warning: Your squadron does not have enough players to participate in the tournament yet."
+msgstr ":warning: У вашей эскадрилии пока недостаточно игроков для участия в турнире."
+
+msgid "A match is running on server {}!"
+msgstr "Матч запущен на сервере {}!"
+
+msgid "A match is running."
+msgstr "Матч идёт."
+
+msgid "Aborted"
+msgstr "Отменено"
+
+msgid "Aborted."
+msgstr "Отменено."
+
+msgid "Accept"
+msgstr "Принять"
+
+msgid "All sides have occupied their units. The match can start now!"
+msgstr "Все стороны заняли свои техники. Матч может начаться!"
+
+msgid "Application"
+msgstr "Заявка"
+
+msgid "Application for Squadron \"{}\""
+msgstr "Заявка на эскадрилию \"{}\""
+
+msgid "Apply to a tournament"
+msgstr "Подать заявку на турнир"
+
+msgid "Are you sure?\nYour settings will be directly applied to the next round."
+msgstr "Вы уверены?\nВаши настройки будут применены к следующему раунду."
+
+msgid "Blue"
+msgstr "Синие"
+
+msgid "Blue Wins"
+msgstr "Синие победили"
+
+msgid "Can't generate new matches, not all matches of this stage have been flown yet."
+msgstr "Нельзя создать новые матчи, не все матчи этого этапа сыграны."
+
+msgid "Cancel"
+msgstr "Отмена"
+
+msgid "Closing the underlying campaign ..."
+msgstr "Закрытие связанной кампании ..."
+
+msgid "Coalition"
+msgstr "Коалиция"
+
+msgid "Commands to manage matches in a tournament"
+msgstr "Команды для управления матчами в турнире"
+
+msgid "Commands to manage tickets in a tournament"
+msgstr "Команды для управления билетами в турнире"
+
+msgid "Congratulations, you will be part of our upcoming tournament!"
+msgstr "Поздравляем, вы будете участвовать в нашем предстоящем турнире!"
+
+msgid "Count"
+msgstr "Количество"
+
+msgid "Create a manual match"
+msgstr "Создать матч вручную"
+
+msgid "Create a new tournament"
+msgstr "Создать новый турнир"
+
+msgid "Create a tournament"
+msgstr "Создать турнир"
+
+msgid "Customize the next round"
+msgstr "Настроить следующий раунд"
+
+msgid "Delete a tournament"
+msgstr "Удалить турнир"
+
+msgid "Do you really want to delete this tournament and all its data?"
+msgstr "Вы действительно хотите удалить этот турнир и все его данные?"
+
+msgid "Do you really want to finish the match and make {} the winner?"
+msgstr "Вы действительно хотите завершить матч и назначить {} победителем?"
+
+msgid "Do you really want to sell a tickets of type {} for {} credits?"
+msgstr "Вы действительно хотите продать билеты типа {} за {} кредитов?"
+
+msgid "Do you want to generate new matches for tournament {}?"
+msgstr "Хотите создать новые матчи для турнира {}?"
+
+msgid "Do you want to import the data and overwrite your matches?"
+msgstr "Хотите импортировать данные и перезаписать ваши матчи?"
+
+msgid "Do you want to inform players about the new tournament now?"
+msgstr "Хотите уведомить игроков о новом турнире сейчас?"
+
+msgid "Do you want to re-generate your groups?"
+msgstr "Хотите пересоздать группы?"
+
+msgid "Do you want to start round {} of the match between\n{} and {}?"
+msgstr "Хотите начать раунд {} матча между\n{} и {}?"
+
+msgid "Draw"
+msgstr "Ничья"
+
+msgid "Edit a match"
+msgstr "Редактировать матч"
+
+msgid "Enter a number"
+msgstr "Введите число"
+
+msgid "Error deleting tournament: {}"
+msgstr "Ошибка при удалении турнира: {}"
+
+msgid "Error during opening the channels: {}"
+msgstr "Ошибка при открытии каналов: {}"
+
+msgid "Error while processing the file: {}"
+msgstr "Ошибка при обработке файла: {}"
+
+msgid "Error: This campaign is already stopped!"
+msgstr "Ошибка: Эта кампания уже остановлена!"
+
+msgid "Export matches"
+msgstr "Экспорт матчей"
+
+msgid "Finish a tournament"
+msgstr "Завершить турнир"
+
+msgid "Generate bracket"
+msgstr "Создать сетку турнира"
+
+msgid "Generate matches"
+msgstr "Создать матчи"
+
+msgid "Generating group matches for this tournament ..."
+msgstr "Создание групповых матчей для этого турнира ..."
+
+msgid "Generating knockout matches for this tournament ..."
+msgstr "Создание матчей на выбывание для этого турнира ..."
+
+msgid "How many {} do you want?"
+msgstr "Сколько {} вы хотите?"
+
+msgid "IP:Port"
+msgstr "IP:Порт"
+
+msgid "Invalid date format. Use yyyy-mm-dd hh:mm:ss."
+msgstr "Неверный формат даты. Используйте ГГГГ-ММ-ДД ЧЧ:ММ:СС."
+
+msgid "Invoice"
+msgstr "Счёт"
+
+msgid "Kicked due to early engagement."
+msgstr "Кикован за преждевременное вступление в бой."
+
+msgid "Kicked due to early takeoff."
+msgstr "Кикован за преждевременный взлёт."
+
+msgid "List matches"
+msgstr "Список матчей"
+
+msgid "List tickets of a squadron"
+msgstr "Список билетов эскадрилии"
+
+msgid "Match Setup"
+msgstr "Настройка матча"
+
+msgid "Match created."
+msgstr "Матч создан."
+
+msgid "Match not updated."
+msgstr "Матч не обновлён."
+
+msgid "Match time (yyyy-mm-dd hh:mm:ss)"
+msgstr "Время матча (ГГГГ-ММ-ДД ЧЧ:ММ:СС)"
+
+msgid "Match times, comma separated in format HH:MM"
+msgstr "Время матчей через запятую в формате ЧЧ:ММ"
+
+msgid "Match updated."
+msgstr "Матч обновлён."
+
+msgid "Matches for Tournament {}"
+msgstr "Матчи для турнира {}"
+
+msgid "No matches for tournament {} found."
+msgstr "Матчи для турнира {} не найдены."
+
+msgid "No winner found yet, playing one decisive round!"
+msgstr "Победитель ещё не определён, играется решающий раунд!"
+
+msgid "Number of players"
+msgstr "Количество игроков"
+
+msgid "Number of players needs to be a number."
+msgstr "Количество игроков должно быть числом."
+
+msgid "Number of players needs to be at least 1."
+msgstr "Количество игроков должно быть не менее 1."
+
+msgid "Number of rounds"
+msgstr "Количество раундов"
+
+msgid "Number of rounds needs to be a number."
+msgstr "Количество раундов должно быть числом."
+
+msgid "Number of rounds needs to be an odd value."
+msgstr "Количество раундов должно быть нечётным числом."
+
+msgid "Number of rounds needs to be at least 3."
+msgstr "Количество раундов должно быть не менее 3."
+
+msgid "Password"
+msgstr "Пароль"
+
+msgid "Player {name} joined the match in their {unit}."
+msgstr "Игрок {name} присоединился к матчу на {unit}."
+
+msgid "Please enter a reason why you decided to reject this squadron."
+msgstr "Укажите причину, по которой вы решили отклонить эту эскадрилию."
+
+msgid "Please enter a short summary of your group and why you want to participate in this tournament."
+msgstr "Введите краткое описание вашей группы и причину участия в турнире."
+
+msgid "Please keep in mind that you can only use {} planes!"
+msgstr "Учитывайте, что вы можете использовать только {} самолётов!"
+
+msgid "Preferred times (UTC)"
+msgstr "Предпочтительное время (UTC)"
+
+msgid "Reason"
+msgstr "Причина"
+
+msgid "Red"
+msgstr "Красные"
+
+msgid "Red Wins"
+msgstr "Красные победили"
+
+msgid "Reject"
+msgstr "Отклонить"
+
+msgid "Reject a squadron"
+msgstr "Отклонить эскадрилию"
+
+msgid "Resetting all amended serverSettings.lua files ..."
+msgstr "Сброс всех изменённых файлов serverSettings.lua ..."
+
+msgid "Role"
+msgstr "Роль"
+
+msgid "Round"
+msgstr "Раунд"
+
+msgid "Round {} was a draw!"
+msgstr "Раунд {} завершился вничью!"
+
+msgid "Round: {}, {} : {}"
+msgstr "Раунд: {}, {} : {}"
+
+msgid "Select the DCS terrains you own"
+msgstr "Выберите террейны DCS, которые у вас есть"
+
+msgid "Select your preferred match times"
+msgstr "Выберите предпочтительное время матчей"
+
+msgid "Sell tickets for credits"
+msgstr "Продать билеты за кредиты"
+
+msgid "Server"
+msgstr "Сервер"
+
+msgid "Server {} not found."
+msgstr "Сервер {} не найден."
+
+msgid "Server {} shut down."
+msgstr "Сервер {} выключен."
+
+msgid "Show squadron preferences"
+msgstr "Показать настройки эскадрилии"
+
+msgid "Signup"
+msgstr "Регистрация"
+
+msgid "Signup to a tournament"
+msgstr "Зарегистрироваться на турнир"
+
+msgid "Squadron ID not found."
+msgstr "ID эскадрилии не найден."
+
+msgid "Squadron admins, you can now choose your weapons for the next round!"
+msgstr "Администраторы эскадрилий, вы можете выбрать оружие для следующего раунда!"
+
+msgid "Squadron already signed up for tournament."
+msgstr "Эскадрилия уже зарегистрирована на турнир."
+
+msgid "Squadron application handed in for tournament {}."
+msgstr "Заявка эскадрилии подана на турнир {}."
+
+msgid "Squadron blue rounds won"
+msgstr "Эскадрилия выиграла раунды за синих"
+
+msgid "Squadron red rounds won"
+msgstr "Эскадрилия выиграла раунды за красных"
+
+msgid "Squadron {name} won round {round}!"
+msgstr "Эскадрилия {name} выиграла раунд {round}!"
+
+msgid "Squadron {squadron} is the winner of the match!"
+msgstr "Эскадрилия {squadron} — победитель матча!"
+
+msgid "Squadron {} accepted."
+msgstr "Эскадрилия {} принята."
+
+msgid "Squadron {} forfeit and withdrew from tournament {}."
+msgstr "Эскадрилия {} снялась с турнира {}."
+
+msgid "Squadron {} rejected."
+msgstr "Эскадрилия {} отклонена."
+
+msgid "Squadron {} signed up for tournament {}, you can now {} them."
+msgstr "Эскадрилия {} зарегистрировалась на турнир {}, теперь вы можете их {}."
+
+msgid "Start Date"
+msgstr "Дата начала"
+
+msgid "Start a match"
+msgstr "Начать матч"
+
+msgid "State"
+msgstr "Состояние"
+
+msgid "Status"
+msgstr "Статус"
+
+msgid "THE TOURNAMENT HAS FINISHED!"
+msgstr "ТУРНИР ЗАВЕРШЁН!"
+
+msgid "Terrain"
+msgstr "Террейн"
+
+msgid "Terrain Preferences"
+msgstr "Предпочтения террейнов"
+
+msgid "Thank you for your purchase!"
+msgstr "Спасибо за покупку!"
+
+msgid "The data has been imported successfully."
+msgstr "Данные успешно импортированы."
+
+msgid "The eliminiation phase is now running."
+msgstr "Фаза ликвидации началась."
+
+msgid "The filename has to be 'tournament_ID.xlsx'."
+msgstr "Имя файла должно быть 'tournament_ID.xlsx'."
+
+msgid "The first party to lose all their units will be defeated, making the surviving party the winner of the match."
+msgstr "Первая сторона, потерявшая всю технику, будет побеждена, а оставшаяся сторона станет победителем матча."
+
+msgid "The group phase is now running."
+msgstr "Групповая фаза началась."
+
+msgid "The level of your match. If all matches on one level are finished, increase the level by one."
+msgstr "Уровень вашего матча. Если все матчи на одном уровне завершены, увеличьте уровень на единицу."
+
+msgid "The match is over: {} won!"
+msgstr "Матч окончен: {} победил!"
+
+msgid "The match is starting NOW!"
+msgstr "Матч начинается СЕЙЧАС!"
+
+msgid "The match will continue with round {}."
+msgstr "Матч продолжится раундом {}."
+
+msgid "The next round will start in 10s!"
+msgstr "Следующий раунд начнётся через 10 секунд!"
+
+msgid "The provided campaign is already started.\nAre you sure you want to create a tournament for it now?"
+msgstr "Указанная кампания уже запущена. Вы уверены, что хотите создать для неё турнир сейчас?"
+
+msgid "The round is over, please wait for the next one!"
+msgstr "Раунд окончен, ожидайте следующего!"
+
+msgid "The round will start in {} minute{}.\nIf you takeoff/engage before this time is over, you will be kicked and cannot rejoin for this round!"
+msgstr "Раунд начнётся через {} минут{}. Если вы взлетите/вступите в бой до истечения времени, вас кикнут и вы не сможете вернуться в этом раунде!"
+
+msgid "The round will start in {} second{}."
+msgstr "Раунд начнётся через {} секунд{}."
+
+msgid "The server is now unpaused!\n"
+msgstr "Сервер возобновлён!\n"
+
+msgid "The server will be unpaused, if all players have chosen their slots!"
+msgstr "Сервер будет возобновлён, когда все игроки выберут свои слоты!"
+
+msgid "The ticket {} does not exist."
+msgstr "Билет {} не существует."
+
+msgid "The tournament {} is finished."
+msgstr "Турнир {} завершён."
+
+msgid "There are only {} items available to buy."
+msgstr "Доступно только {} предметов для покупки."
+
+msgid "There are unfinished matches. Do you really want to finish this tournament?"
+msgstr "Есть незавершённые матчи. Вы действительно хотите завершить этот турнир?"
+
+msgid "There is a match running. Please wait for the round to finish."
+msgstr "Матч идёт. Подождите окончания раунда."
+
+msgid "This match is over already. You can not start another round."
+msgstr "Этот матч уже окончен. Вы не можете начать новый раунд."
+
+msgid "This tournament is already finished!\n"
+msgstr "Этот турнир уже завершён!\n"
+
+msgid "This tournament is finished already!"
+msgstr "Этот турнир уже завершён!"
+
+msgid "This will overwrite any existing **unflown** matches!"
+msgstr "Это перезапишет все существующие **не сыгранные** матчи!"
+
+msgid "Tickets"
+msgstr "Билеты"
+
+msgid "Tickets of type {} are not for sale."
+msgstr "Билеты типа {} не продаются."
+
+msgid "Time Preferences"
+msgstr "Предпочтения времени"
+
+msgid "To win the match, a party must eliminate all enemy aircraft AND safely land at least one of their own planes."
+msgstr "Чтобы выиграть матч, сторона должна уничтожить все вражеские самолёты И безопасно посадить хотя бы один свой самолёт."
+
+msgid "Tournament"
+msgstr "Турнир"
+
+msgid "Tournament not found."
+msgstr "Турнир не найден."
+
+msgid "Tournament {} created."
+msgstr "Турнир {} создан."
+
+msgid "Tournament {} deleted."
+msgstr "Турнир {} удалён."
+
+msgid "Tournament {} exists already!"
+msgstr "Турнир {} уже существует!"
+
+msgid "Unit {} is lost and will be permanently removed from the match."
+msgstr "Техника {} потеряна и будет навсегда удалена из матча."
+
+msgid "Verfiy Applications"
+msgstr "Проверить заявки"
+
+msgid "We have found no winner yet, continuing the match with another round!"
+msgstr "Победитель ещё не определён, матч продолжается следующим раундом!"
+
+msgid "Win-Chance"
+msgstr "Шанс на победу"
+
+msgid "Winner not updated."
+msgstr "Победитель не обновлён."
+
+msgid "Winner: {}"
+msgstr "Победитель: {}"
+
+msgid "Withdraw from a tournament"
+msgstr "Отказаться от участия в турнире"
+
+msgid "You already made your choice. Wait for the next round!"
+msgstr "Вы уже сделали свой выбор. Ожидайте следующего раунда!"
+
+msgid "You are going to withdraw from a running tournament!\nAll already scheduled matches will be marked as lost."
+msgstr "Вы собираетесь отказаться от участия в текущем турнире! Все запланированные матчи будут отмечены как проигранные."
+
+msgid "You are not a squadron member.\nPlease ask your squadron leader to add you."
+msgstr "Вы не являетесь членом эскадрилии. Обратитесь к командиру эскадрилии, чтобы он добавил вас."
+
+msgid "You can **now** join the server."
+msgstr "Вы можете **сейчас** присоединиться к серверу."
+
+msgid "You can not choose during a running match!"
+msgstr "Вы не можете выбирать во время матча!"
+
+msgid "You can now use {} to chose your customizations!"
+msgstr "Теперь вы можете использовать {} для выбора настроек!"
+
+msgid "You can now use {} to chose your customizations!\nIf you do not want to change anything, please run it and say 'Skip this round'"
+msgstr "Теперь вы можете использовать {} для выбора настроек! Если вы не хотите ничего менять, запустите команду и скажите 'Пропустить раунд'"
+
+msgid "You can use each ticket only once, so use them wisely!"
+msgstr "Каждый билет можно использовать только один раз, используйте их с умом!"
+
+msgid "You decided to not buy any customizations in this round."
+msgstr "Вы решили не покупать настройки в этом раунде."
+
+msgid "You do not have any tickets of this type."
+msgstr "У вас нет билетов этого типа."
+
+msgid "You do not have enough credits to buy {} items."
+msgstr "У вас недостаточно кредитов для покупки {} предметов."
+
+msgid "You do not have enough squadron credits to buy a choice."
+msgstr "У вас недостаточно кредитов эскадрилии для выбора."
+
+msgid "You have been eliminated from the tournament {}.\nThank you for your participation!"
+msgstr "Вы были исключены из турнира {}. Спасибо за участие!"
+
+msgid "You have been eliminated!"
+msgstr "Вы исключены!"
+
+msgid "You have {} credit points left to spend."
+msgstr "У вас осталось {} кредитов для трат."
+
+msgid "You have {} to arm up your planes and get ready before the match starts."
+msgstr "You have {} to arm up your planes and get ready before the match starts."
+
+msgid "You just finished the tournament!"
+msgstr "Вы только что завершили турнир!"
+
+msgid "You must not share the password with anyone outside your squadron!\nYou will stay on the {} side throughout the whole match."
+msgstr "Вы не должны делиться паролем с кем-либо вне вашей эскадрилии! Вы останетесь на стороне {} на протяжении всего матча."
+
+msgid "You need to be DCS Admin or GameMaster to upload data."
+msgstr "You need to be DCS Admin or GameMaster to upload data."
+
+msgid "You need to be an admin of the respective squadron to sign up.\n\nDISCLAIMER:\nWe will store player information during the tournament.\nThis includes account IDs and hashed IP addresses."
+msgstr "Вам нужно быть администратором соответствующей эскадрилии для регистрации.\n\nОТКАЗ ОТ ОТВЕТСТВЕННОСТИ:\nМы будем хранить информацию об игроках во время турнира.\nЭто включает идентификаторы учётных записей и хэшированные IP-адреса."
+
+msgid "You sold a ticket of type {} and got {} credits back.\nYour total squadron balance is {} credits."
+msgstr "Вы продали билет типа {} и получили {} кредитов обратно. Ваш общий баланс эскадрилии составляет {} кредитов."
+
+msgid "You will be moved back to spectators in 60 seconds ..."
+msgstr "You will be moved back to spectators in 60 seconds ..."
+
+msgid "Your Squadron has been accepted!"
+msgstr "Ваша эскадрилия принята!"
+
+msgid "Your Squadron has been rejected!"
+msgstr "Ваша эскадрилия отклонена!"
+
+msgid "Your Tickets"
+msgstr "Ваши билеты"
+
+msgid "Your choices were saved.\nIf you want them to be applied to the next round, press 'Confirm & Buy'."
+msgstr "Ваш выбор сохранён. Если вы хотите применить его к следующему раунду, нажмите 'Подтвердить и купить'."
+
+msgid "Your next match against {name} starts <t:{time}:R>!"
+msgstr "Ваш следующий матч против {name} начнётся <t:{time}:R>!"
+
+msgid "Your squadron does not have any tickets."
+msgstr "У вашей эскадрилии нет билетов."
+
+msgid "Your squadron has been withdrawn from tournament {}."
+msgstr "Ваша эскадрилия снялась с турнира {}."
+
+msgid "Your squadron {squadron} was rejected from tournament {tournament}."
+msgstr "Ваша эскадрилия {squadron} была отклонена от турнира {tournament}."
+
+msgid "\n- Assigning coalitions ..."
+msgstr "\n- Назначение коалиций ..."
+
+msgid "\n- Awaiting squadron choices ..."
+msgstr "\n- Ожидание выбора эскадрилий ..."
+
+msgid "\n- Preparing server {} ..."
+msgstr "\n- Подготовка сервера {} ..."
+
+msgid "\n- Server {} ready, notifying teams ..."
+msgstr "\n- Сервер {} готов, уведомление команд ..."
+
+msgid "\n- Setting passwords..."
+msgstr "\n- Установка паролей..."
+
+msgid "\n- Shutting down server {} ..."
+msgstr "\n- Выключение сервера {} ..."
+
+msgid "\n- Starting server {} ..."
+msgstr "\n- Запуск сервера {} ..."
+
+msgid "\n- Using mission {} ..."
+msgstr "\n- Использование миссии {} ..."
+
+msgid "\nServer will be shut down in 60 seonds ..."
+msgstr "\nСервер будет выключен через 60 секунд ..."
+
+msgid "\nYou can use {} to sign up."
+msgstr "\nВы можете использовать {} для регистрации."
+
+msgid "\n\nYou can use the following tickets during the tournament to buy special customizations:"
+msgstr "\n\nВы можете использовать следующие билеты во время турнира для покупки специальных настроек:"
+
+msgid "n/a"
+msgstr "н/д"
+

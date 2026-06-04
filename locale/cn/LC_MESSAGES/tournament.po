@@ -1,0 +1,646 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh\n"
+
+msgid "# Members"
+msgstr "Project-Id-Version: 1.0\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\nLanguage: zh\n# 成员"
+
+msgid "# Players per Side"
+msgstr "# 每方玩家"
+
+msgid "# Signups"
+msgstr "# 报名"
+
+msgid "## :warning: Attention all Squadron Leaders! :warning:\nA new tournament has been created:\n\n```{}```"
+msgstr "## :warning: 请注意，所有中队长！ :warning:\n"
+                        "新锦标赛已创建：\n"
+                        "\n"
+                        "```{}```"
+
+msgid "## Error during the startup of server\n{}: Timeout"
+msgstr "## 服务器启动期间出错\n{}: 超时"
+
+msgid "### Stand proud, {}!\n_Through fire and thunder you prevailed,\nWhen others faltered, you stood strong,\nVictory is where you belong!_"
+msgstr "### 为你骄傲，{}！\n"
+                        "_历经战火与雷霆，你取得了胜利，\n"
+                        "当他人动摇时，你嶄然不动，\n"
+                        "胜利属于你！_"
+
+msgid "**Get your team ready!**\n"
+msgstr "**准备好你的队伍！**\n"
+
+msgid ", this is your private channel during the upcoming match!"
+msgstr ", 这是你们在即将到来的比赛中的私人频道！"
+
+msgid "- Creating squadron channels ..."
+msgstr "- 正在创建中队频道 ..."
+
+msgid "- Match {} vs {} was marked as won by {} due to a forfeit."
+msgstr "- 比赛 {} 对 {} 因弃权被标记为 {} 获胜。"
+
+msgid ":warning: To participate in the tournament, your squadron must have an assigned role.\n"
+"Contact the tournament host to receive your role assignment."
+msgstr ":warning: 要参加锦标赛，你的中队必须有一个分配的角色。\n"
+"请联系锦标赛主持人以获取角色分配。"
+
+msgid ":warning: Your squadron does not have enough players to participate in the tournament yet."
+msgstr ":warning: 你的中队还没有足够的玩家参加锦标赛。"
+
+msgid "A match is running on server {}!"
+msgstr "服务器 {} 上正在进行比赛！"
+
+msgid "A match is running."
+msgstr "比赛正在进行中。"
+
+msgid "Aborted"
+msgstr "已中止"
+
+msgid "Aborted."
+msgstr "已中止。"
+
+msgid "Accept"
+msgstr "接受"
+
+msgid "All sides have occupied their units. The match can start now!"
+msgstr "所有方已占领其单位。比赛现在可以开始了！"
+
+msgid "Application"
+msgstr "申请"
+
+msgid "Application for Squadron \"{}\""
+msgstr "中队 \"{}\" 的申请"
+
+msgid "Apply to a tournament"
+msgstr "申请参加锦标赛"
+
+msgid "Are you sure?\nYour settings will be directly applied to the next round."
+msgstr "你确定吗？\n你的设置将直接应用到下一轮。"
+
+msgid "Blue"
+msgstr "蓝方"
+
+msgid "Blue Wins"
+msgstr "蓝方获胜"
+
+msgid "Can't generate new matches, not all matches of this stage have been flown yet."
+msgstr "无法创建新比赛，此阶段的所有比赛尚未完成。"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Closing the underlying campaign ..."
+msgstr "正在关闭相关战役 ..."
+
+msgid "Coalition"
+msgstr "联盟"
+
+msgid "Commands to manage matches in a tournament"
+msgstr "管理锦标赛比赛的命令"
+
+msgid "Commands to manage tickets in a tournament"
+msgstr "管理锦标赛门票的命令"
+
+msgid "Congratulations, you will be part of our upcoming tournament!"
+msgstr "恭喜，你将成为我们即将到来的锦标赛的一部分！"
+
+msgid "Count"
+msgstr "数量"
+
+msgid "Create a manual match"
+msgstr "创建手动比赛"
+
+msgid "Create a new tournament"
+msgstr "创建新锦标赛"
+
+msgid "Create a tournament"
+msgstr "创建锦标赛"
+
+msgid "Customize the next round"
+msgstr "自定义下一轮"
+
+msgid "Delete a tournament"
+msgstr "删除锦标赛"
+
+msgid "Do you really want to delete this tournament and all its data?"
+msgstr "你真的想删除这个锦标赛及其所有数据吗？"
+
+msgid "Do you really want to finish the match and make {} the winner?"
+msgstr "你真的想结束比赛并让 {} 成为赢家吗？"
+
+msgid "Do you really want to sell a tickets of type {} for {} credits?"
+msgstr "你真的想以 {} 积分出售 {} 类型的门票吗？"
+
+msgid "Do you want to generate new matches for tournament {}?"
+msgstr "你想为锦标赛 {} 生成新比赛吗？"
+
+msgid "Do you want to import the data and overwrite your matches?"
+msgstr "你想导入数据并覆盖你的比赛吗？"
+
+msgid "Do you want to inform players about the new tournament now?"
+msgstr "你想现在通知玩家有关新锦标赛的信息吗？"
+
+msgid "Do you want to re-generate your groups?"
+msgstr "你想重新生成你的组吗？"
+
+msgid "Do you want to start round {} of the match between\n{} and {}?"
+msgstr "你想开始 {} 对 {} 的比赛第 {} 轮吗？"
+
+msgid "Draw"
+msgstr "平局"
+
+msgid "Edit a match"
+msgstr "编辑比赛"
+
+msgid "Enter a number"
+msgstr "输入数字"
+
+msgid "Error deleting tournament: {}"
+msgstr "删除锦标赛时出错：{}"
+
+msgid "Error during opening the channels: {}"
+msgstr "打开频道时出错：{}"
+
+msgid "Error while processing the file: {}"
+msgstr "处理文件时出错：{}"
+
+msgid "Error: This campaign is already stopped!"
+msgstr "错误：此战役已停止！"
+
+msgid "Export matches"
+msgstr "导出比赛"
+
+msgid "Finish a tournament"
+msgstr "完成锦标赛"
+
+msgid "Generate bracket"
+msgstr "生成对阵表"
+
+msgid "Generate matches"
+msgstr "生成比赛"
+
+msgid "Generating group matches for this tournament ..."
+msgstr "正在为此锦标赛生成小组赛 ..."
+
+msgid "Generating knockout matches for this tournament ..."
+msgstr "正在为此锦标赛生成淘汰赛 ..."
+
+msgid "How many {} do you want?"
+msgstr "你想要多少个 {}？"
+
+msgid "IP:Port"
+msgstr "IP:端口"
+
+msgid "Invalid date format. Use yyyy-mm-dd hh:mm:ss."
+msgstr "日期格式无效。请使用 yyyy-mm-dd hh:mm:ss。"
+
+msgid "Invoice"
+msgstr "发票"
+
+msgid "Kicked due to early engagement."
+msgstr "因提前交战被踢出。"
+
+msgid "Kicked due to early takeoff."
+msgstr "因提前起飞被踢出。"
+
+msgid "List matches"
+msgstr "列出比赛"
+
+msgid "List tickets of a squadron"
+msgstr "列出中队的门票"
+
+msgid "Match Setup"
+msgstr "比赛设置"
+
+msgid "Match created."
+msgstr "比赛已创建。"
+
+msgid "Match not updated."
+msgstr "比赛未更新。"
+
+msgid "Match time (yyyy-mm-dd hh:mm:ss)"
+msgstr "比赛时间 (yyyy-mm-dd hh:mm:ss)"
+
+msgid "Match times, comma separated in format HH:MM"
+msgstr "比赛时间，以 HH:MM 格式用逗号分隔"
+
+msgid "Match updated."
+msgstr "比赛已更新。"
+
+msgid "Matches for Tournament {}"
+msgstr "锦标赛 {} 的比赛"
+
+msgid "No matches for tournament {} found."
+msgstr "未找到锦标赛 {} 的比赛。"
+
+msgid "No winner found yet, playing one decisive round!"
+msgstr "尚未找到赢家，正在进行决定性回合！"
+
+msgid "Number of players"
+msgstr "玩家数量"
+
+msgid "Number of players needs to be a number."
+msgstr "玩家数量必须是数字。"
+
+msgid "Number of players needs to be at least 1."
+msgstr "玩家数量必须至少为 1。"
+
+msgid "Number of rounds"
+msgstr "回合数"
+
+msgid "Number of rounds needs to be a number."
+msgstr "回合数必须是数字。"
+
+msgid "Number of rounds needs to be an odd value."
+msgstr "回合数必须是奇数值。"
+
+msgid "Number of rounds needs to be at least 3."
+msgstr "回合数必须至少为 3。"
+
+msgid "Password"
+msgstr "密码"
+
+msgid "Player {name} joined the match in their {unit}."
+msgstr "玩家 {name} 以 {unit} 加入了比赛。"
+
+msgid "Please enter a reason why you decided to reject this squadron."
+msgstr "请输入你决定拒绝此中队的原因。"
+
+msgid "Please enter a short summary of your group and why you want to participate in this tournament."
+msgstr "请输入你的团队简介以及你为什么要参加此锦标赛。"
+
+msgid "Please keep in mind that you can only use {} planes!"
+msgstr "请注意，你只能使用 {} 架飞机！"
+
+msgid "Preferred times (UTC)"
+msgstr "首选时间 (UTC)"
+
+msgid "Reason"
+msgstr "原因"
+
+msgid "Red"
+msgstr "红方"
+
+msgid "Red Wins"
+msgstr "红方获胜"
+
+msgid "Reject"
+msgstr "拒绝"
+
+msgid "Reject a squadron"
+msgstr "拒绝中队"
+
+msgid "Resetting all amended serverSettings.lua files ..."
+msgstr "正在重置所有修改过的 serverSettings.lua 文件 ..."
+
+msgid "Role"
+msgstr "角色"
+
+msgid "Round"
+msgstr "回合"
+
+msgid "Round {} was a draw!"
+msgstr "第 {} 回合平局！"
+
+msgid "Round: {}, {} : {}"
+msgstr "回合: {}, {} : {}"
+
+msgid "Select the DCS terrains you own"
+msgstr "选择你拥有的 DCS 地形"
+
+msgid "Select your preferred match times"
+msgstr "选择你偏好的比赛时间"
+
+msgid "Sell tickets for credits"
+msgstr "以积分出售门票"
+
+msgid "Server"
+msgstr "服务器"
+
+msgid "Server {} not found."
+msgstr "未找到服务器 {}。"
+
+msgid "Server {} shut down."
+msgstr "服务器 {} 已关闭。"
+
+msgid "Show squadron preferences"
+msgstr "显示中队偏好"
+
+msgid "Signup"
+msgstr "报名"
+
+msgid "Signup to a tournament"
+msgstr "报名参加锦标赛"
+
+msgid "Squadron ID not found."
+msgstr "未找到中队 ID。"
+
+msgid "Squadron admins, you can now choose your weapons for the next round!"
+msgstr "中队管理员，现在可以为下一轮选择武器了！"
+
+msgid "Squadron already signed up for tournament."
+msgstr "中队已报名锦标赛。"
+
+msgid "Squadron application handed in for tournament {}."
+msgstr "中队已提交锦标赛 {} 的申请。"
+
+msgid "Squadron blue rounds won"
+msgstr "中队蓝方回合胜利"
+
+msgid "Squadron red rounds won"
+msgstr "中队红方回合胜利"
+
+msgid "Squadron {name} won round {round}!"
+msgstr "中队 {name} 赢得了第 {round} 回合！"
+
+msgid "Squadron {squadron} is the winner of the match!"
+msgstr "中队 {squadron} 是比赛的赢家！"
+
+msgid "Squadron {} accepted."
+msgstr "中队 {} 已接受。"
+
+msgid "Squadron {} forfeit and withdrew from tournament {}."
+msgstr "中队 {} 弃权并退出了锦标赛 {}。"
+
+msgid "Squadron {} rejected."
+msgstr "中队 {} 已拒绝。"
+
+msgid "Squadron {} signed up for tournament {}, you can now {} them."
+msgstr "中队 {} 已报名锦标赛 {}，你现在可以 {} 他们。"
+
+msgid "Start Date"
+msgstr "开始日期"
+
+msgid "Start a match"
+msgstr "开始比赛"
+
+msgid "State"
+msgstr "状态"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "THE TOURNAMENT HAS FINISHED!"
+msgstr "锦标赛已结束！"
+
+msgid "Terrain"
+msgstr "地形"
+
+msgid "Terrain Preferences"
+msgstr "地形偏好"
+
+msgid "Thank you for your purchase!"
+msgstr "感谢您的购买！"
+
+msgid "The data has been imported successfully."
+msgstr "数据已成功导入。"
+
+msgid "The eliminiation phase is now running."
+msgstr "淘汰阶段正在进行中。"
+
+msgid "The filename has to be 'tournament_ID.xlsx'."
+msgstr "文件名必须是 'tournament_ID.xlsx'。"
+
+msgid "The first party to lose all their units will be defeated, making the surviving party the winner of the match."
+msgstr "首先失去所有单位的一方将被击败，幸存的一方将成为比赛的赢家。"
+
+msgid "The group phase is now running."
+msgstr "小组赛阶段正在进行中。"
+
+msgid "The level of your match. If all matches on one level are finished, increase the level by one."
+msgstr "你的比赛等级。如果某一等级的所有比赛都完成了，等级增加一。"
+
+msgid "The match is over: {} won!"
+msgstr "比赛结束：{} 获胜！"
+
+msgid "The match is starting NOW!"
+msgstr "比赛现在开始！"
+
+msgid "The match will continue with round {}."
+msgstr "比赛将继续进行第 {} 回合。"
+
+msgid "The next round will start in 10s!"
+msgstr "下一轮将在 10 秒后开始！"
+
+msgid "The provided campaign is already started.\nAre you sure you want to create a tournament for it now?"
+msgstr "提供的战役已经开始了。你确定要现在为其创建锦标赛吗？"
+
+msgid "The round is over, please wait for the next one!"
+msgstr "回合结束，请等待下一轮！"
+
+msgid "The round will start in {} minute{}.\nIf you takeoff/engage before this time is over, you will be kicked and cannot rejoin for this round!"
+msgstr "回合将在 {} 分钟后开始。如果你在这段时间结束前起飞/交战，你将被踢出并且无法重新加入本轮！"
+
+msgid "The round will start in {} second{}."
+msgstr "回合将在 {} 秒后开始。"
+
+msgid "The server is now unpaused!\n"
+msgstr "服务器已恢复！\n"
+
+msgid "The server will be unpaused, if all players have chosen their slots!"
+msgstr "当所有玩家都选择了他们的槽位时，服务器将恢复！"
+
+msgid "The ticket {} does not exist."
+msgstr "门票 {} 不存在。"
+
+msgid "The tournament {} is finished."
+msgstr "锦标赛 {} 已结束。"
+
+msgid "There are only {} items available to buy."
+msgstr "只有 {} 件物品可供购买。"
+
+msgid "There are unfinished matches. Do you really want to finish this tournament?"
+msgstr "有未完成的比赛。你真的想结束这个锦标赛吗？"
+
+msgid "There is a match running. Please wait for the round to finish."
+msgstr "比赛正在进行中。请等待回合结束。"
+
+msgid "This match is over already. You can not start another round."
+msgstr "这场比赛已经结束了。你不能开始另一个回合。"
+
+msgid "This tournament is already finished!\n"
+msgstr "这个锦标赛已经结束了！\n"
+
+msgid "This tournament is finished already!"
+msgstr "这个锦标赛已经结束了！"
+
+msgid "This will overwrite any existing **unflown** matches!"
+msgstr "这将覆盖所有现有的**未进行**的比赛！"
+
+msgid "Tickets"
+msgstr "门票"
+
+msgid "Tickets of type {} are not for sale."
+msgstr "类型 {} 的门票不出售。"
+
+msgid "Time Preferences"
+msgstr "时间偏好"
+
+msgid "To win the match, a party must eliminate all enemy aircraft AND safely land at least one of their own planes."
+msgstr "要赢得比赛，一方必须消灭所有敌方飞机并安全降落至少一架自己的飞机。"
+
+msgid "Tournament"
+msgstr "锦标赛"
+
+msgid "Tournament not found."
+msgstr "未找到锦标赛。"
+
+msgid "Tournament {} created."
+msgstr "锦标赛 {} 已创建。"
+
+msgid "Tournament {} deleted."
+msgstr "锦标赛 {} 已删除。"
+
+msgid "Tournament {} exists already!"
+msgstr "锦标赛 {} 已存在！"
+
+msgid "Unit {} is lost and will be permanently removed from the match."
+msgstr "单位 {} 已损失，将从比赛中永久移除。"
+
+msgid "Verfiy Applications"
+msgstr "审核申请"
+
+msgid "We have found no winner yet, continuing the match with another round!"
+msgstr "我们还没有找到赢家，比赛将继续进行下一轮！"
+
+msgid "Win-Chance"
+msgstr "胜率"
+
+msgid "Winner not updated."
+msgstr "赢家未更新。"
+
+msgid "Winner: {}"
+msgstr "赢家：{}"
+
+msgid "Withdraw from a tournament"
+msgstr "退出锦标赛"
+
+msgid "You already made your choice. Wait for the next round!"
+msgstr "你已经做出了选择。等待下一轮！"
+
+msgid "You are going to withdraw from a running tournament!\nAll already scheduled matches will be marked as lost."
+msgstr "你即将退出正在进行的锦标赛！所有已安排的比赛将被标记为失败。"
+
+msgid "You are not a squadron member.\nPlease ask your squadron leader to add you."
+msgstr "你不是中队成员。请让你的中队长添加你。"
+
+msgid "You can **now** join the server."
+msgstr "你现在可以加入服务器了。"
+
+msgid "You can not choose during a running match!"
+msgstr "你不能在比赛进行中选择！"
+
+msgid "You can now use {} to chose your customizations!"
+msgstr "你现在可以使用 {} 来选择你的自定义设置！"
+
+msgid "You can now use {} to chose your customizations!\nIf you do not want to change anything, please run it and say 'Skip this round'"
+msgstr "你现在可以使用 {} 来选择你的自定义设置！如果你不想改变任何东西，请运行它并说'跳过本轮'"
+
+msgid "You can use each ticket only once, so use them wisely!"
+msgstr "每张门票只能使用一次，所以要明智地使用它们！"
+
+msgid "You decided to not buy any customizations in this round."
+msgstr "你决定在这一轮不购买任何自定义设置。"
+
+msgid "You do not have any tickets of this type."
+msgstr "你没有这种类型的门票。"
+
+msgid "You do not have enough credits to buy {} items."
+msgstr "你没有足够的积分来购买 {} 件物品。"
+
+msgid "You do not have enough squadron credits to buy a choice."
+msgstr "你没有足够的中队积分来进行选择。"
+
+msgid "You have been eliminated from the tournament {}.\nThank you for your participation!"
+msgstr "你已被从锦标赛 {} 中淘汰。感谢你的参与！"
+
+msgid "You have been eliminated!"
+msgstr "你已被淘汰！"
+
+msgid "You have {} credit points left to spend."
+msgstr "你还有 {} 积分可以花费。"
+
+msgid "You have {} to arm up your planes and get ready before the match starts."
+msgstr "You have {} to arm up your planes and get ready before the match starts."
+
+msgid "You just finished the tournament!"
+msgstr "你刚刚完成了锦标赛！"
+
+msgid "You must not share the password with anyone outside your squadron!\nYou will stay on the {} side throughout the whole match."
+msgstr "你不得与中队以外的任何人分享密码！你将在整个比赛中保持在 {} 方。"
+
+msgid "You need to be DCS Admin or GameMaster to upload data."
+msgstr "You need to be DCS Admin or GameMaster to upload data."
+
+msgid "You need to be an admin of the respective squadron to sign up.\n\nDISCLAIMER:\nWe will store player information during the tournament.\nThis includes account IDs and hashed IP addresses."
+msgstr "你需要是相应中队的管理员才能报名。\n\n免责声明：\n我们将在锦标赛期间存储玩家信息。\n这包括帐户 ID 和哈希 IP 地址。"
+
+msgid "You sold a ticket of type {} and got {} credits back.\nYour total squadron balance is {} credits."
+msgstr "你出售了一张 {} 类型的门票，获得了 {} 积分。你的中队总余额为 {} 积分。"
+
+msgid "You will be moved back to spectators in 60 seconds ..."
+msgstr "You will be moved back to spectators in 60 seconds ..."
+
+msgid "Your Squadron has been accepted!"
+msgstr "你的中队已被接受！"
+
+msgid "Your Squadron has been rejected!"
+msgstr "你的中队已被拒绝！"
+
+msgid "Your Tickets"
+msgstr "你的门票"
+
+msgid "Your choices were saved.\nIf you want them to be applied to the next round, press 'Confirm & Buy'."
+msgstr "你的选择已保存。如果你想将其应用到下一轮，请按'确认并购买'。"
+
+msgid "Your next match against {name} starts <t:{time}:R>!"
+msgstr "你对 {name} 的下一场比赛将在 <t:{time}:R> 开始！"
+
+msgid "Your squadron does not have any tickets."
+msgstr "你的中队没有任何门票。"
+
+msgid "Your squadron has been withdrawn from tournament {}."
+msgstr "你的中队已从锦标赛 {} 中退出。"
+
+msgid "Your squadron {squadron} was rejected from tournament {tournament}."
+msgstr "你的中队 {squadron} 被锦标赛 {tournament} 拒绝。"
+
+msgid "\n- Assigning coalitions ..."
+msgstr "\n- 正在分配联盟 ..."
+
+msgid "\n- Awaiting squadron choices ..."
+msgstr "\n- 等待中队选择 ..."
+
+msgid "\n- Preparing server {} ..."
+msgstr "\n- 正在准备服务器 {} ..."
+
+msgid "\n- Server {} ready, notifying teams ..."
+msgstr "\n- 服务器 {} 已就绪，正在通知队伍 ..."
+
+msgid "\n- Setting passwords..."
+msgstr "\n- 正在设置密码..."
+
+msgid "\n- Shutting down server {} ..."
+msgstr "\n- 正在关闭服务器 {} ..."
+
+msgid "\n- Starting server {} ..."
+msgstr "\n- 正在启动服务器 {} ..."
+
+msgid "\n- Using mission {} ..."
+msgstr "\n- 正在使用任务 {} ..."
+
+msgid "\nServer will be shut down in 60 seonds ..."
+msgstr "\n服务器将在 60 秒后关闭 ..."
+
+msgid "\nYou can use {} to sign up."
+msgstr "\n你可以使用 {} 来报名。"
+
+msgid "\n\nYou can use the following tickets during the tournament to buy special customizations:"
+msgstr "\n\n你可以在锦标赛期间使用以下门票购买特殊自定义设置："
+
+msgid "n/a"
+msgstr "不适用"
+
