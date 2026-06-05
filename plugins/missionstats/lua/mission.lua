@@ -166,7 +166,7 @@ function onMissionEvent(event)
             if event.id == world.event.S_EVENT_RUNWAY_TAKEOFF then
                 if not event.place then
                     msg['eventName'] = 'S_EVENT_GROUND_TAKEOFF'
-                else
+                elseif msg.initiator.name then  -- we only check for taxiway takeoffs for players
                     local place = event.place:getName()
                     local airbase = Airbase.getByName(place)
                     local velocity = msg.initiator.unit:getVelocity()

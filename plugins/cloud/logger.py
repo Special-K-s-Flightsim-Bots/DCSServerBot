@@ -28,6 +28,16 @@ class CloudLoggingHandler(logging.Handler):
         self.url = url
         self.cwd = os.getcwd()
         self.pending_futures = set()
+        self._session = None
+
+    @property
+    def session(self):
+        if not self._session or self._session.closed:
+            self._session = aiohttp.ClientSession(
+                raise_for_status=True,
+                timeout=aiohttp.ClientTimeout(total=10)
+            )
+        return self._session
 
     def format_traceback(self, trace) -> tuple[str, int, list[str]]:
         ret = []
@@ -66,16 +76,15 @@ class CloudLoggingHandler(logging.Handler):
             return
         # log the error to the central database
         with suppress(Exception):
-            async with aiohttp.ClientSession() as session:
-                # noinspection PyUnresolvedReferences
-                await session.post(self.url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth, json={
-                    "guild_id": self.node.guild_id,
-                    "version": f"{self.node.bot_version}.{self.node.sub_version}",
-                    "filename": file,
-                    "lineno": line,
-                    "message": exc.__class__.__name__ + ': ' + record.message,
-                    "stacktrace": '\n'.join(trace)
-                })
+            # noinspection PyUnresolvedReferences
+            await self.session.post(self.url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth, json={
+                "guild_id": self.node.guild_id,
+                "version": f"{self.node.bot_version}.{self.node.sub_version}",
+                "filename": file,
+                "lineno": line,
+                "message": exc.__class__.__name__ + ': ' + record.message,
+                "stacktrace": '\n'.join(trace)
+            })
 
     def emit(self, record: logging.LogRecord):
         if record.levelno in [logging.ERROR, logging.CRITICAL] and record.exc_info is not None:
@@ -91,4 +100,10 @@ class CloudLoggingHandler(logging.Handler):
                 future.result(timeout=1.0)
             except Exception:
                 pass
+        if self._session and not self._session.closed:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(self._session.close())
+            else:
+                loop.run_until_complete(self._session.close())
         super().close()

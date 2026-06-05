@@ -150,6 +150,7 @@ class Cloud(Plugin[CloudListener]):
         if self.config.get('upload_errors', True):
             for handler in self.log.root.handlers:
                 if isinstance(handler, CloudLoggingHandler):
+                    await asyncio.to_thread(handler.close)
                     self.log.root.removeHandler(handler)
         if self.config.get('register', True):
             tasks.append(utils.safe_cancel(self.register))
