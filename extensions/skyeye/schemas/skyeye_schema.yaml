@@ -21,6 +21,8 @@ schema;skyeye_config:
     enabled: {type: bool, nullable: false}
     name: {type: str, nullable: false, range: {min: 1}}
     debug: {type: bool, nullable: false}
+    remote: {type: bool, nullable: false}
+    version: {type: str, nullable: false, range: {min: 1}}
     log: {type: str, nullable: false, range: {min: 1}}
     affinity: {type: any, nullable: false, func: str_or_list}
     config: {type: str, nullable: false, range: {min: 1}}

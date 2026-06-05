@@ -47,6 +47,12 @@ LOGLEVEL = {
 class SkyEye(Extension):
 
     CONFIG_DICT = {
+        "remote": {
+            "type": bool,
+            "label": _("Remote"),
+            "default": False,
+            "required": False
+        },
         "coalition": {
             "type": list,
             "label": _("Coalition"),
@@ -70,24 +76,25 @@ class SkyEye(Extension):
 
     def __init__(self, server, config):
         self.configs = []
-        super().__init__(server, config)
         self._version = None
+        super().__init__(server, config)
         self.processes = []
         self.loggers = []
-        if self.enabled:
-            for process in utils.find_process(self.get_exe_path(), server.instance.name):
-                self.processes.append(process)
-                ProcessManager().assign_process(
-                    process,
-                    min_cores=self.config.get('auto_affinity', {}).get('min_cores', 2),
-                    max_cores=self.config.get('auto_affinity', {}).get('max_cores'),
-                    quality=self.config.get('auto_affinity', {}).get('quality', 2),
-                    instance=server.instance.name
-                )
-            if self.processes:
-                self.log.info(f"  => {self.name}: Running SkyEye server(s) detected.")
-        # register shutdown handler
-        atexit.register(self.terminate)
+        if not self.is_remote():
+            if self.enabled:
+                for process in utils.find_process(self.get_exe_path(), server.instance.name):
+                    self.processes.append(process)
+                    ProcessManager().assign_process(
+                        process,
+                        min_cores=self.config.get('auto_affinity', {}).get('min_cores', 2),
+                        max_cores=self.config.get('auto_affinity', {}).get('max_cores'),
+                        quality=self.config.get('auto_affinity', {}).get('quality', 2),
+                        instance=server.instance.name
+                    )
+                if self.processes:
+                    self.log.info(f"  => {self.name}: Running SkyEye server(s) detected.")
+            # register shutdown handler
+            atexit.register(self.terminate)
 
     def get_config_path(self, cfg: dict) -> str:
         path = os.path.expandvars(utils.format_string(
@@ -95,6 +102,9 @@ class SkyEye(Extension):
             server=self.server, instance=self.server.instance, coalition=cfg.get('coalition', 'blue'))
         )
         return path
+
+    def is_remote(self):
+        return self.config.get('remote', False)
 
     @override
     def load_config(self) -> dict:
@@ -298,15 +308,22 @@ class SkyEye(Extension):
             self._prepare_config(cfg)
             if cfg.get('recognizer', 'openai-whisper-local') == 'openai-whisper-local':
                 model = cfg.get('whisper-model', 'ggml-small.en.bin')
-        if model:
-            asyncio.create_task(self.download_whisper_file(model))
 
-        if self.config.get('autoupdate', False):
-            await self._autoupdate()
+        if not self.is_remote():
+            if model:
+                asyncio.create_task(self.download_whisper_file(model))
+
+            if self.config.get('autoupdate', False):
+                await self._autoupdate()
+
         return await super().prepare()
 
     @override
     async def startup(self, *, quiet: bool = False) -> bool:
+        if self.is_remote():
+            self.log.debug(f"{self.name}: Skipping startup() on remote server.")
+            return await super().startup(quiet=True)
+
         def run_subprocess(cfg: dict) -> psutil.Process:
             debug = cfg.get('debug', False)
             log_file = utils.format_string(cfg.get('log'),
@@ -440,6 +457,9 @@ class SkyEye(Extension):
 
     @override
     def shutdown(self, *, quiet: bool = False) -> bool:
+        if self.is_remote():
+            return super().shutdown(quiet=True)
+
         def close_log_handlers(self):
             for logger in self.loggers:
                 while logger.handlers:  # Remove and close all handlers
@@ -454,12 +474,18 @@ class SkyEye(Extension):
 
     @override
     def is_running(self) -> bool:
+        if self.is_remote():
+            return super().is_running()
+
         for process in self.processes:
             if not process.is_running():
                 return False
         return len(self.processes) == len(self.configs)
 
     def get_exe_path(self) -> str:
+        if self.is_remote():
+            return tempfile.gettempdir()
+
         return os.path.join(os.path.expandvars(self.config['installation']), "skyeye.exe")
 
     def _get_version(self) -> str:
@@ -472,16 +498,19 @@ class SkyEye(Extension):
                 match = re.search(r'v(\d+\.\d+\.\d+)', result.stdout)
                 if match:
                     return match.group(1)
-        return "1.1.1"  # default version
+        return "1.9.1"  # default version
 
     @override
     @property
     def version(self) -> str | None:
         if not self._version:
-            # try to read the version from the exe
-            self._version = utils.get_windows_version(self.get_exe_path())
-            if not self._version:
-                self._version = self._get_version()
+            if self.is_remote():
+                self._version = self.config.get('version', '1.9.1')
+            else:
+                # try to read the version from the exe
+                self._version = utils.get_windows_version(self.get_exe_path())
+                if not self._version:
+                    self._version = self._get_version()
         return self._version
 
     @override
