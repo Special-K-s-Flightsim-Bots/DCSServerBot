@@ -386,8 +386,8 @@ class MonitoringService(Service):
         if current_ip != self.node.public_ip:
             config = self.get_config()
             if config.get('ignore_ip_changes', False):
-                await self.bot.audit("Your public IP has changed on node {self.node.name}! "
-                                     "Ignoring based on your configuration.")
+                await self.bot.audit(f"Your public IP has changed on node {self.node.name}! "
+                                     f"Ignoring based on your configuration.")
                 return
 
             # public IP has changed, shutdown all servers
