@@ -485,7 +485,7 @@ class MizFile:
         latitude, longitude = THEATRES[self.theatre]
 
         # Determine the local timezone
-        timezone = get_tz(latitude, longitude)
+        timezone = get_tz(longitude, latitude)
         if not timezone:
             raise ValueError("start_time: Could not determine timezone for the given coordinates!")
 

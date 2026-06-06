@@ -202,7 +202,7 @@ class ScheduleInfo(report.EmbedElement):
         if not scheduler:
             return
         config = scheduler.get_config(server)
-        if config.get('schedule', {'00-24': 'YYYYYYY'}) == {'00-24': 'YYYYYYY'}:
+        if not config.get('schedule') or config.get('schedule', {'00-24': 'YYYYYYY'}) == {'00-24': 'YYYYYYY'}:
             return
         self.add_field(name="This server runs on the following schedule:", value='_ _', inline=False)
         value = ''

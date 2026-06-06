@@ -13,6 +13,12 @@ schema;element_schema:
   mapping:
     time_sync: {type: bool, nullable: false}
     time_server: {type: str, nullable: false, range: {min: 1}}
+    ignore_ip_changes: {type: bool, nullable: false}
+    messages:
+      type: map
+      nullable: false
+      mapping:
+        ip_change: {type: str, nullable: false, range: {min: 1}}
     thresholds:
       type: map
       nullable: false

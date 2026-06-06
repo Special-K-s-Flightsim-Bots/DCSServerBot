@@ -347,7 +347,8 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
             if installed != self.version:
                 return await self.update_instance(True)
             self.log.debug(f"  => {self.name}: Instance {self.server.instance.name} is already up to date.")
-        return True
+            return True
+        return False
 
     @override
     async def install(self, version: str | None = None) -> bool:
@@ -386,9 +387,13 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
             return
         try:
             version = await self.get_latest_version()
-            if version != self.version:
+            if version != self.get_inst_version()[1]:
                 self.log.info(f"A new LotAtc update is available. Updating to version {version} ...")
                 await asyncio.to_thread(self.do_update)
+                if version != self.version:
+                    self.log.error(f"LotAtc update failed: {version} is not the expected version {self.version}!")
+                    return
+
                 self.log.info("LotAtc updated.")
                 await self.bot.audit(message=f"{self.name} updated to version {version} on node {self.node.name}.")
                 config = self.config.get('announce')
@@ -427,3 +432,14 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
     @override
     def is_available(self) -> bool:
         return os.path.exists(self.get_inst_path())
+
+    @override
+    def rename_server(self, old_name: str, new_name: str):
+        for port, server_name in type(self)._ports.items():
+            if server_name == old_name:
+                type(self)._ports[port] = new_name
+                break
+        for port, server_name in type(self)._json_ports.items():
+            if server_name == old_name:
+                type(self)._json_ports[port] = new_name
+                break

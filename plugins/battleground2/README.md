@@ -6,6 +6,7 @@ the "blue" and "red" channel in your servers.yaml.
 ## DCSBattlegound's configuration
 As Battleground2 is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - battleground2
 ```

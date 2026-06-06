@@ -269,17 +269,44 @@ class ServerImpl(Server):
             self.log.info(f"  => {self.name}: {i} missions auto-added to the mission list")
 
     def _make_missions_unique(self):
-        # make sure, mission names are unique
+        """
+        Remove duplicate mission paths from ``self._settings['missionList']``,
+        normalising each path and preserving the original order.
+
+        Also update ``listStartIndex`` (1‑based) and ``current`` so that they point to
+        the (new) current mission, if necessary.
+        """
+
+        # Bail out early if we have no idea what the current file is
         current_mission = self._get_current_mission_file()
-        if current_mission:
-            self._settings['missionList'] = list(
-                OrderedDict.fromkeys(os.path.normpath(x) for x in self._settings['missionList']).keys()
-            )
-            try:
-                new_start = self._settings['missionList'].index(current_mission)
-            except ValueError:
-                new_start = 0
-            self._settings['listStartIndex'] = self._settings['current'] = new_start + 1
+        if not current_mission:
+            return
+
+        # ------------------------------------------------------------------
+        # Normalise every path once and build a list that keeps only the
+        # first occurrence of each unique path.
+        # ------------------------------------------------------------------
+        raw_list = self._settings.get('missionList', [])
+        normed_paths = [os.path.normpath(p) for p in raw_list]
+        unique_list = list(dict.fromkeys(normed_paths))  # py3.7+ guarantees order
+
+        self._settings['missionList'] = unique_list
+
+        # ------------------------------------------------------------------
+        # Normalise the current mission path before looking it up.
+        # (This also fixes case‑sensitivity on Windows.)
+        # ------------------------------------------------------------------
+        norm_current = os.path.normpath(current_mission)
+
+        try:
+            new_start = unique_list.index(norm_current)
+        except ValueError:  # current mission no longer in the list
+            new_start = 0
+
+        # --------------------------
+        # Store the new start index.
+        # --------------------------
+        self._settings['listStartIndex'] = self._settings['current'] = new_start + 1
 
     async def _load_mission_list(self):
         try:
@@ -545,14 +572,22 @@ class ServerImpl(Server):
             try:
                 # update servers.yaml
                 update_config(old_name, new_name, update_settings)
+                if old_name:
+                    # update extensions
+                    for ext in self.extensions.values():
+                        ext.rename_server(old_name, new_name)
+
                 self.name = new_name
             except Exception:
                 # rollback config
                 if old_name:
                     update_config(new_name, old_name, update_settings)
+                    await update_cluster(old_name)
+                    await update_database(new_name, old_name)
                 raise
         except Exception:
             self.log.exception(f"Error during renaming of server {old_name} to {new_name}: ", exc_info=True)
+            return
 
     async def unlink(self):
         if self.name == 'n/a':
@@ -602,7 +637,7 @@ class ServerImpl(Server):
             self.log.warning('Removed non-existent missions from serverSettings.lua')
         self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.instance.name))
         try:
-            # Old affinity (now deprecated)
+            # Old affinity
             affinity = self.locals.get('affinity')
             if isinstance(affinity, str):
                 affinity = [int(x.strip()) for x in affinity.split(',')]
@@ -923,7 +958,7 @@ class ServerImpl(Server):
 
                 return filename if not dirty else new_filename
             except Exception as ex:
-                self.log.error(ex)
+                self.log.exception(ex)
                 if filename != new_filename and os.path.exists(new_filename):
                     os.remove(new_filename)
                 return filename

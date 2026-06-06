@@ -5,6 +5,7 @@ Simple extension to clone or update a given repository into a directory on your 
 You can use `/extension enable <GitHub>` to enable the extension.
 This will add an entry in your `nodes.yaml` like so:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   instances:

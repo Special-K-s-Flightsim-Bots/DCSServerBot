@@ -13,6 +13,7 @@ Unzip the file to a directory of your choice. This will be called the "installat
 ## Configuration
 Then you can configure the SkyEye extension in your nodes.yaml like so:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   extensions:
@@ -61,6 +62,7 @@ MyNode:
 
 ### Optional: Multiple SkyEye configurations per server (for red/blue, multiple AWACS, etc.)
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   extensions:
@@ -88,3 +90,26 @@ MyNode:
 [!NOTE]
 Please make sure that your log and config pathes are unique over all your SkyEye instances. If you use several 
 SkyEye instances per coalition, rename them to maybe SkyEye-{coalition}-1.log, ...-2.log, ...-3.log.
+
+### Optional: Remote SkyEye installations
+If you want to use a SkyEye installation that is not installed on the same machine as your DCS server, you can use the 
+"remote" configuration option:
+```yaml
+# config/nodes.yaml
+MyNode:
+  # [...]
+  instances:
+    DCS.dcs_serverrelease:
+      extensions:
+        SkyEye:
+          enabled: true
+          remote: true                    # there is no running SkyEye instance on this machine
+          version: 1.9.1                  # as we can not read the version, you are happy to provide it here
+          instances:                      # configure single or multiple SkyEye instances, see above (informational only here)
+          - coalition: blue               # Which coalition should SkyEye be active on   
+            affinity: 12,13               # Set the core affinity for SkyEye (recommended!)
+            any-other-skyeye-config: xxx  # See the SkyEye documentation. 
+          - coalition: red
+            affinity: 14,15               # Set the core affinity for SkyEye (recommended!)
+            any-other-skyeye-config: xxx  # See the SkyEye documentation. 
+```

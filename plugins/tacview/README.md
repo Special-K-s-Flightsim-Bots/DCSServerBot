@@ -6,6 +6,7 @@ configuration in your servers and a plugin, to install or uninstall Tacview in/f
 ## Configuration
 As Tacview is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - tacview
 ```
@@ -13,6 +14,7 @@ opt_plugins:
 Optionally, you can configure a directory to upload the Tacview files into on `/tacview download` in a file named
 config\plugins\tacview.yaml:
 ```yaml
+# config/plugins/tacview.yaml
 DEFAULT:
   upload:
     channel: 1122334455667788  # Discord channel ID to upload Tacview files to, use -1 for DMs

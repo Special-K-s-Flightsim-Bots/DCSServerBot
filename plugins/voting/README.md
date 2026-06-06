@@ -8,12 +8,14 @@ with the [CreditSystem](../creditsystem/README.md), meaning you can make votes c
 ## Configuration
 As Voting is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - voting
 ```
 
 The plugin can be configured via yaml in config/plugins/voting.yaml:
 ```yaml
+# config/plugins/voting.yaml
 DEFAULT:
   options:              # These are the voting options, players can chose from. It is up to you, to enable them or not!
     preset:             # Selection of presets that need to be specified in your presets.yaml
@@ -51,6 +53,7 @@ instance2:
 
 If you don't want to provide a list of presets or missions, just send an empty tag like so:
 ```yaml
+# config/plugins/voting.yaml
 DEFAULT:
   options:              # These are the voting options, players can chose from. It is up to you, to enable them or not!
     preset: {}          # Select all available presets of your presets.yaml
@@ -107,8 +110,9 @@ class Sexy(VotableItem):
         await self.server.sendPopupMessage(Coalition.ALL, message)
 ```
 
-To enable it, just add it to the options in your voting.yaml:
+To enable it, add it to the options in your voting.yaml:
 ```yaml
+# config/plugins/voting.yaml
 DEFAULT:
   options:
     sexy: {}  # Our plugin does not have any configuration, so {} is given

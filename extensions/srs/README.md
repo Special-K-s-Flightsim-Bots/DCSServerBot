@@ -10,6 +10,7 @@ that crash) and start it again in such a case.<br/>
 ## Configuration
 To enable SRS, support, you need to add the following parts to your nodes.yaml:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   extensions:

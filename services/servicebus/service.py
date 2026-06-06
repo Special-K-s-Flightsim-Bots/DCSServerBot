@@ -391,8 +391,16 @@ class ServiceBus(Service):
             if not server.process:
                 self.log.warning("Could not find active DCS process. Please check, if you have started DCS with -w!")
             else:
+                # Old affinity
+                affinity = server.locals.get('affinity')
+                if isinstance(affinity, str):
+                    affinity = [int(x.strip()) for x in affinity.split(',')]
+                elif isinstance(affinity, int):
+                    affinity = [affinity]
+
                 ProcessManager().assign_process(
                     server.process,
+                    affinity=affinity,
                     min_cores=server.locals.get('auto_affinity', {}).get('min_cores', 1),
                     max_cores=server.locals.get('auto_affinity', {}).get('max_cores', 2),
                     quality=server.locals.get('auto_affinity', {}).get('quality', 3),
@@ -993,7 +1001,7 @@ class ServiceBus(Service):
 
             def _handle_raw_payload(derived, payload: bytes):
                 try:
-                    msg_data = json.loads(payload.decode("utf-8"))
+                    msg_data = json.loads(payload.decode("utf-8", errors="ignore"))
                 except json.JSONDecodeError:
                     self.log.warning(f"Invalid JSON {payload}")
                     return

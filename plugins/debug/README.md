@@ -4,6 +4,7 @@ Simple event debugger for DCS callbacks and DCS mission events. It dumps the who
 ## Configuration
 As Debug is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - debug
 ```

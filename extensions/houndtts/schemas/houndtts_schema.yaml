@@ -65,3 +65,14 @@ schema;houndtts_schema:
           nullable: false
           mapping:
             bot_token: {type: str, nullable: false}
+        Supertonic:
+          type: map
+          nullable: false
+          mapping:
+            path: {type: str, nullable: false, func: dir_exists}
+            model_path: {type: str, nullable: false, func: dir_exists}
+            voice_style: {type: str, nullable: false}
+            voice_style_path: {type: str, nullable: false, func: dir_exists}
+            total_steps: {type: int, nullable: false, range: {min: 1}}
+            threads: {type: int, nullable: false, range: {min: 1}}
+            max_concurrent: {type: int, nullable: false, range: {min: 1}}

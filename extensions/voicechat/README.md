@@ -5,6 +5,7 @@ If you want to use the built-in Voice Chat system of DCS, you can use the VoiceC
 You can use `/extension enable <VoiceChat>` to enable the extension.
 This will add an entry in your `nodes.yaml` like so:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   instances:

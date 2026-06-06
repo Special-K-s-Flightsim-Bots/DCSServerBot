@@ -5,6 +5,7 @@ Currently, you can use it with the [RestAPI plugin](https://github.com/frankkopp
 ## Configuration
 The webservice can be configured in its config/services/webservice.yaml file:
 ```yaml
+# config/services/webservice.yaml
 DEFAULT:
   listen: 0.0.0.0   # the interface to bind the internal webserver to
   port: 9876        # the port the webservice is listening on

@@ -41,7 +41,7 @@ class Trackfile(Extension):
                 await self.bot.send_message(
                     channel=int(target[4:-1]),
                     content=_("Track file for server {}").format(self.server.name),
-                    server=self.server.name,
+                    server=self.server,
                     filename=str(filename)
                 )
                 self.log.debug(f"Track file {filename} uploaded.")

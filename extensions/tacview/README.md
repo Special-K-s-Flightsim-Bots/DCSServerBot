@@ -8,6 +8,7 @@ server performance, and b) it can delete old Tacview files after a specific time
 ## Configuration
 To enable Tacview support, a change in nodes.yaml is needed:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   extensions:

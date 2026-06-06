@@ -9,6 +9,7 @@ To use DSMC, you need to install it, according to the documentation linked above
 You can use `/extension enable <DSMC>` to enable the extension.
 This will add an entry in your `nodes.yaml` like so:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   instances:

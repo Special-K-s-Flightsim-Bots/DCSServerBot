@@ -364,11 +364,9 @@ class DCSServerBot(commands.Bot):
     async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
         if isinstance(error, discord.app_commands.CommandNotFound):
             pass
-        # noinspection PyUnresolvedReferences
         if interaction.response.is_done():
             send = interaction.followup.send
         else:
-            # noinspection PyUnresolvedReferences
             send = interaction.response.send_message
         try:
             if isinstance(error, discord.app_commands.NoPrivateMessage):

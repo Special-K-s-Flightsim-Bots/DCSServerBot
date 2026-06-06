@@ -153,11 +153,18 @@ class RealWeather(Extension):
         try:
             cwd = await self.server.get_missions_dir()
 
+            def get_logfile():
+                return os.path.join(cwd, self.locals.get('realweather', {}).get('log', {}).get('file', 'realweather.log'))
+
             def cleanup():
                 # delete the mission_unpacked directory which might still be there from former RW runs
                 mission_unpacked_dir = os.path.join(cwd, 'mission_unpacked')
                 if os.path.exists(mission_unpacked_dir):
                     utils.safe_rmtree(mission_unpacked_dir)
+                # delete the logfile
+                path = get_logfile()
+                if os.path.exists(path):
+                    os.remove(path)
 
             def run_subprocess():
                 # double-check that no mission_unpacked dir is there

@@ -5,6 +5,7 @@ This is the ModManager service, which lets you install packaged modifications (m
 ## Configuration
 To activate the ModManager service, you need to add an optional plugin in your main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - modmanager
 ```
@@ -13,6 +14,7 @@ The service itself is configured via yaml. There is an additional [plugin](../..
 provide Discord commands to operate the service.
 
 ```yaml
+# config/services/modmanager.yaml
 DEFAULT:
   SavedGames: '%USERPROFILE%\Documents\ModManager\SavedGames'  # folder to store plugins that should be installed into Saved Games
   RootFolder: '%USERPROFILE%\Documents\ModManager\RootFolder'  # folder to store plugins that should go into the base game directories

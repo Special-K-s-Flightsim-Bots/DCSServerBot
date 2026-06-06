@@ -17,7 +17,7 @@ if sys.platform == 'win32':
     import win32process
     from minidump.utils.createminidump import create_dump, MINIDUMP_TYPE
 
-from core import Status, Server, ServerImpl, Autoexec, utils, InstanceImpl
+from core import Status, Server, ServerImpl, Autoexec, utils, InstanceImpl, ServerMaintenanceManager
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from datetime import datetime, timezone
@@ -381,6 +381,21 @@ class MonitoringService(Service):
                                           f"{message}")
                     self.space_warning_sent[drive] = True
 
+    async def ip_check(self):
+        current_ip = await utils.get_public_ip()
+        if current_ip != self.node.public_ip:
+            config = self.get_config()
+            if config.get('ignore_ip_changes', False):
+                await self.bot.audit(f"Your public IP has changed on node {self.node.name}! "
+                                     f"Ignoring based on your configuration.")
+                return
+
+            # public IP has changed, shutdown all servers
+            message = self.get_config().get('messages', {}).get(
+                'ip_change', 'Server is being restarted due to an IP change')
+            async with ServerMaintenanceManager(self.node, message=message):
+                self.node._public_ip = current_ip
+
     @tasks.loop(minutes=1.0)
     async def monitoring(self):
         try:
@@ -398,6 +413,10 @@ class MonitoringService(Service):
 
             if self.node.locals.get('nodestats', True):
                 tasks.append(self.nodestats())
+
+            # check every 10 mins for IP changes, if there is no public_ip set
+            if not self.node.locals.get('public_ip') and self.monitoring._current_loop % 10 == 0:
+                tasks.append(self.ip_check())
 
             # Run all tasks concurrently
             await asyncio.gather(*tasks)

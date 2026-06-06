@@ -26,6 +26,7 @@ If you are a server admin of a large server and not part of DGSA, the "DCS Globa
 
 ## Configuration
 ```yaml
+# config/plugins/cloud.yml
 DEFAULT:
   banlist: pvp                          # One of pvp, pve or both. For DCS bans / watchlist only (default: both).
   dcs-ban: true                         # true: subscribe to the global ban service for DCS users (default: false).

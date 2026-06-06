@@ -5,6 +5,7 @@ your servers. It runs on a configurable schedule or can be launched by commands 
 ## Configuration
 To activate the backup service, you need to add a line in your main.yaml like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - backup
 ```
@@ -13,6 +14,7 @@ The backup service itself can be configured with a yaml file /config/services/ba
 create. A sample is in the ./samples directory.
 
 ```yaml
+# config/services/backup.yaml
 target: G:\My Drive\Backup    # A directory of your choice, best case on a cloud drive
 delete_after: never           # Delete the files after x days (never = never) 
 backups:

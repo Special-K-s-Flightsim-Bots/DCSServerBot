@@ -6,6 +6,7 @@ dcssb-_node_.log file.
 ## Configuration
 You can configure the colors of the dashboard in the respective config/services/dashboard.yaml like so:
 ```yaml
+# config/services/dashboard.yaml
 DEFAULT:
   header:
     background: white on navy_blue

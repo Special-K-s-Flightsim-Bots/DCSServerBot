@@ -5,12 +5,14 @@ to your mission.
 ## Configuration
 As RealWeather is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - realweather
 ```
 
 You need to point to your DCS-real-weather installation in your nodes.yaml like so:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   extensions:

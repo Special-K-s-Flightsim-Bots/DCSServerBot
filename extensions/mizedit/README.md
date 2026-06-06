@@ -42,6 +42,7 @@ together.
 
 #### Simple Presets
 ```yaml
+# config/presets.yaml
 Spring:
   date: '2016-04-21'
   temperature: 8
@@ -112,6 +113,7 @@ start_time has different options:
 #### Attaching Files
 If you want to attach files to your mission (e.g., sounds or others like scripts, etc.), you can do it like this:
 ```yaml
+# config/presets.yaml
 Sounds:
   files:
   - sounds/alarm.ogg
@@ -122,6 +124,7 @@ of your miz-file. The path of these files is relative to your DCSServerBot insta
 
 If you want to add files to a specific directory, you can do it like so:
 ```yaml
+# config/presets.yaml
 AddFiles:
   files:
     - source: sounds/alarm.ogg    # upload a single file to the target dir inside the mission
@@ -134,6 +137,7 @@ AddFiles:
 Starting with DCS 2.9.10, Eagle Dynamics added a new fog system, which allows fog animations, based on time. 
 You can use this new feature with the bot like so:
 ```yaml
+# config/presets.yaml
 auto_fog:   # let DCS to the fog on its own
     fog:
         mode: auto
@@ -152,6 +156,7 @@ the fog changes in-between for you.
 #### DCS RealWeather
 You can run DCS RealWeather from MizEdit like so:
 ```yaml
+# config/presets.yaml
 realweather:
     RealWeather:
         options:
@@ -176,6 +181,11 @@ Again, you have multiple options on how you want your missions to be changed:
 
 a) Changes, based on the local server time
 ```yaml
+# config/nodes.yaml
+MyNode:
+  instances:
+    MyInstance:
+      extensions:
         MizEdit:
           debug: true                     # Optional: enable debug logging for "modify"
           presets: 
@@ -190,6 +200,11 @@ a) Changes, based on the local server time
 
 b) Random choice of fixed settings
 ```yaml
+# config/nodes.yaml
+MyNode:
+  instances:
+    MyInstance:
+      extensions:
         MizEdit:
           settings:
           - Spring, Morning, Rainy, Halo
@@ -200,6 +215,11 @@ b) Random choice of fixed settings
 
 c) Permutations
 ```yaml
+# config/nodes.yaml
+MyNode:
+  instances:
+    MyInstance:
+      extensions:
         MizEdit:
           timezone: UTC # optional - provide a timezone for the time values
           settings:
@@ -225,6 +245,11 @@ c) Permutations
 
 d) Map-specific Settings
 ```yaml
+# config/nodes.yaml
+MyNode:
+  instances:
+    MyInstance:
+      extensions:
         MizEdit:
           terrains:
             Caucasus:
@@ -237,6 +262,11 @@ d) Map-specific Settings
 
 e) Mission filter
 ```yaml
+# config/nodes.yaml
+MyNode:
+  instances:
+    MyInstance:
+      extensions:
         MizEdit:
           filter: MyFancy*  # apply to all missions that start with "MyFancy" in their name
           settings:

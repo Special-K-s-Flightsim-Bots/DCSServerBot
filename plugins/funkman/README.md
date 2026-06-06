@@ -18,6 +18,7 @@ For samples on how to configure FunkMan support into Moose, see the respective s
 ## Configuration
 As FunkMan is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - funkman
 ```
@@ -27,12 +28,14 @@ path to your FunkMan installation to your funkman.yaml. If you have configured y
 will automatically take over your config parameters.
 
 ```yaml
+# config/plugins/funkman.yaml
 DEFAULT:
   install: ../FunkMan
 ```
 ### Channels to publish range- and trap-sheets 
 If you have configured your FunkMan.ini already, DCSServerBot will automatically take over your config parameters.        
 ```yaml
+# config/plugins/funkman.yaml
 DEFAULT:
   install: ../FunkMan
   CHANNELID_MAIN: 1122334455667788
@@ -44,6 +47,7 @@ DEFAULT:
 
 If you want to use different channels for your different servers, you can add a section for each server:
 ```yaml
+# config/plugins/funkman.yaml
 DEFAULT:
   install: ../FunkMan
   IMAGEPATH: ../FunkMan/funkpics/
@@ -60,6 +64,7 @@ DCS.dcs_serverrelease02:
 You can display the top X (default: 10) players for your bomb- and strafe-runs in a nice persistent board in some of
 your channels. For [greenieboards](../../plugins/greenieboard/README.md) see the respective plugin.
 ```yaml
+# config/plugins/funkman.yaml
 DEFAULT:
   install: ../FunkMan
   # [...]

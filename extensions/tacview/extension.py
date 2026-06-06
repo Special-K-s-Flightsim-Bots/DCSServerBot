@@ -327,7 +327,7 @@ class Tacview(InstallableExtension):
                 await self.bot.send_message(
                     channel=int(target[4:-1]),
                     content=_("Tacview file for server {}").format(self.server.name),
-                    server=self.server.name,
+                    server=self.server,
                     filename=filename
                 )
                 self.log.debug(f"TACVIEW file {filename} uploaded.")
@@ -444,7 +444,7 @@ class Tacview(InstallableExtension):
                     await outfile.writelines(lines_to_keep)
             else:
                 os.remove(export_file)
-        options = self.server.options.get('plugins')
+        options: dict | None = self.server.options.get('plugins')
         if options:
             options['Tacview'] |= {'tacviewModuleEnabled': False}
             self.server.options['plugins'] = options
@@ -474,3 +474,14 @@ class Tacview(InstallableExtension):
         if config.get('target') and not self.config.get('target'):
             asyncio.create_task(self.check_log())
         await super().change_config(config)
+
+    @override
+    def rename_server(self, old_name: str, new_name: str):
+        for port, server_name in type(self)._rtt_ports.items():
+            if server_name == old_name:
+                type(self)._rtt_ports[port] = new_name
+                break
+        for port, server_name in type(self)._rcp_ports.items():
+            if server_name == old_name:
+                type(self)._rcp_ports[port] = new_name
+                break

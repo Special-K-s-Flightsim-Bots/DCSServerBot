@@ -7,8 +7,6 @@ from typing_extensions import override
 
 _ = get_translation(__name__.split('.')[1])
 
-ports: dict[int, str] = dict()
-
 __all__ = [
     "gRPC"
 ]
@@ -17,6 +15,7 @@ MISSION_SCRIPTING = r"dofile(lfs.writedir()..[[Scripts\DCS-gRPC\grpc-mission.lua
 
 
 class gRPC(InstallableExtension):
+    _ports: dict[int, str] = {}
 
     CONFIG_DICT = {
         "port": {
@@ -125,11 +124,13 @@ class gRPC(InstallableExtension):
                 for key, value in self.locals.items():
                     outfile.write(f"{key} = {self.unparse(value)}\n")
         port = self.locals.get('port', 50051)
-        if ports.get(port, self.server.name) != self.server.name:
-            self.log.error(f"  => {self.server.name}: {self.name} port {port} already in use by server {ports[port]}!")
+        if type(self)._ports.get(port, self.server.name) != self.server.name:
+            self.log.error(
+                f"  => {self.server.name}: {self.name} port {port} already in use by server {type(self)._ports[port]}!"
+            )
             return False
         else:
-            ports[port] = self.server.name
+            type(self)._ports[port] = self.server.name
         host = self.locals.get('host', '127.0.0.1')
         if host != '127.0.0.1':
             self.log.warning('Please consider changing the host in your dcs-grpc.lua to 127.0.0.1 for security reasons '
@@ -157,6 +158,7 @@ class gRPC(InstallableExtension):
     def shutdown(self, *, quiet: bool = False) -> bool:
         return super().shutdown(quiet=True)
 
+    @override
     async def uninstall(self) -> bool:
         if not self.service or not await super().uninstall():
             try:
@@ -165,3 +167,10 @@ class gRPC(InstallableExtension):
                 self.log.error(f"Error during uninstall of {self.name}: {str(ex)}")
                 return False
         return True
+
+    @override
+    def rename_server(self, old_name: str, new_name: str):
+        for port, server_name in type(self)._ports.items():
+            if server_name == old_name:
+                type(self)._ports[port] = new_name
+                break

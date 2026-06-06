@@ -247,9 +247,9 @@ class Scheduler(Plugin[SchedulerListener]):
             return
 
         times: list | dict = warn.get('times', [0])
+        warn_text: str = warn.get('message', '!!! {item} will {what} in {when} !!!')
         if isinstance(times, list):
             warn_times = sorted(times, reverse=True)
-            warn_text: str = warn.get('message', '!!! {item} will {what} in {when} !!!')
         elif isinstance(times, dict):
             warn_times = sorted(times.keys(), reverse=True)
         else:
@@ -299,14 +299,14 @@ class Scheduler(Plugin[SchedulerListener]):
         tasks = [
             asyncio.create_task(do_warn(i))
             for i in warn_times
-            if math.ceil(i/(60 if i >= 60 else 1)) <= math.ceil(restart_in/(60 if i >= 60 else 1))
+            if math.ceil(i / (60 if i >= 60 else 1)) <= math.ceil(restart_in / (60 if i >= 60 else 1))
         ]
         await utils.run_parallel_nofail(*tasks)
 
         if warn.get('countdown'):
-            timer = min(restart_in, min(warn_times))
+            timer: int = min(restart_in, min(warn_times))
             countdown = warn['countdown'].get('time', 10)
-            warn_text = warn.get('message', warn['countdown'].get('message', 0))
+            warn_text: str | None = warn.get('message', warn['countdown'].get('message', warn_text))
             while timer > countdown:
                 await asyncio.sleep(1)
                 timer -= 1
@@ -1011,11 +1011,16 @@ class Scheduler(Plugin[SchedulerListener]):
                     await msg.edit(embed=embed)
                 task = asyncio.create_task(self.teardown_dcs(server, interaction.user))
 
-            await server.wait_for_status_change(status=[Status.SHUTTING_DOWN], timeout=180)
-            embed.description += "\n- {}".format(_("Wait until shut down ..."))
-            embed.set_thumbnail(url=TRAFFIC_LIGHTS['amber'])
-            await msg.edit(embed=embed)
-            await server.wait_for_status_change(status=[Status.STOPPED, Status.SHUTDOWN], timeout=180)
+            await server.wait_for_status_change(
+                status=[Status.SHUTTING_DOWN, Status.STOPPED, Status.SHUTDOWN],
+                timeout=180
+            )
+            if server.status == Status.SHUTTING_DOWN:
+                embed.description += "\n- {}".format(_("Wait until shut down ..."))
+                embed.set_thumbnail(url=TRAFFIC_LIGHTS['amber'])
+                await msg.edit(embed=embed)
+                await server.wait_for_status_change(status=[Status.STOPPED, Status.SHUTDOWN], timeout=180)
+
             # wait for the process to vanish
             await task
 

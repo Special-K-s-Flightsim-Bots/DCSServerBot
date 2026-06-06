@@ -6,6 +6,7 @@ it'll import all Tacview files from all your servers. You can access the gui wit
 
 ## Configuration
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   extensions:

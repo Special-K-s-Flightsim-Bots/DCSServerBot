@@ -10,6 +10,7 @@ Pretense you are using and to have a very basic configuration of it.
 You can use `/extension enable <Pretense>` to enable the extension.
 This will add an entry in your `nodes.yaml` like so:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   instances:

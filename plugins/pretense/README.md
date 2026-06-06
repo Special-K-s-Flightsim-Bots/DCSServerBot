@@ -4,6 +4,7 @@ With this plugin, you can display persistent status update embeds for your Prete
 ## Configuration
 As Pretense is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - pretense
 ```
@@ -12,6 +13,7 @@ instance that you want your embeds to be displayed in. And you can define, how o
 only be updated, if there is a pretense mission running and if there is new data to be displayed.
 
 ```yaml
+# config/plugins/pretense.yaml
 DEFAULT:
   update_interval: 120        # interval in seconds when the embed should update (default = 120)
 DCS.dcs_serverrelease:
@@ -27,6 +29,9 @@ You can upload a modified pretense*.json or player_stats.json by dragging and dr
 ## File Download
 If you want to download the pretense files, you can add this section to your admin.yaml:
 ```yaml
+# config/plugins/admin.yaml
+DEFAULT:
+  # [...]
   - label: Pretense
     directory: '{server.instance.missions_dir}\Saves'
     pattern: '*.json'

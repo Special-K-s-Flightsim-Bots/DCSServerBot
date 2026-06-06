@@ -12,6 +12,7 @@ realtime password for now.
 ## Configuration
 Adding sneaker is quite straightforward, if you looked at the above examples already:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   extensions:

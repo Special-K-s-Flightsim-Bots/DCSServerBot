@@ -360,3 +360,18 @@ class Olympus(InstallableExtension):
             "Olympus " + self.frontend_tag.capitalize(): Port(self.config.get(self.frontend_tag, {}).get('port', 3000), PortType.TCP, public=True),
             "Olympus WSPort": Port(self.config.get('audio', {}).get('WSPort', 4000), PortType.TCP, public=(self.config.get('audio', {}).get('WSEndpoint') is None))
         } if self.enabled else {}
+
+    @override
+    def rename_server(self, old_name: str, new_name: str):
+        for port, server_name in type(self)._server_ports.items():
+            if server_name == old_name:
+                type(self)._server_ports[port] = new_name
+                break
+        for port, server_name in type(self)._client_ports.items():
+            if server_name == old_name:
+                type(self)._client_ports[port] = new_name
+                break
+        for port, server_name in type(self)._ws_ports.items():
+            if server_name == old_name:
+                type(self)._ws_ports[port] = new_name
+                break

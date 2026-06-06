@@ -79,10 +79,13 @@ def is_open(ip, port):
 
 
 async def get_public_ip(node: "Node | None" = None):
+    proxy = node.proxy if node else None
+    proxy_auth = node.proxy_auth if node else None
+
     for url in API_URLS:
         with suppress(aiohttp.ClientError, ValueError):
             async with aiohttp.ClientSession() as session:
-                async with session.get(url) as resp:
+                async with session.get(url, proxy=proxy, proxy_auth=proxy_auth) as resp:
                     return ipaddress.ip_address(await resp.text()).compressed
     raise TimeoutError("Public IP could not be retrieved.")
 

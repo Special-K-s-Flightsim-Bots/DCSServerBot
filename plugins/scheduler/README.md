@@ -20,6 +20,7 @@ The main structure of the scheduler.yaml consists out of these blocks:
 
 a) DEFAULT Section
 ```yaml
+# config/plugins/scheduler.yaml
 DEFAULT:                                              # the DEFAULT block is valid for ALL your servers
   startup_delay: 10                                   # delay in seconds between the startup of each DCS instance (default: 10)
   warn:                                               # warn times before a restart / shutdown (see an alternative format below)
@@ -46,6 +47,7 @@ The instance-specific section consists out of three blocks:
 | action   | WHAT should happen durning the RUNTIME?         |
 
 ```yaml
+# config/plugins/scheduler.yaml
 DCS.dcs_serverrelease:                              
   timezone: UTC             # Optional: timezone (default: local timezone)
   schedule:                 # Server "DCS.dcs_serverrelease" will run 24x7
@@ -73,6 +75,8 @@ DCS.dcs_serverrelease:
 
 Alternative format for `warn`, e.g., to display messages in your own language:
 ```yaml
+# config/plugins/scheduler.yaml
+DEFAULT:
   warn:
     times:
       600: Внимание сервер будет перезапущен через 10 минут! 
@@ -83,6 +87,8 @@ Alternative format for `warn`, e.g., to display messages in your own language:
 
 Even more format options to add specific sounds to specific times:
 ```yaml
+# config/plugins/scheduler.yaml
+DEFAULT:
   warn:
     times:
       600: 
@@ -151,12 +157,14 @@ Characters represent Mon, Tue, Wed, Thu, Fri, Sat, Sun in that order.
 ### Section "startup"
 The "startup" section is treated like a "load" command:
 ```yaml
-startup:
-  mission_id: 1           # Set the mission id to be loaded at startup. Could also be a mission_file.
-  presets:
-    - config/presets.yaml # Optional: presets file to be used for modifications
-  settings:
-    - NoMods              # Optional: apply the "NoMods" preset to the mission prior to startup
+# config/plugins/scheduler.yaml
+DCS.dcs_serverrelease:
+  startup:
+    mission_id: 1           # Set the mission id to be loaded at startup. Could also be a mission_file.
+    presets:
+      - config/presets.yaml # Optional: presets file to be used for modifications
+    settings:
+      - NoMods              # Optional: apply the "NoMods" preset to the mission prior to startup
 ```
 
 > [!NOTE]
@@ -231,13 +239,16 @@ startup:
 
 ### method
 
-| Parameter | Description                                                                                                              |
-|:----------|:-------------------------------------------------------------------------------------------------------------------------|
-| restart   | Restart the configured mission.                                                                                          |
-| rotate    | Rotate to the next mission in the mission list.                                                                          |
-| load      | Load another mission. Optional parameter no_reload to not reload an already running mission.                             |
-| stop      | Stop the running server.                                                                                                 |
-| shutdown  | Shutdown the running server. You can also shutdown during restart, load and rotate with the `shutdown: true` parameter.  |
+| Parameter | Description                                                                                                                     |
+|:----------|:--------------------------------------------------------------------------------------------------------------------------------|
+| restart   | Restart the configured mission.                                                                                                 |
+| rotate    | Rotate to the next mission in the mission list.                                                                                 |
+| load      | Load another mission. Optional parameter no_reload to not reload an already running mission.                                    |
+| stop      | Stop the running server.                                                                                                        |
+| shutdown  | Shutdown the running server. You can also shutdown during restart, load and rotate with the `shutdown: true` parameter.         |
+
+> [!NOTE]
+> The shutdown method will set the maintenance flag, unless you specify `maintenance: false` in the action section.
 
 ### on-commands
 
@@ -314,6 +325,7 @@ Examples:
 ## Examples:
 
 ```yaml
+# config/plugins/scheduler.yaml
 DEFAULT:
   startup_delay: 30                               # delay in seconds between the startup of each DCS instance (default: 10)
   warn:                                           # warn times before a restart / shutdown (see the alternative format below)

@@ -1,0 +1,177 @@
+schema;preset_seq:
+  type: seq
+  nullable: false
+  sequence:
+    - {type: str, nullable: false, range: {min: 1}}
+
+schema;files_seq:
+  type: seq
+  sequence:
+    - {type: str, nullable: false}
+
+schema;files_map:
+  type: map
+  nullable: false
+  mapping:
+    source: {type: str, nullable: false}
+    target: {type: str, nullable: false}
+
+schema;modify_schema:
+  type: any
+  nullable: false
+  func: seq_or_map
+  enum: ['modify_seq', 'modify_map']
+
+schema;modify_map:
+  type: map
+  nullable: false
+  mapping:
+    debug: { type: bool, nullable: false }
+    file: {type: str, nullable: false, enum: [mission, options, warehouses]}
+    variables:
+      type: map
+      nullable: false
+      mapping:
+        regex;(.+): {type: text, nullable: false}
+    if: {type: str, nullable: false}
+    for-each: {type: str, nullable: false}
+    where: {type: str, nullable: false}
+    select: {type: str, nullable: false}
+    replace:
+      type: map
+      nullable: false
+      mapping:
+        regex;(.+): {type: text, nullable: false}
+    delete: {type: str, nullable: false}
+    insert:
+      type: map
+      nullable: false
+      mapping:
+        regex;(.+): {type: any, nullable: false}
+    merge:
+      type: map
+      nullable: false
+      mapping:
+        regex;(.+): {type: any, nullable: false}
+    run: {type: str, nullable: false}
+
+schema;modify_seq:
+  type: seq
+  sequence:
+    - include: modify_schema
+
+schema;preset_map:
+  type: map
+  nullable: false
+  mapping:
+    date:
+      type: str
+      nullable: false
+      # 'YYYY-MM-DD' or 'today' / 'yesterday' / 'tomorrow'
+    start_time:
+      type: text
+      nullable: false
+      # seconds since midnight, 'HH:MM', or named moment ('noon', 'morning', 'dusk', etc.)
+      # named moments support offsets: 'morning +02:00'
+    temperature:
+      type: int
+      nullable: false
+    atmosphere_type:
+      type: int
+      nullable: false
+    wind:
+      type: map
+      nullable: false
+      mapping:
+        atGround:
+          type: map
+          mapping:
+            speed: {type: float}
+            dir: {type: int}
+        at2000:
+          type: map
+          mapping:
+            speed: {type: float}
+            dir: {type: int}
+        at8000:
+          type: map
+          mapping:
+            speed: {type: float}
+            dir: {type: int}
+    groundTurbulence:
+      type: float
+      nullable: false
+    enable_dust:
+      type: bool
+      nullable: false
+    dust_density:
+      type: int
+      nullable: false
+    qnh:
+      type: float
+      nullable: false
+    clouds:
+      type: map
+      nullable: false
+      mapping:
+        preset: {type: str, nullable: false}
+        base: {type: int, nullable: false}
+        thickness: {type: int, nullable: false}
+        density: {type: int, nullable: false}
+        iprecptns: {type: int, nullable: false}
+    enable_fog:
+      type: bool
+      nullable: false
+    fog:
+      type: map
+      nullable: false
+      mapping:
+        mode:
+          type: str
+          enum: [auto, manual]
+        thickness: {type: int, nullable: false}
+        visibility: {type: int, nullable: false}
+        regex;(\d+):   # Any number (seconds)
+          type: map
+          mapping:
+            thickness: {type: int, nullable: false}
+            visibility: {type: int, nullable: false}
+    halo:
+      type: map
+      nullable: false
+      mapping:
+        preset: {type: str, nullable: false}
+    requiredModules:
+      type: seq
+      nullable: false
+      sequence:
+        - {type: str, nullable: false}
+    accidental_failures:
+      type: bool
+      nullable: false
+    forcedOptions:
+      type: any
+      nullable: false
+    miscellaneous:
+      type: any
+      nullable: false
+    difficulty:
+      type: any
+      nullable: false
+    files:
+      type: seq
+      nullable: false
+      sequence:
+        - {type: any, nullable: false, func: str_or_map, enum: [files_map]}
+    modify:
+      include: modify_schema
+    RealWeather:
+      include: instance_realweather_schema
+
+type: map
+nullable: false
+mapping:
+  regex;(.+):   # Any string as a node name
+    type: any
+    func: seq_or_map
+    enum: ['preset_seq', 'preset_map']

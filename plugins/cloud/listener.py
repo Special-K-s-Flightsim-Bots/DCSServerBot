@@ -1,6 +1,8 @@
 import aiohttp
 import asyncio
 
+import discord
+
 from core import EventListener, Server, Player, Side, event
 from datetime import datetime, timezone
 from psycopg.rows import dict_row
@@ -27,7 +29,8 @@ class CloudListener(EventListener["Cloud"]):
                 'ucid': ucid,
                 'name': name,
                 'discord_id': discord_id,
-                'linked_at': datetime.now(tz=timezone.utc).isoformat()
+                'linked_at': datetime.now(tz=timezone.utc).isoformat(),
+                'last_seen': datetime.now(tz=timezone.utc).isoformat()
             })
         except aiohttp.ClientError:
             pass
@@ -56,6 +59,16 @@ class CloudListener(EventListener["Cloud"]):
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
+        async def get_member(discord_id: int) -> discord.Member | None:
+            try:
+                guild = self.bot.guilds[0]
+                m = guild.get_member(discord_id)
+                if m:
+                    return m
+                return await guild.fetch_member(discord_id)
+            except discord.NotFound:
+                return None
+
         if isinstance(self.bot, DummyBot):
            return
         if data['id'] == 1 or 'ucid' not in data:
@@ -72,7 +85,7 @@ class CloudListener(EventListener["Cloud"]):
                     discord_id = link[0]['discord_id']
                     # we have a cloud link, but the player is not verified yet
                     if not player.verified and discord_id:
-                        member = await self.bot.guilds[0].fetch_member(discord_id)
+                        member = await get_member(discord_id)
                         if member:
                             player.member = member
                             player.verified = True
@@ -116,7 +129,7 @@ class CloudListener(EventListener["Cloud"]):
                                 "origin": "cloud"
                             }
                         ))
-                        member = await self.bot.guilds[0].fetch_member(discord_id)
+                        member = await get_member(discord_id)
                         if member:
                             player.member = member
                             player.verified = True
@@ -205,7 +218,7 @@ class CloudListener(EventListener["Cloud"]):
             try:
                 await self.plugin.post('upload', row)
             except aiohttp.ClientError:
-                self.log.warning('Cloud service not available atm, skipping statistics upload.')
+                self.log.debug('Cloud service not available atm, skipping statistics upload.')
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:

@@ -83,6 +83,7 @@ Anyway, this is how the configuration will look like. For now, there is only a d
 different greenieboards for different servers. If that is a user demand in the future, I might add it.
 
 ```yaml
+# config/plugins/greenieboard.yaml
 DEFAULT:
   num_landings: 5           # display the last 5 landings
   num_rows: 10              # display 10 players

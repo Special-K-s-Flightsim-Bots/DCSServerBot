@@ -9,6 +9,7 @@ distribution of players on each side.
 ## Configuration
 As SlotBlocking is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
+# config/main.yaml
 opt_plugins:
   - slotblocking
 ```
@@ -16,6 +17,7 @@ opt_plugins:
 The plugin itself is configured with a file named config/plugins/slotblocking.yaml. 
 You'll find a sample file in the ./samples directory:
 ```yaml
+# config/plugins/slotblocking.yaml
 DEFAULT:            # Default section - true for all your servers.
   VIP:              # define a VIP group
     audit: true     # you want to be informed, if someone of that group enters your server
@@ -78,37 +80,45 @@ You die, you can't hop in again.
 
 slotblocking.yaml:
 ```yaml
-restricted:
-  - group_name: ".+"  # true for each unit / group 
-    points:  1        # you need 1 credit point to enter
-    costs: 1          # you'll immediately lose 1 credit point on entering
-    message: You ran out of lifes.
+# config/plugins/slotblocking.yaml
+DEFAULT:
+  restricted:
+    - group_name: ".+"  # true for each unit / group 
+      points:  1        # you need 1 credit point to enter
+      costs: 1          # you'll immediately lose 1 credit point on entering
+      message: You ran out of lifes.
 ```
 
 creditsystem.yaml:
 ```yaml
-initial_points: 1   # you get one initial credit point (your "lifes")
-points_per_kill:
-  - default: 0      # you don't get new lifes by kills
+# config/plugins/creditsystem.yaml
+DEFAULT:
+  initial_points: 1   # you get one initial credit point (your "lifes")
+  points_per_kill:
+    - default: 0      # you don't get new lifes by kills
 ```
 
 ### One Life per User (get new lives per pvp kills)
 slotblocking.yaml:
 ```yaml
-restricted:
-  - group_name: ".+"  # true for each unit / group 
-    points:  1        # you need 1 credit point to enter
-    costs: 1          # you'll immediately lose 1 credit point on entering
-    message: You ran out of lifes.
+# config/plugins/slotblocking.yaml
+DEFAULT:
+  restricted:
+    - group_name: ".+"  # true for each unit / group 
+      points:  1        # you need 1 credit point to enter
+      costs: 1          # you'll immediately lose 1 credit point on entering
+      message: You ran out of lifes.
 ```
 creditsystem.yaml:
 ```yaml
-initial_points: 1     # you get one initial credit point (your "lifes")
-points_per_kill:
-  - default: 0        # you don't get new lifes by kills
-  - category: Planes  # you get one point (aka one additional life), if you kill another player
-    type: Player
-    points: 1
+# config/plugins/creditsystem.yaml
+DEFAULT:
+  initial_points: 1     # you get one initial credit point (your "lifes")
+  points_per_kill:
+    - default: 0        # you don't get new lifes by kills
+    - category: Planes  # you get one point (aka one additional life), if you kill another player
+      type: Player
+      points: 1
 ```
 
 ### One Life per User (hard version)
@@ -116,23 +126,28 @@ Life will be taken if you hop in your plane already. You get it back, if you lan
 you can select another slot.<p>
 slotblocking.yaml:
 ```yaml
-payback: true           # you get the costs back on landing
-restricted:
-  - group_name: ".+"    # true for each unit / group 
-    points:  1          # you need 1 credit point to enter
-    costs: 1            # you'll immediately lose 1 credit point on entering
-    message: You ran out of lifes.
+# config/plugins/slotblocking.yaml
+DEFAULT:
+  payback: true           # you get the costs back on landing
+  restricted:
+    - group_name: ".+"    # true for each unit / group 
+      points:  1          # you need 1 credit point to enter
+      costs: 1            # you'll immediately lose 1 credit point on entering
+      message: You ran out of lifes.
 ```
 creditsystem.yaml:
 ```yaml
-initial_points: 1   # you get one initial credit point (your "lifes")
-points_per_kill:
-  - default: 0      # you don't get new lifes by kills
+# config/plugins/creditsystem.yaml
+DEFAULT:
+  initial_points: 1   # you get one initial credit point (your "lifes")
+  points_per_kill:
+    - default: 0      # you don't get new lifes by kills
 ```
 
 ### Balancing
 If you have a PvP server and want to enable balancing, this is how you can set it up.
 ```yaml
+# config/plugins/slotblocking.yaml
 DEFAULT:
   balancing:                  # Optional: Allows balancing for your server (blue vs red)
     blue_vs_red: 0.5          # 50% balance blue vs red

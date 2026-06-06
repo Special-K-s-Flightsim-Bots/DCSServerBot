@@ -24,6 +24,7 @@ An IFR-style flight planning system for DCSServerBot with Discord integration, F
 
 1. Add `flightplan` to `opt_plugins` in your `config/main.yaml`:
    ```yaml
+   # config/main.yaml
    opt_plugins:
      - flightplan
    ```
@@ -73,6 +74,7 @@ The auto-lifecycle feature provides seamless flight plan management:
 
 To disable auto-lifecycle features (for manual-only operation):
 ```yaml
+# config/plugins/flightplan.yaml
 DEFAULT:
   auto_lifecycle:
     activate_on_takeoff: false

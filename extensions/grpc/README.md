@@ -7,6 +7,7 @@ without issues.
 You can use `/extension enable <gRPC>` to enable the extension.
 This will add an entry in your `nodes.yaml` like so:
 ```yaml
+# config/nodes.yaml
 MyNode:
   # [...]
   instances:

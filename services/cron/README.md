@@ -5,6 +5,7 @@ More to come.
 ## Configuration
 As per usual, the service is configured with a yaml file, in this case config/services/cron.yaml:
 ```yaml
+# config/services/cron.yaml
 DEFAULT:
   timezone: UTC                         # Set the timezone the schedule should run on
   actions:
@@ -55,6 +56,7 @@ The following actions are available:
 a) report
 Send a report at a specific time.
 ```yaml
+# config/services/cron.yaml
 DEFAULT:
   actions:
     - cron: '0 * * * *'                 # run every full hour
@@ -69,6 +71,7 @@ DEFAULT:
 b) restart
 Restarts the running mission / server / PC.
 ```yaml
+# config/services/cron.yaml
 DEFAULT:
   actions:
     - cron: '0 3 * * 0,2-6'             # reboot the server each night but Monday at 03:00
@@ -84,6 +87,7 @@ DEFAULT:
 c) halt
 Shuts the PC down.
 ```yaml
+# config/services/cron.yaml
 DEFAULT:
   actions:
     - cron: '0 4 * * 1'                 # shut the server down once a week on Monday
@@ -96,6 +100,7 @@ DEFAULT:
 d) cmd
 Run a shell command.
 ```yaml
+# config/services/cron.yaml
 DEFAULT:
   actions:
     - cron: '*/5 * * * *' # run a specific command every 5 minutes
@@ -108,6 +113,7 @@ DEFAULT:
 e) popup
 Send a popup to a running server.
 ```yaml
+# config/services/cron.yaml
 DCS.server_release:
   actions:
     - cron: '55 3 * * 1'                # Send a message to everyone at Mo, 03:55h
@@ -121,6 +127,7 @@ DCS.server_release:
 f) broadcast
 Send a popup to all running servers.
 ```yaml
+# config/services/cron.yaml
 DEFAULT:
   actions:
     - cron: '55 3 * * 1'                # Send a message to everyone at Mo, 03:55h
@@ -134,6 +141,7 @@ DEFAULT:
 g) purge_channel
 Delete messages from a Discord channel.
 ```yaml
+# config/services/cron.yaml
 DEFAULT:
   actions:
     - cron: '0 12 * * *'                # run every 12 hrs
@@ -150,6 +158,7 @@ DEFAULT:
 h) dcs_update
 Run a DCS update at a specific time.
 ```yaml
+# config/services/cron.yaml
 DEFAULT:
   actions:
     - cron: '0 3 * * *'   # run every night at 03:00
@@ -164,6 +173,7 @@ DEFAULT:
 i) dcs_repair
 Run a DCS repair at a specific time.
 ```yaml
+# config/services/cron.yaml
 DEFAULT:
   actions:
     - cron: '0 1 1 * *'   # run every month on the 1st at 01:00
@@ -180,6 +190,7 @@ DEFAULT:
 j) node_shutdown
 Shutdown / restart the bot.
 ```yaml
+# config/services/cron.yaml
 DEFAULT:
   actions:
     - cron: '0 3 * * *'     # run every night at 03:00
