@@ -8,7 +8,7 @@ astral==3.2
 audioop-lts==0.2.2 ; python_version >= "3.13"
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
-aiohttp==3.13.5
+aiohttp==3.14.0
 
 # Certifi: Python package for providing Mozilla's CA Bundle
 certifi==2026.5.20
@@ -89,10 +89,10 @@ pykwalify==1.8.0
 python-Levenshtein==0.27.3
 
 # python-multipart: A library for parsing multipart/form-data input requests
-python-multipart==0.0.29
+python-multipart==0.0.32
 
 # Pywin32: Set of Python extensions for MS Windows
-pywin32==311 ; sys_platform == 'win32'
+pywin32==312 ; sys_platform == 'win32'
 
 # PyWinAuto: Automation of Windows dialogs (aka DCS_updater.exe)
 pywinauto==0.6.9 ; sys_platform == 'win32'
@@ -129,7 +129,7 @@ upnpy==1.1.8 ; python_version >= "3.14"
 miniupnpc==2.3.3 ; python_version < "3.14"
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.48.0
+uvicorn==0.49.0
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==6.0.0

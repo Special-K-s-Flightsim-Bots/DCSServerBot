@@ -6,7 +6,7 @@
 #
 aiofiles==25.1.0
 aiohappyeyeballs==2.6.2
-aiohttp==3.13.5
+aiohttp==3.14.0
 aiosignal==1.4.0
 annotated-doc==0.0.4
 annotated-types==0.7.0
@@ -39,7 +39,7 @@ geopandas==1.1.3
 gitdb==4.0.12
 gitpython==3.1.50
 h11==0.16.0
-idna==3.17
+idna==3.18
 jinja2==3.1.6
 jinxed==2.0.4
 jsonschema==4.26.0
@@ -77,8 +77,8 @@ pyproj==3.7.2
 pyproject-hooks==1.2.0
 python-dateutil==2.9.0.post0
 python-levenshtein==0.27.3
-python-multipart==0.0.29
-pywin32==311 ; sys_platform == "win32"
+python-multipart==0.0.32
+pywin32==312 ; sys_platform == "win32"
 pywinauto==0.6.9 ; sys_platform == "win32"
 rapidfuzz==3.14.5
 referencing==0.37.0
@@ -91,7 +91,7 @@ shapely==2.1.2
 six==1.17.0
 smmap==5.0.3
 sqlparse==0.5.5
-starlette==1.2.0
+starlette==1.2.1
 telnetlib3==4.0.4
 tomli-w==1.2.0
 trueskill==0.4.5
@@ -101,9 +101,9 @@ tzdata==2026.2
 tzfpy==1.3.1
 urllib3==2.7.0
 upnpy==1.1.8 ; python_version >= "3.14"
-uvicorn==0.48.0
+uvicorn==0.49.0
 watchdog==6.0.0
-wcwidth==0.7.0
+wcwidth==0.8.0
 wheel==0.47.0
 yarl==1.24.2
 
