@@ -269,17 +269,44 @@ class ServerImpl(Server):
             self.log.info(f"  => {self.name}: {i} missions auto-added to the mission list")
 
     def _make_missions_unique(self):
-        # make sure, mission names are unique
+        """
+        Remove duplicate mission paths from ``self._settings['missionList']``,
+        normalising each path and preserving the original order.
+
+        Also update ``listStartIndex`` (1‑based) and ``current`` so that they point to
+        the (new) current mission, if necessary.
+        """
+
+        # Bail out early if we have no idea what the current file is
         current_mission = self._get_current_mission_file()
-        if current_mission:
-            self._settings['missionList'] = list(
-                OrderedDict.fromkeys(os.path.normpath(x) for x in self._settings['missionList']).keys()
-            )
-            try:
-                new_start = self._settings['missionList'].index(current_mission)
-            except ValueError:
-                new_start = 0
-            self._settings['listStartIndex'] = self._settings['current'] = new_start + 1
+        if not current_mission:
+            return
+
+        # ------------------------------------------------------------------
+        # Normalise every path once and build a list that keeps only the
+        # first occurrence of each unique path.
+        # ------------------------------------------------------------------
+        raw_list = self._settings.get('missionList', [])
+        normed_paths = [os.path.normpath(p) for p in raw_list]
+        unique_list = list(dict.fromkeys(normed_paths))  # py3.7+ guarantees order
+
+        self._settings['missionList'] = unique_list
+
+        # ------------------------------------------------------------------
+        # Normalise the current mission path before looking it up.
+        # (This also fixes case‑sensitivity on Windows.)
+        # ------------------------------------------------------------------
+        norm_current = os.path.normpath(current_mission)
+
+        try:
+            new_start = unique_list.index(norm_current)
+        except ValueError:  # current mission no longer in the list
+            new_start = 0
+
+        # --------------------------
+        # Store the new start index.
+        # --------------------------
+        self._settings['listStartIndex'] = self._settings['current'] = new_start + 1
 
     async def _load_mission_list(self):
         try:
