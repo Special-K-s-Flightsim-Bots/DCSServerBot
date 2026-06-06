@@ -189,7 +189,7 @@ class Node(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def handle_module(self, what: str, module: str) -> None:
+    async def handle_module(self, what: str, module: str) -> int:
         raise NotImplementedError()
 
     @abstractmethod

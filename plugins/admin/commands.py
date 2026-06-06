@@ -553,10 +553,20 @@ class Admin(Plugin[AdminEventListener]):
         await interaction.followup.send(
             _("Installing module {module} on node {node}, please wait ...").format(module=module, node=node.name),
             ephemeral=ephemeral)
-        await node.handle_module('install', module)
-        # use channel.send instead, as the webhook might be outdated
-        await interaction.channel.send(_("Module {module} installed on node {node}.").format(
-            module=module, node=node.name))
+        rc = await node.handle_module('install', module)
+        if rc == 0:
+            # use channel.send instead, as the webhook might be outdated
+            await interaction.channel.send(
+                _("Module {module} installed on node {node}.").format(
+                module=module, node=node.name
+                )
+            )
+        else:
+            await interaction.channel.send(
+                _("Module {module} installation on node {node} failed with code {rc}.").format(
+                    module=module, node=node.name, rc=rc
+                )
+            )
 
     @dcs.command(name='uninstall', description=_('Uninstall modules from your DCS server'))
     @app_commands.guild_only()

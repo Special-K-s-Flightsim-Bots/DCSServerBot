@@ -940,7 +940,7 @@ class NodeImpl(Node):
             return rc
 
     @override
-    async def handle_module(self, what: str, module: str):
+    async def handle_module(self, what: str, module: str) -> int:
         if sys.platform == 'win32':
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
@@ -948,18 +948,19 @@ class NodeImpl(Node):
         else:
             startupinfo = None
 
-        def run_subprocess():
-            subprocess.run(
+        def run_subprocess() -> int:
+            p = subprocess.run(
                 [os.path.join(self.installation, 'bin', 'dcs_updater.exe'), '--quiet', what, module],
                 startupinfo=startupinfo
             )
+            return p.returncode
 
         async with ServerMaintenanceManager(
                 self.node,
                 warn_times = [120, 60, 10],
                 message = _('Server is going down to {what}'.format(what=what) + ' a module in {}!')
         ):
-            await asyncio.to_thread(run_subprocess)
+            return await asyncio.to_thread(run_subprocess)
 
     @override
     @cache_with_expiration(expiration=60)
