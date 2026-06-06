@@ -118,6 +118,9 @@ msgstr "Das Modul {module} wird auf Knoten {node} installiert, bitte warten ..."
 msgid "Module {module} installed on node {node}."
 msgstr "Das Modul {module} wurde auf dem Knoten {node} installiert."
 
+msgid "Module {module} installation on node {node} failed with code {rc}."
+msgstr "Das Modul {module} konnte nicht auf dem Knoten {node} installiert werden. Fehlercode: {rc}"
+
 # /dcs uninstall
 msgid "Uninstall modules from your DCS server"
 msgstr "Deinstalliere DCS-Module"

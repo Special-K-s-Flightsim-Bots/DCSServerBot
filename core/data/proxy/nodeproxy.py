@@ -155,8 +155,8 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
 
     @override
-    async def handle_module(self, what: str, module: str) -> None:
-        await self.bus.send_to_node_sync({
+    async def handle_module(self, what: str, module: str) -> int:
+        return await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
             "method": "handle_module",
