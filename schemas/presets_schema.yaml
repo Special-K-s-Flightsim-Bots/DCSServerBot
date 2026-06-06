@@ -86,17 +86,17 @@ schema;preset_map:
         atGround:
           type: map
           mapping:
-            speed: {type: int}
+            speed: {type: float}
             dir: {type: int}
         at2000:
           type: map
           mapping:
-            speed: {type: int}
+            speed: {type: float}
             dir: {type: int}
         at8000:
           type: map
           mapping:
-            speed: {type: int}
+            speed: {type: float}
             dir: {type: int}
     groundTurbulence:
       type: float
