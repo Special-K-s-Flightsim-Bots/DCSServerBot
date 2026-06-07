@@ -484,6 +484,13 @@ class Scheduler(Plugin[SchedulerListener]):
             new_mission = rconf.get('mission_id')
             if isinstance(new_mission, list):
                 new_mission = random.choice(new_mission)
+            elif isinstance(new_mission, (int, str)):
+                new_mission = int(new_mission)
+                if new_mission > len(mission_list):
+                    self.log.warning(f"{self.__cog_name__}: "
+                                     f"Mission ID {new_mission} exceeds mission list length on server {server.name}, "
+                                     f"resetting to 1")
+                    new_mission = 1
             elif not new_mission:
                 new_mission = await self.get_mission_from_list(server, rconf.get('mission_file'))
                 if not new_mission:

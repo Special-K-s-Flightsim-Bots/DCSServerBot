@@ -96,7 +96,11 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
         if not os.path.exists(config_path):
             major_version, _ = self.get_inst_version()
             from_path = os.path.join(self.get_inst_path(), 'server', major_version)
-            shutil.copy2(os.path.join(from_path, 'config.lua'), config_path)
+            origin = os.path.join(from_path, 'config.lua')
+            if not os.path.exists(origin):
+                self.log.error(f"{self.name}: Installation Error - Missing config.lua in {from_path}!")
+                return cfg
+            shutil.copy2(origin, config_path)
         for path in [os.path.join(self.home, 'config.lua'), os.path.join(self.home, 'config.custom.lua')]:
             try:
                 with open(path, mode='r', encoding='utf-8') as file:
@@ -106,7 +110,7 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
             except FileNotFoundError:
                 pass
             except Exception:
-                self.log.error(f"Error while parsing {path}!", exc_info=True)
+                self.log.error(f"{self.name}: Error while parsing {path}!", exc_info=True)
         return cfg
 
     def get_inst_path(self) -> str:
