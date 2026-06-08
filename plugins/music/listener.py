@@ -1,6 +1,6 @@
 import asyncio
 
-from core import EventListener, Server, event
+from core import EventListener, Server, event, PluginInstallationError
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -13,6 +13,9 @@ class MusicEventListener(EventListener["Music"]):
         try:
             await self.plugin.service.init_radios(server)
         except (TimeoutError, asyncio.TimeoutError):
+            return
+        except PluginInstallationError as ex:
+            self.log.error(ex)
             return
         # if we've just started, we need to start the radios
         if data['channel'].startswith('sync-') and data.get('players'):

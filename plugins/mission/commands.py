@@ -596,12 +596,16 @@ class Mission(Plugin[MissionEventListener]):
                         await server.node.remove_file(secondary + '.orig')
                         await interaction.followup.send(_('Mission "{}" deleted.').format(mission_name),
                                                         ephemeral=ephemeral)
+                        await self.bot.audit(_("deleted mission {}").format(os.path.basename(filename[:-4])),
+                                             user=interaction.user)
+                    except PermissionError:
+                        await interaction.followup.send(
+                            _('Permission denied while deleting mission "{}".').format(mission_name),
+                            ephemeral=ephemeral)
                     except FileNotFoundError:
                         await interaction.followup.send(
                             _('Mission "{}" was already deleted.').format(mission_name),
                             ephemeral=ephemeral)
-                await self.bot.audit(_("deleted mission {}").format(os.path.basename(filename[:-4])),
-                                     user=interaction.user)
             except (TimeoutError, asyncio.TimeoutError):
                 await interaction.followup.send(_("Timeout while deleting mission.\n"
                                                   "Please reconfirm that the deletion was successful."),

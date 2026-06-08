@@ -101,9 +101,15 @@ class CloudLoggingHandler(logging.Handler):
             except Exception:
                 pass
         if self._session and not self._session.closed:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.create_task(self._session.close())
-            else:
-                loop.run_until_complete(self._session.close())
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self._session.close())
+                else:
+                    loop.run_until_complete(self._session.close())
+            except RuntimeError:
+                # Fallback for threads without a loop
+                new_loop = asyncio.new_event_loop()
+                new_loop.run_until_complete(self._session.close())
+                new_loop.close()
         super().close()

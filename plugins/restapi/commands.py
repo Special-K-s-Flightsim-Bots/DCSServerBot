@@ -13,6 +13,7 @@ from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, Fil
 from fastapi.security import APIKeyHeader
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
+from psycopg.errors import UndefinedTable
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.servicebus import ServiceBus
@@ -1947,18 +1948,21 @@ class RestAPI(Plugin):
         else:
             join = ""
             where = "WHERE t.player_ucid = %(ucid)s"
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                ucid = await self.get_ucid(nick, date)
-                await cursor.execute(f"""
-                    SELECT t.id, t.unit_type, t.grade, t.comment, t.place, t.trapcase, t.wire, t.night, t.points, t.time
-                    FROM traps t
-                    {join}
-                    {where}
-                    ORDER BY time DESC 
-                    LIMIT {limit} OFFSET {offset}
-                """, {"ucid": ucid, "server_name": resolved_server_name})
-                return [TrapEntry.model_validate(result) for result in await cursor.fetchall()]
+        try:
+            async with self.apool.connection() as conn:
+                async with conn.cursor(row_factory=dict_row) as cursor:
+                    ucid = await self.get_ucid(nick, date)
+                    await cursor.execute(f"""
+                        SELECT t.id, t.unit_type, t.grade, t.comment, t.place, t.trapcase, t.wire, t.night, t.points, t.time
+                        FROM traps t
+                        {join}
+                        {where}
+                        ORDER BY time DESC 
+                        LIMIT {limit} OFFSET {offset}
+                    """, {"ucid": ucid, "server_name": resolved_server_name})
+                    return [TrapEntry.model_validate(result) for result in await cursor.fetchall()]
+        except UndefinedTable:
+            raise HTTPException(status_code=500, detail="Greenieboard is not active on this server")
 
     async def traps_image(self, trap_id: int = Query(...)):
         self.log.debug(f'Calling /traps_image with trap_id="{trap_id}"')

@@ -150,7 +150,7 @@ class Cloud(Plugin[CloudListener]):
         if self.config.get('upload_errors', True):
             for handler in self.log.root.handlers:
                 if isinstance(handler, CloudLoggingHandler):
-                    await asyncio.to_thread(handler.close)
+                    handler.close()
                     self.log.root.removeHandler(handler)
         if self.config.get('register', True):
             tasks.append(utils.safe_cancel(self.register))
@@ -208,10 +208,10 @@ class Cloud(Plugin[CloudListener]):
 
                 last_error = ex
 
-                # Reset broken/stale sessions before retrying
-                if self._session and not self._session.closed:
-                    await self._session.close()
-                self._session = None
+                if isinstance(ex, (aiohttp.ClientConnectorError, aiohttp.ServerDisconnectedError)):
+                    if self._session and not self._session.closed:
+                        await self._session.close()
+                    self._session = None
 
                 if attempt >= retries:
                     self.log.warning("Cloud service unavailable.")

@@ -78,7 +78,10 @@ class MizEdit(Extension):
                 return []
 
         now = datetime.now()
-        presets = config['settings']
+        presets = config.get('settings')
+        if not presets:
+            return []
+
         if isinstance(presets, dict):
             tz: str | None = config.get('timezone')
             tzinfo = ZoneInfo(tz) if tz else None
@@ -162,8 +165,11 @@ class MizEdit(Extension):
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         if 'filter' in self.config and not self._filter(filename):
             return filename, False
-        await self.apply_presets(self.server, filename, await self.get_presets(self.config),
-                                 debug=self.config.get('debug', False))
+        presets = await self.get_presets(self.config)
+        if not presets:
+            self.log.error("MizEdit: No presets defined!")
+            return filename, False
+        await self.apply_presets(self.server, filename, presets, debug=self.config.get('debug', False))
         return filename, True
 
     @override
