@@ -1,5 +1,6 @@
 import discord
 
+from contextlib import suppress
 from core import Plugin, command, utils, get_translation, Group
 from datetime import timedelta
 from discord import app_commands, Permissions
@@ -73,7 +74,9 @@ class Discord(Plugin):
         await purge_channel(node=self.node, channel=channel.id, older_than=older_than,
                             ignore=ignore.id if ignore else None, after_id=int(after_id) if after_id else None,
                             before_id=int(before_id) if before_id else None)
-        await msg.edit(content=_("All messages deleted."))
+        with suppress(discord.NotFound):
+            await msg.delete()
+        await interaction.followup.send(_("All messages deleted."))
 
     @command(name='addrole', description=_('Adds a role to a member'))
     @app_commands.guild_only()
