@@ -60,6 +60,16 @@ schema;modify_seq:
   sequence:
     - include: modify_schema
 
+schema;cloud_map:
+  type: map
+  nullable: false
+  mapping:
+    preset: { type: str, nullable: false }
+    base: { type: int, nullable: false }
+    thickness: { type: int, nullable: false }
+    density: { type: int, nullable: false }
+    iprecptns: { type: int, nullable: false }
+
 schema;preset_map:
   type: map
   nullable: false
@@ -111,14 +121,10 @@ schema;preset_map:
       type: float
       nullable: false
     clouds:
-      type: map
+      type: any
       nullable: false
-      mapping:
-        preset: {type: str, nullable: false}
-        base: {type: int, nullable: false}
-        thickness: {type: int, nullable: false}
-        density: {type: int, nullable: false}
-        iprecptns: {type: int, nullable: false}
+      func: str_or_map
+      enum: [cloud_map]
     enable_fog:
       type: bool
       nullable: false
