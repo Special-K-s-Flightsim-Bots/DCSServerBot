@@ -109,9 +109,17 @@ def cleanup_local_files(to_delete_set: Iterable, extracted_folder: str):
         handled = False
         for special_dir, dir_description in special_dirs.items():
             if special_dir in path_obj.parents:
-                # Delete only subdirectories inside special dirs that exist in the zip
-                sub_path = relative_path.replace(f"{special_dir}/", "")
-                if not os.path.isdir(os.path.join(extracted_folder, special_dir, sub_path)):
+                # Get the name of the subdirectory (e.g., 'fh_report')
+                sub_dir = path_obj.relative_to(special_dir).parts[0]
+
+                # If this subdirectory doesn't exist in the ZIP, it's user-added content.
+                # We skip the deletion of the directory and all elements below it.
+                if not (Path(extracted_folder) / special_dir / sub_dir).is_dir():
+                    handled = True
+                    break
+
+                # If it IS an official directory, we only delete the file if it's missing from the ZIP
+                if not (Path(extracted_folder) / path_obj).exists():
                     print(f"  => Deleting {full_path} (from {dir_description})")
                     delete_path(full_path)
                 handled = True
