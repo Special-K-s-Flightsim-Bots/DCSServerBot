@@ -74,6 +74,26 @@ schema;preset_map:
   type: map
   nullable: false
   mapping:
+    hidden:
+      type: bool
+      nullable: false
+    terrain:
+      type: str
+      nullable: false
+      enum: [
+        'Caucasus', 'Syria', 'PersianGulf', 'SinaiMap', 'TheChannel', 'Nevada', 'Normandy', 'MarianaIslands',
+        'Falklands', 'Kola', 'Afghanistan', 'Iraq', 'GermanyCW'
+      ]
+    terrains:
+      type: seq
+      nullable: false
+      sequence:
+        - type: str
+          nullable: false
+          enum: [
+            'Caucasus', 'Syria', 'PersianGulf', 'SinaiMap', 'TheChannel', 'Nevada', 'Normandy', 'MarianaIslands',
+            'Falklands', 'Kola', 'Afghanistan', 'Iraq', 'GermanyCW'
+          ]
     date:
       type: str
       nullable: false

@@ -855,15 +855,16 @@ class SettingsDict(dict):
         data = None
         if self.path.lower().endswith('.lua'):
             try:
-                ex = None
+                last_error = None
                 for i in range(0, 3):
                     try:
                         data = luadata.read(self.path, encoding='utf-8')
                         break
                     except LuaSyntaxError as ex:
+                        last_error = ex
                         time.sleep(0.5)
                 else:
-                    raise ex
+                    raise last_error
             except Exception as ex:
                 self.log.debug(f"Exception while reading {self.path}:\n{ex}")
                 data = alternate_parse_settings(self.path)
