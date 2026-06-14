@@ -4,6 +4,7 @@ import base64
 import hashlib
 import hmac
 import ipaddress
+import logging
 import secrets
 import socket
 import sys
@@ -34,6 +35,8 @@ API_URLS = [
     'https://www.trackip.net/ip',
     'https://api4.my-ip.io/v1/ip'  # they have an issue with their cert atm, hope they get it fixed
 ]
+
+logger = logging.getLogger(__name__)
 
 
 def get_hash_secret(config_dir='config') -> bytes:
@@ -74,8 +77,13 @@ def hash_ip_addr(ip_addr: str, prefix_len: int | None = None) -> str:
 
 def is_open(ip, port):
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.settimeout(1.0)
-        return s.connect_ex((ip, int(port))) == 0
+        s.settimeout(2.0)
+        try:
+            s.connect((ip, int(port)))
+            return True
+        except (socket.timeout, OSError) as ex:
+            logger.exception(ex)
+            return False
 
 
 async def get_public_ip(node: "Node | None" = None):
