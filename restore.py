@@ -33,6 +33,7 @@ class Restore:
         self.node = node
         self.config_dir = config_dir
         self.quiet = quiet
+        self.old_node = None
 
     @staticmethod
     def unzip(file: Path, target: Path) -> None:
@@ -42,8 +43,11 @@ class Restore:
     async def restore_bot(self, console: Console, backup_file: Path) -> bool:
         # back up the old config
         if os.path.exists(self.config_dir) and len(os.listdir(self.config_dir)) > 0:
-            backup_name = f"config.{datetime.now().strftime('%Y-%m-%d')}"
-            console.print(_("[yellow]A configuration directory exists. Renaming to {} ...").format(backup_name))
+            backup_name = f"config.{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            while os.path.exists(backup_name):
+                await asyncio.sleep(1)
+                backup_name = f"config.{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            console.print(_("[yellow]An old configuration directory exists. Renaming to {} ...").format(backup_name))
             if not is_junction(self.config_dir):
                 os.rename(self.config_dir, backup_name)
             else:
@@ -67,11 +71,12 @@ class Restore:
             console.print(_("[yellow]Node name not found in nodes.yaml[/]"))
             choices = [_("- Abort -")]
             choices.extend(nodes.keys())
-            old_node = Prompt.ask(_("Enter the node name you want to replace:"), choices=choices)
-            if old_node == _("- Abort -"):
+            self.old_node = Prompt.ask(_("Enter the node name you want to replace:"), choices=choices)
+            if self.old_node == _("- Abort -"):
+                self.old_node = None
                 return False
-            Install.rename_node(self.config_dir, old_node, self.node)
-            console.print(_("[green]Node {} renamed to {}.[/]").format(old_node, self.node))
+            Install.rename_node(self.config_dir, self.old_node, self.node, database_only=False)
+            console.print(_("[green]Node {} renamed to {}.[/]").format(self.old_node, self.node))
             # reload
             nodes = yaml.load(nodes_yaml.read_text(encoding='utf-8'))
             # ensure user profile changes will not hit in
@@ -117,7 +122,7 @@ class Restore:
             console.print(_("[red]No database configuration found, aborting."))
             return None
 
-        db_url: ParseResult = urlparse(l_url)
+        db_url = urlparse(l_url)
         if db_url.password == 'SECRET':
             try:
                 db_pwd = get_password("database", config_dir=self.config_dir)
@@ -170,11 +175,12 @@ class Restore:
             try:
                 async with await AsyncConnection.connect(conninfo=conninfo, autocommit=True) as conn:
                     # terminate any existing connection to the database
-                    await conn.execute("""
+                    query = sql.SQL("""
                             SELECT pg_terminate_backend(pid) 
                             FROM pg_stat_activity 
                             WHERE datname='{}' AND pid != pg_backend_pid();
-                        """.format(db_url.path[1:]))
+                    """).format(sql.Literal(db_url.path[1:]))
+                    await conn.execute(query)
                     await conn.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(db_url.path[1:])))
                     try:
                         await conn.execute(sql.SQL("DROP USER IF EXISTS {}").format(sql.Identifier(db_url.username)))
@@ -262,10 +268,16 @@ class Restore:
         if rc > 1:
             console.print(_("[red]Failed to restore database.[/]"))
             return False
+
         # cleanup instances and nodes to not cause any clashes
         async with await AsyncConnection.connect(conninfo=conninfo, autocommit=True) as conn:
             await conn.execute("DELETE FROM instances")
             await conn.execute("DELETE FROM nodes")
+
+        # do we need to rename the node?
+        if self.old_node:
+            Install.rename_node(self.config_dir, self.old_node, self.node, database_only=True)
+
         return True
 
     async def restore_instance(self, console: Console, backup_file: Path) -> bool:

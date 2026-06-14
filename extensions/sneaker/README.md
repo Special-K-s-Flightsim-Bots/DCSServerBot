@@ -1,10 +1,11 @@
 # Extension "Sneaker"
-Well, this "sneaked" in here somehow. Many people were asking for a moving map, and we looked at several solutions. 
-Nearly all took a lot of effort to get them running, if ever. Then we stumbled across 
-[Sneaker](https://github.com/b1naryth1ef/sneaker) and in all fairness - that was more or less all that we needed. It 
-looks good, it is easy to set up. We tried to contact the developer, but unfortunately they are quite unresponsive. So
-we created a [fork](https://github.com/Special-K-s-Flightsim-Bots/sneaker), added all the maps and maybe will remove
-the major bugs in the upcoming future.<br/>
+Well, this "sneaked" in here somehow. Many people were asking for a moving map, and I looked at several solutions. 
+Nearly all took a lot of effort to get them running, if ever. 
+Then I stumbled across [Sneaker](https://github.com/b1naryth1ef/sneaker) and in all fairness - that was more or less all that was needed. 
+It looked good, and it was easy to set up. 
+I tried to contact the developer, but unfortunately, they are quite unresponsive. 
+So I created a [fork](https://github.com/Special-K-s-Flightsim-Bots/sneaker), added all the maps and maybe will remove the major bugs in the upcoming future.
+
 Sneaker itself provides a webserver that then connect via the Tacview Realtime protocol to your server. You need to 
 have Tacview running on your server though, to use sneaker. As there are still some issues, please don't configure a
 realtime password for now.
