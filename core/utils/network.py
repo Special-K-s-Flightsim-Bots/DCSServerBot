@@ -82,7 +82,7 @@ def is_open(ip, port):
             s.connect((ip, int(port)))
             return True
         except (socket.timeout, OSError) as ex:
-            logger.exception(ex)
+            logger.debug(f"JUST FOR DEBUG PURPOPSES, you can ignore this: {ex}")
             return False
 
 
