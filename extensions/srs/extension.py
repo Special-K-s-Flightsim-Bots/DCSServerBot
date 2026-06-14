@@ -447,30 +447,39 @@ class SRS(Extension, FileSystemEventHandler):
 
     @override
     def is_running(self) -> bool:
-        if not self.process and self.exe_name:
-            self.process = next(utils.find_process(self.exe_name, self.server.instance.name), None)
-            running = self.process is not None and self.process.is_running()
-            if not running:
-                self.log.debug("SRS: is NOT running (process)")
-            else:
-                ProcessManager().assign_process(
-                    self.process,
-                    min_cores=self.config.get('auto_affinity', {}).get('min_cores', 1),
-                    max_cores=self.config.get('auto_affinity', {}).get('max_cores', 1),
-                    quality=self.config.get('auto_affinity', {}).get('quality', 0),
-                    instance=self.server.instance.name
-                )
-        else:
+        running = False
+        try:
+            # 1. If we have a process handle, check if it's still alive
+            if self.process and self.process.is_running():
+                return True
+
+            # 2. If no handle, try to find the process by name
+            if self.exe_name:
+                discovered_process = next(utils.find_process(self.exe_name, self.server.instance.name), None)
+                if discovered_process and discovered_process.is_running():
+                    self.process = discovered_process
+                    # Only assign if it was found externally (extension didn't start it)
+                    ProcessManager().assign_process(
+                        self.process,
+                        min_cores=self.config.get('auto_affinity', {}).get('min_cores', 1),
+                        max_cores=self.config.get('auto_affinity', {}).get('max_cores', 1),
+                        quality=self.config.get('auto_affinity', {}).get('quality', 0),
+                        instance=self.server.instance.name
+                    )
+                    return True
+
+            self.process = None
             server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
             if server_ip == '0.0.0.0':
                 server_ip = '127.0.0.1'
-            running = utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
+
+            running = utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002), timeout=2.0)
             if not running:
-                self.log.debug("SRS: is NOT running (port)")
-                self.process = None
-        # start the observer if we were started to a running SRS server
-        if running and not self.observer:
-            self.start_observer()
+                self.log.debug("SRS: is NOT running")
+
+        finally:
+            if running and not self.observer:
+                self.start_observer()
         return running
 
     def get_inst_path(self) -> str:

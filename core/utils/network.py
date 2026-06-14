@@ -75,14 +75,13 @@ def hash_ip_addr(ip_addr: str, prefix_len: int | None = None) -> str:
     return hmac_hash(get_network_prefix(ip_addr, prefix_len))
 
 
-def is_open(ip, port):
+def is_open(ip, port, *, timeout: float = 1.0) -> bool:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.settimeout(2.0)
+        s.settimeout(timeout)
         try:
             s.connect((ip, int(port)))
             return True
         except (socket.timeout, OSError) as ex:
-            logger.debug(f"JUST FOR DEBUG PURPOPSES, you can ignore this: {ex}")
             return False
 
 
