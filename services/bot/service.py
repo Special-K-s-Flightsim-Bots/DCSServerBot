@@ -110,6 +110,11 @@ class BotService(Service):
                 # Allow users to @mention the bot instead of using a prefix
                 return commands.when_mentioned_or(*prefixes)(client, message)
 
+            intents = discord.Intents.default()
+            # set privileged intents
+            intents.members=True            # necessary to be able to send welcome messages and such
+            intents.message_content=True    # necessary to allow file uploads
+
             # Create the Bot
             return DCSServerBot(version=self.node.bot_version,
                                 sub_version=self.node.sub_version,
@@ -117,7 +122,7 @@ class BotService(Service):
                                 description='Interact with DCS World servers',
                                 owner_id=self.locals['owner'],
                                 case_insensitive=True,
-                                intents=discord.Intents.all(),
+                                intents=intents,
                                 node=self.node,
                                 locals=self.locals,
                                 help_command=None,
