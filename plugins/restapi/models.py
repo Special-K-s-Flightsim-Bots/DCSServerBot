@@ -517,7 +517,7 @@ class TrapEntry(BaseModel):
 class EventEntry(BaseModel):
     mission_id: int = Field(..., description="Mission ID")
     event: str = Field(..., description="Event type")
-    init_id: str = Field(..., description="Initiator UCID")
+    init_id: str | None = Field(None, description="Initiator UCID")
     init_type: str | None = Field(None, description="Initiator type")
     init_cat: str | None = Field(None, description="Initiator category")
     target_id: str | None = Field(None, description="Target UCID")
