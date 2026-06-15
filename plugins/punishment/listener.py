@@ -152,7 +152,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             # wait for a '-forgive' to happen
             await asyncio.sleep(window)
             # it did not happen -> fulfill the punishment
-            asyncio.create_task(self._punish(data))
+            asyncio.create_task(self._punish(data.copy()))
         except asyncio.CancelledError:
             # it did happen -> do nothing
             pass
@@ -238,7 +238,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         # check if a punishment has to happen
         if 'action' in penalty or points > 0:
-            target = data.get('target')
+            target: Player | None = data.get('target')
             data['points'] = points
 
             if target and 'forgive' in config:
@@ -273,6 +273,8 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         # preserve the old event (to avoid modifying the original event)
         s_event = evt.copy()
+        s_event['initiator'] = s_event['initiator'].copy()
+        s_event['target'] = s_event['target'].copy()
 
         # ensure that we have the correct initiator
         if initiator.name != evt.get('initiator', {}).get('name'):
@@ -302,7 +304,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 "id": 28,
                 "comment": "auto-generated"
             }
-            asyncio.create_task(self.bus.send_to_node(s_event))
+            asyncio.create_task(self.bus.send_to_node(s_event.copy()))
 
         # generate S_EVENT_KILL
         if s_event['eventName'] == 'S_EVENT_HIT':
@@ -314,7 +316,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 "id": 28,
                 "comment": "auto-generated"
             }
-            asyncio.create_task(self.bus.send_to_node(s_event))
+            asyncio.create_task(self.bus.send_to_node(s_event.copy()))
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict):
@@ -357,7 +359,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     return
             else:
                 evt['eventName'] = 'friendly_fire'
-            asyncio.create_task(self._check_punishment(evt))
+            asyncio.create_task(self._check_punishment(evt.copy()))
 
         elif data['eventName'] == 'kill':
             # check team-kills
@@ -376,7 +378,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     evt['eventName'] = 'collision_kill'
                 else:
                     evt['eventName'] = 'kill'
-                asyncio.create_task(self._check_punishment(evt))
+                asyncio.create_task(self._check_punishment(evt.copy()))
 
             # remove pending kills
             if target:
@@ -399,10 +401,10 @@ class PunishmentEventListener(EventListener["Punishment"]):
             delta_time = int(time.time()) - shot_time
             if delta_time < config.get('reslot_window', 60):
                 # the kill will be given to the opponent
-                asyncio.create_task(self._give_kill(server, evt))
+                asyncio.create_task(self._give_kill(server, evt.copy()))
             elif evt['eventName'] == 'S_EVENT_HIT' and delta_time < config.get('survival_window', 300):
                 # reslotting of a damaged plane will be treated as a kill
-                asyncio.create_task(self._give_kill(server, evt))
+                asyncio.create_task(self._give_kill(server, evt.copy()))
             else:
                 return
             # mark the event for a potential penalty
@@ -417,7 +419,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
     def _schedule_give_kill(self, server: Server, victim_ucid: str, s_event: dict, delay: int = 10) -> None:
         def fire() -> None:
             self.awaiting_task.pop(victim_ucid, None)
-            asyncio.create_task(self._give_kill(server, s_event))
+            asyncio.create_task(self._give_kill(server, s_event.copy()))
 
         old = self.awaiting_task.pop(victim_ucid, None)
         if old:
@@ -431,7 +433,11 @@ class PunishmentEventListener(EventListener["Punishment"]):
             handle.cancel()
 
     async def _give_kill(self, server: Server, s_event: dict) -> None:
-        # clear fields that are no longer relevant
+        # clear fields that are no longer relevant on an isolated copy
+        s_event = s_event.copy()
+        s_event['initiator'] = s_event['initiator'].copy()
+        s_event['target'] = s_event['target'].copy()
+
         s_event['initiator'].pop('position', None)
         s_event['target'].pop('position', None)
         s_event.pop('distance', None)
@@ -441,7 +447,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             "id": 28,
             "comment": "auto-generated"
         }
-        asyncio.create_task(self.bus.send_to_node(s_event))
+        asyncio.create_task(self.bus.send_to_node(s_event.copy()))
 
         initiator = server.get_player(name=s_event.get('initiator', {}).get('name'))
         target = server.get_player(name=s_event.get('target', {}).get('name'))
@@ -518,7 +524,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             "server_name": server.name,
             "initiator": player
         }
-        asyncio.create_task(self._check_punishment(evt))
+        asyncio.create_task(self._check_punishment(evt.copy()))
         admin = self.bot.get_admin_channel(server)
         if admin:
             asyncio.create_task(admin.send(
@@ -596,7 +602,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                                    f"where player {orig_name} was predicted.")
 
             # store the shot with the highest PBK or the latest hit event
-            self.pending_kill[target.ucid] = (now, data)
+            self.pending_kill[target.ucid] = (now, data.copy())
 
         elif data['eventName'] == 'S_EVENT_LAND':
             initiator = server.get_player(name=data.get('initiator', {}).get('name'))
@@ -648,7 +654,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 "initiator": player,
                 "eventName": "taxiway_takeoff"
             }
-            asyncio.create_task(self._check_punishment(evt))
+            asyncio.create_task(self._check_punishment(evt.copy()))
 
     async def _change_slot(self, server: Server, data: dict) -> None:
         if 'side' not in data or data['id'] == 1:
@@ -671,12 +677,12 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 "initiator": player
             }
             # reslotting will be punished
-            asyncio.create_task(self._check_punishment(evt))
+            asyncio.create_task(self._check_punishment(evt.copy()))
             # and the kill will be given to the opponent
-            asyncio.create_task(self._give_kill(server, s_event))
+            asyncio.create_task(self._give_kill(server, s_event.copy()))
         elif s_event['eventName'] == 'S_EVENT_HIT' and delta_time < config.get('survival_window', 300):
             # reslotting of a damaged plane will be treated as a kill
-            asyncio.create_task(self._give_kill(server, s_event))
+            asyncio.create_task(self._give_kill(server, s_event.copy()))
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
