@@ -1860,7 +1860,7 @@ class RestAPI(Plugin):
             FROM mv_statistics s
             WHERE s.player_ucid = %(ucid)s 
             {where}
-            GROUP BY 1 HAVING SUM(s.kills) > 0 
+            GROUP BY 1 
             ORDER BY 2 DESC
         """
         async with self.apool.connection() as conn:
