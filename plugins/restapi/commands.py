@@ -1996,8 +1996,8 @@ class RestAPI(Plugin):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(f"""
                     SELECT mission_id, event, 
-                           init_id, init_type, init_cat, 
-                           target_id, target_type, target_cat,
+                           init_id, init_side, init_type, init_cat, 
+                           target_id, target_side, target_type, target_cat,
                            weapon, place, comment, time
                     FROM missionstats 
                     WHERE (init_id = %(ucid)s or target_id = %(ucid)s)
