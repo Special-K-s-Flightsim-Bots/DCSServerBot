@@ -1979,8 +1979,15 @@ class RestAPI(Plugin):
                      ucid: str = Query(...),
                      start_time: datetime = Query(...),
                      end_time: datetime = Query(...),
+                     event: str | None = Query(default=None),
+                     init_type: str | None = Query(default=None),
                      offset: int | None = Query(default=0),
                      limit: int | None = Query(default=10)):
+        where = ""
+        if event:
+            where += f"AND event = '{event}' "
+        if init_type:
+            where += f"AND init_type = '{init_type}' "
         if limit:
             sql_part = f"LIMIT {limit} OFFSET {offset}"
         else:
@@ -1995,6 +2002,7 @@ class RestAPI(Plugin):
                     FROM missionstats 
                     WHERE (init_id = %(ucid)s or target_id = %(ucid)s)
                       AND time between %(start_time)s AND %(end_time)s
+                      {where}
                       {sql_part}
                 """, {"ucid": ucid, "start_time": start_time, "end_time": end_time})
                 return [EventEntry.model_validate(result) for result in await cursor.fetchall()]
