@@ -354,6 +354,11 @@ function mission.onPlayerChangeSlot(id)
     }
     msg.unit_type, msg.slot, msg.sub_slot = utils.getMulticrewAllParameters(id)
     msg.unit_name = Sim.getUnitProperty(msg.slot, Sim.UNIT_NAME)
+    if msg.unit_type ~= '?' then
+        msg.unit_category = utils.getCategory(msg.unit_type)
+    else
+        msg.unit_category = ""
+    end
     msg.group_name = Sim.getUnitProperty(msg.slot, Sim.UNIT_GROUPNAME)
     msg.group_id = Sim.getUnitProperty(msg.slot, Sim.UNIT_GROUP_MISSION_ID)
     msg.unit_callsign = Sim.getUnitProperty(msg.slot, Sim.UNIT_CALLSIGN)
