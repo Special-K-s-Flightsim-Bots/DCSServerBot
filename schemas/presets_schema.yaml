@@ -41,7 +41,7 @@ schema;modify_map:
       type: map
       nullable: false
       mapping:
-        regex;(.+): {type: text, nullable: false}
+        regex;(.+): {type: any, nullable: false}
     delete: {type: str, nullable: false}
     insert:
       type: map
