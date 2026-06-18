@@ -514,6 +514,15 @@ class TrapEntry(BaseModel):
     }
 
 
+class GreenieboardEntry(BaseModel):
+    nick: str = Field(..., description="Player name")
+    traps: list[TrapEntry] = Field(..., description="List of traps for this player")
+
+
+class GreenieboardResponse(BaseModel):
+    players: list[GreenieboardEntry] = Field(..., description="All players and their traps")
+
+
 class EventEntry(BaseModel):
     mission_id: int = Field(..., description="Mission ID")
     event: str = Field(..., description="Event type")
