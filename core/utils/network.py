@@ -75,7 +75,7 @@ def hash_ip_addr(ip_addr: str, prefix_len: int | None = None) -> str:
     return hmac_hash(get_network_prefix(ip_addr, prefix_len))
 
 
-def is_open(ip, port, *, timeout: float = 1.0) -> bool:
+def is_open(ip: str, port: int, *, timeout: float = 1.0) -> bool:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.settimeout(timeout)
         try:

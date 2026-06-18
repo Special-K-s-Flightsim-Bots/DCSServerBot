@@ -271,11 +271,11 @@ class DCSServerBot(commands.Bot):
             if not self.synced:
                 self.log.info(f'- Preparing Discord Bot "{self.user.name}" ...')
                 if len(self.guilds) > 1:
-                    self.log.warning('  => Your bot can only be installed in ONE Discord server!')
+                    self.log.warning('  => Your bot can only be installed in ONE Discord server. Fixing ...')
                     for guild in self.guilds:
-                        self.log.warning(f'    - {guild.name}')
-                    self.log.warning(f'  => Remove it from {len(self.guilds) - 1} Discord servers and restart the bot.')
-                    raise FatalException()
+                        if guild.id != self.node.guild_id:
+                            await guild.leave()
+                            self.log.warning(f'    - Left {guild.name}')
                 elif self.node.guild_id != self.guilds[0].id:
                     raise FatalException(f"Change your guild_id in main.yaml to {self.guilds[0].id}!")
                 self.member = self.guilds[0].get_member(self.user.id)

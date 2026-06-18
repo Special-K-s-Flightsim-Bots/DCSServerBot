@@ -5,7 +5,7 @@ import os
 import re
 
 from core import report, utils, get_translation, GraphElement, ReportEnv, Plugin
-from matplotlib import cm, pyplot as plt
+from matplotlib import colormaps, pyplot as plt
 from matplotlib.font_manager import FontProperties
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from matplotlib.patches import FancyBboxPatch
@@ -169,7 +169,7 @@ class HighscoreTraps(report.GraphElement):
                     fontsize = compute_font_size(num_bars)
                     bar_height = max(0.75, 3 / num_bars)
 
-                    color_map = cm.get_cmap('viridis', num_bars)
+                    color_map = colormaps['viridis'].resampled(num_bars)
                     colors = color_map(np.linspace(0, 1, num_bars))
                     self.axes.barh(labels, values, color=colors, label="Traps", height=bar_height)
                     if bar_labels:

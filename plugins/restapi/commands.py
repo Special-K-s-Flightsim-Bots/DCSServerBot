@@ -20,14 +20,47 @@ from services.servicebus import ServiceBus
 from services.webservice import WebService
 from typing import Any, Literal, cast
 
-from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
-                     CampaignCredits, TrapEntry, GreenieboardEntry, GreenieboardResponse, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
-                     PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats,
-                     AirbasesResponse, AirbaseInfoResponse, AirbaseWarehouseResponse, AirbaseSetWarehouseItemResponse,
-                     AirbaseCaptureResponse, ConvertCoordinates, MissionRestartResponse, MissionLoadResponse,
-                     MissionPauseResponse, MissionUnpauseResponse, MissionsResponse, ServerStartResponse,
-                     ServerStopResponse, ServerRestartResponse, MissionUploadResponse, GroupWaypointsResponse,
-                     EventEntry)
+from .models import (
+    TopKill,
+    ServerInfo,
+    SquadronInfo,
+    Trueskill,
+    Highscore,
+    UserEntry,
+    WeaponPK,
+    PlayerStats,
+    CampaignCredits,
+    TrapEntry,
+    GreenieboardEntry,
+    GreenieboardResponse,
+    SquadronCampaignCredit,
+    LinkMeResponse,
+    ServerStats,
+    PlayerInfo,
+    PlayerSquadron,
+    LeaderBoard,
+    ModuleStats,
+    PlayerEntry,
+    WeatherInfo,
+    ServerAttendanceStats,
+    AirbasesResponse,
+    AirbaseInfoResponse,
+    AirbaseWarehouseResponse,
+    AirbaseSetWarehouseItemResponse,
+    AirbaseCaptureResponse,
+    ConvertCoordinates,
+    MissionRestartResponse,
+    MissionLoadResponse,
+    MissionPauseResponse,
+    MissionUnpauseResponse,
+    MissionsResponse,
+    ServerStartResponse,
+    ServerStopResponse,
+    ServerRestartResponse,
+    MissionUploadResponse,
+    GroupWaypointsResponse,
+    EventEntry
+)
 from ..srs.commands import SRS
 
 app: FastAPI | None = None
@@ -59,9 +92,9 @@ class RestAPI(Plugin):
     async def cog_unload(self) -> None:
         await utils.safe_cancel(self.refresh_views)
         if self.app and self.router:
-            # Remove our routes from the main app to prevent duplicates on reload
             for route in self.router.routes:
-                self.app.routes.remove(route)
+                if route in self.app.routes:
+                    self.app.routes.remove(route)
         await super().cog_unload()
 
     async def init_webservice(self):
@@ -302,8 +335,8 @@ class RestAPI(Plugin):
         self.router.add_api_route(
             "/traps", self.traps,
             methods = ["POST"],
-            response_model = list[TrapEntry] | GreenieboardResponse,
-            description = "Get traps for players or the full greenieboard (all traps when nick is omitted)",
+            response_model = list[TrapEntry],
+            description = "Get traps for players",
             summary = "Carrier Traps",
             tags = ["Statistics"]
         )
@@ -313,6 +346,14 @@ class RestAPI(Plugin):
             response_model = bytes,
             description = "Get trap image for a player",
             summary = "Carrier Trap Image",
+            tags = ["Statistics"]
+        )
+        self.router.add_api_route(
+            "/greenieboard", self.greenieboard,
+            methods = ["POST"],
+            response_model = GreenieboardResponse,
+            description = "Get a greenieboard",
+            summary = "GreenieBoard",
             tags = ["Statistics"]
         )
         self.router.add_api_route(
@@ -1934,7 +1975,7 @@ class RestAPI(Plugin):
                     )
                 return CampaignCredits.model_validate(row)
 
-    async def traps(self, nick: str | None = Form(None), date: str | None = Form(None),
+    async def traps(self, nick: str = Form(...), date: str | None = Form(None),
                     limit: int | None = Form(10), offset: int | None = Form(0),
                     server_name: str | None = Form(None)):
         self.log.debug(f'Calling /traps with nick="{nick}", date="{date}", server_name="{server_name}"')
@@ -1942,62 +1983,6 @@ class RestAPI(Plugin):
         # Use centralized server resolution
         resolved_server_name, _ = self.get_resolved_server(server_name)
         
-        # If no nick provided, return greenieboard (all traps grouped by player)
-        if not nick:
-            try:
-                async with self.apool.connection() as conn:
-                    async with conn.cursor(row_factory=dict_row) as cursor:
-                        if resolved_server_name:
-                            extra_join = "JOIN missions m ON t.mission_id = m.id"
-                            where = "WHERE m.server_name = %(server_name)s"
-                        else:
-                            extra_join = ""
-                            where = ""
-                        
-                        await cursor.execute(f"""
-                            SELECT p.name AS nick, t.id, t.unit_type, t.grade, t.comment, t.place, 
-                                   t.trapcase, t.wire, t.night, t.points, t.time
-                            FROM traps t
-                            JOIN players p ON t.player_ucid = p.ucid
-                            {extra_join}
-                            {where}
-                            ORDER BY p.name, t.time DESC
-                        """, {"server_name": resolved_server_name})
-                        rows = await cursor.fetchall()
-                
-                # Group traps by player name
-                traps_by_nick: dict[str, list[TrapEntry]] = {}
-                for row in rows:
-                    player_nick = row['nick']
-                    if player_nick not in traps_by_nick:
-                        traps_by_nick[player_nick] = []
-                    traps_by_nick[player_nick].append(TrapEntry.model_validate({
-                        "id": row['id'],
-                        "unit_type": row['unit_type'],
-                        "grade": row['grade'],
-                        "comment": row['comment'],
-                        "place": row['place'],
-                        "trapcase": row['trapcase'],
-                        "wire": row['wire'],
-                        "night": row['night'],
-                        "points": row['points'],
-                        "time": row['time']
-                    }))
-                
-                # Return as GreenieboardResponse with players grouped by nick
-                return GreenieboardResponse(
-                    players=[
-                        GreenieboardEntry(
-                            nick=player_nick,
-                            traps=player_traps
-                        )
-                        for player_nick, player_traps in traps_by_nick.items()
-                    ]
-                )
-            except UndefinedTable:
-                raise HTTPException(status_code=500, detail="Greenieboard is not active on this server")
-        
-        # Nick provided - return traps for that specific player (original behavior)
         try:
             async with self.apool.connection() as conn:
                 async with conn.cursor(row_factory=dict_row) as cursor:
@@ -2030,6 +2015,69 @@ class RestAPI(Plugin):
                     raise HTTPException(status_code=404, detail="Trap image not found")
 
                 return Response(content=row[0], media_type="image/png")
+
+    async def greenieboard(
+            self,
+            date: str | None = Form(None),
+            server_name: str | None = Form(None)
+    ):
+        self.log.debug(f'Calling /greenieboard with date="{date}", server_name="{server_name}"')
+
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+
+        try:
+            async with self.apool.connection() as conn:
+                async with conn.cursor(row_factory=dict_row) as cursor:
+                    if resolved_server_name:
+                        extra_join = "JOIN missions m ON t.mission_id = m.id"
+                        where = "WHERE m.server_name = %(server_name)s"
+                    else:
+                        extra_join = ""
+                        where = ""
+
+                    await cursor.execute(f"""
+                        SELECT p.name AS nick, t.id, t.unit_type, t.grade, t.comment, t.place, 
+                               t.trapcase, t.wire, t.night, t.points, t.time
+                        FROM traps t
+                        JOIN players p ON t.player_ucid = p.ucid
+                        {extra_join}
+                        {where}
+                        ORDER BY p.name, t.time DESC
+                    """, {"server_name": resolved_server_name})
+                    rows = await cursor.fetchall()
+
+            # Group traps by player name
+            traps_by_nick: dict[str, list[TrapEntry]] = {}
+            for row in rows:
+                player_nick = row['nick']
+                if player_nick not in traps_by_nick:
+                    traps_by_nick[player_nick] = []
+                traps_by_nick[player_nick].append(TrapEntry.model_validate({
+                    "id": row['id'],
+                    "unit_type": row['unit_type'],
+                    "grade": row['grade'],
+                    "comment": row['comment'],
+                    "place": row['place'],
+                    "trapcase": row['trapcase'],
+                    "wire": row['wire'],
+                    "night": row['night'],
+                    "points": row['points'],
+                    "time": row['time']
+                }))
+
+            # Return as GreenieboardResponse with players grouped by nick
+            return GreenieboardResponse(
+                players=[
+                    GreenieboardEntry(
+                        nick=player_nick,
+                        traps=player_traps
+                    )
+                    for player_nick, player_traps in traps_by_nick.items()
+                ]
+            )
+        except UndefinedTable:
+            raise HTTPException(status_code=500, detail="Greenieboard is not active on this server")
 
     async def events(self,
                      ucid: str = Query(...),
