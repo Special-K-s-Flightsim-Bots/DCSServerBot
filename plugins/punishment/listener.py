@@ -4,7 +4,7 @@ import os
 import time
 
 from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel, \
-    ThreadSafeDict, Coalition, Side
+    ThreadSafeDict, Coalition, Side, utils
 from pathlib import Path
 from plugins.competitive.commands import Competitive
 from psycopg.types.json import Json
@@ -23,6 +23,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         self.lock = asyncio.Lock()
         self.active_servers: set[str] = set()
         self.pending_forgiveness: dict[tuple[str, str], list[asyncio.Task]] = {}
+        self.pending_csar: dict[str, asyncio.Task] = {}
         self.pending_kill: dict[str, tuple[int, dict | None]] = ThreadSafeDict()
         self.disconnected: dict[str, tuple[int, dict | None]] = ThreadSafeDict()
         self.awaiting_task: dict[str, asyncio.TimerHandle] = ThreadSafeDict()
@@ -30,6 +31,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
     async def shutdown(self) -> None:
         tasks = [t for sub in self.pending_forgiveness.values() for t in sub]
+        tasks.extend(self.pending_csar.values())
         for t in tasks: t.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -148,7 +150,15 @@ class PunishmentEventListener(EventListener["Punishment"]):
             return (await cursor.fetchone())[0]
 
     async def _provide_forgiveness_window(self, data: dict, window: int, key: tuple[str, str]) -> None:
+        initiator: Player = data['initiator']
         try:
+            await initiator.lock()
+            await initiator.sendChatMessage(
+                _("{initiator}, your seat will be locked for a potential punishment.\n"
+                  "Your victim has {window} seconds to forgive you.").format(
+                    initiator=initiator.name, window=window
+                )
+            )
             # wait for a '-forgive' to happen
             await asyncio.sleep(window)
             # it did not happen -> fulfill the punishment
@@ -157,6 +167,12 @@ class PunishmentEventListener(EventListener["Punishment"]):
             # it did happen -> do nothing
             pass
         finally:
+            await initiator.unlock()
+            await initiator.sendChatMessage(
+                _("{initiator}, your seat was unlocked.").format(
+                    initiator=initiator.name, window=window
+                )
+            )
             current = asyncio.current_task()
             if current:
                 async with self.lock:
@@ -165,6 +181,28 @@ class PunishmentEventListener(EventListener["Punishment"]):
                         tasks.remove(current)
                         if not tasks:
                             self.pending_forgiveness.pop(key, None)
+
+    async def _csar_window(self, initiator: Player, window: int) -> None:
+        try:
+            await initiator.lock()
+            await initiator.sendUserMessage(
+                _("{initiator}, you landed outside of an airfield.\n"
+                  "CSAR has been deployed to pick you up.\n"
+                  "Please stand by for {window}").format(
+                    initiator=initiator.name, window=utils.format_time(window)
+                )
+            )
+            await asyncio.sleep(window)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            await initiator.unlock()
+            await initiator.sendChatMessage(
+                _("{initiator}, you have been happily rescued and can join a new plane.").format(
+                    initiator=initiator.name, window=window
+                )
+            )
+            self.pending_csar.pop(initiator.ucid, None)
 
     @event(name="punish")
     async def punish(self, server: Server, data: dict):
@@ -608,6 +646,13 @@ class PunishmentEventListener(EventListener["Punishment"]):
             initiator = server.get_player(name=data.get('initiator', {}).get('name'))
             if initiator and initiator.sub_slot == 0:
                 self.pending_kill.pop(initiator.ucid, None)
+                if data.get('place') or initiator.unit_category != 'Planes':
+                    return
+                # if we did not land at a proper airbase
+                csar_window = self.get_config(server).get('csar_timeout', 0)
+                if csar_window > 0:
+                    task = asyncio.create_task(self._csar_window(initiator, csar_window))
+                    self.pending_csar[initiator.ucid] = task
 
         elif data['eventName'] == 'S_EVENT_KILL':
             target = server.get_player(name=data.get('target', {}).get('name'))

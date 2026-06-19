@@ -36,7 +36,8 @@ class Player(DataObject):
     unit_id: int = field(compare=False, default=0)
     unit_name: str = field(compare=False, default='')
     unit_display_name: str = field(compare=False, default='')
-    unit_type: str = field(compare=False, default='')
+    unit_type: str = field(compare=False, default='Planes')
+    unit_category: str = field(compare=False, default='')
     group_id: int = field(compare=False, default=0)
     group_name: str = field(compare=False, default='')
     _member: discord.Member | None = field(compare=False, repr=False, default=None, init=False)
@@ -209,6 +210,8 @@ class Player(DataObject):
                 self.unit_type = data['unit_type']
                 # we changed the slot in the slot menu, but we are not in the plane yet
                 self.pending = True
+            if 'unit_category' in data:
+                self.unit_category = data['unit_category']
             if 'group_name' in data:
                 self.group_name = data['group_name']
             if 'group_id' in data:
