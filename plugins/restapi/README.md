@@ -36,7 +36,7 @@ The following commands are available through the API
 |--------------------|------------|-------------------------------------------------------|----------------------------------------------------------------------------------------------|
 | /serverstats       | GET        |                                                       | A comprehensive statistic for your whole setup.                                              |
 | /servers           | GET        |                                                       | Status for each server, including weather information if enabled.                            |
-| /server_attendance | GET        | [server_name: string]                                 | Comprehensive server attendance statistics, top theatres/missions/modules, and daily trends. |
+| /server_attendance | GET        | [server_name: string], [PlayerCards: bool]            | Comprehensive statistics, or attendance-card counts only when `PlayerCards=true`.             |
 | /getuser           | POST       | nick: string                                          | Return a list of players ordered by last seen that match this nick.                          |
 | /stats             | POST       | nick: string, date: date                              | Statistics of this player                                                                    |
 | /highscore         | GET        | [server_name: string], [period: string], [limit: int] | Highscore output                                                                             |
@@ -88,6 +88,24 @@ The `/server_attendance` endpoint provides comprehensive server attendance analy
 ```bash
 GET /server_attendance
 ```
+
+**Player-card counts (global or server-specific):**
+```bash
+GET /server_attendance?PlayerCards=true
+GET /server_attendance?server_name=foothold2_server&PlayerCards=true
+```
+
+PlayerCards mode performs only the attendance-count query and returns:
+```json
+{
+  "current_players": 0,
+  "unique_players_24h": 4,
+  "unique_players_7d": 28,
+  "unique_players_30d": 62
+}
+```
+
+Omitting `PlayerCards`, or setting `PlayerCards=false`, returns the normal comprehensive response.
 
 **Server-specific statistics (using DCS server name):**
 ```bash

@@ -42,6 +42,7 @@ from .models import (
     ModuleStats,
     PlayerEntry,
     WeatherInfo,
+    ServerAttendancePlayerCards,
     ServerAttendanceStats,
     AirbasesResponse,
     AirbaseInfoResponse,
@@ -197,8 +198,8 @@ class RestAPI(Plugin):
         self.router.add_api_route(
             "/server_attendance", self.server_attendance,
             methods = ["GET"],
-            response_model = ServerAttendanceStats,
-            description = "Get detailed server attendance statistics",
+            response_model = ServerAttendanceStats | ServerAttendancePlayerCards,
+            description = "Get detailed server attendance statistics, or player-card counts only when PlayerCards=true",
             summary = "Server Attendance Statistics", 
             tags = ["Info"]
         )
@@ -1160,9 +1161,13 @@ class RestAPI(Plugin):
                 serverstats['daily_players'] = await cursor.fetchall()
         return ServerStats.model_validate(serverstats)
 
-    async def server_attendance(self, server_name: str = Query(default=None)):
+    async def server_attendance(
+            self,
+            server_name: str = Query(default=None),
+            player_cards: bool = Query(default=False, alias="PlayerCards")
+    ) -> ServerAttendanceStats | ServerAttendancePlayerCards:
         """Get detailed server attendance statistics using monitoring infrastructure patterns"""
-        self.log.debug(f'Calling /server_attendance with server_name = {server_name}')
+        self.log.debug(f'Calling /server_attendance with server_name = {server_name}, PlayerCards = {player_cards}')
         
         # Resolve server name alias to actual name
         resolved_server_name = self.resolve_server_name(server_name)
@@ -1182,6 +1187,31 @@ class RestAPI(Plugin):
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
+                if player_cards:
+                    await cursor.execute(f"""
+                        SELECT
+                            COUNT(DISTINCT s.player_ucid) FILTER (
+                                WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '24 hours'
+                            ) AS unique_players_24h,
+                            COUNT(DISTINCT s.player_ucid) FILTER (
+                                WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '7 days'
+                            ) AS unique_players_7d,
+                            COUNT(DISTINCT s.player_ucid) FILTER (
+                                WHERE s.hop_on > (now() AT TIME ZONE 'utc') - interval '30 days'
+                            ) AS unique_players_30d
+                        FROM statistics s
+                        JOIN missions m ON m.id = s.mission_id
+                        WHERE s.hop_off IS NOT NULL
+                        {where_clause}
+                    """, params)
+                    row = await cursor.fetchone() or {}
+                    return ServerAttendancePlayerCards(
+                        current_players=current_players,
+                        unique_players_24h=int(row.get('unique_players_24h') or 0),
+                        unique_players_7d=int(row.get('unique_players_7d') or 0),
+                        unique_players_30d=int(row.get('unique_players_30d') or 0)
+                    )
+
                 # Get basic statistics for different periods using monitoring plugin pattern
                 periods = {
                     '24h': "s.hop_on > (now() AT TIME ZONE 'utc') - interval '24 hours'",
