@@ -331,10 +331,12 @@ class CompetitiveListener(EventListener["Competitive"]):
     async def set_rating(self, player: Player, skill: Rating) -> Rating:
         async with self.apool.connection() as conn:
             await conn.execute("""
-                INSERT INTO trueskill (player_ucid, skill_mu, skill_sigma) 
-                VALUES (%s, %s, %s)
+                INSERT INTO trueskill (player_ucid, skill_mu, skill_sigma, time) 
+                VALUES (%s, %s, %s, NOW() AT TIME ZONE 'utc')
                 ON CONFLICT (player_ucid) DO UPDATE
-                SET skill_mu = excluded.skill_mu, skill_sigma = excluded.skill_sigma
+                SET skill_mu = excluded.skill_mu, 
+                    skill_sigma = excluded.skill_sigma, 
+                    time = excluded.time
             """, (player.ucid, skill.mu, skill.sigma))
         return skill
 
