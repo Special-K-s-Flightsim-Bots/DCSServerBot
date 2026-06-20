@@ -33,6 +33,7 @@ MyNode:
   extensions:
     Olympus:
       nodejs: '%ProgramFiles%\nodejs'
+      autoupdate: true                  # Optional: autoupdate DCS Olympus (needs ModManager activated, default: false)
       auto_affinity:                    # Optional: affinity settings
         min_cores: 1                    # Min cores to be used by node.js (default: 1)
         max_cores: 1                    # Max cores to be used by node.js (default: 1)
