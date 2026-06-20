@@ -579,7 +579,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
             async with aiofiles.open('plugins/gamemaster/schemas/embed_schema.json', mode='r') as infile:
                 schema = json.loads(await infile.read())
             for attachment in message.attachments:
-                if attachment.url.endswith('.lua'):
+                if attachment.filename.endswith('.lua'):
                     attachments.append(attachment)
                     continue
                 async with aiohttp.ClientSession() as session:
