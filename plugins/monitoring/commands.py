@@ -170,7 +170,6 @@ class Monitoring(Plugin[MonitoringListener]):
 
     async def display_report(self, interaction: discord.Interaction, schema: str, period: str | StatisticsFilter,
                              server: Server, ephemeral: bool):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         report = Report(self.bot, self.plugin_name, schema)
         env = await report.render(period=period, server_name=server.name, node=server.node.name)
@@ -238,14 +237,14 @@ class Monitoring(Plugin[MonitoringListener]):
                           _server: app_commands.Transform[Server, utils.ServerTransformer] | None,
                           period: app_commands.Transform[
                               StatisticsFilter, PeriodTransformer(flt=[PeriodFilter])] = PeriodFilter()):
+        ephemeral = utils.get_ephemeral(interaction)
         if not self.service.get_config().get('ddos_detect', False):
-            await interaction.followup.send(
+            await interaction.response.send_message(
                 'DDoS detection is not enabled.\n'
                 'Add `ddos_detect: true` to config/services/monitoring.yaml to enable it.',
-                ephemeral=utils.get_ephemeral(interaction))
+                ephemeral=ephemeral)
             return
         try:
-            ephemeral = utils.get_ephemeral(interaction)
             if _server:
                 await self.display_report(interaction, 'ddos.json', period, _server, ephemeral=ephemeral)
             else:
@@ -253,7 +252,7 @@ class Monitoring(Plugin[MonitoringListener]):
                 report = PaginationReport(interaction, self.plugin_name, 'ddos.json')
                 await report.render(period=period, server_name=None)
         except ValueNotInRange as ex:
-            await interaction.followup.send(str(ex), ephemeral=utils.get_ephemeral(interaction))
+            await interaction.followup.send(str(ex), ephemeral=ephemeral)
 
     # Create the /ddos test subgroup
     ddos_test_group = Group(
