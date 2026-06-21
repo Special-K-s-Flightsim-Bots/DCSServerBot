@@ -201,7 +201,13 @@ class BotService(Service):
             self.bot = None
         await super().stop()
 
-    async def alert(self, title: str, message: str, server: Server | None = None) -> None:
+    async def alert(
+            self,
+            title: str,
+            message: str,
+            server: Server | None = None,
+            fields: list[tuple[str, str]] | None = None
+    ) -> None:
         try:
             # if we have dedicated managers of a server, send the alerts to them
             if server and server.locals.get('managed_by'):
@@ -214,7 +220,7 @@ class BotService(Service):
             except AttributeError:
                 self.log.error(f"Alert-Role {alert_roles} not found.")
                 mentions = ""
-            embed = utils.create_warning_embed(title=title, text=utils.escape_string(message))
+            embed = utils.create_warning_embed(title=title, text=utils.escape_string(message), fields=fields)
             admin_channel = self.bot.get_admin_channel(server)
             audit_channel = self.bot.get_channel(self.bot.locals.get('channels', {}).get('audit', -1))
             channel = admin_channel or audit_channel

@@ -1,6 +1,10 @@
 DEFAULT:
   time_sync: true           # sync the PC time with a time-server every 12 hrs, default: false
   time_server: pool.ntp.org # and use this non-default time-server for it, default: Windows default
+  ignore_ip_changes: false  # If you don't have a fixed IP, the bot will automatically restart your servers on a change of your public IP. If you don't want that, set this to true.
+  ddos_detect: true         # Enable DDoS detection (see below, default: false)
+  messages:
+    ip_change: Server is being restarted due to an IP change!
   thresholds:
     Drive:              # You cannot disable the drive check. If you do not specify anything, these values will be taken as default.
       warn: 10          # Warn, if your drive where DCS is installed (or your C: drive), gets below 10% (default: 10)
@@ -16,3 +20,17 @@ DEFAULT:
       period: 5         # for at least 5 minutes (default: 5)
       message: "Server {server} RAM usage is {ram} GB, exceeding the maximum of {max_ram} GB for more than {period} minutes."
       mentioning: true  # and mention the admins (default: true)
+    DDoS:                           # Optional DDoS-check
+      threshold_sigma: 3.0          # z-score threshold for anomaly detection (default: 3.0)
+      min_samples: 30               # minimum baseline samples before detection starts (default: 30)
+      min_abs_recv_mbps: 10         # minimum absolute bandwidth in MB/s to consider (default: 10)
+      consecutive_ticks: 3          # consecutive anomaly ticks to confirm DDoS START (default: 3)
+      recovery_ticks: 5             # consecutive normal ticks to confirm DDoS END (default: 5)
+      alert_cooldown_minutes: 15    # minimum minutes between repeated alerts (default: 15)
+      baseline_lookback_minutes: 30 # minutes of historical data to seed baselines on startup (default: 30)
+      udp_sniff_duration: 10        # seconds to sniff UDP for non-player source IPs (default: 10)
+      udp_sniff_iface: null         # network interface for UDP sniff, null = auto-detect (default: null)
+      action: alert                 # "alert" = detect+notify only, "block" = alert + firewall block (default: alert)
+      whitelist: []                 # static IPs always allowed during blocks (e.g. admin IPs)
+      node_block: true              # on node-wide bandwidth DDoS, block ALL running servers (default: true)
+      max_conns_per_ip: 2           # auto-block IPs with >N TCP connections per port, 0=disable (default: 2)

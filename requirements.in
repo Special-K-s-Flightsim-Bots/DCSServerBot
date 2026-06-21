@@ -26,7 +26,7 @@ discord.py==2.7.1
 eyeD3==0.9.9
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.137.1
+fastapi==0.138.0
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -109,11 +109,14 @@ ruamel.yaml==0.19.1
 # seaborn: Extension for Matplotlib with more and nicer graphics
 seaborn==0.13.2
 
+# scapy: Interactive packet manipulation library (requires NPCAP on Windows!)
+scapy==2.7.0
+
 # SQL parser, to allow multiline SQLs
 sqlparse==0.5.5
 
 # Telnetlib3: Connect to telnet services (for NUT)
-telnetlib3==4.0.4
+telnetlib3==4.0.5
 
 # TimezoneFinder: Find the right timezones for a given coordinate
 tzfpy[tzdata]==1.3.1

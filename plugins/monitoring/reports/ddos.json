@@ -1,0 +1,39 @@
+{
+  "color": "red",
+  "title": "DDoS Detection Report",
+  "description": "{server_name}",
+  "pagination":
+  {
+    "param":
+    {
+      "name": "server_name",
+      "sql": "SELECT DISTINCT server_name FROM port_traffic"
+    }
+  },
+  "elements": [
+    {
+      "class": "plugins.monitoring.serverstats.DDoSStats"
+    },
+    {
+      "type": "Graph",
+      "params":
+      {
+        "width": 30,
+        "height": 30,
+        "cols": 1,
+        "rows": 2,
+        "elements":
+        [
+          {
+            "class": "plugins.monitoring.serverstats.DDoSGraph",
+            "params": [
+              { "row": 0, "col": 0 },
+              { "row": 1, "col": 0 }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "footer": "Bot Version: v{bot.version}.{bot.sub_version}"
+}

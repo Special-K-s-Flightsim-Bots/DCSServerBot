@@ -384,6 +384,10 @@ class Graph(ReportElement):
                             filename=self.env.report, stacktrace=''.join(traceback.format_exception(result)))
                         )
 
+            # if the figure was cleared on the way, do not render
+            if not self.env.figure:
+                return
+
             # only render the graph if we don't have a rendered graph already attached as a file (image)
             if not self.env.filename:
                 async with self.plot_lock:

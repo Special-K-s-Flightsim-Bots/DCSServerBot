@@ -13,12 +13,7 @@ schema;element_schema:
   mapping:
     time_sync: {type: bool, nullable: false}
     time_server: {type: str, nullable: false, range: {min: 1}}
-    ignore_ip_changes: {type: bool, nullable: false}
-    messages:
-      type: map
-      nullable: false
-      mapping:
-        ip_change: {type: str, nullable: false, range: {min: 1}}
+    ddos_detect: {type: bool, nullable: false}
     thresholds:
       type: map
       nullable: false
@@ -47,6 +42,27 @@ schema;element_schema:
             period: {type: int, nullable: false, range: {min: 1, max: 30}}
             message: {type: str, nullable: false, range: {min: 1}}
             mentioning: {type: bool, nullable: false}
+        DDoS:
+          type: map
+          nullable: false
+          mapping:
+            action: {type: str, nullable: false, enum: ['alert', 'block']}
+            threshold_sigma: {type: float, nullable: false, range: {min: 1.0, max: 10.0}}
+            min_samples: {type: int, nullable: false, range: {min: 3, max: 1000}}
+            min_abs_recv_mbps: {type: int, nullable: false, range: {min: 1, max: 10000}}
+            consecutive_ticks: {type: int, nullable: false, range: {min: 1, max: 60}}
+            recovery_ticks: {type: int, nullable: false, range: {min: 1, max: 120}}
+            alert_cooldown_minutes: {type: int, nullable: false, range: {min: 1, max: 1440}}
+            baseline_lookback_minutes: {type: int, nullable: false, range: {min: 5, max: 10080}}
+            udp_sniff_duration: {type: int, nullable: false, range: {min: 1, max: 60}}
+            udp_sniff_iface: {type: str, nullable: true}
+            whitelist:
+              type: seq
+              nullable: false
+              sequence:
+                - {type: str, nullable: false}
+            node_block: {type: bool, nullable: false}
+            max_conns_per_ip: {type: int, nullable: false, range: {min: 0, max: 100}}
 
 type: map
 func: check_main_structure
