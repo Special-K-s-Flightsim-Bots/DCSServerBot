@@ -5,7 +5,7 @@ import sys
 
 from aiohttp import ClientError
 from core import Channel, utils, Status, PluginError, Group, Node, DEFAULT_CHANNEL_PERMISSIONS, \
-    SEND_ONLY_CHANNEL_PERMISSIONS, SEND_ONLY_WITH_EMBEDS_PERMISSIONS
+    SEND_ONLY_CHANNEL_PERMISSIONS, SEND_ONLY_WITH_EMBEDS_PERMISSIONS, Command
 from core.data.node import FatalException
 from core.listener import EventListener
 from core.services.registry import ServiceRegistry
@@ -316,12 +316,18 @@ class DCSServerBot(commands.Bot):
                 for app_cmd in app_cmds:
                     app_ids[app_cmd.name] = app_cmd.id
 
+                def set_mention(command: discord.app_commands.Command | discord.app_commands.Group, top_level_id: int):
+                    command.mention = f"</{command.qualified_name}:{top_level_id}>"
+                    if isinstance(command, Group):
+                        for sub_command in command.commands:
+                            set_mention(sub_command, top_level_id)
+
                 for cmd in self.tree.get_commands(guild=self.guilds[0]):
-                    if isinstance(cmd, Group):
-                        for inner in cmd.commands:
-                            inner.mention = f"</{inner.qualified_name}:{app_ids[cmd.name]}>"
-                    else:
-                        cmd.mention = f"</{cmd.name}:{app_ids[cmd.name]}>"
+                    if cmd.name in app_ids:
+                        if isinstance(cmd, (Command, Group)):
+                            set_mention(cmd, app_ids[cmd.name])
+                        else:
+                            cmd.mention = f"</{cmd.name}:{app_ids[cmd.name]}>"
 
                 self.synced = True
 
