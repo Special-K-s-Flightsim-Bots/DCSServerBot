@@ -1252,7 +1252,7 @@ class MonitoringService(Service):
                 server_name=server.name, port=port, proto='tcp',
                 ps=tcp_ps, players=len(player_ips),
                 excess_conns=0, baseline={'mean': 0, 'm2': 0, 'count': 1},
-                config=config
+                config=config, action_override='block'
             )
             blocked.append('tcp')
 
@@ -1263,7 +1263,7 @@ class MonitoringService(Service):
                 ps=udp_ps, players=len(player_ips),
                 non_player_udp_count=0,
                 baseline={'mean': 0, 'm2': 0, 'count': 1},
-                config=config
+                config=config, action_override='block'
             )
             blocked.append('udp')
 
@@ -1351,14 +1351,14 @@ class MonitoringService(Service):
                 server_name=server_name, port=port, proto='tcp',
                 ps=tcp_ps, players=len(player_ips),
                 excess_conns=0, baseline={'mean': 0, 'm2': 0, 'count': 1},
-                config=config
+                config=config, action_override='block'
             )
             await self._on_ddos_start_udp(
                 server_name=server_name, port=port,
                 ps=udp_ps, players=len(player_ips),
                 non_player_udp_count=0,
                 baseline={'mean': 0, 'm2': 0, 'count': 1},
-                config=config
+                config=config, action_override='block'
             )
 
             self._node_blocked_servers.add(server_name)
@@ -1638,6 +1638,7 @@ class MonitoringService(Service):
         excess_conns: int,
         baseline: dict,
         config: dict,
+        action_override: str | None = None,
     ) -> None:
         """Called when a DDoS attack is first confirmed on a port. Override for custom actions."""
         std = math.sqrt(baseline['m2'] / baseline['count']) if baseline['count'] > 1 else 0
@@ -1665,7 +1666,8 @@ class MonitoringService(Service):
         except Exception as ex:
             self.log.debug("Failed to send DDoS start alert: %s", ex)
         # Firewall blocking (action='block')
-        if self._ddos_helper and self.get_config().get('thresholds', {}).get('DDoS', {}).get('action') == 'block':
+        _action = action_override or self.get_config().get('thresholds', {}).get('DDoS', {}).get('action')
+        if self._ddos_helper and _action == 'block':
             try:
                 player_ips = await asyncio.to_thread(_get_tcp_player_ips, {port})
                 ips = list(player_ips.get(port, set()))
@@ -1765,6 +1767,7 @@ class MonitoringService(Service):
         non_player_udp_count: int,
         baseline: dict,
         config: dict,
+        action_override: str | None = None,
     ) -> None:
         """Called when UDP DDoS is first confirmed on a port."""
         std = math.sqrt(baseline['m2'] / baseline['count']) if baseline['count'] > 1 else 0
@@ -1792,7 +1795,8 @@ class MonitoringService(Service):
         except Exception as ex:
             self.log.debug("Failed to send UDP DDoS start alert: %s", ex)
         # Firewall blocking (action='block')
-        if self._ddos_helper and self.get_config().get('thresholds', {}).get('DDoS', {}).get('action') == 'block':
+        _action = action_override or self.get_config().get('thresholds', {}).get('DDoS', {}).get('action')
+        if self._ddos_helper and _action == 'block':
             try:
                 player_ips = await asyncio.to_thread(_get_tcp_player_ips, {port})
                 ips = list(player_ips.get(port, set()))
@@ -1886,6 +1890,7 @@ class MonitoringService(Service):
                 non_player_udp_count=ps.non_player_udp_ips,
                 baseline=baseline,
                 config=self.get_config().get('thresholds', {}).get('DDoS', {}),
+                action_override='block',
             )
         else:
             excess = ps.tcp_conns - 4
@@ -1898,6 +1903,7 @@ class MonitoringService(Service):
                 excess_conns=excess,
                 baseline=baseline,
                 config=self.get_config().get('thresholds', {}).get('DDoS', {}),
+                action_override='block',
             )
 
         # Schedule auto-stop if duration > 0
