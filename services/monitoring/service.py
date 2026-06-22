@@ -1300,13 +1300,15 @@ class MonitoringService(Service):
         await self._on_ddos_end(
             server_name=server.name, port=port, proto='tcp',
             ps=tcp_ps, players=players, excess_conns=0,
-            baseline={'mean': 0, 'm2': 0, 'count': 1}
+            baseline={'mean': 0, 'm2': 0, 'count': 1},
+            action_override='block'
         )
         await self._on_ddos_end_udp(
             server_name=server.name, port=port,
             ps=udp_ps, players=players,
             non_player_udp_count=0,
-            baseline={'mean': 0, 'm2': 0, 'count': 1}
+            baseline={'mean': 0, 'm2': 0, 'count': 1},
+            action_override='block'
         )
         return f"{server.name} DDoS block deactivated."
 
@@ -1393,13 +1395,15 @@ class MonitoringService(Service):
             await self._on_ddos_end(
                 server_name=server_name, port=port, proto='tcp',
                 ps=tcp_ps, players=players, excess_conns=0,
-                baseline={'mean': 0, 'm2': 0, 'count': 1}
+                baseline={'mean': 0, 'm2': 0, 'count': 1},
+                action_override='block'
             )
             await self._on_ddos_end_udp(
                 server_name=server_name, port=port,
                 ps=udp_ps, players=players,
                 non_player_udp_count=0,
-                baseline={'mean': 0, 'm2': 0, 'count': 1}
+                baseline={'mean': 0, 'm2': 0, 'count': 1},
+                action_override='block'
             )
 
         self._node_blocked_servers.clear()
@@ -1692,6 +1696,7 @@ class MonitoringService(Service):
         players: int,
         excess_conns: int,
         baseline: dict,
+        action_override: str | None = None,
     ) -> None:
         """Called when a DDoS attack is confirmed over on a port. Override for custom actions."""
         std = math.sqrt(baseline['m2'] / baseline['count']) if baseline['count'] > 1 else 0
@@ -1718,7 +1723,8 @@ class MonitoringService(Service):
         except Exception as ex:
             self.log.debug("Failed to send DDoS end alert: %s", ex)
         # Firewall unblock (action='block')
-        if self._ddos_helper and self.get_config().get('thresholds', {}).get('DDoS', {}).get('action') == 'block':
+        _action = action_override or self.get_config().get('thresholds', {}).get('DDoS', {}).get('action')
+        if self._ddos_helper and _action == 'block':
             try:
                 await self._ddos_unblock(server_name, port, proto)
             except Exception as ex:
@@ -1819,6 +1825,7 @@ class MonitoringService(Service):
         players: int,
         non_player_udp_count: int,
         baseline: dict,
+        action_override: str | None = None,
     ) -> None:
         """Called when UDP DDoS is confirmed over on a port."""
         std = math.sqrt(baseline['m2'] / baseline['count']) if baseline['count'] > 1 else 0
@@ -1843,7 +1850,8 @@ class MonitoringService(Service):
         except Exception as ex:
             self.log.debug("Failed to send UDP DDoS end alert: %s", ex)
         # Firewall unblock (action='block')
-        if self._ddos_helper and self.get_config().get('thresholds', {}).get('DDoS', {}).get('action') == 'block':
+        _action = action_override or self.get_config().get('thresholds', {}).get('DDoS', {}).get('action')
+        if self._ddos_helper and _action == 'block':
             try:
                 await self._ddos_unblock(server_name, port, 'udp')
             except Exception as ex:
@@ -1944,6 +1952,7 @@ class MonitoringService(Service):
                 players=4,
                 non_player_udp_count=2,
                 baseline={'mean': 5.0, 'm2': 10.0, 'count': 10},
+                action_override='block'
             )
         else:
             key_to_stop = None
@@ -1964,6 +1973,7 @@ class MonitoringService(Service):
                 players=4,
                 excess_conns=0,
                 baseline={'mean': 5.0, 'm2': 10.0, 'count': 10},
+                action_override='block'
             )
         return {"status": "stopped", "server": server_name, "port": port, "protocol": protocol}
 
@@ -2040,6 +2050,7 @@ class MonitoringService(Service):
                     players=4,
                     non_player_udp_count=2,
                     baseline={'mean': 5.0, 'm2': 10.0, 'count': 10},
+                    action_override='block'
                 )
         else:
             if (server_name, port, 'tcp') in self._port_ddos_active:
@@ -2052,6 +2063,7 @@ class MonitoringService(Service):
                     players=4,
                     excess_conns=0,
                     baseline={'mean': 5.0, 'm2': 10.0, 'count': 10},
+                    action_override='block'
                 )
 
     @tasks.loop(minutes=1.0)
