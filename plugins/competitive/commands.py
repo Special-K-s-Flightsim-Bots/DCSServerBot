@@ -117,7 +117,6 @@ class Competitive(Plugin[CompetitiveListener]):
         else:
             ucid = user
         if not ucid:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Use {} to link your account.").format(
                 (await utils.get_command(self.bot, name='linkme')).mention
             ), ephemeral=True)
@@ -133,7 +132,6 @@ class Competitive(Plugin[CompetitiveListener]):
         r = rating.create_rating()
         skill_mu = float(row['skill_mu']) if row['skill_mu'] else r.mu
         skill_sigma = float(row['skill_sigma']) if row['skill_sigma'] else r.sigma
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(
             _("TrueSkill:tm: rating of player {name}: {rating:.2f}.").format(name=row['name'],
                                                                              rating=skill_mu - 3.0 * skill_sigma),
@@ -213,7 +211,6 @@ class Competitive(Plugin[CompetitiveListener]):
                      squadron_id: int | None = None):
         if squadron_id:
             r = await self.trueskill_squadron(self.node, squadron_id)
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("TrueSkill:tm: rating: {rating:.2f}.").format(
                 rating=self.calculate_rating(r)), ephemeral=True)
         else:
@@ -234,7 +231,6 @@ class Competitive(Plugin[CompetitiveListener]):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(_("User {} is not linked.").format(user.display_name),
                                                         ephemeral=True)
                 return
@@ -248,7 +244,6 @@ class Competitive(Plugin[CompetitiveListener]):
                 name = member
 
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         report = Report(self.bot, self.plugin_name, 'trueskill_hist.json')
         env = await report.render(ucid=ucid, name=name, flt=period)
@@ -264,7 +259,6 @@ class Competitive(Plugin[CompetitiveListener]):
     @app_commands.guild_only()
     async def delete(self, interaction: discord.Interaction,
                      user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
@@ -274,21 +268,19 @@ class Competitive(Plugin[CompetitiveListener]):
         else:
             ucid = user
 
-        if user and not await utils.yn_question(
-                interaction, _("Do you really want to delete TrueSkill:tm: ratings for this user?")):
-            await interaction.followup.send(_("Aborted."), ephemeral=True)
-            return
-        elif not user and not await utils.yn_question(
-                interaction, _("Do you really want to delete the TrueSkill:tm: ratings for all users?")):
-            await interaction.followup.send(_("Aborted."), ephemeral=True)
-            return
-
         async with self.apool.connection() as conn:
-            if user:
-                await conn.execute("DELETE FROM trueskill WHERE player_ucid = %s", (ucid, ))
-            else:
+            if user and await utils.yn_question(
+                    interaction, _("Do you really want to delete TrueSkill:tm: ratings for this user?")):
+                await conn.execute("DELETE FROM trueskill WHERE player_ucid = %s", (ucid,))
+                await conn.execute("DELETE FROM trueskill_hist WHERE player_ucid = %s", (ucid,))
+            elif not user and await utils.yn_question(
+                    interaction, _("Do you really want to delete the TrueSkill:tm: ratings for all users?")):
                 await conn.execute("TRUNCATE trueskill CASCADE")
-        # noinspection PyUnresolvedReferences
+                await conn.execute("TRUNCATE trueskill_hist CASCADE")
+            else:
+                await interaction.followup.send(_("Aborted."), ephemeral=True)
+                return
+
         await interaction.followup.send(_("TrueSkill:tm: ratings deleted."), ephemeral=True)
 
     @trueskill.command(description=_('Regenerate TrueSkill:tm: ratings'))
