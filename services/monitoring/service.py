@@ -167,9 +167,9 @@ class MonitoringService(Service):
 
                 # Load node-wide bandwidth baseline
                 bw_rows = await conn.execute("""
-                    SELECT AVG(bytes_recv), STDDEV(bytes_recv), COUNT(*)
+                    SELECT AVG(bytes_in), STDDEV(bytes_in), COUNT(*)
                     FROM (
-                        SELECT bytes_recv
+                        SELECT bytes_in
                         FROM port_traffic
                         WHERE node = %s
                           AND under_attack = FALSE
