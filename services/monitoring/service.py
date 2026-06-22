@@ -165,9 +165,9 @@ class MonitoringService(Service):
 
                 # Load node-wide bandwidth baseline
                 bw_rows = await conn.execute("""
-                    SELECT AVG(bytes_in), STDDEV(bytes_in), COUNT(*)
+                    SELECT AVG(bytes_recv), STDDEV(bytes_recv), COUNT(*)
                     FROM (
-                        SELECT bytes_in
+                        SELECT bytes_recv
                         FROM port_traffic
                         WHERE node = %s
                           AND under_attack = FALSE
@@ -215,13 +215,9 @@ class MonitoringService(Service):
         try:
             # Resolve DCS installation path from node config
             dcs_install = self.node.locals.get('DCS', {}).get('installation', '')
-            # Use pythonw.exe to avoid a console window popping up
-            pythonw = sys.executable.replace('python.exe', 'pythonw.exe')
-            if not os.path.exists(pythonw):
-                pythonw = sys.executable
             # Quote the path with double quotes so spaces survive ShellExecuteExW
             self._ddos_helper = utils.start_elevated(
-                pythonw, os.path.dirname(helper_path), helper_path,
+                sys.executable, os.path.dirname(helper_path), helper_path,
                 f'"{dcs_install}"'
             )
             if self._ddos_helper:
@@ -269,7 +265,7 @@ class MonitoringService(Service):
 
     async def _send_helper_command(self, command: str) -> str:
         """
-        Send a command to the DDoS helper via a named pipe.
+        Send a command to the DDoS helper via named pipe.
 
         Returns the response string.
         """
@@ -394,6 +390,7 @@ class MonitoringService(Service):
         When a new IP is found, add it to the dynamic whitelist and refresh the block.
         Runs as a background task until cancelled.
         """
+        from core.data.impl.serverimpl import Status
         server = self.bus.servers.get(server_name)
         if not server or not server.instance:
             return
@@ -1562,7 +1559,7 @@ class MonitoringService(Service):
         """
         Baseline & anomaly check for UDP non-player source IPs (Signal 2).
 
-        This is independent of the TCP excess baseline. A server can have
+        This is independent from the TCP excess baseline. A server can have
         a UDP DDoS without a TCP flood, or vice versa.
 
         The signal is: number of unique source IPs sending UDP to the DCS port
@@ -2001,7 +1998,7 @@ class MonitoringService(Service):
     @proxy
     async def ddos_unblacklist(self, node: Node, ip: str) -> str:
         """
-        Remove an IP from the permanent blocklist on this node.
+        Remove an IP from the permanent block list on this node.
         """
         if not self._ddos_helper or not self._ddos_helper.is_running():
             return "DDoS helper is not running."
