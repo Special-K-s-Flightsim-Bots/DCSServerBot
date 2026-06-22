@@ -7,7 +7,7 @@ Communicates with the bot via a named pipe.
 
 Protocol (line-based, newline-delimited):
   Client -> Server:
-    restrict <rule_name> <tcp|udp> <port> <ip1, ip2, ...>
+    restrict <rule_name> <tcp|udp> <port> <ip1,ip2,...>
     restore <rule_name>
     block_ip <ip>
     unblock_ip <ip>
@@ -35,13 +35,21 @@ _log_path = os.path.join(_log_dir, 'ddos_helper.log')
 _logger = logging.getLogger('ddos_helper')
 _logger.setLevel(logging.DEBUG)
 _logger.propagate = False
-_fh = logging.FileHandler(_log_path, encoding='utf-8')
-_fh.setLevel(logging.DEBUG)
-_fh.setFormatter(logging.Formatter(
-    fmt='%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-))
-_logger.addHandler(_fh)
+try:
+    _fh = logging.FileHandler(_log_path, encoding='utf-8')
+    _fh.setLevel(logging.DEBUG)
+    _fh.setFormatter(logging.Formatter(
+        fmt='%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    ))
+    _logger.addHandler(_fh)
+except Exception:
+    import traceback
+    crash_log = os.path.join(os.environ.get('TEMP', '.'), 'ddos_helper_crash.log')
+    with open(crash_log, 'a') as f:
+        f.write(traceback.format_exc() + '\n')
+    raise
+
 
 PIPE_NAME = r'\\.\pipe\ddos_helper'
 
@@ -61,7 +69,7 @@ def _resolve_dcs_exe() -> str:
         dcs_install = sys.argv[1]
 
     if dcs_install:
-        # Expand environment variables (e.g., %ProgramFiles%)
+        # Expand environment variables (e.g. %ProgramFiles%)
         dcs_install = os.path.expandvars(dcs_install)
         # Try DCS_Server.exe first (server installation), then DCS.exe (client)
         for exe_name in ('DCS_Server.exe', 'DCS_server.exe', 'DCS.exe'):
@@ -142,8 +150,8 @@ def restrict_rule(rule_name: str, protocol: str, port: int, allowed_ips: list[st
             'profile=any',
         ]
     else:
-        # Empty allowlist → create a deny-all rule instead
-        # (an allow-rule with no remoteip means "any", which defeats the purpose)
+        # Empty allow list → create a deny-all rule instead
+        # (an allow rule with no remoteip means "any", which defeats the purpose)
         _logger.info("restrict_rule: empty IP list, creating deny-all rule for %s/%d",
                      protocol, port)
         args = [
@@ -237,7 +245,7 @@ def _set_blocked_ips(ips: list[str]) -> tuple[bool, str]:
 
 def block_ip(ip: str) -> tuple[bool, str]:
     """
-    Add an IP to the permanent blocklist.
+    Add an IP to the permanent block list.
     Uses a single 'DCS-blocked' firewall rule that accumulates IPs.
     """
     _logger.info("block_ip: %s", ip)
@@ -255,7 +263,7 @@ def block_ip(ip: str) -> tuple[bool, str]:
 
 
 def unblock_ip(ip: str) -> tuple[bool, str]:
-    """Remove an IP from the permanent blocklist."""
+    """Remove an IP from the permanent block list."""
     _logger.info("unblock_ip: %s", ip)
     ips = _get_blocked_ips()
     if ip not in ips:
@@ -287,7 +295,7 @@ def unblock_ip(ip: str) -> tuple[bool, str]:
 
 
 def list_blocked_ips() -> tuple[bool, str]:
-    """List all IPs in the permanent blocklist."""
+    """List all IPs in the permanent block list."""
     ips = _get_blocked_ips()
     if not ips:
         return True, "No blocked IPs"
@@ -353,6 +361,7 @@ def _create_security_attributes():
     integrity levels. This is needed because the helper runs elevated (high
     integrity) and the bot runs non-elevated (medium integrity).
     """
+    import ctypes
     import ctypes.wintypes
 
     PSECURITY_DESCRIPTOR = ctypes.c_void_p
@@ -392,8 +401,11 @@ def _create_security_attributes():
 
 def pipe_server(stop_event: threading.Event):
     """Run the named pipe server, handling one client at a time."""
+    import ctypes
     import ctypes.wintypes
 
+    GENERIC_READ_WRITE = 0xC0000000
+    OPEN_EXISTING = 3
     PIPE_ACCESS_DUPLEX = 0x00000003
     PIPE_TYPE_MESSAGE = 0x00000004
     PIPE_READMODE_MESSAGE = 0x00000002
@@ -492,4 +504,11 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception:
+        import traceback
+        crash_log = os.path.join(os.environ.get('TEMP', '.'), 'ddos_helper_crash.log')
+        with open(crash_log, 'a') as f:
+            f.write(traceback.format_exc() + '\n')
+        raise
