@@ -10,6 +10,7 @@ import psutil
 import psycopg
 import psycopg_pool
 import shutil
+import subprocess
 import sys
 
 if sys.platform == 'win32':
@@ -215,10 +216,10 @@ class MonitoringService(Service):
         try:
             # Resolve DCS installation path from node config
             dcs_install = self.node.locals.get('DCS', {}).get('installation', '')
-            # Quote the path with double quotes so spaces survive ShellExecuteExW
+            # Build command line with proper quoting via list2cmdline (same pattern as do_repair)
+            cmdline = subprocess.list2cmdline([helper_path, dcs_install])
             self._ddos_helper = utils.start_elevated(
-                sys.executable, os.path.dirname(helper_path), helper_path,
-                f'"{dcs_install}"'
+                sys.executable, os.getcwd(), cmdline
             )
             if self._ddos_helper:
                 self.log.info(f"DDoS helper started (PID {self._ddos_helper.pid})")
