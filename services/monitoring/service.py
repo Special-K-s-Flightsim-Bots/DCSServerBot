@@ -12,6 +12,7 @@ import psycopg_pool
 import shutil
 import subprocess
 import sys
+import time
 
 if sys.platform == 'win32':
     import win32api
@@ -288,11 +289,18 @@ class MonitoringService(Service):
         PIPE_NAME = r'\\.\pipe\ddos_helper'
         kernel32 = ctypes.windll.kernel32
 
-        hPipe = kernel32.CreateFileW(
-            PIPE_NAME, GENERIC_READ_WRITE, 0, None, OPEN_EXISTING, 0, None
-        )
+        # Retry up to 10 seconds for the pipe to become available
+        hPipe = INVALID_HANDLE_VALUE
+        for attempt in range(50):
+            hPipe = kernel32.CreateFileW(
+                PIPE_NAME, GENERIC_READ_WRITE, 0, None, OPEN_EXISTING, 0, None
+            )
+            if hPipe != INVALID_HANDLE_VALUE:
+                break
+            time.sleep(0.2)
+
         if hPipe == INVALID_HANDLE_VALUE:
-            raise RuntimeError(f"Cannot connect to DDoS helper pipe (error {ctypes.GetLastError()})")
+            raise RuntimeError(f"Cannot connect to DDoS helper pipe after 10s (error {ctypes.GetLastError()})")
 
         try:
             # Send command
