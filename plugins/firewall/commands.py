@@ -76,10 +76,10 @@ class Firewall(Plugin):
                           period: app_commands.Transform[
                               StatisticsFilter, PeriodTransformer(flt=[PeriodFilter])] = PeriodFilter()):
         ephemeral = utils.get_ephemeral(interaction)
-        if not self.service.get_config().get('ddos_detect', False):
+        if not self.service.get_config().get('ddos_detection', {}).get('enabled', False):
             await interaction.response.send_message(
                 'DDoS detection is not enabled.\n'
-                'Add `ddos_detect: true` to config/services/monitoring.yaml to enable it.',
+                'Add `ddos_detection.enabled: true` to config/services/firewall.yaml to enable it.',
                 ephemeral=ephemeral)
             return
         try:
@@ -173,11 +173,11 @@ class Firewall(Plugin):
         await interaction.response.defer(ephemeral=True)
 
         # Update config file once (on the master)
-        config_path = os.path.join(self.node.config_dir, 'services', 'monitoring.yaml')
+        config_path = os.path.join(self.node.config_dir, 'services', 'firewall.yaml')
         if os.path.exists(config_path):
             data = yaml.load(Path(config_path).read_text(encoding='utf-8'))
             for key in data:
-                ddos_cfg = data[key].setdefault('thresholds', {}).setdefault('DDoS', {})
+                ddos_cfg = data[key].setdefault('ddos_detection', {})
                 whitelist = ddos_cfg.setdefault('whitelist', [])
                 if ip not in whitelist:
                     whitelist.append(ip)
@@ -208,11 +208,11 @@ class Firewall(Plugin):
         await interaction.response.defer(ephemeral=True)
 
         # Update config file once (on the master)
-        config_path = os.path.join(self.node.config_dir, 'services', 'monitoring.yaml')
+        config_path = os.path.join(self.node.config_dir, 'services', 'firewall.yaml')
         if os.path.exists(config_path):
             data = yaml.load(Path(config_path).read_text(encoding='utf-8'))
             for key in data:
-                ddos_cfg = data[key].setdefault('thresholds', {}).setdefault('DDoS', {})
+                ddos_cfg = data[key].get('ddos_detection', {})
                 whitelist = ddos_cfg.get('whitelist', [])
                 if ip in whitelist:
                     whitelist.remove(ip)

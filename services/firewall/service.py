@@ -187,7 +187,7 @@ class FirewallService(Service):
 
     def _ddos_helper_path(self) -> str:
         """Return the absolute path to ddos_helper.py."""
-        return os.path.join(os.path.dirname(os.path.abspath(__file__)), '../firewall/ddos_helper.py')
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ddos_helper.py')
 
     async def _start_ddos_helper(self) -> None:
         """Start the elevated DDoS helper process (Windows only)."""
@@ -424,7 +424,7 @@ class FirewallService(Service):
     def _get_whitelist_ips(self, server_name: str, port: int,
                            player_ips: list[str]) -> list[str]:
         """Merge player IPs, configured whitelist, and dynamic whitelist."""
-        config = self.get_config().get('thresholds', {}).get('DDoS', {})
+        config = self.get_config().get('ddos_detection', {})
         cfg_whitelist = set(config.get('whitelist', []))
         dyn_whitelist = self._dynamic_whitelist.get((server_name, port), set())
         return list(set(player_ips) | cfg_whitelist | dyn_whitelist)
@@ -558,8 +558,6 @@ class FirewallService(Service):
         # Stop all log tail tasks
         for server_name in list(self._log_tail_tasks.keys()):
             self._stop_log_tail(server_name)
-        if self.get_config().get('time_sync', False):
-            await utils.safe_cancel(self.time_sync)
         await utils.safe_cancel(self.monitoring)
         await super().stop()
 
@@ -964,7 +962,7 @@ class FirewallService(Service):
         if 'udp' in protocols:
             self._port_ddos_active[udp_key] = True
 
-        from firewall.portstats import PortStats
+        from .portstats import PortStats
         blocked = []
 
         if 'tcp' in protocols:
@@ -1013,7 +1011,7 @@ class FirewallService(Service):
         self._port_ddos_active.pop(tcp_key, None)
         self._port_ddos_active.pop(udp_key, None)
 
-        from firewall.portstats import PortStats
+        from .portstats import PortStats
         players = len(server.get_active_players()) if server.status in (Status.RUNNING, Status.PAUSED) else 0
         tcp_ps = PortStats(port=port, protocol='tcp', tcp_conns=players)
         udp_ps = PortStats(port=port, protocol='udp')
@@ -1064,7 +1062,7 @@ class FirewallService(Service):
             self.log.info(f"Node block: blocking {server_name} ({port}) with {len(player_ips)} player IPs")
 
             # Build minimal PortStats for the callbacks
-            from firewall.portstats import PortStats
+            from .portstats import PortStats
             tcp_ps = PortStats(port=port, protocol='tcp', tcp_conns=len(player_ips))
             udp_ps = PortStats(port=port, protocol='udp')
 
@@ -1093,7 +1091,7 @@ class FirewallService(Service):
         Node-wide DDoS recovery: unblock all servers that were blocked by the
         node-wide event. Only touches servers in _node_blocked_servers.
         """
-        from firewall.portstats import PortStats
+        from .portstats import PortStats
 
         for server_name in list(self._node_blocked_servers):
             server = self.bus.servers.get(server_name)
@@ -1480,6 +1478,33 @@ class FirewallService(Service):
             await self.bot.alert(title=title, message=message, server=server, fields=fields)
         except Exception as ex:
             self.log.debug("Failed to send DDoS update alert: %s", ex)
+
+    async def _raise_ddos_alert_udp(
+        self,
+        server_name: str,
+        port: int,
+        ps: 'PortStats',
+        players: int,
+        non_player_udp_count: int,
+        baseline: dict,
+    ) -> None:
+        """Send a periodic UDP DDoS update alert (while an attack is ongoing)."""
+        std = math.sqrt(baseline['m2'] / baseline['count']) if baseline['count'] > 1 else 0
+
+        title = f"⚠️ DDoS ongoing on {server_name} (UDP port {port})"
+        message = "UDP DDoS attack continues"
+        fields = [
+            ("Active players:", f"{players}"),
+            ("UDP sources (non-player):", f"{non_player_udp_count}"),
+            ("Baseline avg:", f"{round(baseline['mean'], 1)}"),
+            ("StdDev:", f"{round(std, 1)}"),
+        ]
+        self.log.warning(title)
+        try:
+            server = self.bus.servers.get(server_name)
+            await self.bot.alert(title=title, message=message, server=server, fields=fields)
+        except Exception as ex:
+            self.log.debug("Failed to send UDP DDoS update alert: %s", ex)
 
     # ------------------------------------------------------------------
     # UDP DDoS alert methods (Signal 2: non-player UDP source IPs)

@@ -27,7 +27,7 @@ class DDoSStats(EmbedElement):
 
         if not rows:
             self.add_field(name='No port traffic data available.',
-                           value='Enable ddos_detect in config/services/monitoring.yaml to start collecting.')
+                           value='Enable ddos_detection in config/services/firewall.yaml to start collecting.')
             return
 
         # Current state: latest row per (port, protocol)
