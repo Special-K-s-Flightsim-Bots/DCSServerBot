@@ -38,18 +38,19 @@ A service is a component that runs on each node.
 Services can be combined with plugins if they provide additional Discord commands, like the Music service. 
 Some services only run on the master node, like the Bot-service, for instance.
 
-| Service     | Scope                                                      | Plugin      | Documentation                             |
-|:------------|:-----------------------------------------------------------|:------------|:------------------------------------------|
-| Backup      | Backups for bot- & DCS-config, missions, databases, etc.   | Backup      | [README](./services/backup/README.md)     |
-| Bot         | Discord bot, with optional Discord-free variant available. |             | [README](./services/bot/README.md)        |
-| Cleanup     | Clears files from disk, channels in Discord.               |             | [README](./services/cleanup/README.md)    |
-| Cron        | Task scheduling based on a cron-like config.               |             | [README](./services/cron/README.md)       |
-| Dashboard   | Console graphics to display bot/server status.             |             | [README](./services/dashboard/README.md)  |
-| ModManager  | Manages mod installations/updates for DCS servers.         | ModManager  | [README](./services/modmanager/README.md) |
-| Monitoring  | Availability and performance monitoring of DCS servers.    | ServerStats | [README](./services/monitoring/README.md) |
-| Music       | Plays music over SRS radios.                               | Music       | [README](./services/music/README.md)      |
-| ServiceBus  | Communication between bot cluster nodes and DCS servers.   |             | [README](./services/servicebus/README.md) |
-| WebService  | Simple webserver for REST-endpoints & embedded websites.   |             | [README](./services/webservice/README.md) |
+| Service    | Scope                                                      | Plugin      | Documentation                             |
+|:-----------|:-----------------------------------------------------------|:------------|:------------------------------------------|
+| Backup     | Backups for bot- & DCS-config, missions, databases, etc.   | Backup      | [README](./services/backup/README.md)     |
+| Bot        | Discord bot, with optional Discord-free variant available. |             | [README](./services/bot/README.md)        |
+| Cleanup    | Clears files from disk, channels in Discord.               |             | [README](./services/cleanup/README.md)    |
+| Cron       | Task scheduling based on a cron-like config.               |             | [README](./services/cron/README.md)       |
+| Dashboard  | Console graphics to display bot/server status.             |             | [README](./services/dashboard/README.md)  |
+| Firewall   | Firewall rule handling and DDoS detection / prevention.    | Firewall    | [README](./services/firewall/README.md)   |
+| ModManager | Manages mod installations/updates for DCS servers.         | ModManager  | [README](./services/modmanager/README.md) |
+| Monitoring | Availability and performance monitoring of DCS servers.    | ServerStats | [README](./services/monitoring/README.md) |
+| Music      | Plays music over SRS radios.                               | Music       | [README](./services/music/README.md)      |
+| ServiceBus | Communication between bot cluster nodes and DCS servers.   |             | [README](./services/servicebus/README.md) |
+| WebService | Simple webserver for REST-endpoints & embedded websites.   |             | [README](./services/webservice/README.md) |
 
 ### Plugins
 A plugin is an expansion of the bot that can be controlled via Discord commands and sometimes in-game chat commands. 
@@ -76,6 +77,7 @@ I enhance the bot from time to time, but you as a community member can also crea
 | Competitive   | PvP support, TrueSkill™️ ranking system                                            |   yes    | Mission                               | [README](./plugins/competitive/README.md)   |
 | Debug         | Debug logging for DCS Hook- and MSE-events                                         |   yes    |                                       | [README](./plugins/debug/README.md)         |
 | Discord       | Discord helper commands                                                            |   yes    |                                       | [README](./plugins/discord/README.md)       |
+| Firewall      | Frontend to the Firewall service                                                   |   yes    | Userstats                             | [README](./plugins/firewall/README.md)      |
 | FlightPlan    | IFR-style flight planning, F10 map visualization                                   |   yes    |                                       | [README](./plugins/flightplan/README.md)    |
 | FunkMan       | [FunkMan](https://github.com/funkyfranky/FunkMan) support                          |   yes    |                                       | [README](./plugins/funkman/README.md)       |
 | GreenieBoard  | Greenieboard & LSO quality mark analysis                                           |   yes    | Missionstats                          | [README](./plugins/greenieboard/README.md)  |
