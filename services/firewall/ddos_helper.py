@@ -87,18 +87,37 @@ def _fw_rule_exists(rule_name: str) -> bool:
 
 
 def _set_rule_enabled(rule_name: str, enabled: bool) -> tuple:
-    """Enable or disable an existing firewall rule. Returns (ok, msg)."""
+    """Enable or disable an existing firewall rule by name.
+
+    Disables the first matching rule with the given name. Use
+    _set_rule_enabled_obj() when you have a direct reference to the COM rule
+    object to avoid matching the wrong rule among duplicates.
+    """
     try:
         policy = _get_fw_policy()
         for rule in policy.Rules:
             if rule.Name == rule_name:
-                rule.Enabled = enabled
-                state = "enabled" if enabled else "disabled"
-                return True, f"Rule '{rule_name}' {state}"
+                return _set_rule_enabled_obj(rule, enabled)
         return False, f"Rule '{rule_name}' not found"
     except Exception as ex:
         _logger.error("set_rule_enabled(%s, %s) error: %s", rule_name, enabled, ex)
         return False, f"Failed to set rule '{rule_name}': {ex}"
+
+
+def _set_rule_enabled_obj(rule, enabled: bool) -> tuple:
+    """Enable or disable a firewall rule by COM object reference.
+
+    Use this when you already have the rule object (e.g. from iterating
+    policy.Rules) to ensure the exact rule is toggled, not a different rule
+    with the same name.
+    """
+    try:
+        rule.Enabled = enabled
+        state = "enabled" if enabled else "disabled"
+        return True, f"Rule '{rule.Name}' {state}"
+    except Exception as ex:
+        _logger.error("set_rule_enabled_obj(%s, %s) error: %s", rule.Name, enabled, ex)
+        return False, f"Failed to set rule '{rule.Name}': {ex}"
 
 
 def _fw_delete_rule(rule_name: str) -> tuple:
@@ -406,7 +425,7 @@ def disable_dcs_general_rules():
     exe_path = _resolve_dcs_exe()
     if not exe_path:
         return False, "DCS executable not found"
-    exe_norm = os.path.normpath(exe_path).lower()
+    exe_dir = os.path.normpath(os.path.dirname(exe_path)).lower()
     disabled = []
     try:
         policy = _get_fw_policy()
@@ -415,14 +434,15 @@ def disable_dcs_general_rules():
                 continue
             if not rule.ApplicationName:
                 continue
-            rule_prog = os.path.normpath(rule.ApplicationName).lower()
-            if exe_norm not in rule_prog and rule_prog not in exe_norm:
+            rule_dir = os.path.normpath(os.path.dirname(rule.ApplicationName)).lower()
+            if rule_dir != exe_dir:
                 continue
             if rule.Enabled:
-                ok, msg = _set_rule_enabled(rule.Name, False)
+                ok, msg = _set_rule_enabled_obj(rule, False)
                 if ok:
                     disabled.append(f"{rule.Name} ({rule.Protocol})")
-                    _logger.info("Disabled DCS general rule: %s proto=%s", rule.Name, rule.Protocol)
+                    _logger.info("Disabled DCS general rule: %s proto=%s (exe=%s)",
+                                 rule.Name, rule.Protocol, rule.ApplicationName)
     except Exception as ex:
         _logger.error("Error disabling DCS general rules: %s", ex)
         return False, str(ex)
@@ -438,7 +458,7 @@ def restore_dcs_general_rules():
     exe_path = _resolve_dcs_exe()
     if not exe_path:
         return False, "DCS executable not found"
-    exe_norm = os.path.normpath(exe_path).lower()
+    exe_dir = os.path.dirname(exe_path).lower()
     enabled = []
     try:
         policy = _get_fw_policy()
@@ -447,14 +467,15 @@ def restore_dcs_general_rules():
                 continue
             if not rule.ApplicationName:
                 continue
-            rule_prog = os.path.normpath(rule.ApplicationName).lower()
-            if exe_norm not in rule_prog and rule_prog not in exe_norm:
+            rule_dir = os.path.dirname(rule.ApplicationName).lower()
+            if rule_dir != exe_dir:
                 continue
             if not rule.Enabled:
-                ok, msg = _set_rule_enabled(rule.Name, True)
+                ok, msg = _set_rule_enabled_obj(rule, True)
                 if ok:
                     enabled.append(f"{rule.Name} ({rule.Protocol})")
-                    _logger.info("Re-enabled DCS general rule: %s proto=%s", rule.Name, rule.Protocol)
+                    _logger.info("Re-enabled DCS general rule: %s proto=%s (exe=%s)",
+                                 rule.Name, rule.Protocol, rule.ApplicationName)
     except Exception as ex:
         _logger.error("Error restoring DCS general rules: %s", ex)
         return False, str(ex)
@@ -467,9 +488,10 @@ def restore_dcs_general_rules():
 # Base per-port allow rules
 # ---------------------------------------------------------------------------
 
-def ensure_base_rule(protocol: str, port: int, remote_ips: str = None) -> tuple:
+def ensure_base_rule(protocol: str, port: int, remote_ips: str = None,
+                       rule_name: str = None, reset: bool = False) -> tuple:
     """
-    Create (or re-enable) the base per-port allow-all rule.
+    Create (or re-enable) the base per-port allow rule.
 
     Args:
         protocol: 'tcp' or 'udp'
@@ -477,12 +499,22 @@ def ensure_base_rule(protocol: str, port: int, remote_ips: str = None) -> tuple:
         remote_ips: optional comma-separated IP list. If provided, the base rule
                     will only allow these IPs (whitelist mode). If None, the rule
                     allows all traffic on the port.
+        rule_name: optional custom rule name. If None, defaults to
+                   'DCS-base-{protocol}-{port}'.
+        reset: if True and the rule already exists, delete and recreate it
+               (to update IP whitelist or reset enabled state). If False and
+               the rule exists, just re-enable it.
     """
     if not _COM_AVAILABLE:
         return False, "comtypes not available"
-    rule_name = f"DCS-base-{protocol}-{port}"
+    if not rule_name:
+        rule_name = f"DCS-base-{protocol}-{port}"
     if _fw_rule_exists(rule_name):
-        return _set_rule_enabled(rule_name, True)
+        if reset:
+            _fw_delete_rule(rule_name)
+            _logger.info("ensure_base_rule: deleted existing rule %s for reset", rule_name)
+        else:
+            return _set_rule_enabled(rule_name, True)
     exe_path = _resolve_dcs_exe()
     if not exe_path:
         return False, "DCS executable not found"
@@ -573,14 +605,27 @@ def handle_command(line: str) -> str:
         ok, msg = restore_dcs_general_rules()
         return f'{"OK" if ok else "ERROR"} {msg}'
 
-    if cmd == 'ensure_base' and len(parts) in (3, 4):
+    if cmd == 'ensure_base' and len(parts) in (3, 4, 5):
         protocol = parts[1].lower()
         try:
             port = int(parts[2])
         except ValueError:
             return f'ERROR Invalid port: {parts[2]}'
-        remote_ips = parts[3] if len(parts) == 4 else None
-        ok, msg = ensure_base_rule(protocol, port, remote_ips)
+        if protocol not in ('tcp', 'udp'):
+            return f'ERROR Invalid protocol: {protocol} (use tcp or udp)'
+        remote_ips = parts[3] if len(parts) >= 4 and parts[3].lower() != 'reset' else None
+        reset = len(parts) == 5 or (len(parts) == 4 and parts[3].lower() == 'reset')
+        ok, msg = ensure_base_rule(protocol, port, remote_ips, reset=reset)
+        return f'{"OK" if ok else "ERROR"} {msg}'
+
+    if cmd == 'enable' and len(parts) == 2:
+        rule_name = parts[1]
+        ok, msg = _set_rule_enabled(rule_name, True)
+        return f'{"OK" if ok else "ERROR"} {msg}'
+
+    if cmd == 'disable' and len(parts) == 2:
+        rule_name = parts[1]
+        ok, msg = _set_rule_enabled(rule_name, False)
         return f'{"OK" if ok else "ERROR"} {msg}'
 
     _logger.warning("handle_command: unknown command: %s", line)

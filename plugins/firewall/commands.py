@@ -362,6 +362,48 @@ class Firewall(Plugin):
             result = await self.service.deactivate_ddos_block(server)
         await interaction.followup.send(f"🔓 {result}", ephemeral=True)
 
+    @ddos_group.command(name='pause', description=_('Pause DDoS detection temporarily'))
+    @utils.app_has_role('DCS Admin')
+    @app_commands.describe(scope='Which detection to pause')
+    @app_commands.choices(scope=[
+        app_commands.Choice(name='Node-wide bandwidth', value='node'),
+        app_commands.Choice(name='Per-port TCP/UDP', value='port'),
+        app_commands.Choice(name='All (node + port)', value='all'),
+    ])
+    async def ddos_pause(
+            self,
+            interaction: discord.Interaction,
+            scope: app_commands.Choice[str]
+    ):
+        """Pause DDoS detection. Use before DCS downloads to avoid false positives."""
+        await interaction.response.defer(ephemeral=True)
+
+        msg = f"Pause **{scope.name}** DDoS detection? This will stop monitoring until resumed."
+        if not await utils.yn_question(interaction, msg):
+            return
+
+        result = await self.service.pause_detection(scope.value)
+        await interaction.followup.send(f"⏸️ {result}", ephemeral=True)
+
+    @ddos_group.command(name='resume', description=_('Resume paused DDoS detection'))
+    @utils.app_has_role('DCS Admin')
+    @app_commands.describe(scope='Which detection to resume')
+    @app_commands.choices(scope=[
+        app_commands.Choice(name='Node-wide bandwidth', value='node'),
+        app_commands.Choice(name='Per-port TCP/UDP', value='port'),
+        app_commands.Choice(name='All (node + port)', value='all'),
+    ])
+    async def ddos_resume(
+            self,
+            interaction: discord.Interaction,
+            scope: app_commands.Choice[str]
+    ):
+        """Resume previously paused DDoS detection."""
+        await interaction.response.defer(ephemeral=True)
+
+        result = await self.service.resume_detection(scope.value)
+        await interaction.followup.send(f"▶️ {result}", ephemeral=True)
+
     @tasks.loop(hours=12.0)
     async def cleanup(self):
         async with self.apool.connection() as conn:

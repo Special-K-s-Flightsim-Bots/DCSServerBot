@@ -9,7 +9,7 @@ import subprocess
 import sys
 import time
 
-from core import Status, Server, utils, proxy, Node
+from core import Status, Server, utils, proxy, Node, Port, PortType
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from datetime import datetime, timezone
@@ -58,6 +58,8 @@ class FirewallService(Service):
         # Per-IP connection counts for single-IP flood detection
         # key = (server_name, port) → dict{ip: conn_count}
         self._ip_conn_counts: dict[tuple[str, int], dict[str, int]] = {}
+        # Paused detection scopes: 'node' (node-wide bandwidth), 'port' (per-port TCP/UDP), or both
+        self._paused_scopes: set[str] = set()
         # IPs that have been auto-blocked permanently (to avoid re-blocking)
         self._auto_blocked_ips: set[str] = set()
         # Log tail tasks per server: key = server_name → asyncio.Task
@@ -261,6 +263,20 @@ class FirewallService(Service):
             self.log.info("DDoS helper stopped")
         self._ddos_helper = None
 
+    # ------------------------------------------------------------------
+    # DCS update callbacks: pause/resume node-wide bandwidth detection
+    # ------------------------------------------------------------------
+
+    async def before_dcs_update(self) -> None:
+        """Called before a DCS update starts — pause node-wide bandwidth detection."""
+        self.log.info("before_dcs_update: pausing node-wide DDoS detection")
+        await self.pause_detection('node')
+
+    async def after_dcs_update(self) -> None:
+        """Called after a DCS update finishes — resume node-wide bandwidth detection."""
+        self.log.info("after_dcs_update: resuming node-wide DDoS detection")
+        await self.resume_detection('node')
+
     async def _send_helper_command(self, command: str) -> str:
         """
         Send a command to the DDoS helper via named pipe.
@@ -315,40 +331,113 @@ class FirewallService(Service):
         finally:
             kernel32.CloseHandle(hPipe)
 
-    async def create_base_rule(self, port: int, protocol: str, remote_ips: str = None) -> bool:
+    @staticmethod
+    def _port_protocols(port_obj: Port) -> list[str]:
+        """Expand a Port's protocol type into a list of protocol strings."""
+        if port_obj.typ == PortType.BOTH:
+            return ['tcp', 'udp']
+        return [port_obj.typ.value]
+
+    async def ensure_rule(self, port: Port, remote_ips: list[str] = None,
+                          rule_name: str = None,
+                          reset_on_existing: bool = False) -> bool:
         """
-        Create a base per-port allow rule for a specific port and protocol.
+        Ensure per-port allow rule(s) exist for a Port object.
         Called by server startup and extensions to register their ports.
+
+        If the rule already exists and reset_on_existing is False (default), it is
+        simply re-enabled. If reset_on_existing is True, the rule is deleted and
+        recreated with the new specification (updated IP whitelist, etc.).
+
         Args:
-            port: port number
-            protocol: 'tcp' or 'udp'
-            remote_ips: optional comma-separated IP whitelist. If provided, the
+            port: Port object with port number and protocol type (TCP, UDP, or BOTH)
+            remote_ips: optional list of IP addresses to whitelist. If provided, the
                         base rule only allows these IPs instead of all traffic.
-        Returns True if successful.
+            rule_name: optional custom rule name prefix. If None, defaults to
+                       'DCS-base-{protocol}-{port}'.
+            reset_on_existing: if True, delete and recreate existing rules instead
+                               of just re-enabling them.
+
+        Returns True if all rules were created successfully.
         """
         if not self._ddos_helper or not self._ddos_helper.is_running():
-            self.log.warning("DDoS helper not running, cannot create base rule")
+            self.log.warning("DDoS helper not running, cannot ensure rule")
+            return False
+        all_ok = True
+        ip_str = ','.join(remote_ips) if remote_ips else None
+        for proto in self._port_protocols(port):
+            try:
+                cmd = f'ensure_base {proto} {port.port}'
+                if ip_str:
+                    cmd += f' {ip_str}'
+                if rule_name:
+                    cmd += f' {rule_name}-{proto}-{port.port}'
+                if reset_on_existing:
+                    cmd += ' reset'
+                resp = await self._send_helper_command(cmd)
+                if resp.startswith('OK'):
+                    self.log.info(f"Rule ensured: {proto}/{port.port}")
+                else:
+                    self.log.warning(f"Rule ensure failed: {proto}/{port.port}: {resp}")
+                    all_ok = False
+            except Exception as ex:
+                self.log.error(f"Rule ensure error: {proto}/{port.port}: {ex}")
+                all_ok = False
+        return all_ok
+
+    async def enable_rule(self, rule_name: str) -> bool:
+        """
+        Enable an existing firewall rule by name.
+
+        Args:
+            rule_name: the exact name of the firewall rule to enable.
+
+        Returns True if the rule was found and enabled successfully.
+        """
+        if not self._ddos_helper or not self._ddos_helper.is_running():
+            self.log.warning("DDoS helper not running, cannot enable rule")
             return False
         try:
-            cmd = f'ensure_base {protocol} {port}'
-            if remote_ips:
-                cmd += f' {remote_ips}'
-            resp = await self._send_helper_command(cmd)
+            resp = await self._send_helper_command(f"enable {rule_name}")
             if resp.startswith('OK'):
-                self.log.info(f"Base rule created: {protocol}/{port}")
+                self.log.info(f"Rule enabled: {rule_name}")
                 return True
             else:
-                self.log.warning(f"Base rule failed: {protocol}/{port}: {resp}")
+                self.log.warning(f"Enable rule failed: {rule_name}: {resp}")
                 return False
         except Exception as ex:
-            self.log.error(f"Base rule error: {protocol}/{port}: {ex}")
+            self.log.error(f"Enable rule error: {rule_name}: {ex}")
+            return False
+
+    async def disable_rule(self, rule_name: str) -> bool:
+        """
+        Disable an existing firewall rule by name.
+
+        Args:
+            rule_name: the exact name of the firewall rule to disable.
+
+        Returns True if the rule was found and disabled successfully.
+        """
+        if not self._ddos_helper or not self._ddos_helper.is_running():
+            self.log.warning("DDoS helper not running, cannot disable rule")
+            return False
+        try:
+            resp = await self._send_helper_command(f"disable {rule_name}")
+            if resp.startswith('OK'):
+                self.log.info(f"Rule disabled: {rule_name}")
+                return True
+            else:
+                self.log.warning(f"Disable rule failed: {rule_name}: {resp}")
+                return False
+        except Exception as ex:
+            self.log.error(f"Disable rule error: {rule_name}: {ex}")
             return False
 
     async def reset_fw_rules(self, server_name: str) -> None:
         """
         Reset all DDoS firewall rules for a server to clean state:
         1. Remove any active DDoS block rules (deny + allow rules) for this server's ports
-        2. Re-create base per-port allow rules for known ports
+        2. Re-create base per-port allow rules for known ports (instance + extensions)
         Call this on server startup to ensure a clean slate.
         """
         if not self._ddos_helper or not self._ddos_helper.is_running():
@@ -356,23 +445,55 @@ class FirewallService(Service):
             return
         self.log.info(f"Resetting firewall rules for {server_name}")
         server = self.bus.servers.get(server_name)
-        if server and server.instance:
-            locals_dict = dict(server.instance.locals)
-            # Collect all known ports for this server
-            port_keys = ['dcs_port', 'webgui_port']
-            for pk in port_keys:
-                port_val: int | None = locals_dict.get(pk)
-                if not port_val:
-                    continue
-                for proto in ('tcp', 'udp'):
-                    deny_rule = f"DCS-deny-{proto}-{port_val}"
-                    try:
-                        resp = await self._send_helper_command(f"restore {deny_rule}")
-                        self.log.info(f"Reset: {resp}")
-                    except Exception as ex:
-                        self.log.debug(f"Reset: {deny_rule} not found: {ex}")
-                    # Re-create base rule
-                    await self.create_base_rule(port_val, proto)
+        if not server or not server.instance:
+            return
+
+        # Collect all ports that need base rules as (name, Port) tuples
+        ports_to_register: list[tuple[str, Port]] = []
+
+        # Instance-level ports (dcs_port always needs both protocols)
+        locals_dict = dict(server.instance.locals)
+        instance_port_names = {
+            'dcs_port': 'DCS',
+            'webgui_port': 'WebGUI',
+        }
+        for pk, display_name in instance_port_names.items():
+            port_val = locals_dict.get(pk)
+            if port_val:
+                ports_to_register.append((display_name, Port(int(port_val), PortType.BOTH)))
+
+        # Extension-level ports via get_ports()
+        for ext in server.extensions.values():
+            if not ext.enabled:
+                continue
+            try:
+                ext_ports = ext.get_ports()
+            except Exception as ex:
+                self.log.debug(f"get_ports() failed for {ext.name}: {ex}")
+                continue
+            for port_name, port_obj in ext_ports.items():
+                ports_to_register.append((port_name, port_obj))
+
+        # Deduplicate by (port number, protocol type), preserving order
+        seen: set[tuple[int, str]] = set()
+        unique_ports: list[tuple[str, Port]] = []
+        for name, p in ports_to_register:
+            key = (p.port, p.typ.value)
+            if key not in seen:
+                seen.add(key)
+                unique_ports.append((name, p))
+
+        for port_name, port_obj in unique_ports:
+            for proto in self._port_protocols(port_obj):
+                deny_rule = f"DCS-deny-{proto}-{port_obj.port}"
+                try:
+                    resp = await self._send_helper_command(f"restore {deny_rule}")
+                    self.log.info(f"Reset: {resp}")
+                except Exception as ex:
+                    self.log.debug(f"Reset: {deny_rule} not found: {ex}")
+            # Re-create rule with descriptive name (reset to clean state)
+            await self.ensure_rule(port_obj, rule_name=port_name, reset_on_existing=True)
+
         self.log.info(f"Firewall rules reset complete for {server_name}")
 
     async def _ddos_block(self, server_name: str, port: int, proto: str,
@@ -551,6 +672,9 @@ class FirewallService(Service):
         config = self.get_config().get('ddos_detection', {})
         if config.get('enabled', False):
             await self._start_ddos_helper()
+            # Register DCS update callbacks to auto-pause/resume node-wide detection
+            self.node.register_callback('before_dcs_update', self.name, self.before_dcs_update)
+            self.node.register_callback('after_dcs_update', self.name, self.after_dcs_update)
         utils.safe_start(self.monitoring)
 
     async def stop(self):
@@ -558,6 +682,11 @@ class FirewallService(Service):
         # Stop all log tail tasks
         for server_name in list(self._log_tail_tasks.keys()):
             self._stop_log_tail(server_name)
+        # Unregister DCS update callbacks (only if they were registered)
+        config = self.get_config().get('ddos_detection', {})
+        if config.get('enabled', False):
+            self.node.unregister_callback('before_dcs_update', self.name)
+            self.node.unregister_callback('after_dcs_update', self.name)
         await utils.safe_cancel(self.monitoring)
         await super().stop()
 
@@ -582,6 +711,9 @@ class FirewallService(Service):
         """
         config = self.get_config().get('ddos_detection', {})
         if not config.get('enabled', False):
+            return
+
+        if 'port' in self._paused_scopes or 'all' in self._paused_scopes:
             return
 
         # Build set of target ports from running instances
@@ -729,6 +861,9 @@ class FirewallService(Service):
         """
         config = self.get_config().get('ddos_detection', {})
         if not config.get('enabled', False):
+            return
+
+        if 'node' in self._paused_scopes or 'all' in self._paused_scopes:
             return
 
         net_io = psutil.net_io_counters(pernic=False)
@@ -1030,6 +1165,49 @@ class FirewallService(Service):
             action_override='block'
         )
         return f"{server.name} DDoS block deactivated."
+
+    # ------------------------------------------------------------------
+    # Manual pause / resume of DDoS detection
+    # ------------------------------------------------------------------
+
+    @proxy
+    async def pause_detection(self, scope: str) -> str:
+        """
+        Pause DDoS detection for a given scope.
+        Scope: 'node' (node-wide bandwidth), 'port' (per-port TCP/UDP), or 'all'.
+        Returns a status message.
+        """
+        valid_scopes = {'node', 'port', 'all'}
+        if scope not in valid_scopes:
+            return f"Invalid scope '{scope}'. Use: node, port, all."
+        if scope == 'all':
+            self._paused_scopes.update({'node', 'port'})
+            return "All DDoS detection paused (node + port)."
+        if scope in self._paused_scopes:
+            return f"DDoS detection for '{scope}' is already paused."
+        self._paused_scopes.add(scope)
+        self.log.info(f"DDoS detection paused: {scope}")
+        return f"DDoS detection paused: {scope}."
+
+    @proxy
+    async def resume_detection(self, scope: str) -> str:
+        """
+        Resume DDoS detection for a given scope.
+        Scope: 'node' (node-wide bandwidth), 'port' (per-port TCP/UDP), or 'all'.
+        Returns a status message.
+        """
+        valid_scopes = {'node', 'port', 'all'}
+        if scope not in valid_scopes:
+            return f"Invalid scope '{scope}'. Use: node, port, all."
+        if scope == 'all':
+            self._paused_scopes.discard('node')
+            self._paused_scopes.discard('port')
+            return "All DDoS detection resumed (node + port)."
+        if scope not in self._paused_scopes:
+            return f"DDoS detection for '{scope}' is not paused."
+        self._paused_scopes.discard(scope)
+        self.log.info(f"DDoS detection resumed: {scope}")
+        return f"DDoS detection resumed: {scope}."
 
     async def _ddos_block_all_servers(self, config: dict) -> None:
         """
