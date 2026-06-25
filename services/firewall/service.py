@@ -61,6 +61,8 @@ class FirewallService(Service):
         self._ip_conn_counts: dict[tuple[str, int], dict[str, int]] = {}
         # Paused detection scopes: 'node' (node-wide bandwidth), 'port' (per-port TCP/UDP), or both
         self._paused_scopes: set[str] = set()
+        # Map base rule name → set of generated full rule names (e.g. "DCS" → {"DCS-tcp-1308", "DCS-udp-1308"})
+        self._rule_name_map: dict[str, set[str]] = {}
         # IPs that have been auto-blocked permanently (to avoid re-blocking)
         self._auto_blocked_ips: set[str] = set()
         # Log tail tasks per server: key = server_name → asyncio.Task
@@ -379,6 +381,10 @@ class FirewallService(Service):
                 resp = await self._send_helper_command(cmd)
                 if resp.startswith('OK'):
                     self.log.info(f"Rule ensured: {proto}/{port.port}")
+                    # Store the mapping from base rule name to full rule name
+                    if rule_name:
+                        full_name = f"{rule_name}-{proto}-{port.port}"
+                        self._rule_name_map.setdefault(rule_name, set()).add(full_name)
                 else:
                     self.log.warning(f"Rule ensure failed: {proto}/{port.port}: {resp}")
                     all_ok = False
@@ -389,51 +395,67 @@ class FirewallService(Service):
 
     async def enable_rule(self, rule_name: str) -> bool:
         """
-        Enable an existing firewall rule by name.
+        Enable firewall rule(s) by name.
+
+        If the name matches a stored base rule name (from ensure_rule), all
+        generated rules for that base name are enabled. Otherwise the exact
+        name is used directly.
 
         Args:
-            rule_name: the exact name of the firewall rule to enable.
+            rule_name: the base or exact name of the firewall rule(s) to enable.
 
-        Returns True if the rule was found and enabled successfully.
+        Returns True if all rules were found and enabled successfully.
         """
         if not self._ddos_helper or not self._ddos_helper.is_running():
             self.log.warning("DDoS helper not running, cannot enable rule")
             return False
-        try:
-            resp = await self._send_helper_command(f"enable \"{rule_name}\"")
-            if resp.startswith('OK'):
-                self.log.info(f"Rule enabled: {rule_name}")
-                return True
-            else:
-                self.log.warning(f"Enable rule failed: {rule_name}: {resp}")
-                return False
-        except Exception as ex:
-            self.log.error(f"Enable rule error: {rule_name}: {ex}")
-            return False
+        # Resolve base rule name to full rule names if available
+        names = self._rule_name_map.get(rule_name, {rule_name})
+        all_ok = True
+        for name in names:
+            try:
+                resp = await self._send_helper_command(f"enable \"{name}\"")
+                if resp.startswith('OK'):
+                    self.log.info(f"Rule enabled: {name}")
+                else:
+                    self.log.warning(f"Enable rule failed: {name}: {resp}")
+                    all_ok = False
+            except Exception as ex:
+                self.log.error(f"Enable rule error: {name}: {ex}")
+                all_ok = False
+        return all_ok
 
     async def disable_rule(self, rule_name: str) -> bool:
         """
-        Disable an existing firewall rule by name.
+        Disable firewall rule(s) by name.
+
+        If the name matches a stored base rule name (from ensure_rule), all
+        generated rules for that base name are disabled. Otherwise the exact
+        name is used directly.
 
         Args:
-            rule_name: the exact name of the firewall rule to disable.
+            rule_name: the base or exact name of the firewall rule(s) to disable.
 
-        Returns True if the rule was found and disabled successfully.
+        Returns True if all rules were found and disabled successfully.
         """
         if not self._ddos_helper or not self._ddos_helper.is_running():
             self.log.warning("DDoS helper not running, cannot disable rule")
             return False
-        try:
-            resp = await self._send_helper_command(f"disable \"{rule_name}\"")
-            if resp.startswith('OK'):
-                self.log.info(f"Rule disabled: {rule_name}")
-                return True
-            else:
-                self.log.warning(f"Disable rule failed: {rule_name}: {resp}")
-                return False
-        except Exception as ex:
-            self.log.error(f"Disable rule error: {rule_name}: {ex}")
-            return False
+        # Resolve base rule name to full rule names if available
+        names = self._rule_name_map.get(rule_name, {rule_name})
+        all_ok = True
+        for name in names:
+            try:
+                resp = await self._send_helper_command(f"disable \"{name}\"")
+                if resp.startswith('OK'):
+                    self.log.info(f"Rule disabled: {name}")
+                else:
+                    self.log.warning(f"Disable rule failed: {name}: {resp}")
+                    all_ok = False
+            except Exception as ex:
+                self.log.error(f"Disable rule error: {name}: {ex}")
+                all_ok = False
+        return all_ok
 
     async def reset_fw_rules(self, server: Server) -> None:
         """
@@ -450,24 +472,36 @@ class FirewallService(Service):
         if not server.instance:
             return
 
-        # Only DCS port + WebGUI port (both need TCP+UDP)
+        # Only DCS port + WebGUI port
         locals_dict = dict(server.instance.locals)
         ports_to_register: list[tuple[str, Port]] = []
-        for pk, display_name in {'dcs_port': 'DCS', 'webgui_port': 'WebGUI'}.items():
+        for pk, display_name, pk_type in [
+            ('dcs_port', 'DCS', PortType.BOTH),
+            ('webgui_port', 'WebGUI', PortType.TCP),
+        ]:
             port_val = locals_dict.get(pk)
             if port_val:
-                ports_to_register.append((display_name, Port(int(port_val), PortType.BOTH)))
+                ports_to_register.append((display_name, Port(int(port_val), pk_type)))
 
         for port_name, port_obj in ports_to_register:
+            # Clean up any stale DDoS deny rules for all protocols of this port
             for proto in self._port_protocols(port_obj):
                 deny_rule = f"DCS-deny-{proto}-{port_obj.port}"
+                base_rule = f"{port_name}-{proto}-{port_obj.port}"
                 try:
-                    resp = await self._send_helper_command(f"restore {deny_rule}")
+                    resp = await self._send_helper_command(f"restore {deny_rule} {base_rule}")
                     self.log.info(f"Reset: {resp}")
                 except Exception as ex:
                     self.log.debug(f"Reset: {deny_rule} not found: {ex}")
-                # Re-create base rule with descriptive name (reset to clean state)
-                await self.ensure_rule(port_obj, rule_name=port_name, reset_on_existing=True)
+                # Also clean up any per-port allow rules from DDoS blocks
+                allow_rule = f"DCS-allow-{proto}-{port_obj.port}-players"
+                try:
+                    resp = await self._send_helper_command(f"restore {allow_rule} {base_rule}")
+                    self.log.info(f"Reset: {resp}")
+                except Exception as ex:
+                    self.log.debug(f"Reset: {allow_rule} not found: {ex}")
+            # Re-create base rules for all protocols (TCP+UDP) in one call
+            await self.ensure_rule(port_obj, rule_name=port_name, reset_on_existing=True)
 
         self.log.info(f"Firewall rules reset complete for {server_name}")
 
@@ -504,8 +538,9 @@ class FirewallService(Service):
         The restore_rule helper command handles both steps.
         """
         deny_rule = f"DCS-deny-{proto}-{port}"
+        base_rule = f"DCS-{proto}-{port}"
         try:
-            response = await self._send_helper_command(f"restore {deny_rule}")
+            response = await self._send_helper_command(f"restore {deny_rule} {base_rule}")
             if response.startswith('OK'):
                 self.log.info(f"DDoS unblock {proto}/{port}: {response[3:]}")
             else:

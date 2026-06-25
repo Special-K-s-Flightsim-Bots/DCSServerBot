@@ -219,10 +219,6 @@ def restrict_rule(rule_name: str, protocol: str, port: int, allowed_ips: list[st
         return False, "comtypes not available"
     _logger.info("restrict_rule: %s %s/%d ips=%s", rule_name, protocol, port, ','.join(allowed_ips))
 
-    exe_path = _resolve_dcs_exe()
-    if not exe_path:
-        return False, "Cannot find DCS executable"
-
     proto_num = NET_FW_IP_PROTOCOL_TCP if protocol == 'tcp' else NET_FW_IP_PROTOCOL_UDP
     base_rule = f"DCS-base-{protocol}-{port}"
 
@@ -238,7 +234,7 @@ def restrict_rule(rule_name: str, protocol: str, port: int, allowed_ips: list[st
     # Step 3: Create deny-all rule
     ok, msg = _fw_create_rule(
         rule_name, NET_FW_RULE_DIR_IN, NET_FW_ACTION_BLOCK, proto_num,
-        local_port=port, program=exe_path, enabled=True,
+        local_port=port, enabled=True,
         description=f"DCSServerBot deny-all {protocol}/{port}",
     )
     if not ok:
@@ -255,7 +251,7 @@ def restrict_rule(rule_name: str, protocol: str, port: int, allowed_ips: list[st
         ip_list = ','.join(allowed_ips)
         ok, msg = _fw_create_rule(
             allow_name, NET_FW_RULE_DIR_IN, NET_FW_ACTION_ALLOW, proto_num,
-            local_port=port, remote_ips=ip_list, program=exe_path, enabled=True,
+            local_port=port, remote_ips=ip_list, enabled=True,
             description=f"DCSServerBot allow {len(allowed_ips)} IPs on {protocol}/{port}",
         )
         if not ok:
@@ -268,7 +264,7 @@ def restrict_rule(rule_name: str, protocol: str, port: int, allowed_ips: list[st
     return True, "; ".join(results)
 
 
-def restore_rule(rule_name: str) -> tuple:
+def restore_rule(rule_name: str, base_rule: str = None) -> tuple:
     """
     Per-port DDoS unblock:
     1. Remove the deny-all rule
@@ -310,7 +306,8 @@ def restore_rule(rule_name: str) -> tuple:
         results.append(f"Allow rule '{allow_name}' did not exist")
 
     # Step 3: Re-enable base allow-all rule
-    base_rule = f"DCS-base-{protocol}-{port}"
+    if base_rule is None:
+        base_rule = f"DCS-base-{protocol}-{port}"
     if _fw_rule_exists(base_rule):
         _set_rule_enabled(base_rule, True)
         results.append(f"Base rule '{base_rule}' re-enabled")
@@ -515,16 +512,13 @@ def ensure_base_rule(protocol: str, port: int, remote_ips: str = None,
             _logger.info("ensure_base_rule: deleted existing rule %s for reset", rule_name)
         else:
             return _set_rule_enabled(rule_name, True)
-    exe_path = _resolve_dcs_exe()
-    if not exe_path:
-        return False, "DCS executable not found"
     proto_num = NET_FW_IP_PROTOCOL_TCP if protocol == "tcp" else NET_FW_IP_PROTOCOL_UDP
     desc = f"DCSServerBot base allow {protocol}/{port}"
     if remote_ips:
         desc += f" (whitelist: {remote_ips})"
     return _fw_create_rule(
         rule_name, NET_FW_RULE_DIR_IN, NET_FW_ACTION_ALLOW, proto_num,
-        local_port=port, remote_ips=remote_ips, program=exe_path, enabled=True,
+        local_port=port, remote_ips=remote_ips, enabled=True,
         description=desc,
     )
 
@@ -548,7 +542,8 @@ def init_server() -> tuple:
 def handle_command(line: str) -> str:
     """Parse and execute a command, return response string."""
     _logger.info("handle_command: %s", line)
-    parts = line.strip().split(maxsplit=4)
+    import shlex
+    parts = shlex.split(line.strip())
     if not parts:
         return 'ERROR Empty command'
 
@@ -574,9 +569,10 @@ def handle_command(line: str) -> str:
         ok, msg = restrict_rule(rule_name, protocol, port, ips)
         return f'{"OK" if ok else "ERROR"} {msg}'
 
-    if cmd == 'restore' and len(parts) == 2:
+    if cmd == 'restore' and len(parts) in (2, 3):
         rule_name = parts[1]
-        ok, msg = restore_rule(rule_name)
+        base_rule = parts[2] if len(parts) == 3 else None
+        ok, msg = restore_rule(rule_name, base_rule=base_rule)
         return f'{"OK" if ok else "ERROR"} {msg}'
 
     if cmd == 'block_ip' and len(parts) == 2:
@@ -613,9 +609,22 @@ def handle_command(line: str) -> str:
             return f'ERROR Invalid port: {parts[2]}'
         if protocol not in ('tcp', 'udp'):
             return f'ERROR Invalid protocol: {protocol} (use tcp or udp)'
-        remote_ips = parts[3] if len(parts) >= 4 and parts[3].lower() != 'reset' else None
-        reset = len(parts) == 5 or (len(parts) == 4 and parts[3].lower() == 'reset')
-        ok, msg = ensure_base_rule(protocol, port, remote_ips, reset=reset)
+        # Parse remaining parts: IPs (if not 'reset' and not a rule name), rule_name, reset
+        remote_ips = None
+        rule_name = None
+        reset = False
+        remaining = parts[3:]
+        if remaining and remaining[-1].lower() == 'reset':
+            reset = True
+            remaining = remaining[:-1]
+        if remaining:
+            # If it looks like an IP list, treat as remote_ips; otherwise it's a rule_name
+            candidate = remaining[0]
+            if ',' in candidate or all(c.isdigit() or c == '.' for c in candidate):
+                remote_ips = candidate
+            else:
+                rule_name = candidate
+        ok, msg = ensure_base_rule(protocol, port, remote_ips, rule_name=rule_name, reset=reset)
         return f'{"OK" if ok else "ERROR"} {msg}'
 
     if cmd == 'enable' and len(parts) == 2:
