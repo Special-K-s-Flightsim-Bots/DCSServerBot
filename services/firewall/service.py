@@ -4,6 +4,7 @@ import asyncio
 import math
 import os
 import re
+import shlex
 import psutil
 import subprocess
 import sys
@@ -367,13 +368,14 @@ class FirewallService(Service):
         ip_str = ','.join(remote_ips) if remote_ips else None
         for proto in self._port_protocols(port):
             try:
-                cmd = f'ensure_base {proto} {port.port}'
+                parts = ['ensure_base', proto, str(port.port)]
                 if ip_str:
-                    cmd += f' {ip_str}'
+                    parts.append(ip_str)
                 if rule_name:
-                    cmd += f' {rule_name}-{proto}-{port.port}'
+                    parts.append(f"{rule_name}-{proto}-{port.port}")
                 if reset_on_existing:
-                    cmd += ' reset'
+                    parts.append('reset')
+                cmd = ' '.join(shlex.quote(p) for p in parts)
                 resp = await self._send_helper_command(cmd)
                 if resp.startswith('OK'):
                     self.log.info(f"Rule ensured: {proto}/{port.port}")
@@ -398,7 +400,7 @@ class FirewallService(Service):
             self.log.warning("DDoS helper not running, cannot enable rule")
             return False
         try:
-            resp = await self._send_helper_command(f"enable {rule_name}")
+            resp = await self._send_helper_command(f"enable \"{rule_name}\"")
             if resp.startswith('OK'):
                 self.log.info(f"Rule enabled: {rule_name}")
                 return True
@@ -422,7 +424,7 @@ class FirewallService(Service):
             self.log.warning("DDoS helper not running, cannot disable rule")
             return False
         try:
-            resp = await self._send_helper_command(f"disable {rule_name}")
+            resp = await self._send_helper_command(f"disable \"{rule_name}\"")
             if resp.startswith('OK'):
                 self.log.info(f"Rule disabled: {rule_name}")
                 return True
@@ -433,57 +435,30 @@ class FirewallService(Service):
             self.log.error(f"Disable rule error: {rule_name}: {ex}")
             return False
 
-    async def reset_fw_rules(self, server_name: str) -> None:
+    async def reset_fw_rules(self, server: Server) -> None:
         """
-        Reset all DDoS firewall rules for a server to clean state:
-        1. Remove any active DDoS block rules (deny + allow rules) for this server's ports
-        2. Re-create base per-port allow rules for known ports (instance + extensions)
-        Call this on server startup to ensure a clean slate.
+        Reset DDoS firewall rules for a server to clean state on startup:
+        1. Remove any active DDoS block rules (deny + allow rules) for DCS + WebGUI ports
+        2. Re-create base per-port allow rules for DCS + WebGUI ports
+        Extension ports are handled separately when extensions are loaded.
         """
         if not self._ddos_helper or not self._ddos_helper.is_running():
             self.log.warning("DDoS helper not running, cannot reset firewall rules")
             return
+        server_name = server.name
         self.log.info(f"Resetting firewall rules for {server_name}")
-        server = self.bus.servers.get(server_name)
-        if not server or not server.instance:
+        if not server.instance:
             return
 
-        # Collect all ports that need base rules as (name, Port) tuples
-        ports_to_register: list[tuple[str, Port]] = []
-
-        # Instance-level ports (dcs_port always needs both protocols)
+        # Only DCS port + WebGUI port (both need TCP+UDP)
         locals_dict = dict(server.instance.locals)
-        instance_port_names = {
-            'dcs_port': 'DCS',
-            'webgui_port': 'WebGUI',
-        }
-        for pk, display_name in instance_port_names.items():
+        ports_to_register: list[tuple[str, Port]] = []
+        for pk, display_name in {'dcs_port': 'DCS', 'webgui_port': 'WebGUI'}.items():
             port_val = locals_dict.get(pk)
             if port_val:
                 ports_to_register.append((display_name, Port(int(port_val), PortType.BOTH)))
 
-        # Extension-level ports via get_ports()
-        for ext in server.extensions.values():
-            if not ext.enabled:
-                continue
-            try:
-                ext_ports = ext.get_ports()
-            except Exception as ex:
-                self.log.debug(f"get_ports() failed for {ext.name}: {ex}")
-                continue
-            for port_name, port_obj in ext_ports.items():
-                ports_to_register.append((port_name, port_obj))
-
-        # Deduplicate by (port number, protocol type), preserving order
-        seen: set[tuple[int, str]] = set()
-        unique_ports: list[tuple[str, Port]] = []
-        for name, p in ports_to_register:
-            key = (p.port, p.typ.value)
-            if key not in seen:
-                seen.add(key)
-                unique_ports.append((name, p))
-
-        for port_name, port_obj in unique_ports:
+        for port_name, port_obj in ports_to_register:
             for proto in self._port_protocols(port_obj):
                 deny_rule = f"DCS-deny-{proto}-{port_obj.port}"
                 try:
@@ -491,8 +466,8 @@ class FirewallService(Service):
                     self.log.info(f"Reset: {resp}")
                 except Exception as ex:
                     self.log.debug(f"Reset: {deny_rule} not found: {ex}")
-            # Re-create rule with descriptive name (reset to clean state)
-            await self.ensure_rule(port_obj, rule_name=port_name, reset_on_existing=True)
+                # Re-create base rule with descriptive name (reset to clean state)
+                await self.ensure_rule(port_obj, rule_name=port_name, reset_on_existing=True)
 
         self.log.info(f"Firewall rules reset complete for {server_name}")
 
@@ -682,9 +657,8 @@ class FirewallService(Service):
         # Stop all log tail tasks
         for server_name in list(self._log_tail_tasks.keys()):
             self._stop_log_tail(server_name)
-        # Unregister DCS update callbacks (only if they were registered)
-        config = self.get_config().get('ddos_detection', {})
-        if config.get('enabled', False):
+        # Unregister DCS update callbacks (only if DDoS detection is enabled)
+        if self.get_config().get('ddos_detection', {}).get('enabled', False):
             self.node.unregister_callback('before_dcs_update', self.name)
             self.node.unregister_callback('after_dcs_update', self.name)
         await utils.safe_cancel(self.monitoring)
