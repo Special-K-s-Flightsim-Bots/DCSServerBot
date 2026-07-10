@@ -173,6 +173,22 @@ from /plugins/mission/reports to /reports/mission and amend it like so:
 }
 ```
 
+If you do not want to hide the players units, you can do it like so:
+```json
+{
+  "color": "blue",
+  "title": "Active Players",
+  "elements":
+  [
+    {
+      "class": "plugins.mission.players.Main",
+      "params": {
+        "hide_units": true
+      }
+    }
+  ]
+}
+```
 
 ## Discord Commands
 | Command                | Parameter                                 | Channel               | Role                           | Description                                                                                                                                                                                                                       |
