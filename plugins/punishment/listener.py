@@ -334,7 +334,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         # generate S_EVENT_HIT
         if s_event['eventName'] == 'S_EVENT_SHOT':
-            self.log.debug("Punishment: autocreating missing S_EVENT_HIT for player {} vs {}".format(
+            self.log.debug("Punishment: auto-creating missing S_EVENT_HIT for player {} vs {}".format(
                 initiator.name, target.name)
             )
             s_event |= {
@@ -346,7 +346,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         # generate S_EVENT_KILL
         if s_event['eventName'] == 'S_EVENT_HIT':
-            self.log.debug("Punishment: autocreating missing S_EVENT_KILL for player {} vs {}".format(
+            self.log.debug("Punishment: auto-creating missing S_EVENT_KILL for player {} vs {}".format(
                 initiator.name, target.name)
             )
             s_event |= {
@@ -402,10 +402,13 @@ class PunishmentEventListener(EventListener["Punishment"]):
         elif data['eventName'] == 'kill':
             # check team-kills
             target = server.get_player(id=data['arg4'])
+            self.log.debug(f"_check_punishment(): target: {target}")
             # TODO: Workaround for DCS bug
             if initiator and initiator.side.value != data['arg3']:
+                self.log.debug(f"_check_punishment(): initiator.side.value: {initiator.side.value}, data['arg3']: {data['arg3']}")
                 data['arg3'] = initiator.side.value
             if target and target.side.value != data['arg6']:
+                self.log.debug(f"_check_punishment(): target.side.value: {target.side.value}, data['arg6']: {data['arg6']}")
                 data['arg6'] = target.side.value
 
             if data['arg1'] != data['arg4'] and data['arg3'] == data['arg6']:
@@ -488,7 +491,9 @@ class PunishmentEventListener(EventListener["Punishment"]):
         asyncio.create_task(self.bus.send_to_node(s_event.copy()))
 
         initiator = server.get_player(name=s_event.get('initiator', {}).get('name'))
+        self.log.debug(f"_give_kill(): initiator: {initiator}")
         target = server.get_player(name=s_event.get('target', {}).get('name'))
+        self.log.debug(f"_give_kill(): target: {target}")
 
         # remove the pending task if there is one
         if target:
@@ -585,7 +590,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         config = self.get_config(server)
 
-        # airstarts or takeoffs reset the reslot timer directly on birth
+        # air-starts or takeoffs reset the reslot timer directly on birth
         if (data['eventName'] == 'S_EVENT_BIRTH' and not data.get('place')) or data['eventName'] == 'S_EVENT_TAKEOFF':
             initiator = server.get_player(name=data.get('initiator', {}).get('name'))
             if initiator:
