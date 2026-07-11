@@ -45,7 +45,7 @@ class Player(DataObject):
     coalition: Coalition | None = field(compare=False, default=None)
     _watchlist: bool = field(compare=False, default=False)
     _vip: bool = field(compare=False, default=False)
-    bot: DCSServerBot = field(compare=False, init=False)
+    bot: DCSServerBot = field(compare=False, repr=False, init=False)
     pending: bool = field(compare=False, default=False)
 
     @override
