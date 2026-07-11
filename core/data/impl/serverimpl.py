@@ -154,10 +154,10 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 @dataclass
 @DataObjectFactory.register()
 class ServerImpl(Server):
-    bot: DCSServerBot | None = field(compare=False, init=False)
-    event_handler: MissionFileSystemEventHandler = field(compare=False, default=None)
-    observer: ObserverType = field(compare=False, default=None)
-    process: psutil.Process | None = field(default=None, compare=False)
+    bot: DCSServerBot | None = field(compare=False, init=False, repr=False, default=None)
+    event_handler: MissionFileSystemEventHandler = field(compare=False, repr=False, default=None)
+    observer: ObserverType = field(compare=False, repr=False, default=None)
+    process: psutil.Process | None = field(default=None, repr=False, compare=False)
 
     @override
     def __post_init__(self):
