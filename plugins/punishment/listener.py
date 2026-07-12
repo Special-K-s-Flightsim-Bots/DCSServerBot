@@ -250,6 +250,10 @@ class PunishmentEventListener(EventListener["Punishment"]):
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
 
+        # no configuration for this server, return
+        if not config:
+            return
+
         # no penalty configured for this event
         penalty = next((item for item in config['penalties'] if item['event'] == data['eventName']), None)
         if not penalty:
