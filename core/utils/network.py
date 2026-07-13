@@ -7,7 +7,6 @@ import ipaddress
 import logging
 import secrets
 import socket
-import sys
 import time
 
 from contextlib import closing, suppress
@@ -94,56 +93,15 @@ async def get_public_ip(node: "Node | None" = None):
     raise TimeoutError("Public IP could not be retrieved.")
 
 
-if sys.version_info >= (3, 14):
+def is_upnp_available() -> bool:
+    """
+    Check if a UPnP Internet Gateway Device (IGD) is available on the network.
 
-    def is_upnp_available() -> bool:
-        from upnpy import UPnP
-
-        try:
-            upnp = UPnP()
-            devices = upnp.discover()
-            if not devices:
-                return False
-
-            # Look for an InternetGatewayDevice and its WANIPConnection (or WANPPPConnection) service
-            for device in devices:
-                if "InternetGatewayDevice" in (device.device_type or ""):
-                    try:
-                        # Try WANIPConnection first
-                        wan_services = device.get_services()
-                        has_wan = any(
-                            ("WANIPConnection" in s.service_type) or ("WANPPPConnection" in s.service_type)
-                            for s in wan_services
-                        )
-                        if has_wan:
-                            return True
-                    except Exception:
-                        continue
-            return False
-        except Exception:
-            return False
-
-else:
-
-    def is_upnp_available() -> bool:
-        import miniupnpc
-
-        try:
-            upnp = miniupnpc.UPnP()
-            devices = upnp.discover()  # Discover UPnP-enabled devices
-            if devices > 0:
-                if upnp.selectigd():
-                    # UPnP is enabled and an IGD was found.
-                    return True
-                else:
-                    # UPnP is enabled, but no Internet Gateway Device (IGD) is selected
-                    return False
-            else:
-                # No UPnP devices detected on the network.
-                return False
-        except Exception:
-            # A UPnP device was found, but no IGD was found.
-            return False
+    Note: full UPnP port-mapping operations moved to ``core.utils.upnp``.
+    This function is kept for backward compatibility.
+    """
+    from core.utils.upnp import is_available
+    return is_available()
 
 
 def fw_rule(port: int, protocol: str, name: str, description: str) -> str:
