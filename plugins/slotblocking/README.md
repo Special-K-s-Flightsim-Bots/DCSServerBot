@@ -20,14 +20,14 @@ You'll find a sample file in the ./samples directory:
 # config/plugins/slotblocking.yaml
 DEFAULT:            # Default section - true for all your servers.
   VIP:              # define a VIP group
-    audit: true     # you want to be informed, if someone of that group enters your server
+    audit: true     # you want to be informed if someone of that group enters your server
     discord:        # you can define VIPs by a specific discord role
       - Admin
       - DCS Admin
-    ucid:           # and a list of UCIDs (can be a single one also)
+    ucid:           # and a list of UCIDs (can be single also)
       - aabbccddeeffgghh
       - 11aa22bb33dd44ee
-    slots: 2        # Optional: These number of slots are locked for VIPs only 
+    slots: 2        # Optional: These numbers of slots are locked for VIPs only 
     message_server_full: The server is full, please try again later!  # default message, if the server is considered full
   restricted:       # These slots are restricted in any way. Here we restrict CA slots for Donators or members or the Discord.
   - unit_type: artillery_commander
@@ -46,6 +46,10 @@ DEFAULT:            # Default section - true for all your servers.
   - unit_type: dynamic    # restrict the usage of dynamic slots in general for a specific Discord role
     discord: Tester
     message: Dynamic Slots are restricted for Testers only.
+  maximum:                    # Optional: Maximum number of slots per side
+    blue: 60                  # if red is set, default is maxPlayers - red
+    red: 40                   # if blue is set, default is maxPlayers - blue
+    message: This coalition is full, please try the other.
   balancing:                  # Optional: Allows balancing for your server (blue vs red)
     blue_vs_red: 0.5          # 50% balance blue vs red
     threshold: 0.1            # 10% threshold until slots are blocked
@@ -72,6 +76,8 @@ names used in your mission, or by its "unit_type".
 Restrictions can be enforced through credit "points" earned from kills or "discord" (specific Discord roles, 
 such as "Donators" in the example provided). 
 The "costs" refer to the points you lose when you are killed while flying this specific aircraft, if applicable.
+The `maximum` section limits how many players can be on each coalition side. If you only define one side,
+the other side is derived from `maxPlayers - configured_side`.
 
 ## Sample Use Case
 Here are some sample use cases that show how the plugin can be used.

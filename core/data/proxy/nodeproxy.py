@@ -471,6 +471,16 @@ class NodeProxy(Node):
         }, timeout=timeout, node=self.name)
 
     @override
+    async def set_config(self, config: dict) -> dict:
+        timeout = 60 if not self.slow_system else 120
+        return await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "set_config",
+            "args": [config]
+        }, timeout=timeout, node=self.name)
+
+    @override
     async def is_alive(self, timeout: int = 30) -> bool:
         async with self.cpool.connection() as conn:
             query = sql.SQL("""

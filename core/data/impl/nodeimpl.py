@@ -2012,3 +2012,13 @@ class NodeImpl(Node):
     @override
     async def get_config(self) -> dict:
         return self.read_locals()
+
+    @override
+    async def set_config(self, config: dict) -> dict:
+        config_file = os.path.join(self.config_dir, 'nodes.yaml')
+        with open(config_file, mode='r', encoding='utf-8') as infile:
+            old_config = yaml.load(infile)
+        old_config[self.name] = utils.deep_merge(old_config[self.name], config)
+        with open(config_file, mode='w', encoding='utf-8') as outfile:
+            yaml.dump(old_config, outfile)
+        return self.read_locals()
