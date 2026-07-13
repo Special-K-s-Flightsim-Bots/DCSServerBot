@@ -17,7 +17,7 @@ certifi==2026.6.17
 contourpy==1.3.3
 
 # Croniter: Python iterator implementing a cron schedule format
-croniter==6.2.2
+croniter==6.2.4
 
 # discord.py: The python interface for the Discord API
 discord.py==2.7.1
@@ -32,10 +32,10 @@ fastapi==0.138.0
 fuzzywuzzy==0.18.0
 
 # GeoPandas: World map
-geopandas==1.1.3
+geopandas==1.1.4
 
 # GitPython: Python library for interacting with git repositories
-GitPython>=3.1.50
+GitPython>=3.1.51
 
 # Jinja web template framework
 jinja2==3.1.6
@@ -119,7 +119,7 @@ sqlparse==0.5.5
 telnetlib3==4.0.5
 
 # TimezoneFinder: Find the right timezones for a given coordinate
-tzfpy[tzdata]==1.3.1
+tzfpy[tzdata]==1.3.2
 
 # tomli: Python TOML parser
 tomli_w==1.2.0
@@ -132,7 +132,7 @@ upnpy==1.1.8 ; python_version >= "3.14"
 miniupnpc==2.3.3 ; python_version < "3.14"
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.49.0
+uvicorn==0.51.0
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==6.0.0
