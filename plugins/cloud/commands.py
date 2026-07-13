@@ -288,7 +288,7 @@ class Cloud(Plugin[CloudListener]):
     @utils.app_has_role('DCS')
     async def statistics(self, interaction: discord.Interaction,
                          user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None):
-        if 'register' not in self.config:
+        if not self.config.get('register', True):
             await interaction.response.send_message(_('Cloud statistics are not activated in this Discord!'),
                                                     ephemeral=True)
             return
