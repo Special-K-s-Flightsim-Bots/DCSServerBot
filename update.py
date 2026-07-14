@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Iterable
 from version import __version__
 
+VERSION_TRAILER_FILE = "version.sha"
+
 
 def install_requirements() -> subprocess.CompletedProcess:
     """
@@ -141,29 +143,63 @@ def delete_path(path: str):
         shutil.rmtree(path)
 
 
+def get_last_successful_sha() -> str | None:
+    """Reads the SHA from the version trailer file."""
+    if os.path.exists(VERSION_TRAILER_FILE):
+        with open(VERSION_TRAILER_FILE, 'r') as f:
+            return f.read().strip()
+    return None
+
+
+def set_last_successful_sha(new_sha: str):
+    """Writes the current successful SHA to the version trailer file."""
+    with open(VERSION_TRAILER_FILE, 'w') as f:
+        f.write(new_sha)
+    print(f"  [Version Tracker] Successfully updated state marker to {new_sha[:7]}.")
+
+
 def do_update_github() -> int:
+    # 1. Check for Releases
     response = requests.get(f"https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases")
-    if response.status_code != 200:
-        print(f'  => Autoupdate failed: {response.reason} ({response.status_code})')
-        return -2
+    latest_release = None
+    if response.status_code == 200 and response.json():
+        latest_release = response.json()[0]
+
     current_version = re.sub('^v', '', __version__)
-    latest_version = re.sub('^v', '', response.json()[0]["tag_name"])
+    update_url = None
+    new_tag = None
+    new_sha = None
 
-    if version.parse(latest_version) > version.parse(current_version):
-        print('- Updating myself...')
+    if latest_release:
+        latest_version = re.sub('^v', '', latest_release["tag_name"])
+        if version.parse(latest_version) > version.parse(current_version):
+            update_url = latest_release['zipball_url']
+            new_tag = latest_version
 
-        zip_url = response.json()[0]['zipball_url']
-        zip_res = requests.get(zip_url)
+    # 2. Check master branch if no release update was found
+    if not update_url:
+        branch_res = requests.get(f"https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/branches/master")
+        if branch_res.status_code == 200:
+            master_sha = branch_res.json()['commit']['sha']
+            last_sha = get_last_successful_sha()
+            if master_sha != last_sha:
+                print(f"- New changes detected on master branch ({master_sha[:7]}).")
+                update_url = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/zipball/master"
+                new_sha = master_sha
+                new_tag = f"master ({master_sha[:7]})"
+
+    if update_url:
+        print(f'- Updating myself to {new_tag}...')
+        zip_res = requests.get(update_url)
 
         with io.BytesIO() as bytes_io:
             bytes_io.write(zip_res.content)
-            bytes_io.seek(0)  # reset file pointer to beginning
+            bytes_io.seek(0)
 
             with zipfile.ZipFile(bytes_io) as zip_ref:
                 with tempfile.TemporaryDirectory() as temp_dir:
-                    zip_ref.extractall(temp_dir)  # extract to temporary directory
-
-                    extracted_folder = os.path.join(temp_dir, os.listdir(temp_dir)[0])  # there is one folder
+                    zip_ref.extractall(temp_dir)
+                    extracted_folder = os.path.join(temp_dir, os.listdir(temp_dir)[0])
 
                     # check for necessary file deletions
                     old_files_set = set(utils.list_all_files(os.getcwd()))
@@ -181,13 +217,17 @@ def do_update_github() -> int:
                             new_file_dir = os.path.dirname(new_file_path)
                             os.makedirs(new_file_dir, exist_ok=True)
 
-                            # move file
+                            # Exchange files only if they differ (shutil.copy2 preserves metadata)
                             shutil.copy2(old_file_path, new_file_path)
+
+            if new_sha:
+                set_last_successful_sha(new_sha)
+
             rc = install_requirements()
             if rc.returncode:
                 print('  => Autoupdate failed!')
                 return -1
-        print(f'  => DCSServerBot updated to the latest version {latest_version}.')
+        print(f'  => DCSServerBot updated to {new_tag}.')
     else:
         print('- No update found for DCSServerBot.')
     return 0

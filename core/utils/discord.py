@@ -75,6 +75,7 @@ __all__ = [
     "server_selection",
     "get_ephemeral",
     "get_command",
+    "ConfigView",
     "ConfigModal",
     "DirectoryPicker",
     "NodeUploadHandler",
@@ -1387,6 +1388,30 @@ async def get_command(bot: DCSServerBot, *, name: str,
     raise app_commands.CommandNotFound(name, [group] if group else [])
 
 
+class ConfigView(View):
+    def __init__(self, config: dict[str, ConfigModal]):
+        super().__init__(timeout=300)
+        self.config = config
+        self.retval = {}
+        for name in config.keys():
+            button = Button(label=name, style=ButtonStyle.primary)
+            button.callback = lambda interaction, n=name: self.callback(interaction, n)
+            self.add_item(button)
+        button = Button(label="Save", style=ButtonStyle.green)
+        button.callback = self.save
+        self.add_item(button)
+
+    async def callback(self, interaction: discord.Interaction, name: str):
+        modal = self.config[name]
+        await interaction.response.send_modal(modal)
+        if not await modal.wait():
+            self.retval[name] = modal.value
+
+    async def save(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        self.stop()
+
+
 class ConfigModal(Modal):
     def __init__(self, title: str, config: dict, old_values: dict | None = None, ephemeral: bool | None = False):
         super().__init__(title=title)
@@ -1468,7 +1493,10 @@ class ConfigModal(Modal):
                 self.config[v.component.custom_id].get('type')
             )
             for v in self.children
-#            if not isinstance(v, discord.ui.Label)
+            if (
+                (v.component.value.strip() if isinstance(v.component.value, str) else v.component.value is not None)
+                if getattr(v.component, 'value', None) is not None else v.component.values
+            )
         }
         self.stop()
 
