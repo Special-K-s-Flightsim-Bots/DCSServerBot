@@ -172,6 +172,9 @@ schema;preset_map:
       nullable: false
       sequence:
         - {type: str, nullable: false}
+    failures:
+      type: any
+      nullable: false
     accidental_failures:
       type: bool
       nullable: false
