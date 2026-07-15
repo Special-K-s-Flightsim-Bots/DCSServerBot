@@ -623,7 +623,7 @@ class ServerImpl(Server):
                 shutil.copy2(orig, _mission)
                 missions.append(_mission)
             elif os.path.exists(mission):
-                if '.dcssb' in mission and os.path.getmtime(_mission) > os.path.getmtime(mission):
+                if '.dcssb' in mission and os.path.exists(_mission) and os.path.getmtime(_mission) > os.path.getmtime(mission):
                     shutil.copy2(_mission, mission)
                 missions.append(mission)
             else:
