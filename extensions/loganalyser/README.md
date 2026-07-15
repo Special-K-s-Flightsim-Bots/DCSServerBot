@@ -25,6 +25,7 @@ MyNode:
             - unlisted              # Server unlisting
             - moose version         # Outdated MOOSE version
             - mist version          # Outdated MIST version
+            - foothold config       # Outdated Foothold configuration
           ignore_files:
             - moose.lua             # this can be any regular expression pattern like [Mm]oose.*\.lua
           warn_times:               # times when to send the restart messages
@@ -42,24 +43,29 @@ MyNode:
 
 ### Type of Detections
 a) script errors
-General LUA errors in either embedded LUA code or an external script in your mission.
+General LUA errors in either embedded LUA code or an external script in your mission. 
+Will be logged to the audit log.
 
 b) upnp
-Detects if UPnP is enabled but should not. This speeds up the startup-time of your server a bit.
+Detects if UPnP is enabled but should not. It will then disable UPnP detection.
+This speeds up the startup-time of your server a bit.
 
 c) missing terrain
-Detects if a terrain is missing but needed.
+Detects and warns if a terrain is missing but needed.
 
 d) regmapstorage
 Detects if the RegMapStorage (some storage inside DCS is full). If yes, it will restart your DCS server
 automatically, as it would not work properly anymoer anyway.
 
 e) unlisted
-Your server has been unlisted from the ED website. People can not find your server anymore.
+Your server has been unlisted from the ED website. People cannot find your server anymore.
 You will be warned, but you can decide to auto-restart the server also (`restart_on_unlist: true`).
 
 f) moose version
-Detects if an outdated version of MOOSE is being used.
+Detects and warns if an outdated version of MOOSE is being used.
 
 g) mist version
-Detects if an outdated version of MIST is being used.
+Detects and warns if an outdated version of MIST is being used.
+
+h) foothold config
+Detects and warns if the external Foothold configuration is outdated.

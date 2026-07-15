@@ -24,7 +24,8 @@ ERROR_DETECTIONS = {
     "regmapstorage": r"RegMapStorage has no more IDs",
     "unlisted": r"ERROR\s+ASYNCNET\s+\(Main\):\s+Server update failed with code -?\d+\.\s+The server will be unlisted.",
     "moose version": r"\*\*\* MOOSE GITHUB Commit Hash ID: (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+\-]\d{2}:\d{2}))-[0-9A-Fa-f]+ \*\*\*",
-    "mist version": r'\bINFO\s+SCRIPTING\s+\(Main\):\s+Mist version\s+(?P<version>\d+(?:\.\d+)+)\s+loaded\.'
+    "mist version": r'\bINFO\s+SCRIPTING\s+\(Main\):\s+Mist version\s+(?P<version>\d+(?:\.\d+)+)\s+loaded\.',
+    "foothold config": r'\bINFO\s+SCRIPTING\s+\(Main\):\s+FOOTHOLD_CONFIG_EXTERNAL_OUTDATED'
 }
 
 __all__ = [
@@ -51,7 +52,8 @@ class LogAnalyser(Extension):
                 "regmapstorage",
                 "unlisted",
                 "moose version",
-                "mist version"
+                "mist version",
+                "foothold config"
             ],
             "min_values": 0,
             "max_values": 7
@@ -95,6 +97,8 @@ class LogAnalyser(Extension):
             self.register_callback(ERROR_DETECTIONS['moose version'], self.moose_check)
         if 'mist version' in detections:
             self.register_callback(ERROR_DETECTIONS['mist version'], self.mist_check)
+        if 'foothold config' in detections:
+            self.register_callback(ERROR_DETECTIONS['foothold config'], self.foothold_check)
         asyncio.create_task(self.check_log())
 
     @override
@@ -331,3 +335,15 @@ class LogAnalyser(Extension):
     async def restart_server(self, _idx: int, line: str, _match: re.Match):
         self.log.warning(f"Server restarting due to critical error: {line.rstrip()}")
         asyncio.create_task(self.server.restart(modify_mission=False))
+
+    async def foothold_check(self, _idx: int, _line: str, match: re.Match):
+        mission_name = self.server.current_mission.name if self.server.current_mission else f"on server {self.server.name}"
+        embed = utils.create_warning_embed(
+            title='OExternal Foothold config is outdated!',
+            text="Internal defaults were applied where required.")
+        embed.add_field(name="Server", value=self.server.display_name, inline=False)
+        embed.add_field(name="Mission", value=mission_name, inline=False)
+        try:
+            await self.bot.send_message(embed=dict(embed.to_dict()))
+        except Exception as ex:
+            self.log.exception(ex)
