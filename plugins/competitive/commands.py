@@ -358,16 +358,16 @@ class Competitive(Plugin[CompetitiveListener]):
                               flt=[PeriodFilter, CampaignFilter]
                           )] | None = PeriodFilter()
                       ):
-        if player1 == player2:
-            await interaction.response.send_message(_("You need to specify two different players."), ephemeral=True)
-            return
-
         if player2 is None:
             player2 = player1
             player1 = await self.bot.get_ucid_by_member(interaction.user, verified=True)
             if not player1:
                 await interaction.response.send_message(_("You need to link your account first."))
                 return
+
+        if player1 == player2:
+            await interaction.response.send_message(_("You need to specify two different players."), ephemeral=True)
+            return
 
         await interaction.response.defer(ephemeral=True)
 
