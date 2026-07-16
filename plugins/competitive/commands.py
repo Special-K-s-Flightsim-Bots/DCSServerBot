@@ -3,8 +3,9 @@ import discord
 import itertools
 import math
 
-from core import Plugin, utils, get_translation, Node, Group, Report
+from core import Plugin, utils, get_translation, Node, Group, Report, PlayerType, async_cache
 from datetime import datetime
+from decimal import Decimal
 from discord import app_commands
 from plugins.competitive import rating
 from psycopg.rows import dict_row
@@ -12,9 +13,28 @@ from services.bot import DCSServerBot
 from trueskill import Rating, BETA, global_env
 
 from .listener import CompetitiveListener
-from ..userstats.filter import MissionStatisticsFilter, PeriodTransformer, StatisticsFilter
+from ..userstats.filter import MissionStatisticsFilter, PeriodTransformer, StatisticsFilter, PeriodFilter, \
+    CampaignFilter
 
 _ = get_translation(__name__.split('.')[1])
+
+
+async def all_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    @async_cache
+    async def get_all_modules() -> list[str]:
+        async with interaction.client.node.apool.connection() as conn:
+            return [x[0] async for x in await conn.execute("""
+                SELECT DISTINCT slot 
+                FROM mv_statistics 
+                WHERE slot != '?' 
+                  AND slot NOT ILIKE '%crew%'
+            """)]
+
+    l_current = current.lower()
+    return [
+        app_commands.Choice[str](name=x, value=x)
+        for x in await get_all_modules() if not current or l_current in x.lower()
+    ][:25]
 
 
 class Competitive(Plugin[CompetitiveListener]):
@@ -319,6 +339,218 @@ class Competitive(Plugin[CompetitiveListener]):
         else:
             # The generation of complete new ratings can take a while so that the interaction might have vanished.
             await channel.send(_("TrueSkill:tm: ratings regenerated."))
+
+    # New command group "/compare"
+    compare = Group(name="compare", description="Commands to compare PvP statistics")
+
+    @compare.command(name='players', description='Compare player stats')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def players(self, interaction: discord.Interaction,
+                      player1: app_commands.Transform[
+                         str, utils.UserTransformer(sel_type=PlayerType.PLAYER)
+                      ],
+                      player2: app_commands.Transform[
+                         str, utils.UserTransformer(sel_type=PlayerType.PLAYER)
+                      ] | None = None,
+                      period: app_commands.Transform[
+                          StatisticsFilter, PeriodTransformer(
+                              flt=[PeriodFilter, CampaignFilter]
+                          )] | None = PeriodFilter()
+                      ):
+        if player1 == player2:
+            await interaction.response.send_message(_("You need to specify two different players."), ephemeral=True)
+            return
+
+        if player2 is None:
+            player2 = player1
+            player1 = await self.bot.get_ucid_by_member(interaction.user, verified=True)
+            if not player1:
+                await interaction.response.send_message(_("You need to link your account first."))
+                return
+
+        await interaction.response.defer(ephemeral=True)
+
+        embed = discord.Embed(color=discord.Color.blue(), title=period.format(self.bot) + _("Compare Players"))
+        async with self.node.apool.connection() as conn:
+            cursor = await conn.execute(f"""
+                SELECT p.ucid, 
+                       p.name, 
+                       COALESCE(SUM(s.pvp), 0) as kills_pvp, 
+                       COALESCE(SUM(s.deaths_pvp), 0) as deaths_pvp
+                FROM players p LEFT OUTER JOIN statistics s ON (p.ucid = s.player_ucid)
+                WHERE p.ucid in (%s, %s)
+                AND {period.filter(self.bot)}
+                GROUP BY 1, 2
+            """, (player1, player2))
+            rows = await cursor.fetchall()
+            value_0 = "**Names\nKDR**"
+            kdr_p1 = float(rows[0][2] / (rows[0][3] if rows[0][3] else Decimal(1.0)))
+            kdr_p2 = float(rows[1][2] / (rows[1][3] if rows[1][3] else Decimal(1.0)))
+            value_1 = rows[0][1] + f"\n{kdr_p1:.2f}"
+            value_2 = rows[1][1] + f"\n{kdr_p2:.2f}"
+
+            rating_p1 = await self.eventlistener.get_rating(rows[0][0])
+            rating_p2 = await self.eventlistener.get_rating(rows[1][0])
+            win_probability = self.win_probability([rating_p1], [rating_p2])
+
+            value_0 += "\n**TrueSkill:tm:\nWin Probability**"
+            value_1 += f"\n{self.eventlistener.calculate_rating(rating_p1):.2f}"
+            value_2 += f"\n{self.eventlistener.calculate_rating(rating_p2):.2f}"
+
+            value_1 += f"\n{win_probability * 100:.2f}%"
+            value_2 += f"\n{(1 - win_probability) * 100:.2f}%"
+
+            embed.add_field(name="_ _", value=value_0)
+            embed.add_field(name="Player 1", value=value_1)
+            embed.add_field(name="Player 2", value=value_2)
+
+            flt = MissionStatisticsFilter(period.period)
+            cursor = await conn.execute(f"""
+                SELECT event, init_id, COUNT(*) as num FROM missionstats 
+                WHERE event IN ('S_EVENT_SHOT', 'S_EVENT_HIT', 'S_EVENT_KILL')
+                AND (
+                    (init_id = %(player1)s AND target_id = %(player2)s) OR 
+                    (init_id = %(player2)s AND target_id = %(player1)s)
+                )
+                AND weapon != init_type
+                AND {flt.filter(self.bot)}
+                GROUP BY 1, 2
+            """, {"player1": player1, "player2": player2})
+
+            events = {
+                'S_EVENT_SHOT': {
+                    player1: 0,
+                    player2: 0
+                },
+                'S_EVENT_HIT': {
+                    player1: 0,
+                    player2: 0
+                },
+                'S_EVENT_KILL': {
+                    player1: 0,
+                    player2: 0
+                }
+            }
+
+            for row in await cursor.fetchall():
+                events[row[0]][row[1]] = row[2]
+
+            embed.add_field(name="_ _", value="**Shots\nHits\nKills**")
+            embed.add_field(name="P1 vs P2",
+                            value=f"{events['S_EVENT_SHOT'][player1]}\n"
+                                  f"{events['S_EVENT_HIT'][player1]}\n"
+                                  f"{events['S_EVENT_KILL'][player1]}")
+            embed.add_field(name="P2 vs P1",
+                            value=f"{events['S_EVENT_SHOT'][player2]}\n"
+                                  f"{events['S_EVENT_HIT'][player2]}\n"
+                                  f"{events['S_EVENT_KILL'][player2]}")
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    @compare.command(name='modules', description='Compare module stats')
+    @app_commands.guild_only()
+    @app_commands.autocomplete(module1=all_modules_autocomplete)
+    @app_commands.autocomplete(module2=all_modules_autocomplete)
+    @utils.app_has_role('DCS')
+    async def modules(self, interaction: discord.Interaction, module1: str, module2: str,
+                      period: app_commands.Transform[
+                                  StatisticsFilter, PeriodTransformer(
+                                      flt=[PeriodFilter, CampaignFilter]
+                                  )] | None = PeriodFilter()
+                      ):
+        if module1 == module2:
+            await interaction.response.send_message(_("You need to specify two different modules."), ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        async with self.node.apool.connection() as conn:
+            cursor = await conn.execute(f"""
+                SELECT slot, 
+                       ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime, 
+                       COUNT(*) AS usage, 
+                       SUM(pvp) AS kills, 
+                       SUM(deaths_pvp) AS deaths
+                FROM statistics s
+                WHERE slot in (%s, %s)
+                AND {period.filter(self.bot)}
+                GROUP BY 1
+            """, (module1, module2))
+
+            modules = {
+                module1: {
+                    "playtime": 0,
+                    "usage": 0,
+                    "kills": 0,
+                    "deaths": 0
+                },
+                module2: {
+                    "playtime": "0",
+                    "usage": "0",
+                    "kdr": "0"
+                }
+            }
+
+            for row in await cursor.fetchall():
+                kdr = row[3] / (row[4] if row[4] else Decimal(1.0))
+                modules[row[0]] = {
+                    "playtime": utils.convert_time(row[1]),
+                    "usage": str(row[2]),
+                    "kdr": f"{kdr:.2f}"
+                }
+
+            embed = discord.Embed(color=discord.Color.blue(), title=period.format(self.bot) + _("Compare Modules"))
+
+            value_0 = "**Playtime\nUsage #\nKDR**"
+            value_1 = '\n'.join(modules[module1].values())
+            value_2 = '\n'.join(modules[module2].values())
+
+            embed.add_field(name="_ _", value=value_0)
+            embed.add_field(name=module1, value=value_1)
+            embed.add_field(name=module2, value=value_2)
+
+            flt = MissionStatisticsFilter(period.period)
+            cursor = await conn.execute(f"""
+                SELECT event, init_type, COUNT(*) as num FROM missionstats 
+                WHERE event IN ('S_EVENT_SHOT', 'S_EVENT_HIT', 'S_EVENT_KILL')
+                AND (
+                    (init_type = %(module1)s AND target_type = %(module2)s) OR 
+                    (init_type = %(module2)s AND target_type = %(module1)s)
+                )
+                AND weapon != init_type
+                AND {flt.filter(self.bot)}
+                GROUP BY 1, 2
+            """, {"module1": module1, "module2": module2})
+
+            events = {
+                'S_EVENT_SHOT': {
+                    module1: 0,
+                    module2: 0
+                },
+                'S_EVENT_HIT': {
+                    module1: 0,
+                    module2: 0
+                },
+                'S_EVENT_KILL': {
+                    module1: 0,
+                    module2: 0
+                }
+            }
+
+            for row in await cursor.fetchall():
+                events[row[0]][row[1]] = row[2]
+
+            embed.add_field(name="_ _", value="**Shots\nHits\nKills**")
+            embed.add_field(name="===>",
+                            value=f"{events['S_EVENT_SHOT'][module1]}\n"
+                                  f"{events['S_EVENT_HIT'][module1]}\n"
+                                  f"{events['S_EVENT_KILL'][module1]}")
+            embed.add_field(name="<===",
+                            value=f"{events['S_EVENT_SHOT'][module2]}\n"
+                                  f"{events['S_EVENT_HIT'][module2]}\n"
+                                  f"{events['S_EVENT_KILL'][module2]}")
+
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):

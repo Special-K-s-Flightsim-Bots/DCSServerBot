@@ -126,13 +126,13 @@ class CompetitiveListener(EventListener["Competitive"]):
 
     async def rank_teams(self, winners: list[Player], losers: list[Player]):
         r_winners, r_losers = trueskill.rate([
-            [await self.get_rating(p) for p in winners],
-            [await self.get_rating(p) for p in losers]
+            [await self.get_rating(p.ucid) for p in winners],
+            [await self.get_rating(p.ucid) for p in losers]
         ], [0, 1])
         for idx, p in enumerate(winners):
-            await self.set_rating(p, r_winners[idx])
+            await self.set_rating(p.ucid, r_winners[idx])
         for idx, p in enumerate(losers):
-            await self.set_rating(p, r_losers[idx])
+            await self.set_rating(p.ucid, r_losers[idx])
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, _: dict) -> None:
@@ -281,7 +281,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                 await self.inform_players(
                     server,
                     match, _("Player {name} ({rating}) joined the {side} team!").format(
-                        name=player.name, rating=self.calculate_rating(await self.get_rating(player)),
+                        name=player.name, rating=self.calculate_rating(await self.get_rating(player.ucid)),
                         side=player.side.name))
 
             # if we are in a global match, lock the seat
@@ -314,21 +314,21 @@ class CompetitiveListener(EventListener["Competitive"]):
                 }
                 asyncio.create_task(self._addPlayerToMatch(server, new_data))
 
-    async def get_rating(self, player: Player) -> Rating:
+    async def get_rating(self, ucid: str) -> Rating:
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT skill_mu, skill_sigma 
                 FROM trueskill 
                 WHERE player_ucid = %s
-            """, (player.ucid, ))
+            """, (ucid, ))
             row = await cursor.fetchone()
             if not row:
                 r = rating.create_rating()
-                return await self.set_rating(player, r)
+                return await self.set_rating(ucid, r)
             else:
                 return Rating(float(row[0]), float(row[1]))
 
-    async def set_rating(self, player: Player, skill: Rating) -> Rating:
+    async def set_rating(self, ucid: str, skill: Rating) -> Rating:
         async with self.apool.connection() as conn:
             await conn.execute("""
                 INSERT INTO trueskill (player_ucid, skill_mu, skill_sigma, time) 
@@ -337,7 +337,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                 SET skill_mu = excluded.skill_mu, 
                     skill_sigma = excluded.skill_sigma, 
                     time = excluded.time
-            """, (player.ucid, skill.mu, skill.sigma))
+            """, (ucid, skill.mu, skill.sigma))
         return skill
 
     @staticmethod
@@ -430,10 +430,10 @@ class CompetitiveListener(EventListener["Competitive"]):
                     return
                 for player in killers:
                     await player.sendChatMessage(_("You won against {loser}! Your new rating is {rating}").format(
-                        loser=print_crew(victims), rating=self.calculate_rating(await self.get_rating(player))))
+                        loser=print_crew(victims), rating=self.calculate_rating(await self.get_rating(player.ucid))))
                 for player in victims:
                     await player.sendChatMessage(_("You lost against {winner}! Your new rating is {rating}").format(
-                        winner=print_crew(killers), rating=self.calculate_rating(await self.get_rating(player))))
+                        winner=print_crew(killers), rating=self.calculate_rating(await self.get_rating(player.ucid))))
         elif data['eventName'] in ['self_kill', 'crash']:
             players = server.get_crew_members(server.get_player(id=data['arg1']))
             if not players:
@@ -561,7 +561,7 @@ class CompetitiveListener(EventListener["Competitive"]):
     async def _print_trueskill(self, player: Player):
         if not self.get_config(player.server).get('silent', False):
             await player.sendChatMessage(_("Your TrueSkill rating is: {}").format(
-                self.calculate_rating(await self.get_rating(player))))
+                self.calculate_rating(await self.get_rating(player.ucid))))
 
     @chat_command(name="skill", help=_("Display your rating"))
     async def skill(self, _server: Server, player: Player, _params: list[str]):
@@ -592,7 +592,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                     message += f"{time:%H:%M:%S}: {log}\n"
                 message += _("\nYour new rating is as follows:\n")
                 for player in match.teams[Side.BLUE] + match.teams[Side.RED]:
-                    message += f"- {player.name}: {self.calculate_rating(await self.get_rating(player))}\n"
+                    message += f"- {player.name}: {self.calculate_rating(await self.get_rating(player.ucid))}\n"
                 asyncio.create_task(self.inform_players(server, match, message, 60))
 
                 asyncio.create_task(self.bus.send_to_node({

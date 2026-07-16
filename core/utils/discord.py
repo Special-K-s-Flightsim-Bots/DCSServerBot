@@ -1229,7 +1229,10 @@ class UserTransformer(app_commands.Transformer):
     async def transform(self, interaction: discord.Interaction, value: str) -> discord.Member | str | None:
         if value:
             if is_ucid(value):
-                return interaction.client.get_member_by_ucid(value) or value
+                if self.sel_type in [PlayerType.ALL, PlayerType.MEMBER]:
+                    return interaction.client.get_member_by_ucid(value) or value
+                else:
+                    return value
             elif value.isnumeric():
                 return interaction.guild.get_member(int(value))
             else:
