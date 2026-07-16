@@ -481,7 +481,8 @@ class Competitive(Plugin[CompetitiveListener]):
             cursor = await conn.execute(f"""
                 SELECT slot, 
                        ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime, 
-                       COUNT(*) AS usage, 
+                       COUNT(*) AS usage,
+                       COUNT(DISTINCT player_ucid) AS users, 
                        SUM(pvp) AS kills, 
                        SUM(deaths_pvp) AS deaths
                 FROM statistics s
@@ -492,29 +493,31 @@ class Competitive(Plugin[CompetitiveListener]):
 
             modules = {
                 module1: {
-                    "playtime": 0,
-                    "usage": 0,
-                    "kills": 0,
-                    "deaths": 0
+                    "playtime": "0",
+                    "usage": "0",
+                    "users": "0",
+                    "kdr": "0",
                 },
                 module2: {
                     "playtime": "0",
                     "usage": "0",
+                    "users": "0",
                     "kdr": "0"
                 }
             }
 
             for row in await cursor.fetchall():
-                kdr = row[3] / (row[4] if row[4] else Decimal(1.0))
+                kdr = row[4] / (row[5] if row[5] else Decimal(1.0))
                 modules[row[0]] = {
                     "playtime": utils.convert_time(row[1]),
                     "usage": str(row[2]),
+                    "users": str(row[3]),
                     "kdr": f"{kdr:.2f}"
                 }
 
             embed = discord.Embed(color=discord.Color.blue(), title=period.format(self.bot) + _("Compare Modules"))
 
-            value_0 = "**Playtime\nUsage #\nKDR**"
+            value_0 = "**Playtime\nUsage #\nUsers\nKDR**"
             value_1 = '\n'.join(modules[module1].values())
             value_2 = '\n'.join(modules[module2].values())
 
