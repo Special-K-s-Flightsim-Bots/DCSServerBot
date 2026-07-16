@@ -373,6 +373,17 @@ class Competitive(Plugin[CompetitiveListener]):
 
         embed = discord.Embed(color=discord.Color.blue(), title=period.format(self.bot) + _("Compare Players"))
         async with self.node.apool.connection() as conn:
+            stats = {
+                player1: {
+                    "name": "n/a",
+                    "kdr": 0
+                },
+                player2: {
+                    "name": "n/a",
+                    "kdr": 0
+                }
+            }
+
             cursor = await conn.execute(f"""
                 SELECT p.ucid, 
                        p.name, 
@@ -383,15 +394,17 @@ class Competitive(Plugin[CompetitiveListener]):
                 AND {period.filter(self.bot)}
                 GROUP BY 1, 2
             """, (player1, player2))
-            rows = await cursor.fetchall()
-            value_0 = "**Names\nKDR**"
-            kdr_p1 = float(rows[0][2] / (rows[0][3] if rows[0][3] else Decimal(1.0)))
-            kdr_p2 = float(rows[1][2] / (rows[1][3] if rows[1][3] else Decimal(1.0)))
-            value_1 = rows[0][1] + f"\n{kdr_p1:.2f}"
-            value_2 = rows[1][1] + f"\n{kdr_p2:.2f}"
+            for row in await cursor.fetchall():
+                kdr = float(row[2] / (row[3] if row[3] else Decimal(1.0)))
+                stats[row[0]]['name'] = row[1]
+                stats[row[0]]['kdr'] = f"{kdr:.2f}"
 
-            rating_p1 = await self.eventlistener.get_rating(rows[0][0])
-            rating_p2 = await self.eventlistener.get_rating(rows[1][0])
+            value_0 = "**Names\nKDR**"
+            value_1 = '\n'.join(stats[player1].values())
+            value_2 = '\n'.join(stats[player2].values())
+
+            rating_p1 = await self.eventlistener.get_rating(player1)
+            rating_p2 = await self.eventlistener.get_rating(player2)
             win_probability = self.win_probability([rating_p1], [rating_p2])
 
             value_0 += "\n**TrueSkill:tm:\nWin Probability**"
