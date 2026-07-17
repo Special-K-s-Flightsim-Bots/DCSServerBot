@@ -1,0 +1,22 @@
+type: map
+mapping:
+  DEFAULT:
+    type: map
+    mapping:
+      gofundme:
+        type: seq
+        sequence:
+          - type: map
+            mapping:
+              campaign: {type: str, required: true}
+              channel: {type: any, required: true}
+              interval: {type: int}
+  commands:
+    include: 'commands_schema'
+  "regex;(.+)":
+    type: map
+    mapping:
+      campaigns:
+        type: seq
+        sequence:
+          - type: str

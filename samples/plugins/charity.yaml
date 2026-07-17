@@ -1,0 +1,11 @@
+# This is a sample configuration for the charity plugin.
+# You can track multiple GoFundMe campaigns.
+DEFAULT:
+  gofundme:
+    - campaign: campaign1           # The slug of your GoFundMe campaign
+      channel: 123456789012345678   # The Discord channel ID or name to report donations
+      interval: 5                   # Optional: check interval in minutes (default is 5)
+# Limiting notifications to specific servers:
+# DCS.dcs_serverrelease:
+#   campaigns:
+#     - campaign1
