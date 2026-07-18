@@ -616,17 +616,21 @@ class Cloud(Plugin[CloudListener]):
         # user is linked already
         if ucid:
             return
-        links = await self.get(f'player?discord_id={member.id}')
-        if not links:
-            return
-        async with self.apool.connection() as conn:
-            for link in links:
-                await conn.execute("""
-                    UPDATE players 
-                       SET discord_id = %s, 
-                           manual = TRUE 
-                    WHERE ucid = %s 
-                """, (member.id, link['ucid']))
+
+        try:
+            links = await self.get(f'player?discord_id={member.id}')
+            if not links:
+                return
+            async with self.apool.connection() as conn:
+                for link in links:
+                    await conn.execute("""
+                        UPDATE players 
+                           SET discord_id = %s, 
+                               manual = TRUE 
+                        WHERE ucid = %s 
+                    """, (member.id, link['ucid']))
+        except aiohttp.ClientError:
+            self.log.warning("Cloud service unavailable.")
 
 
 async def setup(bot: DCSServerBot):

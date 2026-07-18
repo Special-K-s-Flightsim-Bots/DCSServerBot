@@ -125,7 +125,7 @@ class Charity(Plugin):
 
         # In-game notification
         slug = config['campaign'].split('/')[-1]
-        msg = _("New donation to GoFundMe: {name} donated ${amount}!").format(
+        msg = _("New donation: {name} donated ${amount}!").format(
             name=donation['name'] or _('Anonymous'), amount=donation['amount'])
         for server in self.bot.servers.values():
             if server.status in [Status.RUNNING, Status.PAUSED]:
