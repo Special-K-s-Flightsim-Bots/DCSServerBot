@@ -47,6 +47,7 @@ class Player(DataObject):
     _vip: bool = field(compare=False, default=False)
     bot: DCSServerBot = field(compare=False, repr=False, init=False)
     pending: bool = field(compare=False, default=False)
+    _muted: bool = field(compare=False, default=False)
 
     @override
     def __post_init__(self):
@@ -68,9 +69,13 @@ class Player(DataObject):
                 """, (self.ucid, self.name))
             # get the player information
             cursor = conn.execute(f"""
-                SELECT DISTINCT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
-                       p.manual, c.coalition, 
-                       CASE WHEN w.player_ucid IS NOT NULL THEN TRUE ELSE FALSE END AS watchlict, p.vip 
+                SELECT DISTINCT p.discord_id, 
+                       CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
+                       p.manual, 
+                       c.coalition, 
+                       CASE WHEN w.player_ucid IS NOT NULL THEN TRUE ELSE FALSE END AS watchlict, 
+                       p.vip,
+                       p.muted 
                 FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
                 LEFT OUTER JOIN coalitions c 
                      ON p.ucid = c.player_ucid 
@@ -95,6 +100,7 @@ class Player(DataObject):
                     self.coalition = Coalition(row[3])
                 self._watchlist = row[4]
                 self._vip = row[5]
+                self._muted = row[6]
             else:
                 rules = self.server.locals.get('rules')
                 if rules:
@@ -358,14 +364,27 @@ class Player(DataObject):
             "ucid": self.ucid
         })
 
+    def update_muted(self, muted: bool) -> None:
+        self._muted = muted
+        with self.pool.connection() as conn:
+            conn.execute('UPDATE players SET muted = %s WHERE ucid = %s', (muted, self.ucid))
+
     async def mute(self) -> None:
         await self.server.send_to_dcs({
             "command": "mute_player",
             "ucid": self.ucid
         })
+        if not self._muted:
+            self.update_muted(True)
 
     async def unmute(self) -> None:
         await self.server.send_to_dcs({
             "command": "unmute_player",
             "ucid": self.ucid
         })
+        if self._muted:
+            self.update_muted(False)
+
+    @property
+    def muted(self) -> bool:
+        return self._muted
