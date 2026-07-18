@@ -455,7 +455,7 @@ class MissionEventListener(EventListener["Mission"]):
 
             # initialize AFK check for players on spectators
             afk_config = server.locals.get('afk', {})
-            if afk_config and afk_config.get('check_on_join', True) and p['slot'] == -1:
+            if afk_config and afk_config.get('check_on_join', True) and p['unit_type'] == '?':
                 server.afk[player.ucid] = datetime.now(timezone.utc)
                 self.log.debug(f"AFK: Player {player.name} on spectators, timer set.")
 
@@ -639,6 +639,8 @@ class MissionEventListener(EventListener["Mission"]):
         asyncio.create_task(self._upload_user_roles(server, player))
         if player.watchlist:
             asyncio.create_task(self._watchlist_alert(server, player))
+        if player.muted:
+            asyncio.create_task(player.mute())
 
         # check if we've reached the max_threshold
         usage_alarm = server.locals.get('usage_alarm', {})
