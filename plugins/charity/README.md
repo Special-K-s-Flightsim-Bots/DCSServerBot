@@ -15,6 +15,7 @@ You'll find a sample file in the `./samples/plugins` directory:
 ```yaml
 # config/plugins/charity.yaml
 DEFAULT:
+  bot_status: true                  # Display the donations and the goal in the bot status (default: true)
   gofundme:
     - campaign: campaign-1          # The URL or slug of your GoFundMe campaign
       channel: 123456789012345678   # The Discord channel ID or name to report donations

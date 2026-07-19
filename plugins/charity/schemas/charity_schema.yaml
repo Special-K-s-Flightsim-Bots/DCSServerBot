@@ -2,9 +2,12 @@ type: map
 mapping:
   DEFAULT:
     type: map
+    nullable: false
     mapping:
+      bot_status: {type: bool, nullable: false}
       gofundme:
         type: seq
+        nullable: false
         sequence:
           - type: map
             mapping:

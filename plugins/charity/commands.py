@@ -1,3 +1,6 @@
+import asyncio
+from queue import Queue, Empty
+
 import aiohttp
 import certifi
 import discord
@@ -14,6 +17,7 @@ class Charity(Plugin):
     def __init__(self, bot):
         super().__init__(bot)
         self._session = None
+        self.donations = Queue()
 
     async def cog_load(self) -> None:
         await super().cog_load()
@@ -25,8 +29,12 @@ class Charity(Plugin):
         if interval != 5:
             self.check_donations.change_interval(minutes=interval)
         self.check_donations.start()
+        if self.get_config().get('bot_status', True):
+            self.change_presence.start()
 
     async def cog_unload(self) -> None:
+        if self.get_config().get('bot_status', True):
+            self.change_presence.cancel()
         self.check_donations.cancel()
         if self._session:
             await self._session.close()
@@ -57,6 +65,21 @@ class Charity(Plugin):
     async def before_check(self):
         await self.bot.wait_until_ready()
 
+    @tasks.loop(seconds=5)
+    async def change_presence(self):
+        try:
+            donation = self.donations.get_nowait()
+            message = f"{donation['name']} donated {donation['amount']}"
+            activity = discord.CustomActivity(name=message)
+            await self.bot.change_presence(status=discord.Status.online, activity=activity)
+            self.donations.task_done()
+        except Empty:
+            pass
+
+    @change_presence.before_loop
+    async def before_check(self):
+        await self.bot.wait_until_ready()
+
     async def _check_gofundme(self, config: dict):
         campaign = config['campaign']
         slug = campaign.split('/')[-1]
@@ -71,13 +94,23 @@ class Charity(Plugin):
             # Check if we have any donations recorded for this campaign
             has_donations = await self._has_donations(slug)
 
-            for donation in reversed(donations):
+            for donation in donations:
                 d_id = str(donation['donation_id'])
                 if await self._is_new_donation(slug, d_id):
                     await self._record_donation(slug, donation)
                     # Only report if we already had some donations (avoid spam on first run)
                     if has_donations:
+                        if self.get_config().get('bot_status', True):
+                            self.donations.put_nowait(donation)
                         await self._report_donation(config, donation)
+
+            if self.get_config().get('bot_status', True):
+                if self.donations.empty():
+                    status = await self._get_status(slug)
+                    message = _("Raised {total}{currency} from {goal}{currency}").format(
+                        title=status['title'], total=status['total'], currency=status['currency'], goal=status['goal'])
+                    activity = discord.CustomActivity(name=message, emoji='💵')
+                    await self.bot.change_presence(status=discord.Status.online, activity=activity)
 
     async def _has_donations(self, slug: str) -> bool:
         async with self.apool.connection() as conn:
@@ -136,6 +169,26 @@ class Charity(Plugin):
 
     charity = Group(name="charity", description="Commands for charity tracking")
 
+    async def _get_status(self, slug: str) -> dict:
+        api_url = f"https://gateway.gofundme.com/web-gateway/v1/feed/{slug}/campaign"
+        async with self.session.get(api_url) as response:
+            data = await response.json()
+            campaign = data.get('references', {}).get('campaign', {})
+            if not campaign:
+                raise ValueError("Campaign not found.")
+
+        currency = {
+            "USD": '$',
+            "EUR": '€',
+            "GBP": '£'
+        }
+        return {
+            "title": campaign.get('fund_name', slug),
+            "total": campaign.get('current_amount', 0),
+            "goal": campaign.get('goal_amount', 0),
+            "currency": currency.get(campaign.get('currencycode', 'USD'), '$')
+        }
+
     @charity.command(description="Show charity status")
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
@@ -151,31 +204,14 @@ class Charity(Plugin):
             campaign = config['campaign']
             slug = campaign.split('/')[-1]
             try:
-                api_url = f"https://gateway.gofundme.com/web-gateway/v1/feed/{slug}/campaign"
-                async with self.session.get(api_url) as response:
-                    data = await response.json()
-                    campaign = data.get('references', {}).get('campaign', {})
-                    if not campaign:
-                        embed.add_field(name=slug, value=_("Error fetching status."), inline=False)
-                        continue
+                status = await self._get_status(slug)
+                value = _("Total: {total}{currency}").format(total=status['total'], currency=status['currency'])
+                goal = status['goal']
+                if goal:
+                    value += _(" / Goal: {goal}{currency} ({percent:.1f}%)").format(
+                        goal=goal, currency=status['currency'], percent=(status['total'] / goal * 100) if goal else 0)
 
-                    title = campaign.get('fund_name', slug)
-                    total = campaign.get('current_amount', 0)
-                    goal = campaign.get('goal_amount', 0)
-                    currency = campaign.get('currencycode', '$')
-                    if currency == 'USD':
-                        currency = '$'
-                    elif currency == 'EUR':
-                        currency = '€'
-                    elif currency == 'GBP':
-                        currency = '£'
-
-                    value = _("Total: {total}{currency}").format(total=total, currency=currency)
-                    if goal:
-                        value += _(" / Goal: {goal}{currency} ({percent:.1f}%)").format(
-                            goal=goal, currency=currency, percent=(total / goal * 100) if goal else 0)
-
-                    embed.add_field(name=title, value=value, inline=False)
+                embed.add_field(name=status['title'], value=value, inline=False)
             except Exception as ex:
                 self.log.error(f"Error fetching status for {slug}: {ex}")
                 embed.add_field(name=slug, value=_("Error fetching status."), inline=False)
