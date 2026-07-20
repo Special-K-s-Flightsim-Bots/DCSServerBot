@@ -23,7 +23,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         self.lock = asyncio.Lock()
         self.active_servers: set[str] = set()
         self.pending_forgiveness: dict[tuple[str, str], list[asyncio.Task]] = {}
-        self.pending_csar: dict[str, asyncio.Task] = {}
+        self.pending_repair: dict[str, asyncio.Task] = {}
         self.pending_kill: dict[str, tuple[int, dict | None]] = ThreadSafeDict()
         self.disconnected: dict[str, tuple[int, dict | None]] = ThreadSafeDict()
         self.awaiting_task: dict[str, asyncio.TimerHandle] = ThreadSafeDict()
@@ -31,7 +31,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
     async def shutdown(self) -> None:
         tasks = [t for sub in self.pending_forgiveness.values() for t in sub]
-        tasks.extend(self.pending_csar.values())
+        tasks.extend(self.pending_repair.values())
         for t in tasks: t.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -182,16 +182,18 @@ class PunishmentEventListener(EventListener["Punishment"]):
                         if not tasks:
                             self.pending_forgiveness.pop(key, None)
 
-    async def _csar_window(self, initiator: Player, window: int) -> None:
+    async def _repair_window(self, initiator: Player, window: int, event_name: str) -> None:
         try:
+            if event_name == 'S_EVENT_LAND':
+                message = _("{}, you landed outside of an airfield.\n"
+                            "CSAR has been deployed to pick you up.").format(initiator.name)
+            elif event_name == 'S_EVENT_EJECTION':
+                message = _("{}, your aircraft must be fitted with a new ejection seat.")
+            else:
+                message = _("{}, your aircraft needs an inspection.")
+            message += "\n" + _("Please stand by for {}").format(utils.format_time(window))
             await initiator.lock()
-            await initiator.sendUserMessage(
-                _("{initiator}, you landed outside of an airfield.\n"
-                  "CSAR has been deployed to pick you up.\n"
-                  "Please stand by for {window}").format(
-                    initiator=initiator.name, window=utils.format_time(window)
-                )
-            )
+            await initiator.sendUserMessage(message)
             await asyncio.sleep(window)
         except asyncio.CancelledError:
             pass
@@ -202,7 +204,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     initiator=initiator.name, window=window
                 )
             )
-            self.pending_csar.pop(initiator.ucid, None)
+            self.pending_repair.pop(initiator.ucid, None)
 
     @event(name="punish")
     async def punish(self, server: Server, data: dict):
@@ -658,10 +660,10 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 if data.get('place') or initiator.unit_category != 'Planes':
                     return
                 # if we did not land at a proper airbase
-                csar_window = self.get_config(server).get('csar_timeout', 0)
-                if csar_window > 0:
-                    task = asyncio.create_task(self._csar_window(initiator, csar_window))
-                    self.pending_csar[initiator.ucid] = task
+                repair_window = self.get_config(server).get('csar_timeout', 0)
+                if repair_window > 0:
+                    task = asyncio.create_task(self._repair_window(initiator, repair_window, data['eventName']))
+                    self.pending_repair[initiator.ucid] = task
 
         elif data['eventName'] == 'S_EVENT_KILL':
             target = server.get_player(name=data.get('target', {}).get('name'))
@@ -678,6 +680,12 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
             shot_time, s_event = self.pending_kill.pop(initiator.ucid, (-1, None))
             if shot_time == -1 or not s_event:
+                # create a repair window to repair the ejection seat
+                if data['eventName'] == 'S_EVENT_EJECTION':
+                    repair_window = self.get_config(server).get('repair_timeout', 0)
+                    if repair_window > 0:
+                        task = asyncio.create_task(self._repair_window(initiator, repair_window, data['eventName']))
+                        self.pending_repair[initiator.ucid] = task
                 return
 
             delta_time = int(time.time()) - shot_time
