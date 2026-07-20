@@ -169,7 +169,7 @@ local function done()
         then
             -- remove the package.loaded. prefix from the loaded methods
             local n = prefix and prefix .. '.' .. n or n
-            n = n:gsub("^package\.loaded\.", "")
+            n = n:gsub("^package%.loaded%", "")
             m[o] = { name = n, id = method_id }
             method_id = method_id + 1
         end

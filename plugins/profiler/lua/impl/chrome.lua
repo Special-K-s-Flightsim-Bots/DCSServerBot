@@ -92,7 +92,7 @@ function Profile:new(file, full)
 end
 
 function Profile:is_force_gc()
-    return self.get_force_gc
+    return self.force_gc
 end
 
 function Profile:is_lua_only()
@@ -321,13 +321,13 @@ function Instrumentator:create_hook()
                     }
                 }
                 self.profile:write_event(net.lua2json(mem_ev, 2))
-                mem_start = self.function_stack[co][func][depth]
+                local mem_start = self.function_stack[co][func][depth]
 
                 if mem_start then
                     args = {
                         mem_start = mem_start,
                         mem_end = mem_end,
-                        mem_delta = mem_start - mem_end
+                        mem_delta = mem_end - mem_start
                     }
                     self.function_stack[co][func][depth] = nil
                     if next(self.function_stack[co][func]) == nil then
