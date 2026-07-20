@@ -26,14 +26,6 @@ local function high_res_clock()
     return math.floor(socket.gettime() * 1e6)
 end
 
--- Minimal JSON escaping for strings used in our output
-local function json_escape(s)
-    s = tostring(s or "")
-    s = s:gsub("\\", "\\\\"):gsub("\"", "\\\""):gsub("\b", "\\b")
-        :gsub("\f", "\\f"):gsub("\n", "\\n"):gsub("\r", "\\r"):gsub("\t", "\\t")
-    return s
-end
-
 -- stack_frames_to_json: serialise the global `stackFrames` table with net.lua2json
 local function stack_frames_to_json()
     -- Build a plain Lua table that matches the desired JSON structure
@@ -403,7 +395,6 @@ end
 internal_functions[collect_function] = true
 collect_function(Instrumentator, internal_functions)
 collect_function(Profile, internal_functions)
-internal_functions[json_escape] = true
 internal_functions[high_res_clock] = true
 internal_functions[get_tid] = true
 internal_functions[ensure_tables] = true
