@@ -51,6 +51,11 @@ class NodeProxy(Node):
 
     @override
     @property
+    def claimed_master(self) -> bool:
+        return self.master
+
+    @override
+    @property
     def public_ip(self) -> str:
         return self._public_ip
 

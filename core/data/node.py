@@ -88,6 +88,11 @@ class Node(ABC):
 
     @property
     @abstractmethod
+    def claimed_master(self) -> bool:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
     def public_ip(self) -> str:
         raise NotImplementedError()
 

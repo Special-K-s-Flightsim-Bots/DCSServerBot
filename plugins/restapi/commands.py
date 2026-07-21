@@ -5,8 +5,8 @@ import psycopg
 import random
 import re
 
-from core import (Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, PluginInstallationError,
-                  Server, async_cache)
+from core import (Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, ServiceProxy,
+                  PluginInstallationError, Server, async_cache)
 from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
 from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, File, UploadFile, Response
@@ -101,6 +101,8 @@ class RestAPI(Plugin):
         # give the webservice 10 seconds to launch on master switches
         for i in range(0, 10):
             self.web_service = ServiceRegistry.get(WebService)
+            if isinstance(self.web_service, ServiceProxy):
+                return
             if self.web_service and self.web_service.is_running():
                 break
             await asyncio.sleep(1)

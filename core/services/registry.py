@@ -111,7 +111,7 @@ class ServiceRegistry(Generic[T]):
 
             for key in ServiceRegistry._registry.keys():
                 if key.__name__ == t:
-                    if ServiceRegistry.master_only(key) and ServiceRegistry._node and not ServiceRegistry._node.master:
+                    if ServiceRegistry.master_only(key) and ServiceRegistry._node and not (ServiceRegistry._node.master or ServiceRegistry._node.claimed_master):
                         if key not in ServiceRegistry._proxies:
                             ServiceRegistry._proxies[key] = ServiceProxy(key)
                         return cast(T, ServiceRegistry._proxies[key])
@@ -123,7 +123,7 @@ class ServiceRegistry(Generic[T]):
         if instance:
             return instance
 
-        if ServiceRegistry.master_only(t) and ServiceRegistry._node and not ServiceRegistry._node.master:
+        if ServiceRegistry.master_only(t) and ServiceRegistry._node and not (ServiceRegistry._node.master or ServiceRegistry._node.claimed_master):
             if t not in ServiceRegistry._proxies:
                 ServiceRegistry._proxies[t] = ServiceProxy(t)
             return cast(T, ServiceRegistry._proxies[t])
