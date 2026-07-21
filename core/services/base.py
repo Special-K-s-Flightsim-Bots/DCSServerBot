@@ -27,6 +27,7 @@ yaml = YAML()
 __all__ = [
     "proxy",
     "Service",
+    "ServiceProxy",
     "ServiceInstallationError"
 ]
 
