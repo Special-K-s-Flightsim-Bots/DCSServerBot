@@ -223,7 +223,8 @@ def get_cpu_set_information():
             "Core Index": cpu_info.CoreIndex,
             "Efficiency Class": cpu_info.EfficiencyClass,
             "Scheduling Class": cpu_info.SchedulingClass,
-            "Numa Node Index": cpu_info.NumaNodeIndex
+            "Numa Node Index": cpu_info.NumaNodeIndex,
+            "Last Level Cache Index": cpu_info.LastLevelCacheIndex
         })
 
         # Move to the next structure
@@ -468,7 +469,7 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
     core_to_numa = {}
     if topology:
         for n_idx, scheds in topology.items():
-            for sched, cores_map in scheds.items():
+            for group_key, cores_map in scheds.items():
                 for c_idx, logicals in cores_map.items():
                     for l_idx in logicals:
                         core_to_numa[l_idx] = n_idx

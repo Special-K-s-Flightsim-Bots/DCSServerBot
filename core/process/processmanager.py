@@ -80,8 +80,8 @@ class ProcessManager:
         return []
 
     @staticmethod
-    def _get_physical_topology() -> dict[int, dict[int, dict[int, list[int]]]]:
-        """Groups logical processors by Numa Node, Scheduling Class, and Physical Core Index."""
+    def _get_physical_topology() -> dict[int, dict[tuple[int, int], dict[int, list[int]]]]:
+        """Groups logical processors by Numa Node, (Scheduling Class, LLC Index), and Physical Core Index."""
         cpu_sets = get_cpu_set_information()
         topo = {}
 
@@ -90,15 +90,18 @@ class ProcessManager:
             sched   = cpu["Scheduling Class"]
             c_idx   = cpu["Core Index"]
             n_idx   = cpu.get("Numa Node Index", 0)
+            llc_idx = cpu.get("Last Level Cache Index", 0)
+
+            group_key = (sched, llc_idx)
 
             if n_idx not in topo:
                 topo[n_idx] = {}
-            if sched not in topo[n_idx]:
-                topo[n_idx][sched] = {}
-            if c_idx not in topo[n_idx][sched]:
-                topo[n_idx][sched][c_idx] = []
+            if group_key not in topo[n_idx]:
+                topo[n_idx][group_key] = {}
+            if c_idx not in topo[n_idx][group_key]:
+                topo[n_idx][group_key][c_idx] = []
 
-            topo[n_idx][sched][c_idx].append(l_idx)
+            topo[n_idx][group_key][c_idx].append(l_idx)
 
         return topo
 
@@ -155,20 +158,22 @@ class ProcessManager:
         all_physical_units: list[dict] = []
         logical_to_unit = {}
         for n_idx in sorted(self.topology.keys()):
-            for sched in sorted(self.topology[n_idx].keys(), reverse=True):
-                for c_idx in sorted(self.topology[n_idx][sched].keys()):
-                    logical = [l for l in self.topology[n_idx][sched][c_idx] if l not in self.excluded_cores]
+            for group_key in sorted(self.topology[n_idx].keys(), reverse=True):
+                sched = group_key[0]
+                for c_idx in sorted(self.topology[n_idx][group_key].keys()):
+                    logical = [l for l in self.topology[n_idx][group_key][c_idx] if l not in self.excluded_cores]
                     if logical:
                         current_owners = {}
                         for l in logical:
                             for pid, p_info in self.managed_processes.items():
                                 if l in p_info.get('_current_assignments', []):
                                     current_owners[l] = {'pid': pid, 'quality': p_info['quality']}
-                            logical_to_unit[l] = (n_idx, sched, c_idx)
+                            logical_to_unit[l] = (n_idx, sched, c_idx, group_key[1])
 
                         all_physical_units.append({
                             'n_idx': n_idx,
                             'sched': sched,
+                            'llc_idx': group_key[1],
                             'c_idx': c_idx,
                             'logical': logical,
                             'is_p': (sched > 0) if self.p_e_core_cpu else True,
@@ -266,8 +271,10 @@ class ProcessManager:
                 eligible = [x for x in all_physical_units if x['is_p'] is (info['quality'] > 0)]
             # NUMA awareness: Prefer cores on the same NUMA node as existing assignments
             if current_cores:
-                current_numa = logical_to_unit[current_cores[0]][0]
-                eligible.sort(key=lambda x: (x['n_idx'] != current_numa, -x['sched']))
+                u_info = logical_to_unit[current_cores[0]]
+                current_numa = u_info[0]
+                current_llc = u_info[3]
+                eligible.sort(key=lambda x: (x['n_idx'] != current_numa, x['llc_idx'] != current_llc, -x['sched']))
             else:
                 eligible.sort(key=lambda x: -x['sched'])
 
@@ -275,7 +282,7 @@ class ProcessManager:
             # Try to complete units we already touch or take fresh clean units.
             for unit in eligible:
                 if needed <= 0: break
-                unit_logicals = self.topology[unit['n_idx']][unit['sched']][unit['c_idx']]
+                unit_logicals = self.topology[unit['n_idx']][(unit['sched'], unit['llc_idx'])][unit['c_idx']]
                 if any(l in current_cores for l in unit_logicals) or not current_cores:
                     while unit['logical'] and needed > 0:
                         current_cores.append(unit['logical'].pop(0))
@@ -311,17 +318,18 @@ class ProcessManager:
                 # Sort units by occupancy (most populated first)
                 sorted_occupied = sorted(occupied_units.items(), key=lambda x: x[1], reverse=True)
 
-                for (n_idx, sched, c_idx), count in sorted_occupied:
+                for (n_idx, sched, c_idx, llc_idx), count in sorted_occupied:
                     # Defrag MUST stay within allowed boundaries
                     if not (min_allowed_sched <= sched <= target_sched):
                         continue
 
                     # If we already fully own this physical unit, LEAVE IT ALONE.
-                    total_unit_logicals = len(self.topology[n_idx][sched][c_idx])
+                    total_unit_logicals = len(self.topology[n_idx][(sched, llc_idx)][c_idx])
                     if count >= total_unit_logicals:
                         continue
 
-                    unit = next((u for u in all_physical_units if u['n_idx'] == n_idx and u['sched'] == sched and u['c_idx'] == c_idx), None)
+                    unit = next((u for u in all_physical_units 
+                                 if u['n_idx'] == n_idx and u['sched'] == sched and u['c_idx'] == c_idx and u['llc_idx'] == llc_idx), None)
                     if not unit: continue
 
                     foreigners = []
@@ -333,7 +341,8 @@ class ProcessManager:
                             continue
 
                         for l in other_cores:
-                            if logical_to_unit.get(l) == (n_idx, sched, c_idx):
+                            u_key = logical_to_unit.get(l)
+                            if u_key and u_key[:3] == (n_idx, sched, c_idx):
                                 foreigners.append((other_pid, l))
 
                     free_slots = list(unit['logical'])
@@ -348,13 +357,13 @@ class ProcessManager:
                         other_cores = []
                         for l in current_cores:
                             u_key = logical_to_unit.get(l)
-                            if u_key == (n_idx, sched, c_idx): continue
+                            if u_key and u_key[:3] == (n_idx, sched, c_idx): continue
 
-                            u_nidx, u_sched, u_cidx = u_key
+                            u_nidx, u_sched, u_cidx, u_llc = u_key
                             # Same scheduling class check
                             if u_sched != sched: continue
 
-                            u_total = len(self.topology[u_nidx][u_sched][u_cidx])
+                            u_total = len(self.topology[u_nidx][(u_sched, u_llc)][u_cidx])
                             u_occupied = occupied_units.get(u_key, 0)
 
                             if u_occupied < u_total and u_occupied <= count:
@@ -372,9 +381,10 @@ class ProcessManager:
                                 new_core = free_slots.pop(0)
                                 unit['logical'].remove(new_core)
                                 # Global pool update
-                                old_nidx, old_sched, old_cidx = logical_to_unit[old_core]
+                                old_nidx, old_sched, old_cidx, old_llc = logical_to_unit[old_core]
                                 old_unit = next(
-                                    u for u in all_physical_units if u['n_idx'] == old_nidx and u['sched'] == old_sched and u['c_idx'] == old_cidx)
+                                    u for u in all_physical_units 
+                                    if u['n_idx'] == old_nidx and u['sched'] == old_sched and u['c_idx'] == old_cidx and u['llc_idx'] == old_llc)
                                 old_unit['logical'].append(old_core)
                             elif swap_slots:
                                 swap_core = swap_slots.pop(0)
@@ -418,7 +428,7 @@ class ProcessManager:
                     preferred_available = [u for u in available if u['sched'] == available[0]['sched']]
 
                     # Atomic growth: finish the current physical unit or take a fresh one
-                    occ = {logical_to_unit[l] for l in current_cores if l in logical_to_unit}
+                    occ = {logical_to_unit[l][:3] for l in current_cores if l in logical_to_unit}
                     target_unit = next((u for u in preferred_available if (u['n_idx'], u['sched'], u['c_idx']) in occ),
                                        preferred_available[0])
 
@@ -572,8 +582,9 @@ class ProcessManager:
 
         for n_idx in sorted(self.topology.keys()):
             numa_groups[n_idx] = []
-            for sched in sorted(self.topology[n_idx].keys(), reverse=True):
-                phys = sorted(self.topology[n_idx][sched].items())
+            for group_key in sorted(self.topology[n_idx].keys(), reverse=True):
+                sched, llc_idx = group_key
+                phys = sorted(self.topology[n_idx][group_key].items())
 
                 if self.p_e_core_cpu:
                     # Hybrid system (Intel)
@@ -584,9 +595,13 @@ class ProcessManager:
                 else:
                     # Non-hybrid (AMD, older Intel)
                     if len(self.topology[n_idx]) > 1:
-                        title = f"Class {sched}"
-                        color = class_colors[sched % len(class_colors)]
-                        prefix = f"S{sched}-"
+                        if any(k[1] > 0 for k in self.topology[n_idx].keys()):
+                            title = f"CCD {llc_idx}"
+                            prefix = f"C{llc_idx}-"
+                        else:
+                            title = f"Class {sched}"
+                            prefix = f"S{sched}-"
+                        color = class_colors[hash(group_key) % len(class_colors)]
                     else:
                         title = "Cores"
                         color = p_color
@@ -598,7 +613,8 @@ class ProcessManager:
         ax.set_aspect('equal')
 
         def draw_cluster(phys_cores, start_x, start_y, base_color, label_prefix, cluster_title):
-            #ax.text(start_x, start_y + 0.5, cluster_title, color=text_color, fontsize=10, fontweight='bold')
+            if cluster_title != "Cores":
+                ax.text(start_x, start_y + 1.0, cluster_title, color=text_color, fontsize=9, fontweight='bold')
             max_x = start_x
             last_row = 0
             for i, (c_idx, logicals) in enumerate(phys_cores):

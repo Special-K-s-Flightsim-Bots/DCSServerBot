@@ -17,6 +17,7 @@ def get_cpu_set_information() -> list[dict]:
         - Efficiency Class  (set to 0 – not available on Linux)
         - Scheduling Class  (Hybrid aware: 0 for E-core, P-cores > 0)
         - Numa Node Index   (NUMA node ID)
+        - Last Level Cache Index (L3 cache ID or Die ID)
     """
     cpu_info_list: list[dict] = []
     e_mask = get_e_core_affinity()
@@ -67,6 +68,13 @@ def get_cpu_set_information() -> list[dict]:
             else:
                 sched_class = pkg_id
 
+            # L3 Cache / Die detection
+            llc_id = _read_int(os.path.join(sysfs_root, entry, "cache/index3/id"))
+            if llc_id is None:
+                llc_id = _read_int(os.path.join(sysfs_root, entry, "topology/die_id"))
+            if llc_id is None:
+                llc_id = 0
+
             cpu_info_list.append(
                 {
                     "CPU Id": cpu_num,
@@ -74,7 +82,8 @@ def get_cpu_set_information() -> list[dict]:
                     "Core Index": core_id,
                     "Efficiency Class": 0,          # not exposed on Linux
                     "Scheduling Class": sched_class,
-                    "Numa Node Index": numa_node
+                    "Numa Node Index": numa_node,
+                    "Last Level Cache Index": llc_id
                 }
             )
 
@@ -108,6 +117,7 @@ def get_cpu_set_information() -> list[dict]:
                                 "Efficiency Class": 0,
                                 "Scheduling Class": sched_class,
                                 "Numa Node Index": 0, # Harder to get from cpuinfo accurately
+                                "Last Level Cache Index": pkg_id # Fallback
                             }
                         )
                     cpu_block.clear()
@@ -138,6 +148,7 @@ def get_cpu_set_information() -> list[dict]:
                         "Efficiency Class": 0,
                         "Scheduling Class": sched_class,
                         "Numa Node Index": 0,
+                        "Last Level Cache Index": pkg_id
                     }
                 )
 
