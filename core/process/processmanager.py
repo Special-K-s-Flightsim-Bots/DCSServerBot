@@ -544,13 +544,39 @@ class ProcessManager:
                 }
                 self._redistribute_cores()
 
+    @property
+    def topology_json(self) -> dict:
+        # Convert tuple keys to strings for JSON serialization
+        res = {}
+        for n_idx, groups in self.topology.items():
+            res[str(n_idx)] = {}
+            for group_key, cores in groups.items():
+                # group_key is (sched, llc_idx)
+                res[str(n_idx)][str(group_key)] = cores
+        return res
+
+    def export_topology(self) -> dict:
+        from core.process import get_cpu_set_information, get_cpu_name
+        try:
+            from core.process import get_cache_info
+            cache = get_cache_info()
+        except ImportError:
+            cache = []
+
+        return {
+            'cpu_name': get_cpu_name(),
+            'topology': self.topology_json,
+            'cpu_sets': get_cpu_set_information(),
+            'cache': cache
+        }
+
     def visualize_usage(self) -> bytes:
         """
         Generates a detailed CPU topology visualization with process overlays and prefixed IDs.
         """
         from io import BytesIO
         from matplotlib import pyplot as plt, patches
-        from core.process.win32.cpu import get_cpu_name
+        from core.process import get_cpu_name
 
         # 1. Gather current state
         with self._lock:

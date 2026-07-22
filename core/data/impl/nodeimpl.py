@@ -1945,9 +1945,21 @@ class NodeImpl(Node):
         return True
 
     @override
-    async def get_cpu_info(self, used: bool = True) -> bytes | int:
+    async def get_cpu_info(self, used: bool = True, export: bool = False) -> bytes | dict | int:
         from core.process import (ProcessManager, create_cpu_topology_visualization, get_cpus_from_affinity,
                                   get_cache_info, get_p_core_affinity, get_e_core_affinity)
+
+        if export:
+            if self.node.master:
+                return ProcessManager().export_topology()
+            else:
+                async with self.apool.connection() as conn:
+                    cursor = await conn.execute("""
+                        INSERT INTO files (guild_id, name, data) 
+                        VALUES (%s, %s, %s)
+                        RETURNING id
+                    """, (self.guild_id, 'cpuinfo.json', psycopg.Binary(json.dumps(ProcessManager().export_topology()).encode('utf-8'))))
+                    return (await cursor.fetchone())[0]
 
         def create_image(used: bool) -> bytes:
             if used:
