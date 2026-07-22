@@ -26,14 +26,10 @@ mapping:
         nullable: false
         mapping:
           enabled: {type: bool, nullable: false}
-          excluded_cores:
-            type: seq
-            nullable: false
-            sequence:
-              - {type: int, range: {min: 0}}
-          min_cores: {type: int, nullable: false, range: {min: 1, max: 2}}
-          max_cores: {type: int, nullable: false, range: {min: 1, max: 2}}
-          quality: {type: int, nullable: false, range: {min: 0, max: 2}}
+          excluded_cores: {type: any, nullable: false, func: text_or_list}
+          min_cores: {type: int, nullable: false, range: {min: 1, max: 128}}
+          max_cores: {type: int, nullable: false, range: {min: 1, max: 128}}
+          quality: {type: int, nullable: false, range: {min: 0, max: 3}}
       database:
         type: map
         nullable: false
@@ -107,8 +103,8 @@ mapping:
                 type: map
                 nullable: false
                 mapping:
-                  min_cores: {type: int, nullable: false, range: {min: 1, max: 2}}
-                  max_cores: {type: int, nullable: false, range: {min: 1, max: 2}}
+                  min_cores: {type: int, nullable: false, range: {min: 1, max: 128}}
+                  max_cores: {type: int, nullable: false, range: {min: 1, max: 128}}
                   quality: {type: int, nullable: false, range: {min: 1, max: 3}}
               priority: {type: str, enum: ['below_normal', 'normal', 'above_normal', 'high', 'realtime'], nullable: false}
               extensions:

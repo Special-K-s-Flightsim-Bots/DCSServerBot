@@ -15,9 +15,12 @@ def get_cpu_set_information() -> list[dict]:
         - Logical Processor Index
         - Core Index
         - Efficiency Class  (set to 0 – not available on Linux)
-        - Scheduling Class  (physical package / NUMA node id)
+        - Scheduling Class  (Hybrid aware: 0 for E-core, P-cores > 0)
+        - Numa Node Index   (NUMA node ID)
     """
     cpu_info_list: list[dict] = []
+    e_mask = get_e_core_affinity()
+    has_hybrid = e_mask > 0
 
     # Helper: try to read a file and return its integer value
     def _read_int(path: str) -> int | None:
@@ -46,13 +49,32 @@ def get_cpu_set_information() -> list[dict]:
                 # Fall back to /proc/cpuinfo later
                 continue
 
+            # NUMA node detection
+            numa_node = 0
+            cpu_path = os.path.join(sysfs_root, entry)
+            try:
+                for sub in os.listdir(cpu_path):
+                    if sub.startswith("node") and sub[4:].isdigit():
+                        numa_node = int(sub[4:])
+                        break
+            except Exception:
+                pass
+
+            # Hybrid aware Scheduling Class
+            if has_hybrid:
+                is_e = (e_mask & (1 << cpu_num)) != 0
+                sched_class = 0 if is_e else (pkg_id + 1)
+            else:
+                sched_class = pkg_id
+
             cpu_info_list.append(
                 {
                     "CPU Id": cpu_num,
                     "Logical Processor Index": cpu_num,
                     "Core Index": core_id,
                     "Efficiency Class": 0,          # not exposed on Linux
-                    "Scheduling Class": pkg_id,     # use physical package as a stand‑in
+                    "Scheduling Class": sched_class,
+                    "Numa Node Index": numa_node
                 }
             )
 
@@ -71,13 +93,21 @@ def get_cpu_set_information() -> list[dict]:
                         cpu_num = int(cpu_block["processor"])
                         core_id = int(cpu_block["core id"])
                         pkg_id  = int(cpu_block["physical id"])
+
+                        if has_hybrid:
+                            is_e = (e_mask & (1 << cpu_num)) != 0
+                            sched_class = 0 if is_e else (pkg_id + 1)
+                        else:
+                            sched_class = pkg_id
+
                         cpu_info_list.append(
                             {
                                 "CPU Id": cpu_num,
                                 "Logical Processor Index": cpu_num,
                                 "Core Index": core_id,
                                 "Efficiency Class": 0,
-                                "Scheduling Class": pkg_id,
+                                "Scheduling Class": sched_class,
+                                "Numa Node Index": 0, # Harder to get from cpuinfo accurately
                             }
                         )
                     cpu_block.clear()
@@ -93,13 +123,21 @@ def get_cpu_set_information() -> list[dict]:
                 cpu_num = int(cpu_block["processor"])
                 core_id = int(cpu_block["core id"])
                 pkg_id  = int(cpu_block["physical id"])
+
+                if has_hybrid:
+                    is_e = (e_mask & (1 << cpu_num)) != 0
+                    sched_class = 0 if is_e else (pkg_id + 1)
+                else:
+                    sched_class = pkg_id
+
                 cpu_info_list.append(
                     {
                         "CPU Id": cpu_num,
                         "Logical Processor Index": cpu_num,
                         "Core Index": core_id,
                         "Efficiency Class": 0,
-                        "Scheduling Class": pkg_id,
+                        "Scheduling Class": sched_class,
+                        "Numa Node Index": 0,
                     }
                 )
 

@@ -5,6 +5,12 @@ Legion: # this will usually be your hostname
   # slow_system: false            # Optional: if you are using a slower PC to run your servers, you should set this to true (default: false)
   # use_upnp: true                # The bot will auto-detect if there is a UPnP IGD available and configure this setting initially for you! If you do NOT want to use UPnP, even IF it is available, put this to false.
   nodestats: true               # Enable/disable node statistics (database pool and event queue sizes), default: true
+  auto_affinity:
+    enabled: true               # Experimental: enable/disable auto affinity
+    excluded_cores: 0-1, 16     # Optional: cores to exclude from auto affinity (can be a list or a range string)
+    min_cores: 1                # Optional: minimum cores for the bot itself
+    max_cores: 2                # Optional: maximum cores for the bot itself
+    quality: 1                  # Optional: quality of cores for the bot (0=E, 1=P)
   # restrict_commands: true       # Disable commands that can affect the integrity of the server. Default: false (see MULTINODE.md)
   # restrict_owner: false         # If set to true, the owner of the bot can also not run restricted commands. Default: false (see MULTINODE.md)
   database: # Optional: It might be that you need to use different IPs to connect to the same database server. This is the place you could do that.
@@ -60,6 +66,10 @@ Legion: # this will usually be your hostname
       dcs_port: 10308           # The DCS port of this instance (default: 10308)
       max_hung_minutes: 3       # Let DCSServerBot kill your server if it is unresponsive for more than x minutes. Default is 3. Disable it with 0.
       # affinity: 2,3             # Optional: set the CPU-affinity for the DCS_Server.exe.
+      auto_affinity:
+        min_cores: 2            # Optional: minimum cores for this instance
+        max_cores: 4            # Optional: maximum cores for this instance
+        quality: 3              # Optional: quality of cores (1-3, higher = better)
       priority: normal          # Optional: set the process priority (low, normal, high, realtime) for the DCS_Server.exe
       extensions: # See the extension documentation for more detailed information on what to set here.
         SRS:

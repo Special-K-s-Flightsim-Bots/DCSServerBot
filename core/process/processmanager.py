@@ -26,7 +26,7 @@ class ProcessManager:
                 cls._instance._initialized = False
             return cls._instance
 
-    def __init__(self, excluded_cores: list[int] | None = None, auto_affinity: bool = True):
+    def __init__(self, excluded_cores: list[int] | str | None = None, auto_affinity: bool = True):
         if getattr(self, '_initialized', False):
             return
 
@@ -36,7 +36,7 @@ class ProcessManager:
 
             self.auto_affinity = auto_affinity
             self.p_e_core_cpu = get_e_core_affinity() > 0
-            self.excluded_cores = excluded_cores or []
+            self.excluded_cores = self._parse_cores(excluded_cores)
             self.topology = self._get_physical_topology()
             self.managed_processes: dict[int, dict[str, Any]] = {}
             # Cache for CPU load: {pid: last_load_percentage}
@@ -56,8 +56,32 @@ class ProcessManager:
             self._initialized = True
 
     @staticmethod
-    def _get_physical_topology() -> dict[int, dict[int, list[int]]]:
-        """Groups logical processors by physical CoreIndex and Scheduling Class."""
+    def _parse_cores(cores: Any) -> list[int]:
+        if not cores:
+            return []
+        if isinstance(cores, list):
+            return cores
+        if isinstance(cores, str):
+            res = []
+            try:
+                for part in cores.split(','):
+                    part = part.strip()
+                    if not part:
+                        continue
+                    if '-' in part:
+                        start, end = map(int, part.split('-'))
+                        res.extend(range(start, end + 1))
+                    else:
+                        res.append(int(part))
+                return sorted(list(set(res)))
+            except ValueError:
+                logger.error(f"Error parsing excluded_cores: {cores}")
+                return []
+        return []
+
+    @staticmethod
+    def _get_physical_topology() -> dict[int, dict[int, dict[int, list[int]]]]:
+        """Groups logical processors by Numa Node, Scheduling Class, and Physical Core Index."""
         cpu_sets = get_cpu_set_information()
         topo = {}
 
@@ -65,13 +89,16 @@ class ProcessManager:
             l_idx   = cpu["Logical Processor Index"]
             sched   = cpu["Scheduling Class"]
             c_idx   = cpu["Core Index"]
+            n_idx   = cpu.get("Numa Node Index", 0)
 
-            if sched not in topo:
-                topo[sched] = {}
-            if c_idx not in topo[sched]:
-                topo[sched][c_idx] = []
+            if n_idx not in topo:
+                topo[n_idx] = {}
+            if sched not in topo[n_idx]:
+                topo[n_idx][sched] = {}
+            if c_idx not in topo[n_idx][sched]:
+                topo[n_idx][sched][c_idx] = []
 
-            topo[sched][c_idx].append(l_idx)
+            topo[n_idx][sched][c_idx].append(l_idx)
 
         return topo
 
@@ -104,11 +131,16 @@ class ProcessManager:
                     self._redistribute_cores(cooperative=True)
 
     def _update_load_metrics(self):
-        """Refreshes the CPU load percentage for all managed processes."""
+        """Refreshes the CPU load percentage for all managed processes using EWMA."""
+        alpha = 0.3  # Smoothing factor: 0.3 = 30% new, 70% old
         for pid, info in self.managed_processes.items():
             try:
-                # interval=None makes it non-blocking (uses time since last call)
-                self._load_cache[pid] = info['process'].cpu_percent(interval=None)
+                # interval=None makes it non-blocking
+                current_load = info['process'].cpu_percent(interval=None)
+                if pid in self._load_cache:
+                    self._load_cache[pid] = alpha * current_load + (1.0 - alpha) * self._load_cache[pid]
+                else:
+                    self._load_cache[pid] = current_load
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 self._load_cache[pid] = 0.0
 
@@ -122,24 +154,26 @@ class ProcessManager:
         # 1. BUILD HARDWARE STATE MAP
         all_physical_units: list[dict] = []
         logical_to_unit = {}
-        for sched in sorted(self.topology.keys(), reverse=True):
-            for c_idx in sorted(self.topology[sched].keys()):
-                logical = [l for l in self.topology[sched][c_idx] if l not in self.excluded_cores]
-                if logical:
-                    current_owners = {}
-                    for l in logical:
-                        for pid, p_info in self.managed_processes.items():
-                            if l in p_info.get('_current_assignments', []):
-                                current_owners[l] = {'pid': pid, 'quality': p_info['quality']}
-                        logical_to_unit[l] = (sched, c_idx)
+        for n_idx in sorted(self.topology.keys()):
+            for sched in sorted(self.topology[n_idx].keys(), reverse=True):
+                for c_idx in sorted(self.topology[n_idx][sched].keys()):
+                    logical = [l for l in self.topology[n_idx][sched][c_idx] if l not in self.excluded_cores]
+                    if logical:
+                        current_owners = {}
+                        for l in logical:
+                            for pid, p_info in self.managed_processes.items():
+                                if l in p_info.get('_current_assignments', []):
+                                    current_owners[l] = {'pid': pid, 'quality': p_info['quality']}
+                            logical_to_unit[l] = (n_idx, sched, c_idx)
 
-                    all_physical_units.append({
-                        'sched': sched,
-                        'c_idx': c_idx,
-                        'logical': logical,
-                        'is_p': (sched > 0) if self.p_e_core_cpu else True,
-                        'owners': current_owners
-                    })
+                        all_physical_units.append({
+                            'n_idx': n_idx,
+                            'sched': sched,
+                            'c_idx': c_idx,
+                            'logical': logical,
+                            'is_p': (sched > 0) if self.p_e_core_cpu else True,
+                            'owners': current_owners
+                        })
 
         # 2. IDENTIFY AND PURGE DISPLACED PROCESSES
         pids_to_reset = set()
@@ -162,7 +196,7 @@ class ProcessManager:
                 continue
 
             # we want to try the max available scheduling classes
-            max_available_sched = max({x[0] for x in logical_to_unit.values()})
+            max_available_sched = max({x[1] for x in logical_to_unit.values()})
 
             # how many logical cores do we need?
             needed = info['min_cores']
@@ -230,14 +264,19 @@ class ProcessManager:
                 eligible = all_physical_units
             else:
                 eligible = [x for x in all_physical_units if x['is_p'] is (info['quality'] > 0)]
-            # try to fill the highest class first
-            eligible.sort(key=lambda x: x['sched'], reverse=True)
+            # NUMA awareness: Prefer cores on the same NUMA node as existing assignments
+            if current_cores:
+                current_numa = logical_to_unit[current_cores[0]][0]
+                eligible.sort(key=lambda x: (x['n_idx'] != current_numa, -x['sched']))
+            else:
+                eligible.sort(key=lambda x: -x['sched'])
 
             # Step A: Physical Consolidation
             # Try to complete units we already touch or take fresh clean units.
             for unit in eligible:
                 if needed <= 0: break
-                if any(l in current_cores for l in self.topology[unit['sched']][unit['c_idx']]) or not current_cores:
+                unit_logicals = self.topology[unit['n_idx']][unit['sched']][unit['c_idx']]
+                if any(l in current_cores for l in unit_logicals) or not current_cores:
                     while unit['logical'] and needed > 0:
                         current_cores.append(unit['logical'].pop(0))
                         needed -= 1
@@ -260,7 +299,7 @@ class ProcessManager:
                 current_cores = assignments[pid]
                 if not current_cores: continue
 
-                target_sched = max([logical_to_unit[x][0] for x in current_cores])
+                target_sched = max([logical_to_unit[x][1] for x in current_cores])
                 min_allowed_sched = 1 if self.p_e_core_cpu and info['quality'] > 0 else 0
 
                 occupied_units = {}
@@ -272,29 +311,29 @@ class ProcessManager:
                 # Sort units by occupancy (most populated first)
                 sorted_occupied = sorted(occupied_units.items(), key=lambda x: x[1], reverse=True)
 
-                for (sched, c_idx), count in sorted_occupied:
+                for (n_idx, sched, c_idx), count in sorted_occupied:
                     # Defrag MUST stay within allowed boundaries
                     if not (min_allowed_sched <= sched <= target_sched):
                         continue
 
                     # If we already fully own this physical unit, LEAVE IT ALONE.
-                    total_unit_logicals = len(self.topology[sched][c_idx])
+                    total_unit_logicals = len(self.topology[n_idx][sched][c_idx])
                     if count >= total_unit_logicals:
                         continue
 
-                    unit = next((u for u in all_physical_units if u['sched'] == sched and u['c_idx'] == c_idx), None)
+                    unit = next((u for u in all_physical_units if u['n_idx'] == n_idx and u['sched'] == sched and u['c_idx'] == c_idx), None)
                     if not unit: continue
 
                     foreigners = []
                     for other_pid, other_cores in assignments.items():
                         if other_pid == pid: continue
                         other_info = self.managed_processes[other_pid]
-                        # Only swap with processes that are safe to move (1 core) and lower quality
-                        if other_info['quality'] >= info['quality'] or len(other_cores) > 1:
+                        # Displace lower quality processes. Allow moving larger blocks (up to 4 cores) for realignment.
+                        if other_info['quality'] >= info['quality'] or len(other_cores) > 4:
                             continue
 
                         for l in other_cores:
-                            if logical_to_unit.get(l) == (sched, c_idx):
+                            if logical_to_unit.get(l) == (n_idx, sched, c_idx):
                                 foreigners.append((other_pid, l))
 
                     free_slots = list(unit['logical'])
@@ -309,13 +348,13 @@ class ProcessManager:
                         other_cores = []
                         for l in current_cores:
                             u_key = logical_to_unit.get(l)
-                            if u_key == (sched, c_idx): continue
+                            if u_key == (n_idx, sched, c_idx): continue
 
-                            u_sched, u_cidx = u_key
+                            u_nidx, u_sched, u_cidx = u_key
                             # Same scheduling class check
                             if u_sched != sched: continue
 
-                            u_total = len(self.topology[u_sched][u_cidx])
+                            u_total = len(self.topology[u_nidx][u_sched][u_cidx])
                             u_occupied = occupied_units.get(u_key, 0)
 
                             if u_occupied < u_total and u_occupied <= count:
@@ -333,9 +372,9 @@ class ProcessManager:
                                 new_core = free_slots.pop(0)
                                 unit['logical'].remove(new_core)
                                 # Global pool update
-                                old_sched, old_cidx = logical_to_unit[old_core]
+                                old_nidx, old_sched, old_cidx = logical_to_unit[old_core]
                                 old_unit = next(
-                                    u for u in all_physical_units if u['sched'] == old_sched and u['c_idx'] == old_cidx)
+                                    u for u in all_physical_units if u['n_idx'] == old_nidx and u['sched'] == old_sched and u['c_idx'] == old_cidx)
                                 old_unit['logical'].append(old_core)
                             elif swap_slots:
                                 swap_core = swap_slots.pop(0)
@@ -349,8 +388,8 @@ class ProcessManager:
 
                         if to_move > 0:
                             logger.debug(
-                                f"Defrag: Consolidated {to_move} cores for {getattr(info['process'], 'name_tag', pid)} into unit {c_idx} (Sched {sched})")
-                            occupied_units[(sched, c_idx)] += to_move
+                                f"Defrag: Consolidated {to_move} cores for {getattr(info['process'], 'name_tag', pid)} into unit {c_idx} (Sched {sched}, NUMA {n_idx})")
+                            occupied_units[(n_idx, sched, c_idx)] += to_move
 
             # 5. PHASE 3: COOPERATIVE GROWTH
             while True:
@@ -364,24 +403,23 @@ class ProcessManager:
                     load = self._load_cache.get(pid, 0.0)
                     if load <= 70.0 or len(current_cores) >= info['max_cores']: continue
 
-                    target_sched = max([logical_to_unit[x][0] for x in current_cores])
+                    target_nidx, target_sched, _ = logical_to_unit[current_cores[0]]
                     min_allowed_sched = 1 if self.p_e_core_cpu and info['quality'] > 0 else 0
 
-                    # Preference: Grow in our highest allowed class first (target_sched)
-                    # Then look at lower classes if full.
+                    # Preference: Grow in our highest allowed class first, same NUMA node if possible
                     available = [u for u in all_physical_units
                                  if min_allowed_sched <= int(u['sched']) <= target_sched
                                  and u['logical']]
 
                     if not available: continue
 
-                    # Filter available units to prefer the highest scheduling class we are allowed
-                    best_sched = max(u['sched'] for u in available)
-                    preferred_available = [u for u in available if u['sched'] == best_sched]
+                    # Filter available units to prefer the same NUMA node AND highest scheduling class
+                    available.sort(key=lambda x: (x['n_idx'] != target_nidx, -x['sched']))
+                    preferred_available = [u for u in available if u['sched'] == available[0]['sched']]
 
                     # Atomic growth: finish the current physical unit or take a fresh one
                     occ = {logical_to_unit[l] for l in current_cores if l in logical_to_unit}
-                    target_unit = next((u for u in preferred_available if (u['sched'], u['c_idx']) in occ),
+                    target_unit = next((u for u in preferred_available if (u['n_idx'], u['sched'], u['c_idx']) in occ),
                                        preferred_available[0])
 
                     while target_unit['logical'] and len(current_cores) < info['max_cores']:
@@ -409,7 +447,7 @@ class ProcessManager:
                 if self._load_streak[pid] < 3 or len(current_cores) >= info['max_cores']:
                     continue
 
-                target_sched = max([logical_to_unit[x][0] for x in current_cores])
+                target_nidx, target_sched, _ = logical_to_unit[current_cores[0]]
                 for other_pid in reversed(sorted_pids):
                     if other_pid == pid or self._load_cache.get(other_pid, 0.0) >= 20.0: continue
 
@@ -420,7 +458,11 @@ class ProcessManager:
 
                     # Check if the idle process is holding a core we are actually allowed to use
                     stolen = assignments[other_pid][-1]
-                    stolen_sched, _ = logical_to_unit.get(stolen, (0, 0))
+                    stolen_nidx, stolen_sched, _ = logical_to_unit.get(stolen, (0, 0, 0))
+
+                    # NUMA affinity: Only steal from same NUMA node first
+                    if stolen_nidx != target_nidx:
+                        continue
 
                     # Quality Ceiling Rule
                     # Quality 2 can only steal from Sched 2 or Sched 1 (if allowed).
@@ -523,18 +565,40 @@ class ProcessManager:
         phys_gap = 0.5
         y_spacing = 1.8
 
-        # 2. Gather physical cores grouped by Performance vs. Efficiency tiers
-        # Performance: Scheduling Class > 0, Efficiency: Scheduling Class 0
-        p_phys = []
-        e_phys = []
-        for sched in sorted(self.topology.keys(), reverse=True):
-            target_list = p_phys if not self.p_e_core_cpu or sched > 0 else e_phys
-            target_list.extend(sorted(self.topology[sched].items()))
+        # 2. Gather physical cores grouped by Numa -> Scheduling Class
+        numa_groups = {}
+        # Colors: green, blue, purple, gold, dark red, dark green
+        class_colors = [e_color, p_color, '#6B4488', '#8C8544', '#9B2E4F', '#4E886B']
+
+        for n_idx in sorted(self.topology.keys()):
+            numa_groups[n_idx] = []
+            for sched in sorted(self.topology[n_idx].keys(), reverse=True):
+                phys = sorted(self.topology[n_idx][sched].items())
+
+                if self.p_e_core_cpu:
+                    # Hybrid system (Intel)
+                    is_p = (sched > 0)
+                    title = "P-Cores" if is_p else "E-Cores"
+                    color = p_color if is_p else e_color
+                    prefix = "P" if is_p else "E"
+                else:
+                    # Non-hybrid (AMD, older Intel)
+                    if len(self.topology[n_idx]) > 1:
+                        title = f"Class {sched}"
+                        color = class_colors[sched % len(class_colors)]
+                        prefix = f"S{sched}-"
+                    else:
+                        title = "Cores"
+                        color = p_color
+                        prefix = ""
+
+                numa_groups[n_idx].append((title, color, phys, prefix))
 
         fig, ax = plt.subplots(figsize=(20, 10))
         ax.set_aspect('equal')
 
-        def draw_cluster(phys_cores, start_x, start_y, base_color, label_prefix):
+        def draw_cluster(phys_cores, start_x, start_y, base_color, label_prefix, cluster_title):
+            #ax.text(start_x, start_y + 0.5, cluster_title, color=text_color, fontsize=10, fontweight='bold')
             max_x = start_x
             last_row = 0
             for i, (c_idx, logicals) in enumerate(phys_cores):
@@ -557,7 +621,7 @@ class ProcessManager:
                                              edgecolor='white', linewidth=0.5)
                     ax.add_patch(rect)
 
-                    # Prefixed ID: P0, E12, etc.
+                    # ID: P0, E12, etc.
                     ax.text(x + core_w / 2, y_base + core_h / 2, f"{label_prefix}{l_id}",
                             ha='center', va='center', color='white', fontsize=8, fontweight='bold')
 
@@ -573,17 +637,36 @@ class ProcessManager:
                 max_x = max(max_x, x_base + (len(logicals) * (core_w + 0.05)))
             return max_x, last_row
 
-        # 3. Draw Clusters with prefixes
-        _, p_rows = draw_cluster(p_phys, 0, 0, p_color, "P")
+        # 3. Draw Clusters
+        curr_y = 0
+        total_rows = 0
+        numa_max_x = 0
+        for n_idx, clusters in numa_groups.items():
+            numa_start_y = curr_y
+            numa_current_max_x = 0
+            for title, color, phys, prefix in clusters:
+                max_x, rows = draw_cluster(phys, 0.5, curr_y, color, prefix, title)
+                numa_current_max_x = max(numa_current_max_x, max_x)
+                curr_y -= (rows + 2) * y_spacing
+                total_rows += (rows + 2)
 
-        # Start E-cores below P-cores
-        e_start_y = -(p_rows + 1) * y_spacing if p_phys else 0
-        _, e_rows = draw_cluster(e_phys, 0, e_start_y, e_color, "E")
+            numa_max_x = max(numa_max_x, numa_current_max_x)
+
+            # Draw NUMA box
+            if len(numa_groups) >= 1:
+                numa_box_y = curr_y + y_spacing
+                numa_box_h = numa_start_y - numa_box_y + 1.8
+                rect = patches.Rectangle((-0.5, numa_box_y), numa_current_max_x + 1, numa_box_h,
+                                         facecolor='none', edgecolor='#666666', linestyle='--', linewidth=1)
+                ax.add_patch(rect)
+                ax.text(-0.4, numa_start_y + 1.3, f"NUMA NODE {n_idx}", color='#AAAAAA',
+                        fontsize=12, fontweight='bold', ha='left')
+                curr_y -= 1.5  # Extra space between NUMA nodes
+                total_rows += 1
 
         # 4. Legend
         # Calculates total rows to determine a dynamic offset.
-        # We add 1 to rows because they are 0-indexed.
-        total_rows = (p_rows + 1 if p_phys else 0) + (e_rows + 1 if e_phys else 0)
+        # total_rows was calculated during drawing
 
         # The fewer the rows, the larger the relative offset needs to be
         # to maintain the same physical distance.

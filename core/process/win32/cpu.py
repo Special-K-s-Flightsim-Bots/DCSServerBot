@@ -222,7 +222,8 @@ def get_cpu_set_information():
             "Logical Processor Index": cpu_info.LogicalProcessorIndex,
             "Core Index": cpu_info.CoreIndex,
             "Efficiency Class": cpu_info.EfficiencyClass,
-            "Scheduling Class": cpu_info.SchedulingClass
+            "Scheduling Class": cpu_info.SchedulingClass,
+            "Numa Node Index": cpu_info.NumaNodeIndex
         })
 
         # Move to the next structure
@@ -405,7 +406,7 @@ def get_cache_info():
     return sorted(cache_info, key=lambda x: x['level'])
 
 
-def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display: bool = False):
+def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display: bool = False, topology: dict = None):
     if not display:
         plt.switch_backend('agg')
     plt.style.use('dark_background')
@@ -463,6 +464,28 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
             key = tuple(sorted(cache['cores']))
             l2_groups[key] = {'cores': cache['cores'], 'size': cache['size']}
 
+    # Map each logical core to its NUMA node
+    core_to_numa = {}
+    if topology:
+        for n_idx, scheds in topology.items():
+            for sched, cores_map in scheds.items():
+                for c_idx, logicals in cores_map.items():
+                    for l_idx in logicals:
+                        core_to_numa[l_idx] = n_idx
+
+    numa_extents = {}
+
+    def update_extent(n_idx, x, y, w, h):
+        if n_idx is None: return
+        if n_idx not in numa_extents:
+            numa_extents[n_idx] = [x, x + w, y, y + h]
+        else:
+            ext = numa_extents[n_idx]
+            ext[0] = min(ext[0], x)
+            ext[1] = max(ext[1], x + w)
+            ext[2] = min(ext[2], y)
+            ext[3] = max(ext[3], y + h)
+
     # Draw P-cores
     for i, core in enumerate(sorted(p_cores)):
         row = i // p_cores_per_row
@@ -479,6 +502,7 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
                                  linewidth=0.5)
         ax.add_patch(rect)
         ax.text(x + core_width / 2, y + core_height / 2, f"P{core}", ha='center', va='center', color=text_color)
+        update_extent(core_to_numa.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
 
         if i % 2 == 0:
             for cache in cache_structure:
@@ -521,6 +545,7 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
                                  facecolor=e_core_color, edgecolor='white', linewidth=0.5)
         ax.add_patch(rect)
         ax.text(x + core_width / 2, y + core_height / 2, f"E{core}", ha='center', va='center', color=text_color)
+        update_extent(core_to_numa.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
 
         for cache in cache_structure:
             if cache['level'] == 1 and core in cache['cores']:
@@ -589,6 +614,19 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
                 f"L3 {format_size(l3_cache['size'])} (Cores {min(shared_cores)}-{max(shared_cores)})",
                 ha='center', va='center', color=text_color)
 
+    # Draw NUMA boxes
+    for n_idx, (min_x, max_x, min_y, max_y) in numa_extents.items():
+        box_x = min_x - 0.2
+        box_y = min_y - 0.5
+        box_w = max_x - min_x + 0.4
+        box_h = max_y - min_y + 1.6
+
+        rect = patches.Rectangle((box_x, box_y), box_w, box_h,
+                                 facecolor='none', edgecolor='#666666', linestyle='--', linewidth=1)
+        ax.add_patch(rect)
+        ax.text(box_x + 0.1, max_y + 0.9, f"NUMA NODE {n_idx}", color='#AAAAAA',
+                fontsize=10, fontweight='bold', ha='left')
+
     # Create legend elements
     legend_elements = [
         patches.Patch(facecolor=p_core_color, edgecolor='white', label='Performance Cores'),
@@ -609,6 +647,12 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
     ax.axis('off')
 
     plt.title(f"CPU Topology with Cache Hierarchy for {get_cpu_name()}", color=text_color, y=0.98)
+
+    # Add NUMA info if available
+    if topology:
+        numa_nodes = sorted(topology.keys())
+        ax.text(total_width / 2, -4.5, f"Detected {len(numa_nodes)} NUMA Node(s)", 
+                color='#AAAAAA', fontsize=12, ha='center')
 
     # Set figure background to dark
     fig.patch.set_facecolor('#1C1C1C')

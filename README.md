@@ -75,7 +75,7 @@ I enhance the bot from time to time, but you as a community member can also crea
 | Battleground2 | [DCS Battleground](https://github.com/Frigondin/DCSBattleground) (new) support     |   yes    |                                       | [README](./plugins/battleground2/README.md) |
 | Charity       | Show donations of your charity campaigns.                                          |   yes    | [README](./plugins/charity/README.md) |                                             |
 | Commands      | Custom discord commands                                                            |   yes    |                                       | [README](./plugins/commands/README.md)      |
-| Competitive   | PvP support, TrueSkill™️ ranking system                                            |   yes    | Mission                               | [README](./plugins/competitive/README.md)   |
+| Competitive   | PvP support, TrueSkill™️ ranking system                                             |   yes    | Mission                               | [README](./plugins/competitive/README.md)   |
 | Debug         | Debug logging for DCS Hook- and MSE-events                                         |   yes    |                                       | [README](./plugins/debug/README.md)         |
 | Discord       | Discord helper commands                                                            |   yes    |                                       | [README](./plugins/discord/README.md)       |
 | Firewall      | Frontend to the Firewall service                                                   |   yes    | Userstats                             | [README](./plugins/firewall/README.md)      |
@@ -895,5 +895,6 @@ If you enjoy what I do and would like to support me, you can do so on my [Patreo
 Thanks to the developers of the awesome solutions [HypeMan](https://github.com/robscallsign/HypeMan) and 
 [perun](https://github.com/szporwolik/perun), that gave me the main ideas for this solution. 
 I gave my best to mark the few parts in the code to show where I copied some ideas or even code from you guys, 
-which honestly is just a tiny piece. Hope that is ok. Also, thanks to Moose for aligning the API for [FunkMan](https://github.com/funkyfranky/FunkMan) 
-with me and making it compatible with DCSServerBot in the first place.
+which honestly is just a tiny piece. Hope that is ok. 
+Also, thanks to Moose for aligning the API for [FunkMan](https://github.com/funkyfranky/FunkMan) with me and making it compatible with DCSServerBot in 
+the first place.
