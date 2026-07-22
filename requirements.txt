@@ -6,7 +6,7 @@
 #
 aiofiles==25.1.0
 aiohappyeyeballs==2.7.1
-aiohttp==3.14.1
+aiohttp==3.14.2
 aiosignal==1.4.0
 annotated-doc==0.0.4
 annotated-types==0.7.0
@@ -16,8 +16,8 @@ astral==3.2
 attrs==26.1.0
 audioop-lts==0.2.2 ; python_version >= "3.13"
 blessed==1.47.0
-build==1.5.1
-certifi==2026.6.17
+build==1.5.0
+certifi==2026.7.22
 charset-normalizer==3.4.9
 click==8.4.2
 colorama==0.4.6
@@ -30,14 +30,14 @@ discord-py==2.7.1
 docopt==0.6.2
 et-xmlfile==2.0.0
 eyed3==0.9.9
-fastapi==0.139.0
+fastapi==0.139.2
 filetype==1.2.0
 fonttools==4.63.0
 frozenlist==1.8.0
 fuzzywuzzy==0.18.0
 geopandas==1.1.4
 gitdb==4.0.12
-gitpython==3.1.51
+gitpython==3.1.54
 h11==0.16.0
 idna==3.18
 jinja2==3.1.6
@@ -49,7 +49,7 @@ levenshtein==0.27.3
 lupa==2.8
 markdown-it-py==4.2.0
 markupsafe==3.0.3
-matplotlib==3.11.0
+matplotlib==3.11.1
 mdurl==0.1.2
 mgrs==1.5.4
 minidump==0.0.24 ; sys_platform == "win32"
@@ -61,7 +61,7 @@ packaging==26.2
 pandas==3.0.3
 pid==3.0.4
 pillow==12.3.0
-pip-tools==7.5.3
+pip-tools==7.6.0
 propcache==0.5.2
 psutil==7.2.2
 psycopg==3.3.4
@@ -106,7 +106,7 @@ uvicorn==0.51.0
 watchdog==6.0.0
 wcwidth==0.8.2
 wheel==0.47.0
-yarl==1.24.2
+yarl==1.24.5
 
 # The following packages are considered to be unsafe in a requirements file:
 # pip
