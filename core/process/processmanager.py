@@ -640,7 +640,7 @@ class ProcessManager:
 
         def draw_cluster(phys_cores, start_x, start_y, base_color, label_prefix, cluster_title):
             if cluster_title != "Cores":
-                ax.text(start_x, start_y + 1.0, cluster_title, color=text_color, fontsize=9, fontweight='bold')
+                ax.text(start_x, start_y + 1.2, cluster_title, color=text_color, fontsize=9, fontweight='bold')
             max_x = start_x
             last_row = 0
             for i, (c_idx, logicals) in enumerate(phys_cores):
@@ -665,7 +665,7 @@ class ProcessManager:
 
                     # ID: P0, E12, etc.
                     ax.text(x + core_w / 2, y_base + core_h / 2, f"{label_prefix}{l_id}",
-                            ha='center', va='center', color='white', fontsize=8, fontweight='bold')
+                            ha='center', va='center', color='white', fontsize=7, fontweight='bold')
 
                     if proc_name and not unique_name:
                         ax.text(x + core_w / 2, y_base - 0.2, proc_name, ha='center', va='top',
@@ -686,24 +686,28 @@ class ProcessManager:
         for n_idx, clusters in numa_groups.items():
             numa_start_y = curr_y
             numa_current_max_x = 0
-            for title, color, phys, prefix in clusters:
+            for i, (title, color, phys, prefix) in enumerate(clusters):
+                # Stable color selection for non-hybrid systems
+                if not self.p_e_core_cpu and len(clusters) > 1:
+                    color = class_colors[i % len(class_colors)]
+
                 max_x, rows = draw_cluster(phys, 0.5, curr_y, color, prefix, title)
                 numa_current_max_x = max(numa_current_max_x, max_x)
-                curr_y -= (rows + 2) * y_spacing
-                total_rows += (rows + 2)
+                curr_y -= (rows + 2.2) * y_spacing
+                total_rows += (rows + 2.2)
 
             numa_max_x = max(numa_max_x, numa_current_max_x)
 
             # Draw NUMA box
             if len(numa_groups) >= 1:
                 numa_box_y = curr_y + y_spacing
-                numa_box_h = numa_start_y - numa_box_y + 1.8
+                numa_box_h = numa_start_y - numa_box_y + 2.2
                 rect = patches.Rectangle((-0.5, numa_box_y), numa_current_max_x + 1, numa_box_h,
                                          facecolor='none', edgecolor='#666666', linestyle='--', linewidth=1)
                 ax.add_patch(rect)
-                ax.text(-0.4, numa_start_y + 1.3, f"NUMA NODE {n_idx}", color='#AAAAAA',
+                ax.text(-0.4, numa_start_y + 1.8, f"NUMA NODE {n_idx}", color='#AAAAAA',
                         fontsize=12, fontweight='bold', ha='left')
-                curr_y -= 1.5  # Extra space between NUMA nodes
+                curr_y -= 2.0  # Extra space between NUMA nodes
                 total_rows += 1
 
         # 4. Legend
