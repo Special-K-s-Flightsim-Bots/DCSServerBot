@@ -1155,14 +1155,17 @@ Please make sure you forward the following ports:
     @node_group.command(description=_("Shows CPU topology"))
     @app_commands.guild_only()
     @app_commands.check(utils.restricted_check)
-    @app_commands.check(lambda interaction: sys.platform == 'win32')
     @utils.app_has_role('Admin')
     async def cpuinfo(self, interaction: discord.Interaction,
                       node: app_commands.Transform[Node, utils.NodeTransformer],
-                      used: bool = True):
+                      used: bool = True, export: bool = False):
         await interaction.response.defer()
-        image = await node.get_cpu_info(used)
-        await interaction.followup.send(file=discord.File(fp=BytesIO(image), filename='cpuinfo.png'))
+        data = await node.get_cpu_info(used, export)
+        if export:
+            await interaction.followup.send(file=discord.File(fp=BytesIO(json.dumps(data, indent=2).encode('utf-8')),
+                                                              filename=f'{node.name}_topology.json'))
+        else:
+            await interaction.followup.send(file=discord.File(fp=BytesIO(data), filename='cpuinfo.png'))
 
     @node_group.command(description=_("Make a node master"))
     @app_commands.guild_only()
