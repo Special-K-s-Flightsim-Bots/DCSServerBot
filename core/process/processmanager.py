@@ -3,6 +3,7 @@ import psutil
 import sys
 import threading
 
+from io import BytesIO
 from typing import Any
 
 if sys.platform == 'win32':
@@ -608,26 +609,34 @@ class ProcessManager:
 
         for n_idx in sorted(self.topology.keys()):
             numa_groups[n_idx] = []
-            for group_key in sorted(self.topology[n_idx].keys(), reverse=True):
-                sched, llc_idx = group_key
-                phys = sorted(self.topology[n_idx][group_key].items())
+            
+            # Group by (is_p, llc_idx) for display to avoid mangling by Scheduling Class rankings
+            display_groups = {}
+            for (sched, llc_idx), cores_map in self.topology[n_idx].items():
+                is_p = (sched > 0) if self.p_e_core_cpu else True
+                d_key = (is_p, llc_idx)
+                if d_key not in display_groups:
+                    display_groups[d_key] = {}
+                display_groups[d_key].update(cores_map)
+
+            sorted_keys = sorted(display_groups.keys(), key=lambda x: (not x[0], x[1]))
+            for i, (is_p, llc_idx) in enumerate(sorted_keys):
+                phys = sorted(display_groups[(is_p, llc_idx)].items())
 
                 if self.p_e_core_cpu:
                     # Hybrid system (Intel)
-                    is_p = (sched > 0)
                     title = "P-Cores" if is_p else "E-Cores"
                     color = p_color if is_p else e_color
                     prefix = "P" if is_p else "E"
+                    # If multiple clusters of the same type exist, add LLC info for clarity
+                    if any(k != (is_p, llc_idx) and k[0] == is_p for k in display_groups.keys()):
+                        title += f" (Cluster {llc_idx})"
                 else:
                     # Non-hybrid (AMD, older Intel)
-                    if len(self.topology[n_idx]) > 1:
-                        if any(k[1] > 0 for k in self.topology[n_idx].keys()):
-                            title = f"CCD {llc_idx}"
-                            prefix = f"C{llc_idx}-"
-                        else:
-                            title = f"Class {sched}"
-                            prefix = f"S{sched}-"
-                        color = class_colors[hash(group_key) % len(class_colors)]
+                    if len(display_groups) > 1:
+                        title = f"CCD {llc_idx}"
+                        prefix = f"C{llc_idx}-"
+                        color = class_colors[i % len(class_colors)]
                     else:
                         title = "Cores"
                         color = p_color
@@ -740,6 +749,175 @@ class ProcessManager:
 
         buf = BytesIO()
         plt.savefig(buf, format='png', bbox_inches='tight', facecolor='#1C1C1C')
+        plt.close(fig)
+        buf.seek(0)
+        return buf.read()
+
+    def visualize_cache(self) -> bytes:
+        """
+        Generates a detailed CPU cache hierarchy visualization.
+        """
+        from matplotlib import pyplot as plt, patches
+        from core.process import (get_cpu_name, get_cache_info, get_p_core_affinity,
+                                  get_e_core_affinity, get_cpus_from_affinity)
+
+        p_mask = get_p_core_affinity()
+        e_mask = get_e_core_affinity()
+        p_cores = get_cpus_from_affinity(p_mask)
+        e_cores = get_cpus_from_affinity(e_mask)
+        cache_structure = get_cache_info()
+
+        plt.switch_backend('agg')
+        plt.style.use('dark_background')
+        fig, ax = plt.subplots(figsize=(20, 12))
+        ax.set_aspect('equal')
+
+        # Colors
+        p_core_color, e_core_color = '#2E6B9B', '#2B7A44'
+        l1_color, l2_color, l3_color = '#9B2E4F', '#6B4488', '#8C8544'
+        text_color = '#E0E0E0'
+
+        core_width, core_height = 0.8, 0.8
+        core_gap = 0.4
+        x_spacing = core_width + core_gap
+        y_spacing = 1.2
+        l3_height, l3_spacing = 0.8, 0
+
+        # Layout dimensions
+        p_cores_per_row = max(1, len(p_cores) // 2)
+        e_cores_per_row = max(1, len(e_cores) // 2)
+        p_rows = (len(p_cores) + p_cores_per_row - 1) // p_cores_per_row
+        e_rows = (len(e_cores) + e_cores_per_row - 1) // e_cores_per_row if e_cores else 0
+
+        p_cores_width = p_cores_per_row * core_width + (p_cores_per_row - 1) * core_gap
+        e_cores_width = e_cores_per_row * core_width + (e_cores_per_row - 1) * core_gap
+        e_section_start = p_cores_width + x_spacing
+        total_width = p_cores_width + ((e_cores_width + x_spacing) if e_cores else 0)
+
+        # L3 mapping
+        l3_caches = [c for c in cache_structure if c['level'] == 3]
+        rows_with_l3 = set()
+        for l3_cache in l3_caches:
+            shared = sorted(l3_cache['cores'])
+            row = min(shared) // p_cores_per_row
+            rows_with_l3.add(row)
+
+        def format_size(size):
+            if size >= 1024 * 1024: return f"{size / (1024 * 1024):.0f}M"
+            if size >= 1024: return f"{size / 1024:.0f}K"
+            return f"{size}B"
+
+        l2_groups = {tuple(sorted(c['cores'])): c for c in cache_structure if c['level'] == 2}
+
+        core_to_numa, core_to_llc = {}, {}
+        for n_idx, groups in self.topology.items():
+            for group_key, cores_map in groups.items():
+                llc_idx = group_key[1]
+                for logicals in cores_map.values():
+                    for l_idx in logicals:
+                        core_to_numa[l_idx] = n_idx
+                        core_to_llc[l_idx] = llc_idx
+
+        numa_extents, llc_extents = {}, {}
+        def update_extent(ext_dict, key, x, y, w, h):
+            if key is None: return
+            if key not in ext_dict: ext_dict[key] = [x, x + w, y, y + h]
+            else:
+                ext = ext_dict[key]
+                ext[0], ext[1] = min(ext[0], x), max(ext[1], x + w)
+                ext[2], ext[3] = min(ext[2], y), max(ext[3], y + h)
+
+        # Draw P-Cores
+        sorted_p_cores = sorted(p_cores)
+        for i, core in enumerate(sorted_p_cores):
+            row = i // p_cores_per_row
+            x = (i % p_cores_per_row) * x_spacing
+            y = sum(y_spacing * 3 + (l3_spacing if r in rows_with_l3 else 0) for r in range(row))
+            
+            ax.add_patch(patches.Rectangle((x, y), core_width, core_height, facecolor=p_core_color, edgecolor='white', linewidth=0.5))
+            ax.text(x + core_width / 2, y + core_height / 2, f"P{core}", ha='center', va='center', color=text_color, fontsize=8)
+            update_extent(numa_extents, core_to_numa.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
+            update_extent(llc_extents, core_to_llc.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
+
+            # Draw L1/L2 caches for P-cores
+            for cache in cache_structure:
+                if cache['level'] == 1 and core in cache['cores']:
+                    cores_in_cache = [c for c in cache['cores'] if c in p_cores]
+                    cores_in_row = [c for c in cores_in_cache if (sorted_p_cores.index(c) // p_cores_per_row) == row]
+                    if cores_in_row and core == min(cores_in_row):
+                        y_off = -0.6 if cache['type'] == 2 else -1.0
+                        label = f"L1-{'I' if cache['type'] == 2 else 'D'} {format_size(cache['size'])}"
+                        w = x_spacing * len(cores_in_row) - 0.4
+                        ax.add_patch(patches.Rectangle((x, y + y_off), w, 0.4, facecolor=l1_color, edgecolor='white', linewidth=0.5))
+                        ax.text(x + w / 2, y + y_off + 0.2, label, ha='center', va='center', fontsize=7, color=text_color)
+            for group in l2_groups.values():
+                if core in group['cores']:
+                    cores_in_cache = [c for c in group['cores'] if c in p_cores]
+                    cores_in_row = [c for c in cores_in_cache if (sorted_p_cores.index(c) // p_cores_per_row) == row]
+                    if cores_in_row and core == min(cores_in_row):
+                        w = x_spacing * len(cores_in_row) - 0.4
+                        ax.add_patch(patches.Rectangle((x, y - 1.4), w, 0.4, facecolor=l2_color, edgecolor='white', linewidth=0.5))
+                        ax.text(x + w / 2, y - 1.2, f"L2 {format_size(group['size'])}", ha='center', va='center', fontsize=7, color=text_color)
+                        break
+
+        # Draw E-Cores
+        sorted_e_cores = sorted(e_cores)
+        for i, core in enumerate(sorted_e_cores):
+            row, x = i // e_cores_per_row, (i % e_cores_per_row) * x_spacing + e_section_start
+            y = sum(y_spacing * 3 + (l3_spacing if r in rows_with_l3 else 0) for r in range(row))
+            ax.add_patch(patches.Rectangle((x, y), core_width, core_height, facecolor=e_core_color, edgecolor='white', linewidth=0.5))
+            ax.text(x + core_width / 2, y + core_height / 2, f"E{core}", ha='center', va='center', color=text_color, fontsize=8)
+            update_extent(numa_extents, core_to_numa.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
+            update_extent(llc_extents, core_to_llc.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
+
+            # Draw L1/L2 caches for E-cores
+            for cache in cache_structure:
+                if cache['level'] == 1 and core in cache['cores']:
+                    cores_in_cache = [c for c in cache['cores'] if c in e_cores]
+                    cores_in_row = [c for c in cores_in_cache if (sorted_e_cores.index(c) // e_cores_per_row) == row]
+                    if cores_in_row and core == min(cores_in_row):
+                        y_off = -0.6 if cache['type'] == 2 else -1.0
+                        label = f"L1-{'I' if cache['type'] == 2 else 'D'} {format_size(cache['size'])}"
+                        w = x_spacing * len(cores_in_row) - 0.4
+                        ax.add_patch(patches.Rectangle((x, y + y_off), w, 0.4, facecolor=l1_color, edgecolor='white', linewidth=0.5))
+                        ax.text(x + w / 2, y + y_off + 0.2, label, ha='center', va='center', fontsize=7, color=text_color)
+            for group in l2_groups.values():
+                if core in group['cores']:
+                    cores_in_cache = [c for c in group['cores'] if c in e_cores]
+                    cores_in_row = [c for c in cores_in_cache if (sorted_e_cores.index(c) // e_cores_per_row) == row]
+                    if cores_in_row and core == min(cores_in_row):
+                        w = x_spacing * len(cores_in_row) - 0.4
+                        ax.add_patch(patches.Rectangle((x, y - 1.4), w, 0.4, facecolor=l2_color, edgecolor='white', linewidth=0.5))
+                        ax.text(x + w / 2, y - 1.2, f"L2 {format_size(group['size'])}", ha='center', va='center', fontsize=7, color=text_color)
+                        break
+
+        # Draw L3
+        for l3_cache in l3_caches:
+            shared = sorted(l3_cache['cores'])
+            row = min(shared) // p_cores_per_row
+            y_l3 = sum(y_spacing * 3 + (l3_spacing if r in rows_with_l3 else 0) for r in range(row)) - 2.4
+            start_x = (min(shared) % p_cores_per_row) * x_spacing if min(shared) in p_cores else e_section_start + (sorted(list(e_cores)).index(min(shared)) % e_cores_per_row) * x_spacing
+            end_x = (max(shared) % p_cores_per_row) * x_spacing if max(shared) in p_cores else e_section_start + (sorted(list(e_cores)).index(max(shared)) % e_cores_per_row) * x_spacing
+            w_l3 = end_x - start_x + core_width
+            ax.add_patch(patches.Rectangle((start_x, y_l3), w_l3, l3_height, facecolor=l3_color, edgecolor='white', linewidth=0.5))
+            ax.text(start_x + w_l3 / 2, y_l3 + l3_height / 2, f"L3 {format_size(l3_cache['size'])}", ha='center', va='center', color=text_color, fontsize=8)
+
+        # Draw Boxes
+        if len(llc_extents) > 1:
+            for llc_idx, (mx1, mx2, my1, my2) in llc_extents.items():
+                ax.add_patch(patches.Rectangle((mx1 - 0.1, my1 - 0.1), mx2 - mx1 + 0.2, my2 - my1 + 0.2, facecolor='none', edgecolor='#444444', linestyle=':', linewidth=0.5))
+                ax.text(mx1 + 0.1, my2 - 0.1, f"CCD {llc_idx}", color='#888888', fontsize=8, ha='left', va='top')
+        for n_idx, (mx1, mx2, my1, my2) in numa_extents.items():
+            ax.add_patch(patches.Rectangle((mx1 - 0.2, my1 - 0.5), mx2 - mx1 + 0.4, my2 - my1 + 1.6, facecolor='none', edgecolor='#666666', linestyle='--', linewidth=1))
+            ax.text(mx1 + 0.1, my2 + 0.9, f"NUMA NODE {n_idx}", color='#AAAAAA', fontsize=10, fontweight='bold', ha='left')
+
+        ax.set_xlim(-1, total_width + 1)
+        ax.set_ylim(-4, max(p_rows, e_rows) * y_spacing * 3 + 1)
+        ax.axis('off')
+        plt.title(f"CPU Topology & Cache: {get_cpu_name()}", color=text_color, y=0.98)
+        plt.tight_layout()
+        buf = BytesIO()
+        plt.savefig(buf, format='png', facecolor='#1C1C1C')
         plt.close(fig)
         buf.seek(0)
         return buf.read()

@@ -378,6 +378,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             if not squadron:
                 return
             ppk = CreditSystemListener.get_points_per_kill(
+                server,
                 self.get_config(server, plugin_name='creditsystem'),
                 {
                     "arg4": data['arg1'],

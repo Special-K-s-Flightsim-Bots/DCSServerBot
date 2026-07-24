@@ -3,6 +3,7 @@ import os
 __all__ = [
     'get_cpu_set_information',
     'get_e_core_affinity',
+    'get_cache_info',
     'get_cpu_name'
 ]
 
@@ -258,6 +259,92 @@ def get_e_core_affinity() -> int:
             mask |= 1 << cpu_num
 
     return mask
+
+
+def get_cache_info() -> list[dict]:
+    """
+    Returns information about the CPU cache structure on Linux.
+    Mimics the Windows structure for cross-platform compatibility.
+    """
+    cache_info: list[dict] = []
+    sysfs_root = "/sys/devices/system/cpu"
+    if not os.path.isdir(sysfs_root):
+        return []
+
+    # Helper: try to read a file and return its integer value
+    def _read_int(path: str) -> int | None:
+        try:
+            with open(path, "r") as f:
+                return int(f.read().strip())
+        except Exception:
+            return None
+
+    # We iterate over all CPUs and group caches by their unique ID
+    caches = {}  # (level, type, id) -> {size, cores}
+    for cpu_entry in os.listdir(sysfs_root):
+        if not cpu_entry.startswith("cpu") or not cpu_entry[3:].isdigit():
+            continue
+        cpu_num = int(cpu_entry[3:])
+        cache_dir = os.path.join(sysfs_root, cpu_entry, "cache")
+        if not os.path.isdir(cache_dir):
+            continue
+        for idx_entry in os.listdir(cache_dir):
+            idx_path = os.path.join(cache_dir, idx_entry)
+            level = _read_int(os.path.join(idx_path, "level"))
+            if level is None:
+                continue
+            ctype_path = os.path.join(idx_path, "type")
+            try:
+                with open(ctype_path, "r") as f:
+                    ctype_str = f.read().strip()
+            except Exception:
+                continue
+
+            # Map type to Windows constants: Unified=0, Instruction=1, Data=2
+            type_map = {"Unified": 0, "Instruction": 1, "Data": 2}
+            type_id = type_map.get(ctype_str, 0)
+
+            # Some older kernels might not have 'id', use shared_cpu_list/mask to infer
+            cache_id = _read_int(os.path.join(idx_path, "id"))
+            if cache_id is None:
+                # Fallback to shared_cpu_list hash
+                try:
+                    with open(os.path.join(idx_path, "shared_cpu_list"), "r") as f:
+                        cache_id = hash(f.read().strip())
+                except Exception:
+                    cache_id = cpu_num  # Last resort
+
+            size_str = "0"
+            try:
+                with open(os.path.join(idx_path, "size"), "r") as f:
+                    size_str = f.read().strip()
+            except Exception:
+                pass
+
+            # Convert e.g. "32K", "1M" to bytes
+            size = 0
+            if size_str.endswith("K"):
+                size = int(size_str[:-1]) * 1024
+            elif size_str.endswith("M"):
+                size = int(size_str[:-1]) * 1024 * 1024
+            elif size_str.isdigit():
+                size = int(size_str)
+
+            key = (level, type_id, cache_id)
+            if key not in caches:
+                caches[key] = {
+                    'level': level,
+                    'type': type_id,
+                    'size': size,
+                    'cores': set()
+                }
+            caches[key]['cores'].add(cpu_num)
+
+    res = []
+    for c in caches.values():
+        c['cores'] = sorted(list(c['cores']))
+        res.append(c)
+    return sorted(res, key=lambda x: (x['level'], x['type']))
 
 
 def get_cpu_name() -> str:

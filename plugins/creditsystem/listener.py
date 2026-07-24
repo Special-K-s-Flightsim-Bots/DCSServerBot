@@ -20,17 +20,25 @@ class CreditSystemListener(EventListener["CreditSystem"]):
         self.squadrons: dict[str, Squadron] = {}
 
     @staticmethod
-    def get_points_per_kill(config: dict, data: dict) -> int:
+    def get_points_per_kill(server: Server, config: dict, data: dict) -> int:
         default = 1
         if 'points_per_kill' in config:
             for unit in config['points_per_kill']:
-                if 'category' in unit and data.get('victimCategory', 'Planes') != unit['category']:
-                    continue
+                if 'category' in unit:
+                    if unit['category'].lower() == 'user' and data['arg4'] != -1:
+                        continue
+                    elif data.get('victimCategory', 'Planes') != unit['category']:
+                        continue
                 if 'unit_type' in unit and unit['unit_type'] != data['arg5']:
                     continue
                 if 'type' in unit and ((unit['type'] == 'AI' and int(data['arg4']) != -1) or
                                        (unit['type'] == 'Player' and int(data['arg4']) == -1)):
                     continue
+                if 'ucid' in unit or 'discord' in unit:
+                    victim = server.get_player(id=data['arg4'])
+                    # (mis)use check_excemptions as it is there and does what we need
+                    if not victim or not victim.check_exemptions(unit):
+                        continue
                 if 'category' in unit or 'unit_type' in unit or 'type' in unit:
                     return unit['points']
                 elif 'default' in unit:
@@ -226,7 +234,7 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
                 # Multicrew - pilot and all crew members gain points
                 for player in server.get_crew_members(server.get_player(id=data['arg1'])):  # type: CreditPlayer
-                    ppk = self.get_points_per_kill(config, data)
+                    ppk = self.get_points_per_kill(server, config, data)
                     if ppk:
                         old_points = player.points
                         # We will add the PPK to the deposit to allow for multiplied paybacks

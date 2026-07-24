@@ -4,8 +4,6 @@ import traceback
 import winreg
 
 from ctypes import wintypes
-from io import BytesIO
-from matplotlib import pyplot as plt, patches
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +15,7 @@ __all__ = [
     "get_cache_info",
     "get_e_core_affinity",
     "get_p_core_affinity",
-    "get_cpus_from_affinity",
-    "create_cpu_topology_visualization"
+    "get_cpus_from_affinity"
 ]
 
 # Define ULONG_PTR
@@ -465,23 +462,27 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
             key = tuple(sorted(cache['cores']))
             l2_groups[key] = {'cores': cache['cores'], 'size': cache['size']}
 
-    # Map each logical core to its NUMA node
+    # Map each logical core to its NUMA node and LLC index (CCD)
     core_to_numa = {}
+    core_to_llc = {}
     if topology:
         for n_idx, scheds in topology.items():
             for group_key, cores_map in scheds.items():
+                llc_idx = group_key[1]
                 for c_idx, logicals in cores_map.items():
                     for l_idx in logicals:
                         core_to_numa[l_idx] = n_idx
+                        core_to_llc[l_idx] = llc_idx
 
     numa_extents = {}
+    llc_extents = {}
 
-    def update_extent(n_idx, x, y, w, h):
-        if n_idx is None: return
-        if n_idx not in numa_extents:
-            numa_extents[n_idx] = [x, x + w, y, y + h]
+    def update_extent(ext_dict, key, x, y, w, h):
+        if key is None: return
+        if key not in ext_dict:
+            ext_dict[key] = [x, x + w, y, y + h]
         else:
-            ext = numa_extents[n_idx]
+            ext = ext_dict[key]
             ext[0] = min(ext[0], x)
             ext[1] = max(ext[1], x + w)
             ext[2] = min(ext[2], y)
@@ -503,7 +504,10 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
                                  linewidth=0.5)
         ax.add_patch(rect)
         ax.text(x + core_width / 2, y + core_height / 2, f"P{core}", ha='center', va='center', color=text_color)
-        update_extent(core_to_numa.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
+        
+        # Update NUMA and LLC extents
+        update_extent(numa_extents, core_to_numa.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
+        update_extent(llc_extents, core_to_llc.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
 
         if i % 2 == 0:
             for cache in cache_structure:
@@ -546,7 +550,10 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
                                  facecolor=e_core_color, edgecolor='white', linewidth=0.5)
         ax.add_patch(rect)
         ax.text(x + core_width / 2, y + core_height / 2, f"E{core}", ha='center', va='center', color=text_color)
-        update_extent(core_to_numa.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
+        
+        # Update NUMA and LLC extents
+        update_extent(numa_extents, core_to_numa.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
+        update_extent(llc_extents, core_to_llc.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
 
         for cache in cache_structure:
             if cache['level'] == 1 and core in cache['cores']:
@@ -579,31 +586,34 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
         shared_cores = sorted(l3_cache['cores'])
         leftmost_core = min(shared_cores)
         rightmost_core = max(shared_cores)
+        
+        # Determine the row(s) this L3 belongs to
         row = leftmost_core // p_cores_per_row
-
-        # Calculate y position for L3 cache - simplified
-        y_position = row * y_spacing * 3 - 2.4  # Changed from -2.0 to -2.4 to avoid overlap with L1/L2
+        
+        # Calculate y position for L3 cache - matching core y calculation
+        y_at_row = 0
+        for prev_row in range(row):
+            if prev_row in rows_with_l3:
+                y_at_row += y_spacing * 3 + l3_spacing
+            else:
+                y_at_row += y_spacing * 3
+        
+        y_position = y_at_row - 2.4
 
         # Calculate the x-coordinates for this L3 section
         if leftmost_core in p_cores:
             start_x = (leftmost_core % p_cores_per_row) * x_spacing
         else:
-            # For E-cores, adjust the starting position (only if e_cores exists)
-            if e_cores:
-                e_core_index = sorted(e_cores).index(leftmost_core)
-                start_x = e_section_start + (e_core_index % e_cores_per_row) * x_spacing
-            else:
-                continue
+            # For E-cores, adjust the starting position
+            e_core_index = sorted(list(e_cores)).index(leftmost_core)
+            start_x = e_section_start + (e_core_index % e_cores_per_row) * x_spacing
 
         if rightmost_core in p_cores:
             end_x = (rightmost_core % p_cores_per_row) * x_spacing
         else:
-            # For E-cores, adjust the ending position (only if e_cores exists)
-            if e_cores:
-                e_core_index = sorted(e_cores).index(rightmost_core)
-                end_x = e_section_start + (e_core_index % e_cores_per_row) * x_spacing
-            else:
-                continue
+            # For E-cores, adjust the ending position
+            e_core_index = sorted(list(e_cores)).index(rightmost_core)
+            end_x = e_section_start + (e_core_index % e_cores_per_row) * x_spacing
 
         l3_width = end_x - start_x + core_width
 
@@ -613,7 +623,21 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
         ax.add_patch(l3)
         ax.text(start_x + l3_width / 2, y_position + l3_height / 2,
                 f"L3 {format_size(l3_cache['size'])} (Cores {min(shared_cores)}-{max(shared_cores)})",
-                ha='center', va='center', color=text_color)
+                ha='center', va='center', color=text_color, fontsize=8)
+
+    # Draw CCD (LLC) boxes if multiple exist
+    if len(llc_extents) > 1:
+        for llc_idx, (min_x, max_x, min_y, max_y) in llc_extents.items():
+            box_x = min_x - 0.1
+            box_y = min_y - 0.1
+            box_w = max_x - min_x + 0.2
+            box_h = max_y - min_y + 0.2
+            
+            rect = patches.Rectangle((box_x, box_y), box_w, box_h,
+                                     facecolor='none', edgecolor='#444444', linestyle=':', linewidth=0.5)
+            ax.add_patch(rect)
+            ax.text(box_x + 0.1, max_y - 0.1, f"CCD {llc_idx}", color='#888888',
+                    fontsize=8, ha='left', va='top')
 
     # Draw NUMA boxes
     for n_idx, (min_x, max_x, min_y, max_y) in numa_extents.items():

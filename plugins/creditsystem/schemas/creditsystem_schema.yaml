@@ -48,12 +48,26 @@ schema;element_schema:
             default: {type: int, range: {min: 0}, nullable: false}
             category: {type: str, enum: [
               'Planes', 'Helicopters', 'Ships', 'Fortifications', 'LTAvehicles', 'WWII structures', 'Animal',
-              'Unarmed', 'Air Defence', 'Artillery', 'Armor', 'Infantry', 'Locomotive', 'Carriage', 'MissilesSS'
+              'Unarmed', 'Air Defence', 'Artillery', 'Armor', 'Infantry', 'Locomotive', 'Carriage', 'MissilesSS',
+              'User'
             ], nullable: false}
             type: {type: str, enum: ['AI', 'Player'], nullable: false}
             unit_type: {type: str, nullable: false, range: {min: 1}}
             unit_name: {type: str, nullable: false, range: {min: 1}}
             group_name: {type: str, nullable: false, range: {min: 1}}
+            ucid:
+              type: seq
+              nullable: false
+              sequence:
+                - type: str
+                  nullable: false
+                  unique: true
+            discord:
+              type: seq
+              nullable: false
+              sequence:
+                - type: text
+                  nullable: false
             points: {type: int, nullable: false}
     achievements:
       type: seq
