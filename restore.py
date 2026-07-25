@@ -131,7 +131,9 @@ class Restore:
                     pass
             except (ValueError, psycopg.OperationalError):
                 if not self.quiet:
-                    db_pwd: str = Prompt.ask(_("Please enter the password of your database (user={})").format(db_url.username))
+                    db_pwd: str = Prompt.ask(
+                        _("Please enter the password of your database (user={}) "
+                          "or press ENTER to set a new one").format(db_url.username))
                     if not db_pwd:
                         db_pwd = secrets.token_urlsafe(8)
                     set_password("database", db_pwd, config_dir=self.config_dir)

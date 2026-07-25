@@ -3,6 +3,8 @@ import os
 __all__ = [
     'get_cpu_set_information',
     'get_e_core_affinity',
+    'get_p_core_affinity',
+    'get_cpus_from_affinity',
     'get_cache_info',
     'get_cpu_name'
 ]
@@ -259,6 +261,22 @@ def get_e_core_affinity() -> int:
             mask |= 1 << cpu_num
 
     return mask
+
+
+def get_p_core_affinity() -> int:
+    """
+    Returns an affinity mask for logical processors that are likely P-cores.
+    """
+    e_mask = get_e_core_affinity()
+    all_cpus = (1 << os.cpu_count()) - 1
+    return all_cpus & ~e_mask
+
+
+def get_cpus_from_affinity(mask: int) -> list[int]:
+    """
+    Converts an affinity mask to a list of logical processor indices.
+    """
+    return [i for i in range(mask.bit_length()) if (mask & (1 << i))]
 
 
 def get_cache_info() -> list[dict]:

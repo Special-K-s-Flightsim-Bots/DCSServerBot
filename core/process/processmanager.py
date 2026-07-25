@@ -7,9 +7,11 @@ from io import BytesIO
 from typing import Any
 
 if sys.platform == 'win32':
-    from .win32.cpu import get_cpu_set_information, get_e_core_affinity
+    from .win32.cpu import (get_cpu_set_information, get_e_core_affinity, get_cache_info,
+                            get_cpu_name, get_p_core_affinity, get_cpus_from_affinity)
 else:
-    from .linux.cpu import get_cpu_set_information, get_e_core_affinity
+    from .linux.cpu import (get_cpu_set_information, get_e_core_affinity, get_cache_info,
+                            get_cpu_name, get_p_core_affinity, get_cpus_from_affinity)
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +86,18 @@ class ProcessManager:
     def _get_physical_topology() -> dict[int, dict[tuple[int, int], dict[int, list[int]]]]:
         """Groups logical processors by Numa Node, (Scheduling Class, LLC Index), and Physical Core Index."""
         cpu_sets = get_cpu_set_information()
+        try:
+            cache_info = get_cache_info()
+        except Exception:
+            cache_info = []
+
+        # Build a mapping from logical processor index to a normalized L3 cache ID
+        l3_map = {}
+        l3_caches = sorted([c for c in cache_info if c.get('level') == 3], key=lambda x: x['cores'][0])
+        for l3_id, cache in enumerate(l3_caches):
+            for lp_idx in cache['cores']:
+                l3_map[lp_idx] = l3_id
+
         topo = {}
 
         for cpu in cpu_sets:
@@ -91,7 +105,9 @@ class ProcessManager:
             sched   = cpu["Scheduling Class"]
             c_idx   = cpu["Core Index"]
             n_idx   = cpu.get("Numa Node Index", 0)
-            llc_idx = cpu.get("Last Level Cache Index", 0)
+            
+            # Use our discovered L3 mapping if available, otherwise fallback to OS-provided index
+            llc_idx = l3_map.get(l_idx, cpu.get("Last Level Cache Index", 0))
 
             group_key = (sched, llc_idx)
 
@@ -557,18 +573,11 @@ class ProcessManager:
         return res
 
     def export_topology(self) -> dict:
-        from core.process import get_cpu_set_information, get_cpu_name
-        try:
-            from core.process import get_cache_info
-            cache = get_cache_info()
-        except ImportError:
-            cache = []
-
         return {
             'cpu_name': get_cpu_name(),
             'topology': self.topology_json,
             'cpu_sets': get_cpu_set_information(),
-            'cache': cache
+            'cache': get_cache_info()
         }
 
     def visualize_usage(self) -> bytes:
@@ -577,7 +586,6 @@ class ProcessManager:
         """
         from io import BytesIO
         from matplotlib import pyplot as plt, patches
-        from core.process import get_cpu_name
 
         # 1. Gather current state
         with self._lock:
@@ -767,8 +775,6 @@ class ProcessManager:
         Generates a detailed CPU cache hierarchy visualization.
         """
         from matplotlib import pyplot as plt, patches
-        from core.process import (get_cpu_name, get_cache_info, get_p_core_affinity,
-                                  get_e_core_affinity, get_cpus_from_affinity)
 
         p_mask = get_p_core_affinity()
         e_mask = get_e_core_affinity()
@@ -925,7 +931,8 @@ class ProcessManager:
         if len(llc_extents) > 1:
             for llc_idx, (mx1, mx2, my1, my2) in llc_extents.items():
                 ax.add_patch(patches.Rectangle((mx1 - 0.1, my1 - 0.1), mx2 - mx1 + 0.2, my2 - my1 + 0.2, facecolor='none', edgecolor='#444444', linestyle=':', linewidth=0.5))
-                ax.text(mx1 + 0.1, my2 - 0.1, f"CCD {llc_idx}", color='#888888', fontsize=8, ha='left', va='top')
+                label = f"Cluster {llc_idx}" if self.p_e_core_cpu else f"CCD {llc_idx}"
+                ax.text(mx1 + 0.1, my2 - 0.1, label, color='#888888', fontsize=8, ha='left', va='top')
         for n_idx, (mx1, mx2, my1, my2) in numa_extents.items():
             ax.add_patch(patches.Rectangle((mx1 - 0.2, my1 - 0.5), mx2 - mx1 + 0.4, my2 - my1 + 1.6, facecolor='none', edgecolor='#666666', linestyle='--', linewidth=1))
             ax.text(mx1 + 0.1, my2 + 0.9, f"NUMA NODE {n_idx}", color='#AAAAAA', fontsize=10, fontweight='bold', ha='left')
