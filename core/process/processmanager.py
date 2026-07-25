@@ -611,17 +611,20 @@ class ProcessManager:
             numa_groups[n_idx] = []
             
             # Group by (is_p, llc_idx) for display to avoid mangling by Scheduling Class rankings
+            # But keep track of scheduling class for ordering
             display_groups = {}
             for (sched, llc_idx), cores_map in self.topology[n_idx].items():
                 is_p = (sched > 0) if self.p_e_core_cpu else True
                 d_key = (is_p, llc_idx)
                 if d_key not in display_groups:
-                    display_groups[d_key] = {}
-                display_groups[d_key].update(cores_map)
+                    display_groups[d_key] = []
+                for core_idx, logicals in cores_map.items():
+                    display_groups[d_key].append((core_idx, logicals, sched))
 
             sorted_keys = sorted(display_groups.keys(), key=lambda x: (not x[0], x[1]))
             for i, (is_p, llc_idx) in enumerate(sorted_keys):
-                phys = sorted(display_groups[(is_p, llc_idx)].items())
+                # Order by scheduling class (descending) then core index (ascending)
+                phys = sorted(display_groups[(is_p, llc_idx)], key=lambda x: (-x[2], x[0]))
 
                 if self.p_e_core_cpu:
                     # Hybrid system (Intel)
@@ -652,7 +655,8 @@ class ProcessManager:
                 ax.text(start_x, start_y + 1.2, cluster_title, color=text_color, fontsize=9, fontweight='bold')
             max_x = start_x
             last_row = 0
-            for i, (c_idx, logicals) in enumerate(phys_cores):
+            unique_sched_count = len({c[2] for c in phys_cores})
+            for i, (c_idx, logicals, sched) in enumerate(phys_cores):
                 row, col = divmod(i, 8)  # Fixed 8 cores per row
                 x_base = start_x + col * (core_w * 2 + phys_gap)
                 y_base = start_y - row * y_spacing
@@ -675,6 +679,11 @@ class ProcessManager:
                     # ID: P0, E12, etc.
                     ax.text(x + core_w / 2, y_base + core_h / 2, f"{label_prefix}{l_id}",
                             ha='center', va='center', color='white', fontsize=7, fontweight='bold')
+
+                    # Show scheduling class if multiple classes exist in this cluster
+                    if j == 0 and unique_sched_count > 1:
+                        ax.text(x + core_w - 0.05, y_base + core_h - 0.05, f"{sched}",
+                                ha='right', va='top', color='#CCCCCC', fontsize=5)
 
                     if proc_name and not unique_name:
                         ax.text(x + core_w / 2, y_base - 0.2, proc_name, ha='center', va='top',
@@ -809,14 +818,18 @@ class ProcessManager:
 
         l2_groups = {tuple(sorted(c['cores'])): c for c in cache_structure if c['level'] == 2}
 
-        core_to_numa, core_to_llc = {}, {}
+        core_to_numa, core_to_llc, core_to_sched = {}, {}, {}
         for n_idx, groups in self.topology.items():
             for group_key, cores_map in groups.items():
-                llc_idx = group_key[1]
+                sched, llc_idx = group_key
                 for logicals in cores_map.values():
                     for l_idx in logicals:
                         core_to_numa[l_idx] = n_idx
                         core_to_llc[l_idx] = llc_idx
+                        core_to_sched[l_idx] = sched
+
+        p_unique_sched = len({core_to_sched.get(c, 0) for c in p_cores}) > 1
+        e_unique_sched = len({core_to_sched.get(c, 0) for c in e_cores}) > 1
 
         numa_extents, llc_extents = {}, {}
         def update_extent(ext_dict, key, x, y, w, h):
@@ -836,6 +849,9 @@ class ProcessManager:
             
             ax.add_patch(patches.Rectangle((x, y), core_width, core_height, facecolor=p_core_color, edgecolor='white', linewidth=0.5))
             ax.text(x + core_width / 2, y + core_height / 2, f"P{core}", ha='center', va='center', color=text_color, fontsize=8)
+            if p_unique_sched:
+                ax.text(x + core_width - 0.05, y + core_height - 0.05, f"{core_to_sched.get(core, 0)}",
+                        ha='right', va='top', color='#CCCCCC', fontsize=5)
             update_extent(numa_extents, core_to_numa.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
             update_extent(llc_extents, core_to_llc.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
 
@@ -867,6 +883,9 @@ class ProcessManager:
             y = sum(y_spacing * 3 + (l3_spacing if r in rows_with_l3 else 0) for r in range(row))
             ax.add_patch(patches.Rectangle((x, y), core_width, core_height, facecolor=e_core_color, edgecolor='white', linewidth=0.5))
             ax.text(x + core_width / 2, y + core_height / 2, f"E{core}", ha='center', va='center', color=text_color, fontsize=8)
+            if e_unique_sched:
+                ax.text(x + core_width - 0.05, y + core_height - 0.05, f"{core_to_sched.get(core, 0)}",
+                        ha='right', va='top', color='#CCCCCC', fontsize=5)
             update_extent(numa_extents, core_to_numa.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
             update_extent(llc_extents, core_to_llc.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
 

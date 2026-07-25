@@ -1946,8 +1946,7 @@ class NodeImpl(Node):
 
     @override
     async def get_cpu_info(self, used: bool = True, export: bool = False) -> bytes | dict | int:
-        from core.process import (ProcessManager, create_cpu_topology_visualization, get_cpus_from_affinity,
-                                  get_cache_info, get_p_core_affinity, get_e_core_affinity)
+        from core.process import ProcessManager
 
         if export:
             if self.node.master:
@@ -1965,16 +1964,7 @@ class NodeImpl(Node):
             if used:
                 return ProcessManager().visualize_usage()
             else:
-                p_core_affinity_mask = get_p_core_affinity()
-                e_core_affinity_mask = get_e_core_affinity()
-                buffer = create_cpu_topology_visualization(get_cpus_from_affinity(p_core_affinity_mask),
-                                                           get_cpus_from_affinity(e_core_affinity_mask),
-                                                           get_cache_info(),
-                                                           topology=ProcessManager().topology)
-                try:
-                    return buffer.getvalue()
-                finally:
-                    buffer.close()
+                return ProcessManager().visualize_cache()
 
         if self.node.master:
             return create_image(used)
