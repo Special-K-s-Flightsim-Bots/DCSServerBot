@@ -79,21 +79,29 @@ class CACHE_RELATIONSHIP(ctypes.Structure):
 
 
 class SYSTEM_CPU_SET_INFORMATION(ctypes.Structure):
+    class _CpuSet(ctypes.Structure):
+        class _U1(ctypes.Union):
+            _fields_ = [
+                ("Reserved", wintypes.DWORD),
+                ("SchedulingClass", wintypes.BYTE),
+            ]
+        _anonymous_ = ("u",)
+        _fields_ = [
+            ("Id", wintypes.DWORD),
+            ("Group", wintypes.WORD),
+            ("LogicalProcessorIndex", wintypes.BYTE),
+            ("CoreIndex", wintypes.BYTE),
+            ("LastLevelCacheIndex", wintypes.BYTE),
+            ("NumaNodeIndex", wintypes.BYTE),
+            ("EfficiencyClass", wintypes.BYTE),
+            ("AllFlags", wintypes.BYTE),
+            ("u", _U1),
+            ("AllocationTag", ctypes.c_uint64),
+        ]
     _fields_ = [
-        ("Size", wintypes.DWORD),  # Size of the structure
-        ("Type", wintypes.DWORD),  # Should be 1 (SystemCpuSetInformation)
-        ("Id", wintypes.DWORD),  # Logical CPU ID
-        ("Group", wintypes.WORD),  # CPU group number
-        ("LogicalProcessorIndex", wintypes.BYTE),
-        ("CoreIndex", wintypes.BYTE),
-        ("LastLevelCacheIndex", wintypes.BYTE),
-        ("NumaNodeIndex", wintypes.BYTE),
-        ("EfficiencyClass", wintypes.BYTE),  # Efficiency class field
-        ("AllFlags", wintypes.BYTE),
-        ("SchedulingClass", wintypes.BYTE),  # Scheduling class field
-        ("Reserved", wintypes.BYTE * 9),
-        ("Reserved2", wintypes.DWORD),
-        ("GroupAffinity", GROUP_AFFINITY),
+        ("Size", wintypes.DWORD),
+        ("Type", wintypes.DWORD),
+        ("CpuSet", _CpuSet),
     ]
 
 
@@ -218,13 +226,13 @@ def get_cpu_set_information():
 
         # Add relevant fields to the dictionary
         cpu_info_list.append({
-            "CPU Id": cpu_info.Id,
-            "Logical Processor Index": cpu_info.LogicalProcessorIndex,
-            "Core Index": cpu_info.CoreIndex,
-            "Efficiency Class": cpu_info.EfficiencyClass,
-            "Scheduling Class": cpu_info.SchedulingClass,
-            "Numa Node Index": cpu_info.NumaNodeIndex,
-            "Last Level Cache Index": cpu_info.LastLevelCacheIndex
+            "CPU Id": cpu_info.CpuSet.Id,
+            "Logical Processor Index": cpu_info.CpuSet.LogicalProcessorIndex,
+            "Core Index": cpu_info.CpuSet.CoreIndex,
+            "Efficiency Class": cpu_info.CpuSet.EfficiencyClass,
+            "Scheduling Class": cpu_info.CpuSet.SchedulingClass,
+            "Numa Node Index": cpu_info.CpuSet.NumaNodeIndex,
+            "Last Level Cache Index": cpu_info.CpuSet.LastLevelCacheIndex
         })
 
         # Move to the next structure

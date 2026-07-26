@@ -105,14 +105,11 @@ class ProcessManager:
         # 2. If die info is missing, fall back to L3 cache boundaries
         if not llc_map:
             l3_caches = sorted([c for c in cache_info if c.get('level') == 3], key=lambda x: x['cores'][0])
-            # Heuristic: If we have as many L3 caches as cores, they are likely per-core reports.
-            # On AMD, we should probably group them.
             is_amd = "AMD" in get_cpu_name()
-            if is_amd and len(l3_caches) == len(cpu_sets) and len(l3_caches) > 8:
-                # Group by 8 cores per CCD as a last-resort heuristic for Zen
-                for l3_id, cache in enumerate(l3_caches):
-                    for lp_idx in cache['cores']:
-                        llc_map[lp_idx] = l3_id // 8
+            # Heuristic: If we have many L3 caches (e.g. one per core), group them by 8 cores per CCD for Zen
+            if is_amd and len(l3_caches) >= 8:
+                for cpu in cpu_sets:
+                    llc_map[cpu["Logical Processor Index"]] = cpu["Core Index"] // 8
             else:
                 for l3_id, cache in enumerate(l3_caches):
                     for lp_idx in cache['cores']:
@@ -594,7 +591,8 @@ class ProcessManager:
             'cpu_name': get_cpu_name(),
             'topology': self.topology_json,
             'cpu_sets': get_cpu_set_information(),
-            'cache': get_cache_info()
+            'cache': get_cache_info(),
+            'die': get_die_info()
         }
 
     def visualize_usage(self) -> bytes:
@@ -793,11 +791,28 @@ class ProcessManager:
         """
         from matplotlib import pyplot as plt, patches
 
+        def format_size(size):
+            if size >= 1024 * 1024: return f"{size / (1024 * 1024):.0f}M"
+            if size >= 1024: return f"{size / 1024:.0f}K"
+            return f"{size}B"
+
         p_mask = get_p_core_affinity()
         e_mask = get_e_core_affinity()
-        p_cores = get_cpus_from_affinity(p_mask)
-        e_cores = get_cpus_from_affinity(e_mask)
-        cache_structure = get_cache_info()
+        p_cores_raw = get_cpus_from_affinity(p_mask)
+        e_cores_raw = get_cpus_from_affinity(e_mask)
+
+        # Order cores by topology to ensure SMT threads are adjacent and follow physical CCDs
+        p_cores, e_cores = [], []
+        for n_idx in sorted(self.topology.keys()):
+            for (sched, llc_idx) in sorted(self.topology[n_idx].keys(), key=lambda x: (not (x[0] > 0 if self.p_e_core_cpu else True), x[1])):
+                is_p = (sched > 0) if self.p_e_core_cpu else True
+                target = p_cores if is_p else e_cores
+                for c_idx in sorted(self.topology[n_idx][(sched, llc_idx)].keys()):
+                    for l_idx in self.topology[n_idx][(sched, llc_idx)][c_idx]:
+                        if is_p and l_idx in p_cores_raw: target.append(l_idx)
+                        elif not is_p and l_idx in e_cores_raw: target.append(l_idx)
+
+        cache_info = get_cache_info()
 
         plt.switch_backend('agg')
         plt.style.use('dark_background')
@@ -826,20 +841,7 @@ class ProcessManager:
         e_section_start = p_cores_width + x_spacing
         total_width = p_cores_width + ((e_cores_width + x_spacing) if e_cores else 0)
 
-        # L3 mapping
-        l3_caches = [c for c in cache_structure if c['level'] == 3]
-        rows_with_l3 = set()
-        for l3_cache in l3_caches:
-            shared = sorted(l3_cache['cores'])
-            row = min(shared) // p_cores_per_row
-            rows_with_l3.add(row)
-
-        def format_size(size):
-            if size >= 1024 * 1024: return f"{size / (1024 * 1024):.0f}M"
-            if size >= 1024: return f"{size / 1024:.0f}K"
-            return f"{size}B"
-
-        l2_groups = {tuple(sorted(c['cores'])): c for c in cache_structure if c['level'] == 2}
+        l2_groups = {tuple(sorted(c['cores'])): c for c in cache_info if c['level'] == 2}
 
         core_to_numa, core_to_llc, core_to_sched = {}, {}, {}
         for n_idx, groups in self.topology.items():
@@ -850,6 +852,27 @@ class ProcessManager:
                         core_to_numa[l_idx] = n_idx
                         core_to_llc[l_idx] = llc_idx
                         core_to_sched[l_idx] = sched
+
+        # Consolidate L3 caches by CCD/Cluster for visualization if they appear per-core
+        l3_by_llc = {}
+        for l3 in cache_info:
+            if l3['level'] != 3 or not l3['cores']: continue
+            llc_key = (core_to_numa.get(l3['cores'][0], 0), core_to_llc.get(l3['cores'][0], 0))
+            if llc_key not in l3_by_llc:
+                l3_by_llc[llc_key] = {'level': 3, 'type': l3['type'], 'size': 0, 'cores': set(), 'llc_key': llc_key}
+            l3_by_llc[llc_key]['cores'].update(l3['cores'])
+            l3_by_llc[llc_key]['size'] = max(l3_by_llc[llc_key]['size'], l3['size'])
+        
+        l3_caches = list(l3_by_llc.values())
+        rows_with_l3 = set()
+        for l3_cache in l3_caches:
+            shared = sorted(list(l3_cache['cores']))
+            # Find which row(s) these cores belong to
+            for c in shared:
+                if c in p_cores:
+                    rows_with_l3.add(p_cores.index(c) // p_cores_per_row)
+                elif c in e_cores:
+                    rows_with_l3.add(e_cores.index(c) // e_cores_per_row)
 
         p_unique_sched = len({core_to_sched.get(c, 0) for c in p_cores}) > 1
         e_unique_sched = len({core_to_sched.get(c, 0) for c in e_cores}) > 1
@@ -864,8 +887,7 @@ class ProcessManager:
                 ext[2], ext[3] = min(ext[2], y), max(ext[3], y + h)
 
         # Draw P-Cores
-        sorted_p_cores = sorted(p_cores)
-        for i, core in enumerate(sorted_p_cores):
+        for i, core in enumerate(p_cores):
             row = i // p_cores_per_row
             x = (i % p_cores_per_row) * x_spacing
             y = sum(y_spacing * 3 + (l3_spacing if r in rows_with_l3 else 0) for r in range(row))
@@ -875,14 +897,15 @@ class ProcessManager:
             if p_unique_sched:
                 ax.text(x + core_width - 0.05, y + core_height - 0.05, f"{core_to_sched.get(core, 0)}",
                         ha='right', va='top', color='#CCCCCC', fontsize=5)
+            llc_key = (core_to_numa.get(core, 0), core_to_llc.get(core, 0))
             update_extent(numa_extents, core_to_numa.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
-            update_extent(llc_extents, core_to_llc.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
+            update_extent(llc_extents, llc_key, x, y - 2.4, x_spacing, 2.4 + core_height)
 
             # Draw L1/L2 caches for P-cores
-            for cache in cache_structure:
+            for cache in cache_info:
                 if cache['level'] == 1 and core in cache['cores']:
                     cores_in_cache = [c for c in cache['cores'] if c in p_cores]
-                    cores_in_row = [c for c in cores_in_cache if (sorted_p_cores.index(c) // p_cores_per_row) == row]
+                    cores_in_row = [c for c in cores_in_cache if (p_cores.index(c) // p_cores_per_row) == row]
                     if cores_in_row and core == min(cores_in_row):
                         y_off = -0.6 if cache['type'] == 2 else -1.0
                         label = f"L1-{'I' if cache['type'] == 2 else 'D'} {format_size(cache['size'])}"
@@ -892,7 +915,7 @@ class ProcessManager:
             for group in l2_groups.values():
                 if core in group['cores']:
                     cores_in_cache = [c for c in group['cores'] if c in p_cores]
-                    cores_in_row = [c for c in cores_in_cache if (sorted_p_cores.index(c) // p_cores_per_row) == row]
+                    cores_in_row = [c for c in cores_in_cache if (p_cores.index(c) // p_cores_per_row) == row]
                     if cores_in_row and core == min(cores_in_row):
                         w = x_spacing * len(cores_in_row) - 0.4
                         ax.add_patch(patches.Rectangle((x, y - 1.4), w, 0.4, facecolor=l2_color, edgecolor='white', linewidth=0.5))
@@ -900,8 +923,7 @@ class ProcessManager:
                         break
 
         # Draw E-Cores
-        sorted_e_cores = sorted(e_cores)
-        for i, core in enumerate(sorted_e_cores):
+        for i, core in enumerate(e_cores):
             row, x = i // e_cores_per_row, (i % e_cores_per_row) * x_spacing + e_section_start
             y = sum(y_spacing * 3 + (l3_spacing if r in rows_with_l3 else 0) for r in range(row))
             ax.add_patch(patches.Rectangle((x, y), core_width, core_height, facecolor=e_core_color, edgecolor='white', linewidth=0.5))
@@ -909,14 +931,15 @@ class ProcessManager:
             if e_unique_sched:
                 ax.text(x + core_width - 0.05, y + core_height - 0.05, f"{core_to_sched.get(core, 0)}",
                         ha='right', va='top', color='#CCCCCC', fontsize=5)
+            llc_key = (core_to_numa.get(core, 0), core_to_llc.get(core, 0))
             update_extent(numa_extents, core_to_numa.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
-            update_extent(llc_extents, core_to_llc.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
+            update_extent(llc_extents, llc_key, x, y - 2.4, x_spacing, 2.4 + core_height)
 
             # Draw L1/L2 caches for E-cores
-            for cache in cache_structure:
+            for cache in cache_info:
                 if cache['level'] == 1 and core in cache['cores']:
                     cores_in_cache = [c for c in cache['cores'] if c in e_cores]
-                    cores_in_row = [c for c in cores_in_cache if (sorted_e_cores.index(c) // e_cores_per_row) == row]
+                    cores_in_row = [c for c in cores_in_cache if (e_cores.index(c) // e_cores_per_row) == row]
                     if cores_in_row and core == min(cores_in_row):
                         y_off = -0.6 if cache['type'] == 2 else -1.0
                         label = f"L1-{'I' if cache['type'] == 2 else 'D'} {format_size(cache['size'])}"
@@ -926,7 +949,7 @@ class ProcessManager:
             for group in l2_groups.values():
                 if core in group['cores']:
                     cores_in_cache = [c for c in group['cores'] if c in e_cores]
-                    cores_in_row = [c for c in cores_in_cache if (sorted_e_cores.index(c) // e_cores_per_row) == row]
+                    cores_in_row = [c for c in cores_in_cache if (e_cores.index(c) // e_cores_per_row) == row]
                     if cores_in_row and core == min(cores_in_row):
                         w = x_spacing * len(cores_in_row) - 0.4
                         ax.add_patch(patches.Rectangle((x, y - 1.4), w, 0.4, facecolor=l2_color, edgecolor='white', linewidth=0.5))
@@ -935,18 +958,18 @@ class ProcessManager:
 
         # Draw L3
         for l3_cache in l3_caches:
-            shared = sorted(l3_cache['cores'])
-            row = min(shared) // p_cores_per_row
-            y_l3 = sum(y_spacing * 3 + (l3_spacing if r in rows_with_l3 else 0) for r in range(row)) - 2.4
-            start_x = (min(shared) % p_cores_per_row) * x_spacing if min(shared) in p_cores else e_section_start + (sorted(list(e_cores)).index(min(shared)) % e_cores_per_row) * x_spacing
-            end_x = (max(shared) % p_cores_per_row) * x_spacing if max(shared) in p_cores else e_section_start + (sorted(list(e_cores)).index(max(shared)) % e_cores_per_row) * x_spacing
-            w_l3 = end_x - start_x + core_width
-            ax.add_patch(patches.Rectangle((start_x, y_l3), w_l3, l3_height, facecolor=l3_color, edgecolor='white', linewidth=0.5))
-            ax.text(start_x + w_l3 / 2, y_l3 + l3_height / 2, f"L3 {format_size(l3_cache['size'])}", ha='center', va='center', color=text_color, fontsize=8)
+            llc_key = l3_cache.get('llc_key')
+            if llc_key in llc_extents:
+                mx1, mx2, my1, my2 = llc_extents[llc_key]
+                y_l3 = my1  # Position at the bottom of the extent
+                w_l3 = mx2 - mx1 - 0.4
+                ax.add_patch(patches.Rectangle((mx1, y_l3), w_l3, l3_height, facecolor=l3_color, edgecolor='white', linewidth=0.5))
+                ax.text(mx1 + w_l3 / 2, y_l3 + l3_height / 2, f"L3 {format_size(l3_cache['size'])}", ha='center', va='center', color=text_color, fontsize=8)
 
         # Draw Boxes
         if len(llc_extents) > 1:
-            for llc_idx, (mx1, mx2, my1, my2) in llc_extents.items():
+            for llc_key, (mx1, mx2, my1, my2) in llc_extents.items():
+                llc_idx = llc_key[1]
                 ax.add_patch(patches.Rectangle((mx1 - 0.1, my1 - 0.1), mx2 - mx1 + 0.2, my2 - my1 + 0.2, facecolor='none', edgecolor='#444444', linestyle=':', linewidth=0.5))
                 label = f"Cluster {llc_idx}" if self.p_e_core_cpu else f"CCD {llc_idx}"
                 ax.text(mx1 + 0.1, my2 - 0.1, label, color='#888888', fontsize=8, ha='left', va='top')
