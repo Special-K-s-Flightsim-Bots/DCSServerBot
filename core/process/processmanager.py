@@ -8,10 +8,10 @@ from typing import Any
 
 if sys.platform == 'win32':
     from .win32.cpu import (get_cpu_set_information, get_e_core_affinity, get_cache_info,
-                            get_cpu_name, get_p_core_affinity, get_cpus_from_affinity)
+                            get_cpu_name, get_p_core_affinity, get_cpus_from_affinity, get_die_info)
 else:
     from .linux.cpu import (get_cpu_set_information, get_e_core_affinity, get_cache_info,
-                            get_cpu_name, get_p_core_affinity, get_cpus_from_affinity)
+                            get_cpu_name, get_p_core_affinity, get_cpus_from_affinity, get_die_info)
 
 logger = logging.getLogger(__name__)
 
@@ -90,27 +90,45 @@ class ProcessManager:
             cache_info = get_cache_info()
         except Exception:
             cache_info = []
+        try:
+            die_info = get_die_info()
+        except Exception:
+            die_info = []
 
-        # Build a mapping from logical processor index to a normalized L3 cache ID
-        l3_map = {}
-        l3_caches = sorted([c for c in cache_info if c.get('level') == 3], key=lambda x: x['cores'][0])
-        for l3_id, cache in enumerate(l3_caches):
-            for lp_idx in cache['cores']:
-                l3_map[lp_idx] = l3_id
+        # 1. Try to build a mapping based on physical dies (CCD)
+        llc_map = {}
+        if die_info:
+            for die_id, logicals in enumerate(die_info):
+                for lp_idx in logicals:
+                    llc_map[lp_idx] = die_id
+        
+        # 2. If die info is missing, fall back to L3 cache boundaries
+        if not llc_map:
+            l3_caches = sorted([c for c in cache_info if c.get('level') == 3], key=lambda x: x['cores'][0])
+            # Heuristic: If we have as many L3 caches as cores, they are likely per-core reports.
+            # On AMD, we should probably group them.
+            is_amd = "AMD" in get_cpu_name()
+            if is_amd and len(l3_caches) == len(cpu_sets) and len(l3_caches) > 8:
+                # Group by 8 cores per CCD as a last-resort heuristic for Zen
+                for l3_id, cache in enumerate(l3_caches):
+                    for lp_idx in cache['cores']:
+                        llc_map[lp_idx] = l3_id // 8
+            else:
+                for l3_id, cache in enumerate(l3_caches):
+                    for lp_idx in cache['cores']:
+                        llc_map[lp_idx] = l3_id
 
         topo = {}
-
         for cpu in cpu_sets:
             l_idx   = cpu["Logical Processor Index"]
             sched   = cpu["Scheduling Class"]
             c_idx   = cpu["Core Index"]
             n_idx   = cpu.get("Numa Node Index", 0)
             
-            # Use our discovered L3 mapping if available, otherwise fallback to OS-provided index
-            llc_idx = l3_map.get(l_idx, cpu.get("Last Level Cache Index", 0))
+            # Use our discovered mapping if available, otherwise fallback to OS-provided index
+            llc_idx = llc_map.get(l_idx, cpu.get("Last Level Cache Index", 0))
 
             group_key = (sched, llc_idx)
-
             if n_idx not in topo:
                 topo[n_idx] = {}
             if group_key not in topo[n_idx]:
@@ -119,7 +137,6 @@ class ProcessManager:
                 topo[n_idx][group_key][c_idx] = []
 
             topo[n_idx][group_key][c_idx].append(l_idx)
-
         return topo
 
     def _watch_processes(self):

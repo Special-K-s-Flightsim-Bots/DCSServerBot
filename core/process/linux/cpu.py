@@ -6,6 +6,7 @@ __all__ = [
     'get_p_core_affinity',
     'get_cpus_from_affinity',
     'get_cache_info',
+    'get_die_info',
     'get_cpu_name'
 ]
 
@@ -363,6 +364,43 @@ def get_cache_info() -> list[dict]:
         c['cores'] = sorted(list(c['cores']))
         res.append(c)
     return sorted(res, key=lambda x: (x['level'], x['type']))
+
+
+def get_die_info() -> list[list[int]]:
+    """
+    Returns a list of logical processor groups representing physical dies (CCDs).
+    """
+    sysfs_root = "/sys/devices/system/cpu"
+    if not os.path.isdir(sysfs_root):
+        return []
+
+    def _read_int(path: str) -> int | None:
+        try:
+            with open(path, "r") as f:
+                return int(f.read().strip())
+        except Exception:
+            return None
+
+    dies = {}  # die_id -> [logical_processors]
+    for cpu_entry in os.listdir(sysfs_root):
+        if not cpu_entry.startswith("cpu") or not cpu_entry[3:].isdigit():
+            continue
+        cpu_num = int(cpu_entry[3:])
+        
+        # Try die_id first, then cluster_id (used on some ARM systems)
+        die_id = _read_int(os.path.join(sysfs_root, cpu_entry, "topology/die_id"))
+        if die_id is None:
+            die_id = _read_int(os.path.join(sysfs_root, cpu_entry, "topology/cluster_id"))
+        
+        if die_id is not None:
+            if die_id not in dies:
+                dies[die_id] = []
+            dies[die_id].append(cpu_num)
+
+    if not dies:
+        return []
+
+    return [sorted(cpus) for _, cpus in sorted(dies.items())]
 
 
 def get_cpu_name() -> str:

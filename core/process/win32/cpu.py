@@ -13,6 +13,7 @@ __all__ = [
     "get_cpu_set_information",
     "get_scheduling_classes",
     "get_cache_info",
+    "get_die_info",
     "get_e_core_affinity",
     "get_p_core_affinity",
     "get_cpus_from_affinity"
@@ -30,6 +31,8 @@ RelationNumaNode = 1
 RelationCache = 2
 RelationProcessorPackage = 3
 RelationGroup = 4
+RelationProcessorDie = 5
+RelationProcessorModule = 6
 RelationAll = 0xffff
 # Cache type constants
 CacheUnified = 0
@@ -402,6 +405,37 @@ def get_cache_info():
             break
 
     return sorted(cache_info, key=lambda x: x['level'])
+
+
+def get_die_info() -> list[list[int]]:
+    """
+    Returns a list of logical processor groups representing physical dies (CCDs).
+    Only supported on Windows 10 1809 and later.
+    """
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    buffer_size = wintypes.DWORD(0)
+    RelationProcessorDie = 5
+    
+    # Check if the relation is supported by querying size
+    kernel32.GetLogicalProcessorInformationEx(RelationProcessorDie, None, ctypes.byref(buffer_size))
+    err = ctypes.get_last_error()
+    if err != 122 or buffer_size.value == 0:
+        return []
+
+    buffer = ctypes.create_string_buffer(buffer_size.value)
+    if not kernel32.GetLogicalProcessorInformationEx(RelationProcessorDie, buffer, ctypes.byref(buffer_size)):
+        return []
+
+    die_info = []
+    offset = 0
+    while offset < buffer_size.value:
+        info = ctypes.cast(ctypes.byref(buffer, offset), 
+                           ctypes.POINTER(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)).contents
+        if info.Relationship == RelationProcessorDie:
+            mask = info.Processor.GroupMask[0].Mask
+            die_info.append(get_cpus_from_affinity(mask))
+        offset += info.Size
+    return die_info
 
 
 def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display: bool = False, topology: dict = None):
