@@ -376,7 +376,7 @@ class ProcessManager:
 
                         for l in other_cores:
                             u_key = logical_to_unit.get(l)
-                            if u_key and u_key[:3] == (n_idx, sched, c_idx):
+                            if u_key and u_key == (n_idx, sched, c_idx, llc_idx):
                                 foreigners.append((other_pid, l))
 
                     free_slots = list(unit['logical'])
@@ -391,7 +391,7 @@ class ProcessManager:
                         other_cores = []
                         for l in current_cores:
                             u_key = logical_to_unit.get(l)
-                            if u_key and u_key[:3] == (n_idx, sched, c_idx): continue
+                            if u_key and u_key == (n_idx, sched, c_idx, llc_idx): continue
 
                             u_nidx, u_sched, u_cidx, u_llc = u_key
                             # Same scheduling class check
@@ -433,7 +433,7 @@ class ProcessManager:
                         if to_move > 0:
                             logger.debug(
                                 f"Defrag: Consolidated {to_move} cores for {getattr(info['process'], 'name_tag', pid)} into unit {c_idx} (Sched {sched}, NUMA {n_idx})")
-                            occupied_units[(n_idx, sched, c_idx)] += to_move
+                            occupied_units[(n_idx, sched, c_idx, llc_idx)] += to_move
 
             # 5. PHASE 3: COOPERATIVE GROWTH
             while True:
@@ -447,7 +447,7 @@ class ProcessManager:
                     load = self._load_cache.get(pid, 0.0)
                     if load <= 70.0 or len(current_cores) >= info['max_cores']: continue
 
-                    target_nidx, target_sched, _ = logical_to_unit[current_cores[0]]
+                    target_nidx, target_sched, _, _ = logical_to_unit[current_cores[0]]
                     min_allowed_sched = 1 if self.p_e_core_cpu and info['quality'] > 0 else 0
 
                     # Preference: Grow in our highest allowed class first, same NUMA node if possible
@@ -462,8 +462,8 @@ class ProcessManager:
                     preferred_available = [u for u in available if u['sched'] == available[0]['sched']]
 
                     # Atomic growth: finish the current physical unit or take a fresh one
-                    occ = {logical_to_unit[l][:3] for l in current_cores if l in logical_to_unit}
-                    target_unit = next((u for u in preferred_available if (u['n_idx'], u['sched'], u['c_idx']) in occ),
+                    occ = {logical_to_unit[l] for l in current_cores if l in logical_to_unit}
+                    target_unit = next((u for u in preferred_available if (u['n_idx'], u['sched'], u['c_idx'], u['llc_idx']) in occ),
                                        preferred_available[0])
 
                     while target_unit['logical'] and len(current_cores) < info['max_cores']:
@@ -491,7 +491,7 @@ class ProcessManager:
                 if self._load_streak[pid] < 3 or len(current_cores) >= info['max_cores']:
                     continue
 
-                target_nidx, target_sched, _ = logical_to_unit[current_cores[0]]
+                target_nidx, target_sched, _, _ = logical_to_unit[current_cores[0]]
                 for other_pid in reversed(sorted_pids):
                     if other_pid == pid or self._load_cache.get(other_pid, 0.0) >= 20.0: continue
 
@@ -502,7 +502,7 @@ class ProcessManager:
 
                     # Check if the idle process is holding a core we are actually allowed to use
                     stolen = assignments[other_pid][-1]
-                    stolen_nidx, stolen_sched, _ = logical_to_unit.get(stolen, (0, 0, 0))
+                    stolen_nidx, stolen_sched, _, _ = logical_to_unit.get(stolen, (0, 0, 0, 0))
 
                     # NUMA affinity: Only steal from same NUMA node first
                     if stolen_nidx != target_nidx:
