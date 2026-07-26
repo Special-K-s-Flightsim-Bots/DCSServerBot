@@ -451,6 +451,7 @@ class SRS(Extension, FileSystemEventHandler):
         try:
             # 1. If we have a process handle, check if it's still alive
             if self.process and self.process.is_running():
+                running = True
                 return True
 
             # 2. If no handle, try to find the process by name
@@ -466,6 +467,7 @@ class SRS(Extension, FileSystemEventHandler):
                         quality=self.config.get('auto_affinity', {}).get('quality', 0),
                         instance=self.server.instance.name
                     )
+                    running = True
                     return True
 
             self.process = None
