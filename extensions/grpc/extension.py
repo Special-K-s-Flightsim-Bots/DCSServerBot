@@ -89,26 +89,6 @@ class gRPC(InstallableExtension):
         return {k: self._lua_to_python(current_globals[k]) for k in new_globals}
 
     @override
-    def load_config(self) -> dict:
-        def read_file(file: TextIO, cfg: dict):
-            for line in file.readlines():
-                match = exp.match(line)
-                if match:
-                    key = match.group('key').strip()
-                    if key.startswith('--'):
-                        continue
-                    value = match.group('value').strip(' ,')
-                    cfg[key] = self.parse(value)
-
-        exp = re.compile(r'(?P<key>.*) = (?P<value>.*)')
-        path = os.path.join(self.server.instance.home, 'Config', 'dcs-grpc.lua')
-        cfg = dict()
-        if os.path.exists(path):
-            with open(path, mode='r', encoding='utf-8') as file:
-                read_file(file, cfg)
-        return cfg
-
-    @override
     async def prepare(self) -> bool:
         if not await super().prepare():
             return False
