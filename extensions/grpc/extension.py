@@ -1,8 +1,9 @@
 import os
-import re
+import luadata
 
 from core import Server, get_translation, PortType, Port, InstallableExtension, utils
-from typing import Any, TextIO
+from lupa import LuaRuntime
+from typing import Any
 from typing_extensions import override
 
 _ = get_translation(__name__.split('.')[1])
@@ -42,57 +43,53 @@ class gRPC(InstallableExtension):
     def version(self) -> str | None:
         return "0.8.1"
 
-    @staticmethod
-    def parse(value: str) -> Any:
-        if value.startswith('{'):
-            return value[1:-1].split(',')
-        elif value.startswith('"'):
-            return value.strip('"')
-        elif value.startswith("'"):
-            return value.strip("'")
-        elif value == 'true':
-            return True
-        elif value == 'false':
-            return False
-        elif '.' in value:
-            return float(value)
-        else:
-            return int(value)
-
-    @staticmethod
-    def unparse(value: Any) -> str:
-        if isinstance(value, bool):
-            return value.__repr__().lower()
-        elif isinstance(value, str):
-            return '"' + value + '"'
-        else:
-            return value
+    def _lua_to_python(self, lua_item: Any) -> Any:
+        from lupa import lua_type
+        if lua_type(lua_item) == 'table':
+            # Check if it's a list or a dict
+            is_list = True
+            for k in lua_item:
+                if not isinstance(k, int):
+                    is_list = False
+                    break
+            if is_list:
+                return [self._lua_to_python(v) for v in lua_item.values()]
+            else:
+                return {k: self._lua_to_python(v) for k, v in lua_item.items()}
+        return lua_item
 
     @override
     def load_config(self) -> dict:
-        def read_file(file: TextIO, cfg: dict):
-            for line in file.readlines():
-                match = exp.match(line)
-                if match:
-                    key = match.group('key').strip()
-                    if key.startswith('--'):
-                        continue
-                    value = match.group('value').strip(' ,')
-                    cfg[key] = self.parse(value)
-
-        exp = re.compile(r'(?P<key>.*) = (?P<value>.*)')
         path = os.path.join(self.server.instance.home, 'Config', 'dcs-grpc.lua')
-        cfg = dict()
-        if os.path.exists(path):
-            with open(path, mode='r', encoding='utf-8') as file:
-                read_file(file, cfg)
-        return cfg
+        if not os.path.exists(path):
+            return {}
+        with open(path, mode='r', encoding='utf-8') as file:
+            lua_code = file.read()
+
+        lua = LuaRuntime(unpack_returned_tuples=True)
+        lua.execute("""
+            local mt = {}
+            mt.__index = function(t, k)
+                local new_t = setmetatable({}, mt)
+                rawset(t, k, new_t)
+                return new_t
+            end
+            setmetatable(_G, mt)
+        """)
+        initial_globals = set(lua.globals().keys())
+        try:
+            lua.execute(lua_code)
+        except Exception as ex:
+            self.log.error(f"Error while parsing {path}: {ex}")
+            return {}
+
+        current_globals = lua.globals()
+        new_globals = set(current_globals.keys()) - initial_globals
+
+        return {k: self._lua_to_python(current_globals[k]) for k in new_globals}
 
     @override
     async def prepare(self) -> bool:
-        if not await super().prepare():
-            return False
-
         config = self.config.copy()
         filename = os.path.join(self.node.installation, 'Scripts', 'MissionScripting.lua')
         with open(filename, mode='r', encoding='utf-8') as infile:
@@ -118,11 +115,13 @@ class gRPC(InstallableExtension):
             extension = self.server.extensions.get('SRS')
             if extension:
                 srs_port = extension.config.get('port', extension.locals['Server Settings']['SERVER_PORT'])
-                self.locals['srs.addr'] = f"127.0.0.1:{srs_port}"
+                if 'srs' not in self.locals:
+                    self.locals['srs'] = {}
+                self.locals['srs']['addr'] = f"127.0.0.1:{srs_port}"
             path = os.path.join(self.server.instance.home, 'Config', 'dcs-grpc.lua')
             with open(path, mode='w', encoding='utf-8') as outfile:
                 for key, value in self.locals.items():
-                    outfile.write(f"{key} = {self.unparse(value)}\n")
+                    outfile.write(f"{key} = {luadata.serialize(value, indent='  ', indent_level=0)}\n")
         port = self.locals.get('port', 50051)
         if type(self)._ports.get(port, self.server.name) != self.server.name:
             self.log.error(
@@ -135,7 +134,7 @@ class gRPC(InstallableExtension):
         if host != '127.0.0.1':
             self.log.warning('Please consider changing the host in your dcs-grpc.lua to 127.0.0.1 for security reasons '
                              'or whitelist IPs that are allowed to reach this port.')
-        return True
+        return await super().prepare()
 
     @override
     def is_installed(self) -> bool:
@@ -147,7 +146,7 @@ class gRPC(InstallableExtension):
     @override
     def get_ports(self) -> dict[str, Port]:
         return {
-            "gRPC": Port(self.locals.get('port', 50051), PortType.TCP)
+            "gRPC": Port(self.locals.get('port', 50051), PortType.TCP, public=True)
         } if self.enabled else {}
 
     @override

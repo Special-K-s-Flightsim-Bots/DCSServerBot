@@ -572,9 +572,12 @@ class GameMaster(Plugin[GameMasterEventListener]):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         patterns = [r'\.lua$', r'\.json$']
-
-        if GameMasterUploadHandler.is_valid(message, patterns=patterns, roles=self.bot.roles['DCS Admin']):
-
+        config = self.get_config().get('uploads', {})
+        if GameMasterUploadHandler.is_valid(
+                message,
+                patterns=patterns,
+                roles=config.get('discord', self.bot.roles['DCS Admin'])
+        ):
             attachments = []
             async with aiofiles.open('plugins/gamemaster/schemas/embed_schema.json', mode='r') as infile:
                 schema = json.loads(await infile.read())
@@ -598,11 +601,11 @@ class GameMaster(Plugin[GameMasterEventListener]):
                 return
 
             server = await GameMasterUploadHandler.get_server(message)
-            if not server:
+            if not server or not config.get('enabled', True):
                 return
             handler = GameMasterUploadHandler(plugin=self, server=server, message=message, patterns=patterns)
             try:
-                base_dir = os.path.join(await handler.server.get_missions_dir(), 'Scripts')
+                base_dir = config.get('script_dir', os.path.join(await handler.server.get_missions_dir(), 'Scripts'))
                 await handler.upload(base_dir)
             except Exception as ex:
                 self.log.exception(ex)
