@@ -320,6 +320,9 @@ class Player(DataObject):
                     roles = exemption['discord']
                 if utils.check_roles(roles, self.member):
                     return True
+            if 'side' in exemption:
+                if self.side.name.lower() == exemption['side'].lower():
+                    return True
             return False
 
         if isinstance(exemptions, list):

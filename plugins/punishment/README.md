@@ -83,6 +83,7 @@ DCS.dcs_serverrelease:
     discord: 
       - '@everyone'           # Do not punish members of your Discord (that are linked) on this server
       - 'Moderators'          # Do not punish your own moderators (Discord role, not bot role!) on this server
+    side: red                 # Do not punish people on the red side (e.g., for events).
 ```
 ### Penalties
 Here, the configuration for the penalty points assigned to a player is set. 
@@ -105,7 +106,7 @@ In conjunction with the [CreditSystem](../creditsystem/README.md) plugin, you ca
 from players if they misbehave. A campaign has to be running for this to happen.
 
 ### Exemptions
-User that should not be punished. Can be either ucids or Discord roles.
+User that should not be punished. Can be either ucids, Discord roles or a whole side.
 
 ### Forgive
 To prevent actions to be executed against an initiator, victims can use the `.forgive` command inside the in-game chat.

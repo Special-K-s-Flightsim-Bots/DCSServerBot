@@ -78,6 +78,7 @@ schema;element_schema:
           sequence:
             - type: text
               nullable: false
+        side: {type: str, nullable: false, enum: ['red', 'blue']}
 
 type: map
 func: check_main_structure
