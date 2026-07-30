@@ -408,7 +408,6 @@ class PunishmentEventListener(EventListener["Punishment"]):
         elif data['eventName'] == 'kill':
             # check team-kills
             target = server.get_player(id=data['arg4'])
-            self.log.debug(f"_check_punishment(): target: {target}")
             # TODO: Workaround for DCS bug
             if initiator and initiator.side.value != data['arg3']:
                 self.log.debug(f"_check_punishment(): initiator.side.value: {initiator.side.value}, data['arg3']: {data['arg3']}")
