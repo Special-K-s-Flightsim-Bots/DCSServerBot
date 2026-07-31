@@ -773,40 +773,43 @@ class Scheduler(Plugin[SchedulerListener]):
         next_startup = 0
         startup_delay = self.get_config().get('startup_delay', 10)
         for server_name, server in self.bot.servers.items():
-            # only care about servers that are not in the startup phase
-            if server.status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTTING_DOWN]:
-                continue
             config = self.get_config(server)
-            # if no config is defined for this server, ignore it
-            if config:
-                try:
-                    target_state = await self.check_server_state(server, config)
-                    if target_state == Status.RUNNING and server.status == Status.SHUTDOWN:
-                        server.status = Status.LOADING
-                        if 'startup' in config and ('mission_file' in config['startup'] or 'mission_id' in config['startup']):
-                            rconf = config.get('startup').copy()
-                            # run "load" if a startup-section was provided
-                            rconf['method'] = 'load'
-                            self.loop.call_later(
-                                delay=next_startup,
-                                callback=partial(asyncio.create_task,
-                                                 self.run_action(server, rconf))
-                            )
-                        else:
-                            self.loop.call_later(
-                                delay=next_startup,
-                                callback=partial(asyncio.create_task,
-                                                 self.launch_dcs(server, ignore_exception=True))
-                            )
-                        next_startup += startup_delay
-                    elif target_state == Status.SHUTDOWN and server.status in [
-                        Status.STOPPED, Status.RUNNING, Status.PAUSED
-                    ]:
-                        asyncio.create_task(self.teardown(server, config))
-                    elif server.status in [Status.RUNNING, Status.PAUSED]:
-                        await self.check_mission_state(server, config)
-                except Exception as ex:
-                    self.log.exception(ex)
+
+            # only care about servers that are not in the startup phase and not in maintenance
+            if (not config or
+                server.status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTTING_DOWN] or
+                server.maintenance
+            ):
+                continue
+
+            try:
+                target_state = await self.check_server_state(server, config)
+                if target_state == Status.RUNNING and server.status == Status.SHUTDOWN:
+                    server.status = Status.LOADING
+                    if 'startup' in config and ('mission_file' in config['startup'] or 'mission_id' in config['startup']):
+                        rconf = config.get('startup').copy()
+                        # run "load" if a startup-section was provided
+                        rconf['method'] = 'load'
+                        self.loop.call_later(
+                            delay=next_startup,
+                            callback=partial(asyncio.create_task,
+                                             self.run_action(server, rconf))
+                        )
+                    else:
+                        self.loop.call_later(
+                            delay=next_startup,
+                            callback=partial(asyncio.create_task,
+                                             self.launch_dcs(server, ignore_exception=True))
+                        )
+                    next_startup += startup_delay
+                elif target_state == Status.SHUTDOWN and server.status in [
+                    Status.STOPPED, Status.RUNNING, Status.PAUSED
+                ]:
+                    asyncio.create_task(self.teardown(server, config))
+                elif server.status in [Status.RUNNING, Status.PAUSED]:
+                    await self.check_mission_state(server, config)
+            except Exception as ex:
+                self.log.exception(ex)
 
     @check_state.before_loop
     async def before_check(self):
