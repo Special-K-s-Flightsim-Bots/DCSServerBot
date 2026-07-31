@@ -311,7 +311,8 @@ class DCSServerBot(commands.Bot):
 
                 self.log.info('  => Registering Discord Commands (this might take a bit) ...')
                 self.tree.copy_global_to(guild=self.guilds[0])
-                app_cmds = await self.tree.sync(guild=self.guilds[0])
+                #app_cmds = await self.tree.sync(guild=self.guilds[0])
+                app_cmds = await self.tree.fetch_commands(guild=self.guilds[0])
                 app_ids: dict[str, int] = {}
                 for app_cmd in app_cmds:
                     app_ids[app_cmd.name] = app_cmd.id
