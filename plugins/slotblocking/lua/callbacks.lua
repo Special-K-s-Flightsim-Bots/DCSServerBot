@@ -24,18 +24,18 @@ local function has_value(tab, value)
 end
 
 local function is_vip(ucid)
-    if not dcsbot.params then
+    if not dcsbot.params or not dcsbot.params.slotblocking or not dcsbot.params.slotblocking.VIP then
         return false
     end
     local cfg = dcsbot.params.slotblocking.VIP
-    if not cfg then
-        return false
-    end
     if cfg.ucid and has_value(cfg.ucid, ucid) then
         return true
     end
-    if cfg.discord and dcsbot.userInfo[ucid].roles ~= nil and has_value(cfg.discord, dcsbot.userInfo[ucid].roles) then
-        return true
+    -- Check if userInfo exists for this player before indexing roles
+    if cfg.discord and dcsbot.userInfo[ucid] and dcsbot.userInfo[ucid].roles ~= nil then
+        if has_value(cfg.discord, dcsbot.userInfo[ucid].roles) then
+            return true
+        end
     end
     return false
 end
