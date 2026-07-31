@@ -310,29 +310,24 @@ class DCSServerBot(commands.Bot):
                         self.log.error(f"  => Mandatory channel(s) missing for server {server.name} in servers.yaml!")
 
                 self.log.info('  => Registering Discord Commands (this might take a bit) ...')
-                self.synced = True
-                self.log.info('- Discord Bot started, accepting commands.')
-                asyncio.create_task(self.audit(message="Discord Bot started."))
-                return
-
-                self.tree.copy_global_to(guild=self.guilds[0])
-                app_cmds = await self.tree.sync(guild=self.guilds[0])
-                app_ids: dict[str, int] = {}
-                for app_cmd in app_cmds:
-                    app_ids[app_cmd.name] = app_cmd.id
-
-                def set_mention(command: discord.app_commands.Command | discord.app_commands.Group, top_level_id: int):
-                    command.mention = f"</{command.qualified_name}:{top_level_id}>"
-                    if isinstance(command, Group):
-                        for sub_command in command.commands:
-                            set_mention(sub_command, top_level_id)
-
-                for cmd in self.tree.get_commands(guild=self.guilds[0]):
-                    if cmd.name in app_ids:
-                        if isinstance(cmd, (Command, Group)):
-                            set_mention(cmd, app_ids[cmd.name])
-                        else:
-                            cmd.mention = f"</{cmd.name}:{app_ids[cmd.name]}>"
+#                self.tree.copy_global_to(guild=self.guilds[0])
+#                app_cmds = await self.tree.sync(guild=self.guilds[0])
+#                app_ids: dict[str, int] = {}
+#                for app_cmd in app_cmds:
+#                    app_ids[app_cmd.name] = app_cmd.id
+#
+#                def set_mention(command: discord.app_commands.Command | discord.app_commands.Group, top_level_id: int):
+#                    command.mention = f"</{command.qualified_name}:{top_level_id}>"
+#                    if isinstance(command, Group):
+#                        for sub_command in command.commands:
+#                            set_mention(sub_command, top_level_id)
+#
+#                for cmd in self.tree.get_commands(guild=self.guilds[0]):
+#                    if cmd.name in app_ids:
+#                        if isinstance(cmd, (Command, Group)):
+#                            set_mention(cmd, app_ids[cmd.name])
+#                        else:
+#                            cmd.mention = f"</{cmd.name}:{app_ids[cmd.name]}>"
 
                 self.synced = True
 
