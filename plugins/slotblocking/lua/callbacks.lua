@@ -121,13 +121,16 @@ function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
     if cfg.slots ~= nil then
         local max = tonumber(utils.loadSettingsRaw()['maxPlayers']) or 16
         local player_list = net.get_player_list()
-        local total_connected = #player_list - 1
-        local vip_count = count_vips()
-        local non_vip_count = total_connected - vip_count
-        local max_public_slots = max - tonumber(cfg.slots)
+        local total_connected = #player_list
 
-        if non_vip_count >= max_public_slots then
-            return false, cfg.message_server_full or 'The server is full, please try again later!'
+        if not is_vip(ucid) then
+            local vip_count = count_vips()
+            local non_vip_count = total_connected - vip_count
+            local max_public_slots = max - tonumber(cfg.slots)
+
+            if non_vip_count >= max_public_slots then
+                return false, cfg.message_server_full or 'The server is full, please try again later!'
+            end
         end
     end
 end
