@@ -24,7 +24,12 @@ def install_requirements() -> subprocess.CompletedProcess:
     This ensures exact package versions are installed and removes packages not in requirements.txt.
     """
 
-    # First, ensure pip-tools are installed
+    # First, ensure pip is updated
+    subprocess.run([
+        sys.executable,
+        '-m', 'pip', 'install', '-U', 'pip'
+    ])
+    # Then install / update pip-tools
     subprocess.run([
         sys.executable,
         '-m', 'pip', 'install', '-U', 'pip-tools'
