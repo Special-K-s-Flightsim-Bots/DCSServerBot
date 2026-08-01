@@ -282,5 +282,5 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
         ucid = data['ucid']
         for server in self.bot.servers.values():
             config = self.get_config(server)
-            if utils.check_roles(config['VIP']['discord'], member):
+            if utils.check_roles(config.get('VIP', {}).get('discord', []), member):
                 await upload_vip(server, member, ucid)
