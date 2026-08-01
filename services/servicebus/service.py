@@ -1065,22 +1065,42 @@ class ServiceBus(Service):
 
                             if self.master:
                                 tasks = []
-                                for listener in self.eventListeners:
-                                    if listener.has_event(command):
-                                        task = asyncio.create_task(
-                                            listener.processEvent(command, server, deepcopy(data))
-                                        )
-                                        tasks.append(task)
+                                listeners_to_check = [l for l in self.eventListeners if l.has_event(command)]
+                                for listener in listeners_to_check:
+                                    self.log.debug(f"Dispatching {command} to {listener.plugin_name}...")
+                                    task = asyncio.create_task(
+                                        listener.processEvent(command, server, deepcopy(data)),
+                                        name=f"{listener.plugin_name}:{command}"
+                                    )
+                                    tasks.append(task)
 
                                 if tasks:
                                     try:
-                                        results = await asyncio.gather(*tasks, return_exceptions=True)
-                                        for listener, result in zip(self.eventListeners, results):
-                                            if isinstance(result, Exception):
+                                        # We use a timeout to detect hangs.
+                                        done, pending = await asyncio.wait(tasks, timeout=60.0)
+
+                                        if pending:
+                                            for task in pending:
                                                 self.log.error(
-                                                    f"Exception in listener {listener.plugin_name}: {result!r}")
+                                                    f"HANG DETECTED: Task {task.get_name()} for server {server.name} timed out!")
+                                                task.cancel()  # Optional: cancel to avoid memory leaks
+
+                                        for task in done:
+                                            # Find which listener this task belonged to
+                                            plugin_name = task.get_name().split(':')[0]
+                                            try:
+                                                result = task.result()
+                                                if isinstance(result, Exception):
+                                                    self.log.error(f"Exception in listener {plugin_name}: {result!r}")
+                                                else:
+                                                    self.log.debug(f"Finished {command} in {plugin_name}")
+                                            except asyncio.CancelledError:
+                                                pass
+                                            except Exception as e:
+                                                self.log.error(f"Exception in listener {plugin_name}: {e!r}")
+
                                     except Exception as e:
-                                        self.log.error(f"Catastrophic error in gather: {e!r}")
+                                        self.log.error(f"Catastrophic error in wait: {e!r}")
                             else:
                                 await self.send_to_node(data)
 
