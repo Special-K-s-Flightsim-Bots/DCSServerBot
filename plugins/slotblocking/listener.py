@@ -1,7 +1,6 @@
 import asyncio
-import re
-
 import discord
+import re
 
 from core import EventListener, Server, Status, utils, event, Side
 from plugins.creditsystem.player import CreditPlayer
