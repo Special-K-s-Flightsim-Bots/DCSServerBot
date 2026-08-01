@@ -63,6 +63,7 @@ class Player(DataObject):
             return self
 
         lock_time = self.server.locals.get('coalitions', {}).get('lock_time', '1 day')
+        self._member = await self.bot.get_member_by_ucid(self.ucid)
         async with self.apool.connection() as conn:
             # add new players to the database
             await conn.execute("""
@@ -91,7 +92,6 @@ class Player(DataObject):
             # existing member found?
             row = await cursor.fetchone()
             if row:
-                self._member = await self.bot.get_member_by_ucid(self.ucid)
                 if self._member:
                     # special handling for discord-less bots
                     if isinstance(self._member, discord.Member):

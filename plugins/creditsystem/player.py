@@ -25,6 +25,7 @@ class CreditPlayer(Player):
     @override
     async def prep(self) -> Player:
         await super().prep()
+        campaign_id, _ = await utils.get_running_campaign_async(self.node, self.server)
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT s.name FROM squadrons s JOIN squadron_members sm 
@@ -33,7 +34,6 @@ class CreditPlayer(Player):
             # a squadron needs to be unambiguous to be linked to a player
             if cursor.rowcount == 1:
                 row = await cursor.fetchone()
-                campaign_id, _ = await utils.get_running_campaign_async(self.node, self.server)
                 if not campaign_id:
                     self.squadron = None
                 else:
