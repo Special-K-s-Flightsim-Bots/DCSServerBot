@@ -50,6 +50,17 @@ local function count_players_on_side(playerID, side)
     return count
 end
 
+local function count_vips()
+    local count = 0
+    for _, id in base.pairs(net.get_player_list()) do
+        local ucid = net.get_player_info(id, 'ucid')
+        if ucid and is_vip(ucid) then
+            count = count + 1
+        end
+    end
+    return count
+end
+
 local function get_maximum(side)
     if not dcsbot.params or not dcsbot.params.slotblocking then
         return nil
@@ -109,11 +120,14 @@ function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
     end
     if cfg.slots ~= nil then
         local max = tonumber(utils.loadSettingsRaw()['maxPlayers']) or 16
-        local current = #net.get_player_list() + 1
-        if current >= (max - tonumber(cfg.slots)) then
-            if not is_vip(ucid) then
-                return false, cfg.message_server_full or 'The server is full, please try again later!'
-            end
+        local player_list = net.get_player_list()
+        local total_connected = #player_list - 1
+        local vip_count = count_vips()
+        local non_vip_count = total_connected - vip_count
+        local max_public_slots = max - tonumber(cfg.slots)
+
+        if non_vip_count >= max_public_slots then
+            return false, cfg.message_server_full or 'The server is full, please try again later!'
         end
     end
 end
