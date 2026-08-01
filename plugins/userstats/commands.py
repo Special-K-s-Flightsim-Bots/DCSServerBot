@@ -53,9 +53,9 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
     async def cog_load(self) -> None:
         await super().cog_load()
+        utils.safe_start(self.refresh_views)
         if self.locals:
             utils.safe_start(self.persistent_highscore)
-            utils.safe_start(self.refresh_views)
             self.refresh_views.add_exception_type(psycopg.DatabaseError)
             if not self.locals.get(DEFAULT_TAG, {}).get('squadrons', {}).get('self_join', True):
                 super().change_commands({
@@ -67,8 +67,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
     async def cog_unload(self):
         if self.locals:
-            await utils.safe_cancel(self.refresh_views)
             await utils.safe_cancel(self.persistent_highscore)
+        await utils.safe_cancel(self.refresh_views)
         await super().cog_unload()
 
     async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
