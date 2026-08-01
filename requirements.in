@@ -8,7 +8,7 @@ astral==3.2
 audioop-lts==0.2.2 ; python_version >= "3.13"
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
-aiohttp==3.14.2
+aiohttp==3.14.3
 
 # Certifi: Python package for providing Mozilla's CA Bundle
 certifi==2026.7.22
@@ -26,7 +26,7 @@ discord.py==2.7.1
 eyeD3==0.9.9
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.139.2
+fastapi==0.141.1
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -35,7 +35,7 @@ fuzzywuzzy==0.18.0
 geopandas==1.1.4
 
 # GitPython: Python library for interacting with git repositories
-GitPython>=3.1.54
+GitPython>=3.1.57
 
 # Jinja web template framework
 jinja2==3.1.6
@@ -59,10 +59,10 @@ minidump==0.0.24 ; sys_platform == 'win32'
 numpy==2.3.5
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
-openpyxl>=3.1.5
+openpyxl==3.1.5
 
 # Pandas: Python data analysis library
-pandas>=2.3.3
+pandas==3.0.5
 
 # Packaging: A core package providing support for PEP 440 version identifiers
 packaging==26.2
@@ -132,7 +132,7 @@ upnpy==1.1.8 ; python_version >= "3.14"
 miniupnpc==2.3.3 ; python_version < "3.14"
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.51.0
+uvicorn==0.52.0
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==6.0.0
