@@ -1,6 +1,8 @@
 import asyncio
 import re
 
+import discord
+
 from core import EventListener, Server, Status, utils, event, Side
 from plugins.creditsystem.player import CreditPlayer
 from typing import cast, TYPE_CHECKING
@@ -262,3 +264,24 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
             if player.points < self._get_costs(server, player):
                 asyncio.create_task(server.move_to_spectators(
                     player, reason="You do not have enough credits to use this slot anymore."))
+
+    @event(name="onMemberLinked")
+    async def onMemberLinked(self, _server: Server, data: dict) -> None:
+        async def upload_vip(server: Server, member: discord.Member, ucid: str):
+            roles = [x.id for x in member.roles]
+            await server.send_to_dcs({
+                'command': 'uploadUserRoles',
+                'ucid': ucid,
+                'discord_id': member.id,
+                'roles': roles
+            })
+
+        member = self.bot.guilds[0].get_member(data['discord_id'])
+        if not member:
+            return
+
+        ucid = data['ucid']
+        for server in self.bot.servers.values():
+            config = self.get_config(server)
+            if utils.check_roles(config['VIP']['discord'], member):
+                await upload_vip(server, member, ucid)

@@ -1868,7 +1868,6 @@ class Mission(Plugin[MissionEventListener]):
                 await member.add_roles(_role)
             except discord.Forbidden:
                 await self.bot.audit(_('permission "Manage Roles" missing.'), user=self.bot.member)
-
         # Generate the onMemberLinked event
         for server_name, server in self.bot.servers.items():
             player = server.get_player(ucid=ucid)
@@ -1876,24 +1875,21 @@ class Mission(Plugin[MissionEventListener]):
                 player.member = await self.bot.get_member_by_ucid(player.ucid)
                 player.verified = True
                 break
-
-        # propagate to all running servers
-        for server in self.bot.servers.values():
-            if server.status not in [Status.RUNNING, Status.PAUSED]:
-                return
-            await self.bus.send_to_node({
-                "command": "rpc",
-                "service": "ServiceBus",
-                "method": "propagate_event",
-                "params": {
-                    "command": "onMemberLinked",
-                    "server": server.name,
-                    "data": {
-                        "ucid": ucid,
-                        "discord_id": member.id
-                    }
+        else:
+            server = None
+        await self.bus.send_to_node({
+            "command": "rpc",
+            "service": "ServiceBus",
+            "method": "propagate_event",
+            "params": {
+                "command": "onMemberLinked",
+                "server": server.name if server else None,
+                "data": {
+                    "ucid": ucid,
+                    "discord_id": member.id
                 }
-            })
+            }
+        })
 
     @command(description=_('Unlinks a member or ucid'))
     @app_commands.guild_only()
