@@ -1074,7 +1074,6 @@ class ServiceBus(Service):
                                 tasks = []
                                 listeners_to_check = [l for l in self.eventListeners if l.has_event(command)]
                                 for i, listener in enumerate(listeners_to_check):
-                                    self.log.debug(f"Dispatching {command} to {listener.plugin_name}...")
                                     # We use a thread to deepcopy to avoid blocking the event loop for large messages
                                     if i < len(listeners_to_check) - 1:
                                         payload = await asyncio.to_thread(deepcopy, data)
@@ -1104,8 +1103,6 @@ class ServiceBus(Service):
                                                 result = task.result()
                                                 if isinstance(result, Exception):
                                                     self.log.error(f"Exception in listener {plugin_name}: {result!r}")
-                                                else:
-                                                    self.log.debug(f"Finished {command} in {plugin_name}")
                                             except asyncio.CancelledError:
                                                 pass
                                             except Exception as e:
