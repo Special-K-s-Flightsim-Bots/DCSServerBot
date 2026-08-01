@@ -48,8 +48,8 @@ See [Coalitions](/COALITIONS.md).
 | -popup     | \[all\|red\|blue\] \<message\> | DCS Admin, GameMaster | Sends a popup message to a coalition.                    |
 
 ## Usage inside Missions (Scripting API)
-You can enable, disable (= delete) and reset (= delete + start) campaigns inside of missions, too. If you want to use 
-the system and for instance reset it on every mission start, you just need to put in the following lines in one of 
+You can enable, disable (= delete) and reset (= delete + start) campaigns inside missions, too. If you want to use 
+the system and, for instance, reset it on every mission start, you just need to put in the following lines in one of 
 your triggers that fire after a mission load:
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
@@ -57,12 +57,23 @@ your triggers that fire after a mission load:
   dcsbot.resetCampaign() -- remove, if you want to keep the points for players
   -- or -- dcsbot.startCampaign() -- starts a new campaign (if there is not one started already)
 ```
-This can for instance be used for some arena based game, which should start all over again after being restarted.
+This can, for instance, be used for some arena-based games, which should start all over again after being restarted.
 A campaign name of "_internal_" will be used in that case.
 
 ## Upload of LUA files
-LUA files that can be used in /do_script_file and be loaded into any running mission, can be uploaded to a specific
+Lua files that can be used in /do_script_file and be loaded into any running mission can be uploaded to a specific
 server by just drag&drop into the respective admin channel, like you would do it with mission files.
+
+Per default, files will be uploaded to {instance.home}\Missions\Scripts, but it can be configured in a custom
+gamemaster.yaml like so:
+```yaml
+# config\plugins\gamemaster.yaml
+  uploads:          # Configure how Lua uploads are handled
+    enabled: true   # Here you can completely disable the feature (default: true = enabled)
+    script_dir: {server.missions_dir}/Missions/Scripts  # Default, can be changed to any directory the bot has write access to
+    discord:
+      - DCS Admin   # Define which roles are allowed to upload missions (default: DCS Admin)
+```
 
 ## Upload of (persistent) Embeds
 

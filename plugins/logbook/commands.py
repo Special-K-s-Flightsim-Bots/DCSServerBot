@@ -210,7 +210,7 @@ async def pilot_award_autocomplete(interaction: discord.Interaction, current: st
         return []
 
 
-def format_hours(hours: float) -> str:
+def format_hours(hours: float | None) -> str:
     """Format hours with 1 decimal place."""
     if hours is None:
         return "0.0h"

@@ -41,7 +41,7 @@ class Punishment(Plugin[PunishmentEventListener]):
 
     async def punish(self, server: Server, ucid: str, punishment: dict, reason: str, points: float | None = None):
         player = server.get_player(ucid=ucid)
-        member = self.bot.get_member_by_ucid(ucid)
+        member = await self.bot.get_member_by_ucid(ucid)
         channel_id: int | None = self.get_config(server).get('channel')
         if channel_id:
             self.bot.check_channel(int(channel_id), SEND_ONLY_CHANNEL_PERMISSIONS)
@@ -87,7 +87,7 @@ class Punishment(Plugin[PunishmentEventListener]):
             player: CreditPlayer = cast(CreditPlayer, player)
             old_points = player.points
             player.points -= punishment['penalty']
-            player.audit('punishment', old_points, _("Punished for {}").format(reason))
+            await player.audit('punishment', old_points, _("Punished for {}").format(reason))
             await player.sendUserMessage(
                 _("{name}, you have been punished for: {reason}!\n"
                   "Your current credit points are: {points}").format(
@@ -278,7 +278,7 @@ class Punishment(Plugin[PunishmentEventListener]):
                 return
             if isinstance(user, str):
                 ucid = user
-                user = self.bot.get_member_by_ucid(ucid) or ucid
+                user = await self.bot.get_member_by_ucid(ucid) or ucid
             else:
                 ucid = await self.bot.get_ucid_by_member(user)
                 if not ucid:

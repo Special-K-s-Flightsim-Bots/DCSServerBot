@@ -553,12 +553,11 @@ class Cloud(Plugin[CloudListener]):
             else:
                 dcs_version = ""
 
-            nodes = []
-            for node in self.node.all_nodes.values():
+            async def get_node_info(node):
                 if not node:
-                    continue
+                    return None
                 node_data = await node.info()
-                nodes.append({
+                return {
                     "node": node_data['Node'],
                     "ip_addr": node_data['Public IP'],
                     "os": node_data['OS'],
@@ -569,7 +568,10 @@ class Cloud(Plugin[CloudListener]):
                     "python_version": node_data['Python Version'],
                     "dcs_version": node_data['DCS Version'],
                     "num_servers": len([x for x in self.bus.servers.values() if x.node == node])
-                })
+                }
+
+            tasks = [get_node_info(node) for node in self.node.all_nodes.values()]
+            nodes = [r for r in await asyncio.gather(*tasks) if r]
 
             bot = {
                 "guild_id": self.bot.guilds[0].id,

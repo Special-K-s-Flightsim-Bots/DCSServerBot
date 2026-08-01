@@ -68,7 +68,7 @@ class CreditSystem(Plugin[CreditSystemListener]):
                 return
             if isinstance(member, str):
                 ucid = member
-                member = self.bot.get_member_by_ucid(ucid) or ucid
+                member = await self.bot.get_member_by_ucid(ucid) or ucid
             else:
                 ucid = await self.bot.get_ucid_by_member(member)
                 if not ucid:
@@ -176,8 +176,8 @@ class CreditSystem(Plugin[CreditSystemListener]):
                 p_receiver.squadron = None
                 p_receiver.points += donation
                 p_receiver.squadron = squadron
-                p_receiver.audit('donation', old_points_receiver,
-                                 _('Donation from member {}').format(interaction.user.display_name))
+                await p_receiver.audit('donation', old_points_receiver,
+                                       _('Donation from member {}').format(interaction.user.display_name))
             else:
                 await conn.execute("""
                     INSERT INTO credits (campaign_id, player_ucid, points) 
@@ -292,7 +292,11 @@ class CreditSystem(Plugin[CreditSystemListener]):
                 p_donor.squadron = None
                 p_donor.points -= donation
                 p_donor.squadron = squadron
-                p_donor.audit('donation', data[n]['credits'], _('Donation to member {}').format(to.display_name))
+                await p_donor.audit(
+                    'donation',
+                    data[n]['credits'],
+                    _('Donation to member {}').format(to.display_name)
+                )
             else:
                 await conn.execute("""
                     UPDATE credits SET points = points - %s WHERE campaign_id = %s AND player_ucid = %s
@@ -312,8 +316,8 @@ class CreditSystem(Plugin[CreditSystemListener]):
                 p_receiver.squadron = None
                 p_receiver.points += donation
                 p_receiver.squadron = squadron
-                p_receiver.audit('donation', old_points_receiver,
-                                 _('Donation from member {}').format(interaction.user.display_name))
+                await p_receiver.audit('donation', old_points_receiver,
+                                       _('Donation from member {}').format(interaction.user.display_name))
             else:
                 await conn.execute("""
                     INSERT INTO credits (campaign_id, player_ucid, points) 
@@ -351,7 +355,7 @@ class CreditSystem(Plugin[CreditSystemListener]):
             else:
                 ucid = user
                 _user = await self.bot.get_member_or_name_by_ucid(ucid)
-                if isinstance(user, discord.Member):
+                if isinstance(_user, discord.Member):
                     name = _user.display_name
                 else:
                     name = _user
@@ -370,7 +374,7 @@ class CreditSystem(Plugin[CreditSystemListener]):
             await interaction.followup.send(_("Aborted."))
             return
 
-        campaign_id, campaign_name = utils.get_running_campaign(self.node)
+        campaign_id, campaign_name = await utils.get_running_campaign_async(self.node)
         async with self.apool.connection() as conn:
             await conn.execute(sql, {
                 "campaign_id": campaign_id,

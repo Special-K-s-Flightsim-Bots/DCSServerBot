@@ -347,7 +347,7 @@ class GreenieBoard(GraphElement):
         font_props = FontProperties(fname=font_name, size=text_size, weight='bold')
 
         for item in rows:
-            member = self.bot.get_member_by_ucid(item['player_ucid'])
+            member = await self.bot.get_member_by_ucid(item['player_ucid'])
             if member:
                 item['name'] = member.display_name
 

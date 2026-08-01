@@ -300,7 +300,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             cursor = await conn.execute("SELECT role FROM squadrons WHERE id = %s", (squadron_id,))
             role = (await cursor.fetchone())[0]
             if isinstance(user, str):
-                member = self.bot.get_member_by_ucid(ucid=user, verified=True)
+                member = await self.bot.get_member_by_ucid(ucid=user, verified=True)
                 ucid = user
             else:
                 member = user
@@ -391,7 +391,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         async with interaction.client.apool.connection() as conn:
             async for row in await conn.execute(sql, {"squadron_id": squadron_id, "user": user}):
                 if row[1]:
-                    member = self.bot.get_member_by_ucid(row[0], verified=True)
+                    member = await self.bot.get_member_by_ucid(row[0], verified=True)
                     role = self.bot.get_role(row[1])
                     if member:
                         try:
@@ -525,8 +525,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 WHERE (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc') 
             """, (squadron_id,)):
                 squadron = utils.get_squadron(node=self.node, squadron_id=squadron_id)
-                squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
-                                                       campaign_id=row[0])
+                squadron_obj = await DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                                               campaign_id=row[0]).prep()
                 ret.append({"id": row[0], "name": row[1], "points": squadron_obj.points})
         return ret
 
@@ -587,13 +587,13 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     async def donate(self, interaction: discord.Interaction, squadron_id: int, points: int,
                      server: app_commands.Transform[Server, utils.ServerTransformer] | None = None):
         await interaction.response.defer()
-        campaign_id, name = utils.get_running_campaign(self.node, server)
+        campaign_id, name = await utils.get_running_campaign_async(self.node, server)
         if not campaign_id:
             await interaction.followup.send(_("You don't have an active campaign."), ephemeral=True)
             return
         squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
-        squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
-                                               campaign_id=campaign_id)
+        squadron_obj = await DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                                       campaign_id=campaign_id).prep()
         squadron_obj.points += points
         squadron_obj.audit(event='Admin donate', points=points, remark='')
         await interaction.followup.send(_("{} points donated to squadron {}.").format(points, squadron['name']),

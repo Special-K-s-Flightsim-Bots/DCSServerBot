@@ -364,7 +364,8 @@ class Tournament(Plugin[TournamentEventListener]):
                 WHERE t.tournament_id = %s
             """, (tournament_id, ))
             campaign_id = (await cursor.fetchone())[0]
-        return DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'], campaign_id=campaign_id)
+        return await DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                             campaign_id=campaign_id).prep()
 
     async def inform_squadron(self, *, tournament_id: int, squadron_id: int, message: str | None = None,
                               embed: discord.Embed | None = None):
@@ -2262,7 +2263,7 @@ class Tournament(Plugin[TournamentEventListener]):
                         DELETE FROM tm_tickets WHERE tournament_id = %s AND squadron_id = %s AND ticket_name = %s
                     """, (tournament_id, squadron_id, ticket_name))
                 squadron.points += credits
-                squadron.audit(event='Ticket sale', points=credits, remark=f"{ticket_name} sold")
+                await squadron.audit(event='Ticket sale', points=credits, remark=f"{ticket_name} sold")
             # noinspection PyUnresolvedReferences
             await interaction.followup.send(
                 _("You sold a ticket of type {} and got {} credits back.\n"

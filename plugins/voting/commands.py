@@ -74,7 +74,7 @@ class Voting(Plugin[VotingListener]):
                 return
             _creditssystem = cast(CreditSystem, self.bot.cogs['CreditSystem'])
             data = await _creditssystem.get_credits(ucid)
-            campaign_id, campaign_name = utils.get_running_campaign(self.node, _server)
+            campaign_id, campaign_name = await utils.get_running_campaign_async(self.node, _server)
             credits = next((x['credits'] for x in data if x['id'] == campaign_id), 0)
             if credits < points:
                 # noinspection PyUnresolvedReferences

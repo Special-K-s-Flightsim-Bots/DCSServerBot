@@ -57,18 +57,21 @@ class Player(DataObject):
         self.bot = ServiceRegistry.get(BotService).bot
         if self.id == 1:
             self.active = False
-            return
+
+    async def prep(self) -> Player:
+        if self.id == 1:
+            return self
 
         lock_time = self.server.locals.get('coalitions', {}).get('lock_time', '1 day')
-        with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             # add new players to the database
-            conn.execute("""
+            await conn.execute("""
                 INSERT INTO players (ucid, discord_id, name, last_seen) 
                 VALUES (%s, -1, %s, (now() AT TIME ZONE 'utc')) 
                 ON CONFLICT (ucid) DO UPDATE SET name=excluded.name, last_seen=excluded.last_seen
                 """, (self.ucid, self.name))
             # get the player information
-            cursor = conn.execute(f"""
+            cursor = await conn.execute(f"""
                 SELECT DISTINCT p.discord_id, 
                        CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
                        p.manual, 
@@ -86,9 +89,9 @@ class Player(DataObject):
                 AND COALESCE(b.banned_until, (now() AT TIME ZONE 'utc')) >= (now() AT TIME ZONE 'utc')
             """, (self.server.name, self.ucid))
             # existing member found?
-            row = cursor.fetchone()
+            row = await cursor.fetchone()
             if row:
-                self._member = self.bot.get_member_by_ucid(self.ucid)
+                self._member = await self.bot.get_member_by_ucid(self.ucid)
                 if self._member:
                     # special handling for discord-less bots
                     if isinstance(self._member, discord.Member):
@@ -104,7 +107,7 @@ class Player(DataObject):
             else:
                 rules = self.server.locals.get('rules')
                 if rules:
-                    cursor.execute("""
+                    await conn.execute("""
                         INSERT INTO messages (sender, player_ucid, message, ack) 
                         VALUES (%s, %s, %s, %s)
                     """, (self.server.locals.get('server_user', 'Admin'), self.ucid, rules,
@@ -112,9 +115,10 @@ class Player(DataObject):
 
         # if automatch is enabled, try to match the user
         if not self.member and self.bot.locals.get('automatch', False):
-            discord_user = self.bot.match_user({"ucid": self.ucid, "name": self.name})
+            discord_user = await self.bot.match_user({"ucid": self.ucid, "name": self.name})
             if discord_user:
                 self.member = discord_user
+        return self
 
     def is_active(self) -> bool:
         return self.active
@@ -135,13 +139,13 @@ class Player(DataObject):
     @member.setter
     def member(self, member: discord.Member) -> None:
         if member != self._member:
-            self.update_member(member)
+            asyncio.create_task(self.update_member(member))
             self._member = member
 
-    def update_member(self, member: discord.Member) -> None:
-        with self.pool.connection() as conn:
-            conn.execute('UPDATE players SET discord_id = %s WHERE ucid = %s',
-                         (member.id if member else -1, self.ucid))
+    async def update_member(self, member: discord.Member) -> None:
+        async with self.apool.connection() as conn:
+            await conn.execute('UPDATE players SET discord_id = %s WHERE ucid = %s',
+                               (member.id if member else -1, self.ucid))
 
     @property
     def verified(self) -> bool:
@@ -151,21 +155,21 @@ class Player(DataObject):
     def verified(self, verified: bool) -> None:
         if verified == self._verified:
             return
-        self.update_verified(verified)
+        asyncio.create_task(self.update_verified(verified))
         self._verified = verified
 
-    def update_verified(self, verified: bool) -> None:
+    async def update_verified(self, verified: bool) -> None:
         if not self.member:
             return
-        with self.pool.connection() as conn:
-            conn.execute('UPDATE players SET manual = %s WHERE ucid = %s', (verified, self.ucid))
+        async with self.apool.connection() as conn:
+            await conn.execute('UPDATE players SET manual = %s WHERE ucid = %s', (verified, self.ucid))
             if verified:
                 # delete all old automated links (this will delete the token also)
-                conn.execute("DELETE FROM players WHERE ucid = %s AND manual = FALSE", (self.ucid,))
-                conn.execute("DELETE FROM players WHERE discord_id = %s AND length(ucid) = 4",
-                             (self.member.id,))
-                conn.execute("UPDATE players SET discord_id = -1 WHERE discord_id = %s AND manual = FALSE",
-                             (self.member.id,))
+                await conn.execute("DELETE FROM players WHERE ucid = %s AND manual = FALSE", (self.ucid,))
+                await conn.execute("DELETE FROM players WHERE discord_id = %s AND length(ucid) = 4",
+                                   (self.member.id,))
+                await conn.execute("UPDATE players SET discord_id = -1 WHERE discord_id = %s AND manual = FALSE",
+                                   (self.member.id,))
 
     @property
     def watchlist(self) -> bool:
@@ -177,12 +181,12 @@ class Player(DataObject):
 
     @vip.setter
     def vip(self, vip: bool):
-        self.update_vip(vip)
+        asyncio.create_task(self.update_vip(vip))
         self._vip = vip
 
-    def update_vip(self, vip: bool) -> None:
-        with self.pool.connection() as conn:
-            conn.execute('UPDATE players SET vip = %s WHERE ucid = %s', (vip, self.ucid))
+    async def update_vip(self, vip: bool) -> None:
+        async with self.apool.connection() as conn:
+            await conn.execute('UPDATE players SET vip = %s WHERE ucid = %s', (vip, self.ucid))
 
     @property
     def display_name(self) -> str:

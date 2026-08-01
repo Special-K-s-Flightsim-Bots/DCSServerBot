@@ -152,8 +152,11 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
             points = grades['WO']['rating']
         if config.get('credits', False):
             cp: CreditPlayer = cast(CreditPlayer, player)
-            cp.audit(_('Carrier Landing'), cp.points,
-                     _("Landing on {place} with grade {grade}.").format(place=data['place'], grade=data['grade']))
+            await cp.audit(
+                _('Carrier Landing'),
+                cp.points,
+                _("Landing on {place} with grade {grade}.").format(place=data['place'], grade=data['grade'])
+            )
             cp.points += points
         case = data.get('case', 1 if not night else 3)
         wire = data.get('wire')

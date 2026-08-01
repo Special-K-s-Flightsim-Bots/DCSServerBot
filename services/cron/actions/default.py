@@ -87,12 +87,12 @@ async def cmd(node: Node, cmd: str):
         node.log.info(out)
 
 
-async def popup(node: Node, server: Server, message: str, to: str | None = 'all', timeout: int | None = 10):
+async def popup(_node: Node, server: Server, message: str, to: str | None = 'all', timeout: int | None = 10):
     if server.status == Status.RUNNING:
         await server.sendPopupMessage(Coalition(to), message, timeout)
 
 
-async def broadcast(node: Node, message: str, to: str | None = 'all', timeout: int | None = 10):
+async def broadcast(_node: Node, message: str, to: str | None = 'all', timeout: int | None = 10):
     bus = ServiceRegistry.get(ServiceBus)
     for server in [x for x in bus.servers.values() if x.status == Status.RUNNING]:
         await server.sendPopupMessage(Coalition(to), message, timeout)

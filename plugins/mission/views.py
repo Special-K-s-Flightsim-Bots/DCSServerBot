@@ -177,15 +177,18 @@ class InfoView(View):
         self.ephemeral = ephemeral
         self.player = player
         self.server = server
-        if isinstance(self.member, discord.Member):
-            self._member = DataObjectFactory().new(Member, name=self.member.name, node=self.bot.node,
-                                                   member=self.member)
-            self.ucid = self._member.ucid
-        else:
-            self._member = None
+        self.ucid = None
+        if not isinstance(self.member, discord.Member):
             self.ucid = self.member
 
     async def render(self) -> discord.Embed:
+        if isinstance(self.member, discord.Member):
+            self._member = await DataObjectFactory().new(
+                Member, name=self.member.name, node=self.bot.node, member=self.member
+            ).prep()
+            self.ucid = self._member.ucid
+        else:
+            self._member = None
         if not self._member or self._member.ucid:
             if isinstance(self.member, discord.Member):
                 button = Button(emoji="🔀")

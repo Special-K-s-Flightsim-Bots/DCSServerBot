@@ -86,7 +86,7 @@ def _filter_kwargs(func: Callable[..., Any], kwargs: Mapping[str, Any]) -> dict[
     return {k: v for k, v in kwargs.items() if k in allowed_keys}
 
 
-def parse_params(kwargs: dict, params: tuple[dict, list]):
+def parse_params(kwargs: dict, params: dict | list):
     new_args = kwargs.copy()
     if isinstance(params, dict):
         for key, value in params.items():

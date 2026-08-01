@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "get_running_campaign",
+    "get_running_campaign_async",
     "get_all_campaigns",
     "get_campaign",
     "campaign_autocomplete"
@@ -30,6 +31,26 @@ def get_running_campaign(node: Node, server: Server | None = None) -> tuple[Any,
                     WHERE (now() AT TIME ZONE 'utc') BETWEEN start AND COALESCE(stop, now() AT TIME ZONE 'utc')
                 """)
             row = cursor.fetchone()
+            if not row:
+                return None, None
+            return row[0], row[1]
+
+
+async def get_running_campaign_async(node: Node, server: Server | None = None) -> tuple[Any, Any]:
+    async with node.apool.connection() as conn:
+        async with conn.cursor() as cursor:
+            if server:
+                await cursor.execute("""
+                    SELECT id, name FROM campaigns c, campaigns_servers s 
+                    WHERE c.id = s.campaign_id AND s.server_name = %s 
+                    AND (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc')
+                """, (server.name,))
+            else:
+                await cursor.execute("""
+                    SELECT id, name FROM campaigns
+                    WHERE (now() AT TIME ZONE 'utc') BETWEEN start AND COALESCE(stop, now() AT TIME ZONE 'utc')
+                """)
+            row = await cursor.fetchone()
             if not row:
                 return None, None
             return row[0], row[1]

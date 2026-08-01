@@ -3,7 +3,6 @@ import discord
 from core import (Plugin, PluginRequiredError, PluginInstallationError, Group, get_translation, utils, Server,
                   Coalition, Status, Player)
 from discord import app_commands
-from extensions.srs import SRS as SRSExt
 from services.bot import DCSServerBot
 from typing import Type, Literal
 

@@ -227,12 +227,12 @@ class GameMasterEventListener(EventListener["GameMaster"]):
 
     @event(name="stopCampaign")
     async def stopCampaign(self, server: Server, _: dict) -> None:
-        _, name = utils.get_running_campaign(self.node, server)
+        _, name = await utils.get_running_campaign_async(self.node, server)
         if name:
             asyncio.create_task(self.campaign('delete', name=name))
 
     async def _resetCampaign(self, server: Server) -> None:
-        _, name = utils.get_running_campaign(self.node, server)
+        _, name = await utils.get_running_campaign_async(self.node, server)
         if name:
             await self.campaign('delete', name=name)
         else:

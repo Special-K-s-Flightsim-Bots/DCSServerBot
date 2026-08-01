@@ -84,7 +84,7 @@ def is_open(ip: str, port: int, *, timeout: float = 1.0) -> bool:
             return False
 
 
-async def get_public_ip(node: "Node | None" = None):
+async def get_public_ip():
     for url in API_URLS:
         with suppress(aiohttp.ClientError, ValueError):
             async with aiohttp.ClientSession() as session:

@@ -625,9 +625,9 @@ class TournamentEventListener(EventListener["Tournament"]):
                 SELECT * FROM squadron_members WHERE player_ucid = %s AND squadron_id = %s
             """, (player.ucid, squadron['id']))
             if cursor.rowcount == 1:
-                campaign_id, campaign_name = utils.get_running_campaign(self.node, server)
-                player.squadron = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
-                                                          campaign_id=campaign_id)
+                campaign_id, campaign_name = await utils.get_running_campaign_async(self.node, server)
+                player.squadron = await DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                                                  campaign_id=campaign_id).prep()
                 return
 
             # else, if auto_join is enabled, make them a member of the squadron
@@ -635,10 +635,10 @@ class TournamentEventListener(EventListener["Tournament"]):
                 await conn.execute("""
                     INSERT INTO squadron_members (squadron_id, player_ucid) VALUES (%s, %s)
                 """, (squadron['id'], player.ucid))
-                campaign_id, campaign_name = utils.get_running_campaign(self.node, server)
+                campaign_id, campaign_name = await utils.get_running_campaign_async(self.node, server)
                 # assign the squadron to the player
-                player.squadron = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
-                                                          campaign_id=campaign_id)
+                player.squadron = await DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                                                  campaign_id=campaign_id).prep()
                 # we need to give the member the role
                 if player.member and 'role' in squadron:
                     try:

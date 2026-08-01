@@ -431,6 +431,7 @@ class MissionEventListener(EventListener["Mission"]):
         # initialize players
         server.afk.clear()
         server.players_by_id.clear()
+        tasks = []
         for p in data['players']:
             if p['id'] == 1:
                 continue
@@ -443,8 +444,15 @@ class MissionEventListener(EventListener["Mission"]):
                     unit_display_name=p.get('unit_display_name', p['unit_type']), group_id=p['group_id'],
                     group_name=p['group_name'], ipaddr=p.get('ipaddr'))
                 server.add_player(player)
+                tasks.append(player.prep())
             else:
-                await player.update(p)
+                tasks.append(player.update(p))
+        await asyncio.gather(*tasks)
+
+        for p in data['players']:
+            if p['id'] == 1:
+                continue
+            player = server.get_player(ucid=p['ucid'])
             player.connected = True
 
             # give the player the autorole
@@ -629,6 +637,7 @@ class MissionEventListener(EventListener["Mission"]):
                 Player, node=server.node, server=server, id=data['id'], name=data['name'],
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'], ipaddr=data.get('ipaddr'))
             server.add_player(player)
+            await player.prep()
         else:
             await player.update(data | {'slot': 0, 'sub_slot': 0})
         player.connected = True
@@ -675,7 +684,7 @@ class MissionEventListener(EventListener["Mission"]):
         if server.locals.get('force_voice', False) and not discord_roles:
             discord_roles = ['@everyone']
         if discord_roles:
-            member = self.bot.get_member_by_ucid(data['ucid'])
+            member = await self.bot.get_member_by_ucid(data['ucid'])
             roles = discord_roles if isinstance(discord_roles, list) else [discord_roles]
             if not member or not utils.check_roles(roles, member):
                 asyncio.create_task(server.send_to_dcs({
@@ -692,6 +701,7 @@ class MissionEventListener(EventListener["Mission"]):
                 Player, node=server.node, server=server, id=data['id'], name=data['name'],
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'], ipaddr=data.get('ipaddr'))
             server.add_player(player)
+            await player.prep()
         else:
             await player.update(data | {'slot': 0, 'sub_slot': 0})
         player.connected = True
@@ -824,7 +834,7 @@ class MissionEventListener(EventListener["Mission"]):
         embed = discord.Embed(title=_("Possible ban-evasion detected"), color=discord.Color.red())
         embed.add_field(name="Name", value=data.get('name', 'n/a'), inline=True)
         embed.add_field(name="UCID", value=data['ucid'], inline=True)
-        member = self.bot.get_member_by_ucid(data['ucid'], verified=True)
+        member = await self.bot.get_member_by_ucid(data['ucid'], verified=True)
         if member:
             embed.add_field(name="Member", value=member.mention, inline=True)
         else:

@@ -388,7 +388,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             if not ppk:
                 return
             squadron.points += ppk
-            squadron.audit('credit_on_leave', ppk, 'Enemy player left the game.')
+            await squadron.audit('credit_on_leave', ppk, 'Enemy player left the game.')
             if not self.get_config(server).get('silent', False):
                 await server.sendPopupMessage(
                     Coalition.BLUE if side == Side.BLUE else Coalition.RED,

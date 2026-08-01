@@ -21,7 +21,7 @@ if sys.platform == 'win32':
     import win32console
     import winreg
 
-    from pywinauto.win32defines import SEE_MASK_NOCLOSEPROCESS, SW_HIDE, SW_SHOWMINNOACTIVE
+    from pywinauto.win32defines import SEE_MASK_NOCLOSEPROCESS, SW_HIDE
 
     class SHELLEXECUTEINFO(ctypes.Structure):
         _fields_ = [

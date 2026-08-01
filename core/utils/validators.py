@@ -179,7 +179,7 @@ def unique_port(value, _, path) -> str | bool:
         ports[node][value] = path
     return True
 
-def _load_schema(include_name: str, path: str) -> str:
+def _load_schema(include_name: str, _path: str) -> str:
     partial_schema_rule = partial_schemas.get(include_name)
     if not partial_schema_rule:
         existing_schemas = ", ".join(sorted(partial_schemas.keys()))

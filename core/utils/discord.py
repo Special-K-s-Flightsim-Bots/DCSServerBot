@@ -1230,7 +1230,7 @@ class UserTransformer(app_commands.Transformer):
         if value:
             if is_ucid(value):
                 if self.sel_type in [PlayerType.ALL, PlayerType.MEMBER]:
-                    return interaction.client.get_member_by_ucid(value) or value
+                    return await interaction.client.get_member_by_ucid(value) or value
                 else:
                     return value
             elif value.isnumeric():

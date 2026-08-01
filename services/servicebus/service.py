@@ -293,7 +293,7 @@ class ServiceBus(Service):
             for i, name in enumerate(calls.keys()):
                 server = self.servers[name]
                 if isinstance(ret[i], TimeoutError) or isinstance(ret[i], asyncio.TimeoutError):
-                    self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
+                    self.log.warning(f'  => Timeout while trying to contact DCS server "{server.name}".')
                     server.status = Status.SHUTDOWN
                     self.log.info(f"  => Local DCS-Server \"{server.name}\" registered as DOWN (not responding).")
                     num += 1
@@ -447,6 +447,7 @@ class ServiceBus(Service):
 
         # update the database and check for server name changes
         self.log.debug(f'  => Checking the database for server {server_name} ...')
+        _server_name = None
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT server_name 
@@ -455,14 +456,15 @@ class ServiceBus(Service):
             """, (self.node.name, data['port']))
             if cursor.rowcount == 1:
                 _server_name = (await cursor.fetchone())[0]
-                if _server_name != server_name:
-                    if utils.findDCSInstances(_server_name) and not self.servers.get(_server_name):
-                        self.log.info(f'Auto-renaming server "{_server_name}" to "{server_name}"')
-                        await server.rename(server_name)
-                    else:
-                        self.log.warning(f'Registration of server "{server_name}" aborted due to conflict.')
-                        self.servers.pop(server_name, None)
-                        return False
+
+        if _server_name and _server_name != server_name:
+            if utils.findDCSInstances(_server_name) and not self.servers.get(_server_name):
+                self.log.info(f'Auto-renaming server "{_server_name}" to "{server_name}"')
+                await server.rename(server_name)
+            else:
+                self.log.warning(f'Registration of server "{server_name}" aborted due to conflict.')
+                self.servers.pop(server_name, None)
+                return False
         self.log.debug(f'  => Database for server {server_name} checked.')
         return True
 
@@ -849,11 +851,16 @@ class ServiceBus(Service):
         return None
 
     async def propagate_event(self, command: str, data: dict, server: Server | None = None):
-        tasks = [
-            asyncio.create_task(listener.processEvent(command, server, deepcopy(data)))
-            for listener in self.eventListeners
-            if listener.has_event(command)
-        ]
+        listeners_to_check = [l for l in self.eventListeners if l.has_event(command)]
+        tasks = []
+        for i, listener in enumerate(listeners_to_check):
+            # We use a thread to deepcopy to avoid blocking the event loop for large messages
+            if i < len(listeners_to_check) - 1:
+                payload = await asyncio.to_thread(deepcopy, data)
+            else:
+                payload = data
+            tasks.append(asyncio.create_task(listener.processEvent(command, server, payload)))
+
         await asyncio.gather(*tasks, return_exceptions=True)
 
     async def start_udp_listener(self):
@@ -1066,10 +1073,15 @@ class ServiceBus(Service):
                             if self.master:
                                 tasks = []
                                 listeners_to_check = [l for l in self.eventListeners if l.has_event(command)]
-                                for listener in listeners_to_check:
+                                for i, listener in enumerate(listeners_to_check):
                                     self.log.debug(f"Dispatching {command} to {listener.plugin_name}...")
+                                    # We use a thread to deepcopy to avoid blocking the event loop for large messages
+                                    if i < len(listeners_to_check) - 1:
+                                        payload = await asyncio.to_thread(deepcopy, data)
+                                    else:
+                                        payload = data
                                     task = asyncio.create_task(
-                                        listener.processEvent(command, server, deepcopy(data)),
+                                        listener.processEvent(command, server, payload),
                                         name=f"{listener.plugin_name}:{command}"
                                     )
                                     tasks.append(task)

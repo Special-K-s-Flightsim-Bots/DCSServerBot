@@ -440,7 +440,7 @@ class DCSServerBot(commands.Bot):
             if not user:
                 member = self.member
             elif isinstance(user, str):
-                member = self.get_member_by_ucid(user) if utils.is_ucid(user) else None
+                member = await self.get_member_by_ucid(user) if utils.is_ucid(user) else None
             else:
                 member = user
             embed = discord.Embed(color=discord.Color.blue())
@@ -520,21 +520,20 @@ class DCSServerBot(commands.Bot):
             else:
                 return None
 
-    # TODO: change to async (after change in DataClasses)
-    def get_member_by_ucid(self, ucid: str, verified: bool | None = False) -> discord.Member | None:
-        with self.pool.connection() as conn:
+    async def get_member_by_ucid(self, ucid: str, verified: bool | None = False) -> discord.Member | None:
+        async with self.apool.connection() as conn:
             sql = 'SELECT discord_id FROM players WHERE ucid = %s AND discord_id <> -1'
             if verified:
                 sql += ' AND manual IS TRUE'
-            cursor = conn.execute(sql, (ucid, ))
+            cursor = await conn.execute(sql, (ucid, ))
             if cursor.rowcount == 1:
-                return self.guilds[0].get_member(cursor.fetchone()[0])
+                return self.guilds[0].get_member((await cursor.fetchone())[0])
             else:
                 return None
 
-    def match_user(self, data: dict, rematch=False) -> discord.Member | None:
+    async def match_user(self, data: dict, rematch=False) -> discord.Member | None:
         if not rematch:
-            member = self.get_member_by_ucid(data['ucid'])
+            member = await self.get_member_by_ucid(data['ucid'])
             if member:
                 return member
         return utils.match(data['name'], [x for x in self.get_all_members() if not x.bot])

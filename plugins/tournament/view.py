@@ -300,8 +300,8 @@ class ChoicesView(View):
                         WHERE tournament_id = %s AND squadron_id = %s AND ticket_name = %s
                     """, (num, self.tournament_id, self.squadron_id, ticket_name))
             squadron.points -= costs * num
-            squadron.audit(event='match_choice', points=-costs * num,
-                           remark=f'Bought {num} of {choice} during a match choice.')
+            await squadron.audit(event='match_choice', points=-costs * num,
+                                 remark=f'Bought {num} of {choice} during a match choice.')
         embed = await self.render()
         if modal and modal.error:
             embed.set_footer(text=modal.error, icon_url=WARNING_ICON)
@@ -330,8 +330,8 @@ class ChoicesView(View):
                 """, (num, self.tournament_id, self.squadron_id, ticket_name))
 
         squadron.points += costs * num
-        squadron.audit(event='match_choice', points=costs * num,
-                       remark=f'Cancelled {num} of {choice} during a match choice.')
+        await squadron.audit(event='match_choice', points=costs * num,
+                             remark=f'Cancelled {num} of {choice} during a match choice.')
         await interaction.edit_original_response(embed=await self.render(), view=self)
 
     async def save(self, interaction: discord.Interaction):

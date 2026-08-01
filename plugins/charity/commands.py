@@ -1,6 +1,3 @@
-import asyncio
-from queue import Queue, Empty
-
 import aiohttp
 import certifi
 import discord
@@ -9,6 +6,7 @@ import ssl
 from core import Plugin, utils, Status, Group, DEFAULT_TAG, get_translation, Coalition
 from discord import app_commands
 from discord.ext import tasks
+from queue import Queue, Empty
 
 _ = get_translation(__name__.split('.')[1])
 

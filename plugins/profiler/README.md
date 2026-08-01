@@ -46,10 +46,10 @@ Discord commands.
 > Also, the file sizes will vary dramatically.
 
 ## Discord Commands
-| Command         | Parameter                                       | Channel | Role       | Description                                                                     |
-|:----------------|:------------------------------------------------|:-------:|:-----------|:--------------------------------------------------------------------------------|
-| /profiler start | \[profiler\] \[verbose\] \[memory\] \[interval\] |   all   | DCS Admin  | Loads the respective profiler into the mission (default: Chrome) and starts it. |
-| /profiler stop  |                                                 |   all   | DCS Admin  | Stops the profiler.                                                             |
+| Command         | Parameter                                        | Channel  | Role       | Description                                                                     |
+|:----------------|:-------------------------------------------------|:--------:|:-----------|:--------------------------------------------------------------------------------|
+| /profiler start | \[profiler\] \[verbose\] \[memory\] \[interval\] |   all    | DCS Admin  | Loads the respective profiler into the mission (default: Chrome) and starts it. |
+| /profiler stop  |                                                  |   all    | DCS Admin  | Stops the profiler.                                                             |
 
 ## Evaluating Results
 

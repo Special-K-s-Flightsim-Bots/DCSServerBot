@@ -173,7 +173,7 @@ class Footer(report.EmbedElement):
         await report.Ruler(self.env).render(ruler_length=ruler_length)
         footer = ''
         if isinstance(member, discord.Member):
-            _member = DataObjectFactory().new(Member, name=member.name, node=self.node, member=member)
+            _member = await DataObjectFactory().new(Member, name=member.name, node=self.node, member=member).prep()
             if _member.ucid:
                 footer += '🔀 Unlink their DCS-account\n'
                 if not _member.verified:
