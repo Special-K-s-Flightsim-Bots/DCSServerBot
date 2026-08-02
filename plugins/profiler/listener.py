@@ -52,6 +52,7 @@ class ProfilerListener(EventListener["Profiler"]):
         await server.send_to_dcs({
             'command': 'stopProfiling'
         })
+        self.plugin.profilers.pop(server.name, None)
 
     @event(name="onProfilingStart")
     async def onProfilingStart(self, server: Server, data: dict) -> None:
