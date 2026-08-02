@@ -28,20 +28,12 @@ profiler = true
 
 require("debug")
 
-package.path  = package.path .. ";.\\LuaSocket\\?.lua;"
-package.cpath = package.cpath .. ";.\\LuaSocket\\?.dll;"
-require("socket")
-
 -- Identify internal functions to skip in the stack walk
 local internal_functions = {}
 
 local DEFAULT_INTERVAL = 10000     -- VM instructions between samples
 local MAX_DEPTH        = 60        -- cap the stack walk
 
-
-local function high_res_clock()
-    return math.floor(socket.gettime() * 1e6)
-end
 
 -- The sampler aggregates into these tables; serialised once on stop.
 local Sampler = {
@@ -54,7 +46,6 @@ local Sampler = {
     -- folded["a;b;c"] = <int>
     folded        = {},
     sample_count  = 0,
-    start_wall_us = 0,
 }
 
 -- Stable per-function identity. Mirrors chrome.lua's func_name_from_info but
@@ -71,8 +62,13 @@ local function frame_key(info)
     else
         label = string.format("%s:%d", src, line)
     end
-    -- key is unique per (label, src, line); display carries the category prefix
-    local key = string.format("%s|%s|%d", label, src, line)
+    -- Folded stacks use semicolons as frame separators and newlines as record
+    -- separators, so neither may occur inside a display label.
+    label = label:gsub("[;\r\n]", "_")
+    src = src:gsub("[;\r\n]", "_")
+    -- Include the category in the aggregation key and retain source identity in
+    -- the display name so unrelated same-named functions do not collapse.
+    local key = string.format("%s|%s|%s|%d", cat, label, src, line)
     return key, label, src, line, cat
 end
 
@@ -107,8 +103,9 @@ function Sampler:create_hook()
                     -- leaf = first non-internal frame we encounter
                     record_frame(key, label, src, line, cat, leaf_key == nil)
                     if leaf_key == nil then leaf_key = key end
-                    -- folded frame gets a category prefix for viewer filtering
-                    frames[#frames + 1] = (cat == "lua" and "lua:" or "c:") .. label
+                    -- Keep each displayed frame stable and unambiguous.
+                    frames[#frames + 1] = (cat == "lua" and "lua:" or "c:") ..
+                        label .. " [" .. src .. ":" .. line .. "]"
                 end
             end
         end
@@ -132,7 +129,6 @@ function Sampler:start(interval, full)
     self.counts        = {}
     self.folded        = {}
     self.sample_count  = 0
-    self.start_wall_us = high_res_clock()
     self.running       = true
     -- "" mask + count arg => count hook only (fires every `interval` instrs)
     debug.sethook(self:create_hook(), "", self.interval)
@@ -147,11 +143,8 @@ function Sampler:write_output()
             "Profiler(sample): cannot open '" .. tostring(self.file) .. "': " .. tostring(err))
         return
     end
-    -- Header comment lines (ignored by speedscope's folded importer, which reads
-    -- only "stack count" lines). Kept minimal for compatibility.
-    local elapsed_s = (high_res_clock() - self.start_wall_us) / 1e6
-    fh:write(string.format("# samples=%d interval=%d elapsed_s=%.1f\n",
-        self.sample_count, self.interval, elapsed_s))
+    -- Strict folded-stack format: one "root;...;leaf count" record per line.
+    -- Do not add metadata comments; not every folded-stack consumer ignores them.
     for stackkey, count in pairs(self.folded) do
         fh:write(stackkey .. " " .. count .. "\n")
     end
@@ -188,7 +181,6 @@ function stop_profiling(channel)
 end
 
 -- Mark our own helpers so they never appear in the sampled stacks.
-internal_functions[high_res_clock] = true
 internal_functions[frame_key] = true
 internal_functions[record_frame] = true
 internal_functions[start_profiling] = true

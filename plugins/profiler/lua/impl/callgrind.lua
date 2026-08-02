@@ -4,21 +4,22 @@
 --
 -- Licensed under the same license as Lua 5.1
 --
--- $ lua -lcallgrind <whatever>
 -- => lua-callgrind.txt is created when the program exits in current directory
 
 -- avoid double loading
 if profiler then
     return
+else
+    profiler = true
 end
 
-profiler = true
+require("debug")
 
 local TRACEFILENAME = (lfs and lfs.writedir and lfs.writedir() or "./") .. "Logs/callgrind.out"
 local callstack = {}
 local instr_count = 0
 local last_line_instr_count = 0
-local mainfunc = nil
+local running = false
 
 local functions = {}
 local methods = {}
@@ -38,7 +39,10 @@ local function trace(class)
         -- check if we know this function already
         local f = debug.getinfo(2, "lSf")
 
-        if internal_functions[f.func] then return end
+        if not f or internal_functions[f.func] then
+            last_line_instr_count = instr_count
+            return
+        end
 
         if not functions[f.func] then
             functions[f.func] = {
@@ -50,24 +54,29 @@ local function trace(class)
         lines[#lines + 1] = ("%d %d"):format(f.currentline, instr_count - last_line_instr_count)
         functions[f.func].last_line = f.currentline
 
-        if not mainfunc then mainfunc = f.func end
-
         last_line_instr_count = instr_count
     elseif class == "call" then
         -- add the function info to the stack
         --
         local f = debug.getinfo(2, "lSfn")
 
-        if internal_functions[f.func] then return end
-        if not full and f.what ~= 'Lua' then return end
+        if not f then
+            callstack[#callstack + 1] = { tracked = false }
+            return
+        end
+
+        local tracked = not internal_functions[f.func] and (full or f.what == 'Lua')
 
         callstack[#callstack + 1] = {
+            tracked     = tracked,
             short_src   = f.short_src,
             func        = f.func,
             linedefined = f.linedefined,
             name        = f.name,
             instr_count = instr_count
         }
+
+        if not tracked then return end
 
         if not functions[f.func] then
             functions[f.func] = {
@@ -82,55 +91,49 @@ local function trace(class)
 
         -- print((" "):rep(call_indent)..">>"..tostring(f.func).." (".. tostring(f.name)..")")
         call_indent = call_indent + 1
-    elseif class == "return" then
-        if #callstack > 0 then
-            -- pop the function from the stack and
-            -- add the instr-count to the its caller
-            local ret = table.remove(callstack)
-
-            local f = debug.getinfo(2, "lSfn")
-
-            if internal_functions[f.func] then return end
-            if not full and f.what ~= 'Lua' then return end
-
-            -- if lua wants to return from a pcall() after a assert(),
-            -- error() or runtime-error we have to cleanup our stack
-            if ret.func ~= f.func then
-                -- print("handling error()")
-                -- the error() is already removed
-                -- removed every thing up to pcall()
-                while callstack[#callstack].func ~= f.func do
-                    table.remove(callstack)
-
-                    call_indent = call_indent - 1
+    elseif class == "return" or class == "tail return" then
+        -- Returns from functions which were active before start() have no
+        -- matching call. Errors may also skip return hooks, so search down to
+        -- the matching frame and discard any unwound frames above it. A Lua
+        -- 5.1 "tail return" has no reliable caller info because that frame has
+        -- already been removed from the VM stack, so it consumes our top frame.
+        local idx
+        if class == "tail return" then
+            if #callstack > 0 then idx = #callstack end
+        else
+            local f = debug.getinfo(2, "f")
+            if not f then return end
+            for i = #callstack, 1, -1 do
+                if callstack[i].func == f.func then
+                    idx = i
+                    break
                 end
-                -- remove the pcall() too
-                ret = table.remove(callstack)
-                call_indent = call_indent - 1
             end
-
-            local prev
-
-            if #callstack > 0 then
-                prev = callstack[#callstack].func
-            else
-                prev = mainfunc
-            end
-
-            local lines = functions[prev].lines
-            local last_line = functions[prev].last_line
-
-            call_indent = call_indent - 1
-
-            -- in case the assert below fails, enable this print and the one in the "call" handling
-            -- print((" "):rep(call_indent).."<<"..tostring(ret.func).." "..tostring(f.func).. " =? " .. tostring(f.func == ret.func))
-            assert(ret.func == f.func)
-
-            lines[#lines + 1] = ("cfl=%s"):format(ret.short_src)
-            lines[#lines + 1] = ("cfn=%s"):format(tostring(ret.func))
-            lines[#lines + 1] = ("calls=1 %d"):format(ret.linedefined)
-            lines[#lines + 1] = ("%d %d"):format(last_line and last_line or -1, instr_count - ret.instr_count)
         end
+        if not idx then return end
+
+        local ret = callstack[idx]
+        for i = #callstack, idx, -1 do
+            callstack[i] = nil
+        end
+        if ret.tracked then call_indent = math.max(0, call_indent - 1) end
+        if not ret.tracked then return end
+
+        local caller
+        for i = #callstack, 1, -1 do
+            if callstack[i].tracked then
+                caller = callstack[i]
+                break
+            end
+        end
+        if not caller or not functions[caller.func] then return end
+
+        local lines = functions[caller.func].lines
+        local last_line = functions[caller.func].last_line or caller.linedefined or -1
+        lines[#lines + 1] = ("cfl=%s"):format(ret.short_src or "?")
+        lines[#lines + 1] = ("cfn=%s"):format(tostring(ret.func))
+        lines[#lines + 1] = ("calls=1 %d"):format(ret.linedefined or 0)
+        lines[#lines + 1] = ("%d %d"):format(last_line, instr_count - ret.instr_count)
         -- tracefile:write("# --callstack: " .. #callstack .. "\n")
     else
         -- print("class = " .. class)
@@ -138,18 +141,32 @@ local function trace(class)
 end
 
 local function start(f)
+    if running then return end
     full = f
-    if not full then
-        debug.sethook(trace, "cr")
-    else
-        debug.sethook(trace, "crl", 1)
-    end
+    callstack = {}
+    instr_count = 0
+    last_line_instr_count = 0
+    functions = {}
+    methods = {}
+    method_id = 1
+    call_indent = 0
+    running = true
+    -- Callgrind needs instruction and line events in both modes. `full` only
+    -- controls whether C boundary calls are included in the call graph.
+    debug.sethook(trace, "crl", 1)
 end
 
 local function done()
+    if not running then return end
     debug.sethook()
+    running = false
 
-    local tracefile = io.open(TRACEFILENAME, "w")
+    local tracefile, err = io.open(TRACEFILENAME, "w")
+    if not tracefile then
+        log.write('DCSServerBot', log.ERROR,
+            "Profiler(callgrind): cannot open '" .. tostring(TRACEFILENAME) .. "': " .. tostring(err))
+        return
+    end
     tracefile:write("events: Instructions\n")
 
 
@@ -159,26 +176,26 @@ local function done()
     -- scan all tables in _G for functions
 
     local function func2name(m, o, prefix, n, visited)
-        local visited = visited or {}
-        if visited[o]
+        local v = visited or {}
+        if v[o]
         then
             return
         end
-        visited[o] = true
+        v[o] = true
         if type(o) == 'function'
         then
             -- remove the package.loaded. prefix from the loaded methods
-            local n = prefix and prefix .. '.' .. n or n
-            n = n:gsub("^package%.loaded%", "")
-            m[o] = { name = n, id = method_id }
+            local full_name = prefix and prefix .. '.' .. tostring(n) or tostring(n or "_G")
+            full_name = full_name:gsub("^package%.loaded%.", "")
+            m[o] = { name = full_name, id = method_id }
             method_id = method_id + 1
         end
         if type(o) == 'table'
         then
-            local n = prefix and prefix .. '.' .. n or n
+            local full_name = prefix and prefix .. '.' .. tostring(n) or tostring(n or "_G")
             for n2, o2 in pairs(o)
             do
-                func2name(m, o2, n, n2, visited)
+                func2name(m, o2, full_name, n2, v)
             end
         end
     end

@@ -130,38 +130,40 @@ function Profile:close()
     self.opened = false
 end
 
--- Instrumentor with per-coroutine memory stacks
+-- Instrumentor with per-coroutine call stacks.  Only calls observed after the
+-- hook was installed may produce an end event; returns from the pre-existing
+-- Lua stack must be ignored.
 local Instrumentator = {
     profile = nil,
-    -- mem_stack[co] = { mem0, mem1, ... } parallel to the Lua call stack.
-    mem_stack = setmetatable({}, { __mode = "k" }),
+    call_stacks = setmetatable({}, { __mode = "k" }),
+    accepting_events = false,
 }
 
-local function push_mem(self, co, mem)
-    local s = self.mem_stack[co]
-    if not s then s = {}; self.mem_stack[co] = s end
-    s[#s + 1] = mem
+local function push_frame(self, co, frame)
+    local stack = self.call_stacks[co]
+    if not stack then stack = {}; self.call_stacks[co] = stack end
+    stack[#stack + 1] = frame
 end
 
-local function pop_mem(self, co)
-    local s = self.mem_stack[co]
-    if not s or #s == 0 then return nil end
-    local mem = s[#s]
-    s[#s] = nil
-    if #s == 0 then self.mem_stack[co] = nil end
-    return mem
+local function pop_frame(self, co)
+    local stack = self.call_stacks[co]
+    if not stack or #stack == 0 then return nil end
+    local frame = stack[#stack]
+    stack[#stack] = nil
+    if #stack == 0 then self.call_stacks[co] = nil end
+    return frame
 end
 
 -- Map coroutine to a stable thread id (tid) for GUIs
 local co_tid = setmetatable({}, { __mode = "k" })
 local next_tid = 1
-local function get_tid()
+local function get_thread_context()
     local co
     if coroutine and coroutine.running then
         co = coroutine.running()
     end
     if not co then
-        return 1
+        return false, 1
     end
     local tid = co_tid[co]
     if not tid then
@@ -169,7 +171,7 @@ local function get_tid()
         tid = next_tid
         co_tid[co] = tid
     end
-    return tid
+    return co, tid
 end
 
 local function current_mem_bytes(force_gc)
@@ -188,26 +190,73 @@ end
 
 function Instrumentator:create_hook()
     return function(event, _line)
+        if not self.accepting_events then return end
+
+        local co, tid = get_thread_context()
+
+        -- A return can belong to a function which was already active when the
+        -- profiler started.  Pair it only with a call seen by this hook.  Lua
+        -- 5.1 reports the synthetic unwind of a tail-calling function as
+        -- "tail return", which must consume a frame as well.
+        if event == "return" or event == "tail return" then
+            local frame = pop_frame(self, co)
+            if not frame or not frame.tracked then return end
+
+            local args = {}
+            if frame.mem_start then
+                local mem_end = current_mem_bytes(self.profile:is_force_gc())
+                args = {
+                    mem_start = frame.mem_start,
+                    mem_end = mem_end,
+                    mem_delta = mem_end - frame.mem_start,
+                }
+            end
+            self.profile:write_event(net.lua2json({
+                name = frame.name,
+                cat  = frame.cat,
+                ph   = "E",
+                ts   = high_res_clock(),
+                pid  = PID,
+                tid  = tid,
+                args = args,
+            }, 2))
+            return
+        end
+
+        if event ~= "call" then return end
+
         -- "n" name, "S" source/what, "f" func. We deliberately drop "l"
         -- (currentline) — nothing uses it now, so we don't pay to fetch it.
         local info = debug.getinfo(2, "nSf")
-        if not info then return end
+        if not info then
+            push_frame(self, co, { tracked = false })
+            return
+        end
         local func = info.func
-        if internal_functions[func] then return end
+        if internal_functions[func] then
+            push_frame(self, co, { tracked = false })
+            return
+        end
 
         local is_lua = info.what == 'Lua'
         if self.profile:is_lua_only() and not is_lua then
+            push_frame(self, co, { tracked = false })
             return
         end
 
         local ts  = high_res_clock()
-        local tid = get_tid()
         -- cat marks Lua vs base-game C boundaries (goal b: filter C in viewer).
         local cat = is_lua and "lua" or "c"
 
-        if event == "call" then
-            self.profile:write_event(net.lua2json({
-                name = func_name_from_info(info),
+        local name = func_name_from_info(info)
+        local frame = { tracked = true, name = name, cat = cat, tid = tid }
+        if is_lua and self.profile.track_memory then
+            frame.mem_start = current_mem_bytes(self.profile:is_force_gc())
+        end
+        push_frame(self, co, frame)
+
+        self.profile:write_event(net.lua2json({
+                name = name,
                 cat  = cat,
                 ph   = "B",                 -- begin
                 ts   = ts,
@@ -215,47 +264,19 @@ function Instrumentator:create_hook()
                 tid  = tid,
             }, 2))
 
-            -- Heap tracking is opt-in and Lua-only.
-            if is_lua and self.profile.track_memory then
-                local co  = (coroutine and coroutine.running and (coroutine.running() or false)) or false
-                local mem = current_mem_bytes(self.profile:is_force_gc())
-                push_mem(self, co, mem)
-                if self.profile:want_memory(ts) then
-                    self.profile:write_event(net.lua2json({
-                        name = "lua_heap",
-                        cat  = "memory",
-                        ph   = "C",         -- counter
-                        ts   = ts,
-                        pid  = PID,
-                        tid  = tid,
-                        args = { memory = mem },
-                    }, 2))
-                end
+        -- Heap tracking is opt-in and Lua-only.
+        if is_lua and self.profile.track_memory then
+            if self.profile:want_memory(ts) then
+                self.profile:write_event(net.lua2json({
+                    name = "lua_heap",
+                    cat  = "memory",
+                    ph   = "C",         -- counter
+                    ts   = ts,
+                    pid  = PID,
+                    tid  = tid,
+                    args = { memory = frame.mem_start },
+                }, 2))
             end
-
-        elseif event == "return" then
-            local args = {}
-            if is_lua and self.profile.track_memory then
-                local co        = (coroutine and coroutine.running and (coroutine.running() or false)) or false
-                local mem_end   = current_mem_bytes(self.profile:is_force_gc())
-                local mem_start = pop_mem(self, co)
-                if mem_start then
-                    args = {
-                        mem_start = mem_start,
-                        mem_end   = mem_end,
-                        mem_delta = mem_end - mem_start,
-                    }
-                end
-            end
-            self.profile:write_event(net.lua2json({
-                name = func_name_from_info(info),
-                cat  = cat,
-                ph   = "E",                 -- end
-                ts   = ts,
-                pid  = PID,
-                tid  = tid,
-                args = args,
-            }, 2))
         end
     end
 end
@@ -268,19 +289,40 @@ function Instrumentator:begin_session(file, full, track_memory)
     end
     self.profile = Profile:new(file, full, track_memory)
     self.profile:open()
+    self.call_stacks = setmetatable({}, { __mode = "k" })
+    self.accepting_events = true
 
     -- Use "call" and "return" explicitly. Avoid line hooks to keep overhead low.
     debug.sethook(self:create_hook(), "cr")
 end
 
 function Instrumentator:end_session()
+    -- Stop accepting before debug.sethook() itself generates a call event.
+    self.accepting_events = false
     debug.sethook()
     if self.profile then
+        -- The stop command and any longer-lived calls cannot naturally return
+        -- through the disabled hook. Close their observed spans in LIFO order.
+        local ts = high_res_clock()
+        for _, stack in pairs(self.call_stacks) do
+            for i = #stack, 1, -1 do
+                local frame = stack[i]
+                if frame.tracked then
+                    self.profile:write_event(net.lua2json({
+                        name = frame.name,
+                        cat  = frame.cat,
+                        ph   = "E",
+                        ts   = ts,
+                        pid  = PID,
+                        tid  = frame.tid,
+                    }, 2))
+                end
+            end
+        end
         self.profile:close()
     end
     self.profile = nil
-    -- drop any partial per-coroutine memory stacks
-    self.mem_stack = setmetatable({}, { __mode = "k" })
+    self.call_stacks = setmetatable({}, { __mode = "k" })
 end
 
 -- Utility to mark internal functions from a table
@@ -316,9 +358,9 @@ internal_functions[collect_function] = true
 collect_function(Instrumentator, internal_functions)
 collect_function(Profile, internal_functions)
 internal_functions[high_res_clock] = true
-internal_functions[get_tid] = true
-internal_functions[push_mem] = true
-internal_functions[pop_mem] = true
+internal_functions[get_thread_context] = true
+internal_functions[push_frame] = true
+internal_functions[pop_frame] = true
 internal_functions[func_name_from_info] = true
 internal_functions[current_mem_bytes] = true
 internal_functions[start_profiling] = true
