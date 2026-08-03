@@ -302,6 +302,13 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         # Write only the specified columns in the desired order
         existing_columns = [col for col in columns_order if col in events_df.columns]
 
+        # Escape potential Excel formula characters in name columns
+        for col in ['init_name', 'target_name']:
+            if col in events_df.columns:
+                events_df[col] = events_df[col].apply(
+                    lambda x: f"'{x}" if isinstance(x, str) and x.startswith(('=', '+', '-', '@')) else x
+                )
+
         with pd.ExcelWriter(excel_binary, engine='openpyxl') as writer:
             events_df[existing_columns].to_excel(writer, sheet_name='Events', index=False)
 
