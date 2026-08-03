@@ -1,8 +1,12 @@
+import aiohttp
+import asyncio
+import discord
 import pandas as pd
 
 from core import report, ReportEnv, utils, Side, Coalition, get_translation, df_to_table
 from dataclasses import dataclass
 from datetime import datetime
+from plugins.missionstats import aar
 from plugins.userstats.filter import StatisticsFilter
 from psycopg.rows import dict_row
 
@@ -432,3 +436,150 @@ class Antagonist(report.EmbedElement):
                     return
                 for k,v in row.items():
                     self.embed.add_field(name=k, value=v)
+
+
+class AAR:
+    """
+    Builds a printable After Action Report (PDF) for a single pilot.
+
+    All database access happens here, the (blocking) rendering is delegated to
+    ``plugins.missionstats.aar`` and executed in a worker thread so the bot's
+    event loop stays responsive.
+    """
+
+    def __init__(self, bot, ucid: str, name: str, flt: StatisticsFilter):
+        self.bot = bot
+        self.log = bot.log
+        self.apool = bot.apool
+        self.ucid = ucid
+        self.name = name
+        self.flt = flt
+
+    async def _fetch_logo(self, url: str) -> bytes | None:
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+                async with session.get(url, proxy=self.bot.node.proxy,
+                                       proxy_auth=self.bot.node.proxy_auth) as response:
+                    if response.status != 200:
+                        return None
+                    return await response.read()
+        except Exception as ex:
+            self.log.debug(f"AAR: could not load the squadron image: {ex}")
+            return None
+
+    async def _collect(self) -> dict | None:
+        flt = self.flt.filter(self.bot)
+        params = {'ucid': self.ucid}
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                # sortie events (birth / takeoff / landing / loss)
+                await cursor.execute(f"""
+                    SELECT ms.mission_id, ms.event, ms.init_type, ms.init_side, ms.place, ms.time,
+                           m.mission_name, m.mission_theatre, m.server_name
+                    FROM missionstats ms
+                    JOIN missions m ON m.id = ms.mission_id
+                    WHERE ms.init_id = %(ucid)s
+                      AND ms.event = ANY(%(events)s)
+                      AND {flt}
+                    ORDER BY ms.id
+                """, params | {'events': aar.SORTIE_EVENTS})
+                sorties, aborted = aar.reconstruct_sorties(await cursor.fetchall())
+
+                # kills scored by this pilot
+                await cursor.execute(f"""
+                    SELECT ms.time, ms.mission_id, ms.init_type AS aircraft, ms.init_side,
+                           ms.target_id, ms.target_type, ms.target_cat, ms.target_side, ms.weapon,
+                           m.mission_name, m.mission_theatre, COALESCE(p.name, '') AS opponent
+                    FROM missionstats ms
+                    JOIN missions m ON m.id = ms.mission_id
+                    LEFT JOIN players p ON p.ucid = ms.target_id
+                    WHERE ms.init_id = %(ucid)s AND ms.event = 'S_EVENT_KILL' AND {flt}
+                    ORDER BY ms.time
+                """, params)
+                kills = await cursor.fetchall()
+
+                # kills scored against this pilot
+                await cursor.execute(f"""
+                    SELECT ms.time, ms.mission_id, ms.target_type AS aircraft, ms.target_side,
+                           ms.init_id, ms.init_type AS threat, ms.init_cat AS threat_cat,
+                           ms.init_side, ms.weapon, m.mission_name,
+                           COALESCE(p.name, '') AS opponent
+                    FROM missionstats ms
+                    JOIN missions m ON m.id = ms.mission_id
+                    LEFT JOIN players p ON p.ucid = ms.init_id
+                    WHERE ms.target_id = %(ucid)s AND ms.event = 'S_EVENT_KILL' AND {flt}
+                    ORDER BY ms.time
+                """, params)
+                deaths = await cursor.fetchall()
+
+                # weapon employment
+                await cursor.execute(f"""
+                    SELECT CASE
+                               WHEN COALESCE(weapon, '') = '' OR event = 'S_EVENT_SHOOTING_START'
+                               THEN 'Gun' ELSE weapon
+                           END AS weapon,
+                           COUNT(*) FILTER (
+                               WHERE event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START')
+                           ) AS shots,
+                           COUNT(*) FILTER (WHERE event = 'S_EVENT_HIT') AS hits,
+                           COUNT(*) FILTER (
+                               WHERE event = 'S_EVENT_KILL'
+                                 AND COALESCE(target_side, '') <> COALESCE(init_side, '')
+                           ) AS kills
+                    FROM missionstats
+                    WHERE init_id = %(ucid)s
+                      AND event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START', 'S_EVENT_HIT',
+                                    'S_EVENT_KILL')
+                      AND {flt}
+                    GROUP BY 1
+                    ORDER BY 2 DESC, 4 DESC
+                """, params)
+                weapons = await cursor.fetchall()
+
+                # air-to-air refuellings
+                await cursor.execute(f"""
+                    SELECT COUNT(*) AS refuelings
+                    FROM missionstats
+                    WHERE init_id = %(ucid)s AND event = 'S_EVENT_REFUELING_STOP' AND {flt}
+                """, params)
+                row = await cursor.fetchone()
+                refuelings = row['refuelings'] if row else 0
+
+                # squadron affiliation
+                await cursor.execute("""
+                    SELECT s.name, s.image_url
+                    FROM squadrons s
+                    JOIN squadron_members sm ON s.id = sm.squadron_id
+                    WHERE sm.player_ucid = %(ucid)s
+                    ORDER BY s.name
+                """, params)
+                squadrons = await cursor.fetchall()
+
+        if not sorties and not kills and not deaths:
+            return None
+
+        aar.attribute_kills(sorties, kills)
+        logo_url = next((x['image_url'] for x in squadrons if x['image_url']), None)
+        return {
+            'ucid': self.ucid,
+            'pilot': self.name,
+            'squadron': ', '.join(x['name'] for x in squadrons),
+            'logo': await self._fetch_logo(logo_url) if logo_url else None,
+            'period': self.flt.format(self.bot).replace('\n', ' ').strip(),
+            'generated': datetime.now(),
+            'sorties': sorties,
+            'aborted': aborted,
+            'kills': kills,
+            'deaths': deaths,
+            'weapons': weapons,
+            'refuelings': refuelings
+        }
+
+    async def render(self) -> discord.File | None:
+        data = await self._collect()
+        if not data:
+            return None
+        buffer = await asyncio.to_thread(aar.build_pdf, data)
+        return discord.File(fp=buffer, filename="AAR_{}_{}.pdf".format(
+            aar.safe_filename(self.name), datetime.now().strftime('%Y%m%d')))

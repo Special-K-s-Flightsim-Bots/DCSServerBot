@@ -242,7 +242,7 @@ class Server(DataObject, ABC):
         self.players.clear()
         self.players_by_id.clear()
 
-    def get_active_players(self, *, side: Side = None) -> list[Player]:
+    def get_active_players(self, *, side: Side | None = None) -> list[Player]:
         return [x for x in self.players.values() if x.active and (not side or side == x.side)]
 
     def get_crew_members(self, pilot: Player | None) -> list[Player]:

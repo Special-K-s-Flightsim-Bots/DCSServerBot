@@ -117,6 +117,39 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
             if env.buffer:
                 env.buffer.close()
 
+    @command(description=_('Generate an After Action Report'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def aar(self, interaction: discord.Interaction,
+                  user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None,
+                  period: app_commands.Transform[
+                              StatisticsFilter,
+                              PeriodTransformer(flt=[MissionStatisticsFilter])
+                          ] | None = MissionStatisticsFilter()):
+        if not user:
+            user = interaction.user
+        if isinstance(user, str):
+            ucid = user
+            user = await self.bot.get_member_or_name_by_ucid(ucid)
+            if isinstance(user, discord.Member):
+                name = user.display_name
+            else:
+                name = user
+        else:
+            ucid = await self.bot.get_ucid_by_member(user)
+            name = user.display_name
+        await interaction.response.defer(ephemeral=True)
+        from .reports import AAR
+        report = AAR(self.bot, ucid, name, period)
+        file = await report.render()
+        if file:
+            await interaction.followup.send(
+                _("Here is your After Action Report, {}").format(name),
+                file=file, ephemeral=utils.get_ephemeral(interaction)
+            )
+        else:
+            await interaction.followup.send(_("No data found to generate an After Action Report."), ephemeral=True)
+
     @command(description=_('Module statistics'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
