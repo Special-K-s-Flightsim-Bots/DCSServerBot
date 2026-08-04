@@ -120,12 +120,14 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
     @command(description=_('Generate an After Action Report'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
+    @app_commands.describe(user=_("Report user, default is caller"))
+    @app_commands.describe(period=_("Time period, default is quarter"))
     async def aar(self, interaction: discord.Interaction,
                   user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None,
                   period: app_commands.Transform[
                               StatisticsFilter,
                               PeriodTransformer(flt=[MissionStatisticsFilter])
-                          ] | None = MissionStatisticsFilter()):
+                          ] | None = MissionStatisticsFilter("quarter")):
         if not user:
             user = interaction.user
         if isinstance(user, str):
