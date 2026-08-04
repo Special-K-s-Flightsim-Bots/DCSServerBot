@@ -523,14 +523,13 @@ class AAR:
                                WHERE event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START')
                            ) AS shots,
                            COUNT(*) FILTER (WHERE event = 'S_EVENT_HIT') AS hits,
-                           COUNT(*) FILTER (
-                               WHERE event = 'S_EVENT_KILL'
-                                 AND COALESCE(target_side, '') <> COALESCE(init_side, '')
-                           ) AS kills
+                           COUNT(*) FILTER (WHERE event = 'S_EVENT_KILL') AS kills
                     FROM missionstats
                     WHERE init_id = %(ucid)s
                       AND event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START', 'S_EVENT_HIT',
                                     'S_EVENT_KILL')
+                      AND COALESCE(target_side, '') <> COALESCE(init_side, '')
+					  AND COALESCE(init_type, '') <> COALESCE(weapon, '')
                       AND {flt}
                     GROUP BY 1
                     ORDER BY 2 DESC, 4 DESC
