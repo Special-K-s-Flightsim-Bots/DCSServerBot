@@ -618,6 +618,8 @@ class TournamentEventListener(EventListener["Tournament"]):
         if player.squadron and player.squadron.squadron_id == squadron['id']:
             return
 
+        campaign_id, campaign_name = await utils.get_running_campaign_async(self.node, server)
+        squadron_member = False
         async with self.apool.connection() as conn:
             # Check if the player is a member of the squadron even if it is not linked to them as they might be in
             # more than one squadron
@@ -625,34 +627,33 @@ class TournamentEventListener(EventListener["Tournament"]):
                 SELECT * FROM squadron_members WHERE player_ucid = %s AND squadron_id = %s
             """, (player.ucid, squadron['id']))
             if cursor.rowcount == 1:
-                campaign_id, campaign_name = await utils.get_running_campaign_async(self.node, server)
-                player.squadron = await DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
-                                                                  campaign_id=campaign_id).prep()
-                return
+                squadron_member = True
 
             # else, if auto_join is enabled, make them a member of the squadron
             elif config.get('auto_join', False):
                 await conn.execute("""
                     INSERT INTO squadron_members (squadron_id, player_ucid) VALUES (%s, %s)
                 """, (squadron['id'], player.ucid))
-                campaign_id, campaign_name = await utils.get_running_campaign_async(self.node, server)
-                # assign the squadron to the player
-                player.squadron = await DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
-                                                                  campaign_id=campaign_id).prep()
-                # we need to give the member the role
-                if player.member and 'role' in squadron:
-                    try:
-                        await player.member.add_roles(self.bot.get_role(squadron['role']))
-                    except discord.Forbidden:
-                        await self.bot.audit('permission "Manage Roles" missing.',
-                                             user=self.bot.member)
-            else:
-                asyncio.create_task(server.kick(player, _("You are not a squadron member.\n"
-                                                          "Please ask your squadron leader to add you.")))
-                asyncio.create_task(self.audit(server,
-                                               f"Unregistered player {player.name} ({player.ucid}) "
-                                               f"tried to join the running match on the {side} side."))
-                return
+                squadron_member = True
+
+        if squadron_member:
+            # assign the squadron to the player
+            player.squadron = await DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                                              campaign_id=campaign_id).prep()
+            # we need to give the member the role
+            if player.member and 'role' in squadron:
+                try:
+                    await player.member.add_roles(self.bot.get_role(squadron['role']))
+                except discord.Forbidden:
+                    await self.bot.audit('permission "Manage Roles" missing.',
+                                         user=self.bot.member)
+        else:
+            asyncio.create_task(server.kick(player, _("You are not a squadron member.\n"
+                                                      "Please ask your squadron leader to add you.")))
+            asyncio.create_task(self.audit(server,
+                                           f"Unregistered player {player.name} ({player.ucid}) "
+                                           f"tried to join the running match on the {side} side."))
+            return
 
         await self.inform_streamer(server, _("Player {name} joined the match in their {unit}.").format(
             name=player.name, unit=player.unit_display_name), coalition=player.coalition)

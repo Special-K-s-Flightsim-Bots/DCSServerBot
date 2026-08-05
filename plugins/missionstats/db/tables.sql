@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS missionstats (
     target_side TEXT,
     target_type TEXT,
     target_cat TEXT,
+    weapon_id INTEGER,
     weapon TEXT,
     place TEXT,
     comment TEXT,

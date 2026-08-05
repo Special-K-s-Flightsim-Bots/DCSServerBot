@@ -343,12 +343,16 @@ function onMissionEvent(event)
         msg.place.id = event.place.id_
         msg.place.name = event.place:getName()
     end
-    if event.weapon and event.weapon:isExist() then
+    if event.weapon then
         msg.weapon = {}
+        msg.weapon.id = event.weapon.id_
         msg.weapon.name = event.weapon:getTypeName()
         -- msg.weapon.category = event.weapon:getDesc().category
         if msg.weapon.name == nil or msg.weapon.name == '' then
             msg.weapon.name = 'Gun'
+        end
+        if event.target == nil then
+            msg.comment = "unsupported"
         end
     elseif event.weapon_name then
         msg.weapon = {}
