@@ -46,8 +46,6 @@ DEFAULT:            # Default section - true for all your servers.
   - unit_type: dynamic    # restrict the usage of dynamic slots in general for a specific Discord role
     discord: Tester
     message: Dynamic Slots are restricted for Testers only.
-  - side: 2               # Lock the whole side to a specific discord role
-    discord: Tester
   maximum:                    # Optional: Maximum number of slots per side
     blue: 60                  # if red is set, default is maxPlayers - red
     red: 40                   # if blue is set, default is maxPlayers - blue

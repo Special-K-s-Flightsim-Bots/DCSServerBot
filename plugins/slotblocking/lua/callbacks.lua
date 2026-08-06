@@ -268,8 +268,9 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
     end
 end
 
+--[[
 function slotblock.onPlayerTryChangeCoalition(playerID, side)
-    log.write('DCSServerBot', log.DEBUG, 'Slotblocking: onPlayerTryChangeCoalition()')
+    log.write('DCSServerBot', log.DEBUG, 'Slotblocking: onPlayerTryChangeCoalition(' .. playerID .. ',' .. side ..')')
 
     if not dcsbot.params or not dcsbot.params.slotblocking then
         log.write('DCSServerBot', log.DEBUG, 'Slotblocking: No configuration found, skipping.')
@@ -280,11 +281,14 @@ function slotblock.onPlayerTryChangeCoalition(playerID, side)
         local player = net.get_player_info(playerID, 'ucid')
         for _, unit in pairs(dcsbot.params.slotblocking.restricted) do
             if unit.side and tonumber(unit.side) == side and unit.unit_type == nil and unit.unit_name == nil and unit.group_name == nil then
+                log.write('DCSServerBot', log.DEBUG, 'Slotblocking: ' .. net.lua2json(unit))
                 if unit.ucids and not has_value(unit.ucids, player) then
+                    log.write('DCSServerBot', log.DEBUG, 'Slotblocking: Here 2.')
                     local message = unit.message or 'This coalition is only accessible to certain users.'
                     net.send_chat_to(message, playerID)
                     return false, "wrongCoalitionPassword"
                 elseif unit.discord and not has_value(unit.discord, dcsbot.userInfo[player].roles) then
+                    log.write('DCSServerBot', log.DEBUG, 'Slotblocking: Here 3.')
                     local message = unit.message or 'This coalition is only accessible to members with a specific Discord role.'
                     net.send_chat_to(message, playerID)
                     return false, "wrongCoalitionPassword"
@@ -295,5 +299,6 @@ function slotblock.onPlayerTryChangeCoalition(playerID, side)
         end
     end
 end
+]]--
 
 Sim.setUserCallbacks(slotblock)
