@@ -155,7 +155,7 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
                         WHERE mission_id = %s 
                           AND init_id IS NOT NULL
                           AND event IN ('S_EVENT_SHOT', 'S_EVENT_HIT')
-                          AND (weapon LIKE 'AIM%%' OR weapon LIKE 'P\_%%' ESCAPE '\' 
+                          AND (weapon LIKE 'AIM%%' OR weapon LIKE 'P\\_%%' ESCAPE '\\' 
                                OR weapon LIKE 'PL-%%' OR weapon ILIKE 'R-%%' OR weapon = 'SD-10')
                           AND weapon_id IS NULL
                         ORDER BY ID
