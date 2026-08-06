@@ -260,28 +260,69 @@ class ModuleStats2(report.EmbedElement):
                    END AS weapon, 
                    COALESCE(SUM(CASE WHEN m.event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START') 
                                      THEN 1 ELSE 0 
-                                END), 0) AS shots 
+                                END), 0
+                   ) AS shots 
             FROM missionstats m, statistics s 
-            WHERE m.mission_id = s.mission_id AND m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW()) 
-            AND m.init_id = %(ucid)s AND m.init_type = %(module)s 
+            WHERE m.mission_id = s.mission_id 
+              AND m.init_id = s.player_ucid
+              AND m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') 
+              AND m.init_id = %(ucid)s 
+              AND m.init_type = %(module)s 
         """
         inner_sql1 += ' AND ' + flt.filter(self.env.bot)
         inner_sql1 += " GROUP BY 1"
         inner_sql2 = """
-            SELECT CASE WHEN m.target_cat IN ('Airplanes', 'Helicopters') THEN 'Air' 
-                        WHEN m.target_cat IN ('Ground Units', 'Ships', 'Structures') THEN 'Ground' 
-                   END AS target_cat, 
-                   CASE WHEN COALESCE(m.weapon, '') = '' THEN 'Gun' ELSE m.weapon 
-                   END AS weapon, 
-                   COALESCE(SUM(CASE WHEN m.event = 'S_EVENT_HIT' THEN 1 ELSE 0 END), 0) AS hits, 
-                   COALESCE(SUM(CASE WHEN m.event = 'S_EVENT_KILL' THEN 1 ELSE 0 END), 0) AS kills 
-            FROM missionstats m, statistics s 
-            WHERE m.event IN ('S_EVENT_HIT', 'S_EVENT_KILL') 
-            AND m.mission_id = s.mission_id AND m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW()) 
-            AND m.target_cat IS NOT NULL AND m.init_id = %(ucid)s AND m.init_type = %(module)s
-            AND m.init_side <> m.target_side
+            WITH GroupedHits AS (
+                -- Step 1: Filter and identify unique "hit windows"
+                SELECT
+                    m.mission_id,
+                    s.hop_on,
+                    COALESCE(s.hop_off, NOW()) AS hop_off_time,
+                    m.init_id,
+                    m.target_id, -- Assuming target_id is available or necessary for grouping
+                    m.event,
+                    -- CRITICAL CHANGE: Round the timestamp down to the desired interval (e.g., 1 second).
+                    -- Adjust this function based on your database dialect (PostgreSQL, MySQL, SQL Server).
+                    DATE_TRUNC('second', m.time) AS hit_window_start, 
+                    CASE WHEN m.target_cat IN ('Airplanes', 'Helicopters') THEN 'Air' 
+                         WHEN m.target_cat IN ('Ground Units', 'Ships', 'Structures') THEN 'Ground' 
+                    END AS target_cat,
+                    CASE WHEN COALESCE(m.weapon, '') = '' THEN 'Gun' ELSE m.weapon END AS weapon
+                FROM missionstats m
+                JOIN statistics s ON m.mission_id = s.mission_id
+                WHERE 
+                    m.event IN ('S_EVENT_HIT', 'S_EVENT_KILL') 
+                    -- Filter for the relevant time window in the stats table
+                    AND m.time BETWEEN s.hop_on AND COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC')
+                    -- Existing filters
+                    AND m.target_cat IS NOT NULL 
+                    AND m.init_id = %(ucid)s
+                    AND m.init_type = %(module)s
+                    AND m.init_side <> m.target_side
+            ),
+            UniqueHitEvents AS (
+                -- Step 2: Determine the distinct groups of hits for each target/source interaction
+                SELECT DISTINCT
+                    mission_id,
+                    hit_window_start, -- This now defines a unique 'action' time window
+                    init_id,
+                    target_id,
+                    target_cat,
+                    weapon,
+                    CASE WHEN event = 'S_EVENT_HIT' THEN 1 ELSE 0 END AS is_hit,
+                    CASE WHEN event = 'S_EVENT_KILL' THEN 1 ELSE 0 END AS is_kill
+                FROM GroupedHits
+            )
+            -- Step 3: Aggregate the unique events over the mission segment
+            SELECT 
+                target_cat, 
+                weapon,
+                -- Sum up the hits and kills grouped by the distinct (time window, init_id, target_id) combinations
+                COALESCE(SUM(h.is_hit), 0) AS hits, 
+                COALESCE(SUM(h.is_kill), 0) AS kills
+            FROM UniqueHitEvents h
         """
-        inner_sql2 += ' AND ' + flt.filter(self.env.bot)
+        inner_sql2 += ' WHERE ' + flt.filter(self.env.bot)
         inner_sql2 += " GROUP BY 1, 2"
         sql = f"""
                 SELECT y.target_cat, y.weapon, x.shots, y.hits, y.kills, y.kills::DECIMAL / x.shots AS kd 

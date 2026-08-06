@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS missionstats (
     FOREIGN KEY (target_id) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY (mission_id) REFERENCES missions (id) ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS idx_missionstats_mission_id ON missionstats(mission_id);
 CREATE INDEX IF NOT EXISTS idx_missionstats_init_id ON missionstats(init_id);
 CREATE INDEX IF NOT EXISTS idx_missionstats_target_id ON missionstats(target_id);
 CREATE INDEX IF NOT EXISTS idx_missionstats_event_init_id on missionstats (event, init_id);
