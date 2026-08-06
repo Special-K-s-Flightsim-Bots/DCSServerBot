@@ -245,7 +245,7 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
         return
     end
     if not dcsbot.params or not dcsbot.params.slotblocking then
-        log.write('DCSServerBot', log.ERROR, 'Slotblocking: No configuration found, skipping.')
+        log.write('DCSServerBot', log.DEBUG, 'Slotblocking: No configuration found, skipping.')
         return
     end
     -- check slot restrictions by thresholds
@@ -265,6 +265,34 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
     -- if not side change happens or they want in a sub-slot, do not run balancing
     if old_side ~= side and tonumber(slotID) and dcsbot.params.slotblocking.balancing then
         return balance_slots(playerID, side, slotID)
+    end
+end
+
+function slotblock.onPlayerTryChangeCoalition(playerID, side)
+    log.write('DCSServerBot', log.DEBUG, 'Slotblocking: onPlayerTryChangeCoalition()')
+
+    if not dcsbot.params or not dcsbot.params.slotblocking then
+        log.write('DCSServerBot', log.DEBUG, 'Slotblocking: No configuration found, skipping.')
+        return
+    end
+
+    if dcsbot.params.slotblocking.restricted then
+        local player = net.get_player_info(playerID, 'ucid')
+        for _, unit in pairs(dcsbot.params.slotblocking.restricted) do
+            if unit.side and tonumber(unit.side) == side and unit.unit_type == nil and unit.unit_name == nil and unit.group_name == nil then
+                if unit.ucids and not has_value(unit.ucids, player) then
+                    local message = unit.message or 'This coalition is only accessible to certain users.'
+                    net.send_chat_to(message, playerID)
+                    return false, "wrongCoalitionPassword"
+                elseif unit.discord and not has_value(unit.discord, dcsbot.userInfo[player].roles) then
+                    local message = unit.message or 'This coalition is only accessible to members with a specific Discord role.'
+                    net.send_chat_to(message, playerID)
+                    return false, "wrongCoalitionPassword"
+                else
+                    log.write('DCSServerBot', log.ERROR, 'Slotblocking: Side configured but no ucids / discord roles, skipping.')
+                end
+            end
+        end
     end
 end
 

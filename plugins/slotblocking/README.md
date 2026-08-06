@@ -39,13 +39,15 @@ DEFAULT:            # Default section - true for all your servers.
   - unit_type: instructor
     discord: Donators
     message: This slot is reserved for Donators!
-  - unit_type: observer
+  - unit_type: observer   # Lock the observer role to a specific discord side and discord role
     side: 2               # side 1 = red, 2 = blue, not given - both sides
     discord: '@everyone'  # Only the "everyone" role needs the @ at the beginning, all other roles don't.
     message: This slot is reserved for members of https://invite.link!
   - unit_type: dynamic    # restrict the usage of dynamic slots in general for a specific Discord role
     discord: Tester
     message: Dynamic Slots are restricted for Testers only.
+  - side: 2               # Lock the whole side to a specific discord role
+    discord: Tester
   maximum:                    # Optional: Maximum number of slots per side
     blue: 60                  # if red is set, default is maxPlayers - red
     red: 40                   # if blue is set, default is maxPlayers - blue
