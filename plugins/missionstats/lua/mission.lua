@@ -351,7 +351,7 @@ function onMissionEvent(event)
         elseif event.weapon_name ~= nil then
             msg.weapon.name = event.weapon_name
         else
-            msg.weapon.name = 'n/a'
+            msg.weapon.name = 'Gun'
         end
         -- msg.weapon.category = event.weapon:getDesc().category
         if msg.weapon.name == nil or msg.weapon.name == '' then
