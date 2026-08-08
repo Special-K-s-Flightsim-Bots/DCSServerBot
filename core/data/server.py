@@ -130,9 +130,7 @@ class Server(DataObject, ABC):
                 row = cursor.fetchone()
                 if row:
                     self._mission_id = row[0]
-                else:
-                    self._mission_id = -1
-        return self._mission_id
+        return self._mission_id or -1
 
     @mission_id.setter
     def mission_id(self, mission_id: int):
