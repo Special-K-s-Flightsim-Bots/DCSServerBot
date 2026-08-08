@@ -58,7 +58,7 @@ local function frame_key(info)
     local cat  = (info.what == "Lua") and "lua" or "c"
     local label
     if name and #name > 0 then
-        label = name
+        label = string.format("%s (%s:%d)", name, src, line)
     else
         label = string.format("%s:%d", src, line)
     end
