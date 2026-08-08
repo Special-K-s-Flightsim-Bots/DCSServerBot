@@ -184,7 +184,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                               AND init_id = %(init_id)s 
                               AND event = 'S_EVENT_SHOT'
                               AND weapon_id = %(weapon_id)s
-                              AND target_id IS NULL
+                              AND target_type IS NULL
                         """, dataset)
             except Exception as ex:
                 self.log.warning(str(ex) + ' / ignoring event')

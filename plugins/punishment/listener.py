@@ -496,9 +496,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         asyncio.create_task(self.bus.send_to_node(s_event.copy()))
 
         initiator = server.get_player(name=s_event.get('initiator', {}).get('name'))
-        self.log.debug(f"_give_kill(): initiator: {initiator}")
         target = server.get_player(name=s_event.get('target', {}).get('name'))
-        self.log.debug(f"_give_kill(): target: {target}")
 
         # remove the pending task if there is one
         if target:
