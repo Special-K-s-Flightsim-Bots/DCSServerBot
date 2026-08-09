@@ -1269,7 +1269,7 @@ class Mission(Plugin[MissionEventListener]):
                 message = _("Do you really want to set all {} values in your warehouse to {}?").format(
                     category, value)
                 if not await utils.yn_question(interaction, message):
-                    await interaction.followup.send(_("Aborted."))
+                    await interaction.followup.send(_("Aborted."), ephemeral=True)
                     return
 
                 await Mission.manage_category(_server, airbase, category, value)
@@ -2187,7 +2187,7 @@ class Mission(Plugin[MissionEventListener]):
                                            _("You already have a verified DCS account!\n"
                                              "Are you sure you want to re-link your account? "
                                              "(Ex: Switched from Steam to Standalone)"), ephemeral=True):
-                await interaction.followup.send(_('Aborted.'))
+                await interaction.followup.send(_('Aborted.'), ephemeral=True)
                 return
             member.unlink()
 
