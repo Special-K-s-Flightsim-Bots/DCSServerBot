@@ -1,6 +1,5 @@
 import aiohttp
 import asyncio
-
 import discord
 
 from core import EventListener, Server, Player, Side, event
@@ -243,3 +242,10 @@ class CloudListener(EventListener["Cloud"]):
                 self.log.debug("Cloud extension disabled, no cloud registration sent.")
                 pass
             self.updates[server.name] = datetime.now(tz=timezone.utc)
+
+    @event(name="onPlayerUnbanned")
+    async def onPlayerUnbanned(self, _server: Server, data: dict) -> None:
+        await self.plugin.post('unregister_ban', {
+            "guild_id": self.bot.guilds[0].id,
+            "ucid": data['ucid']
+        })

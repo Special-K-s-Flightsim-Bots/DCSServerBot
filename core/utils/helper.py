@@ -1314,7 +1314,7 @@ class YAMLError(Exception):
 class DictWrapper:
     """A wrapper for dictionaries enabling both attribute and key-based access."""
 
-    def __init__(self, data):
+    def __init__(self, data, return_none: bool = False):
         """Initialize with a dictionary or a list."""
         if isinstance(data, dict):
             self._data = {k: self._wrap(v) for k, v in data.items()}
@@ -1322,6 +1322,7 @@ class DictWrapper:
             self._data = [self._wrap(v) for v in data]
         else:
             self._data = data  # Handle non-dict types (e.g., primitive values)
+        self.return_none = return_none
 
     @staticmethod
     def _wrap(value):
@@ -1337,6 +1338,8 @@ class DictWrapper:
         try:
             return self._data[name]
         except KeyError:
+            if self.return_null:
+                return None
             raise AttributeError(f"Attribute '{name}' not found")
 
     def __setattr__(self, name, value):

@@ -41,7 +41,7 @@ class Cloud(Plugin[CloudListener]):
         self.client = None
         self.guild_bans = []
 
-    async def _is_cloud_available(self, timeout: float = 2.0) -> bool:
+    async def _is_cloud_available(self, timeout: float = 5.0) -> bool:
         """Check if the cloud service is reachable via a quick TCP connect.
         Honors the node's HTTP proxy settings if configured."""
         host = self.config['host']
@@ -458,71 +458,101 @@ class Cloud(Plugin[CloudListener]):
     async def before_cloud_bans(self):
         await self.bot.wait_until_ready()
 
-    @tasks.loop(seconds=10)
-    async def cloud_sync(self):
+    async def sync_stats(self) -> int:
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                try:
-                    await cursor.execute("""
-                        SELECT ucid FROM players 
-                        WHERE synced IS FALSE 
-                        ORDER BY last_seen DESC 
-                        LIMIT 10
-                    """)
-                    rows = await cursor.fetchall()
-                    if not rows:
-                        # all is synced, no need to poll every 10s
-                        self.cloud_sync.change_interval(minutes=5.0)
-                        return
+                await cursor.execute("""
+                    SELECT ucid FROM players 
+                    WHERE synced IS FALSE 
+                    ORDER BY last_seen DESC 
+                    LIMIT 10
+                """)
+                rows = await cursor.fetchall()
+                if not rows:
+                    return 0
 
-                    for row in rows:
-                        await cursor.execute("""
-                            SELECT DISTINCT x.name, x.discord_id, min(time) AS linked_at, max(time) AS last_seen FROM  
-                            (
-                                SELECT name, discord_id, COALESCE(last_seen, first_seen) AS time FROM players
-                                WHERE ucid = %(ucid)s AND manual = TRUE AND discord_id != -1
-                                UNION
-                                SELECT DISTINCT name, discord_id, min(time) AS time FROM players_hist
-                                WHERE ucid = %(ucid)s AND manual = TRUE AND discord_id != -1
-                                GROUP BY 1, 2
-                            ) x
+                for row in rows:
+                    await cursor.execute("""
+                        SELECT DISTINCT x.name, x.discord_id, min(time) AS linked_at, max(time) AS last_seen FROM  
+                        (
+                            SELECT name, discord_id, COALESCE(last_seen, first_seen) AS time FROM players
+                            WHERE ucid = %(ucid)s AND manual = TRUE AND discord_id != -1
+                            UNION
+                            SELECT DISTINCT name, discord_id, min(time) AS time FROM players_hist
+                            WHERE ucid = %(ucid)s AND manual = TRUE AND discord_id != -1
                             GROUP BY 1, 2
-                            ORDER BY 3
-                        """, {"ucid": row['ucid']})
-                        async for player in cursor:
-                            linked_at = player['linked_at'] or player['last_seen']
-                            await self.post('register_player', {
-                                "ucid": row['ucid'],
-                                "name": player['name'],
-                                "discord_id": player['discord_id'],
-                                "linked_at": linked_at.isoformat(),
-                                "last_seen": player['last_seen'].isoformat()
-                            })
-                        await cursor.execute("""
-                            SELECT s.player_ucid, m.mission_theatre, s.slot, 
-                                   SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
-                                   SUM(ejections) as ejections, SUM(crashes) as crashes, 
-                                   SUM(teamkills) as teamkills, SUM(kills_planes) AS kills_planes, 
-                                   SUM(kills_helicopters) AS kills_helicopters, SUM(kills_ships) AS kills_ships, 
-                                   SUM(kills_sams) AS kills_sams, SUM(kills_ground) AS kills_ground, 
-                                   SUM(deaths_pvp) as deaths_pvp, SUM(deaths_planes) AS deaths_planes, 
-                                   SUM(deaths_helicopters) AS deaths_helicopters, SUM(deaths_ships) AS deaths_ships,
-                                   SUM(deaths_sams) AS deaths_sams, SUM(deaths_ground) AS deaths_ground, 
-                                   SUM(takeoffs) as takeoffs, SUM(landings) as landings, 
-                                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))))::BIGINT AS playtime 
-                            FROM statistics s, missions m 
-                            WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
-                            GROUP BY 1, 2, 3
-                        """, (row['ucid'], ))
-                        async for line in cursor:
-                            line['client'] = self.client
-                            await self.post('upload', line)
-                        await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
-                        if self.cloud_sync.minutes == 5.0:
-                            self.cloud_sync.change_interval(seconds=10)
-                except (aiohttp.ClientError, TypeError) as ex:
-                    if self.cloud_sync.minutes == 0.0:
-                        self.cloud_sync.change_interval(minutes=5.0)
+                        ) x
+                        GROUP BY 1, 2
+                        ORDER BY 3
+                    """, {"ucid": row['ucid']})
+                    async for player in cursor:
+                        linked_at = player['linked_at'] or player['last_seen']
+                        await self.post('register_player', {
+                            "ucid": row['ucid'],
+                            "name": player['name'],
+                            "discord_id": player['discord_id'],
+                            "linked_at": linked_at.isoformat(),
+                            "last_seen": player['last_seen'].isoformat()
+                        })
+                    await cursor.execute("""
+                        SELECT s.player_ucid, m.mission_theatre, s.slot, 
+                               SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
+                               SUM(ejections) as ejections, SUM(crashes) as crashes, 
+                               SUM(teamkills) as teamkills, SUM(kills_planes) AS kills_planes, 
+                               SUM(kills_helicopters) AS kills_helicopters, SUM(kills_ships) AS kills_ships, 
+                               SUM(kills_sams) AS kills_sams, SUM(kills_ground) AS kills_ground, 
+                               SUM(deaths_pvp) as deaths_pvp, SUM(deaths_planes) AS deaths_planes, 
+                               SUM(deaths_helicopters) AS deaths_helicopters, SUM(deaths_ships) AS deaths_ships,
+                               SUM(deaths_sams) AS deaths_sams, SUM(deaths_ground) AS deaths_ground, 
+                               SUM(takeoffs) as takeoffs, SUM(landings) as landings, 
+                               ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))))::BIGINT AS playtime 
+                        FROM statistics s, missions m 
+                        WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
+                        GROUP BY 1, 2, 3
+                    """, (row['ucid'], ))
+                    async for line in cursor:
+                        line['client'] = self.client
+                        await self.post('upload', line)
+                    await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
+
+                return len(rows)
+
+    async def sync_bans(self) -> int:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT ucid, reason, banned_at 
+                    FROM bans 
+                    WHERE synced IS FALSE 
+                    AND banned_until = '9999-12-31'
+                    ORDER BY banned_at 
+                    LIMIT 10
+                """)
+                rows = await cursor.fetchall()
+                if not rows:
+                    return 0
+                for row in rows:
+                    await self.post('register_ban', {
+                        "guild_id": self.bot.guilds[0].id,
+                        "ucid": row['ucid'],
+                        "reason": row['reason'],
+                        "added": row['banned_at'].isoformat()
+                    })
+                    await cursor.execute('UPDATE bans SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
+                return len(rows)
+
+    @tasks.loop(seconds=10.0)
+    async def cloud_sync(self):
+        try:
+            num = await self.sync_stats()
+            num += await self.sync_bans()
+            if num == 0 and self.cloud_sync.seconds == 10.0:
+                self.cloud_sync.change_interval(minutes=5.0, seconds=0.0)
+            elif self.cloud_sync.minutes == 5.0:
+                self.cloud_sync.change_interval(minutes=0.0, seconds=10.0)
+        except (aiohttp.ClientError, TypeError):
+            if self.cloud_sync.minutes == 0.0:
+                self.cloud_sync.change_interval(minutes=5.0, seconds=0.0)
 
     @cloud_sync.before_loop
     async def before_cloud_sync(self):

@@ -52,6 +52,7 @@ maintaining the solutions that are out in the wild.
 - DCSSB-Plugins in use (for general DCSSB stats)
 - DGSA-Status (for protection stats)
 - Node hardware (for general HW stats)
+- Permanent bans (to see if people are banned accross multiple servers, WIP)
 - Subscriptions only: Aggregated user statistics for your users (for `/cloud statistics`)
 
 Also, DCSServerBot will send account mappings of users (Discord Account / DCS Account mapping) to the cloud.

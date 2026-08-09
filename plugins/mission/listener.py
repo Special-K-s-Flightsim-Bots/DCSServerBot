@@ -1114,6 +1114,30 @@ class MissionEventListener(EventListener["Mission"]):
         if player:
             asyncio.create_task(self._upload_user_roles(server, player))
 
+    @event(name="onPlayerBanned")
+    async def onPlayerBanned(self, _server: Server, data: dict) -> None:
+        for server in self.bot.servers.values():
+            await server.send_to_dcs({
+                "command": "ban",
+                "ucid": data['ucid'],
+                "reason": data['reason'],
+                "banned_until": data['banned_until']
+            })
+            player = server.get_player(ucid=data['ucid'])
+            if player:
+                player.banned = True
+
+    @event(name="onPlayerUnbanned")
+    async def onPlayerUnbanned(self, _server: Server, data: dict) -> None:
+        for server in self.bot.servers.values():
+            await server.send_to_dcs({
+                "command": "unban",
+                "ucid": data['ucid']
+            })
+            player = server.get_player(ucid=data['ucid'])
+            if player:
+                player.banned = False
+
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         config = self.get_config(server)

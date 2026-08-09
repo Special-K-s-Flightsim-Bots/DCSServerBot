@@ -1450,11 +1450,10 @@ class NodeImpl(Node):
     @override
     async def list_directory(self, path: str, *, pattern: str | list[str] = '*',
                              order: SortOrder = SortOrder.DATE,
-                             is_dir: bool = False, ignore: list[str] = None, traverse: bool = False
+                             is_dir: bool = False, ignore: list[str] | None = None, traverse: bool = False
                              ) -> tuple[str, list[str]]:
         directory = Path(os.path.expandvars(path))
         ignore = ignore or []
-        ret = []
         sort_key = os.path.getmtime if order == SortOrder.DATE else str
         if isinstance(pattern, str):
             pattern = [pattern]

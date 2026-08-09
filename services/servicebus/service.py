@@ -492,32 +492,35 @@ class ServiceBus(Service):
                 SET banned_by = excluded.banned_by, reason = excluded.reason, 
                     banned_at = excluded.banned_at, banned_until = excluded.banned_until
             """, (ucid, banned_by, reason, until.replace(tzinfo=None)))
-        for server in self.servers.values():
-            if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
-                continue
-            await server.send_to_dcs({
-                "command": "ban",
-                "ucid": ucid,
-                "reason": reason,
-                "banned_until": until_str
-            })
-            player = server.get_player(ucid=ucid)
-            if player:
-                player.banned = True
+        asyncio.create_task(self.send_to_node({
+            "command": "rpc",
+            "service": "ServiceBus",
+            "method": "propagate_event",
+            "params": {
+                "command": "onPlayerBanned",
+                "data": {
+                    "ucid": ucid,
+                    "reason": reason,
+                    "banned_at": datetime.now(tz=timezone.utc).isoformat(),
+                    "banned_until": until_str
+                }
+            }
+        }))
 
     async def unban(self, ucid: str):
         async with self.apool.connection() as conn:
             await conn.execute("UPDATE bans SET banned_until = NOW() AT TIME ZONE 'UTC' WHERE ucid = %s", (ucid, ))
-        for server in self.servers.values():
-            if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
-                continue
-            await server.send_to_dcs({
-                "command": "unban",
-                "ucid": ucid
-            })
-            player = server.get_player(ucid=ucid)
-            if player:
-                player.banned = False
+        asyncio.create_task(self.send_to_node({
+            "command": "rpc",
+            "service": "ServiceBus",
+            "method": "propagate_event",
+            "params": {
+                "command": "onPlayerUnbanned",
+                "data": {
+                    "ucid": ucid
+                }
+            }
+        }))
 
     async def bans(self, *, expired: bool = False) -> list[dict]:
         if expired:
