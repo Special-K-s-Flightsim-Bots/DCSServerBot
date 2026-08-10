@@ -535,7 +535,9 @@ class AAR:
                     FROM missionstats ms
                     JOIN missions m ON m.id = ms.mission_id
                     LEFT JOIN players p ON p.ucid = ms.target_id
-                    WHERE ms.init_id = %(ucid)s AND ms.event = 'S_EVENT_KILL' AND {flt}
+                    WHERE ms.init_id = %(ucid)s 
+                    AND ms.event = 'S_EVENT_KILL' AND {flt}
+                    AND ms.weapon != ms.init_type
                     ORDER BY ms.time
                 """, params)
                 kills = await cursor.fetchall()
@@ -549,7 +551,9 @@ class AAR:
                     FROM missionstats ms
                     JOIN missions m ON m.id = ms.mission_id
                     LEFT JOIN players p ON p.ucid = ms.init_id
-                    WHERE ms.target_id = %(ucid)s AND ms.event = 'S_EVENT_KILL' AND {flt}
+                    WHERE ms.target_id = %(ucid)s 
+                    AND ms.event = 'S_EVENT_KILL' AND {flt}
+                    AND ms.weapon != ms.init_type
                     ORDER BY ms.time
                 """, params)
                 deaths = await cursor.fetchall()
