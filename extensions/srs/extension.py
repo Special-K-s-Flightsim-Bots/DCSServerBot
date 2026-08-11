@@ -103,14 +103,17 @@ class SRS(Extension, FileSystemEventHandler):
 
     @override
     def load_config(self) -> dict:
-        if 'config' in self.config:
-            self.cfg.read(self.get_config_path(), encoding='utf-8')
-            return {
-                s: {_name: Autoexec.parse(_value) for _name, _value in self.cfg.items(s)}
-                for s in self.cfg.sections()
-            }
-        else:
+        cfg_file = self.get_config_path()
+        if not os.path.exists(cfg_file):
+            self.log.warning(f"  => {self.name}: Config file {cfg_file} not found!")
             return {}
+        with open(cfg_file, 'r', encoding='utf-8') as f:
+            raw_content = f.read()
+        self.cfg.read_string(raw_content)
+        return {
+            s: {_name: Autoexec.parse(_value) for _name, _value in self.cfg.items(s)}
+            for s in self.cfg.sections()
+        }
 
     async def enable_autoconnect(self):
         # Change DCS-SRS-AutoConnectGameGUI.lua if necessary
