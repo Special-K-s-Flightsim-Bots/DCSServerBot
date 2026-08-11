@@ -19,14 +19,11 @@ WARNING_ICON = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/
 
 
 class TournamentModal(Modal):
-    # noinspection PyTypeChecker
     _num_rounds = TextInput(label=_("Number of rounds"), style=TextStyle.short, min_length=1, max_length=2,
                             default="3", required=True)
-    # noinspection PyTypeChecker
     _num_players = TextInput(label=_("Number of players"), style=TextStyle.short, min_length=1, max_length=2,
                              default="4", required=True)
-    # noinspection PyTypeChecker
-    _times = TextInput(label=_("Preferred times (UTC)"), style=TextStyle.short, required=False,
+    _times = TextInput(label=_("Preferred times (UTC)"), style=TextStyle.short, required=True,
                        placeholder=_("Match times, comma separated in format HH:MM"))
 
     def __init__(self):
