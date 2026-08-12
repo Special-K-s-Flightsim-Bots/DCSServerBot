@@ -416,7 +416,7 @@ class RestAPI(Plugin):
         self.router.add_api_route(
             "/mission/drawings", self.mission_drawings,
             methods=["GET"],
-            response_model=MissionDrawingsResponse,
+            response_model=dict[str, Any],
             description="Get mission drawing objects grouped by drawing layer.",
             summary="Mission Drawings",
             tags=["Utilities"]
@@ -1019,7 +1019,7 @@ class RestAPI(Plugin):
     async def mission_drawings(
         self,
         server_name: str = Query(..., description="Name of the server")
-    ) -> MissionDrawingsResponse:
+    ) -> dict[str, Any]:
         """Return mission drawings grouped by layer name."""
         resolved_server_name, server = self.get_resolved_server(server_name)
         if not server:
@@ -1044,16 +1044,29 @@ class RestAPI(Plugin):
 
         raw_drawings = result.get("drawings", {})
         normalized_drawings: dict[str, list[dict[str, Any]]] = {}
+
+        def _is_lua_null_placeholder(value: Any) -> bool:
+            return isinstance(value, dict) and len(value) == 0
+
+        def _convert_lua_nulls(value: Any) -> Any:
+            if _is_lua_null_placeholder(value):
+                return None
+            if isinstance(value, list):
+                return [_convert_lua_nulls(item) for item in value]
+            if isinstance(value, dict):
+                return {k: _convert_lua_nulls(v) for k, v in value.items()}
+            return value
+
         if isinstance(raw_drawings, dict):
             for layer_name, layer_data in raw_drawings.items():
                 if isinstance(layer_data, list):
-                    normalized_drawings[layer_name] = layer_data
-                elif isinstance(layer_data, dict) and len(layer_data) == 0:
+                    normalized_drawings[layer_name] = cast(list[dict[str, Any]], _convert_lua_nulls(layer_data))
+                elif _is_lua_null_placeholder(layer_data):
                     normalized_drawings[layer_name] = []
 
-        return MissionDrawingsResponse(
-            drawings=normalized_drawings
-        )
+        return {
+            "drawings": normalized_drawings
+        }
 
     # Get current and mission-related data for a named unit.
     # Endpoint:   /mission/unit

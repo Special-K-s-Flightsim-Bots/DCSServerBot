@@ -1,8 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class UserEntry(BaseModel):
@@ -1145,14 +1145,77 @@ class MissionDrawing(BaseModel):
     name: str = Field(..., description="Drawing name")
     primitiveType: str = Field(..., description="Drawing primitive type")
     text: str | None = Field(None, description="Optional drawing text")
-    location: MissionDrawingPoint = Field(..., description="Drawing anchor location")
+    layerName: str | None = Field(None, description="Drawing layer name")
+    visible: bool | None = Field(None, description="Whether drawing is visible")
+    mapX: float | None = Field(None, description="Drawing origin X in mission meters")
+    mapY: float | None = Field(None, description="Drawing origin Y in mission meters")
+    colorString: str | None = Field(None, description="Stroke color as ARGB hex string")
+    fillColorString: str | None = Field(None, description="Fill color as ARGB hex string")
+    style: str | None = Field(None, description="Line or fill style")
+    thickness: float | int | None = Field(None, description="Line thickness")
+    location: MissionDrawingPoint | None = Field(None, description="Drawing anchor location")
     points: list[MissionDrawingPoint] | None = Field(None, description="Optional list of drawing points")
+    # Line-specific
+    lineMode: str | None = Field(None, description="Line mode (segment, segments, free)")
+    closed: bool | None = Field(None, description="Whether line is closed")
+    # Polygon-specific
+    polygonMode: str | None = Field(None, description="Polygon mode (free, circle, oval, rect, arrow)")
+    radius: float | None = Field(None, description="Radius for circle/disc polygons")
+    r1: float | None = Field(None, description="First oval radius")
+    r2: float | None = Field(None, description="Second oval radius")
+    width: float | None = Field(None, description="Width for rectangle polygons")
+    height: float | None = Field(None, description="Height for rectangle polygons")
+    length: float | None = Field(None, description="Length for arrow polygons")
+    angle: float | None = Field(None, description="Drawing rotation angle")
+    # TextBox-specific
+    font: str | None = Field(None, description="TextBox font file")
+    fontSize: float | int | None = Field(None, description="TextBox font size")
+    borderThickness: float | int | None = Field(None, description="TextBox border thickness")
+    # Icon-specific
+    file: str | None = Field(None, description="Icon file name")
+    scale: float | None = Field(None, description="Icon scale factor")
+
+    @field_validator(
+        "text",
+        "layerName",
+        "visible",
+        "mapX",
+        "mapY",
+        "colorString",
+        "fillColorString",
+        "style",
+        "thickness",
+        "location",
+        "points",
+        "lineMode",
+        "closed",
+        "polygonMode",
+        "radius",
+        "r1",
+        "r2",
+        "width",
+        "height",
+        "length",
+        "angle",
+        "font",
+        "fontSize",
+        "borderThickness",
+        "file",
+        "scale",
+        mode="before"
+    )
+    @classmethod
+    def convert_lua_null_placeholder(cls, value):
+        # Lua side uses an empty table as a null placeholder so keys survive net.lua2json.
+        if isinstance(value, dict) and len(value) == 0:
+            return None
+        return value
 
 
 class MissionDrawingsResponse(BaseModel):
-    drawings: dict[str, list[MissionDrawing]] = Field(
+    drawings: dict[str, list[dict[str, Any]]] = Field(
         ...,
-        description="Drawings keyed by layer name"
+        description="Drawings keyed by layer name; each drawing contains primitive-specific fields"
     )
 
     model_config = {
