@@ -446,5 +446,108 @@ function dcsbot.setRadioSilentMode(name, value)
     airbase:setRadioSilentMode(value)
 end
 
+function dcsbot.getMissionUnit(name, channel)
+    env.info("dcsbot.getMissionUnit(" .. tostring(name) .. ")")
+
+    local msg = {
+        command = "getMissionUnit"
+    }
+
+    local unit = Unit.getByName(name)
+    if not unit or not unit:isExist() then
+        msg.error = "Unit '" .. tostring(name) .. "' not found."
+        dcsbot.sendBotTable(msg, channel)
+        return
+    end
+
+    local group = unit:getGroup()
+    local group_name = group and group:getName() or "Unknown"
+    local point = unit:getPoint()
+    local lat, lon = Terrain.convertMetersToLatLon(point.x, point.z)
+
+    local vel = unit:getVelocity()
+    local speed = 0
+    if vel then
+        speed = math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z)
+    end
+
+    local loadout = {}
+    local ammo = unit:getAmmo()
+    if ammo then
+        for _, weapon in ipairs(ammo) do
+            if weapon.desc and weapon.desc.typeName then
+                loadout[weapon.desc.typeName] = {
+                    displayName = weapon.desc.displayName or "Unknown",
+                    count = weapon.count or 0
+                }
+            end
+        end
+    end
+
+    local waypoints = nil
+    local tacan = { active = false }
+    local icls = { active = false }
+
+    if group and env.mission and env.mission.coalition then
+        for _, coa_data in pairs(env.mission.coalition) do
+            if type(coa_data) == 'table' and coa_data.country then
+                for _, country in pairs(coa_data.country) do
+                    for _, category in ipairs({ 'plane', 'helicopter', 'vehicle', 'ship' }) do
+                        if country[category] and country[category].group then
+                            for _, gp in pairs(country[category].group) do
+                                if gp.name == group_name and gp.route and gp.route.points and #gp.route.points > 0 then
+                                    waypoints = {}
+                                    for _, pt in ipairs(gp.route.points) do
+                                        local wp_lat, wp_lng = Terrain.convertMetersToLatLon(pt.x, pt.y)
+                                        table.insert(waypoints, {
+                                            lat = wp_lat,
+                                            lng = wp_lng,
+                                            alt = pt.alt,
+                                            speed = pt.speed
+                                        })
+
+                                        if pt.task and pt.task.params and pt.task.params.tasks then
+                                            for _, tsk in pairs(pt.task.params.tasks) do
+                                                if type(tsk) == 'table' and tsk.params and tsk.params.action then
+                                                    local action = tsk.params.action
+                                                    if action.id == 'ActivateBeacon' and action.params then
+                                                        tacan.active = true
+                                                        tacan.channel = action.params.channel
+                                                        tacan.modeChannel = action.params.modeChannel
+                                                    elseif action.id == 'ActivateICLS' and action.params then
+                                                        icls.active = true
+                                                        icls.channel = action.params.channel
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    msg.type = unit:getTypeName()
+    msg.group_name = group_name
+    msg.unit_name = unit:getName()
+    msg.current_location = {
+        lat = lat,
+        lon = lon,
+        alt = point.y
+    }
+    msg.speed = speed
+    msg.fuel_percentage = unit:getFuel()
+    msg.loadout = loadout
+    msg.tacan = tacan
+    msg.icls = icls
+    msg.waypoints = waypoints
+
+    dcsbot.sendBotTable(msg, channel)
+end
+
 -- Disable error popups in missions
 env.setErrorMessageBoxEnabled(false)

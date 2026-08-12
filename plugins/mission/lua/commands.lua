@@ -643,6 +643,104 @@ function dcsbot.getGroupWaypoints(json)
     utils.sendBotTable(msg, json.channel)
 end
 
+function dcsbot.getMissionBullseyes(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionBullseyes()')
+    local msg = {
+        command = 'getMissionBullseyes',
+        bullseyes = {}
+    }
+
+    local mission = Sim.getCurrentMission()
+    if not mission or not mission.mission or not mission.mission.coalition then
+        msg.error = 'No mission coalition data is currently available.'
+        utils.sendBotTable(msg, json.channel)
+        return
+    end
+
+    for _, coalition_name in ipairs({ 'blue', 'red' }) do
+        local coa_data = mission.mission.coalition[coalition_name]
+        if coa_data and coa_data.bullseye and coa_data.bullseye.x and coa_data.bullseye.y then
+            local lat, lng = Terrain.convertMetersToLatLon(coa_data.bullseye.x, coa_data.bullseye.y)
+            table.insert(msg.bullseyes, {
+                coalition = coalition_name,
+                lat = lat,
+                lng = lng
+            })
+        end
+    end
+
+    if #msg.bullseyes == 0 then
+        msg.error = 'No coalition bullseyes found in the loaded mission.'
+    end
+
+    utils.sendBotTable(msg, json.channel)
+end
+
+function dcsbot.getMissionDrawings(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionDrawings()')
+    local msg = {
+        command = 'getMissionDrawings',
+        drawings = {}
+    }
+
+    local mission = Sim.getCurrentMission()
+    if not mission or not mission.mission or not mission.mission.drawings or not mission.mission.drawings.layers then
+        msg.error = 'No mission drawings found in the loaded mission.'
+        utils.sendBotTable(msg, json.channel)
+        return
+    end
+
+    for _, layer in pairs(mission.mission.drawings.layers) do
+        local layer_name = layer.name or 'Unknown'
+        local layer_drawings = {}
+
+        if layer.objects then
+            for _, obj in pairs(layer.objects) do
+                local drawing = {
+                    name = obj.name or 'Unnamed',
+                    primitiveType = obj.primitiveType or 'Unknown',
+                    text = obj.text
+                }
+
+                local origin_x = obj.x or 0
+                local origin_y = obj.y or 0
+                local lat, lng = Terrain.convertMetersToLatLon(origin_x, origin_y)
+                drawing.location = {
+                    lat = lat,
+                    lng = lng
+                }
+
+                local pts = obj.points or obj.polygon
+                if pts then
+                    drawing.points = {}
+                    for _, pt in ipairs(pts) do
+                        local pt_x = origin_x + (pt.x or 0)
+                        local pt_y = origin_y + (pt.y or 0)
+                        local pt_lat, pt_lng = Terrain.convertMetersToLatLon(pt_x, pt_y)
+                        table.insert(drawing.points, {
+                            lat = pt_lat,
+                            lng = pt_lng
+                        })
+                    end
+                end
+
+                table.insert(layer_drawings, drawing)
+            end
+        end
+
+        if #layer_drawings > 0 then
+            msg.drawings[layer_name] = layer_drawings
+        end
+    end
+
+    utils.sendBotTable(msg, json.channel)
+end
+
+function dcsbot.getMissionUnit(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionUnit()')
+    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getMissionUnit("' .. json.name .. '", "' .. json.channel .. '")') .. ')')
+end
+
 function dcsbot.sendChatMessage(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: sendChatMessage()')
 	local message = json.message

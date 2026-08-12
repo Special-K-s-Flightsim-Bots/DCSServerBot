@@ -1113,3 +1113,143 @@ class GroupWaypointsResponse(BaseModel):
             }
         }
     }
+
+
+class MissionBullseye(BaseModel):
+    coalition: str = Field(..., description="Coalition name ('blue' or 'red')")
+    lat: float = Field(..., description="Bullseye latitude in decimal degrees")
+    lng: float = Field(..., description="Bullseye longitude in decimal degrees")
+
+
+class MissionBullseyesResponse(BaseModel):
+    bullseyes: list[MissionBullseye] = Field(..., description="List of coalition bullseye coordinates")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "bullseyes": [
+                    {"coalition": "blue", "lat": 36.12345, "lng": 36.54321},
+                    {"coalition": "red", "lat": 35.98765, "lng": 35.45678}
+                ]
+            }
+        }
+    }
+
+
+class MissionDrawingPoint(BaseModel):
+    lat: float = Field(..., description="Latitude in decimal degrees")
+    lng: float = Field(..., description="Longitude in decimal degrees")
+
+
+class MissionDrawing(BaseModel):
+    name: str = Field(..., description="Drawing name")
+    primitiveType: str = Field(..., description="Drawing primitive type")
+    text: str | None = Field(None, description="Optional drawing text")
+    location: MissionDrawingPoint = Field(..., description="Drawing anchor location")
+    points: list[MissionDrawingPoint] | None = Field(None, description="Optional list of drawing points")
+
+
+class MissionDrawingsResponse(BaseModel):
+    drawings: dict[str, list[MissionDrawing]] = Field(
+        ...,
+        description="Drawings keyed by layer name"
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "drawings": {
+                    "Layer 1": [
+                        {
+                            "name": "AO Boundary",
+                            "primitiveType": "Line",
+                            "text": None,
+                            "location": {"lat": 36.12345, "lng": 36.54321},
+                            "points": [
+                                {"lat": 36.10000, "lng": 36.50000},
+                                {"lat": 36.20000, "lng": 36.60000}
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+    }
+
+
+class MissionUnitLocation(BaseModel):
+    lat: float = Field(..., description="Current latitude in decimal degrees")
+    lon: float = Field(..., description="Current longitude in decimal degrees")
+    alt: float = Field(..., description="Current altitude in meters")
+
+
+class MissionUnitLoadoutItem(BaseModel):
+    displayName: str = Field(..., description="Display name of the weapon or store")
+    count: int = Field(..., description="Remaining count")
+
+
+class MissionUnitNavAid(BaseModel):
+    active: bool = Field(..., description="Whether this navaid is active")
+    channel: int | None = Field(None, description="Configured channel if available")
+    modeChannel: str | int | None = Field(None, description="TACAN mode channel, if available")
+
+
+class MissionUnitWaypoint(BaseModel):
+    lat: float = Field(..., description="Waypoint latitude in decimal degrees")
+    lng: float = Field(..., description="Waypoint longitude in decimal degrees")
+    alt: float | None = Field(None, description="Waypoint altitude in meters")
+    speed: float | None = Field(None, description="Waypoint speed in m/s")
+
+
+class MissionUnitResponse(BaseModel):
+    type: str = Field(..., description="DCS unit type name")
+    group_name: str = Field(..., description="DCS group name")
+    unit_name: str = Field(..., description="DCS unit name")
+    current_location: MissionUnitLocation = Field(..., description="Current unit location")
+    speed: float = Field(..., description="Current unit speed in m/s")
+    fuel_percentage: float | None = Field(None, description="Current fuel fraction, where 1.0 is 100%")
+    loadout: dict[str, MissionUnitLoadoutItem] = Field(..., description="Loadout keyed by weapon type name")
+    tacan: MissionUnitNavAid = Field(..., description="TACAN status and channel data")
+    icls: MissionUnitNavAid = Field(..., description="ICLS status and channel data")
+    waypoints: list[MissionUnitWaypoint] | None = Field(None, description="Mission waypoints, if available")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "type": "FA-18C_hornet",
+                "group_name": "Andersen AFB Group",
+                "unit_name": "Andersen AFB_F/A-18C Lot 20_0-1",
+                "current_location": {
+                    "lat": 13.58402,
+                    "lon": 144.93082,
+                    "alt": 58.6
+                },
+                "speed": 0.0,
+                "fuel_percentage": 0.85,
+                "loadout": {
+                    "AIM-120C": {
+                        "displayName": "AIM-120C AMRAAM",
+                        "count": 2
+                    }
+                },
+                "tacan": {
+                    "active": True,
+                    "channel": 67,
+                    "modeChannel": "X"
+                },
+                "icls": {
+                    "active": False,
+                    "channel": None,
+                    "modeChannel": None
+                },
+                "waypoints": [
+                    {
+                        "lat": 13.60000,
+                        "lng": 145.00000,
+                        "alt": 3000,
+                        "speed": 180
+                    }
+                ]
+            }
+        }
+    }
