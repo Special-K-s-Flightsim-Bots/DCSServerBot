@@ -449,6 +449,14 @@ end
 function dcsbot.getMissionUnit(name, channel)
     env.info("dcsbot.getMissionUnit(" .. tostring(name) .. ")")
 
+    local function safe_call(fn)
+        local ok, value = pcall(fn)
+        if ok then
+            return value
+        end
+        return nil
+    end
+
     local msg = {
         command = "getMissionUnit"
     }
@@ -541,6 +549,12 @@ function dcsbot.getMissionUnit(name, channel)
     }
     msg.speed = speed
     msg.fuel_percentage = unit:getFuel()
+    msg.life = safe_call(function() return unit:getLife() end)
+    msg.in_air = safe_call(function() return unit:inAir() end)
+    msg.player_name = safe_call(function() return unit:getPlayerName() end)
+    if msg.player_name == nil then
+        msg.player_name = safe_call(function() return Unit.getPlayerName(unit) end)
+    end
     msg.loadout = loadout
     msg.tacan = tacan
     msg.icls = icls

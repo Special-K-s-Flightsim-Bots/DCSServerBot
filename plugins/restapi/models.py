@@ -1271,6 +1271,9 @@ class MissionUnitResponse(BaseModel):
     current_location: MissionUnitLocation = Field(..., description="Current unit location")
     speed: float = Field(..., description="Current unit speed in m/s")
     fuel_percentage: float | None = Field(None, description="Current fuel fraction, where 1.0 is 100%")
+    life: float | int | None = Field(None, description="Current unit life value")
+    in_air: bool | None = Field(None, description="Whether the unit is currently in the air")
+    player_name: str | None = Field(None, description="Player name occupying this unit, if any")
     loadout: dict[str, MissionUnitLoadoutItem] = Field(..., description="Loadout keyed by weapon type name")
     tacan: MissionUnitNavAid = Field(..., description="TACAN status and channel data")
     icls: MissionUnitNavAid = Field(..., description="ICLS status and channel data")
@@ -1289,6 +1292,9 @@ class MissionUnitResponse(BaseModel):
                 },
                 "speed": 0.0,
                 "fuel_percentage": 0.85,
+                "life": 100.0,
+                "in_air": False,
+                "player_name": "PilotNick",
                 "loadout": {
                     "AIM-120C": {
                         "displayName": "AIM-120C AMRAAM",
