@@ -11,3 +11,18 @@ giving it access to the [REST-API](/plugins/restapi/README.md).
 ## Configuration
 The DKS extension does not need any configuration, but you need to enable the Tacview extension for it to work.
 Please refer to the [Tacview](../tacview/README.md) configuration on how to do so and how to enable real-time telemetry.
+
+After that, you can enable it by enabling the extenion with `/extension enable` or manually adding it to your nodes.yaml
+like so:
+```yaml
+# config/nodes.yaml
+MyNode:
+  # ...
+  instances:
+    DCS.dcs_serverrelease:
+      extensions:
+        Tacview:
+          # ... Tacview needs to be configured before DKS
+        DKS:
+          enabled: true
+```
