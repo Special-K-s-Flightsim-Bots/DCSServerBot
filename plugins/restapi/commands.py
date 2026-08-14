@@ -59,6 +59,9 @@ from .models import (
     ServerRestartResponse,
     MissionUploadResponse,
     GroupWaypointsResponse,
+    MissionBullseyesResponse,
+    MissionDrawingsResponse,
+    MissionUnitResponse,
     EventEntry
 )
 from ..srs.commands import SRS
@@ -400,6 +403,30 @@ class RestAPI(Plugin):
             response_model=GroupWaypointsResponse,
             description="Get the lat/lon waypoints for a named group in the current mission.",
             summary="Group Waypoints",
+            tags=["Utilities"]
+        )
+        self.router.add_api_route(
+            "/mission/bullseyes", self.mission_bullseyes,
+            methods=["GET"],
+            response_model=MissionBullseyesResponse,
+            description="Get the bullseye coordinates for blue and red coalitions in the current mission.",
+            summary="Mission Bullseyes",
+            tags=["Utilities"]
+        )
+        self.router.add_api_route(
+            "/mission/drawings", self.mission_drawings,
+            methods=["GET"],
+            response_model=dict[str, Any],
+            description="Get mission drawing objects grouped by drawing layer.",
+            summary="Mission Drawings",
+            tags=["Utilities"]
+        )
+        self.router.add_api_route(
+            "/mission/unit", self.mission_unit,
+            methods=["GET"],
+            response_model=MissionUnitResponse,
+            description="Get mission unit data including current position, loadout, navaids, and waypoints.",
+            summary="Mission Unit",
             tags=["Utilities"]
         )
 
@@ -950,6 +977,130 @@ class RestAPI(Plugin):
             group_type=group_type,
             waypoints=sorted_waypoints
         )
+
+    # Get bullseye coordinates for blue and red coalitions in the current mission.
+    # Endpoint:   /mission/bullseyes
+    # Method:     [GET]
+    # Params:     - server_name   [required]
+    async def mission_bullseyes(
+        self,
+        server_name: str = Query(..., description="Name of the server")
+    ) -> MissionBullseyesResponse:
+        """Return mission bullseye coordinates for blue and red coalitions."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not running or paused.")
+
+        try:
+            result = await server.send_to_dcs_sync(
+                {"command": "getMissionBullseyes"},
+                timeout=60
+            )
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout waiting for DCS response.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve mission bullseyes: {str(ex)}")
+
+        if result.get("error"):
+            raise HTTPException(status_code=404, detail=result["error"])
+
+        return MissionBullseyesResponse(
+            bullseyes=result.get("bullseyes", [])
+        )
+
+    # Get mission drawing objects grouped by layer.
+    # Endpoint:   /mission/drawings
+    # Method:     [GET]
+    # Params:     - server_name   [required]
+    async def mission_drawings(
+        self,
+        server_name: str = Query(..., description="Name of the server")
+    ) -> dict[str, Any]:
+        """Return mission drawings grouped by layer name."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not running or paused.")
+
+        try:
+            result = await server.send_to_dcs_sync(
+                {"command": "getMissionDrawings"},
+                timeout=60
+            )
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout waiting for DCS response.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve mission drawings: {str(ex)}")
+
+        if result.get("error"):
+            raise HTTPException(status_code=404, detail=result["error"])
+
+        raw_drawings = result.get("drawings", {})
+        normalized_drawings: dict[str, list[dict[str, Any]]] = {}
+
+        def _is_lua_null_placeholder(value: Any) -> bool:
+            return isinstance(value, dict) and len(value) == 0
+
+        def _convert_lua_nulls(value: Any) -> Any:
+            if _is_lua_null_placeholder(value):
+                return None
+            if isinstance(value, list):
+                return [_convert_lua_nulls(item) for item in value]
+            if isinstance(value, dict):
+                return {k: _convert_lua_nulls(v) for k, v in value.items()}
+            return value
+
+        if isinstance(raw_drawings, dict):
+            for layer_name, layer_data in raw_drawings.items():
+                if isinstance(layer_data, list):
+                    normalized_drawings[layer_name] = cast(list[dict[str, Any]], _convert_lua_nulls(layer_data))
+                elif _is_lua_null_placeholder(layer_data):
+                    normalized_drawings[layer_name] = []
+
+        return {
+            "drawings": normalized_drawings
+        }
+
+    # Get current and mission-related data for a named unit.
+    # Endpoint:   /mission/unit
+    # Method:     [GET]
+    # Params:     - server_name   [required]
+    #             - unit_name     [required]
+    async def mission_unit(
+        self,
+        server_name: str = Query(..., description="Name of the server"),
+        unit_name: str = Query(..., description="Name of the unit to retrieve")
+    ) -> MissionUnitResponse:
+        """Return current mission unit information for a named unit."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not running or paused.")
+
+        try:
+            result = await server.send_to_dcs_sync(
+                {"command": "getMissionUnit", "name": unit_name},
+                timeout=60
+            )
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout waiting for DCS response.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve mission unit data: {str(ex)}")
+
+        if result.get("error"):
+            raise HTTPException(status_code=404, detail=result["error"])
+
+        return MissionUnitResponse.model_validate(result)
 
     async def airbases(self, server_name: str = Query(...)):
         """Return all airbases for a given server."""

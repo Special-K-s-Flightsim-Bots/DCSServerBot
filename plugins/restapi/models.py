@@ -1,8 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class UserEntry(BaseModel):
@@ -1110,6 +1110,215 @@ class GroupWaypointsResponse(BaseModel):
                     "wp1": {"lat": 36.00001, "lon": 36.00001},
                     "wp2": {"lat": 36.50000, "lon": 36.50000}
                 }
+            }
+        }
+    }
+
+
+class MissionBullseye(BaseModel):
+    coalition: str = Field(..., description="Coalition name ('blue' or 'red')")
+    lat: float = Field(..., description="Bullseye latitude in decimal degrees")
+    lng: float = Field(..., description="Bullseye longitude in decimal degrees")
+
+
+class MissionBullseyesResponse(BaseModel):
+    bullseyes: list[MissionBullseye] = Field(..., description="List of coalition bullseye coordinates")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "bullseyes": [
+                    {"coalition": "blue", "lat": 36.12345, "lng": 36.54321},
+                    {"coalition": "red", "lat": 35.98765, "lng": 35.45678}
+                ]
+            }
+        }
+    }
+
+
+class MissionDrawingPoint(BaseModel):
+    lat: float = Field(..., description="Latitude in decimal degrees")
+    lng: float = Field(..., description="Longitude in decimal degrees")
+
+
+class MissionDrawing(BaseModel):
+    name: str = Field(..., description="Drawing name")
+    primitiveType: str = Field(..., description="Drawing primitive type")
+    text: str | None = Field(None, description="Optional drawing text")
+    layerName: str | None = Field(None, description="Drawing layer name")
+    visible: bool | None = Field(None, description="Whether drawing is visible")
+    mapX: float | None = Field(None, description="Drawing origin X in mission meters")
+    mapY: float | None = Field(None, description="Drawing origin Y in mission meters")
+    colorString: str | None = Field(None, description="Stroke color as ARGB hex string")
+    fillColorString: str | None = Field(None, description="Fill color as ARGB hex string")
+    style: str | None = Field(None, description="Line or fill style")
+    thickness: float | int | None = Field(None, description="Line thickness")
+    location: MissionDrawingPoint | None = Field(None, description="Drawing anchor location")
+    points: list[MissionDrawingPoint] | None = Field(None, description="Optional list of drawing points")
+    # Line-specific
+    lineMode: str | None = Field(None, description="Line mode (segment, segments, free)")
+    closed: bool | None = Field(None, description="Whether line is closed")
+    # Polygon-specific
+    polygonMode: str | None = Field(None, description="Polygon mode (free, circle, oval, rect, arrow)")
+    radius: float | None = Field(None, description="Radius for circle/disc polygons")
+    r1: float | None = Field(None, description="First oval radius")
+    r2: float | None = Field(None, description="Second oval radius")
+    width: float | None = Field(None, description="Width for rectangle polygons")
+    height: float | None = Field(None, description="Height for rectangle polygons")
+    length: float | None = Field(None, description="Length for arrow polygons")
+    angle: float | None = Field(None, description="Drawing rotation angle")
+    # TextBox-specific
+    font: str | None = Field(None, description="TextBox font file")
+    fontSize: float | int | None = Field(None, description="TextBox font size")
+    borderThickness: float | int | None = Field(None, description="TextBox border thickness")
+    # Icon-specific
+    file: str | None = Field(None, description="Icon file name")
+    scale: float | None = Field(None, description="Icon scale factor")
+
+    @field_validator(
+        "text",
+        "layerName",
+        "visible",
+        "mapX",
+        "mapY",
+        "colorString",
+        "fillColorString",
+        "style",
+        "thickness",
+        "location",
+        "points",
+        "lineMode",
+        "closed",
+        "polygonMode",
+        "radius",
+        "r1",
+        "r2",
+        "width",
+        "height",
+        "length",
+        "angle",
+        "font",
+        "fontSize",
+        "borderThickness",
+        "file",
+        "scale",
+        mode="before"
+    )
+    @classmethod
+    def convert_lua_null_placeholder(cls, value):
+        # Lua side uses an empty table as a null placeholder so keys survive net.lua2json.
+        if isinstance(value, dict) and len(value) == 0:
+            return None
+        return value
+
+
+class MissionDrawingsResponse(BaseModel):
+    drawings: dict[str, list[dict[str, Any]]] = Field(
+        ...,
+        description="Drawings keyed by layer name; each drawing contains primitive-specific fields"
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "drawings": {
+                    "Layer 1": [
+                        {
+                            "name": "AO Boundary",
+                            "primitiveType": "Line",
+                            "text": None,
+                            "location": {"lat": 36.12345, "lng": 36.54321},
+                            "points": [
+                                {"lat": 36.10000, "lng": 36.50000},
+                                {"lat": 36.20000, "lng": 36.60000}
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+    }
+
+
+class MissionUnitLocation(BaseModel):
+    lat: float = Field(..., description="Current latitude in decimal degrees")
+    lon: float = Field(..., description="Current longitude in decimal degrees")
+    alt: float = Field(..., description="Current altitude in meters")
+
+
+class MissionUnitLoadoutItem(BaseModel):
+    displayName: str = Field(..., description="Display name of the weapon or store")
+    count: int = Field(..., description="Remaining count")
+
+
+class MissionUnitNavAid(BaseModel):
+    active: bool = Field(..., description="Whether this navaid is active")
+    channel: int | None = Field(None, description="Configured channel if available")
+    modeChannel: str | int | None = Field(None, description="TACAN mode channel, if available")
+
+
+class MissionUnitWaypoint(BaseModel):
+    lat: float = Field(..., description="Waypoint latitude in decimal degrees")
+    lng: float = Field(..., description="Waypoint longitude in decimal degrees")
+    alt: float | None = Field(None, description="Waypoint altitude in meters")
+    speed: float | None = Field(None, description="Waypoint speed in m/s")
+
+
+class MissionUnitResponse(BaseModel):
+    type: str = Field(..., description="DCS unit type name")
+    group_name: str = Field(..., description="DCS group name")
+    unit_name: str = Field(..., description="DCS unit name")
+    current_location: MissionUnitLocation = Field(..., description="Current unit location")
+    speed: float = Field(..., description="Current unit speed in m/s")
+    fuel_percentage: float | None = Field(None, description="Current fuel fraction, where 1.0 is 100%")
+    life: float | int | None = Field(None, description="Current unit life value")
+    in_air: bool | None = Field(None, description="Whether the unit is currently in the air")
+    player_name: str | None = Field(None, description="Player name occupying this unit, if any")
+    loadout: dict[str, MissionUnitLoadoutItem] = Field(..., description="Loadout keyed by weapon type name")
+    tacan: MissionUnitNavAid = Field(..., description="TACAN status and channel data")
+    icls: MissionUnitNavAid = Field(..., description="ICLS status and channel data")
+    waypoints: list[MissionUnitWaypoint] | None = Field(None, description="Mission waypoints, if available")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "type": "FA-18C_hornet",
+                "group_name": "Andersen AFB Group",
+                "unit_name": "Andersen AFB_F/A-18C Lot 20_0-1",
+                "current_location": {
+                    "lat": 13.58402,
+                    "lon": 144.93082,
+                    "alt": 58.6
+                },
+                "speed": 0.0,
+                "fuel_percentage": 0.85,
+                "life": 100.0,
+                "in_air": False,
+                "player_name": "PilotNick",
+                "loadout": {
+                    "AIM-120C": {
+                        "displayName": "AIM-120C AMRAAM",
+                        "count": 2
+                    }
+                },
+                "tacan": {
+                    "active": True,
+                    "channel": 67,
+                    "modeChannel": "X"
+                },
+                "icls": {
+                    "active": False,
+                    "channel": None,
+                    "modeChannel": None
+                },
+                "waypoints": [
+                    {
+                        "lat": 13.60000,
+                        "lng": 145.00000,
+                        "alt": 3000,
+                        "speed": 180
+                    }
+                ]
             }
         }
     }

@@ -643,6 +643,164 @@ function dcsbot.getGroupWaypoints(json)
     utils.sendBotTable(msg, json.channel)
 end
 
+function dcsbot.getMissionBullseyes(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionBullseyes()')
+    local msg = {
+        command = 'getMissionBullseyes',
+        bullseyes = {}
+    }
+
+    local mission = Sim.getCurrentMission()
+    if not mission or not mission.mission or not mission.mission.coalition then
+        msg.error = 'No mission coalition data is currently available.'
+        utils.sendBotTable(msg, json.channel)
+        return
+    end
+
+    for _, coalition_name in ipairs({ 'blue', 'red' }) do
+        local coa_data = mission.mission.coalition[coalition_name]
+        if coa_data and coa_data.bullseye and coa_data.bullseye.x and coa_data.bullseye.y then
+            local lat, lng = Terrain.convertMetersToLatLon(coa_data.bullseye.x, coa_data.bullseye.y)
+            table.insert(msg.bullseyes, {
+                coalition = coalition_name,
+                lat = lat,
+                lng = lng
+            })
+        end
+    end
+
+    if #msg.bullseyes == 0 then
+        msg.error = 'No coalition bullseyes found in the loaded mission.'
+    end
+
+    utils.sendBotTable(msg, json.channel)
+end
+
+function dcsbot.getMissionDrawings(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionDrawings()')
+    local JSON_NULL = {}
+    local function or_null(value)
+        if value == nil then
+            return JSON_NULL
+        end
+        return value
+    end
+
+    local msg = {
+        command = 'getMissionDrawings',
+        drawings = {}
+    }
+
+    local mission = Sim.getCurrentMission()
+    if not mission or not mission.mission or not mission.mission.drawings or not mission.mission.drawings.layers then
+        msg.error = 'No mission drawings found in the loaded mission.'
+        utils.sendBotTable(msg, json.channel)
+        return
+    end
+
+    for _, layer in pairs(mission.mission.drawings.layers) do
+        local layer_name = layer.name or 'Unknown'
+        local layer_drawings = {}
+
+        if layer.objects then
+            for _, obj in pairs(layer.objects) do
+                local drawing = {
+                    name = obj.name or 'Unnamed',
+                    primitiveType = obj.primitiveType or 'Unknown',
+                    layerName = layer_name,
+                    visible = or_null(obj.visible),
+                    mapX = or_null(obj.mapX),
+                    mapY = or_null(obj.mapY),
+                    colorString = or_null(obj.colorString),
+                    fillColorString = or_null(obj.fillColorString),
+                    style = or_null(obj.style),
+                    thickness = or_null(obj.thickness),
+                    text = or_null(obj.text),
+                    location = JSON_NULL,
+                    points = JSON_NULL,
+                    lineMode = JSON_NULL,
+                    closed = JSON_NULL,
+                    polygonMode = JSON_NULL,
+                    radius = JSON_NULL,
+                    r1 = JSON_NULL,
+                    r2 = JSON_NULL,
+                    width = JSON_NULL,
+                    height = JSON_NULL,
+                    length = JSON_NULL,
+                    angle = JSON_NULL,
+                    font = JSON_NULL,
+                    fontSize = JSON_NULL,
+                    borderThickness = JSON_NULL,
+                    file = JSON_NULL,
+                    scale = JSON_NULL
+                }
+
+                local origin_x = obj.mapX
+                local origin_y = obj.mapY
+                if origin_x ~= nil and origin_y ~= nil then
+                    local lat, lng = Terrain.convertMetersToLatLon(origin_x, origin_y)
+                    drawing.location = {
+                        lat = lat,
+                        lng = lng
+                    }
+                end
+
+                if drawing.primitiveType == 'Line' then
+                    drawing.lineMode = or_null(obj.lineMode)
+                    drawing.closed = or_null(obj.closed)
+                elseif drawing.primitiveType == 'Polygon' then
+                    drawing.polygonMode = or_null(obj.polygonMode)
+                    drawing.radius = or_null(obj.radius)
+                    drawing.r1 = or_null(obj.r1)
+                    drawing.r2 = or_null(obj.r2)
+                    drawing.width = or_null(obj.width)
+                    drawing.height = or_null(obj.height)
+                    drawing.length = or_null(obj.length)
+                    drawing.angle = or_null(obj.angle)
+                elseif drawing.primitiveType == 'TextBox' then
+                    drawing.angle = or_null(obj.angle)
+                    drawing.font = or_null(obj.font)
+                    drawing.fontSize = or_null(obj.fontSize)
+                    drawing.borderThickness = or_null(obj.borderThickness)
+                elseif drawing.primitiveType == 'Icon' then
+                    drawing.angle = or_null(obj.angle)
+                    drawing.scale = or_null(obj.scale)
+                    drawing.file = or_null(obj.file)
+                else
+                    drawing.angle = or_null(obj.angle)
+                end
+
+                local pts = obj.points or obj.polygon
+                if pts and origin_x ~= nil and origin_y ~= nil then
+                    drawing.points = {}
+                    for _, pt in ipairs(pts) do
+                        local pt_x = origin_x + (pt.x or 0)
+                        local pt_y = origin_y + (pt.y or 0)
+                        local pt_lat, pt_lng = Terrain.convertMetersToLatLon(pt_x, pt_y)
+                        table.insert(drawing.points, {
+                            lat = pt_lat,
+                            lng = pt_lng
+                        })
+                    end
+                end
+
+                table.insert(layer_drawings, drawing)
+            end
+        end
+
+        if #layer_drawings > 0 then
+            msg.drawings[layer_name] = layer_drawings
+        end
+    end
+
+    utils.sendBotTable(msg, json.channel)
+end
+
+function dcsbot.getMissionUnit(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionUnit()')
+    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getMissionUnit("' .. json.name .. '", "' .. json.channel .. '")') .. ')')
+end
+
 function dcsbot.sendChatMessage(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: sendChatMessage()')
 	local message = json.message
