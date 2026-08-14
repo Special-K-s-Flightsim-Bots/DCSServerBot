@@ -114,28 +114,29 @@ refer to the respective plugin-documentation for more.
 Many DCS admins use extensions or add-ons like DCS-SRS, Tacview, LotAtc, etc.</br>
 DCSServerBot supports a lot of them already, which can add some quality of life.
 
-| Extension   | Scope                                                           | Documentation                                |
-|:------------|:----------------------------------------------------------------|:---------------------------------------------|
-| Cloud       | Cloud registration and statistics uploads                       | [README](./plugins/cloud/README.md)          |
-| DSMC        | Support for DSMC                                                | [README](./extensions/dsmc/README.md)        |
-| GitHub      | Load & update missions or scripts from GitHub                   | [README](./extensions/github/README.md)      |
-| gRPC        | DCS-gRPC support                                                | [README](./extensions/grpc/README.md)        |
-| HoundTTS    | Hound Text-to-speech support                                    | [README](./extensions/houndtts/README.md)    |
-| Lardoon     | Webgui for Tacview files                                        | [README](./extensions/lardoon/README.md)     |
-| LogAnalyser | Checks your dcs.log instantly for errors.                       | [README](./extensions/loganalyser/README.md) |
-| LotAtc      | GCI- and ATC-extension for DCS World.                           | [README](./extensions/lotatc/README.md)      |
-| MizEdit     | Change _anything_ in your missions on load.                     | [README](./extensions/mizedit/README.md)     |
-| ModManager  | Display mods in your mission.                                   | [README](./extensions/modmanager/README.md)  |
-| Olympus     | Real-time control of your DCS missions through a web interface. | [README](./extensions/olympus/README.md)     |
-| Persistence | Simple Date/time persistence for missions.                      | [README](./extensions/persistence/README.md) |
-| Pretense    | Dynamic campaign framework by Dzsek.                            | [README](./extensions/pretense/README.md)    |
-| RealWeather | Have real weather in your missions.                             | [README](./extensions/realweather/README.md) |
-| SkyEye      | AI Powered GCI Bot for DCS                                      | [README](./extensions/skyeye/README.md)      |
-| Sneaker     | Moving map interface                                            | [README](./extensions/sneaker/README.md)     |
-| SRS         | DCS-SRS support                                                 | [README](./extensions/srs/README.md)         |
-| Tacview     | Autom. Tacview upload                                           | [README](./extensions/tacview/README.md)     |
-| Trackfile   | Autom. Trackfile upload                                         | [README](./extensions/trackfile/README.md)   |
-| VoiceChat   | DCS VOIP support                                                | [README](./extensions/voicechat/README.md)   |
+| Extension   | Scope                                                                                  | Documentation                                |
+|:------------|:---------------------------------------------------------------------------------------|:---------------------------------------------|
+| Cloud       | Cloud registration and statistics uploads                                              | [README](./plugins/cloud/README.md)          |
+| DSMC        | Support for DSMC                                                                       | [README](./extensions/dsmc/README.md)        |
+| DKS         | Support for [Digital Kneeboard Simulator](https://www.digitalkneeboardsimulator.com/)  | [README](./extensions/dks/README.md)         |
+| GitHub      | Load & update missions or scripts from GitHub                                          | [README](./extensions/github/README.md)      |
+| gRPC        | DCS-gRPC support                                                                       | [README](./extensions/grpc/README.md)        |
+| HoundTTS    | Hound Text-to-speech support                                                           | [README](./extensions/houndtts/README.md)    |
+| Lardoon     | Webgui for Tacview files                                                               | [README](./extensions/lardoon/README.md)     |
+| LogAnalyser | Checks your dcs.log instantly for errors.                                              | [README](./extensions/loganalyser/README.md) |
+| LotAtc      | GCI- and ATC-extension for DCS World.                                                  | [README](./extensions/lotatc/README.md)      |
+| MizEdit     | Change _anything_ in your missions on load.                                            | [README](./extensions/mizedit/README.md)     |
+| ModManager  | Display mods in your mission.                                                          | [README](./extensions/modmanager/README.md)  |
+| Olympus     | Real-time control of your DCS missions through a web interface.                        | [README](./extensions/olympus/README.md)     |
+| Persistence | Simple Date/time persistence for missions.                                             | [README](./extensions/persistence/README.md) |
+| Pretense    | Dynamic campaign framework by Dzsek.                                                   | [README](./extensions/pretense/README.md)    |
+| RealWeather | Have real weather in your missions.                                                    | [README](./extensions/realweather/README.md) |
+| SkyEye      | AI Powered GCI Bot for DCS                                                             | [README](./extensions/skyeye/README.md)      |
+| Sneaker     | Moving map interface                                                                   | [README](./extensions/sneaker/README.md)     |
+| SRS         | DCS-SRS support                                                                        | [README](./extensions/srs/README.md)         |
+| Tacview     | Autom. Tacview upload                                                                  | [README](./extensions/tacview/README.md)     |
+| Trackfile   | Autom. Trackfile upload                                                                | [README](./extensions/trackfile/README.md)   |
+| VoiceChat   | DCS VOIP support                                                                       | [README](./extensions/voicechat/README.md)   |
 
 > [!IMPORTANT]
 > Many of the solutions that these extensions rely on are created by talented community members. 
@@ -468,7 +469,7 @@ DEFAULT:
     message_seat_locked: 'Your player is currently locked.' # Player is currently locked (by /player lock)
   message_timeout: 10           # default timeout for DCS popup messages in seconds 
   profanity_filter: true        # Use the profanity filter for player names and the in-game chat (default: false).
-  no_join_with_cursename: true  # Block people with potential cursewords in their nicknames (default: true, only works with profanity_fileter: true)
+  no_join_with_cursename: true  # Block people with potential cursewords in their nicknames (default: true, only works with profanity_filter: true)
   display_ai_chat: false        # do not display AI chat messages in the chat channel (default: false)
   rules: |                      # Optional: Rules to be displayed for new users (needs MissionStats enabled!)
     These are the rules to play on this server:
