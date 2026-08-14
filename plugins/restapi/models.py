@@ -628,6 +628,26 @@ class TopModule(BaseModel):
     unique_players: int
     total_uses: int
 
+
+class ServerAttendancePlayerCards(BaseModel):
+    """Player counts used by the dashboard attendance cards."""
+    current_players: int = Field(..., description="Current number of active players")
+    unique_players_24h: int = Field(..., description="Unique players in last 24 hours")
+    unique_players_7d: int = Field(..., description="Unique players in last 7 days")
+    unique_players_30d: int = Field(..., description="Unique players in last 30 days")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "current_players": 0,
+                "unique_players_24h": 4,
+                "unique_players_7d": 28,
+                "unique_players_30d": 62
+            }
+        }
+    }
+
+
 class ServerAttendanceStats(BaseModel):
     """Server attendance statistics using monitoring plugin patterns"""
     current_players: int = Field(..., description="Current number of active players")
