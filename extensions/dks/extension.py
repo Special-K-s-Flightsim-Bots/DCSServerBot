@@ -24,7 +24,11 @@ class DKS(InstallableExtension):
 
     @property
     def version(self) -> str | None:
-        return utils.get_windows_version(self.tacview_dll)
+        version_file = os.path.join(self.server.instance.home, r'Mods\tech\Tacview\bin\dks.ver')
+        if os.path.exists(version_file):
+            with open(version_file, 'r') as f:
+                return f.readline()
+        return None
 
     @property
     def tacview_dll(self) -> str:
@@ -99,8 +103,8 @@ class DKS(InstallableExtension):
             os.remove(self.dks_dll)
             return latest
         elif parse(latest) > parse(self.version):
-            self.log.warning("There is a new version of the DKS wrapper available. Please update your Tacview first!")
-            return None
+            return latest
+        return None
 
     @override
     async def get_latest_version(self) -> str | None:
@@ -136,6 +140,10 @@ class DKS(InstallableExtension):
             ) as response:
                 async with aiofiles.open(lua, 'wb') as f:
                     await f.write(await response.read())
+            # write version file
+            version_file = os.path.join(self.server.instance.home, r'Mods\tech\Tacview\bin\dks.ver')
+            with open(version_file, 'w') as f:
+                f.writelines([version])
 
     @override
     async def render(self, param: dict | None = None) -> dict:

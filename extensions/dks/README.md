@@ -25,4 +25,5 @@ MyNode:
           # ... Tacview needs to be configured before DKS
         DKS:
           enabled: true
+          autoupdate: true  # enable autoupdate (default: false)
 ```
