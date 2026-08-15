@@ -186,8 +186,15 @@ class Tacview(InstallableExtension):
 
     @override
     @property
-    def version(self) -> str:
-        return utils.get_windows_version(os.path.join(self.server.instance.home, r'Mods\tech\Tacview\bin\tacview.dll'))
+    def version(self) -> str | None:
+        tv_dll = os.path.join(self.server.instance.home, r'Mods\tech\Tacview\bin\tacview.dll')
+        dks_dll = os.path.join(self.server.instance.home, r'Mods\tech\Tacview\bin\tacview_real.dll')
+        if os.path.exists(dks_dll):
+            return utils.get_windows_version(dks_dll)
+        elif os.path.exists(tv_dll):
+            return utils.get_windows_version(tv_dll)
+        else:
+            return None
 
     def get_inst_path(self) -> str:
         if not self._inst_path:
