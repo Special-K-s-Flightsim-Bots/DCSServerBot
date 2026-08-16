@@ -31,14 +31,14 @@ class AdminEventListener(EventListener["Admin"]):
         extension = data['extension']
         config = data.get('config', {})
         config['enabled'] = True
-        asyncio.create_task(self.enable(server, extension, config))
+        asyncio.create_task(self.enable(server, extension, {"Instance": config}))
 
     async def disable(self, server: Server, extension: str) -> bool:
         try:
             is_running = await server.run_on_extension(extension=extension, method='is_running')
             if not is_running:
                 return True
-            await server.config_extension(extension, {"enabled": False})
+            await server.config_extension(extension, {"Instance": {"enabled": False}})
             await server.run_on_extension(extension=extension, method='disable')
             return True
         except ValueError as ex:

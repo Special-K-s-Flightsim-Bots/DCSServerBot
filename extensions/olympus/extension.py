@@ -33,6 +33,16 @@ class Olympus(InstallableExtension):
     _client_ports: dict[int, str] = dict()
     _ws_ports: dict[int, str] = dict()
 
+    NODE_CONFIG_DICT = {
+        "nodejs": {
+            "type": str,
+            "label": _("NodeJS Installation Path"),
+            "placeholder": _("Path to NodeJS installation"),
+            "required": True,
+            "default": os.path.join('%ProgramFiles%', 'nodejs')
+        },
+    }
+
 #    CONFIG_DICT = {
 #        "backend_port": {
 #            "type": int,
@@ -152,6 +162,7 @@ class Olympus(InstallableExtension):
 
     @override
     async def render(self, param: dict | None = None) -> dict:
+        ret = await super().render(param)
         if 'url' in self.config:
             value = self.config['url']
         else:
@@ -165,9 +176,7 @@ class Olympus(InstallableExtension):
                     ('redCommander', '🔸 Commander')
                 ]
             ])
-        return {
-            "name": self.name,
-            "version": self.version,
+        return ret | {
             "value": value
         }
 
@@ -255,16 +264,13 @@ class Olympus(InstallableExtension):
 
     @override
     async def prepare(self) -> bool:
-        if not await super().prepare():
-            return False
-
         self.log.debug(f"Preparing {self.name} configuration ...")
         try:
             if not await self.prepare_olympus_json():
                 return False
             if self.version != '1.0.3':
                 await self.prepare_exports_lua()
-            return True
+            return await super().prepare()
         except Exception as ex:
             self.log.error(f"Error during preparation of {self.name}: {str(ex)}")
             return False
@@ -350,8 +356,9 @@ class Olympus(InstallableExtension):
 
     @override
     def shutdown(self, *, quiet: bool = False) -> bool:
-        super().shutdown()
-        return self.terminate()
+        if self.terminate():
+            return super().shutdown()
+        return False
 
     @override
     def get_ports(self) -> dict[str, Port]:

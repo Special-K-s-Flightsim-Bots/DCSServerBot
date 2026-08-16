@@ -147,14 +147,13 @@ class DKS(InstallableExtension):
 
     @override
     async def render(self, param: dict | None = None) -> dict:
+        ret = await super().render(param)
         if not self.enabled:
             value = "not enabled"
         else:
             value = f"[Link](https://www.digitalkneeboardsimulator.com/)"
             if self.tacview.locals.get('tacviewRealTimeTelemetryEnabled', True):
                 value += "\nTacview RT feed enabled"
-        return {
-            "name": self.name,
-            "version": self.version,
+        return ret | {
             "value": value
         }

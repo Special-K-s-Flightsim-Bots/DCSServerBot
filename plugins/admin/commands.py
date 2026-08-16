@@ -8,7 +8,7 @@ import shutil
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
     PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, ServiceRegistry, NodeTransformer, \
-    InstallException, InstallableExtension
+    InstallException, InstallableExtension, ConfigView, find_similar_names
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
@@ -17,7 +17,7 @@ from io import BytesIO
 from plugins.admin.listener import AdminEventListener
 from plugins.admin.views import CleanupView
 from plugins.modmanager.commands import get_installed_mods
-from plugins.scheduler.views import ConfigView
+from plugins.scheduler.views import ServerConfigView
 from services.bot import DCSServerBot
 from services.modmanager import ModManagerService
 from typing import Literal
@@ -1032,7 +1032,7 @@ class Admin(Plugin[AdminEventListener]):
         if instance:
             await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
             server: Server = instance.server
-            view = ConfigView(self.bot, server)
+            view = ServerConfigView(self.bot, server)
             embed = discord.Embed(title=_("Instance \"{}\" created.\n"
                                           "Do you want to configure a server for this instance?").format(name),
                                   color=discord.Color.blue())
@@ -1298,6 +1298,53 @@ Please make sure you forward the following ports:
 
     ext = Group(name="extension", description=_("Commands to manage your DCSServerBot extensions"))
 
+    async def _configure_extension(self, interaction: discord.Interaction, server: Server, extension: str) -> dict | None:
+        ephemeral = utils.get_ephemeral(interaction)
+        await server.init_extensions()
+        ext_cls = utils.str_to_class(f'extensions.{extension.lower()}.extension.{extension}')
+
+        modals = {}
+        # read the old extension values if there are any
+        ext = await server.config_extension(extension)
+        config = ext.copy()
+        if getattr(ext_cls, 'NODE_CONFIG_DICT', None):
+            # ask the user to configure the extension
+            modals['Node'] = utils.ConfigModal(
+                title=f'Configure {extension} Extension',
+                config=ext_cls.NODE_CONFIG_DICT,
+                old_values=ext.get('Node', {}),
+                ephemeral=ephemeral
+            )
+        if getattr(ext_cls, 'CONFIG_DICT', None):
+            # ask the user to configure the extension
+            modals['Instance'] = utils.ConfigModal(
+                title=f'Configure {extension} Extension',
+                config=ext_cls.CONFIG_DICT,
+                old_values=ext.get('Instance', {}),
+                ephemeral=ephemeral
+            )
+
+        if len(modals) == 1:
+            modal = list(modals.values())[0]
+            await interaction.response.send_modal(modal)
+            if await modal.wait():
+                return None
+            config = {"Instance": modal.value}
+        elif len(modals) == 2:
+            view = ConfigView(title=_("{} Configuration").format(extension), config=modals)
+            embed = view.render()
+            try:
+                await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
+                if await view.wait():
+                    return None
+                config = view.retval
+            finally:
+                await interaction.delete_original_response()
+        else:
+            await interaction.response.defer(ephemeral=ephemeral)
+
+        return config
+
     @ext.command(description=_('Enable Extension'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
@@ -1309,10 +1356,8 @@ Please make sure you forward the following ports:
             extension: str
     ) -> None:
         ephemeral = utils.get_ephemeral(interaction)
-        await server.init_extensions()
-
         try:
-            ext_cls = utils.str_to_class(f'extensions.{extension.lower()}.extension.{extension}')
+            config = await self._configure_extension(interaction, server, extension)
         except ModuleNotFoundError:
             await interaction.response.send_message(
                 f'Extension "{extension}" not found. Please check the spelling and try again.',
@@ -1320,24 +1365,9 @@ Please make sure you forward the following ports:
             )
             return
 
-        config = {}
-        if getattr(ext_cls, 'CONFIG_DICT', None):
-            # read the old extension values if there are any
-            ext = await server.config_extension(extension)
-            # ask the user to configure the extension
-            modal = utils.ConfigModal(
-                title=f'Configure {extension} Extension',
-                config=ext_cls.CONFIG_DICT,
-                old_values=ext,
-                ephemeral=ephemeral
-            )
-            await interaction.response.send_modal(modal)
-            if await modal.wait():
-                return
-
-            config = modal.value
-        else:
-            await interaction.response.defer(ephemeral=ephemeral)
+        if config is None:
+            await interaction.followup.send(_('Aborted.'), ephemeral=True)
+            return
 
         msg = await interaction.followup.send(_("Enabling extension {}...").format(extension), ephemeral=ephemeral)
         try:
@@ -1491,10 +1521,8 @@ Please make sure you forward the following ports:
             extension: str
     ) -> None:
         ephemeral = utils.get_ephemeral(interaction)
-        await server.init_extensions()
-
         try:
-            ext_cls = utils.str_to_class(f'extensions.{extension.lower()}.extension.{extension}')
+            config = await self._configure_extension(interaction, server, extension)
         except ModuleNotFoundError:
             await interaction.response.send_message(
                 f'Extension "{extension}" not found. Please check the spelling and try again.',
@@ -1502,25 +1530,14 @@ Please make sure you forward the following ports:
             )
             return
 
-        if getattr(ext_cls, 'CONFIG_DICT', None):
-            # read the old extension values if there are any
-            config = await server.config_extension(extension)
-            # ask the user to configure the extension
-            modal = utils.ConfigModal(
-                title=f'Configure {extension} Extension',
-                config=ext_cls.CONFIG_DICT,
-                old_values=config,
-                ephemeral=ephemeral
-            )
-            await interaction.response.send_modal(modal)
-            if await modal.wait():
-                return
-
-            await server.config_extension(extension, modal.value)
+        if config:
+            await server.config_extension(extension, config)
             await interaction.followup.send(_("Extension {} configured.").format(extension), ephemeral=ephemeral)
-        else:
-            await interaction.response.send_message(
+        elif config is not None:
+            await interaction.followup.send(
                 _("No configuration available for extension {}").format(extension), ephemeral=ephemeral)
+        else:
+            await interaction.followup.send(_("Aborted."), ephemeral=True)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):

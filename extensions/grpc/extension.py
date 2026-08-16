@@ -43,6 +43,11 @@ class gRPC(InstallableExtension):
     def version(self) -> str | None:
         return "0.8.1"
 
+    @override
+    @property
+    def hidden(self) -> bool:
+        return True
+
     def _lua_to_python(self, lua_item: Any) -> Any:
         from lupa import lua_type
         if lua_type(lua_item) == 'table':

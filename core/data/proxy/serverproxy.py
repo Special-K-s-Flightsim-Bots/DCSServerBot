@@ -489,7 +489,7 @@ class ServerProxy(Server):
 
     @override
     @cache_with_expiration(expiration=10)
-    async def getAllMissionFiles(self) -> list[str]:
+    async def getAllMissionFiles(self) -> list[tuple[str, str]]:
         timeout = 180 if not self.node.slow_system else 300
         return await self.bus.send_to_node_sync({
             "command": "rpc",

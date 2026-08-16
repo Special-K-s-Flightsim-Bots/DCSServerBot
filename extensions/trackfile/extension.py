@@ -20,6 +20,11 @@ class Trackfile(Extension):
     }
 
     @override
+    @property
+    def hidden(self) -> bool:
+        return True
+
+    @override
     async def startup(self, *, quiet: bool = False) -> bool:
         if self.config.get('enabled', True):
             cfg = Autoexec(cast(InstanceImpl, self.server.instance))

@@ -104,7 +104,7 @@ schema;preset_map:
       # seconds since midnight, 'HH:MM', or named moment ('noon', 'morning', 'dusk', etc.)
       # named moments support offsets: 'morning +02:00'
     temperature:
-      type: int
+      type: float
       nullable: false
     atmosphere_type:
       type: int

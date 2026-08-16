@@ -50,7 +50,7 @@ schema;instance_srs_schema:
   mapping:
     enabled: {type: bool, nullable: false}
     name: {type: str, nullable: false, range: {min: 1}}
-    config: {type: str, required: true, nullable: false}
+    config: {type: str, required: false, nullable: false}
     host: {type: str, nullable: false, range: {min: 1}}
     port: {type: int, nullable: false, func: unique_port}
     auto_affinity:

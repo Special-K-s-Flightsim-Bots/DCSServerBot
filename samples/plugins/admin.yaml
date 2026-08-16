@@ -8,7 +8,9 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
   # that's for your DCS logs. It should work for all your servers.
   - label: DCS Logs
     directory: '{server.instance.home}\logs'
-    pattern: 'dcs*.log'
+    pattern:
+      - 'dcs*.log'
+      - 'dcs*.zip'
   # That is for the DCSSB logs. Should work for all your servers.
   - label: DCSServerBot Logs
     directory: logs

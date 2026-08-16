@@ -601,6 +601,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
         elif data['eventName'] in ['S_EVENT_SHOT', 'S_EVENT_HIT']:
             initiator = server.get_player(name=data.get('initiator', {}).get('name'))
+            init_name = initiator.name if initiator else 'AI'
             target = server.get_player(name=data.get('target', {}).get('name'))
             # ignore teamkills
             if (
@@ -648,6 +649,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                                    f"where player {orig_name} was predicted.")
 
             # store the shot with the highest PBK or the latest hit event
+            self.log.debug(f"Punishment: Storing {data['eventName']}: {init_name} -> {target.name}.")
             self.pending_kill[target.ucid] = (now, data.copy())
 
         elif data['eventName'] == 'S_EVENT_LAND':

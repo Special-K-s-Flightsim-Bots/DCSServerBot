@@ -4,6 +4,7 @@ import pickle
 
 from core import Extension, MizFile
 from datetime import timedelta, datetime
+from typing_extensions import override
 
 
 class Persistence(Extension):
@@ -16,6 +17,11 @@ class Persistence(Extension):
             "required": False
         }
     }
+
+    @override
+    @property
+    def hidden(self) -> bool:
+        return True
 
     def get_pickle_file(self, filename: str | None = None) -> str | None:
         if not filename and not self.server.current_mission:

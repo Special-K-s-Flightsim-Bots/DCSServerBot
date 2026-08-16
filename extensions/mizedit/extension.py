@@ -33,6 +33,11 @@ class MizEdit(Extension):
         else:
             self.presets = {}
 
+    @override
+    @property
+    def hidden(self) -> bool:
+        return True
+
     def _init_presets(self) -> dict:
         presets_file = self.config.get('presets', os.path.join(self.node.config_dir, 'presets.yaml'))
         presets = {}
@@ -132,12 +137,12 @@ class MizEdit(Extension):
                     )
                 except ValueError:
                     # TODO: this is really dirty
-                    await server.config_extension("RealWeather", {"enabled": True})
+                    await server.config_extension("RealWeather", {"Instance": {"enabled": True}})
                     ext = cast(ServerImpl, server).load_extension('RealWeather')
                     filename = await cast(RealWeather, ext).apply_realweather(
                         filename, rw_preset['RealWeather'], use_orig=False
                     )
-                    await server.config_extension("RealWeather", {"enabled": False})
+                    await server.config_extension("RealWeather", {"Instance": {"enabled": True}})
 
                 # remove all RealWeather presets
                 count = 0

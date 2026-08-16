@@ -22,6 +22,7 @@ class VoiceChat(Extension):
 
     @override
     async def render(self, param: dict | None = None) -> dict:
+        await super().render(param)
         return {
             "name": self.name,
             "value": "enabled" if self.config.get('enabled', True) else "disabled"

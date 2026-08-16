@@ -39,6 +39,21 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
     _json_ports: dict[int, str] = {}
     _lock = asyncio.Lock()
 
+    NODES_CONFIG_DICT = {
+        "installation": {
+            "type": str,
+            "label": _("LotAtc Installation"),
+            "placeholder": _("Path to LotAtc installation"),
+            "required": True,
+            "default": os.path.join('%ProgramFiles%', 'LotAtc')
+        },
+        "autoupdate": {
+            "type": bool,
+            "label": _("Auto-update LotAtc"),
+            "default": True
+        }
+    }
+
     CONFIG_DICT = {
         "port": {
             "type": int,
@@ -96,9 +111,9 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
         if not os.path.exists(config_path):
             major_version, _ = self.get_inst_version()
             from_path = os.path.join(self.get_inst_path(), 'server', major_version)
-            origin = os.path.join(from_path, 'config.lua')
+            origin = os.path.join(from_path, 'Mods', 'services', 'LotAtc', 'config.lua')
             if not os.path.exists(origin):
-                self.log.error(f"{self.name}: Installation Error - Missing config.lua in {from_path}!")
+                self.log.error(f"{self.name}: Installation Error - Missing {origin}!")
                 return cfg
             shutil.copy2(origin, config_path)
         for path in [os.path.join(self.home, 'config.lua'), os.path.join(self.home, 'config.custom.lua')]:
@@ -120,9 +135,6 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
 
     @override
     async def prepare(self) -> bool:
-        if not await super().prepare():
-            return False
-
         await self.update_instance(False)
         config = self.config.copy()
         config.pop('installation', None)
@@ -190,7 +202,7 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
                     outfile.writelines(orig)
                 self.log.info(f"  => {self.name}: MissionScripting.lua amended.")
 
-        return True
+        return await super().prepare()
 
     # File Event Handlers
     def process_stats_file(self, path: str):
@@ -234,7 +246,7 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
 
     @override
     @property
-    def version(self) -> str:
+    def version(self) -> str | None:
         return utils.get_windows_version(os.path.join(self.home, r'bin', 'lotatc.dll'))
 
     @override
@@ -242,6 +254,7 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
         if not self.locals:
             raise NotImplementedError()
 
+        ret = await super().render(param)
         host = self.config.get('host', self.node.public_ip)
         value = f"{host}:{self.locals.get('port', 10310)}"
         show_passwords = self.config.get('show_passwords', True)
@@ -249,9 +262,7 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
         red = self.locals.get('red_password', '')
         if show_passwords and (blue or red):
             value += f"\n🔹 Pass: {blue}\n🔸 Pass: {red}"
-        return {
-            "name": self.name,
-            "version": self.version,
+        return ret | {
             "value": value
         }
 
@@ -275,10 +286,13 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
             self.observer.join(timeout=10)
             self.observer = None
 
+    async def _shutdown(self):
+        super().shutdown()
+
     @override
     def shutdown(self, *, quiet: bool = False) -> bool:
-        super().shutdown()
         self.stop_observer()
+        self.loop.create_task(self._shutdown())
         return True
 
     @override
@@ -394,11 +408,11 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
             if version != self.get_inst_version()[1]:
                 self.log.info(f"A new LotAtc update is available. Updating to version {version} ...")
                 await asyncio.to_thread(self.do_update)
-                if version != self.version:
-                    self.log.error(f"LotAtc update failed: {version} is not the expected version {self.version}!")
+                if version != self.get_inst_version()[1]:
+                    self.log.error(f"LotAtc update failed: {version} is not the expected version {self.get_inst_version()[1]}!")
                     return
 
-                self.log.info("LotAtc updated.")
+                self.log.info("LotAtc installation updated.")
                 await self.bot.audit(message=f"{self.name} updated to version {version} on node {self.node.name}.")
                 config = self.config.get('announce')
                 if config:

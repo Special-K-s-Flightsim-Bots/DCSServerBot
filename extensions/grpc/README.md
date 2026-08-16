@@ -16,8 +16,9 @@ MyNode:
       extensions:
         gRPC:
           enabled: true
-          autoupdate: true  # auto-update DCS-gRPC to the latest version from GitHub
-          port: 50051       # you can set any configuration parameter here, that will be replaced in your dcs-grpc.lua file.
+          autoupdate: true      # auto-update DCS-gRPC to the latest version from GitHub
+          port: 50051           # you can set any configuration parameter here, that will be replaced in your dcs-grpc.lua file.
+          eval: false           # set this to true if you want to use the eval() function in your lua files. Default is false.
 ```
 
 > [!TIP]

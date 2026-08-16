@@ -39,6 +39,8 @@ MyNode:
           config: '{instance.home}\Config\SRS.cfg'
           host: 127.0.0.1
           port: 5002
+          http_server_enabled: true # Optional: Enable the HTTP server (default: false)
+          http_server_port: 8080    # Optional: HTTP server port (default: 8080)
           gui_server: true          # Optional: use the SRS-Server.exe (GUI server) instead of the command line one
           minimized: true           # Optional: start GUI server minimized (default: true)
           autoconnect: true         # install the appropriate DCS-SRS-AutoConnectGameGUI.lua, default: true

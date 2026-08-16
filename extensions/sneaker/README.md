@@ -29,6 +29,7 @@ MyNode:
         Sneaker:
           enabled: true
           debug: true               # Show the Sneaker console output in the DCSSB console. Default = false
+          affinity: 0,1             # Optional: old affinity
           auto_affinity:            # Optional: core affinity settings
             min_cores: 1            # Min number of cores to be used (default: 1)
             max_cores: 1            # Max number of cores to be used (default: 1)

@@ -1077,7 +1077,7 @@ def deep_merge(d1: Mapping[str, Any], d2: Mapping[str, Any]) -> Mapping[str, Any
        Returns
        -------
        dict
-           A new dictionary containing the deep merge of `d1` and `d2`.
+           A new Mapping containing the deep merge of `d1` and `d2`.
        """
     if not isinstance(d1, Mapping):
         raise TypeError(f"d1 must be a Mapping, got {type(d1).__name__}")

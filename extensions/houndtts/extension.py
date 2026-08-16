@@ -67,6 +67,11 @@ class HoundTTS(InstallableExtension):
         super().__init__(server, config, repo="https://github.com/uriba107/HoundTTS", package_name="HoundTTS-windows")
         self.home = os.path.join(self.server.instance.home, 'Mods', 'Services', 'HoundTTS')
 
+    @override
+    @property
+    def hidden(self) -> bool:
+        return True
+
     def get_config_path(self) -> str:
         return os.path.join(self.server.instance.home, 'Config', 'HoundTTS.lua')
 
@@ -261,4 +266,4 @@ class HoundTTS(InstallableExtension):
                 self.ini.write(ini)
             self.locals = self.load_config()
 
-        return True
+        return await super().prepare()

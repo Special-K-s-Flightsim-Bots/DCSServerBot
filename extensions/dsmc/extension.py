@@ -35,7 +35,7 @@ class DSMC(InstallableExtension):
             version = []
             with open(hook, mode='r', encoding='utf-8') as infile:
                 content = infile.read()
-            version_parts = ['DSMC_MainVersion', 'DSMC_SubVersion', 'DSMC_SubSubVersion']
+            version_parts = ['DSMC_MainVersion', 'DSMC_SubVersion', 'DSMC_SubSubVersion', 'DSMC_Build']
             for part in version_parts:
                 match = re.search(f'{part}\\s*=\\s*"(\\d*)"', content)
                 if match:
@@ -60,7 +60,10 @@ class DSMC(InstallableExtension):
             return {}
         cfg = {}
         dcs_home = self.server.instance.home
-        with open(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua'), mode='r', encoding='utf-8') as infile:
+        config_file = os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua')
+        if not os.path.exists(config_file):
+            return cfg
+        with open(config_file, mode='r', encoding='utf-8') as infile:
             for line in infile.readlines():
                 line = line.strip()
                 if line.startswith('DSMC'):
@@ -74,10 +77,14 @@ class DSMC(InstallableExtension):
         return cfg
 
     @override
-    async def prepare(self) -> bool:
-        if not await super().prepare():
-            return False
+    async def install(self, version: str | None = None) -> bool:
+        if await super().install(version):
+            self.locals = self.load_config()
+            return True
+        return False
 
+    @override
+    async def prepare(self) -> bool:
         if 'DSMC_updateMissionList' not in self.locals:
             self.log.error('  => DSMC_updateMissionList missing in DSMC_Dedicated_Server_options.lua! '
                            'Check your config and / or update DSMC!')
@@ -102,7 +109,7 @@ class DSMC(InstallableExtension):
                             self.locals['DSMC_AutosaveExit_time'] = 0
                         outfile.write(line)
             self.log.info('  => DSMC configuration changed to be compatible with DCSServerBot.')
-        return True
+        return await super().prepare()
 
     @override
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
@@ -121,9 +128,8 @@ class DSMC(InstallableExtension):
 
     @override
     async def render(self, param: dict | None = None) -> dict:
-        return {
-            "name": self.name,
-            "version": self.version,
+        ret = await super().render(param)
+        return ret | {
             "value": "enabled"
         }
 

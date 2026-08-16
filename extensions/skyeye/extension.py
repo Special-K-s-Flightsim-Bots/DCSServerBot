@@ -13,8 +13,9 @@ import subprocess
 import tempfile
 import zipfile
 
+from aiohttp import ClientConnectionError
 from contextlib import suppress
-from core import utils, get_translation, ProcessManager, Extension
+from core import utils, get_translation, ProcessManager, InstallableExtension
 from logging.handlers import RotatingFileHandler
 from io import BytesIO
 from packaging.version import parse
@@ -44,7 +45,22 @@ LOGLEVEL = {
 }
 
 
-class SkyEye(Extension):
+class SkyEye(InstallableExtension):
+
+    NODE_CONFIG_DICT = {
+        "installation": {
+            "type": str,
+            "label": "Installation Path",
+            "placeholder": "Path to SkyEye installation",
+            "required": True
+        },
+        "autoupdate": {
+            "type": bool,
+            "label": "Autoupdate",
+            "default": False,
+            "required": False
+        }
+    }
 
     CONFIG_DICT = {
         "remote": {
@@ -249,17 +265,17 @@ class SkyEye(Extension):
         # Configure SRS
         srs = self.server.extensions.get('SRS')
         if srs:
-            srs_port = srs.config.get('port', srs.locals['Server Settings']['SERVER_PORT'])
+            srs_port = srs.config.get('port', srs.locals.get('Server Settings', {}).get('SERVER_PORT', 5002))
             dirty |= self._maybe_update_config(cfg, 'srs-server-address', f"localhost:{srs_port}")
             if cfg.get('coalition', 'blue') == 'blue':
                 dirty |= self._maybe_update_config(cfg,
                     'srs-eam-password',
-                    srs.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD']
+                    srs.locals.get('External AWACS Mode Settings', {}).get('EXTERNAL_AWACS_MODE_BLUE_PASSWORD')
                 )
             else:
                 dirty |= self._maybe_update_config(cfg,
                     'srs-eam-password',
-                    srs.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD']
+                    srs.locals.get('External AWACS Mode Settings', {}).get('EXTERNAL_AWACS_MODE_RED_PASSWORD')
                 )
         else:
             # we definitely need SRS, so if no SRS extension is configured, expect the values to be in the config
@@ -289,21 +305,9 @@ class SkyEye(Extension):
                 out.pop('auto_affinity', None)
                 yaml.dump(out, outfile)
 
-    async def _autoupdate(self):
-        try:
-            version = await self.get_latest_version()
-            if version:
-                self.log.info(f"A new SkyEye update is available. Updating to version {version} ...")
-                await self.do_update(version)
-                self._version = version.lstrip('v')
-                self.log.info("SkyEye updated.")
-                await self.bot.audit(message=f"{self.name} updated to version {version} on node {self.node.name}.")
-        except Exception as ex:
-            self.log.exception(ex)
-
     @override
     async def prepare(self) -> bool:
-        model = None
+        model: str | None = None
         for cfg in self.configs:
             self._prepare_config(cfg)
             if cfg.get('recognizer', 'openai-whisper-local') == 'openai-whisper-local':
@@ -312,9 +316,6 @@ class SkyEye(Extension):
         if not self.is_remote():
             if model:
                 asyncio.create_task(self.download_whisper_file(model))
-
-            if self.config.get('autoupdate', False):
-                await self._autoupdate()
 
         return await super().prepare()
 
@@ -515,13 +516,12 @@ class SkyEye(Extension):
 
     @override
     async def render(self, param: dict | None = None) -> dict:
+        ret = await super().render(param)
         value = ""
         for cfg in self.configs:
             coalition = '🔹' if cfg.get('coalition', 'blue') == 'blue' else '🔸'
             value += f"{coalition} {cfg.get('callsign', 'Focus')}: {cfg.get('srs-frequencies', '251.0AM,133.0AM,30.0FM')}\n"
-        return {
-            "name": self.name,
-            "version": self.version,
+        return ret | {
             "value": value
         }
 
@@ -533,17 +533,44 @@ class SkyEye(Extension):
             return False
         return True
 
+    @override
+    def is_installed(self) -> bool:
+        return self.is_available()
+
     async def get_latest_version(self) -> str | None:
-        with suppress(aiohttp.ClientConnectionError):
+        try:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
                 async with session.get(SKYEYE_GITHUB_URL, proxy=self.node.proxy,
                                        proxy_auth=self.node.proxy_auth) as response:
                     if response.status in [200, 302]:
-                        version = response.url.raw_parts[-1]
-                        if parse(version) > parse(self.version):
-                            return version
+                        return response.url.raw_parts[-1]
+        except ClientConnectionError as ex:
+            self.log.error(ex)
         return None
+
+    async def install(self, version: str | None = None) -> bool:
+        installation_dir = os.path.expandvars(self.config['installation'])
+        os.makedirs(installation_dir, exist_ok=True)
+        return await self.update(version)
+
+    async def uninstall(self) -> bool:
+        # we don't uninstall
+        return True
+
+    async def update(self, version: str | None = None) -> bool:
+        if not version:
+            version = await self.get_latest_version()
+            if not version:
+                return False
+        try:
+            self.log.info(f"Installing {self.name} version {version} ...")
+            await self.do_update(version)
+            self.log.info(f"{self.name} version {version} installed.")
+            return True
+        except Exception as ex:
+            self.log.exception(ex)
+            return False
 
     async def do_update(self, version: str):
         installation_dir = os.path.expandvars(self.config['installation'])

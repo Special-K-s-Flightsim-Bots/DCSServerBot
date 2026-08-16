@@ -3,9 +3,8 @@ import glob
 import os
 import re
 
-from typing_extensions import override
-
 from core import Extension, Server
+from typing_extensions import override
 
 __all__ = [
     "Pretense"
@@ -57,9 +56,8 @@ class Pretense(Extension):
 
     @override
     async def render(self, param: dict | None = None) -> dict:
-        return {
-            "name": self.name,
-            "version": self.version,
+        ret = await super().render(param)
+        return ret | {
             "value": "enabled"
         }
 

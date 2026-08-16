@@ -69,6 +69,11 @@ class LogAnalyser(Extension):
         self.stopped = asyncio.Event()
         self.errors: set[tuple[str, int]] = set()
 
+    @override
+    @property
+    def hidden(self) -> bool:
+        return True
+
     def register_callback(self, pattern: str, callback: Callable) -> re.Pattern:
         _pattern = re.compile(pattern)
         self.pattern[_pattern] = callback
@@ -336,7 +341,7 @@ class LogAnalyser(Extension):
         self.log.warning(f"Server restarting due to critical error: {line.rstrip()}")
         asyncio.create_task(self.server.restart(modify_mission=False))
 
-    async def foothold_check(self, _idx: int, _line: str, match: re.Match):
+    async def foothold_check(self, _idx: int, _line: str, _match: re.Match):
         mission_name = self.server.current_mission.name if self.server.current_mission else f"on server {self.server.name}"
         embed = utils.create_warning_embed(
             title='OExternal Foothold config is outdated!',
