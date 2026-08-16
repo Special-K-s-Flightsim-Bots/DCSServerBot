@@ -118,12 +118,12 @@ class SRS(InstallableExtension, FileSystemEventHandler):
 
     def get_config_path(self) -> str:
         if not self._config_path:
-            config_path = utils.format_string(
+            config_path = os.path.expandvars(utils.format_string(
                 self.config.get('config', os.path.join(self.server.instance.home, 'Config', 'SRS.cfg')),
                 server=self.server,
                 instance=self.server.instance,
                 node=self.server.node
-            )
+            ))
             if not os.path.exists(config_path):
                 base_config = os.path.join(os.path.dirname(self.get_exe_path()), 'server.cfg')
                 if os.path.exists(base_config):
@@ -131,7 +131,7 @@ class SRS(InstallableExtension, FileSystemEventHandler):
                     self.log.info(f"  => {self.name}: Copying {base_config} to {config_path} ...")
                 else:
                     self.log.warning(f"  => {self.name}: No {config_path} found, SRS running with defaults.")
-            self._config_path = os.path.expandvars(config_path.format(server=self.server, instance=self.server.instance))
+            self._config_path = config_path
         return self._config_path
 
     @override
