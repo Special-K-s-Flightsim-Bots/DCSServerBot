@@ -848,7 +848,8 @@ class MissionEventListener(EventListener["Mission"]):
                 embed.add_field(name="_ _", value="_ _", inline=True)
         else:
             embed.add_field(name="_ _", value="_ _", inline=True)
-        embed.add_field(name="IP", value=utils.hash_ip_addr(data['ipaddr']), inline=False)
+        embed.add_field(name="IP", value=data['ipaddr'], inline=False)
+        embed.add_field(name="IP Hash", value=utils.hash_ip_addr(data['ipaddr']), inline=False)
         if not ban:
             embed.add_field(name="Reason", value=data['reason'], inline=False)
         else:

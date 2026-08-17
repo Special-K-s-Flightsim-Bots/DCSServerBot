@@ -2041,7 +2041,7 @@ class Mission(Plugin[MissionEventListener]):
                           player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
         report = Report(self.bot, 'mission', 'player-info.json')
         env = await report.render(player=player)
-        await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
+        await interaction.response.send_message(embed=env.embed, ephemeral=True)
 
     @command(description=_('Shows player information'))
     @utils.app_has_role('DCS Admin')

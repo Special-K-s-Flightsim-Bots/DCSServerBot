@@ -195,7 +195,8 @@ class PlayerInfo(report.EmbedElement):
             self.add_field(name="Discord", value=f"<@{player.member.id}>")
         else:
             self.add_field(name='Not Linked', value='_ _')
-        self.add_field(name='IP Hash', value=utils.hash_ip_addr(player.ipaddr))
+        self.add_field(name='IP', value=player.ipaddr, inline=False)
+        self.add_field(name='IP Hash', value=utils.hash_ip_addr(player.ipaddr), inline=False)
 
         self.add_field(name="Server", value=player.server.display_name)
         self.add_field(name="Side",
