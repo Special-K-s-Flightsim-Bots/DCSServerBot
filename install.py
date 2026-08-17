@@ -477,7 +477,12 @@ If you need any further assistance, please visit the support discord, listed in 
             instances = utils.findDCSInstances()
             if not instances:
                 print(_("No configured DCS servers found."))
-            for name, instance in instances:
+            # we need to clean up the DCS mess ...
+            elif len(instances) == 2 and 'DCS.dcs_serverrelease' in instances and 'DCS.release_server' in instances:
+                if Prompt.ask(_("How many servers do you want to configure?"), choices=['1', '2'], default='1') == '1':
+                    instances.pop('DCS.release_server', None)
+
+            for instance, name in instances.items():
                 if not name or name in ['n/a', 'DCS Server']:
                     print(_("DCS Server without name found in Saved Games\\{}.").format(instance))
                     if not Confirm.ask(_("Would you like to give it a name?"), default=True):

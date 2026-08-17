@@ -447,7 +447,7 @@ class ServiceBus(Service):
 
         # update the database and check for server name changes
         self.log.debug(f'  => Checking the database for server {server_name} ...')
-        _server_name = None
+        _server_name: str | None = None
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT server_name 

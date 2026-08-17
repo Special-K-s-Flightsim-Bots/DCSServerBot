@@ -261,7 +261,7 @@ class Node(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def find_all_instances(self) -> list[tuple[str, str]]:
+    async def find_all_instances(self) -> dict[str, str]:
         raise NotImplementedError()
 
     @abstractmethod

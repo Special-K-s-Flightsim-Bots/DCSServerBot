@@ -383,7 +383,7 @@ class NodeProxy(Node):
 
     @override
     @cache_with_expiration(expiration=60)
-    async def find_all_instances(self) -> list[tuple[str, str]]:
+    async def find_all_instances(self) -> dict[str, str]:
         timeout = 60 if not self.slow_system else 120
         return await self.bus.send_to_node_sync({
             "command": "rpc",

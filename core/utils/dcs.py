@@ -40,10 +40,10 @@ class ParseError(Exception):
         self.original = original
 
 
-def findDCSInstances(server_name: str | None = None) -> list[tuple[str, str]]:
+def findDCSInstances(server_name: str | None = None) -> dict[str, str]:
     if sys.platform != 'win32':
-        return []
-    instances = []
+        return {}
+    instances = {}
     for dirname in os.listdir(SAVED_GAMES):
         if os.path.isdir(os.path.join(SAVED_GAMES, dirname)):
             path = os.path.join(SAVED_GAMES, dirname, 'Config', 'serverSettings.lua')
@@ -60,9 +60,10 @@ def findDCSInstances(server_name: str | None = None) -> list[tuple[str, str]]:
                     settings['name'] = 'DCS Server'
                 if server_name:
                     if settings['name'] == server_name:
-                        return [(server_name, dirname)]
+                        instances[dirname] = server_name
+                        break
                 else:
-                    instances.append((settings['name'], dirname))
+                    instances[dirname] = settings['name']
     return instances
 
 
