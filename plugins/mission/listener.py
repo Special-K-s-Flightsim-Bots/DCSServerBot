@@ -870,7 +870,7 @@ class MissionEventListener(EventListener["Mission"]):
         view.add_item(button)
         button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
         view.add_item(button)
-        await admin_channel.send(embed=embed, view=view)
+        await admin_channel.send(embed=embed, view=view, delete_after=86400)
 
     async def _stop_player(self, server: Server, player: Player):
         player.active = False
