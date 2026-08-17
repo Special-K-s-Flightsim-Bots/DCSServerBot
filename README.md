@@ -277,9 +277,10 @@ of your DCS installation. If you use any other method of desanitization, DCSServ
 desanitizations are required and conducts them.
 
 > [!IMPORTANT]
-> DCSServerBot needs write-permissions on the DCS-installation directory.<br>
-> You can usually achieve that by giving the "User group" write permissions on it. Right-click on your DCS installation
-> folder,<br>select Properties → Security → Edit, select "Users (...)" and tick Modify below. Then press the OK button.
+> DCSServerBot needs write-permissions on the DCS-installation directory.
+> You can usually achieve that by giving the "User group" write permissions on it. 
+> Right-click on your DCS installation folder, >select Properties → Security → Edit, select "Users (...)" and tick 
+> Modify below. Then press the OK button.
 > There might be a question about changing the permission on all subdirectories — say yes in that case. 
 
 Your MissionScripting.lua should look like this after a successful bot start:
@@ -293,6 +294,7 @@ do
 	--_G['package'] = nil
 end
 ```
+
 To use a custom MissionScripting.lua with enhanced desanitization (such as for LotAtc, Moose, OverlordBot, or 
 similar) or to load additional features (like LotAtc or DCS-gRPC), place your custom MissionScripting.lua file in 
 the config directory of the bot. 
