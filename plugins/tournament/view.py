@@ -34,7 +34,6 @@ class TournamentModal(Modal):
         self.error = None
 
     async def on_submit(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         try:
             self.num_rounds = int(self._num_rounds.value)
@@ -63,20 +62,17 @@ class TournamentModal(Modal):
         self.stop()
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.error = error
         self.stop()
 
 
 class ApplicationModal(Modal, title=_("Apply to a tournament")):
-    # noinspection PyTypeChecker
     application_text = TextInput(label=_("Application"), style=TextStyle.long,
                                  placeholder=_("Please enter a short summary of your group and why you want to "
                                                "participate in this tournament."), required=True)
 
     async def on_submit(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
@@ -127,13 +123,11 @@ class SignupView(View):
 
 
 class RejectModal(Modal, title=_("Reject a squadron")):
-    # noinspection PyTypeChecker
     reason = TextInput(label=_("Reason"), style=TextStyle.long,
                        placeholder=_("Please enter a reason why you decided to reject this squadron."),
                        required=True)
 
     async def on_submit(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
@@ -144,7 +138,6 @@ class NumbersModal(Modal):
         self.costs = costs
         self.points = points
         self.max_value = max_value
-        # noinspection PyTypeChecker
         self.textinput = TextInput(label=_("Count"), placeholder=_("Enter a number"), default="1",
                                    style=TextStyle.short, required=True)
         self.add_item(self.textinput)
@@ -152,7 +145,6 @@ class NumbersModal(Modal):
         self.error = None
 
     async def on_submit(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         value = int(self.textinput.value)
         if self.max_value and value > self.max_value:
@@ -250,16 +242,13 @@ class ChoicesView(View):
             select.callback = self.add_choice
             self.add_item(select)
         if already_selected:
-            # noinspection PyTypeChecker
             button = Button(label="Confirm & Buy", style=ButtonStyle.green)
             button.callback = self.save
             self.add_item(button)
-            # noinspection PyTypeChecker
             button = Button(label="Save & Close", style=ButtonStyle.red)
             button.callback = self.cancel
             self.add_item(button)
         else:
-            # noinspection PyTypeChecker
             button = Button(label="Skip this round", style=ButtonStyle.primary)
             button.callback = self.no_change
             self.add_item(button)
@@ -276,13 +265,11 @@ class ChoicesView(View):
         max_num = min(self.config['presets']['choices'][choice].get('max', 99), ticket_count)
         if not max_num or max_num > 1:
             modal = NumbersModal(choice, costs, squadron.points, max_num)
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_modal(modal)
             if await modal.wait():
                 return
             num = modal.result
         else:
-            # noinspection PyUnresolvedReferences
             await interaction.response.defer()
             modal = None
             num = 1
@@ -313,7 +300,6 @@ class ChoicesView(View):
         costs = self.config['presets']['choices'][choice]['costs']
         ticket_name = self.config['presets']['choices'][choice].get('ticket')
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         async with self.plugin.apool.connection() as conn:
             cursor = await conn.execute("""
@@ -335,18 +321,15 @@ class ChoicesView(View):
         await interaction.edit_original_response(embed=await self.render(), view=self)
 
     async def save(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.acknowledged = True
         self.stop()
 
     async def cancel(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
     async def no_change(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.acknowledged = False
         self.stop()
@@ -365,8 +348,8 @@ class ApplicationView(View):
         async with self.plugin.apool.connection() as conn:
             async for row in await conn.execute("""
                 SELECT p.discord_id
-                FROM players p JOIN squadron_members m ON p.ucid = m.player_ucid
-                WHERE m.squadron_id = %s AND m.admin IS TRUE
+                FROM players p JOIN squadrons s ON (p.ucid = s.co_ucid or p.ucid = s.xo_ucid)
+                WHERE m.squadron_id = %s
             """, (self.squadron_id,)):
                 user = self.plugin.bot.get_user(row[0])
                 if user:
@@ -376,7 +359,6 @@ class ApplicationView(View):
                         message = message.format(squadron=self.squadron['name'], tournament=tournament['name'])
                     await dm_channel.send(content=message, embed=embed)
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label=_("Accept"), style=ButtonStyle.green)
     async def on_accept(self, interaction: discord.Interaction, _button: Button):
         tournament = await self.plugin.get_tournament(self.tournament_id)
@@ -421,13 +403,11 @@ class ApplicationView(View):
             f"accepted squadron {self.squadron['name']} for tournament {tournament['name']}.",
             user=interaction.user
         )
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Squadron {} accepted.").format(self.squadron['name']),
             ephemeral=utils.get_ephemeral(interaction))
         await self.plugin.inform_squadron(tournament_id=self.tournament_id, squadron_id=self.squadron_id, embed=embed)
         self.stop()
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label=_("Reject"), style=ButtonStyle.red)
     async def on_reject(self, interaction: discord.Interaction, _button: Button):
         async with self.plugin.apool.connection() as conn:
@@ -435,7 +415,6 @@ class ApplicationView(View):
                 UPDATE tm_squadrons SET status = 'REJECTED' WHERE tournament_id = %s AND squadron_id = %s
             """, (self.tournament_id, self.squadron_id))
         modal = RejectModal()
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         if await modal.wait():
             reason = ""
@@ -468,9 +447,7 @@ class ApplicationView(View):
         await self.plugin.inform_squadron(tournament_id=self.tournament_id, squadron_id=self.squadron_id, embed=embed)
         self.stop()
 
-    # noinspection PyTypeChecker
     @discord.ui.button(label=_("Cancel"), style=ButtonStyle.secondary)
     async def on_cancel(self, interaction: discord.Interaction, _button: Button):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
