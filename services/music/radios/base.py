@@ -7,7 +7,7 @@ from abc import ABC
 from core import Server, utils
 from discord.ext import tasks
 from enum import Enum
-from random import randrange
+from random import randrange, shuffle
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -153,7 +153,10 @@ class Radio(ABC):
                     self.log.warning(f"Can't play {self.songs[self.idx]} - file does not exist.")
             self._current = None
             if self._mode == Mode.SHUFFLE:
-                self.idx = randrange(len(self.songs)) if self.songs else 0
+                self.idx += 1
+                if self.idx >= len(self.songs):
+                    shuffle(self.songs)
+                    self.idx = 0
             elif self._mode == Mode.REPEAT:
                 self.idx += 1
                 if self.idx >= len(self.songs):

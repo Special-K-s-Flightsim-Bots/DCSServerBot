@@ -196,13 +196,18 @@ class Music(Plugin[MusicEventListener]):
             await self.service.play_song(server, radio_name, song)
         else:
             if playlist:
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(_("Now playing {} ...").format(playlist), ephemeral=ephemeral)
+                await interaction.response.send_message(
+                    _("Now playing {} ...").format(playlist),
+                    ephemeral=ephemeral
+                )
                 await self.service.stop_radios(server, radio_name)
                 await self.service.set_playlist(server, radio_name, playlist)
             else:
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(_("Radio {} started.").format(radio_name), ephemeral=ephemeral)
+                await interaction.response.send_message(
+                    _("Radio {} started.").format(radio_name),
+                    ephemeral=ephemeral
+                )
+            await self.service.reset_playlist(server, radio_name)
             await self.service.start_radios(server, radio_name)
 
     @music.command(description=_("Stop playing"))
