@@ -6,7 +6,7 @@ from core import get_translation, utils
 from discord import SelectOption, ButtonStyle, TextStyle
 from discord.ui import Select, Button, Modal, TextInput, View
 from psycopg.types.json import Json
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from .const import TOURNAMENT_PHASE
 
@@ -349,7 +349,7 @@ class ApplicationView(View):
             async for row in await conn.execute("""
                 SELECT p.discord_id
                 FROM players p JOIN squadrons s ON (p.ucid = s.co_ucid or p.ucid = s.xo_ucid)
-                WHERE m.squadron_id = %s
+                WHERE s.id = %s
             """, (self.squadron_id,)):
                 user = self.plugin.bot.get_user(row[0])
                 if user:
