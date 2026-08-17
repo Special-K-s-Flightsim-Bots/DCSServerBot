@@ -85,39 +85,42 @@ class SignupView(View):
     def __init__(self, times_options: list[SelectOption], terrain_options: list[SelectOption]):
         super().__init__()
         # set times options
-        select = cast(Select, self.children[0])
+        select = Select(placeholder=_("Select your preferred match times"), min_values=1)
         select.options = times_options
         select.max_values = len(times_options)
+        select.callback = self.times_callback
+        self.add_item(select)
         # set map options
-        select = cast(Select, self.children[1])
-        select.options = terrain_options
-        select.max_values = len(terrain_options)
+        if terrain_options:
+            select = Select(placeholder=_("Select the DCS terrains you own"), min_values=1)
+            select.options = terrain_options
+            select.max_values = len(terrain_options)
+            select.callback = self.maps_callback
+            self.add_item(select)
+        button = Button(label=_("Signup"), style=ButtonStyle.green)
+        button.callback = self.signup
+        self.add_item(button)
+        button = Button(label=_("Cancel"), style=ButtonStyle.red)
+        button.callback = self.cancel
+        self.add_item(button)
         self.times = []
         self.terrains = []
 
-    @discord.ui.select(placeholder=_("Select your preferred match times"), min_values=1)
-    async def times_callback(self, interaction: discord.Interaction, select: Select):
-        self.times = select.values
+    async def times_callback(self, interaction: discord.Interaction):
         # noinspection PyUnresolvedReferences
+        self.times = self.children[0].values
         await interaction.response.defer()
 
-    @discord.ui.select(placeholder=_("Select the DCS terrains you own"), min_values=1)
-    async def maps_callback(self, interaction: discord.Interaction, select: Select):
-        self.terrains = select.values
+    async def maps_callback(self, interaction: discord.Interaction):
         # noinspection PyUnresolvedReferences
+        self.terrains = self.children[1].values
         await interaction.response.defer()
 
-    # noinspection PyTypeChecker
-    @discord.ui.button(label=_("Signup"), style=ButtonStyle.green)
-    async def signup(self, interaction: discord.Interaction, _button: Button):
-        # noinspection PyUnresolvedReferences
+    async def signup(self, interaction: discord.Interaction):
         await interaction.response.defer()
         self.stop()
 
-    # noinspection PyTypeChecker
-    @discord.ui.button(label=_("Cancel"), style=ButtonStyle.red)
-    async def cancel(self, interaction: discord.Interaction, _button: Button):
-        # noinspection PyUnresolvedReferences
+    async def cancel(self, interaction: discord.Interaction):
         await interaction.response.defer()
         self.times = self.terrains = None
         self.stop()

@@ -806,7 +806,7 @@ class Tournament(Plugin[TournamentEventListener]):
         config = self.get_config()
         if config.get('use_signup_form', False):
             modal = ApplicationModal()
-            await interaction.response.send_modal(modal, ephemeral=True)
+            await interaction.response.send_modal(modal)
             if await modal.wait():
                 await interaction.followup.send(_("Aborted."), ephemeral=True)
                 return
