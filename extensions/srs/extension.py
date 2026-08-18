@@ -525,7 +525,7 @@ class SRS(InstallableExtension, FileSystemEventHandler):
                     return True
 
             self.process = None
-            server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
+            server_ip = self.locals.get('Server Settings', {}).get('SERVER_IP', '127.0.0.1')
             if server_ip == '0.0.0.0':
                 server_ip = '127.0.0.1'
 

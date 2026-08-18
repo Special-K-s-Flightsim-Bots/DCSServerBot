@@ -26,7 +26,7 @@ from openpyxl.utils import get_column_letter
 from pathlib import Path
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Literal, Type
+from typing import Literal, Type, cast
 
 from .airbase import Info
 from .const import LIQUIDS
@@ -1826,9 +1826,11 @@ class Mission(Plugin[MissionEventListener]):
                    ):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
-        _member = await DataObjectFactory().new(Member, name=member.name, node=self.node, member=member).prep()
+        _member = cast(Member, await DataObjectFactory().new(
+            Member, name=member.name, node=self.node, member=member).prep())
         if isinstance(user, discord.Member):
-            _new_member = await DataObjectFactory().new(Member, name=user.name, node=self.node, member=user).prep()
+            _new_member = cast(Member, await DataObjectFactory().new(
+                Member, name=user.name, node=self.node, member=user).prep())
             ucid = _new_member.ucid
             if ucid == _member.ucid:
                 if _member.verified:
@@ -1872,8 +1874,7 @@ class Mission(Plugin[MissionEventListener]):
         for server_name, server in self.bot.servers.items():
             player = server.get_player(ucid=ucid)
             if player:
-                player.member = await self.bot.get_member_by_ucid(player.ucid)
-                player.verified = True
+                await player.prep()
                 break
         else:
             server = None
@@ -2826,7 +2827,7 @@ class Mission(Plugin[MissionEventListener]):
             await interaction.response.edit_message(view=None)
             await interaction.message.add_reaction('✅')
 
-        elif custom_id.startswith('ban_'):
+        elif custom_id.startswith('ban_profanity_') or custom_id.startswith('ban_evade_'):
             config = self.get_config()
             if custom_id.startswith('ban_profanity_'):
                 ucid = custom_id[len('ban_profanity_'):]

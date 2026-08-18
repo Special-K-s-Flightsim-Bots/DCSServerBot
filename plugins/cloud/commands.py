@@ -10,8 +10,8 @@ import shutil
 import ssl
 
 from contextlib import suppress
-from core import Plugin, utils, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError, \
-    get_translation, command
+from core import Plugin, utils, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError, get_translation, \
+    command, ThreadSafeDict
 from datetime import timedelta
 from discord import app_commands, DiscordServerError
 from discord.ext import commands, tasks
@@ -29,7 +29,7 @@ _ = get_translation(__name__.split('.')[1])
 
 class Cloud(Plugin[CloudListener]):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[CloudListener] = None):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[CloudListener]):
         super().__init__(bot, eventlistener)
         if not len(self.locals):
             raise commands.ExtensionFailed(self.plugin_name, FileNotFoundError("No cloud.yaml available."))
@@ -40,6 +40,7 @@ class Cloud(Plugin[CloudListener]):
         self._session = None
         self.client = None
         self.guild_bans = []
+        self.troublemakers = ThreadSafeDict()
 
     async def _is_cloud_available(self, timeout: float = 5.0) -> bool:
         """Check if the cloud service is reachable via a quick TCP connect.
@@ -126,13 +127,13 @@ class Cloud(Plugin[CloudListener]):
         self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
         self._session = None
         self.client = None
-        if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
-            self.cloud_bans.add_exception_type(IndexError)
-            self.cloud_bans.add_exception_type(aiohttp.ClientError)
-            self.cloud_bans.add_exception_type(discord.Forbidden)
-            self.cloud_bans.add_exception_type(psycopg.DatabaseError)
-            self.cloud_bans.add_exception_type(DiscordServerError)
-            utils.safe_start(self.cloud_bans)
+        # cloud bans / troublemakers
+        self.cloud_bans.add_exception_type(IndexError)
+        self.cloud_bans.add_exception_type(aiohttp.ClientError)
+        self.cloud_bans.add_exception_type(discord.Forbidden)
+        self.cloud_bans.add_exception_type(psycopg.DatabaseError)
+        self.cloud_bans.add_exception_type(DiscordServerError)
+        utils.safe_start(self.cloud_bans)
         if self.config.get('register', True):
             if await self._is_cloud_available():
                 self.cloud_sync.add_exception_type(IndexError)
@@ -155,8 +156,8 @@ class Cloud(Plugin[CloudListener]):
         if self.config.get('register', True):
             tasks.append(utils.safe_cancel(self.register))
             tasks.append(utils.safe_cancel(self.cloud_sync))
-        if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
-            tasks.append(utils.safe_cancel(self.cloud_bans))
+        # cloud bans / troublemakers
+        tasks.append(utils.safe_cancel(self.cloud_bans))
         if self._session:
             tasks.append(self._session.close())
         await asyncio.gather(*tasks)
@@ -447,6 +448,8 @@ class Cloud(Plugin[CloudListener]):
                     reason = next(x['reason'] for x in global_bans if x['discord_id'] == user.id)
                     await guild.ban(user, reason='DGSA: ' + reason)
                     self.guild_bans.append(user)
+            # read the list of potential troublemakers
+            self.troublemakers = await self.get('troublemakers')
         except aiohttp.ClientError:
             self.log.warning("Cloud service unavailable.")
         except discord.Forbidden:
@@ -524,7 +527,7 @@ class Cloud(Plugin[CloudListener]):
                     SELECT ucid, reason, banned_at 
                     FROM bans 
                     WHERE synced IS FALSE 
-                    AND banned_until = '9999-12-31'
+                    and NOW() AT TIME ZONE 'UTC' BETWEEN banned_at AND banned_until
                     ORDER BY banned_at 
                     LIMIT 10
                 """)
@@ -663,6 +666,30 @@ class Cloud(Plugin[CloudListener]):
                     """, (member.id, link['ucid']))
         except aiohttp.ClientError:
             self.log.warning("Cloud service unavailable.")
+
+    @commands.Cog.listener()
+    async def on_interaction(self, interaction: discord.Interaction):
+        if (interaction.type is not discord.InteractionType.component or
+                not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user)):
+            return
+
+        custom_id = interaction.data.get('custom_id')
+        if custom_id.startswith('tm_whitelist_'):
+            ucid = custom_id[len('tm_whitelist_'):]
+            async with self.apool.connection() as conn:
+                await conn.execute("INSERT INTO whitelist (player_ucid) VALUES (%s) ON CONFLICT DO NOTHING", (ucid, ))
+            await interaction.response.edit_message(view=None)
+            await interaction.message.add_reaction('✅')
+
+        elif custom_id.startswith('tm_ban_'):
+            config = self.get_config()
+            ucid = custom_id[len('tm_ban_'):]
+            await self.bus.ban(
+                ucid, interaction.user.display_name,
+                config.get('troublemakers', {}).get('message', 'You are not welcome on this server.')
+            )
+            await interaction.response.edit_message(view=None)
+            await interaction.message.add_reaction('🚫')
 
 
 async def setup(bot: DCSServerBot):

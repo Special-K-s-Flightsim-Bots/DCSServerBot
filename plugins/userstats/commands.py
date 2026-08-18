@@ -251,7 +251,11 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         embed = discord.Embed(title=_('Info about Squadron {}').format(row['name']),
                               description=row['description'])
         if row['role']:
-            embed.add_field(name="Role", value=self.bot.get_role(row['role']).name)
+            role = self.bot.get_role(row['role'])
+            if role:
+                embed.add_field(name="Role", value=role.name)
+            else:
+                self.log.error(f"Role {row['role']} not found in your Discord!")
         await interaction.response.send_message(embed=embed)
 
     @squadron.command(description='Edit a squadron')

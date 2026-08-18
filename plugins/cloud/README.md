@@ -28,10 +28,16 @@ If you are a server admin of a large server and not part of DGSA, the "DCS Globa
 ```yaml
 # config/plugins/cloud.yml
 DEFAULT:
-  banlist: pvp                          # One of pvp, pve or both. For DCS bans / watchlist only (default: both).
+  banlist: both                         # One of pvp, pve or both. For dcs-ban / watchlist_only (default: both).
   dcs-ban: true                         # true: subscribe to the global ban service for DCS users (default: false).
   discord-ban: true                     # true: subscribe to the global ban service for Discord users (default: false).
-  watchlist_only: true                  # true: a player being on the global banlist will be added to the watchlist only (default: false, does not work with dcs-ban: true)
+  watchlist_only: false                 # true: a player being on the global banlist will be added to the watchlist only (default: false, does not work with dcs-ban: true)
+  troublemakers:                        # Handle so-called troublemakers, who are banned on other servers already.
+    warn: true                          # Warn if a troublemaker joins your server ... (default: true)
+    warn_threshold: 3                   # ... if they are banned on at least 3 other servers (min: 3)
+    kick: true                          # Kick a potential troublemaker ... (default: false)
+    kick_threshold: 5                   # ... if they are banned on at least 5 other servers (min: 3)
+    message: 'You are not welcome on this server.'
   host: dcsserverbot-prod.herokuapp.com # Don't change that until told otherwise.
   port: 443                             # Don't change that until told otherwise.
   protocol: https                       # Don't change that until told otherwise.
@@ -52,7 +58,7 @@ maintaining the solutions that are out in the wild.
 - DCSSB-Plugins in use (for general DCSSB stats)
 - DGSA-Status (for protection stats)
 - Node hardware (for general HW stats)
-- Permanent bans (to see if people are banned accross multiple servers, WIP)
+- Bans (to see if people are banned across multiple servers, WIP)
 - Subscriptions only: Aggregated user statistics for your users (for `/cloud statistics`)
 
 Also, DCSServerBot will send account mappings of users (Discord Account / DCS Account mapping) to the cloud.

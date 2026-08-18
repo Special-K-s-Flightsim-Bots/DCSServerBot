@@ -868,9 +868,10 @@ class MissionEventListener(EventListener["Mission"]):
         view = View(timeout=None)
         button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_evade_{data['ucid']}")
         view.add_item(button)
-        button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
+        button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id="cancel")
         view.add_item(button)
-        await admin_channel.send(embed=embed, view=view, delete_after=86400)
+        mentions = self.bot.mention_admin(server)
+        await admin_channel.send(content=mentions, embed=embed, view=view, delete_after=86400)
 
     async def _stop_player(self, server: Server, player: Player):
         player.active = False

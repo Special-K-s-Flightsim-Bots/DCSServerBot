@@ -209,17 +209,7 @@ class BotService(Service):
             fields: list[tuple[str, str]] | None = None
     ) -> None:
         try:
-            # if we have dedicated managers of a server, send the alerts to them
-            if server and server.locals.get('managed_by'):
-                alert_roles = server.locals['managed_by']
-            # use the default Alert role otherwise
-            else:
-                alert_roles = self.bot.roles['Alert']
-            try:
-                mentions = ''.join([self.bot.get_role(role).mention for role in alert_roles if role is not None])
-            except AttributeError:
-                self.log.error(f"Alert-Role {alert_roles} not found.")
-                mentions = ""
+            mentions = self.bot.mention_admin(server)
             embed = utils.create_warning_embed(title=title, text=utils.escape_string(message), fields=fields)
             admin_channel = self.bot.get_admin_channel(server)
             audit_channel = self.bot.get_channel(self.bot.locals.get('channels', {}).get('audit', -1))

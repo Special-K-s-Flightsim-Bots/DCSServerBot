@@ -240,6 +240,19 @@ class DCSServerBot(commands.Bot):
         else:
             return None
 
+    def mention_admin(self, server: "Server | None" = None) -> str:
+        if server and server.locals.get('managed_by'):
+            alert_roles = server.locals['managed_by']
+        # use the default Alert role otherwise
+        else:
+            alert_roles = self.roles['Alert']
+        try:
+            mentions = ''.join([self.get_role(role).mention for role in alert_roles if role is not None])
+        except AttributeError:
+            self.log.error(f"Alert-Role {alert_roles} not found.")
+            mentions = ""
+        return mentions
+
     def _check_server_channels(self, server: "Server"):
         channels = {
             'status': DEFAULT_CHANNEL_PERMISSIONS,

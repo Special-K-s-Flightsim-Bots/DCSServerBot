@@ -15,6 +15,15 @@ mapping:
       register: {type: bool, nullable: false}
       upload_errors: {type: bool, nullable: false}
       token: {type: str, nullable: false, range: {min: 1}}
+      troublemakers:
+        type: map
+        nullable: false
+        mapping:
+          warn: {type: bool, nullable: false}
+          warn_threshold: {type: int, nullable: false, range: {min: 3}}
+          kick: {type: bool, nullable: false}
+          kick_threshold: {type: int, nullable: false, range: {min: 3}}
+          message: {type: str, nullable: false, range: {min: 1}}
   commands:
     include: 'commands_schema'
   chat_commands:
