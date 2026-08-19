@@ -364,14 +364,16 @@ class Tournament(Plugin[TournamentEventListener]):
                 WHERE t.tournament_id = %s
             """, (tournament_id, ))
             campaign_id = (await cursor.fetchone())[0]
-        return await DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
-                                             campaign_id=campaign_id).prep()
+        return cast(Squadron, await DataObjectFactory().new(
+            Squadron, node=self.node, name=squadron['name'], campaign_id=campaign_id).prep())
 
     async def inform_squadron(self, *, tournament_id: int, squadron_id: int, message: str | None = None,
                               embed: discord.Embed | None = None):
         async with self.apool.connection() as conn:
             async for row in await conn.execute("""
-                SELECT co_ucid FROM squadrons WHERE id = %s
+                SELECT p.discord_id
+                FROM players p JOIN squadrons s ON p.ucid = s.co_ucid
+                WHERE s.id = %s
             """, (squadron_id,)):
                 user = self.bot.get_user(row[0])
                 if user:

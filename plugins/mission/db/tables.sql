@@ -74,6 +74,5 @@ CREATE TABLE IF NOT EXISTS watchlist(
     player_ucid TEXT PRIMARY KEY,
     reason TEXT,
     created_by TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'utc'),
-    FOREIGN KEY (player_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE
+    created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'utc')
 );
