@@ -962,8 +962,9 @@ class Tournament(Plugin[TournamentEventListener]):
                 embed.description = row['application']
                 if row['image_url']:
                     embed.set_thumbnail(url=row['image_url'])
+                role = self.bot.get_role(row['role']) if row['role'] else None
                 embed.add_field(name=_("# Members"), value=str(row['member_count']))
-                embed.add_field(name=_("Role"), value=self.bot.get_role(row['role']).name if row['role'] else _("n/a"))
+                embed.add_field(name=_("Role"), value=role.name if role else _("n/a"))
                 embed.add_field(name=_("State"), value=row['status'])
 
                 terrains = await self.get_terrain_preferences(tournament_id, squadron_id)
