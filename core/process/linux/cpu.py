@@ -285,7 +285,6 @@ def get_cache_info() -> list[dict]:
     Returns information about the CPU cache structure on Linux.
     Mimics the Windows structure for cross-platform compatibility.
     """
-    cache_info: list[dict] = []
     sysfs_root = "/sys/devices/system/cpu"
     if not os.path.isdir(sysfs_root):
         return []

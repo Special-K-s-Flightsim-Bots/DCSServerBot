@@ -189,7 +189,7 @@ class Punishment(Plugin[PunishmentEventListener]):
     @app_commands.guild_only()
     async def _punish(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer],
-                      user: app_commands.Transform[str | discord.Member, utils.UserTransformer],
+                      user: app_commands.Transform[str | discord.Member | None, utils.UserTransformer],
                       points: int, reason: str | None = 'admin'):
 
         ephemeral = utils.get_ephemeral(interaction)

@@ -195,7 +195,7 @@ class Restore:
                         sql.Identifier(db_url.path[1:]), sql.Identifier(db_url.username)))
                 return l_url
             except psycopg.OperationalError as ex:
-                console.print(_("[red]Could not restore the database.[/]"))
+                console.print(_("[red]Could not restore the database: {ex}[/]"))
                 return None
 
     async def restore_database(

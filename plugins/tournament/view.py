@@ -344,21 +344,6 @@ class ApplicationView(View):
         self.squadron_id = squadron_id
         self.squadron = utils.get_squadron(self.plugin.node, squadron_id=self.squadron_id)
 
-    async def inform_squadron(self, *, message: str | None = None, embed: discord.Embed | None = None):
-        async with self.plugin.apool.connection() as conn:
-            async for row in await conn.execute("""
-                SELECT p.discord_id
-                FROM players p JOIN squadrons s ON (p.ucid = s.co_ucid or p.ucid = s.xo_ucid)
-                WHERE s.id = %s
-            """, (self.squadron_id,)):
-                user = self.plugin.bot.get_user(row[0])
-                if user:
-                    tournament = await self.plugin.get_tournament(self.tournament_id)
-                    dm_channel = await user.create_dm()
-                    if message:
-                        message = message.format(squadron=self.squadron['name'], tournament=tournament['name'])
-                    await dm_channel.send(content=message, embed=embed)
-
     @discord.ui.button(label=_("Accept"), style=ButtonStyle.green)
     async def on_accept(self, interaction: discord.Interaction, _button: Button):
         tournament = await self.plugin.get_tournament(self.tournament_id)

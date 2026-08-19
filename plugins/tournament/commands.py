@@ -1663,7 +1663,7 @@ class Tournament(Plugin[TournamentEventListener]):
         else:
             raise IndexError(f"Mission {mission} not found in mission list.")
 
-    async def get_mission(self, server: Server, tournament_id: int, match: dict) -> str | None:
+    async def get_mission(self, server: Server, tournament_id: int, match: dict) -> str | int | None:
         config = self.get_config(server)
         if isinstance(config.get('mission'), str):
             return config['mission']
@@ -2109,7 +2109,7 @@ class Tournament(Plugin[TournamentEventListener]):
             if await view.wait():
                 return
 
-            if view.acknowledged is True:
+            if view.acknowledged:
                 embed = await view.render()
                 embed.description = None
                 embed.set_footer(text=None)

@@ -80,7 +80,7 @@ def is_open(ip: str, port: int, *, timeout: float = 1.0) -> bool:
         try:
             s.connect((ip, int(port)))
             return True
-        except (socket.timeout, OSError) as ex:
+        except (socket.timeout, OSError):
             return False
 
 

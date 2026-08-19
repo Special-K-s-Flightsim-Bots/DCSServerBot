@@ -8,7 +8,7 @@ import shutil
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
     PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, ServiceRegistry, NodeTransformer, \
-    InstallException, InstallableExtension, ConfigView, find_similar_names
+    InstallException, InstallableExtension, ConfigView
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal

@@ -60,40 +60,39 @@ class Header(report.EmbedElement):
             self.add_field(name='Discord', value=f"{member.mention}\nID: {member.id}")
         else:
             self.embed.description += 'a non-member user:'
+
         first_seen = datetime(2999, 12, 31)
         last_seen = datetime(1970, 1, 1)
         banned = watchlist = False
         if not rows:
-            first_seen = last_seen = None
-        else:
-            for row in rows:
-                if row.get('first_seen') and row['first_seen'] < first_seen:
-                    first_seen = row['first_seen']
-                if row.get('last_seen') and row['last_seen'] > last_seen:
-                    last_seen = row['last_seen']
-                banned = row['banned'] or banned
-                watchlist = row['watchlist'] or watchlist
-            if first_seen < datetime(2999, 12, 31) and last_seen > datetime(1970, 1, 1):
-                self.add_datetime_field('Last seen', last_seen.replace(tzinfo=timezone.utc))
-                self.add_datetime_field('First seen', first_seen.replace(tzinfo=timezone.utc))
-        if rows:
-            if rows[0]['vip']:
-                self.add_field(name="VIP", value="⭐")
-            if banned or watchlist:
-                await report.Ruler(self.env).render(header='Bans & Watches', ruler_length=ruler_length)
-                if banned:
-                    banned_until = rows[0]['banned_until']
-                    if banned_until.year != 9999:
-                        banned_until = banned_until
-                    self.add_field(name='Reason', value=rows[0]['ban_reason'])
-                    self.add_field(name='Banned by', value=rows[0]['banned_by'])
-                    self.add_datetime_field('Ban expires', banned_until.replace(tzinfo=timezone.utc))
-                if watchlist:
-                    self.add_field(name='Reason', value=rows[0]['watch_reason'])
-                    self.add_field(name='Watched by', value=rows[0]['created_by'])
-                    self.add_datetime_field('Watched at', rows[0]['created_at'].replace(tzinfo=timezone.utc))
-        else:
             self.add_field(name="Link status", value="Unlinked")
+
+        for row in rows:
+            if row.get('first_seen') and row['first_seen'] < first_seen:
+                first_seen = row['first_seen']
+            if row.get('last_seen') and row['last_seen'] > last_seen:
+                last_seen = row['last_seen']
+            banned = row['banned'] or banned
+            watchlist = row['watchlist'] or watchlist
+        if first_seen < datetime(2999, 12, 31) and last_seen > datetime(1970, 1, 1):
+            self.add_datetime_field('Last seen', last_seen.replace(tzinfo=timezone.utc))
+            self.add_datetime_field('First seen', first_seen.replace(tzinfo=timezone.utc))
+
+        if rows[0]['vip']:
+            self.add_field(name="VIP", value="⭐")
+        if banned or watchlist:
+            await report.Ruler(self.env).render(header='Bans & Watches', ruler_length=ruler_length)
+            if banned:
+                banned_until = rows[0]['banned_until']
+                if banned_until.year != 9999:
+                    banned_until = banned_until
+                self.add_field(name='Reason', value=rows[0]['ban_reason'])
+                self.add_field(name='Banned by', value=rows[0]['banned_by'])
+                self.add_datetime_field('Ban expires', banned_until.replace(tzinfo=timezone.utc))
+            if watchlist:
+                self.add_field(name='Reason', value=rows[0]['watch_reason'])
+                self.add_field(name='Watched by', value=rows[0]['created_by'])
+                self.add_datetime_field('Watched at', rows[0]['created_at'].replace(tzinfo=timezone.utc))
 
 
 class UCIDs(report.EmbedElement):
