@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -360,17 +360,16 @@ class PlayerStats(BaseModel):
 
 class WeatherInfo(BaseModel):
     temperature: float | None = Field(None, description="Temperature in Celsius")
-    wind_speed: float | None = Field(None, description="Wind speed in m/s")
+    wind_speed: float | None = Field(None, description="Wind speed in kts")
     wind_direction: int | None = Field(None, description="Wind direction in degrees")
     pressure: float | None = Field(None, description="Atmospheric pressure in mmHg")
-    visibility: int | None = Field(None, description="Visibility in meters")
     clouds_base: int | None = Field(None, description="Cloud base altitude in feet")
     clouds_density: int | None = Field(None, description="Cloud density (0-10)")
+    clouds_thickness: int | None = Field(None, description="Cloud thickness in feet")
     precipitation: int | None = Field(None, description="Precipitation type (0=none, 1=rain, 2=thunderstorm, 3=snow)")
     fog_enabled: bool | None = Field(None, description="Fog enabled")
-    fog_visibility: int | None = Field(None, description="Fog visibility in meters")
     dust_enabled: bool | None = Field(None, description="Dust storm enabled")
-    dust_visibility: int | None = Field(None, description="Dust storm visibility in meters")
+    visibility: int | None = Field(None, description="Visibility in meters")
 
     model_config = {
         "json_schema_extra": {
@@ -1213,7 +1212,7 @@ class MissionDrawing(BaseModel):
 
 
 class MissionDrawingsResponse(BaseModel):
-    drawings: dict[str, list[dict[str, Any]]] = Field(
+    drawings: dict[str, list[dict[str, MissionDrawing]]] = Field(
         ...,
         description="Drawings keyed by layer name; each drawing contains primitive-specific fields"
     )
