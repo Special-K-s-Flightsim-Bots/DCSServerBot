@@ -85,8 +85,8 @@ class Radio(ABC):
                                  SET playlist_name = excluded.playlist_name
                              """, (self.server.name, self.name, playlist))
             self._playlist = playlist
-            self.songs = self._read_playlist()
 
+        self.songs = self._read_playlist()
         self.reset()
 
     def _reset_index(self) -> int:
