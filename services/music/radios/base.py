@@ -74,17 +74,20 @@ class Radio(ABC):
 
     @playlist.setter
     def playlist(self, playlist: str) -> None:
-        if playlist and self._playlist != playlist:
+        if not playlist:
+            return
+        if self._playlist != playlist:
             with self.pool.connection() as conn:
                 conn.execute("""
-                    INSERT INTO music_radios (server_name, radio_name, playlist_name) 
-                    VALUES (%s, %s, %s) 
-                    ON CONFLICT (server_name, radio_name) DO UPDATE 
-                    SET playlist_name = excluded.playlist_name
-                """, (self.server.name, self.name, playlist))
+                             INSERT INTO music_radios (server_name, radio_name, playlist_name)
+                             VALUES (%s, %s, %s)
+                             ON CONFLICT (server_name, radio_name) DO UPDATE
+                                 SET playlist_name = excluded.playlist_name
+                             """, (self.server.name, self.name, playlist))
             self._playlist = playlist
             self.songs = self._read_playlist()
-            self.reset()
+
+        self.reset()
 
     def _reset_index(self) -> int:
         if self.songs and self._mode == Mode.SHUFFLE:
@@ -150,12 +153,20 @@ class Radio(ABC):
     async def queue_worker(self):
         music_dir = self.service.music_dir
         while not self.queue_worker.is_being_cancelled():
-            if self.songs:
-                filename = os.path.join(music_dir, self.songs[self.idx])
-                if os.path.exists(filename):
-                    await self.play(filename)
-                else:
-                    self.log.warning(f"Can't play {self.songs[self.idx]} - file does not exist.")
+            if not self.songs:
+                self._current = None
+                await asyncio.sleep(1)
+                continue
+
+            if self.idx >= len(self.songs):
+                self.idx = 0
+
+            filename = os.path.join(music_dir, self.songs[self.idx])
+            if os.path.exists(filename):
+                await self.play(filename)
+            else:
+                self.log.warning(f"Can't play {self.songs[self.idx]} - file does not exist.")
+
             self._current = None
             if self._mode == Mode.SHUFFLE:
                 last_song = self.songs[self.idx]
