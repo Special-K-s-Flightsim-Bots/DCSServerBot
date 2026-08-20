@@ -6,12 +6,13 @@ import random
 import re
 
 from core import (Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, ServiceProxy,
-                  PluginInstallationError, Server, async_cache)
+                  PluginInstallationError, Server, async_cache, const)
 from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
 from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, File, UploadFile, Response
 from fastapi.security import APIKeyHeader
 from plugins.creditsystem.squadron import Squadron
+from plugins.srs.commands import SRS
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
 from psycopg.errors import UndefinedTable
 from psycopg.rows import dict_row
@@ -64,7 +65,6 @@ from .models import (
     MissionUnitResponse,
     EventEntry
 )
-from ..srs.commands import SRS
 
 app: FastAPI | None = None
 
@@ -416,7 +416,7 @@ class RestAPI(Plugin):
         self.router.add_api_route(
             "/mission/drawings", self.mission_drawings,
             methods=["GET"],
-            response_model=dict[str, Any],
+            response_model=MissionDrawingsResponse,
             description="Get mission drawing objects grouped by drawing layer.",
             summary="Mission Drawings",
             tags=["Utilities"]
@@ -796,10 +796,6 @@ class RestAPI(Plugin):
 
         # Remove leading/trailing whitespace
         coordinates = coordinates.strip()
-
-        latitude = longitude = None
-        meters = None
-        x = y = None
         ddm_input = None
 
         # Lat/Lon (decimal degrees)
@@ -1533,25 +1529,36 @@ class RestAPI(Plugin):
             
             # Extract wind data (use ground level wind by default)
             wind_data = weather_data.get('wind', {}).get('atGround', {})
-            wind_dir = wind_data.get('dir', 0)
+            wind_dir = (wind_data.get('dir', 0) + 180) % 360
 
             # Extract clouds data (it's directly in weather_data, not separate)
             clouds_data = weather_data.get('clouds', {})
 
+            visibility = weather_data.get('visibility', {}).get('distance', 10000)
+            if weather_data.get('enable_fog', False):
+                fog_vis = weather_data.get('fog', {}).get('visibility', 10000)
+                if fog_vis < visibility:
+                    visibility = fog_vis
+            if weather_data.get('enabled_dust', False):
+                dust_vis = weather_data.get('dust_density', {}).get('enable_dust', 10000)
+                if dust_vis < visibility:
+                    visibility = dust_vis
+            if visibility >= 10000:
+                visibility = 10000
+
             # Map DCS weather data to our model using actual structure
             return WeatherInfo(
                 temperature=weather_data.get('season', {}).get('temperature'),
-                wind_speed=wind_data.get('speed'),
-                wind_direction=int(wind_dir) if wind_dir else None,
+                wind_speed=int(wind_data.get('speed', 0) * const.METER_PER_SECOND_IN_KNOTS + 0.5),
+                wind_direction=wind_dir,
                 pressure=weather_data.get('qnh'),  # QNH pressure in mmHg
-                visibility=weather_data.get('visibility', {}).get('distance'),  # Extract distance from visibility dict
-                clouds_base=clouds_data.get('base'),
-                clouds_density=clouds_data.get('density'),
+                clouds_base=int(clouds_data.get('base', 0) * const.METER_IN_FEET + 0.5),
+                clouds_density=clouds_data.get('density', 0),
+                clouds_thickness=int(clouds_data.get('thickness', 0) * const.METER_IN_FEET + 0.5),
                 precipitation=clouds_data.get('iprecptns'),  # Precipitation is in clouds data
                 fog_enabled=weather_data.get('enable_fog', False),
-                fog_visibility=weather_data.get('fog', {}).get('visibility') if weather_data.get('fog', {}).get('visibility') else None,
                 dust_enabled=weather_data.get('enable_dust', False),
-                dust_visibility=weather_data.get('dust_density') if weather_data.get('enable_dust') else None
+                visibility=visibility
             )
         except Exception as ex:
             self.log.warning(f"Failed to get weather info for server {server.name}: {ex}")
