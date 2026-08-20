@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
 from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, File, UploadFile, Response
 from fastapi.security import APIKeyHeader
+from typing import Any, Literal, cast
 from plugins.creditsystem.squadron import Squadron
 from plugins.srs.commands import SRS
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
@@ -19,7 +20,6 @@ from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.servicebus import ServiceBus
 from services.webservice import WebService
-from typing import Any, Literal, cast
 
 from .models import (
     TopKill,
@@ -46,6 +46,7 @@ from .models import (
     ServerAttendanceStats,
     AirbasesResponse,
     AirbaseInfoResponse,
+    AirbaseAtisResponse,
     AirbaseWarehouseResponse,
     AirbaseSetWarehouseItemResponse,
     AirbaseCaptureResponse,
@@ -161,6 +162,7 @@ class RestAPI(Plugin):
         self.router.add_api_route(
             "/airbase/atis", self.airbase_atis,
             methods=["GET"],
+            response_model=AirbaseAtisResponse,
             description="Get ATIS information for an airbase on a given server.",
             summary="Airbase ATIS",
             tags=["Airbase"]
@@ -1138,7 +1140,7 @@ class RestAPI(Plugin):
             "airbase": airbase_data,
         }
     
-    async def airbase_atis(self, server_name: str = Query(...), airbase_name: str = Query(...)):
+    async def airbase_atis(self, server_name: str = Query(...), airbase_name: str = Query(...)) -> AirbaseAtisResponse:
         """Return ATIS information for a given airbase on a server."""
         # Resolve server
         resolved_server_name, server = self.get_resolved_server(server_name)
@@ -1156,7 +1158,7 @@ class RestAPI(Plugin):
         }, timeout=60)
         
         # Return only the ATIS info
-        return atisData
+        return AirbaseAtisResponse.model_validate(atisData)
 
     async def airbase_warehouse(self, server_name: str = Query(...), airbase_name: str = Query(...)):
         """Return warehouse information for a given airbase on a server."""
@@ -1738,11 +1740,11 @@ class RestAPI(Plugin):
                 """, {"server_name": resolved_server_name, "query": f"%{query}%", "limit": limit, "offset": offset})
                 rows = await cursor.fetchall()
                 if not rows:
-                    return {
+                    return LeaderBoard.model_validate({
                         'items': [],
                         'total_count': 0,
                         'offset': 0
-                    }
+                    })
 
                 # get and remove total count
                 total_count = rows[0]['total_count']

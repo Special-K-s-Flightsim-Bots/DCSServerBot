@@ -12,33 +12,37 @@ class UserEntry(BaseModel):
     date: datetime = Field(..., description="Last seen timestamp")
     current_server: Optional[str] = Field(None, description="Current server")
 
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat()
-        }
-        json_schema_extra = {
+        },
+        "json_schema_extra": {
             "example": {
+                "ucid": "aabbccddeeffgghhiiffkk1234567890",
+                "discord_id": 123456789012345678,
                 "nick": "Player1",
                 "date": "2025-08-07T12:00:00",
-                "current_server": "My Fancy Server",
+                "current_server": "My Fancy Server"
             }
         }
+    }
 
 
 class DailyPlayers(BaseModel):
     date: datetime
     player_count: int
 
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat()
-        }
-        json_schema_extra = {
+        },
+        "json_schema_extra": {
             "example": {
                 "date": "2025-08-07T12:00:00",
                 "player_count": 100
             }
         }
+    }
 
 
 class ServerStats(BaseModel):
@@ -63,6 +67,14 @@ class ServerStats(BaseModel):
                 "totalSorties": 100,
                 "totalKills": 100,
                 "totalDeaths": 50,
+                "totalPvPKills": 30,
+                "totalPvPDeaths": 20,
+                "daily_players": [
+                    {
+                        "date": "2025-08-07T12:00:00",
+                        "player_count": 100
+                    }
+                ]
             }
         }
     }
@@ -89,9 +101,12 @@ class MissionInfo(BaseModel):
                 "blue_slots": 20,
                 "blue_slots_used": 5,
                 "red_slots": 20,
+                "red_slots_used": 3,
+                "restart_time": 1691424000
             }
         }
     }
+
 
 class ExtensionInfo(BaseModel):
     name: str
@@ -124,7 +139,16 @@ class SquadronInfo(BaseModel):
                 "description": "Elite Fighter Squadron",
                 "image_url": "https://example.com/squadron-logo.png",
                 "locked": True,
-                "role": "Squadron Leader"
+                "role": "Squadron Leader",
+                "members": [
+                    {
+                        "ucid": "aabbccddeeffgghhiiffkk1234567890",
+                        "discord_id": 123456789012345678,
+                        "nick": "Player1",
+                        "date": "2025-08-07T12:00:00",
+                        "current_server": "My Fancy Server"
+                    }
+                ]
             }
         }
     }
@@ -144,8 +168,12 @@ class TopKill(BaseModel):
     credits: int = Field(..., description="Total credits earned")
 
     model_config = {
+        "json_encoders": {
+            datetime: lambda v: v.isoformat()
+        },
         "json_schema_extra": {
             "example": {
+                "row_num": 1,
                 "nick": "Special K",
                 "date": "2025-01-01T00:00:00",
                 "kills": 10,
@@ -153,7 +181,9 @@ class TopKill(BaseModel):
                 "kdr": 5.0,
                 "kills_pvp": 5,
                 "deaths_pvp": 0,
-                "kdr_pvp": 5.0
+                "kdr_pvp": 5.0,
+                "playtime": 7200,
+                "credits": 1500
             }
         }
     }
@@ -163,6 +193,30 @@ class LeaderBoard(BaseModel):
     items: list[TopKill]
     total_count: int
     offset: int
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "items": [
+                    {
+                        "row_num": 1,
+                        "nick": "Special K",
+                        "date": "2025-01-01T00:00:00",
+                        "kills": 10,
+                        "deaths": 2,
+                        "kdr": 5.0,
+                        "kills_pvp": 5,
+                        "deaths_pvp": 0,
+                        "kdr_pvp": 5.0,
+                        "playtime": 7200,
+                        "credits": 1500
+                    }
+                ],
+                "total_count": 1,
+                "offset": 0
+            }
+        }
+    }
 
 
 class Trueskill(BaseModel):
@@ -198,6 +252,13 @@ class HighscoreEntry(BaseModel):
         "json_encoders": {
             datetime: lambda v: v.isoformat(),
             Decimal: lambda v: float(v)
+        },
+        "json_schema_extra": {
+            "example": {
+                "nick": "Player1",
+                "date": "2025-08-07T12:00:00",
+                "value": 42.0
+            }
         }
     }
 
@@ -210,6 +271,13 @@ class PlaytimeEntry(BaseModel):
     model_config = {
         "json_encoders": {
             datetime: lambda v: v.isoformat()
+        },
+        "json_schema_extra": {
+            "example": {
+                "nick": "Player1",
+                "date": "2025-08-07T12:00:00",
+                "playtime": 3600
+            }
         }
     }
 
@@ -237,17 +305,69 @@ class Highscore(BaseModel):
         "validate_by_name": True,
         "json_schema_extra": {
             "example": {
-                "playtime": [{
-                    "nick": "Player1",
-                    "date": "2025-08-07T12:00:00",
-                    "playtime": 3600
-                }],
-                "Air Targets": [{
-                    "nick": "Player1",
-                    "date": "2025-08-07T12:00:00",
-                    "value": 42
-                }],
-                # ... other categories follow the same pattern
+                "playtime": [
+                    {
+                        "nick": "Player1",
+                        "date": "2025-08-07T12:00:00",
+                        "playtime": 3600
+                    }
+                ],
+                "Air Targets": [
+                    {
+                        "nick": "Player1",
+                        "date": "2025-08-07T12:00:00",
+                        "value": 42.0
+                    }
+                ],
+                "Ships": [
+                    {
+                        "nick": "Player1",
+                        "date": "2025-08-07T12:00:00",
+                        "value": 3.0
+                    }
+                ],
+                "Air Defence": [
+                    {
+                        "nick": "Player1",
+                        "date": "2025-08-07T12:00:00",
+                        "value": 12.0
+                    }
+                ],
+                "Ground Targets": [
+                    {
+                        "nick": "Player1",
+                        "date": "2025-08-07T12:00:00",
+                        "value": 55.0
+                    }
+                ],
+                "KD-Ratio": [
+                    {
+                        "nick": "Player1",
+                        "date": "2025-08-07T12:00:00",
+                        "value": 3.5
+                    }
+                ],
+                "PvP-KD-Ratio": [
+                    {
+                        "nick": "Player1",
+                        "date": "2025-08-07T12:00:00",
+                        "value": 2.5
+                    }
+                ],
+                "Most Efficient Killers": [
+                    {
+                        "nick": "Player1",
+                        "date": "2025-08-07T12:00:00",
+                        "value": 15.2
+                    }
+                ],
+                "Most Wasteful Pilots": [
+                    {
+                        "nick": "Player1",
+                        "date": "2025-08-07T12:00:00",
+                        "value": 1.1
+                    }
+                ]
             }
         }
     }
@@ -296,6 +416,7 @@ class ModuleStats(BaseModel):
         }
     }
 
+
 class PlayerStats(BaseModel):
     playtime: int = Field(..., description="Total playtime in seconds")
     kills: int = Field(..., description="Total kills")
@@ -333,6 +454,16 @@ class PlayerStats(BaseModel):
                 "deaths": 20,
                 "kills_pvp": 50,
                 "deaths_pvp": 20,
+                "kills_planes": 40,
+                "kills_helicopters": 10,
+                "kills_ships": 5,
+                "kills_sams": 15,
+                "kills_ground": 30,
+                "deaths_planes": 10,
+                "deaths_helicopters": 2,
+                "deaths_ships": 1,
+                "deaths_sams": 5,
+                "deaths_ground": 2,
                 "takeoffs": 200,
                 "landings": 180,
                 "ejections": 5,
@@ -340,8 +471,6 @@ class PlayerStats(BaseModel):
                 "teamkills": 2,
                 "kdr": 2.5,
                 "kdr_pvp": 2.5,
-                "lastSessionKills": 10,
-                "lastSessionDeaths": 2,
                 "killsByModule": [
                     {
                         "module": "F/A-18C",
@@ -357,6 +486,7 @@ class PlayerStats(BaseModel):
             }
         }
     }
+
 
 class WeatherInfo(BaseModel):
     temperature: float | None = Field(None, description="Temperature in Celsius")
@@ -381,14 +511,14 @@ class WeatherInfo(BaseModel):
                 "visibility": 9999,
                 "clouds_base": 8000,
                 "clouds_density": 4,
+                "clouds_thickness": 1000,
                 "precipitation": 0,
                 "fog_enabled": False,
-                "fog_visibility": None,
-                "dust_enabled": False,
-                "dust_visibility": None
+                "dust_enabled": False
             }
         }
     }
+
 
 class PlayerEntry(BaseModel):
     nick: str = Field(..., description="Player name")
@@ -396,6 +526,18 @@ class PlayerEntry(BaseModel):
     unit_type: str = Field(..., description="Type of aircraft")
     callsign: str = Field(..., description="Callsign of the aircraft")
     radios: list[int] = Field(..., description="List of radios")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "nick": "Pilot1",
+                "side": "blue",
+                "unit_type": "FA-18C_hornet",
+                "callsign": "Chevy 1-1",
+                "radios": [127500000, 251000000]
+            }
+        }
+    }
 
 
 class ServerInfo(BaseModel):
@@ -422,10 +564,16 @@ class ServerInfo(BaseModel):
         "json_schema_extra": {
             "example": {
                 "name": "DCS Server",
+                "description": "Public Dedicated Server",
                 "status": "running",
                 "address": "127.0.0.1:10308",
                 "password": "secret",
-                "restart_time": "2025-08-07 12:00:00",
+                "restart_time": "2025-08-07T12:00:00",
+                "max_players": 32,
+                "require_pure_clients": True,
+                "require_pure_models": True,
+                "require_pure_scripts": True,
+                "require_pure_textures": True,
                 "mission": {
                     "name": "Training Mission",
                     "uptime": 3600,
@@ -444,6 +592,15 @@ class ServerInfo(BaseModel):
                         "value": "127.0.0.1:5002"
                     }
                 ],
+                "players": [
+                    {
+                        "nick": "Pilot1",
+                        "side": "blue",
+                        "unit_type": "FA-18C_hornet",
+                        "callsign": "Chevy 1-1",
+                        "radios": [127500000, 251000000]
+                    }
+                ],
                 "weather": {
                     "temperature": 15.5,
                     "wind_speed": 5.2,
@@ -452,6 +609,7 @@ class ServerInfo(BaseModel):
                     "visibility": 9999,
                     "clouds_base": 8000,
                     "clouds_density": 4,
+                    "clouds_thickness": 1000,
                     "precipitation": 0,
                     "fog_enabled": False,
                     "dust_enabled": False
@@ -499,6 +657,7 @@ class TrapEntry(BaseModel):
         },
         "json_schema_extra": {
             "example": {
+                "id": 1,
                 "unit_type": "F/A-18C",
                 "grade": "OK",
                 "comment": "Good pass",
@@ -517,9 +676,57 @@ class GreenieboardEntry(BaseModel):
     nick: str = Field(..., description="Player name")
     traps: list[TrapEntry] = Field(..., description="List of traps for this player")
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "nick": "Player1",
+                "traps": [
+                    {
+                        "id": 1,
+                        "unit_type": "F/A-18C",
+                        "grade": "OK",
+                        "comment": "Good pass",
+                        "place": "CVN-73",
+                        "trapcase": 3,
+                        "wire": 3,
+                        "night": False,
+                        "points": 100,
+                        "time": "2025-08-07T12:00:00"
+                    }
+                ]
+            }
+        }
+    }
+
 
 class GreenieboardResponse(BaseModel):
     players: list[GreenieboardEntry] = Field(..., description="All players and their traps")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "players": [
+                    {
+                        "nick": "Player1",
+                        "traps": [
+                            {
+                                "id": 1,
+                                "unit_type": "F/A-18C",
+                                "grade": "OK",
+                                "comment": "Good pass",
+                                "place": "CVN-73",
+                                "trapcase": 3,
+                                "wire": 3,
+                                "night": False,
+                                "points": 100,
+                                "time": "2025-08-07T12:00:00"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    }
 
 
 class EventEntry(BaseModel):
@@ -547,18 +754,21 @@ class EventEntry(BaseModel):
                 "mission_id": 1,
                 "event": "S_EVENT_KILL",
                 "init_id": "aabbccddeeffgghhiiffkk1234567890",
+                "init_side": 2,
                 "init_type": "FA-18C_hornet",
                 "init_cat": "Airplanes",
-                "target_id": "aabbccddeeffgghhiiffkk1234567890",
-                "target_type": "FA-18C_hornet",
+                "target_id": "11223344556677889900aabbccddeeff",
+                "target_side": 1,
+                "target_type": "MiG-29A",
                 "target_cat": "Airplanes",
-                "weapon": "Mk-12",
-                "place": "Over the Pacific",
+                "weapon": "AIM-120C",
+                "place": "Over the Caucasus",
                 "comment": "First kill of the day!",
-                "time": "2023-10-01T12:00:00",
+                "time": "2025-08-07T12:00:00"
             }
         }
     }
+
 
 class SquadronCampaignCredit(BaseModel):
     campaign: str | None = Field(None, description="Campaign name")
@@ -579,13 +789,13 @@ class PlayerSquadron(BaseModel):
     image_url: str = Field(..., description="URL of the squadron's image")
 
     model_config = {
-            "json_schema_extra": {
-                "example": {
-                    "name": "Red Devils",
-                    "image_url": "https://example.com/squadron-logo.png"
-                }
+        "json_schema_extra": {
+            "example": {
+                "name": "Red Devils",
+                "image_url": "https://example.com/squadron-logo.png"
             }
         }
+    }
 
 
 class PlayerInfo(BaseModel):
@@ -595,6 +805,88 @@ class PlayerInfo(BaseModel):
     module_stats: list[ModuleStats] = Field(default_factory=list, description="Statistics by module")
     credits: CampaignCredits | None = Field(None, description="Campaign credits of this player")
     squadrons: list[PlayerSquadron] = Field(default_factory=list, description="Squadrons the player is a member of")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "current_server": "DCS Server",
+                "overall": {
+                    "playtime": 7200,
+                    "kills": 150,
+                    "deaths": 30,
+                    "kills_pvp": 80,
+                    "deaths_pvp": 25,
+                    "kills_planes": 60,
+                    "kills_helicopters": 15,
+                    "kills_ships": 5,
+                    "kills_sams": 20,
+                    "kills_ground": 50,
+                    "deaths_planes": 15,
+                    "deaths_helicopters": 3,
+                    "deaths_ships": 1,
+                    "deaths_sams": 8,
+                    "deaths_ground": 3,
+                    "takeoffs": 300,
+                    "landings": 270,
+                    "ejections": 8,
+                    "crashes": 22,
+                    "teamkills": 1,
+                    "kdr": 5.0,
+                    "kdr_pvp": 3.2,
+                    "killsByModule": [{"module": "F/A-18C", "kills": 50}],
+                    "kdrByModule": [{"module": "F/A-18C", "kdr": 3.5}]
+                },
+                "last_session": {
+                    "playtime": 3600,
+                    "kills": 10,
+                    "deaths": 2,
+                    "kills_pvp": 5,
+                    "deaths_pvp": 1,
+                    "kills_planes": 4,
+                    "kills_helicopters": 1,
+                    "kills_ships": 0,
+                    "kills_sams": 2,
+                    "kills_ground": 3,
+                    "deaths_planes": 1,
+                    "deaths_helicopters": 0,
+                    "deaths_ships": 0,
+                    "deaths_sams": 1,
+                    "deaths_ground": 0,
+                    "takeoffs": 3,
+                    "landings": 3,
+                    "ejections": 0,
+                    "crashes": 0,
+                    "teamkills": 0,
+                    "kdr": 5.0,
+                    "kdr_pvp": 5.0,
+                    "killsByModule": [{"module": "F/A-18C", "kills": 10}],
+                    "kdrByModule": [{"module": "F/A-18C", "kdr": 5.0}]
+                },
+                "module_stats": [
+                    {
+                        "module": "F/A-18C",
+                        "kills": 30,
+                        "deaths": 10,
+                        "kdr": 3.0,
+                        "playtime": 3600
+                    }
+                ],
+                "credits": {
+                    "id": 1,
+                    "name": "Summer Campaign 2025",
+                    "credits": 1500.0,
+                    "rank": "Rookie",
+                    "badge": "https://example.com/rookie_badge.png"
+                },
+                "squadrons": [
+                    {
+                        "name": "Red Devils",
+                        "image_url": "https://example.com/squadron-logo.png"
+                    }
+                ]
+            }
+        }
+    }
 
 
 class LinkMeResponse(BaseModel):
@@ -607,7 +899,7 @@ class LinkMeResponse(BaseModel):
             "example": {
                 "token": "1234",
                 "timestamp": "2025-08-09T12:00:00+00:00",
-                "rc": 2  # BIT_LINK_IN_PROGRESS
+                "rc": 2
             }
         }
     }
@@ -617,9 +909,29 @@ class TopTheatre(BaseModel):
     theatre: str
     playtime_hours: int
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "theatre": "Caucasus",
+                "playtime_hours": 2500
+            }
+        }
+    }
+
+
 class TopMission(BaseModel):
     mission_name: str
     playtime_hours: int
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "mission_name": "Training Map",
+                "playtime_hours": 1200
+            }
+        }
+    }
+
 
 class TopModule(BaseModel):
     module: str
@@ -627,31 +939,43 @@ class TopModule(BaseModel):
     unique_players: int
     total_uses: int
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "module": "F/A-18C",
+                "playtime_hours": 800,
+                "unique_players": 45,
+                "total_uses": 127
+            }
+        }
+    }
+
+
 class ServerAttendanceStats(BaseModel):
     """Server attendance statistics using monitoring plugin patterns"""
     current_players: int = Field(..., description="Current number of active players")
-    
+
     # Statistics for different periods (24h, 7d, 30d) following monitoring plugin patterns
     unique_players_24h: int = Field(..., description="Unique players in last 24 hours")
     total_playtime_hours_24h: float = Field(..., description="Total playtime hours in last 24 hours")
     discord_members_24h: int = Field(..., description="Discord members who played in last 24 hours")
-    
-    unique_players_7d: int = Field(..., description="Unique players in last 7 days") 
+
+    unique_players_7d: int = Field(..., description="Unique players in last 7 days")
     total_playtime_hours_7d: float = Field(..., description="Total playtime hours in last 7 days")
     discord_members_7d: int = Field(..., description="Discord members who played in last 7 days")
-    
+
     unique_players_30d: int = Field(..., description="Unique players in last 30 days")
-    total_playtime_hours_30d: float = Field(..., description="Total playtime hours in last 30 days") 
+    total_playtime_hours_30d: float = Field(..., description="Total playtime hours in last 30 days")
     discord_members_30d: int = Field(..., description="Discord members who played in last 30 days")
-    
+
     # Daily trend for the last week
     daily_trend: list[dict] = Field(default_factory=list, description="Daily unique player counts for trend analysis")
-    
+
     # Enhanced statistics from the Discord /serverstats command
     top_theatres: list[TopTheatre] = Field(default_factory=list, description="Top theatres by playtime")
-    top_missions: list[TopMission] = Field(default_factory=list, description="Top missions by playtime") 
+    top_missions: list[TopMission] = Field(default_factory=list, description="Top missions by playtime")
     top_modules: list[TopModule] = Field(default_factory=list, description="Top modules by playtime and usage")
-    
+
     # Additional server metrics from mv_serverstats
     total_sorties: int | None = Field(None, description="Total sorties flown")
     total_kills: int | None = Field(None, description="Total kills")
@@ -692,11 +1016,29 @@ class ServerAttendanceStats(BaseModel):
 class ErrorResponse(BaseModel):
     error: str = Field(..., description="Error message")
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "error": "Server not found"
+            }
+        }
+    }
+
 
 class Position(BaseModel):
     y: float
     x: float
     z: float
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "x": 76048.95,
+                "y": 250.0,
+                "z": 111344.92
+            }
+        }
+    }
 
 
 class FrequencyListItem(BaseModel):
@@ -719,6 +1061,15 @@ class Dynamic(BaseModel):
     dynamicSpawnAvailable: bool
     allowHotSpawn: bool
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "dynamicSpawnAvailable": True,
+                "allowHotSpawn": False
+            }
+        }
+    }
+
 
 class Airbase(BaseModel):
     alt: float
@@ -733,6 +1084,35 @@ class Airbase(BaseModel):
     dynamic: Dynamic
     runwayList: list[str] | dict | None = None
     coalition: str | int | None = None
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "alt": 250.0,
+                "code": "UGSB",
+                "id": "Batumi",
+                "lat": 41.6166,
+                "rwy_heading": 126,
+                "lng": 41.6000,
+                "name": "Batumi",
+                "position": {
+                    "x": 76048.95,
+                    "y": 250.0,
+                    "z": 111344.92
+                },
+                "frequencyList": [
+                    [131000000, 0],
+                    [260000000, 0]
+                ],
+                "dynamic": {
+                    "dynamicSpawnAvailable": True,
+                    "allowHotSpawn": False
+                },
+                "runwayList": ["13", "31"],
+                "coalition": 2
+            }
+        }
+    }
 
 
 class AirbasesResponse(BaseModel):
@@ -802,17 +1182,17 @@ class AirbaseInfoResponse(BaseModel):
                     "auto_capture": True,
                     "lat": 36.371269972814,
                     "unlimited": {
-                    "weapon": False,
-                    "liquids": True,
-                    "aircraft": False
+                        "weapon": False,
+                        "liquids": True,
+                        "aircraft": False
                     },
                     "parking": [
                         {
                             "Term_Index": 9,
                             "vTerminalPos": {
-                            "y": 69.475784301758,
-                            "x": 147715.125,
-                            "z": 38939.109375
+                                "y": 69.475784301758,
+                                "x": 147715.125,
+                                "z": 38939.109375
                             },
                             "TO_AC": False,
                             "Term_Index_0": -1,
@@ -824,40 +1204,40 @@ class AirbaseInfoResponse(BaseModel):
                     "lng": 36.298090184913,
                     "name": "Airbase Name",
                     "position": {
-                    "y": 69.475784301758,
-                    "x": 148653.765625,
-                    "z": 40403.9453125
+                        "y": 69.475784301758,
+                        "x": 148653.765625,
+                        "z": 40403.9453125
                     },
                     "command": "getAirbase",
                     "warehouse": {
-                    "liquids": {
-                        "0": 324730.28125,
-                        "1": 500000,
-                        "2": 500000,
-                        "3": 500000
-                    },
-                    "weapon": {
-                        "weapons.missiles.AGM_154": 50,
-                        "weapons.nurs.HYDRA_70_M151_M433": 100,
-                        "weapons.bombs.BEER_BOMB": 50,
-                        "weapons.containers.LANTIRN": 1000,
-                        "weapons.droptanks.Spitfire_tank_1": 1000
-                    },
-                    "aircraft": {
-                        "OH58D": 1,
-                        "CH-47Fbl1": 1,
-                        "A-10C_2": 1,
-                        "F-14B": 1
-                    }
+                        "liquids": {
+                            "0": 324730.28125,
+                            "1": 500000,
+                            "2": 500000,
+                            "3": 500000
+                        },
+                        "weapon": {
+                            "weapons.missiles.AGM_154": 50,
+                            "weapons.nurs.HYDRA_70_M151_M433": 100,
+                            "weapons.bombs.BEER_BOMB": 50,
+                            "weapons.containers.LANTIRN": 1000,
+                            "weapons.droptanks.Spitfire_tank_1": 1000
+                        },
+                        "aircraft": {
+                            "OH58D": 1,
+                            "CH-47Fbl1": 1,
+                            "A-10C_2": 1,
+                            "F-14B": 1
+                        }
                     },
                     "runways": [
                         {
                             "course": 2.3682391643524,
                             "Name": 22,
                             "position": {
-                            "y": 69.475784301758,
-                            "x": 147687.484375,
-                            "z": 39418.7421875
+                                "y": 69.475784301758,
+                                "x": 147687.484375,
+                                "z": 39418.7421875
                             },
                             "length": 2759.2866210938,
                             "width": 60
@@ -870,6 +1250,77 @@ class AirbaseInfoResponse(BaseModel):
             }
         }
     }
+
+
+class PressureInfo(BaseModel):
+    pressureHPA: float = Field(..., description="Pressure in hPa")
+    pressureMM: float = Field(..., description="Pressure in mmHg")
+    pressureIN: float = Field(..., description="Pressure in inHg")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "pressureHPA": 1013.25,
+                "pressureMM": 760.0,
+                "pressureIN": 29.92
+            }
+        }
+    }
+
+
+class WindInfo(BaseModel):
+    speed: float = Field(..., description="Wind speed in m/s")
+    dir: float = Field(..., description="Wind direction in degrees")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "speed": 5.2,
+                "dir": 270.0
+            }
+        }
+    }
+
+
+class AirbaseAtisResponse(BaseModel):
+    command: Optional[str] = Field(None, description="Command name")
+    temp: float = Field(..., description="Temperature in Celsius")
+    qfe: PressureInfo | dict = Field(..., description="QFE pressure")
+    qnh: PressureInfo | dict = Field(..., description="QNH pressure")
+    turbulence: Optional[str] = Field(None, description="Turbulence description")
+    wind: WindInfo | dict = Field(..., description="Wind conditions")
+    weather: Optional[dict] = Field(None, description="Raw mission weather data")
+    clouds: Optional[dict] = Field(None, description="Cloud cover information")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "command": "getWeatherInfo",
+                "temp": 15.5,
+                "qfe": {
+                    "pressureHPA": 1013.25,
+                    "pressureMM": 760.0,
+                    "pressureIN": 29.92
+                },
+                "qnh": {
+                    "pressureHPA": 1013.25,
+                    "pressureMM": 760.0,
+                    "pressureIN": 29.92
+                },
+                "turbulence": "None",
+                "wind": {
+                    "speed": 5.2,
+                    "dir": 270.0
+                },
+                "clouds": {
+                    "base": 8000,
+                    "thickness": 1000,
+                    "density": 4
+                }
+            }
+        }
+    }
+
 
 class AirbaseWarehouseResponse(BaseModel):
     warehouse: dict = Field(..., description="Warehouse data")
@@ -906,9 +1357,9 @@ class AirbaseWarehouseResponse(BaseModel):
             }
         }
     }
-    
+
+
 class AirbaseSetWarehouseItemResponse(BaseModel):
-        
     item: str = Field(..., description="Warehouse item name")
     server_name: str = Field(..., description="Server name")
     value: int = Field(..., description="Quantity value")
@@ -923,8 +1374,8 @@ class AirbaseSetWarehouseItemResponse(BaseModel):
         }
     }
 
+
 class AirbaseCaptureResponse(BaseModel):
-        
     server_name: str = Field(..., description="Server name")
     airbase_name: str = Field(..., description="Airbase name")
     coalition: int = Field(..., description="Coalition capturing the airbase")
@@ -933,11 +1384,12 @@ class AirbaseCaptureResponse(BaseModel):
         "json_schema_extra": {
             "example": {
                 "server_name": "Server Name",
-                "airbase": "Airbase Name",
+                "airbase_name": "Airbase Name",
                 "coalition": 0
             }
         }
     }
+
 
 class MissionRestartResponse(BaseModel):
     status: str = Field(..., description="Status of the operation")
@@ -952,6 +1404,7 @@ class MissionRestartResponse(BaseModel):
         }
     }
 
+
 class MissionLoadResponse(BaseModel):
     status: str = Field(..., description="Status of the operation")
     message: str = Field(..., description="Status message")
@@ -964,6 +1417,7 @@ class MissionLoadResponse(BaseModel):
             }
         }
     }
+
 
 class MissionUploadResponse(BaseModel):
     status: str = Field(..., description="Status of the operation")
@@ -978,6 +1432,7 @@ class MissionUploadResponse(BaseModel):
         }
     }
 
+
 class MissionPauseResponse(BaseModel):
     status: str = Field(..., description="Status of the operation")
     message: str = Field(..., description="Status message")
@@ -990,6 +1445,7 @@ class MissionPauseResponse(BaseModel):
             }
         }
     }
+
 
 class MissionUnpauseResponse(BaseModel):
     status: str = Field(..., description="Status of the operation")
@@ -1004,10 +1460,22 @@ class MissionUnpauseResponse(BaseModel):
         }
     }
 
+
 class MissionEntry(BaseModel):
     name: str = Field(..., description="Mission name without extension")
     path: str = Field(..., description="Relative path to mission file")
     installed: bool = Field(..., description="Whether mission is in the active mission list")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "name": "Training Mission",
+                "path": "Training Mission.miz",
+                "installed": True
+            }
+        }
+    }
+
 
 class MissionsResponse(BaseModel):
     missions: list[MissionEntry] = Field(..., description="List of available missions")
@@ -1033,6 +1501,7 @@ class MissionsResponse(BaseModel):
         }
     }
 
+
 class ServerStartResponse(BaseModel):
     status: str = Field(..., description="Status of the operation")
     message: str = Field(..., description="Status message")
@@ -1045,6 +1514,7 @@ class ServerStartResponse(BaseModel):
             }
         }
     }
+
 
 class ServerStopResponse(BaseModel):
     status: str = Field(..., description="Status of the operation")
@@ -1059,6 +1529,7 @@ class ServerStopResponse(BaseModel):
         }
     }
 
+
 class ServerRestartResponse(BaseModel):
     status: str = Field(..., description="Status of the operation")
     message: str = Field(..., description="Status message")
@@ -1071,7 +1542,8 @@ class ServerRestartResponse(BaseModel):
             }
         }
     }
-    
+
+
 class ConvertCoordinates(BaseModel):
     latlon: str = Field(..., description="Latitude and Longitude in decimal degrees")
     mgrs: str = Field(..., description="Cooridnate provided, converted to MGRS")
@@ -1119,6 +1591,16 @@ class MissionBullseye(BaseModel):
     lat: float = Field(..., description="Bullseye latitude in decimal degrees")
     lng: float = Field(..., description="Bullseye longitude in decimal degrees")
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "coalition": "blue",
+                "lat": 36.12345,
+                "lng": 36.54321
+            }
+        }
+    }
+
 
 class MissionBullseyesResponse(BaseModel):
     bullseyes: list[MissionBullseye] = Field(..., description="List of coalition bullseye coordinates")
@@ -1138,6 +1620,15 @@ class MissionBullseyesResponse(BaseModel):
 class MissionDrawingPoint(BaseModel):
     lat: float = Field(..., description="Latitude in decimal degrees")
     lng: float = Field(..., description="Longitude in decimal degrees")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "lat": 36.12345,
+                "lng": 36.54321
+            }
+        }
+    }
 
 
 class MissionDrawing(BaseModel):
@@ -1173,6 +1664,32 @@ class MissionDrawing(BaseModel):
     # Icon-specific
     file: str | None = Field(None, description="Icon file name")
     scale: float | None = Field(None, description="Icon scale factor")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "name": "AO Boundary",
+                "primitiveType": "Line",
+                "text": "Restricted Area",
+                "layerName": "Layer 1",
+                "visible": True,
+                "mapX": 147687.0,
+                "mapY": 39418.0,
+                "colorString": "0xFF0000FF",
+                "fillColorString": "0x330000FF",
+                "style": "solid",
+                "thickness": 2,
+                "location": {
+                    "lat": 36.12345,
+                    "lng": 36.54321
+                },
+                "points": [
+                    {"lat": 36.10000, "lng": 36.50000},
+                    {"lat": 36.20000, "lng": 36.60000}
+                ]
+            }
+        }
+    }
 
     @field_validator(
         "text",
@@ -1244,10 +1761,29 @@ class MissionUnitLocation(BaseModel):
     lon: float = Field(..., description="Current longitude in decimal degrees")
     alt: float = Field(..., description="Current altitude in meters")
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "lat": 13.58402,
+                "lon": 144.93082,
+                "alt": 58.6
+            }
+        }
+    }
+
 
 class MissionUnitLoadoutItem(BaseModel):
     displayName: str = Field(..., description="Display name of the weapon or store")
     count: int = Field(..., description="Remaining count")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "displayName": "AIM-120C AMRAAM",
+                "count": 2
+            }
+        }
+    }
 
 
 class MissionUnitNavAid(BaseModel):
@@ -1255,12 +1791,33 @@ class MissionUnitNavAid(BaseModel):
     channel: int | None = Field(None, description="Configured channel if available")
     modeChannel: str | int | None = Field(None, description="TACAN mode channel, if available")
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "active": True,
+                "channel": 67,
+                "modeChannel": "X"
+            }
+        }
+    }
+
 
 class MissionUnitWaypoint(BaseModel):
     lat: float = Field(..., description="Waypoint latitude in decimal degrees")
     lng: float = Field(..., description="Waypoint longitude in decimal degrees")
     alt: float | None = Field(None, description="Waypoint altitude in meters")
     speed: float | None = Field(None, description="Waypoint speed in m/s")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "lat": 13.60000,
+                "lng": 145.00000,
+                "alt": 3000.0,
+                "speed": 180.0
+            }
+        }
+    }
 
 
 class MissionUnitResponse(BaseModel):
@@ -1314,8 +1871,8 @@ class MissionUnitResponse(BaseModel):
                     {
                         "lat": 13.60000,
                         "lng": 145.00000,
-                        "alt": 3000,
-                        "speed": 180
+                        "alt": 3000.0,
+                        "speed": 180.0
                     }
                 ]
             }
