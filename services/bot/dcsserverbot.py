@@ -423,7 +423,7 @@ class DCSServerBot(commands.Bot):
         else:
             rc = True
             for plugin in self.plugins:
-                if not await self.reload_plugin(plugin):
+                if plugin and not await self.reload_plugin(plugin):
                     rc = False
             return rc
 

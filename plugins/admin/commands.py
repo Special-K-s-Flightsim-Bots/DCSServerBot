@@ -1287,6 +1287,9 @@ Please make sure you forward the following ports:
         if plugin in [x.lower() for x in self.bot.cogs.keys()]:
             await interaction.response.send_message(_('Plugin {} is already started.').format(plugin), ephemeral=True)
             return
+        elif not plugin:
+            await interaction.response.send_message(_("You need to provide a supported plugin."))
+            return
 
         await interaction.response.defer(ephemeral=ephemeral)
         if await self.bot.load_plugin(plugin):
