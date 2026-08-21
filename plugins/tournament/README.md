@@ -286,6 +286,7 @@ to leave, all their matches will be marked as won by the opposite squadron.
 | /tournament preferences | \[tournament\]                                     | admin-channel    | GameMaster     | Show time and map preferences as piecharts.                       |
 | /match generate         | tournament <group\|eliminate> \[num_groups\]       | admin-channel    | GameMaster     | Auto-generates matches for each stage of the tournament.          |
 | /match create           | tournament stage server squadron_blue squadron_red | admin-channel    | GameMaster     | Creates a match manually.                                         |
+| /match delete           | tournament match                                   | admin-channel    | GameMaster     | Delete an existing match.                                         |
 | /match list             | tournament                                         | any              | DCS            | List all matches of a specific tournament.                        |
 | /match start            | tournament match \[mission\] \[round_number\]      | admin-channel    | GameMaster     | Starts a match. Prepares and starts the DCS server.               |
 | /match edit             | tournament match \[winner_squadron_id\]            | admin-channel    | GameMaster     | Edit the results of a match.                                      |
