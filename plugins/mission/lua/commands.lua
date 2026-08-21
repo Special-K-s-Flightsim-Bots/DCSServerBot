@@ -536,7 +536,7 @@ function dcsbot.getWeatherInfo(json)
             pressureMM = pressureQNH * 0.7500637554192,
             pressureIN = pressureQNH * 0.0295300586467
         }
-        msg.turbulence = UC.composeTurbulenceString(weather)
+        msg.turbulence = weather.groundTurbulence
         local wind = Weather.getGroundWindAtPoint({position = position})
         msg.wind = {
             speed = wind.v,

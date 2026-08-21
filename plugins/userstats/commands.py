@@ -306,13 +306,17 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             if isinstance(user, str):
                 member = await self.bot.get_member_by_ucid(ucid=user, verified=True)
                 ucid = user
-            else:
+            elif user:
                 member = user
                 ucid = await self.bot.get_ucid_by_member(member, verified=True)
                 if not ucid:
                     await interaction.followup.send(
                         f"Member {member.mention} needs to be linked to join this squadron!", ephemeral=True)
                     return
+            else:
+                await interaction.followup.send(_("You need to provide an existing user."), ephemeral=True)
+                return
+
             if not member:
                 prefix = f"User {ucid}"
             else:

@@ -2175,12 +2175,14 @@ class Tournament(Plugin[TournamentEventListener]):
             await interaction.followup.send(_("Aborted."), ephemeral=True)
             return
 
+        await self.close_channel(match_id)
         async with self.apool.connection() as conn:
-            await conn.execute("DELETE FROM tm_matches WHERE tournament_id = %s and match_id = %s",
-                               (tournament_id, match_id))
-        await interaction.followup.send(_("Match deleted.\nPlease use {} to create a replacement match.").format(
-            (await utils.get_command(self.bot, group=self.match.name, name=self.create_match.name)).mention),
-        ephemeral=True)
+            await conn.execute("DELETE FROM tm_matches WHERE match_id = %s", (match_id, ))
+        await interaction.followup.send(
+            _("Match deleted.\n"
+              "Please use {} to create a replacement match, if necessary.").format(
+                (await utils.get_command(self.bot, group=self.match.name, name=self.create_match.name)).mention
+            ), ephemeral=True)
 
     # New command group "/tickets"
     tickets = Group(name="tickets", description=_("Commands to manage tickets in a tournament"))
