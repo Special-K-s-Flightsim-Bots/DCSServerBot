@@ -13,7 +13,7 @@ UNIT_TYPES = {
 
 class Main(report.EmbedElement):
 
-    async def render(self, server: Server, sides: list[Coalition], in_game: bool = False) -> None:
+    async def render(self, server: Server, sides: list[Coalition], in_game: bool = False, hide_units: bool = False) -> None:
         players = server.get_active_players()
         sides: dict[Side, dict] = {
             Side.NEUTRAL: {"names": [], "units": [], "SRS": []},
@@ -46,6 +46,7 @@ class Main(report.EmbedElement):
             if side in sides and len(sides[side]['names']):
                 self.add_field(name='▬' * 13 + f' {side.name.title()} ' + '▬' * 13, value='_ _', inline=False)
                 self.add_field(name='Name', value='\n'.join(sides[side]['names']) or '_ _')
-                self.add_field(name='Unit', value='\n'.join(sides[side]['units']) or '_ _')
+                if not hide_units:
+                    self.add_field(name='Unit', value='\n'.join(sides[side]['units']) or '_ _')
                 if srs_users:
                     self.add_field(name='SRS', value='\n'.join(sides[side]['SRS']) or '_ _')

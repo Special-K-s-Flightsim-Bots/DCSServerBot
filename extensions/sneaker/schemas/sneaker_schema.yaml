@@ -23,6 +23,7 @@ schema;instance_sneaker_schema:
     name: {type: str, nullable: false, range: {min: 1}}
     debug: {type: bool, nullable: false}
     url: {type: url, nullable: false}
+    affinity: {type: any, nullable: false, func: str_or_list}
     auto_affinity:
       type: map
       nullable: false

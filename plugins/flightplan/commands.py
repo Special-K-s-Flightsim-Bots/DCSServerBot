@@ -93,7 +93,7 @@ def parse_altitude(value: str) -> Optional[int]:
     return None
 
 
-def format_time_utc(dt: datetime, fmt: str = '%H:%M UTC') -> str:
+def format_time_utc(dt: datetime | None, fmt: str = '%H:%M UTC') -> str:
     """
     Format a datetime as UTC time string.
     Handles both timezone-aware and naive datetimes.

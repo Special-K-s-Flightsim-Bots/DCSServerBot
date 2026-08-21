@@ -21,7 +21,6 @@ if sys.platform == 'win32':
     import win32gui
     import win32process
 
-from collections import OrderedDict
 from contextlib import suppress
 from copy import deepcopy
 from core import utils, Server
@@ -33,7 +32,8 @@ from core.data.node import UploadStatus
 from core.extension import Extension, InstallException
 from core.mizfile import MizFile
 from core.process import ProcessManager
-from core.utils.helper import async_cache
+from core.services import ServiceRegistry
+from core.utils.helper import cache_with_expiration
 from core.utils.performance import performance_log
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -154,10 +154,10 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 @dataclass
 @DataObjectFactory.register()
 class ServerImpl(Server):
-    bot: DCSServerBot | None = field(compare=False, init=False)
-    event_handler: MissionFileSystemEventHandler = field(compare=False, default=None)
-    observer: ObserverType = field(compare=False, default=None)
-    process: psutil.Process | None = field(default=None, compare=False)
+    bot: DCSServerBot | None = field(compare=False, init=False, repr=False, default=None)
+    event_handler: MissionFileSystemEventHandler = field(compare=False, repr=False, default=None)
+    observer: ObserverType = field(compare=False, repr=False, default=None)
+    process: psutil.Process | None = field(default=None, repr=False, compare=False)
 
     @override
     def __post_init__(self):
@@ -623,6 +623,8 @@ class ServerImpl(Server):
                 shutil.copy2(orig, _mission)
                 missions.append(_mission)
             elif os.path.exists(mission):
+                if '.dcssb' in mission and os.path.exists(_mission) and os.path.getmtime(_mission) > os.path.getmtime(mission):
+                    shutil.copy2(_mission, mission)
                 missions.append(mission)
             else:
                 self.log.warning(f"Removing mission {mission} from serverSettings.lua as it could not be found!")
@@ -676,7 +678,8 @@ class ServerImpl(Server):
                     DEFAULT_EXTENSIONS | self.locals.get('extensions', {})
             ).get(name, {})
         else:
-            config = self.node.locals.get('extensions', {}).get(name, {}) | config
+            config = (self.node.locals.get('extensions', {}).get(name, {}) | config.get('Node', {}) |
+                      self.locals.get('extensions', {}).get(name, {}) | config.get('Instance', {}))
         return _ext(self, config)
 
     @override
@@ -701,7 +704,17 @@ class ServerImpl(Server):
     @override
     async def prepare_extensions(self):
         async with self._lock:
+            installed = []
             for ext in self.extensions.values():
+                try:
+                    if not ext.is_installed():
+                        if await ext.install():
+                            installed.append(ext)
+                    else:
+                        installed.append(ext)
+                except Exception:
+                    self.log.error(f"  => Unknown error during {ext.name}.install() - skipped.", exc_info=True)
+            for ext in installed:
                 try:
                     await ext.prepare()
                 except InstallException as ex:
@@ -813,6 +826,12 @@ class ServerImpl(Server):
         if modify_mission:
             await self.apply_mission_changes(use_orig=use_orig)
         await asyncio.to_thread(self.do_startup)
+
+        from services.firewall import FirewallService
+        fw = ServiceRegistry.get(FirewallService)
+        if fw:
+            await fw.reset_fw_rules(self)
+
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
         try:
             await self.wait_for_status_change([Status.SHUTDOWN, Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
@@ -1272,7 +1291,7 @@ class ServerImpl(Server):
     async def getMissionList(self) -> list[str]:
         return [os.path.normpath(x) for x in self.settings.get('missionList', [])]
 
-    @async_cache
+    @cache_with_expiration(60)
     async def _find_extensions(self, only_installable: bool = False) -> Iterable[str]:
         from core import Extension, InstallableExtension
 
@@ -1301,7 +1320,7 @@ class ServerImpl(Server):
         return extensions
 
     @override
-    async def list_extensions(self, *, only_installable: bool = False, active: bool = None) -> list[str]:
+    async def list_extensions(self, *, only_installable: bool = False, active: bool | None = None) -> list[str]:
         ext = await self._find_extensions(only_installable=only_installable)
         if active is not None:
             if not self.extensions:
@@ -1311,7 +1330,11 @@ class ServerImpl(Server):
             else:
                 subclass = Extension
             if active:
-                ext = [x.__class__.__name__ for x in self.extensions.values() if issubclass(type(x), subclass)]
+                ext = [
+                    x.__class__.__name__
+                    for x in self.extensions.values()
+                    if issubclass(type(x), subclass) and x.enabled
+                ]
             else:
                 ext = [x for x in ext if x not in self.extensions]
         return sorted(ext)
@@ -1343,13 +1366,20 @@ class ServerImpl(Server):
     async def config_extension(self, name: str, config: dict | None = None) -> dict:
         config_file = os.path.join(self.node.config_dir, 'nodes.yaml')
         data: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
-        node_config = data.get(self.node.name, {})
-        extensions = node_config.setdefault('instances', {}).setdefault(
+        all_config = data.get(self.node.name, {})
+        node_config = all_config.setdefault('extensions', {})
+        extensions = all_config.setdefault('instances', {}).setdefault(
             self.instance.name, {}).setdefault('extensions', {})
         if not config:
-            return extensions.get(name, {})
+            return {
+                "Node": node_config.get(name, {}),
+                "Instance": extensions.get(name, {})
+            }
 
-        extensions[name] = extensions.get(name, {}) | config
+        if 'Node' in config:
+            node_config[name] = node_config.get(name, {}) | config.get('Node', {})
+        if 'Instance' in config:
+            extensions[name] = extensions.get(name, {}) | config.get('Instance', {})
         with open(config_file, 'w', encoding='utf-8') as f:
             yaml.dump(data, f)
         # re-read config
@@ -1369,7 +1399,7 @@ class ServerImpl(Server):
             ext = self.load_extension(name, config)
             self.extensions[name] = ext
         if ext and await ext.enable():
-            await self.config_extension(name, (config or {}) | {"enabled": True})
+            await self.config_extension(name, utils.deep_merge(config or {}, {"Instance": {"enabled": True}}))
             return True
         return False
 
@@ -1378,7 +1408,7 @@ class ServerImpl(Server):
         if name not in self.extensions:
             raise InstallException(f"Extension '{name}' not found")
         ext = self.extensions[name]
-        await self.config_extension(name, {"enabled": False})
+        await self.config_extension(name, {"Instance": {"enabled": False}})
         if await ext.disable():
             self.extensions.pop(name, None)
             return True

@@ -77,7 +77,7 @@ class TacviewRecorder:
         self._reader_task: asyncio.Task | None = None
 
         self._buf = bytearray()
-        self._buf_ready = False  # true once ACMI header has been seen
+        self._buf_ready = asyncio.Event()  # changed from bool
 
         self._lock = asyncio.Lock()
 
@@ -161,7 +161,7 @@ class TacviewRecorder:
 
     async def _ingest(self, data: bytes) -> None:
         async with self._lock:
-            if not self._buf_ready:
+            if not self._buf_ready.is_set():
                 # Looking for the ACMI header
                 self._buf.extend(data)
                 text = self._buf.decode("utf-8", errors="ignore")
@@ -169,7 +169,7 @@ class TacviewRecorder:
                 if header_pos != -1:
                     # Drop everything before the header
                     self._buf = bytearray(text[header_pos:].encode("utf-8"))
-                    self._buf_ready = True
+                    self._buf_ready.set()
                 else:
                     # Keep at most 8 KiB while searching
                     if len(self._buf) > 8192:
@@ -195,8 +195,7 @@ class TacviewRecorder:
     # Record control
 
     async def start(self) -> bool:
-        while not self._buf_ready:
-            await asyncio.sleep(0.1)
+        await self._buf_ready.wait()
 
         async with self._lock:
             if self._recording:

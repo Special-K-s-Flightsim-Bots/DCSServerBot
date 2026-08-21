@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+import asyncio
+
 from core import Plugin, utils
 from core.data.dataobject import DataObjectFactory, DataObject
 from core.services.registry import ServiceRegistry
@@ -23,39 +27,66 @@ class Squadron(DataObject):
     bot: DCSServerBot = field(compare=False, init=False)
     plugin: Plugin = field(compare=False, init=False)
     config: dict = field(compare=False, init=False)
+    _points: int = field(compare=False, default=-1, init=False)
 
     def __post_init__(self):
         super().__post_init__()
         self.bot = ServiceRegistry.get(BotService).bot
         self.plugin = cast(Plugin, self.bot.cogs['CreditSystem'])
         self.config = self.plugin.get_config().get('squadron', {})
-        squadron = utils.get_squadron(self.node, name=self.name)
 
+    async def prep(self) -> Squadron:
+        squadron = await asyncio.to_thread(utils.get_squadron, self.node, name=self.name)
         if squadron:
             self.squadron_id = squadron['id']
         else:
             self.squadron_id = -1
+        # pre-load points
+        self._points = await self.get_points()
+        return self
 
-    @property
-    def points(self) -> int:
-        with self.pool.connection() as conn:
-            cursor = conn.execute("""
+    async def get_points(self) -> int:
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
               SELECT points FROM squadron_credits WHERE campaign_id = %s AND squadron_id = %s
             """, (self.campaign_id, self.squadron_id))
-            row = cursor.fetchone()
+            row = await cursor.fetchone()
             if row:
                 return row[0]
             else:
-                conn.execute("""
+                await conn.execute("""
                     INSERT INTO squadron_credits (campaign_id, squadron_id, points) 
                     VALUES (%s, %s, %s) 
                     ON CONFLICT DO NOTHING
                 """, (self.campaign_id, self.squadron_id, self.config.get('initial_points', 0)))
-                cursor = conn.execute("""
+                cursor = await conn.execute("""
                     SELECT points FROM squadron_credits WHERE campaign_id = %s AND squadron_id = %s
                 """, (self.campaign_id, self.squadron_id))
-                row = cursor.fetchone()
+                row = await cursor.fetchone()
                 return row[0]
+
+    @property
+    def points(self) -> int:
+        if self._points == -1:
+            with self.pool.connection() as conn:
+                cursor = conn.execute("""
+                  SELECT points FROM squadron_credits WHERE campaign_id = %s AND squadron_id = %s
+                """, (self.campaign_id, self.squadron_id))
+                row = cursor.fetchone()
+                if row:
+                    self._points = row[0]
+                else:
+                    conn.execute("""
+                        INSERT INTO squadron_credits (campaign_id, squadron_id, points) 
+                        VALUES (%s, %s, %s) 
+                        ON CONFLICT DO NOTHING
+                    """, (self.campaign_id, self.squadron_id, self.config.get('initial_points', 0)))
+                    cursor = conn.execute("""
+                        SELECT points FROM squadron_credits WHERE campaign_id = %s AND squadron_id = %s
+                    """, (self.campaign_id, self.squadron_id))
+                    row = cursor.fetchone()
+                    self._points = row[0]
+        return self._points
 
     @points.setter
     def points(self, p: int) -> None:
@@ -86,12 +117,12 @@ class Squadron(DataObject):
                     'points': p
                 }))
 
-    def audit(self, event: str, points: int, remark: str, player: "CreditPlayer | None" = None):
+    async def audit(self, event: str, points: int, remark: str, player: "CreditPlayer | None" = None):
         if points == 0:
             return
         new_points = self.points
-        with self.pool.connection() as conn:
-            conn.execute("""
+        async with self.apool.connection() as conn:
+            await conn.execute("""
                 INSERT INTO squadron_credits_log (
                     campaign_id, 
                     event, 

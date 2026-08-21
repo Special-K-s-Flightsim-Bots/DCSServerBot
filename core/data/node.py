@@ -88,6 +88,11 @@ class Node(ABC):
 
     @property
     @abstractmethod
+    def claimed_master(self) -> bool:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
     def public_ip(self) -> str:
         raise NotImplementedError()
 
@@ -256,7 +261,7 @@ class Node(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def find_all_instances(self) -> list[tuple[str, str]]:
+    async def find_all_instances(self) -> dict[str, str]:
         raise NotImplementedError()
 
     @abstractmethod
@@ -276,7 +281,7 @@ class Node(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def get_cpu_info(self, used: bool = True) -> bytes | int:
+    async def get_cpu_info(self, used: bool = True, export: bool = False) -> bytes | dict | int:
         raise NotImplementedError()
 
     @abstractmethod
@@ -285,6 +290,10 @@ class Node(ABC):
 
     @abstractmethod
     async def get_config(self) -> dict:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def set_config(self, config: dict) -> dict:
         raise NotImplementedError()
 
     @abstractmethod

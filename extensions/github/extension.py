@@ -44,6 +44,11 @@ class GitHub(Extension):
                                                        instance=self.server.instance, node=self.node),
                                    self.get_repo_name(self.repo))
 
+    @override
+    @property
+    def hidden(self) -> bool:
+        return True
+
     @staticmethod
     def get_repo_name(repo: str) -> str:
         parsed_url = urlparse(repo)

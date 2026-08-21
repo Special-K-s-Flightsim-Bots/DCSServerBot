@@ -1,0 +1,16 @@
+DEFAULT:
+  ddos_detection:                 # Optional DDoS-check
+    enabled: true
+    threshold_sigma: 3.0          # z-score threshold for anomaly detection (default: 3.0)
+    min_samples: 30               # minimum baseline samples before detection starts (default: 30)
+    min_abs_recv_mbps: 10         # minimum absolute bandwidth in MB/s to consider (default: 10)
+    consecutive_ticks: 3          # consecutive anomaly ticks to confirm DDoS START (default: 3)
+    recovery_ticks: 5             # consecutive normal ticks to confirm DDoS END (default: 5)
+    alert_cooldown_minutes: 15    # minimum minutes between repeated alerts (default: 15)
+    baseline_lookback_minutes: 30 # minutes of historical data to seed baselines on startup (default: 30)
+    udp_sniff_duration: 10        # seconds to sniff UDP for non-player source IPs (default: 10)
+    udp_sniff_iface: null         # network interface for UDP sniff, null = auto-detect (default: null)
+    action: alert                 # "alert" = detect+notify only, "block" = alert + firewall block (default: alert)
+    whitelist: []                 # static IPs always allowed during blocks (e.g. admin IPs)
+    node_block: true              # on node-wide bandwidth DDoS, block ALL running servers (default: true)
+    max_conns_per_ip: 2           # auto-block IPs with >N TCP connections per port, 0=disable (default: 2)

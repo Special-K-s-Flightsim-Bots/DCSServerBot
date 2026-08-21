@@ -98,26 +98,26 @@ end
 -- from perun
 function getCategory(id)
 	-- Helper function returns object category basing on https://pastebin.com/GUAXrd2U
-	local _killed_target_category = "Other"
+	local _category = "Other"
 
 	-- Sometimes we get empty object id (seems like DCS API bug)
 	if id ~= nil and id ~= "" then
-		_killed_target_category = Sim.getUnitTypeAttribute(id, "category")
+		_category = Sim.getUnitTypeAttribute(id, "category")
 
 		-- Below, simple hack to get the proper category when DCS API is not returning correct value
-		if _killed_target_category == nil then
-			local _killed_target_cat_check_ship = Sim.getUnitTypeAttribute(id, "DeckLevel")
-			local _killed_target_cat_check_plane = Sim.getUnitTypeAttribute(id, "WingSpan")
-			if _killed_target_cat_check_ship ~= nil and _killed_target_cat_check_plane == nil then
-				_killed_target_category = "Ships"
-			elseif _killed_target_cat_check_ship == nil and _killed_target_cat_check_plane ~= nil then
-				_killed_target_category = "Planes"
+		if _category == nil then
+			local _cat_check_ship = Sim.getUnitTypeAttribute(id, "DeckLevel")
+			local _cat_check_plane = Sim.getUnitTypeAttribute(id, "WingSpan")
+			if _cat_check_ship ~= nil and _cat_check_plane == nil then
+				_category = "Ships"
+			elseif _cat_check_ship == nil and _cat_check_plane ~= nil then
+				_category = "Planes"
 			else
-				_killed_target_category = "Helicopters"
+				_category = "Helicopters"
 			end
 		end
 	end
-	return _killed_target_category
+	return _category
 end
 
 -- from perun (slightly changed)

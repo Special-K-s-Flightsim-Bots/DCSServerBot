@@ -361,7 +361,7 @@ If you need any further assistance, please visit the support discord, listed in 
                             old_node, self.node), default=False):
                         self.log.warning(_("Aborted."))
                         exit(-2)
-                    print(_("\n\nUpdating your config files now..."))
+                    print(_("\n\nUpdating your config files and database now..."))
                     self.rename_node(config_dir, old_node, self.node)
                     print(_("\n[green]Your configuration was updated. Node {} was renamed to node {}.[/]").format(
                         old_node, self.node))
@@ -477,7 +477,12 @@ If you need any further assistance, please visit the support discord, listed in 
             instances = utils.findDCSInstances()
             if not instances:
                 print(_("No configured DCS servers found."))
-            for name, instance in instances:
+            # we need to clean up the DCS mess ...
+            elif len(instances) == 2 and 'DCS.dcs_serverrelease' in instances and 'DCS.release_server' in instances:
+                if Prompt.ask(_("How many servers do you want to configure?"), choices=['1', '2'], default='1') == '1':
+                    instances.pop('DCS.release_server', None)
+
+            for instance, name in instances.items():
                 if not name or name in ['n/a', 'DCS Server']:
                     print(_("DCS Server without name found in Saved Games\\{}.").format(instance))
                     if not Confirm.ask(_("Would you like to give it a name?"), default=True):
@@ -613,43 +618,47 @@ If you need any further assistance, please visit the support discord, listed in 
 
 
     @staticmethod
-    def rename_node(config_dir: str, old_name: str, new_name: str):
-        for file in Path(config_dir).rglob('*.yaml'):
-            data = yaml.load(Path(file).read_text(encoding='utf-8'))
-            if old_name in data.keys():
-                data[new_name] = data.pop(old_name)
-                with Path(file).open('w', encoding='utf-8') as f:
-                    yaml.dump(data, f)
-        main = yaml.load(Path(os.path.join(config_dir, 'main.yaml')).read_text(encoding='utf-8'))
-        nodes = yaml.load(Path(os.path.join(config_dir, 'nodes.yaml')).read_text(encoding='utf-8'))
-        url = nodes.get(new_name, {}).get('database', {}).get('url', main.get('database', {}).get('url'))
-        if not url:
-            print(_("No database URL found. Please configure the database URL in the main.yaml or nodes.yaml file."))
-            return
-        url = url.replace('SECRET', quote(utils.get_password('database', config_dir)))
-        with psycopg.connect(url, autocommit=True) as conn:
-            # rename nodes in all relevant tables
-            conn.execute("UPDATE instances SET node = %s WHERE node = %s", (new_name, old_name))
-            conn.execute("UPDATE nodestats SET node = %s WHERE node = %s", (old_name, new_name))
-            conn.execute("UPDATE audit SET node = %s WHERE node = %s", (old_name, new_name))
-            # serverstats might not be there
-            conn.execute(
-                sql.SQL(
-                    """
-                    DO $$
-                    BEGIN
-                        IF to_regclass('public.serverstats') IS NOT NULL THEN
-                            UPDATE serverstats
-                            SET node = {new_val}
-                            WHERE node = {old_val};
-                        END IF;
-                    END $$;
-                    """
-                ).format(
-                    new_val=sql.Literal(new_name),
-                    old_val=sql.Literal(old_name),
+    def rename_node(config_dir: str, old_name: str, new_name: str, database_only: bool | None = None):
+        if not database_only:
+            for file in Path(config_dir).rglob('*.yaml'):
+                data = yaml.load(Path(file).read_text(encoding='utf-8'))
+                if old_name in data.keys():
+                    data[new_name] = data.pop(old_name)
+                    with Path(file).open('w', encoding='utf-8') as f:
+                        yaml.dump(data, f)
+
+        if database_only is None or database_only is True:
+            main = yaml.load(Path(os.path.join(config_dir, 'main.yaml')).read_text(encoding='utf-8'))
+            nodes = yaml.load(Path(os.path.join(config_dir, 'nodes.yaml')).read_text(encoding='utf-8'))
+            url = nodes.get(new_name, {}).get('database', {}).get('url', main.get('database', {}).get('url'))
+            if not url:
+                print(_("No database URL found. Please configure the database URL in the main.yaml or nodes.yaml file."))
+                return
+            url = url.replace('SECRET', quote(utils.get_password('database', config_dir)))
+
+            with psycopg.connect(url, autocommit=True) as conn:
+                # rename nodes in all relevant tables
+                conn.execute("DELETE FROM instances WHERE node = %s", (old_name, ))
+                conn.execute("UPDATE nodestats SET node = %s WHERE node = %s", (old_name, new_name))
+                conn.execute("UPDATE audit SET node = %s WHERE node = %s", (old_name, new_name))
+                # serverstats might not be there
+                conn.execute(
+                    sql.SQL(
+                        """
+                        DO $$
+                        BEGIN
+                            IF to_regclass('public.serverstats') IS NOT NULL THEN
+                                UPDATE serverstats
+                                SET node = {new_val}
+                                WHERE node = {old_val};
+                            END IF;
+                        END $$;
+                        """
+                    ).format(
+                        new_val=sql.Literal(new_name),
+                        old_val=sql.Literal(old_name),
+                    )
                 )
-            )
 
 
 if __name__ == "__main__":

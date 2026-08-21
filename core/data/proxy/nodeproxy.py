@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 
 from core.data.node import Node, UploadStatus, SortOrder
@@ -48,6 +49,11 @@ class NodeProxy(Node):
     @master.setter
     def master(self, value: bool):
         raise NotImplementedError()
+
+    @override
+    @property
+    def claimed_master(self) -> bool:
+        return self.master
 
     @override
     @property
@@ -377,7 +383,7 @@ class NodeProxy(Node):
 
     @override
     @cache_with_expiration(expiration=60)
-    async def find_all_instances(self) -> list[tuple[str, str]]:
+    async def find_all_instances(self) -> dict[str, str]:
         timeout = 60 if not self.slow_system else 120
         return await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -436,21 +442,26 @@ class NodeProxy(Node):
 
     @override
     @async_cache
-    async def get_cpu_info(self, used: bool = True) -> bytes | int:
+    async def get_cpu_info(self, used: bool = True, export: bool = False) -> bytes | dict | int:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
             "method": "get_cpu_info",
             "params": {
-                "used": used
+                "used": used,
+                "export": export
             }
         }, timeout=timeout, node=self.name)
+        if isinstance(data, dict):
+            return data
         async with self.apool.connection() as conn:
             cursor = await conn.execute("SELECT data FROM files WHERE id = %s", (data, ), binary=True)
-            image = (await cursor.fetchone())[0]
+            result = (await cursor.fetchone())[0]
             await conn.execute("DELETE FROM files WHERE id = %s", (data, ))
-        return image
+        if export:
+            return json.loads(result)
+        return result
 
     @override
     async def info(self) -> dict:
@@ -468,6 +479,16 @@ class NodeProxy(Node):
             "command": "rpc",
             "object": "Node",
             "method": "get_config"
+        }, timeout=timeout, node=self.name)
+
+    @override
+    async def set_config(self, config: dict) -> dict:
+        timeout = 60 if not self.slow_system else 120
+        return await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "set_config",
+            "args": [config]
         }, timeout=timeout, node=self.name)
 
     @override

@@ -38,6 +38,13 @@ schema;element_schema:
             VIP: {type: bool, nullable: false}
             side: {type: int, nullable: false, enum: [0, 1, 2]}
     payback: {type: bool, nullable: false}
+    maximum:
+      type: map
+      nullable: false
+      mapping:
+        blue: {type: int, nullable: false, range: {min: 0}}
+        red: {type: int, nullable: false, range: {min: 0}}
+        message: {type: str, nullable: false, range: {min: 1}}
     balancing:
       type: map
       nullable: false

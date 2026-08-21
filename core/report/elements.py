@@ -81,7 +81,7 @@ def get_supported_fonts() -> set[str]:
     return _languages
 
 
-def df_to_table(ax: Axes, df: pd.DataFrame, *, col_labels: list[str] = None, fontsize: int = 10) -> Axes:
+def df_to_table(ax: Axes, df: pd.DataFrame, *, col_labels: list[str] = None, fontsize: int | None = 10) -> Axes:
     df = df.copy()
     for col in df.select_dtypes(include='timedelta64[ns]').columns:
         df[col] = df[col].dt.total_seconds().apply(
@@ -282,8 +282,19 @@ class MultiGraphElement(ReportElement):
 
 
 class Graph(ReportElement):
-    def __init__(self, env: ReportEnv, width: int, height: int, cols: int, rows: int, elements: list[dict],
-                     wspace: float = 0.5, hspace: float = 0.5, dpi = 100, facecolor: str | None = '#2C2F33'):
+    def __init__(
+            self,
+            env: ReportEnv,
+            width: int | str,
+            height: int | str,
+            cols: int,
+            rows: int,
+            elements: list[dict],
+            wspace: float = 0.5,
+            hspace: float = 0.5,
+            dpi: int | str = 100,
+            facecolor: str | None = '#2C2F33'
+    ):
         super().__init__(env)
         plt.switch_backend('agg')
         self.width = width
@@ -384,12 +395,16 @@ class Graph(ReportElement):
                             filename=self.env.report, stacktrace=''.join(traceback.format_exception(result)))
                         )
 
+            # if the figure was cleared on the way, do not render
+            if not self.env.figure:
+                return
+
             # only render the graph if we don't have a rendered graph already attached as a file (image)
             if not self.env.filename:
                 async with self.plot_lock:
                     await asyncio.to_thread(self._plot)
             self.env.embed.set_image(url='attachment://' + os.path.basename(self.env.filename))
-            footer = self.env.embed.footer.text or ''
+            footer = self.env.embed.footer.text
             if footer is None:
                 footer = 'Click on the image to zoom in.'
             else:

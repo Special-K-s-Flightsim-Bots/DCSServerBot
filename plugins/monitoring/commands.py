@@ -3,8 +3,8 @@ import discord
 import psycopg
 import re
 
-from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Server, command, \
-    ValueNotInRange, ServiceRegistry, PluginInstallationError, get_translation
+from core import (utils, Plugin, PluginRequiredError, Report, PaginationReport, Server, command,
+                  ValueNotInRange, ServiceRegistry, PluginInstallationError, get_translation)
 from datetime import datetime, timezone
 from discord import app_commands
 from discord.ext import tasks
@@ -62,9 +62,10 @@ class ServerLoadFilter(PeriodFilter):
         else:
             return "1 = 1"
 
+
 class Monitoring(Plugin[MonitoringListener]):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[MonitoringListener] = None):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[MonitoringListener]):
         super().__init__(bot, eventlistener)
         self._service = None
         self.io_counters = {}
@@ -133,6 +134,7 @@ class Monitoring(Plugin[MonitoringListener]):
                     )
                     service[key].pop('drive_warn_threshold', None)
                     service[key].pop('drive_alert_threshold', None)
+
             plugin_yaml = os.path.join(self.node.config_dir, 'plugins', 'serverstats.yaml')
             if os.path.exists(plugin_yaml):
                 plugin = yaml.load(Path(plugin_yaml).read_text(encoding='utf-8'))
@@ -168,7 +170,6 @@ class Monitoring(Plugin[MonitoringListener]):
 
     async def display_report(self, interaction: discord.Interaction, schema: str, period: str | StatisticsFilter,
                              server: Server, ephemeral: bool):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         report = Report(self.bot, self.plugin_name, schema)
         env = await report.render(period=period, server_name=server.name, node=server.node.name)
@@ -186,14 +187,13 @@ class Monitoring(Plugin[MonitoringListener]):
     async def serverload(self, interaction: discord.Interaction,
                          _server: app_commands.Transform[Server, utils.ServerTransformer] | None = None,
                          period: app_commands.Transform[
-                             StatisticsFilter, PeriodTransformer(flt=[ServerLoadFilter])] | None = ServerLoadFilter(),
+                             StatisticsFilter, PeriodTransformer(flt=[ServerLoadFilter])] = ServerLoadFilter(),
                          ):
         try:
             ephemeral = utils.get_ephemeral(interaction)
             if _server:
                 await self.display_report(interaction, 'serverload.json', period, _server, ephemeral=ephemeral)
             else:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.defer(ephemeral=ephemeral)
                 report = PaginationReport(interaction, self.plugin_name, 'serverload.json')
                 await report.render(period=period, server_name=None)
@@ -210,13 +210,12 @@ class Monitoring(Plugin[MonitoringListener]):
                           period: app_commands.Transform[
                               StatisticsFilter, PeriodTransformer(
                                   flt=[PeriodFilter, CampaignFilter, MissionFilter, SquadronFilter]
-                              )] | None = PeriodFilter()):
+                              )] = PeriodFilter()):
         try:
             ephemeral = utils.get_ephemeral(interaction)
             if _server:
                 await self.display_report(interaction, 'serverstats.json', period, _server, ephemeral=ephemeral)
             else:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.defer(ephemeral=ephemeral)
                 report = PaginationReport(interaction, self.plugin_name, 'serverstats.json')
                 await report.render(period=period, server_name=None)

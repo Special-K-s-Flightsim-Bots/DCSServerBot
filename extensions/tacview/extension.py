@@ -29,6 +29,23 @@ class Tacview(InstallableExtension):
     _rtt_ports: dict[int, str] = dict()
     _rcp_ports: dict[int, str] = dict()
 
+    NODE_CONFIG_DICT = {
+        "installation": {
+            "type": str,
+            "label": "Installation Path",
+            "placeholder": "Path to Tacview installation",
+            "default": r"%ProgramFiles(x86)%\Tacview",
+            "required": False
+        },
+        "tacviewExportPath": {
+            "type": str,
+            "label": "Export Path",
+            "placeholder": "Path to Tacview export",
+            "default": TACVIEW_DEFAULT_DIR,
+            "required": False
+        }
+    }
+
     CONFIG_DICT = {
         "tacviewRealTimeTelemetryPort": {
             "type": int,
@@ -85,6 +102,7 @@ class Tacview(InstallableExtension):
             )
         elif self.config.get('target'):
             asyncio.create_task(self.check_log())
+
         return await super().startup()
 
     async def _shutdown(self):
@@ -139,9 +157,6 @@ class Tacview(InstallableExtension):
 
     @override
     async def prepare(self) -> bool:
-        if not await super().prepare():
-            return False
-
         options = self.server.options['plugins']
         dirty = False
 
@@ -151,7 +166,7 @@ class Tacview(InstallableExtension):
             if not name.startswith('tacview'):
                 continue
             if name == 'tacviewExportPath':
-                path = os.path.normpath(os.path.expandvars(self.config.get('tacviewExportPath'))) or TACVIEW_DEFAULT_DIR
+                path = os.path.normpath(os.path.expandvars(self.config['tacviewExportPath'])) or TACVIEW_DEFAULT_DIR
                 os.makedirs(path, exist_ok=True)
                 dirty |= self.set_option(options, name, path)
             # Unbelievable but true. Tacview can only work with strings as ports.
@@ -182,12 +197,21 @@ class Tacview(InstallableExtension):
                            f"server {type(self)._rcp_ports[rcp_port]}!")
             return False
         type(self)._rcp_ports[rcp_port] = self.server.name
-        return True
+
+        # ensure firewall rules
+        return await super().prepare()
 
     @override
     @property
-    def version(self) -> str:
-        return utils.get_windows_version(os.path.join(self.server.instance.home, r'Mods\tech\Tacview\bin\tacview.dll'))
+    def version(self) -> str | None:
+        tv_dll = os.path.join(self.server.instance.home, r'Mods\tech\Tacview\bin\tacview.dll')
+        dks_dll = os.path.join(self.server.instance.home, r'Mods\tech\Tacview\bin\tacview_real.dll')
+        if os.path.exists(dks_dll):
+            return utils.get_windows_version(dks_dll)
+        elif os.path.exists(tv_dll):
+            return utils.get_windows_version(tv_dll)
+        else:
+            return None
 
     def get_inst_path(self) -> str:
         if not self._inst_path:
@@ -219,6 +243,7 @@ class Tacview(InstallableExtension):
         if not self.locals:
             raise NotImplementedError()
 
+        ret = await super().render(param)
         if not self.locals.get('tacviewModuleEnabled', True):
             value = 'disabled'
         else:
@@ -237,9 +262,7 @@ class Tacview(InstallableExtension):
                 value += f"Delay: {utils.format_time(self.locals['tacviewPlaybackDelay'])}"
             if len(value) == 0:
                 value = 'enabled'
-        return {
-            "name": self.name,
-            "version": self.version,
+        return ret | {
             "value": value
         }
 
@@ -464,10 +487,20 @@ class Tacview(InstallableExtension):
 
     @override
     def get_ports(self) -> dict[str, Port]:
-        return {
-            "tacviewRealTimeTelemetryPort": Port(self.locals.get('tacviewRealTimeTelemetryPort', 42674), PortType.TCP, public=True),
-            "tacviewRemoteControlPort": Port(self.locals.get('tacviewRemoteControlPort', 42675), PortType.TCP, public=True)
-        } if self.enabled else {}
+        ports = {}
+        if self.locals.get('tacviewRealTimeTelemetryEnabled', True):
+            ports['tacviewRealTimeTelemetryPort'] = Port(
+                self.locals.get('tacviewRealTimeTelemetryPort', 42674),
+                PortType.TCP,
+                public=True
+            )
+        if self.locals.get('tacviewRemoteControlEnabled', False):
+            ports['tacviewRemoteControlPort'] = Port(
+                self.locals.get('tacviewRemoteControlPort', 42675),
+                PortType.TCP,
+                public=True
+            )
+        return ports
 
     @override
     async def change_config(self, config: dict):

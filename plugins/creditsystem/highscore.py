@@ -2,7 +2,7 @@ import discord
 import numpy as np
 
 from core import report
-from matplotlib import cm
+from matplotlib import colormaps
 from psycopg.rows import dict_row
 
 from ..userstats.highscore import compute_font_size
@@ -45,7 +45,7 @@ class HighscoreCredits(report.GraphElement):
             fontsize = compute_font_size(num_bars)
             bar_height = max(0.75, 3 / num_bars)
 
-            color_map = cm.get_cmap('viridis', num_bars)
+            color_map = colormaps['viridis'].resampled(num_bars)
             colors = color_map(np.linspace(0, 1, num_bars))
 
             self.axes.barh(labels, values, color=colors, label="TrueSkill", height=bar_height)

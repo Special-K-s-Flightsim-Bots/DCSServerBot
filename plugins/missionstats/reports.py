@@ -1,8 +1,12 @@
+import aiohttp
+import asyncio
+import discord
 import pandas as pd
 
 from core import report, ReportEnv, utils, Side, Coalition, get_translation, df_to_table
 from dataclasses import dataclass
 from datetime import datetime
+from plugins.missionstats import aar
 from plugins.userstats.filter import StatisticsFilter
 from psycopg.rows import dict_row
 
@@ -256,28 +260,69 @@ class ModuleStats2(report.EmbedElement):
                    END AS weapon, 
                    COALESCE(SUM(CASE WHEN m.event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START') 
                                      THEN 1 ELSE 0 
-                                END), 0) AS shots 
+                                END), 0
+                   ) AS shots 
             FROM missionstats m, statistics s 
-            WHERE m.mission_id = s.mission_id AND m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW()) 
-            AND m.init_id = %(ucid)s AND m.init_type = %(module)s 
+            WHERE m.mission_id = s.mission_id 
+              AND m.init_id = s.player_ucid
+              AND m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') 
+              AND m.init_id = %(ucid)s 
+              AND m.init_type = %(module)s 
         """
         inner_sql1 += ' AND ' + flt.filter(self.env.bot)
         inner_sql1 += " GROUP BY 1"
         inner_sql2 = """
-            SELECT CASE WHEN m.target_cat IN ('Airplanes', 'Helicopters') THEN 'Air' 
-                        WHEN m.target_cat IN ('Ground Units', 'Ships', 'Structures') THEN 'Ground' 
-                   END AS target_cat, 
-                   CASE WHEN COALESCE(m.weapon, '') = '' THEN 'Gun' ELSE m.weapon 
-                   END AS weapon, 
-                   COALESCE(SUM(CASE WHEN m.event = 'S_EVENT_HIT' THEN 1 ELSE 0 END), 0) AS hits, 
-                   COALESCE(SUM(CASE WHEN m.event = 'S_EVENT_KILL' THEN 1 ELSE 0 END), 0) AS kills 
-            FROM missionstats m, statistics s 
-            WHERE m.event IN ('S_EVENT_HIT', 'S_EVENT_KILL') 
-            AND m.mission_id = s.mission_id AND m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW()) 
-            AND m.target_cat IS NOT NULL AND m.init_id = %(ucid)s AND m.init_type = %(module)s
-            AND m.init_side <> m.target_side
+            WITH GroupedHits AS (
+                -- Step 1: Filter and identify unique "hit windows"
+                SELECT
+                    m.mission_id,
+                    s.hop_on,
+                    COALESCE(s.hop_off, NOW()) AS hop_off_time,
+                    m.init_id,
+                    m.target_id, -- Assuming target_id is available or necessary for grouping
+                    m.event,
+                    -- CRITICAL CHANGE: Round the timestamp down to the desired interval (e.g., 1 second).
+                    -- Adjust this function based on your database dialect (PostgreSQL, MySQL, SQL Server).
+                    DATE_TRUNC('second', m.time) AS hit_window_start, 
+                    CASE WHEN m.target_cat IN ('Airplanes', 'Helicopters') THEN 'Air' 
+                         WHEN m.target_cat IN ('Ground Units', 'Ships', 'Structures') THEN 'Ground' 
+                    END AS target_cat,
+                    CASE WHEN COALESCE(m.weapon, '') = '' THEN 'Gun' ELSE m.weapon END AS weapon
+                FROM missionstats m
+                JOIN statistics s ON m.mission_id = s.mission_id
+                WHERE 
+                    m.event IN ('S_EVENT_HIT', 'S_EVENT_KILL') 
+                    -- Filter for the relevant time window in the stats table
+                    AND m.time BETWEEN s.hop_on AND COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC')
+                    -- Existing filters
+                    AND m.target_cat IS NOT NULL 
+                    AND m.init_id = %(ucid)s
+                    AND m.init_type = %(module)s
+                    AND m.init_side <> m.target_side
+            ),
+            UniqueHitEvents AS (
+                -- Step 2: Determine the distinct groups of hits for each target/source interaction
+                SELECT DISTINCT
+                    mission_id,
+                    hit_window_start, -- This now defines a unique 'action' time window
+                    init_id,
+                    target_id,
+                    target_cat,
+                    weapon,
+                    CASE WHEN event = 'S_EVENT_HIT' THEN 1 ELSE 0 END AS is_hit,
+                    CASE WHEN event = 'S_EVENT_KILL' THEN 1 ELSE 0 END AS is_kill
+                FROM GroupedHits
+            )
+            -- Step 3: Aggregate the unique events over the mission segment
+            SELECT 
+                target_cat, 
+                weapon,
+                -- Sum up the hits and kills grouped by the distinct (time window, init_id, target_id) combinations
+                COALESCE(SUM(h.is_hit), 0) AS hits, 
+                COALESCE(SUM(h.is_kill), 0) AS kills
+            FROM UniqueHitEvents h
         """
-        inner_sql2 += ' AND ' + flt.filter(self.env.bot)
+        inner_sql2 += ' WHERE ' + flt.filter(self.env.bot)
         inner_sql2 += " GROUP BY 1, 2"
         sql = f"""
                 SELECT y.target_cat, y.weapon, x.shots, y.hits, y.kills, y.kills::DECIMAL / x.shots AS kd 
@@ -432,3 +477,153 @@ class Antagonist(report.EmbedElement):
                     return
                 for k,v in row.items():
                     self.embed.add_field(name=k, value=v)
+
+
+class AAR:
+    """
+    Builds a printable After Action Report (PDF) for a single pilot.
+
+    All database access happens here, the (blocking) rendering is delegated to
+    ``plugins.missionstats.aar`` and executed in a worker thread so the bot's
+    event loop stays responsive.
+    """
+
+    def __init__(self, bot, ucid: str, name: str, flt: StatisticsFilter):
+        self.bot = bot
+        self.log = bot.log
+        self.apool = bot.apool
+        self.ucid = ucid
+        self.name = name
+        self.flt = flt
+
+    async def _fetch_logo(self, url: str) -> bytes | None:
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+                async with session.get(url, proxy=self.bot.node.proxy,
+                                       proxy_auth=self.bot.node.proxy_auth) as response:
+                    if response.status != 200:
+                        return None
+                    return await response.read()
+        except Exception as ex:
+            self.log.debug(f"AAR: could not load the squadron image: {ex}")
+            return None
+
+    async def _collect(self) -> dict | None:
+        flt = self.flt.filter(self.bot)
+        params = {'ucid': self.ucid}
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                # sortie events (birth / takeoff / landing / loss)
+                await cursor.execute(f"""
+                    SELECT ms.mission_id, ms.event, ms.init_type, ms.init_side, ms.place, ms.time,
+                           m.mission_name, m.mission_theatre, m.server_name
+                    FROM missionstats ms
+                    JOIN missions m ON m.id = ms.mission_id
+                    WHERE ms.init_id = %(ucid)s
+                      AND ms.event = ANY(%(events)s)
+                      AND {flt}
+                    ORDER BY ms.id
+                """, params | {'events': aar.SORTIE_EVENTS})
+                sorties, aborted = aar.reconstruct_sorties(await cursor.fetchall())
+
+                # kills scored by this pilot
+                await cursor.execute(f"""
+                    SELECT ms.time, ms.mission_id, ms.init_type AS aircraft, ms.init_side,
+                           ms.target_id, ms.target_type, ms.target_cat, ms.target_side, ms.weapon,
+                           m.mission_name, m.mission_theatre, COALESCE(p.name, '') AS opponent
+                    FROM missionstats ms
+                    JOIN missions m ON m.id = ms.mission_id
+                    LEFT JOIN players p ON p.ucid = ms.target_id
+                    WHERE ms.init_id = %(ucid)s 
+                    AND ms.event = 'S_EVENT_KILL' AND {flt}
+                    AND ms.weapon != ms.init_type
+                    ORDER BY ms.time
+                """, params)
+                kills = await cursor.fetchall()
+
+                # kills scored against this pilot
+                await cursor.execute(f"""
+                    SELECT ms.time, ms.mission_id, ms.target_type AS aircraft, ms.target_side,
+                           ms.init_id, ms.init_type AS threat, ms.init_cat AS threat_cat,
+                           ms.init_side, ms.weapon, m.mission_name,
+                           COALESCE(p.name, '') AS opponent
+                    FROM missionstats ms
+                    JOIN missions m ON m.id = ms.mission_id
+                    LEFT JOIN players p ON p.ucid = ms.init_id
+                    WHERE ms.target_id = %(ucid)s 
+                    AND ms.event = 'S_EVENT_KILL' AND {flt}
+                    AND ms.weapon != ms.init_type
+                    ORDER BY ms.time
+                """, params)
+                deaths = await cursor.fetchall()
+
+                # weapon employment
+                await cursor.execute(f"""
+                    SELECT CASE
+                               WHEN COALESCE(weapon, '') = '' OR event = 'S_EVENT_SHOOTING_START'
+                               THEN 'Gun' ELSE weapon
+                           END AS weapon,
+                           COUNT(*) FILTER (
+                               WHERE event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START')
+                           ) AS shots,
+                           COUNT(*) FILTER (WHERE event = 'S_EVENT_HIT') AS hits,
+                           COUNT(*) FILTER (WHERE event = 'S_EVENT_KILL') AS kills
+                    FROM missionstats
+                    WHERE init_id = %(ucid)s
+                      AND event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START', 'S_EVENT_HIT',
+                                    'S_EVENT_KILL')
+                      AND COALESCE(target_side, '') <> COALESCE(init_side, '')
+					  AND COALESCE(init_type, '') <> COALESCE(weapon, '')
+                      AND {flt}
+                    GROUP BY 1
+                    ORDER BY 2 DESC, 4 DESC
+                """, params)
+                weapons = await cursor.fetchall()
+
+                # air-to-air refuellings
+                await cursor.execute(f"""
+                    SELECT COUNT(*) AS refuelings
+                    FROM missionstats
+                    WHERE init_id = %(ucid)s AND event = 'S_EVENT_REFUELING_STOP' AND {flt}
+                """, params)
+                row = await cursor.fetchone()
+                refuelings = row['refuelings'] if row else 0
+
+                # squadron affiliation
+                await cursor.execute("""
+                    SELECT s.name, s.image_url
+                    FROM squadrons s
+                    JOIN squadron_members sm ON s.id = sm.squadron_id
+                    WHERE sm.player_ucid = %(ucid)s
+                    ORDER BY s.name
+                """, params)
+                squadrons = await cursor.fetchall()
+
+        if not sorties and not kills and not deaths:
+            return None
+
+        aar.attribute_kills(sorties, kills)
+        logo_url = next((x['image_url'] for x in squadrons if x['image_url']), None)
+        return {
+            'ucid': self.ucid,
+            'pilot': self.name,
+            'squadron': ', '.join(x['name'] for x in squadrons),
+            'logo': await self._fetch_logo(logo_url) if logo_url else None,
+            'period': self.flt.format(self.bot).replace('\n', ' ').strip(),
+            'generated': datetime.now(),
+            'sorties': sorties,
+            'aborted': aborted,
+            'kills': kills,
+            'deaths': deaths,
+            'weapons': weapons,
+            'refuelings': refuelings
+        }
+
+    async def render(self) -> discord.File | None:
+        data = await self._collect()
+        if not data:
+            return None
+        buffer = await asyncio.to_thread(aar.build_pdf, data)
+        return discord.File(fp=buffer, filename="AAR_{}_{}.pdf".format(
+            aar.safe_filename(self.name), datetime.now().strftime('%Y%m%d')))

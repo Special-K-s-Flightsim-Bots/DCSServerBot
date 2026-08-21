@@ -70,19 +70,27 @@ class Tacview(Plugin):
         path = ext_config.get('tacviewExportPath', TACVIEW_DEFAULT_DIR)
         config = self.get_config(server)
         file_data = await self.node.read_file(os.path.join(path, file))
-        if config.get('upload', {}).get('channel'):
-            channel_id = config['upload']['channel']
-            if channel_id == -1:
-                channel = await interaction.user.create_dm()
-                await channel.send(file=discord.File(fp=BytesIO(file_data), filename=os.path.basename(file)))
-                await interaction.followup.send(_("Tacview recording sent in a DM"), ephemeral=ephemeral)
+        try:
+            if config.get('upload', {}).get('channel'):
+                channel_id = config['upload']['channel']
+                if channel_id == -1:
+                    channel = await interaction.user.create_dm()
+                    await channel.send(file=discord.File(fp=BytesIO(file_data), filename=os.path.basename(file)))
+                    await interaction.followup.send(_("Tacview recording sent in a DM"), ephemeral=ephemeral)
+                else:
+                    channel = self.bot.get_channel(channel_id)
+                    await channel.send(file=discord.File(fp=BytesIO(file_data), filename=os.path.basename(file)))
+                    await interaction.followup.send(_("Tacview recording uploaded to channel {}").format(channel.mention),
+                                                    ephemeral=ephemeral)
             else:
-                channel = self.bot.get_channel(channel_id)
-                await channel.send(file=discord.File(fp=BytesIO(file_data), filename=os.path.basename(file)))
-                await interaction.followup.send(_("Tacview recording uploaded to channel {}").format(channel.mention),
-                                                ephemeral=ephemeral)
-        else:
-            await interaction.followup.send(file=discord.File(fp=BytesIO(file_data), filename=os.path.basename(file)))
+                await interaction.followup.send(file=discord.File(fp=BytesIO(file_data), filename=os.path.basename(file)))
+        except discord.HTTPException as ex:
+            if ex.code in [413, 40005]:
+                await interaction.followup.send(_("The file exceeds the maximum allowed size on Discord. Aborted."),
+                                                ephemeral=True)
+            else:
+                self.log.error(str(ex))
+                await interaction.followup.send(_("Error during upload. Check the log for details."), ephemeral=True)
 
     @tacview.command(name='record_start', description=_('Start realtime recording'))
     @app_commands.guild_only()

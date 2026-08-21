@@ -77,7 +77,7 @@ def format_cruise_speed(value: str) -> str:
     return f"{value} kts"
 
 
-def format_time_utc(dt: datetime, fmt: str = '%H:%M UTC') -> str:
+def format_time_utc(dt: datetime | None, fmt: str = '%H:%M UTC') -> str:
     """
     Format a datetime as UTC time string.
     Handles both timezone-aware and naive datetimes.
@@ -644,7 +644,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
                 """, (server.name, plan_id, marker['id'], marker['type']))
 
     @event(name="removeFlightPlanMarkers")
-    async def on_remove_markers(self, server: Server, data: dict) -> None:
+    async def on_remove_markers(self, _server: Server, data: dict) -> None:
         """Handle marker removal confirmation from Lua."""
         plan_id = data.get('plan_id')
         if plan_id:
@@ -749,7 +749,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
     # ==================== CHAT COMMANDS ====================
 
     @chat_command(name="fphelp", help=_("Show flight plan commands"))
-    async def cmd_fphelp(self, server: Server, player: Player, params: list[str]) -> None:
+    async def cmd_fphelp(self, _server: Server, player: Player, _params: list[str]) -> None:
         """Show flight plan-specific commands."""
         msg = (
             "Flight Plan Commands:\n"
@@ -763,7 +763,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         asyncio.create_task(player.sendChatMessage(msg))
 
     @chat_command(name="flightplan", aliases=["fp"], help=_("Show your active flight plan"))
-    async def cmd_flightplan(self, server: Server, player: Player, params: list[str]) -> None:
+    async def cmd_flightplan(self, _server: Server, player: Player, _params: list[str]) -> None:
         """Show the player's active flight plan."""
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -966,7 +966,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         asyncio.create_task(player.sendChatMessage(_("Flight plan #{} activated.").format(fp['id'])))
 
     @chat_command(name="completefp", help=_("Complete your active flight plan"))
-    async def cmd_completefp(self, server: Server, player: Player, params: list[str]) -> None:
+    async def cmd_completefp(self, server: Server, player: Player, _params: list[str]) -> None:
         """Complete an active flight plan."""
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -996,7 +996,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
         asyncio.create_task(player.sendChatMessage(_("Flight plan #{} completed.").format(fp['id'])))
 
     @chat_command(name="cancelfp", help=_("Cancel your flight plan"))
-    async def cmd_cancelfp(self, server: Server, player: Player, params: list[str]) -> None:
+    async def cmd_cancelfp(self, server: Server, player: Player, _params: list[str]) -> None:
         """Cancel a flight plan."""
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -1185,7 +1185,7 @@ class FlightPlanEventListener(EventListener["FlightPlan"]):
 
         asyncio.create_task(player.sendPopupMessage(msg, 20))
 
-    async def _menu_my_plan(self, server: Server, player: Player):
+    async def _menu_my_plan(self, _server: Server, player: Player):
         """Handle 'My Flight Plan' menu option."""
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:

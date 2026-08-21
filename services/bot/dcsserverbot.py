@@ -5,7 +5,7 @@ import sys
 
 from aiohttp import ClientError
 from core import Channel, utils, Status, PluginError, Group, Node, DEFAULT_CHANNEL_PERMISSIONS, \
-    SEND_ONLY_CHANNEL_PERMISSIONS, SEND_ONLY_WITH_EMBEDS_PERMISSIONS
+    SEND_ONLY_CHANNEL_PERMISSIONS, SEND_ONLY_WITH_EMBEDS_PERMISSIONS, Command
 from core.data.node import FatalException
 from core.listener import EventListener
 from core.services.registry import ServiceRegistry
@@ -240,6 +240,19 @@ class DCSServerBot(commands.Bot):
         else:
             return None
 
+    def mention_admin(self, server: "Server | None" = None) -> str:
+        if server and server.locals.get('managed_by'):
+            alert_roles = server.locals['managed_by']
+        # use the default Alert role otherwise
+        else:
+            alert_roles = self.roles['Alert']
+        try:
+            mentions = ''.join([self.get_role(role).mention for role in alert_roles if role is not None])
+        except AttributeError:
+            self.log.error(f"Alert-Role {alert_roles} not found.")
+            mentions = ""
+        return mentions
+
     def _check_server_channels(self, server: "Server"):
         channels = {
             'status': DEFAULT_CHANNEL_PERMISSIONS,
@@ -271,19 +284,19 @@ class DCSServerBot(commands.Bot):
             if not self.synced:
                 self.log.info(f'- Preparing Discord Bot "{self.user.name}" ...')
                 if len(self.guilds) > 1:
-                    self.log.warning('  => Your bot can only be installed in ONE Discord server!')
+                    self.log.warning('  => Your bot can only be installed in ONE Discord server. Fixing ...')
                     for guild in self.guilds:
-                        self.log.warning(f'    - {guild.name}')
-                    self.log.warning(f'  => Remove it from {len(self.guilds) - 1} Discord servers and restart the bot.')
-                    raise FatalException()
+                        if guild.id != self.node.guild_id:
+                            await guild.leave()
+                            self.log.warning(f'    - Left {guild.name}')
                 elif self.node.guild_id != self.guilds[0].id:
                     raise FatalException(f"Change your guild_id in main.yaml to {self.guilds[0].id}!")
                 self.member = self.guilds[0].get_member(self.user.id)
                 if not self.member:
                     raise FatalException("Can't access the bots user. Check your Discord server settings.")
                 elif self.member.guild_permissions.administrator:
-                    self.log.critical("DCSServerBot is running with administrative Discord-permissions! "
-                                      "This is NOT recommended.")
+                    self.log.warning("DCSServerBot is running with administrative Discord-permissions! "
+                                     "This is NOT recommended.")
 
                 self.log.debug('  => Checking Roles & Channels ...')
                 roles = set()
@@ -316,12 +329,18 @@ class DCSServerBot(commands.Bot):
                 for app_cmd in app_cmds:
                     app_ids[app_cmd.name] = app_cmd.id
 
+                def set_mention(command: discord.app_commands.Command | discord.app_commands.Group, top_level_id: int):
+                    command.mention = f"</{command.qualified_name}:{top_level_id}>"
+                    if isinstance(command, Group):
+                        for sub_command in command.commands:
+                            set_mention(sub_command, top_level_id)
+
                 for cmd in self.tree.get_commands(guild=self.guilds[0]):
-                    if isinstance(cmd, Group):
-                        for inner in cmd.commands:
-                            inner.mention = f"</{inner.qualified_name}:{app_ids[cmd.name]}>"
-                    else:
-                        cmd.mention = f"</{cmd.name}:{app_ids[cmd.name]}>"
+                    if cmd.name in app_ids:
+                        if isinstance(cmd, (Command, Group)):
+                            set_mention(cmd, app_ids[cmd.name])
+                        else:
+                            cmd.mention = f"</{cmd.name}:{app_ids[cmd.name]}>"
 
                 self.synced = True
 
@@ -434,7 +453,7 @@ class DCSServerBot(commands.Bot):
             if not user:
                 member = self.member
             elif isinstance(user, str):
-                member = self.get_member_by_ucid(user) if utils.is_ucid(user) else None
+                member = await self.get_member_by_ucid(user) if utils.is_ucid(user) else None
             else:
                 member = user
             embed = discord.Embed(color=discord.Color.blue())
@@ -514,21 +533,20 @@ class DCSServerBot(commands.Bot):
             else:
                 return None
 
-    # TODO: change to async (after change in DataClasses)
-    def get_member_by_ucid(self, ucid: str, verified: bool | None = False) -> discord.Member | None:
-        with self.pool.connection() as conn:
+    async def get_member_by_ucid(self, ucid: str, verified: bool | None = False) -> discord.Member | None:
+        async with self.apool.connection() as conn:
             sql = 'SELECT discord_id FROM players WHERE ucid = %s AND discord_id <> -1'
             if verified:
                 sql += ' AND manual IS TRUE'
-            cursor = conn.execute(sql, (ucid, ))
+            cursor = await conn.execute(sql, (ucid, ))
             if cursor.rowcount == 1:
-                return self.guilds[0].get_member(cursor.fetchone()[0])
+                return self.guilds[0].get_member((await cursor.fetchone())[0])
             else:
                 return None
 
-    def match_user(self, data: dict, rematch=False) -> discord.Member | None:
+    async def match_user(self, data: dict, rematch=False) -> discord.Member | None:
         if not rematch:
-            member = self.get_member_by_ucid(data['ucid'])
+            member = await self.get_member_by_ucid(data['ucid'])
             if member:
                 return member
         return utils.match(data['name'], [x for x in self.get_all_members() if not x.bot])
@@ -615,7 +633,7 @@ class DCSServerBot(commands.Bot):
                 # we should not write to this channel
                 if channel_id == -1:
                     return None
-            else:
+            elif isinstance(channel_id, str):
                 channel_id = int(channel_id)
 
             # find the channel

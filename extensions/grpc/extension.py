@@ -43,6 +43,11 @@ class gRPC(InstallableExtension):
     def version(self) -> str | None:
         return "0.8.1"
 
+    @override
+    @property
+    def hidden(self) -> bool:
+        return True
+
     def _lua_to_python(self, lua_item: Any) -> Any:
         from lupa import lua_type
         if lua_type(lua_item) == 'table':
@@ -90,9 +95,6 @@ class gRPC(InstallableExtension):
 
     @override
     async def prepare(self) -> bool:
-        if not await super().prepare():
-            return False
-
         config = self.config.copy()
         filename = os.path.join(self.node.installation, 'Scripts', 'MissionScripting.lua')
         with open(filename, mode='r', encoding='utf-8') as infile:
@@ -137,7 +139,7 @@ class gRPC(InstallableExtension):
         if host != '127.0.0.1':
             self.log.warning('Please consider changing the host in your dcs-grpc.lua to 127.0.0.1 for security reasons '
                              'or whitelist IPs that are allowed to reach this port.')
-        return True
+        return await super().prepare()
 
     @override
     def is_installed(self) -> bool:
@@ -149,7 +151,7 @@ class gRPC(InstallableExtension):
     @override
     def get_ports(self) -> dict[str, Port]:
         return {
-            "gRPC": Port(self.locals.get('port', 50051), PortType.TCP)
+            "gRPC": Port(self.locals.get('port', 50051), PortType.TCP, public=True)
         } if self.enabled else {}
 
     @override

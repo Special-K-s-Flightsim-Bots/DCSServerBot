@@ -113,10 +113,10 @@ class MonitoringService(Service):
             except Exception as ex:
                 self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
 
-    async def warn_admins(self, server: Server, title: str, message: str) -> None:
-        message += f"\nLatest dcs-<timestamp>.log can be pulled with /download\n" \
+    async def warn_admins(self, server: Server, title: str, message: str, logfile: str | None = None) -> None:
+        message += f"\nThe {logfile or 'dcs-<timestamp>.log'} can be pulled with /download\n" \
                    f"If the scheduler is configured for this server, it will relaunch it automatically."
-        await self.bot.alert(title, message, server=server)
+        await self.bot.alert(title, message, server=server, filename=logfile)
 
     async def check_popups(self):
         # check for blocked processes due to window popups
@@ -160,8 +160,8 @@ class MonitoringService(Service):
         message = (f"Can't reach server \"{server.name}\" for more than "
                    f"{int(server.instance.locals.get('max_hung_minutes', 3))} minutes. Killing ...")
         self.log.warning(message)
+        now = datetime.now(timezone.utc)
         if server.process and server.process.is_running():
-            now = datetime.now(timezone.utc)
             if sys.platform == 'win32':
                 try:
                     filename = os.path.join(server.instance.home, 'Logs',
@@ -178,18 +178,23 @@ class MonitoringService(Service):
                     root.handlers = saved_handlers
                 except OSError:
                     self.log.debug("No minidump created due to an error (Linux?).")
-            dcs_log = os.path.join(server.instance.home, 'Logs', 'dcs.log')
-            if os.path.exists(dcs_log):
-                shutil.copy2(dcs_log,
-                             os.path.join(server.instance.home, 'Logs', f"dcs-{now.strftime('%Y%m%d-%H%M%S')}.log"))
             server.process.kill()
         else:
             await server.shutdown(True)
         server.process = None
+        dcs_log = os.path.join(server.instance.home, 'Logs', 'dcs.log')
+        if os.path.exists(dcs_log):
+            log_copy = os.path.join(server.instance.home, 'Logs', f"dcs-{now.strftime('%Y%m%d-%H%M%S')}.log")
+            shutil.copy2(dcs_log, log_copy)
+        else:
+            log_copy = None
+
         await self.bot.audit("Server killed due to a hung state.", server=server)
         server.status = Status.SHUTDOWN
         if server.locals.get('ping_admin_on_crash', True):
-            await self.warn_admins(server, title=f'Server \"{server.name}\" unreachable', message=message)
+            await self.warn_admins(
+                server, title=f'Server \"{server.name}\" killed due to a hung state', message=message, logfile=log_copy
+            )
 
     async def heartbeat(self):
         for server in self.bus.servers.values():  # type: ServerImpl
@@ -206,13 +211,17 @@ class MonitoringService(Service):
                     logfile = os.path.join(server.instance.home, 'Logs', 'dcs.log')
                     if os.path.exists(logfile):
                         now = datetime.now(timezone.utc)
-                        shutil.copy2(logfile, os.path.join(server.instance.home,
-                                                           'Logs', f"dcs-{now.strftime('%Y%m%d-%H%M%S')}.log"))
+                        log_copy = os.path.join(
+                            server.instance.home, 'Logs', f"dcs-{now.strftime('%Y%m%d-%H%M%S')}.log"
+                        )
+                        shutil.copy2(logfile, log_copy)
+                    else:
+                        log_copy = None
                     title = f'Server "{server.name}" died!'
                     message = 'Setting state to SHUTDOWN.'
                     self.log.warning(title + ' ' + message)
                     if server.locals.get('ping_admin_on_crash', True):
-                        await self.warn_admins(server, title=title, message=message)
+                        await self.warn_admins(server, title=title, message=message, logfile=log_copy)
                     await self.bot.audit(f'Server died.', server=server)
                 server.status = Status.SHUTDOWN
                 return
@@ -254,15 +263,19 @@ class MonitoringService(Service):
                         node, pool_available, requests_queued, requests_wait_ms, dcs_queue, asyncio_queue
                     )
                     VALUES (%s, %s, %s, %s, %s, %s)
-                """, (self.node.name, pstats.get('pool_available', 0), pstats.get('requests_queued', 0),
-                      pstats.get('requests_wait_ms', 0), sum(x.qsize() for x in bus.udp_server.message_queue.values()),
-                      len(asyncio.all_tasks(self.bus.loop))))
+                """, (self.node.name,
+                      pstats.get('pool_available', 0),
+                      pstats.get('requests_queued', 0),
+                      pstats.get('requests_wait_ms', 0),
+                      sum(x.qsize() for x in bus.udp_server.message_queue.values()),
+                      len(asyncio.all_tasks(self.bus.loop))
+                ))
             self.apool.pop_stats()
         except psycopg_pool.PoolClosed:
             pass
 
     def _pull_load_params(self, server: Server) -> dict:
-        process = server.process
+        process = cast(ServerImpl, server).process
         pid = process.pid
 
         # Fetch process resource statistics
@@ -284,7 +297,7 @@ class MonitoringService(Service):
 
         # Network I/O counters (bytes sent/recv logic with batching interval optimization)
         net_io_counters = psutil.net_io_counters(pernic=False)
-        if not self.net_io_counters:  # No previous data, assume 0 activity.
+        if not self.net_io_counters:  # No previous data; assume 0 activity.
             bytes_sent = bytes_recv = 0
         else:
             interval_inverse = 1 / 7200
@@ -414,7 +427,7 @@ class MonitoringService(Service):
             if self.node.locals.get('nodestats', True):
                 tasks.append(self.nodestats())
 
-            # check every 10 mins for IP changes, if there is no public_ip set
+            # check every 10 mins for IP changes if there is no public_ip set
             if not self.node.locals.get('public_ip') and self.monitoring._current_loop % 10 == 0:
                 tasks.append(self.ip_check())
 
@@ -446,3 +459,4 @@ class MonitoringService(Service):
         else:
             # not implemented for UNIX
             pass
+

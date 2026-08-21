@@ -2,7 +2,8 @@ import discord
 import os
 import pandas as pd
 
-from core import Plugin, Report, ReportEnv, command, utils, get_translation, Status, async_cache, Command, Port, Node
+from core import Plugin, Report, ReportEnv, command, utils, get_translation, Status, async_cache, Command, Port, Node, \
+    Group
 from discord import app_commands, Interaction, ButtonStyle, TextStyle, SelectOption
 from discord.ui import View, Select, Button, Modal, TextInput, Item
 from io import BytesIO
@@ -18,14 +19,14 @@ _ = get_translation(__name__.split('.')[1])
 async def get_commands(interaction: discord.Interaction) -> dict[str, app_commands.Command]:
     cmds: dict[str, app_commands.Command] = dict()
     for cmd in interaction.client.tree.get_commands(guild=interaction.guild):
-        async def _process_group(group: app_commands.Group):
+        async def _process_group(group: app_commands.Group | Group):
             for inner in group.commands:
-                if isinstance(inner, app_commands.Group):
+                if isinstance(inner, (app_commands.Group, Group)):
                     await _process_group(inner)
                 elif await inner._check_can_run(interaction):
                     cmds[inner.qualified_name] = inner
 
-        if isinstance(cmd, app_commands.Group):
+        if isinstance(cmd, (app_commands.Group, Group)):
             await _process_group(cmd)
         elif await cmd._check_can_run(interaction):
             cmds[cmd.name] = cmd
@@ -118,7 +119,7 @@ class Help(Plugin[HelpListener]):
                 if cmd.module != module:
                     continue
                 # noinspection PyUnresolvedReferences
-                fqn = cmd.mention if isinstance(cmd, Command) else f"{prefix}{cmd.name}"
+                fqn = cmd.mention if isinstance(cmd, Command) else f"{prefix}{cmd.qualified_name}"
                 new_cmd = f"{fqn} {get_usage(cmd)}\n"
                 new_desc = f"{cmd.description}\n"
                 if len(cmds + new_cmd) > 1024 or len(descriptions + new_desc) > 1024:

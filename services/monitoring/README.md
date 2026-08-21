@@ -3,11 +3,11 @@ This service monitors the health of your DCS servers.<p>
 It detects crashes or unwanted popups, full disks, too low server FPS or too high RAM usage. 
 It also generates load information to be used with the `/serverload` command.
 
-Servers that are considered RUNNING, PAUSED or STOPPED will be monitored for any unusual popup (login or lua error) or
+Servers that are considered RUNNING, PAUSED, or STOPPED will be monitored for any unusual popup (login or lua error) or
 crashes of the respective DCS.exe or DCS_server.exe process. A heartbeat will be sent to DCS every minute. The maximum
 number of heartbeats a server can miss can be configured in your instance configuration in nodes.yaml
 
-Also, if you do not have a static IP address, you can use the bot to auto restart your servers on IP changes.
+If you do not have a static IP address, you can use this service to auto-restart your servers on IP changes.
 
 ## Configuration
 The (optional) configuration file for this service has to be placed into config\services\monitoring.yaml:
@@ -36,6 +36,7 @@ DEFAULT:
       mentioning: true  # and mention the admins (default: true)
 ```
 
+### DCS Server keep-alive Check
 To configure the DCS server monitoring, you can change these values in your nodes.yaml and scheduler.yaml:
 
 ### nodes.yaml

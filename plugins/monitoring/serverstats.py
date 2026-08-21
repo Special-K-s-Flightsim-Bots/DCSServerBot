@@ -8,7 +8,7 @@ from core import const, report, EmbedElement, utils
 from plugins.userstats.filter import StatisticsFilter
 from psycopg.rows import dict_row
 
-# ignore pandas warnings (log scale et al)
+# ignore pandas warnings (log scale et al.)
 warnings.filterwarnings("ignore", category=UserWarning)
 
 

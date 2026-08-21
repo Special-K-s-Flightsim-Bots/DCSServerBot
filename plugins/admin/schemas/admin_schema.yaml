@@ -5,7 +5,7 @@ schema;downloads:
       mapping:
         label: {type: str, required: true, nullable: false, range: {min: 1}}
         directory: {type: str, nullable: false, range: {min: 1}}
-        pattern: {type: str, nullable: false, range: {min: 1}}
+        pattern: {type: any, nullable: false, func: str_or_list}
         target: {type: str, nullable: false, range: {min: 1}}
         discord:
           type: seq

@@ -21,8 +21,9 @@ MyNode:
       # [...]
       extensions:
         RealWeather:
-          enabled: true   # optional to disable the extension, default: true
-          debug: true     # see outputs of RealWeather, default: false
+          enabled: true     # optional to disable the extension, default: true
+          debug: true       # see outputs of RealWeather, default: false
+          name: MyFancyName # Optional: default is "RealWeather"
           realweather:
             log:
               enable: true
@@ -78,20 +79,31 @@ MyNode:
 > [!NOTE]
 > You can find a list of supported parameters in the config.toml provided by DCS-real-weather.
 
-> [!TIP]
-> If you want to set a custom ICAO code (URMM in this case) per mission, you can name your mission like so:<br>
-> `MyFancyMission_ICAO_URMM_whatsoever.miz`
+### Custom ICAO Codes
+If you want to set a custom ICAO code (URMM in this case) per mission, you can add them to your mission name like so:
 
-> [!TIP]
-> You can rename the RealWeather extension in your server status embed by setting a "name" in the configuration like so:
-> ```yaml
-> extension:
->   RealWeather:
->     name: MyFancyName  # Optional: default is "RealWeather"
-> ```
+`MyFancyMission_ICAO_URMM_whatsoever.miz`
 
-> [!NOTE]
-> You can use any parameter that Real Weather describes in their discord. I only write a json/toml from whatever
-> you put in the extension configuration to pass that through to Real Weather. That said, it is ALWAYS a good
-> idea to look at what they added or changed, as I cannot keep up with every third party app I support with the
-> bot.
+### ICAO Codes per Terrain / Map
+If you want to set a fix ICAO code per map, you can use the `terrains` option, like in MizEdit:
+```yaml
+# config/nodes.yaml
+MyNode:
+  instances:
+    MyInstance:
+      extensions:
+        RealWeather:
+          terrains:
+            Caucasus:
+              options:
+                weather:
+                  enable: true
+                  icao: UGKO
+                  # ... any other config option
+            Syria:
+              options:
+                weather:
+                  enable: true
+                  icao: OSDI
+                  # ... any other config option
+```

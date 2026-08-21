@@ -1,10 +1,11 @@
 import aiohttp
 import asyncio
-
 import discord
 
-from core import EventListener, Server, Player, Side, event
+from core import EventListener, Server, Player, Side, event, get_translation, utils
 from datetime import datetime, timezone
+from discord import ButtonStyle
+from discord.ui import View, Button
 from psycopg.rows import dict_row
 from typing import TYPE_CHECKING, Any
 
@@ -12,6 +13,8 @@ from services.bot.dummy import DummyBot
 
 if TYPE_CHECKING:
     from .commands import Cloud
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class CloudListener(EventListener["Cloud"]):
@@ -76,6 +79,7 @@ class CloudListener(EventListener["Cloud"]):
         player: Player | None = server.get_player(ucid=data['ucid'])
         if not player:
             return
+
         config = self.get_config(server)
         try:
             if config.get('token'):
@@ -162,6 +166,55 @@ class CloudListener(EventListener["Cloud"]):
                 asyncio.create_task(player.sendChatMessage(
                     server.locals['messages']['greeting_message_unmatched'].format(server=server, player=player)))
 
+            # Check if the player is a known troublemaker
+            troublemaker = self.plugin.troublemakers.get(data['ucid'])
+            if not troublemaker:
+                return
+
+            # Check the whitelist
+            async with self.apool.connection() as conn:
+                cursor = await conn.execute("SELECT * FROM whitelist WHERE player_ucid = %s", (data['ucid'], ))
+                if await cursor.fetchone():
+                    return
+
+            trouble_config = config.get('troublemakers', {})
+            admin_channel = self.bot.get_admin_channel(server)
+            if trouble_config.get('warn', True) and troublemaker['num_bans'] >= trouble_config.get('warn_threshold', 3):
+                if not admin_channel:
+                    return
+
+                embed = utils.create_warning_embed(
+                    title=_("A potential Troublemaker joined your Server"),
+                    text=_("Player {} is banned on {} other multiplayer servers for\n{}").format(
+                        player.display_name,
+                        troublemaker['num_bans'],
+                        "\n{}".format('\n'.join(f"- {x}" for x in troublemaker['reason']))
+                    ),
+                    fields=[
+                        ("Server", server.display_name),
+                        ("UCID", player.ucid)
+                    ]
+                )
+                embed.set_footer(text=_("You might want to watch them closely."))
+                view = View(timeout=None)
+                button = Button(
+                    label="Ban", style=ButtonStyle.red, custom_id=f"tm_ban_{player.ucid}"
+                )
+                view.add_item(button)
+                button = Button(
+                    label="Whitelist", style=ButtonStyle.green, custom_id=f"tm_whitelist_{player.ucid}"
+                )
+                view.add_item(button)
+                button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id="cancel")
+                view.add_item(button)
+                mentions = self.bot.mention_admin(server)
+                await admin_channel.send(content=mentions, embed=embed, view=view)
+            elif trouble_config.get('kick', False) and troublemaker['num_bans'] >= trouble_config.get('kick_threshold', 5):
+                await server.kick(
+                    player,
+                    reason=config.get('troublemaker', {}).get('message', 'You are not welcome on this server.')
+                )
+
         except aiohttp.ClientError:
             pass
 
@@ -243,3 +296,10 @@ class CloudListener(EventListener["Cloud"]):
                 self.log.debug("Cloud extension disabled, no cloud registration sent.")
                 pass
             self.updates[server.name] = datetime.now(tz=timezone.utc)
+
+    @event(name="onPlayerUnbanned")
+    async def onPlayerUnbanned(self, _server: Server, data: dict) -> None:
+        await self.plugin.post('unregister_ban', {
+            "guild_id": self.bot.guilds[0].id,
+            "ucid": data['ucid']
+        })

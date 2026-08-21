@@ -447,7 +447,7 @@ class ModManager(Plugin):
     @app_commands.autocomplete(mod=installed_mods_autocomplete)
     async def uninstall(self, interaction: discord.Interaction,
                         server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
-                        mod: str):
+                        mod: str, force: bool = False):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status != Status.SHUTDOWN:
             # noinspection PyUnresolvedReferences
@@ -459,7 +459,7 @@ class ModManager(Plugin):
         await interaction.response.defer(ephemeral=ephemeral)
         msg = await interaction.followup.send(_("Uninstalling mod {}, please wait ...").format(package),
                                               ephemeral=ephemeral)
-        if not await self.service.uninstall_package(server, Folder(folder), package, version):
+        if not await self.service.uninstall_package(server, Folder(folder), package, version, force):
             await msg.edit(content=_("Mod {mod}_v{version} could not be uninstalled!").format(mod=package,
                                                                                               version=version))
             return
@@ -520,20 +520,20 @@ class ModManager(Plugin):
             try:
                 urls = await self.service.download_from_repo(url, folder, version=version)
                 if urls:
-                    download = await utils.selection(
+                    idx = await utils.selection(
                         interaction,
                         title='Select a download',
                         options=[
-                            SelectOption(label=os.path.basename(url), value=os.path.basename(url))
-                            for url in urls
+                            SelectOption(label=os.path.basename(url), value=str(idx))
+                            for idx, url in enumerate(urls)
                         ]
                     )
-                    if not download:
+                    if not idx:
                         await interaction.followup.send(_("Aborted."))
                         return
 
                     # download the file
-                    await self.service.download_from_repo(url, folder, version=version, package_name=download[:-4])
+                    await self.service.download(urls[int(idx)], folder, version)
             except FileExistsError:
                 if not await utils.yn_question(interaction, _("File exists. Do you want to overwrite it?"),
                                                ephemeral=ephemeral):

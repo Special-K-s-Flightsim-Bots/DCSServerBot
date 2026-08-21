@@ -44,6 +44,7 @@ greeting_dm: This server has a coalition system enabled. Please use .red or .blu
 
 b) Roles for Coalitions
 ```yaml
+# config/services/bot.yaml
 # [...]
 roles:
   Admin:
@@ -59,6 +60,7 @@ roles:
 
 ### server.yaml
 ```yaml
+# config/servers.yaml
 My Fancy Server:
   # [...]
   channels:
@@ -72,7 +74,7 @@ My Fancy Server:
   # [...]
   coalitions:
     lock_time: 1 day            # time in which you are not allowed to change coalitions.
-    allow_players_pool: false   # don't allow access to the players pool
+    allow_players_pool: false   # don't allow access to the player's pool
     blue_role: 1234123412341234 # Discord role for the blue coalition
     red_role: 43214321432143210 # Discord role for the red coalition
 ```

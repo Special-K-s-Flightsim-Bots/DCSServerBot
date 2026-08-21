@@ -5,30 +5,67 @@ import psycopg
 import random
 import re
 
-from core import (Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, PluginInstallationError,
-                  Server, async_cache)
+from core import (Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, ServiceProxy,
+                  PluginInstallationError, Server, async_cache, const)
 from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
 from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, File, UploadFile, Response
 from fastapi.security import APIKeyHeader
+from typing import Any, Literal, cast
 from plugins.creditsystem.squadron import Squadron
+from plugins.srs.commands import SRS
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
 from psycopg.errors import UndefinedTable
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.servicebus import ServiceBus
 from services.webservice import WebService
-from typing import Any, Literal, cast
 
-from .models import (TopKill, ServerInfo, SquadronInfo, Trueskill, Highscore, UserEntry, WeaponPK, PlayerStats,
-                     CampaignCredits, TrapEntry, SquadronCampaignCredit, LinkMeResponse, ServerStats, PlayerInfo,
-                     PlayerSquadron, LeaderBoard, ModuleStats, PlayerEntry, WeatherInfo, ServerAttendanceStats,
-                     AirbasesResponse, AirbaseInfoResponse, AirbaseWarehouseResponse, AirbaseSetWarehouseItemResponse,
-                     AirbaseCaptureResponse, ConvertCoordinates, MissionRestartResponse, MissionLoadResponse,
-                     MissionPauseResponse, MissionUnpauseResponse, MissionsResponse, ServerStartResponse,
-                     ServerStopResponse, ServerRestartResponse, MissionUploadResponse, GroupWaypointsResponse,
-                     EventEntry)
-from ..srs.commands import SRS
+from .models import (
+    TopKill,
+    ServerInfo,
+    SquadronInfo,
+    Trueskill,
+    Highscore,
+    UserEntry,
+    WeaponPK,
+    PlayerStats,
+    CampaignCredits,
+    TrapEntry,
+    GreenieboardEntry,
+    GreenieboardResponse,
+    SquadronCampaignCredit,
+    LinkMeResponse,
+    ServerStats,
+    PlayerInfo,
+    PlayerSquadron,
+    LeaderBoard,
+    ModuleStats,
+    PlayerEntry,
+    WeatherInfo,
+    ServerAttendanceStats,
+    AirbasesResponse,
+    AirbaseInfoResponse,
+    AirbaseAtisResponse,
+    AirbaseWarehouseResponse,
+    AirbaseSetWarehouseItemResponse,
+    AirbaseCaptureResponse,
+    ConvertCoordinates,
+    MissionRestartResponse,
+    MissionLoadResponse,
+    MissionPauseResponse,
+    MissionUnpauseResponse,
+    MissionsResponse,
+    ServerStartResponse,
+    ServerStopResponse,
+    ServerRestartResponse,
+    MissionUploadResponse,
+    GroupWaypointsResponse,
+    MissionBullseyesResponse,
+    MissionDrawingsResponse,
+    MissionUnitResponse,
+    EventEntry
+)
 
 app: FastAPI | None = None
 
@@ -59,15 +96,17 @@ class RestAPI(Plugin):
     async def cog_unload(self) -> None:
         await utils.safe_cancel(self.refresh_views)
         if self.app and self.router:
-            # Remove our routes from the main app to prevent duplicates on reload
             for route in self.router.routes:
-                self.app.routes.remove(route)
+                if route in self.app.routes:
+                    self.app.routes.remove(route)
         await super().cog_unload()
 
     async def init_webservice(self):
         # give the webservice 10 seconds to launch on master switches
         for i in range(0, 10):
             self.web_service = ServiceRegistry.get(WebService)
+            if isinstance(self.web_service, ServiceProxy):
+                return
             if self.web_service and self.web_service.is_running():
                 break
             await asyncio.sleep(1)
@@ -123,6 +162,7 @@ class RestAPI(Plugin):
         self.router.add_api_route(
             "/airbase/atis", self.airbase_atis,
             methods=["GET"],
+            response_model=AirbaseAtisResponse,
             description="Get ATIS information for an airbase on a given server.",
             summary="Airbase ATIS",
             tags=["Airbase"]
@@ -316,6 +356,14 @@ class RestAPI(Plugin):
             tags = ["Statistics"]
         )
         self.router.add_api_route(
+            "/greenieboard", self.greenieboard,
+            methods = ["POST"],
+            response_model = GreenieboardResponse,
+            description = "Get a greenieboard",
+            summary = "GreenieBoard",
+            tags = ["Statistics"]
+        )
+        self.router.add_api_route(
             "/events", self.events,
             methods = ["GET"],
             response_model = list[EventEntry],
@@ -357,6 +405,30 @@ class RestAPI(Plugin):
             response_model=GroupWaypointsResponse,
             description="Get the lat/lon waypoints for a named group in the current mission.",
             summary="Group Waypoints",
+            tags=["Utilities"]
+        )
+        self.router.add_api_route(
+            "/mission/bullseyes", self.mission_bullseyes,
+            methods=["GET"],
+            response_model=MissionBullseyesResponse,
+            description="Get the bullseye coordinates for blue and red coalitions in the current mission.",
+            summary="Mission Bullseyes",
+            tags=["Utilities"]
+        )
+        self.router.add_api_route(
+            "/mission/drawings", self.mission_drawings,
+            methods=["GET"],
+            response_model=MissionDrawingsResponse,
+            description="Get mission drawing objects grouped by drawing layer.",
+            summary="Mission Drawings",
+            tags=["Utilities"]
+        )
+        self.router.add_api_route(
+            "/mission/unit", self.mission_unit,
+            methods=["GET"],
+            response_model=MissionUnitResponse,
+            description="Get mission unit data including current position, loadout, navaids, and waypoints.",
+            summary="Mission Unit",
             tags=["Utilities"]
         )
 
@@ -726,10 +798,6 @@ class RestAPI(Plugin):
 
         # Remove leading/trailing whitespace
         coordinates = coordinates.strip()
-
-        latitude = longitude = None
-        meters = None
-        x = y = None
         ddm_input = None
 
         # Lat/Lon (decimal degrees)
@@ -908,6 +976,130 @@ class RestAPI(Plugin):
             waypoints=sorted_waypoints
         )
 
+    # Get bullseye coordinates for blue and red coalitions in the current mission.
+    # Endpoint:   /mission/bullseyes
+    # Method:     [GET]
+    # Params:     - server_name   [required]
+    async def mission_bullseyes(
+        self,
+        server_name: str = Query(..., description="Name of the server")
+    ) -> MissionBullseyesResponse:
+        """Return mission bullseye coordinates for blue and red coalitions."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not running or paused.")
+
+        try:
+            result = await server.send_to_dcs_sync(
+                {"command": "getMissionBullseyes"},
+                timeout=60
+            )
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout waiting for DCS response.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve mission bullseyes: {str(ex)}")
+
+        if result.get("error"):
+            raise HTTPException(status_code=404, detail=result["error"])
+
+        return MissionBullseyesResponse(
+            bullseyes=result.get("bullseyes", [])
+        )
+
+    # Get mission drawing objects grouped by layer.
+    # Endpoint:   /mission/drawings
+    # Method:     [GET]
+    # Params:     - server_name   [required]
+    async def mission_drawings(
+        self,
+        server_name: str = Query(..., description="Name of the server")
+    ) -> dict[str, Any]:
+        """Return mission drawings grouped by layer name."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not running or paused.")
+
+        try:
+            result = await server.send_to_dcs_sync(
+                {"command": "getMissionDrawings"},
+                timeout=60
+            )
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout waiting for DCS response.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve mission drawings: {str(ex)}")
+
+        if result.get("error"):
+            raise HTTPException(status_code=404, detail=result["error"])
+
+        raw_drawings = result.get("drawings", {})
+        normalized_drawings: dict[str, list[dict[str, Any]]] = {}
+
+        def _is_lua_null_placeholder(value: Any) -> bool:
+            return isinstance(value, dict) and len(value) == 0
+
+        def _convert_lua_nulls(value: Any) -> Any:
+            if _is_lua_null_placeholder(value):
+                return None
+            if isinstance(value, list):
+                return [_convert_lua_nulls(item) for item in value]
+            if isinstance(value, dict):
+                return {k: _convert_lua_nulls(v) for k, v in value.items()}
+            return value
+
+        if isinstance(raw_drawings, dict):
+            for layer_name, layer_data in raw_drawings.items():
+                if isinstance(layer_data, list):
+                    normalized_drawings[layer_name] = cast(list[dict[str, Any]], _convert_lua_nulls(layer_data))
+                elif _is_lua_null_placeholder(layer_data):
+                    normalized_drawings[layer_name] = []
+
+        return {
+            "drawings": normalized_drawings
+        }
+
+    # Get current and mission-related data for a named unit.
+    # Endpoint:   /mission/unit
+    # Method:     [GET]
+    # Params:     - server_name   [required]
+    #             - unit_name     [required]
+    async def mission_unit(
+        self,
+        server_name: str = Query(..., description="Name of the server"),
+        unit_name: str = Query(..., description="Name of the unit to retrieve")
+    ) -> MissionUnitResponse:
+        """Return current mission unit information for a named unit."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not running or paused.")
+
+        try:
+            result = await server.send_to_dcs_sync(
+                {"command": "getMissionUnit", "name": unit_name},
+                timeout=60
+            )
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout waiting for DCS response.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve mission unit data: {str(ex)}")
+
+        if result.get("error"):
+            raise HTTPException(status_code=404, detail=result["error"])
+
+        return MissionUnitResponse.model_validate(result)
+
     async def airbases(self, server_name: str = Query(...)):
         """Return all airbases for a given server."""
         # Resolve server
@@ -948,7 +1140,7 @@ class RestAPI(Plugin):
             "airbase": airbase_data,
         }
     
-    async def airbase_atis(self, server_name: str = Query(...), airbase_name: str = Query(...)):
+    async def airbase_atis(self, server_name: str = Query(...), airbase_name: str = Query(...)) -> AirbaseAtisResponse:
         """Return ATIS information for a given airbase on a server."""
         # Resolve server
         resolved_server_name, server = self.get_resolved_server(server_name)
@@ -966,7 +1158,7 @@ class RestAPI(Plugin):
         }, timeout=60)
         
         # Return only the ATIS info
-        return atisData
+        return AirbaseAtisResponse.model_validate(atisData)
 
     async def airbase_warehouse(self, server_name: str = Query(...), airbase_name: str = Query(...)):
         """Return warehouse information for a given airbase on a server."""
@@ -1339,25 +1531,36 @@ class RestAPI(Plugin):
             
             # Extract wind data (use ground level wind by default)
             wind_data = weather_data.get('wind', {}).get('atGround', {})
-            wind_dir = wind_data.get('dir', 0)
+            wind_dir = (wind_data.get('dir', 0) + 180) % 360
 
             # Extract clouds data (it's directly in weather_data, not separate)
             clouds_data = weather_data.get('clouds', {})
 
+            visibility = weather_data.get('visibility', {}).get('distance', 10000)
+            if weather_data.get('enable_fog', False):
+                fog_vis = weather_data.get('fog', {}).get('visibility', 10000)
+                if fog_vis < visibility:
+                    visibility = fog_vis
+            if weather_data.get('enabled_dust', False):
+                dust_vis = weather_data.get('dust_density', {}).get('enable_dust', 10000)
+                if dust_vis < visibility:
+                    visibility = dust_vis
+            if visibility >= 10000:
+                visibility = 10000
+
             # Map DCS weather data to our model using actual structure
             return WeatherInfo(
                 temperature=weather_data.get('season', {}).get('temperature'),
-                wind_speed=wind_data.get('speed'),
-                wind_direction=int(wind_dir) if wind_dir else None,
+                wind_speed=int(wind_data.get('speed', 0) * const.METER_PER_SECOND_IN_KNOTS + 0.5),
+                wind_direction=wind_dir,
                 pressure=weather_data.get('qnh'),  # QNH pressure in mmHg
-                visibility=weather_data.get('visibility', {}).get('distance'),  # Extract distance from visibility dict
-                clouds_base=clouds_data.get('base'),
-                clouds_density=clouds_data.get('density'),
+                clouds_base=int(clouds_data.get('base', 0) * const.METER_IN_FEET + 0.5),
+                clouds_density=clouds_data.get('density', 0),
+                clouds_thickness=int(clouds_data.get('thickness', 0) * const.METER_IN_FEET + 0.5),
                 precipitation=clouds_data.get('iprecptns'),  # Precipitation is in clouds data
                 fog_enabled=weather_data.get('enable_fog', False),
-                fog_visibility=weather_data.get('fog', {}).get('visibility') if weather_data.get('fog', {}).get('visibility') else None,
                 dust_enabled=weather_data.get('enable_dust', False),
-                dust_visibility=weather_data.get('dust_density') if weather_data.get('enable_dust') else None
+                visibility=visibility
             )
         except Exception as ex:
             self.log.warning(f"Failed to get weather info for server {server.name}: {ex}")
@@ -1537,11 +1740,11 @@ class RestAPI(Plugin):
                 """, {"server_name": resolved_server_name, "query": f"%{query}%", "limit": limit, "offset": offset})
                 rows = await cursor.fetchall()
                 if not rows:
-                    return {
+                    return LeaderBoard.model_validate({
                         'items': [],
                         'total_count': 0,
                         'offset': 0
-                    }
+                    })
 
                 # get and remove total count
                 total_count = rows[0]['total_count']
@@ -1860,7 +2063,7 @@ class RestAPI(Plugin):
             FROM mv_statistics s
             WHERE s.player_ucid = %(ucid)s 
             {where}
-            GROUP BY 1 HAVING SUM(s.kills) > 0 
+            GROUP BY 1 
             ORDER BY 2 DESC
         """
         async with self.apool.connection() as conn:
@@ -1934,7 +2137,7 @@ class RestAPI(Plugin):
                     )
                 return CampaignCredits.model_validate(row)
 
-    async def traps(self, nick: str = Form(None), date: str | None = Form(None),
+    async def traps(self, nick: str = Form(...), date: str | None = Form(None),
                     limit: int | None = Form(10), offset: int | None = Form(0),
                     server_name: str | None = Form(None)):
         self.log.debug(f'Calling /traps with nick="{nick}", date="{date}", server_name="{server_name}"')
@@ -1942,16 +2145,16 @@ class RestAPI(Plugin):
         # Use centralized server resolution
         resolved_server_name, _ = self.get_resolved_server(server_name)
         
-        if resolved_server_name:
-            join = "JOIN missions m ON t.mission_id = m.id"
-            where = "WHERE t.player_ucid = %(ucid)s AND m.server_name = %(server_name)s"
-        else:
-            join = ""
-            where = "WHERE t.player_ucid = %(ucid)s"
         try:
             async with self.apool.connection() as conn:
                 async with conn.cursor(row_factory=dict_row) as cursor:
                     ucid = await self.get_ucid(nick, date)
+                    if resolved_server_name:
+                        join = "JOIN missions m ON t.mission_id = m.id"
+                        where = "WHERE t.player_ucid = %(ucid)s AND m.server_name = %(server_name)s"
+                    else:
+                        join = ""
+                        where = "WHERE t.player_ucid = %(ucid)s"
                     await cursor.execute(f"""
                         SELECT t.id, t.unit_type, t.grade, t.comment, t.place, t.trapcase, t.wire, t.night, t.points, t.time
                         FROM traps t
@@ -1975,12 +2178,82 @@ class RestAPI(Plugin):
 
                 return Response(content=row[0], media_type="image/png")
 
+    async def greenieboard(
+            self,
+            date: str | None = Form(None),
+            server_name: str | None = Form(None)
+    ):
+        self.log.debug(f'Calling /greenieboard with date="{date}", server_name="{server_name}"')
+
+        # Use centralized server resolution
+        resolved_server_name, _ = self.get_resolved_server(server_name)
+
+        try:
+            async with self.apool.connection() as conn:
+                async with conn.cursor(row_factory=dict_row) as cursor:
+                    if resolved_server_name:
+                        extra_join = "JOIN missions m ON t.mission_id = m.id"
+                        where = "WHERE m.server_name = %(server_name)s"
+                    else:
+                        extra_join = ""
+                        where = ""
+
+                    await cursor.execute(f"""
+                        SELECT p.name AS nick, t.id, t.unit_type, t.grade, t.comment, t.place, 
+                               t.trapcase, t.wire, t.night, t.points, t.time
+                        FROM traps t
+                        JOIN players p ON t.player_ucid = p.ucid
+                        {extra_join}
+                        {where}
+                        ORDER BY p.name, t.time DESC
+                    """, {"server_name": resolved_server_name})
+                    rows = await cursor.fetchall()
+
+            # Group traps by player name
+            traps_by_nick: dict[str, list[TrapEntry]] = {}
+            for row in rows:
+                player_nick = row['nick']
+                if player_nick not in traps_by_nick:
+                    traps_by_nick[player_nick] = []
+                traps_by_nick[player_nick].append(TrapEntry.model_validate({
+                    "id": row['id'],
+                    "unit_type": row['unit_type'],
+                    "grade": row['grade'],
+                    "comment": row['comment'],
+                    "place": row['place'],
+                    "trapcase": row['trapcase'],
+                    "wire": row['wire'],
+                    "night": row['night'],
+                    "points": row['points'],
+                    "time": row['time']
+                }))
+
+            # Return as GreenieboardResponse with players grouped by nick
+            return GreenieboardResponse(
+                players=[
+                    GreenieboardEntry(
+                        nick=player_nick,
+                        traps=player_traps
+                    )
+                    for player_nick, player_traps in traps_by_nick.items()
+                ]
+            )
+        except UndefinedTable:
+            raise HTTPException(status_code=500, detail="Greenieboard is not active on this server")
+
     async def events(self,
                      ucid: str = Query(...),
                      start_time: datetime = Query(...),
                      end_time: datetime = Query(...),
+                     event: str | None = Query(default=None),
+                     init_type: str | None = Query(default=None),
                      offset: int | None = Query(default=0),
                      limit: int | None = Query(default=10)):
+        where = ""
+        if event:
+            where += f"AND event = '{event}' "
+        if init_type:
+            where += f"AND init_type = '{init_type}' "
         if limit:
             sql_part = f"LIMIT {limit} OFFSET {offset}"
         else:
@@ -1989,12 +2262,13 @@ class RestAPI(Plugin):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(f"""
                     SELECT mission_id, event, 
-                           init_id, init_type, init_cat, 
-                           target_id, target_type, target_cat,
+                           init_id, init_side, init_type, init_cat, 
+                           target_id, target_side, target_type, target_cat,
                            weapon, place, comment, time
                     FROM missionstats 
                     WHERE (init_id = %(ucid)s or target_id = %(ucid)s)
                       AND time between %(start_time)s AND %(end_time)s
+                      {where}
                       {sql_part}
                 """, {"ucid": ucid, "start_time": start_time, "end_time": end_time})
                 return [EventEntry.model_validate(result) for result in await cursor.fetchall()]

@@ -293,7 +293,7 @@ class ServiceBus(Service):
             for i, name in enumerate(calls.keys()):
                 server = self.servers[name]
                 if isinstance(ret[i], TimeoutError) or isinstance(ret[i], asyncio.TimeoutError):
-                    self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
+                    self.log.warning(f'  => Timeout while trying to contact DCS server "{server.name}".')
                     server.status = Status.SHUTDOWN
                     self.log.info(f"  => Local DCS-Server \"{server.name}\" registered as DOWN (not responding).")
                     num += 1
@@ -447,6 +447,7 @@ class ServiceBus(Service):
 
         # update the database and check for server name changes
         self.log.debug(f'  => Checking the database for server {server_name} ...')
+        _server_name: str | None = None
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT server_name 
@@ -455,14 +456,15 @@ class ServiceBus(Service):
             """, (self.node.name, data['port']))
             if cursor.rowcount == 1:
                 _server_name = (await cursor.fetchone())[0]
-                if _server_name != server_name:
-                    if utils.findDCSInstances(_server_name) and not self.servers.get(_server_name):
-                        self.log.info(f'Auto-renaming server "{_server_name}" to "{server_name}"')
-                        await server.rename(server_name)
-                    else:
-                        self.log.warning(f'Registration of server "{server_name}" aborted due to conflict.')
-                        self.servers.pop(server_name, None)
-                        return False
+
+        if _server_name and _server_name != server_name:
+            if utils.findDCSInstances(_server_name) and not self.servers.get(_server_name):
+                self.log.info(f'Auto-renaming server "{_server_name}" to "{server_name}"')
+                await server.rename(server_name)
+            else:
+                self.log.warning(f'Registration of server "{server_name}" aborted due to conflict.')
+                self.servers.pop(server_name, None)
+                return False
         self.log.debug(f'  => Database for server {server_name} checked.')
         return True
 
@@ -490,32 +492,35 @@ class ServiceBus(Service):
                 SET banned_by = excluded.banned_by, reason = excluded.reason, 
                     banned_at = excluded.banned_at, banned_until = excluded.banned_until
             """, (ucid, banned_by, reason, until.replace(tzinfo=None)))
-        for server in self.servers.values():
-            if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
-                continue
-            await server.send_to_dcs({
-                "command": "ban",
-                "ucid": ucid,
-                "reason": reason,
-                "banned_until": until_str
-            })
-            player = server.get_player(ucid=ucid)
-            if player:
-                player.banned = True
+        asyncio.create_task(self.send_to_node({
+            "command": "rpc",
+            "service": "ServiceBus",
+            "method": "propagate_event",
+            "params": {
+                "command": "onPlayerBanned",
+                "data": {
+                    "ucid": ucid,
+                    "reason": reason,
+                    "banned_at": datetime.now(tz=timezone.utc).isoformat(),
+                    "banned_until": until_str
+                }
+            }
+        }))
 
     async def unban(self, ucid: str):
         async with self.apool.connection() as conn:
             await conn.execute("UPDATE bans SET banned_until = NOW() AT TIME ZONE 'UTC' WHERE ucid = %s", (ucid, ))
-        for server in self.servers.values():
-            if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
-                continue
-            await server.send_to_dcs({
-                "command": "unban",
-                "ucid": ucid
-            })
-            player = server.get_player(ucid=ucid)
-            if player:
-                player.banned = False
+        asyncio.create_task(self.send_to_node({
+            "command": "rpc",
+            "service": "ServiceBus",
+            "method": "propagate_event",
+            "params": {
+                "command": "onPlayerUnbanned",
+                "data": {
+                    "ucid": ucid
+                }
+            }
+        }))
 
     async def bans(self, *, expired: bool = False) -> list[dict]:
         if expired:
@@ -849,11 +854,16 @@ class ServiceBus(Service):
         return None
 
     async def propagate_event(self, command: str, data: dict, server: Server | None = None):
-        tasks = [
-            asyncio.create_task(listener.processEvent(command, server, deepcopy(data)))
-            for listener in self.eventListeners
-            if listener.has_event(command)
-        ]
+        listeners_to_check = [l for l in self.eventListeners if l.has_event(command)]
+        tasks = []
+        for i, listener in enumerate(listeners_to_check):
+            # We use a thread to deepcopy to avoid blocking the event loop for large messages
+            if i < len(listeners_to_check) - 1:
+                payload = await asyncio.to_thread(deepcopy, data)
+            else:
+                payload = data
+            tasks.append(asyncio.create_task(listener.processEvent(command, server, payload)))
+
         await asyncio.gather(*tasks, return_exceptions=True)
 
     async def start_udp_listener(self):
@@ -1065,22 +1075,44 @@ class ServiceBus(Service):
 
                             if self.master:
                                 tasks = []
-                                for listener in self.eventListeners:
-                                    if listener.has_event(command):
-                                        task = asyncio.create_task(
-                                            listener.processEvent(command, server, deepcopy(data))
-                                        )
-                                        tasks.append(task)
+                                listeners_to_check = [l for l in self.eventListeners if l.has_event(command)]
+                                for i, listener in enumerate(listeners_to_check):
+                                    # We use a thread to deepcopy to avoid blocking the event loop for large messages
+                                    if i < len(listeners_to_check) - 1:
+                                        payload = await asyncio.to_thread(deepcopy, data)
+                                    else:
+                                        payload = data
+                                    task = asyncio.create_task(
+                                        listener.processEvent(command, server, payload),
+                                        name=f"{listener.plugin_name}:{command}"
+                                    )
+                                    tasks.append(task)
 
                                 if tasks:
                                     try:
-                                        results = await asyncio.gather(*tasks, return_exceptions=True)
-                                        for listener, result in zip(self.eventListeners, results):
-                                            if isinstance(result, Exception):
+                                        # We use a timeout to detect hangs.
+                                        done, pending = await asyncio.wait(tasks, timeout=60.0)
+
+                                        if pending:
+                                            for task in pending:
                                                 self.log.error(
-                                                    f"Exception in listener {listener.plugin_name}: {result!r}")
+                                                    f"HANG DETECTED: Task {task.get_name()} for server {server.name} timed out!")
+                                                task.cancel()  # Optional: cancel to avoid memory leaks
+
+                                        for task in done:
+                                            # Find which listener this task belonged to
+                                            plugin_name = task.get_name().split(':')[0]
+                                            try:
+                                                result = task.result()
+                                                if isinstance(result, Exception):
+                                                    self.log.error(f"Exception in listener {plugin_name}: {result!r}")
+                                            except asyncio.CancelledError:
+                                                pass
+                                            except Exception as e:
+                                                self.log.error(f"Exception in listener {plugin_name}: {e!r}")
+
                                     except Exception as e:
-                                        self.log.error(f"Catastrophic error in gather: {e!r}")
+                                        self.log.error(f"Catastrophic error in wait: {e!r}")
                             else:
                                 await self.send_to_node(data)
 

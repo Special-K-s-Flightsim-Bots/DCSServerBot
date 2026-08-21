@@ -3,8 +3,9 @@ import discord
 import itertools
 import math
 
-from core import Plugin, utils, get_translation, Node, Group, Report
+from core import Plugin, utils, get_translation, Node, Group, Report, PlayerType, async_cache
 from datetime import datetime
+from decimal import Decimal
 from discord import app_commands
 from plugins.competitive import rating
 from psycopg.rows import dict_row
@@ -12,9 +13,28 @@ from services.bot import DCSServerBot
 from trueskill import Rating, BETA, global_env
 
 from .listener import CompetitiveListener
-from ..userstats.filter import MissionStatisticsFilter, PeriodTransformer, StatisticsFilter
+from ..userstats.filter import MissionStatisticsFilter, PeriodTransformer, StatisticsFilter, PeriodFilter, \
+    CampaignFilter
 
 _ = get_translation(__name__.split('.')[1])
+
+
+async def all_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    @async_cache
+    async def get_all_modules() -> list[str]:
+        async with interaction.client.node.apool.connection() as conn:
+            return [x[0] async for x in await conn.execute("""
+                SELECT DISTINCT slot 
+                FROM mv_statistics 
+                WHERE slot != '?' 
+                  AND slot NOT ILIKE '%crew%'
+            """)]
+
+    l_current = current.lower()
+    return [
+        app_commands.Choice[str](name=x, value=x)
+        for x in await get_all_modules() if not current or l_current in x.lower()
+    ][:25]
 
 
 class Competitive(Plugin[CompetitiveListener]):
@@ -117,7 +137,6 @@ class Competitive(Plugin[CompetitiveListener]):
         else:
             ucid = user
         if not ucid:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Use {} to link your account.").format(
                 (await utils.get_command(self.bot, name='linkme')).mention
             ), ephemeral=True)
@@ -133,7 +152,6 @@ class Competitive(Plugin[CompetitiveListener]):
         r = rating.create_rating()
         skill_mu = float(row['skill_mu']) if row['skill_mu'] else r.mu
         skill_sigma = float(row['skill_sigma']) if row['skill_sigma'] else r.sigma
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(
             _("TrueSkill:tm: rating of player {name}: {rating:.2f}.").format(name=row['name'],
                                                                              rating=skill_mu - 3.0 * skill_sigma),
@@ -213,7 +231,6 @@ class Competitive(Plugin[CompetitiveListener]):
                      squadron_id: int | None = None):
         if squadron_id:
             r = await self.trueskill_squadron(self.node, squadron_id)
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("TrueSkill:tm: rating: {rating:.2f}.").format(
                 rating=self.calculate_rating(r)), ephemeral=True)
         else:
@@ -234,7 +251,6 @@ class Competitive(Plugin[CompetitiveListener]):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(_("User {} is not linked.").format(user.display_name),
                                                         ephemeral=True)
                 return
@@ -248,7 +264,6 @@ class Competitive(Plugin[CompetitiveListener]):
                 name = member
 
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         report = Report(self.bot, self.plugin_name, 'trueskill_hist.json')
         env = await report.render(ucid=ucid, name=name, flt=period)
@@ -264,7 +279,6 @@ class Competitive(Plugin[CompetitiveListener]):
     @app_commands.guild_only()
     async def delete(self, interaction: discord.Interaction,
                      user: app_commands.Transform[discord.Member | str, utils.UserTransformer] | None = None):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
@@ -274,21 +288,19 @@ class Competitive(Plugin[CompetitiveListener]):
         else:
             ucid = user
 
-        if user and not await utils.yn_question(
-                interaction, _("Do you really want to delete TrueSkill:tm: ratings for this user?")):
-            await interaction.followup.send(_("Aborted."), ephemeral=True)
-            return
-        elif not user and not await utils.yn_question(
-                interaction, _("Do you really want to delete the TrueSkill:tm: ratings for all users?")):
-            await interaction.followup.send(_("Aborted."), ephemeral=True)
-            return
-
         async with self.apool.connection() as conn:
-            if user:
-                await conn.execute("DELETE FROM trueskill WHERE player_ucid = %s", (ucid, ))
-            else:
+            if user and await utils.yn_question(
+                    interaction, _("Do you really want to delete TrueSkill:tm: ratings for this user?")):
+                await conn.execute("DELETE FROM trueskill WHERE player_ucid = %s", (ucid,))
+                await conn.execute("DELETE FROM trueskill_hist WHERE player_ucid = %s", (ucid,))
+            elif not user and await utils.yn_question(
+                    interaction, _("Do you really want to delete the TrueSkill:tm: ratings for all users?")):
                 await conn.execute("TRUNCATE trueskill CASCADE")
-        # noinspection PyUnresolvedReferences
+                await conn.execute("TRUNCATE trueskill_hist CASCADE")
+            else:
+                await interaction.followup.send(_("Aborted."), ephemeral=True)
+                return
+
         await interaction.followup.send(_("TrueSkill:tm: ratings deleted."), ephemeral=True)
 
     @trueskill.command(description=_('Regenerate TrueSkill:tm: ratings'))
@@ -327,6 +339,234 @@ class Competitive(Plugin[CompetitiveListener]):
         else:
             # The generation of complete new ratings can take a while so that the interaction might have vanished.
             await channel.send(_("TrueSkill:tm: ratings regenerated."))
+
+    # New command group "/compare"
+    compare = Group(name="compare", description="Commands to compare PvP statistics")
+
+    @compare.command(name='players', description='Compare player stats')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def players(self, interaction: discord.Interaction,
+                      player1: app_commands.Transform[
+                         str, utils.UserTransformer(sel_type=PlayerType.PLAYER)
+                      ],
+                      player2: app_commands.Transform[
+                         str, utils.UserTransformer(sel_type=PlayerType.PLAYER)
+                      ] | None = None,
+                      period: app_commands.Transform[
+                          StatisticsFilter, PeriodTransformer(
+                              flt=[PeriodFilter, CampaignFilter]
+                          )] | None = PeriodFilter()
+                      ):
+        if player2 is None:
+            player2 = player1
+            player1 = await self.bot.get_ucid_by_member(interaction.user, verified=True)
+            if not player1:
+                await interaction.response.send_message(_("You need to link your account first."))
+                return
+
+        if player1 == player2:
+            await interaction.response.send_message(_("You need to specify two different players."), ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        embed = discord.Embed(color=discord.Color.blue(), title=period.format(self.bot) + _("Compare Players"))
+        async with self.node.apool.connection() as conn:
+            stats = {
+                player1: {
+                    "name": "n/a",
+                    "kdr": 0
+                },
+                player2: {
+                    "name": "n/a",
+                    "kdr": 0
+                }
+            }
+
+            cursor = await conn.execute(f"""
+                SELECT p.ucid, 
+                       p.name, 
+                       COALESCE(SUM(s.pvp), 0) as kills_pvp, 
+                       COALESCE(SUM(s.deaths_pvp), 0) as deaths_pvp
+                FROM players p LEFT OUTER JOIN statistics s ON (p.ucid = s.player_ucid)
+                WHERE p.ucid in (%s, %s)
+                AND {period.filter(self.bot)}
+                GROUP BY 1, 2
+            """, (player1, player2))
+            for row in await cursor.fetchall():
+                kdr = float(row[2] / (row[3] if row[3] else Decimal(1.0)))
+                stats[row[0]]['name'] = row[1]
+                stats[row[0]]['kdr'] = f"{kdr:.2f}"
+
+            value_0 = "**Names\nKDR**"
+            value_1 = '\n'.join(stats[player1].values())
+            value_2 = '\n'.join(stats[player2].values())
+
+            rating_p1 = await self.eventlistener.get_rating(player1)
+            rating_p2 = await self.eventlistener.get_rating(player2)
+            win_probability = self.win_probability([rating_p1], [rating_p2])
+
+            value_0 += "\n**TrueSkill:tm:\nWin Probability**"
+            value_1 += f"\n{self.eventlistener.calculate_rating(rating_p1):.2f}"
+            value_2 += f"\n{self.eventlistener.calculate_rating(rating_p2):.2f}"
+
+            value_1 += f"\n{win_probability * 100:.2f}%"
+            value_2 += f"\n{(1 - win_probability) * 100:.2f}%"
+
+            embed.add_field(name="_ _", value=value_0)
+            embed.add_field(name="Player 1", value=value_1)
+            embed.add_field(name="Player 2", value=value_2)
+
+            flt = MissionStatisticsFilter(period.period)
+            cursor = await conn.execute(f"""
+                SELECT event, init_id, COUNT(*) as num FROM missionstats 
+                WHERE event IN ('S_EVENT_SHOT', 'S_EVENT_HIT', 'S_EVENT_KILL')
+                AND (
+                    (init_id = %(player1)s AND target_id = %(player2)s) OR 
+                    (init_id = %(player2)s AND target_id = %(player1)s)
+                )
+                AND weapon != init_type
+                AND {flt.filter(self.bot)}
+                GROUP BY 1, 2
+            """, {"player1": player1, "player2": player2})
+
+            events = {
+                'S_EVENT_SHOT': {
+                    player1: 0,
+                    player2: 0
+                },
+                'S_EVENT_HIT': {
+                    player1: 0,
+                    player2: 0
+                },
+                'S_EVENT_KILL': {
+                    player1: 0,
+                    player2: 0
+                }
+            }
+
+            for row in await cursor.fetchall():
+                events[row[0]][row[1]] = row[2]
+
+            embed.add_field(name="_ _", value="**Shots\nHits\nKills**")
+            embed.add_field(name="P1 vs P2",
+                            value=f"{events['S_EVENT_SHOT'][player1]}\n"
+                                  f"{events['S_EVENT_HIT'][player1]}\n"
+                                  f"{events['S_EVENT_KILL'][player1]}")
+            embed.add_field(name="P2 vs P1",
+                            value=f"{events['S_EVENT_SHOT'][player2]}\n"
+                                  f"{events['S_EVENT_HIT'][player2]}\n"
+                                  f"{events['S_EVENT_KILL'][player2]}")
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    @compare.command(name='modules', description='Compare module stats')
+    @app_commands.guild_only()
+    @app_commands.autocomplete(module1=all_modules_autocomplete)
+    @app_commands.autocomplete(module2=all_modules_autocomplete)
+    @utils.app_has_role('DCS')
+    async def modules(self, interaction: discord.Interaction, module1: str, module2: str,
+                      period: app_commands.Transform[
+                                  StatisticsFilter, PeriodTransformer(
+                                      flt=[PeriodFilter, CampaignFilter]
+                                  )] | None = PeriodFilter()
+                      ):
+        if module1 == module2:
+            await interaction.response.send_message(_("You need to specify two different modules."), ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        async with self.node.apool.connection() as conn:
+            cursor = await conn.execute(f"""
+                SELECT slot, 
+                       ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime, 
+                       COUNT(*) AS usage,
+                       COUNT(DISTINCT player_ucid) AS users, 
+                       SUM(pvp) AS kills, 
+                       SUM(deaths_pvp) AS deaths
+                FROM statistics s
+                WHERE slot in (%s, %s)
+                AND {period.filter(self.bot)}
+                GROUP BY 1
+            """, (module1, module2))
+
+            modules = {
+                module1: {
+                    "playtime": "0",
+                    "usage": "0",
+                    "users": "0",
+                    "kdr": "0",
+                },
+                module2: {
+                    "playtime": "0",
+                    "usage": "0",
+                    "users": "0",
+                    "kdr": "0"
+                }
+            }
+
+            for row in await cursor.fetchall():
+                kdr = row[4] / (row[5] if row[5] else Decimal(1.0))
+                modules[row[0]] = {
+                    "playtime": utils.convert_time(row[1]),
+                    "usage": str(row[2]),
+                    "users": str(row[3]),
+                    "kdr": f"{kdr:.2f}"
+                }
+
+            embed = discord.Embed(color=discord.Color.blue(), title=period.format(self.bot) + _("Compare Modules"))
+
+            value_0 = "**Playtime\nUsage #\nUsers\nKDR**"
+            value_1 = '\n'.join(modules[module1].values())
+            value_2 = '\n'.join(modules[module2].values())
+
+            embed.add_field(name="_ _", value=value_0)
+            embed.add_field(name=module1, value=value_1)
+            embed.add_field(name=module2, value=value_2)
+
+            flt = MissionStatisticsFilter(period.period)
+            cursor = await conn.execute(f"""
+                SELECT event, init_type, COUNT(*) as num FROM missionstats 
+                WHERE event IN ('S_EVENT_SHOT', 'S_EVENT_HIT', 'S_EVENT_KILL')
+                AND (
+                    (init_type = %(module1)s AND target_type = %(module2)s) OR 
+                    (init_type = %(module2)s AND target_type = %(module1)s)
+                )
+                AND weapon != init_type
+                AND {flt.filter(self.bot)}
+                GROUP BY 1, 2
+            """, {"module1": module1, "module2": module2})
+
+            events = {
+                'S_EVENT_SHOT': {
+                    module1: 0,
+                    module2: 0
+                },
+                'S_EVENT_HIT': {
+                    module1: 0,
+                    module2: 0
+                },
+                'S_EVENT_KILL': {
+                    module1: 0,
+                    module2: 0
+                }
+            }
+
+            for row in await cursor.fetchall():
+                events[row[0]][row[1]] = row[2]
+
+            embed.add_field(name="_ _", value="**Shots\nHits\nKills**")
+            embed.add_field(name="===>",
+                            value=f"{events['S_EVENT_SHOT'][module1]}\n"
+                                  f"{events['S_EVENT_HIT'][module1]}\n"
+                                  f"{events['S_EVENT_KILL'][module1]}")
+            embed.add_field(name="<===",
+                            value=f"{events['S_EVENT_SHOT'][module2]}\n"
+                                  f"{events['S_EVENT_HIT'][module2]}\n"
+                                  f"{events['S_EVENT_KILL'][module2]}")
+
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):

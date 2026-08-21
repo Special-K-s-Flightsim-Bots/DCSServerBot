@@ -36,7 +36,8 @@ class Player(DataObject):
     unit_id: int = field(compare=False, default=0)
     unit_name: str = field(compare=False, default='')
     unit_display_name: str = field(compare=False, default='')
-    unit_type: str = field(compare=False, default='')
+    unit_type: str = field(compare=False, default='Planes')
+    unit_category: str = field(compare=False, default='')
     group_id: int = field(compare=False, default=0)
     group_name: str = field(compare=False, default='')
     _member: discord.Member | None = field(compare=False, repr=False, default=None, init=False)
@@ -44,8 +45,9 @@ class Player(DataObject):
     coalition: Coalition | None = field(compare=False, default=None)
     _watchlist: bool = field(compare=False, default=False)
     _vip: bool = field(compare=False, default=False)
-    bot: DCSServerBot = field(compare=False, init=False)
+    bot: DCSServerBot = field(compare=False, repr=False, init=False)
     pending: bool = field(compare=False, default=False)
+    _muted: bool = field(compare=False, default=False)
 
     @override
     def __post_init__(self):
@@ -55,21 +57,29 @@ class Player(DataObject):
         self.bot = ServiceRegistry.get(BotService).bot
         if self.id == 1:
             self.active = False
-            return
+
+    async def prep(self) -> Player:
+        if self.id == 1:
+            return self
 
         lock_time = self.server.locals.get('coalitions', {}).get('lock_time', '1 day')
-        with self.pool.connection() as conn:
+        self._member = await self.bot.get_member_by_ucid(self.ucid)
+        async with self.apool.connection() as conn:
             # add new players to the database
-            conn.execute("""
+            await conn.execute("""
                 INSERT INTO players (ucid, discord_id, name, last_seen) 
                 VALUES (%s, -1, %s, (now() AT TIME ZONE 'utc')) 
                 ON CONFLICT (ucid) DO UPDATE SET name=excluded.name, last_seen=excluded.last_seen
                 """, (self.ucid, self.name))
             # get the player information
-            cursor = conn.execute(f"""
-                SELECT DISTINCT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
-                       p.manual, c.coalition, 
-                       CASE WHEN w.player_ucid IS NOT NULL THEN TRUE ELSE FALSE END AS watchlict, p.vip 
+            cursor = await conn.execute(f"""
+                SELECT DISTINCT p.discord_id, 
+                       CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
+                       p.manual, 
+                       c.coalition, 
+                       CASE WHEN w.player_ucid IS NOT NULL THEN TRUE ELSE FALSE END AS watchlict, 
+                       p.vip,
+                       p.muted 
                 FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
                 LEFT OUTER JOIN coalitions c 
                      ON p.ucid = c.player_ucid 
@@ -80,9 +90,8 @@ class Player(DataObject):
                 AND COALESCE(b.banned_until, (now() AT TIME ZONE 'utc')) >= (now() AT TIME ZONE 'utc')
             """, (self.server.name, self.ucid))
             # existing member found?
-            row = cursor.fetchone()
+            row = await cursor.fetchone()
             if row:
-                self._member = self.bot.get_member_by_ucid(self.ucid)
                 if self._member:
                     # special handling for discord-less bots
                     if isinstance(self._member, discord.Member):
@@ -94,10 +103,11 @@ class Player(DataObject):
                     self.coalition = Coalition(row[3])
                 self._watchlist = row[4]
                 self._vip = row[5]
+                self._muted = row[6]
             else:
                 rules = self.server.locals.get('rules')
                 if rules:
-                    cursor.execute("""
+                    await conn.execute("""
                         INSERT INTO messages (sender, player_ucid, message, ack) 
                         VALUES (%s, %s, %s, %s)
                     """, (self.server.locals.get('server_user', 'Admin'), self.ucid, rules,
@@ -105,9 +115,10 @@ class Player(DataObject):
 
         # if automatch is enabled, try to match the user
         if not self.member and self.bot.locals.get('automatch', False):
-            discord_user = self.bot.match_user({"ucid": self.ucid, "name": self.name})
+            discord_user = await self.bot.match_user({"ucid": self.ucid, "name": self.name})
             if discord_user:
                 self.member = discord_user
+        return self
 
     def is_active(self) -> bool:
         return self.active
@@ -128,13 +139,13 @@ class Player(DataObject):
     @member.setter
     def member(self, member: discord.Member) -> None:
         if member != self._member:
-            self.update_member(member)
+            asyncio.create_task(self.update_member(member))
             self._member = member
 
-    def update_member(self, member: discord.Member) -> None:
-        with self.pool.connection() as conn:
-            conn.execute('UPDATE players SET discord_id = %s WHERE ucid = %s',
-                         (member.id if member else -1, self.ucid))
+    async def update_member(self, member: discord.Member) -> None:
+        async with self.apool.connection() as conn:
+            await conn.execute('UPDATE players SET discord_id = %s WHERE ucid = %s',
+                               (member.id if member else -1, self.ucid))
 
     @property
     def verified(self) -> bool:
@@ -144,21 +155,21 @@ class Player(DataObject):
     def verified(self, verified: bool) -> None:
         if verified == self._verified:
             return
-        self.update_verified(verified)
+        asyncio.create_task(self.update_verified(verified))
         self._verified = verified
 
-    def update_verified(self, verified: bool) -> None:
+    async def update_verified(self, verified: bool) -> None:
         if not self.member:
             return
-        with self.pool.connection() as conn:
-            conn.execute('UPDATE players SET manual = %s WHERE ucid = %s', (verified, self.ucid))
+        async with self.apool.connection() as conn:
+            await conn.execute('UPDATE players SET manual = %s WHERE ucid = %s', (verified, self.ucid))
             if verified:
                 # delete all old automated links (this will delete the token also)
-                conn.execute("DELETE FROM players WHERE ucid = %s AND manual = FALSE", (self.ucid,))
-                conn.execute("DELETE FROM players WHERE discord_id = %s AND length(ucid) = 4",
-                             (self.member.id,))
-                conn.execute("UPDATE players SET discord_id = -1 WHERE discord_id = %s AND manual = FALSE",
-                             (self.member.id,))
+                await conn.execute("DELETE FROM players WHERE ucid = %s AND manual = FALSE", (self.ucid,))
+                await conn.execute("DELETE FROM players WHERE discord_id = %s AND length(ucid) = 4",
+                                   (self.member.id,))
+                await conn.execute("UPDATE players SET discord_id = -1 WHERE discord_id = %s AND manual = FALSE",
+                                   (self.member.id,))
 
     @property
     def watchlist(self) -> bool:
@@ -170,12 +181,12 @@ class Player(DataObject):
 
     @vip.setter
     def vip(self, vip: bool):
-        self.update_vip(vip)
+        asyncio.create_task(self.update_vip(vip))
         self._vip = vip
 
-    def update_vip(self, vip: bool) -> None:
-        with self.pool.connection() as conn:
-            conn.execute('UPDATE players SET vip = %s WHERE ucid = %s', (vip, self.ucid))
+    async def update_vip(self, vip: bool) -> None:
+        async with self.apool.connection() as conn:
+            await conn.execute('UPDATE players SET vip = %s WHERE ucid = %s', (vip, self.ucid))
 
     @property
     def display_name(self) -> str:
@@ -209,6 +220,8 @@ class Player(DataObject):
                 self.unit_type = data['unit_type']
                 # we changed the slot in the slot menu, but we are not in the plane yet
                 self.pending = True
+            if 'unit_category' in data:
+                self.unit_category = data['unit_category']
             if 'group_name' in data:
                 self.group_name = data['group_name']
             if 'group_id' in data:
@@ -311,6 +324,9 @@ class Player(DataObject):
                     roles = exemption['discord']
                 if utils.check_roles(roles, self.member):
                     return True
+            if 'side' in exemption:
+                if self.side.name.lower() == exemption['side'].lower():
+                    return True
             return False
 
         if isinstance(exemptions, list):
@@ -355,14 +371,27 @@ class Player(DataObject):
             "ucid": self.ucid
         })
 
+    def update_muted(self, muted: bool) -> None:
+        self._muted = muted
+        with self.pool.connection() as conn:
+            conn.execute('UPDATE players SET muted = %s WHERE ucid = %s', (muted, self.ucid))
+
     async def mute(self) -> None:
         await self.server.send_to_dcs({
             "command": "mute_player",
             "ucid": self.ucid
         })
+        if not self._muted:
+            self.update_muted(True)
 
     async def unmute(self) -> None:
         await self.server.send_to_dcs({
             "command": "unmute_player",
             "ucid": self.ucid
         })
+        if self._muted:
+            self.update_muted(False)
+
+    @property
+    def muted(self) -> bool:
+        return self._muted

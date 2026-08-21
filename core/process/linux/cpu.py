@@ -3,6 +3,10 @@ import os
 __all__ = [
     'get_cpu_set_information',
     'get_e_core_affinity',
+    'get_p_core_affinity',
+    'get_cpus_from_affinity',
+    'get_cache_info',
+    'get_die_info',
     'get_cpu_name'
 ]
 
@@ -15,9 +19,13 @@ def get_cpu_set_information() -> list[dict]:
         - Logical Processor Index
         - Core Index
         - Efficiency Class  (set to 0 – not available on Linux)
-        - Scheduling Class  (physical package / NUMA node id)
+        - Scheduling Class  (Hybrid aware: 0 for E-core, P-cores > 0)
+        - Numa Node Index   (NUMA node ID)
+        - Last Level Cache Index (L3 cache ID or Die ID)
     """
     cpu_info_list: list[dict] = []
+    e_mask = get_e_core_affinity()
+    has_hybrid = e_mask > 0
 
     # Helper: try to read a file and return its integer value
     def _read_int(path: str) -> int | None:
@@ -46,13 +54,40 @@ def get_cpu_set_information() -> list[dict]:
                 # Fall back to /proc/cpuinfo later
                 continue
 
+            # NUMA node detection
+            numa_node = 0
+            cpu_path = os.path.join(sysfs_root, entry)
+            try:
+                for sub in os.listdir(cpu_path):
+                    if sub.startswith("node") and sub[4:].isdigit():
+                        numa_node = int(sub[4:])
+                        break
+            except Exception:
+                pass
+
+            # Hybrid aware Scheduling Class
+            if has_hybrid:
+                is_e = (e_mask & (1 << cpu_num)) != 0
+                sched_class = 0 if is_e else (pkg_id + 1)
+            else:
+                sched_class = pkg_id
+
+            # L3 Cache / Die detection
+            llc_id = _read_int(os.path.join(sysfs_root, entry, "cache/index3/id"))
+            if llc_id is None:
+                llc_id = _read_int(os.path.join(sysfs_root, entry, "topology/die_id"))
+            if llc_id is None:
+                llc_id = 0
+
             cpu_info_list.append(
                 {
                     "CPU Id": cpu_num,
                     "Logical Processor Index": cpu_num,
                     "Core Index": core_id,
                     "Efficiency Class": 0,          # not exposed on Linux
-                    "Scheduling Class": pkg_id,     # use physical package as a stand‑in
+                    "Scheduling Class": sched_class,
+                    "Numa Node Index": numa_node,
+                    "Last Level Cache Index": llc_id
                 }
             )
 
@@ -71,13 +106,22 @@ def get_cpu_set_information() -> list[dict]:
                         cpu_num = int(cpu_block["processor"])
                         core_id = int(cpu_block["core id"])
                         pkg_id  = int(cpu_block["physical id"])
+
+                        if has_hybrid:
+                            is_e = (e_mask & (1 << cpu_num)) != 0
+                            sched_class = 0 if is_e else (pkg_id + 1)
+                        else:
+                            sched_class = pkg_id
+
                         cpu_info_list.append(
                             {
                                 "CPU Id": cpu_num,
                                 "Logical Processor Index": cpu_num,
                                 "Core Index": core_id,
                                 "Efficiency Class": 0,
-                                "Scheduling Class": pkg_id,
+                                "Scheduling Class": sched_class,
+                                "Numa Node Index": 0, # Harder to get from cpuinfo accurately
+                                "Last Level Cache Index": pkg_id # Fallback
                             }
                         )
                     cpu_block.clear()
@@ -93,13 +137,22 @@ def get_cpu_set_information() -> list[dict]:
                 cpu_num = int(cpu_block["processor"])
                 core_id = int(cpu_block["core id"])
                 pkg_id  = int(cpu_block["physical id"])
+
+                if has_hybrid:
+                    is_e = (e_mask & (1 << cpu_num)) != 0
+                    sched_class = 0 if is_e else (pkg_id + 1)
+                else:
+                    sched_class = pkg_id
+
                 cpu_info_list.append(
                     {
                         "CPU Id": cpu_num,
                         "Logical Processor Index": cpu_num,
                         "Core Index": core_id,
                         "Efficiency Class": 0,
-                        "Scheduling Class": pkg_id,
+                        "Scheduling Class": sched_class,
+                        "Numa Node Index": 0,
+                        "Last Level Cache Index": pkg_id
                     }
                 )
 
@@ -209,6 +262,144 @@ def get_e_core_affinity() -> int:
             mask |= 1 << cpu_num
 
     return mask
+
+
+def get_p_core_affinity() -> int:
+    """
+    Returns an affinity mask for logical processors that are likely P-cores.
+    """
+    e_mask = get_e_core_affinity()
+    all_cpus = (1 << os.cpu_count()) - 1
+    return all_cpus & ~e_mask
+
+
+def get_cpus_from_affinity(mask: int) -> list[int]:
+    """
+    Converts an affinity mask to a list of logical processor indices.
+    """
+    return [i for i in range(mask.bit_length()) if (mask & (1 << i))]
+
+
+def get_cache_info() -> list[dict]:
+    """
+    Returns information about the CPU cache structure on Linux.
+    Mimics the Windows structure for cross-platform compatibility.
+    """
+    sysfs_root = "/sys/devices/system/cpu"
+    if not os.path.isdir(sysfs_root):
+        return []
+
+    # Helper: try to read a file and return its integer value
+    def _read_int(path: str) -> int | None:
+        try:
+            with open(path, "r") as f:
+                return int(f.read().strip())
+        except Exception:
+            return None
+
+    # We iterate over all CPUs and group caches by their unique ID
+    caches = {}  # (level, type, id) -> {size, cores}
+    for cpu_entry in os.listdir(sysfs_root):
+        if not cpu_entry.startswith("cpu") or not cpu_entry[3:].isdigit():
+            continue
+        cpu_num = int(cpu_entry[3:])
+        cache_dir = os.path.join(sysfs_root, cpu_entry, "cache")
+        if not os.path.isdir(cache_dir):
+            continue
+        for idx_entry in os.listdir(cache_dir):
+            idx_path = os.path.join(cache_dir, idx_entry)
+            level = _read_int(os.path.join(idx_path, "level"))
+            if level is None:
+                continue
+            ctype_path = os.path.join(idx_path, "type")
+            try:
+                with open(ctype_path, "r") as f:
+                    ctype_str = f.read().strip()
+            except Exception:
+                continue
+
+            # Map type to Windows constants: Unified=0, Instruction=1, Data=2
+            type_map = {"Unified": 0, "Instruction": 1, "Data": 2}
+            type_id = type_map.get(ctype_str, 0)
+
+            # Some older kernels might not have 'id', use shared_cpu_list/mask to infer
+            cache_id = _read_int(os.path.join(idx_path, "id"))
+            if cache_id is None:
+                # Fallback to shared_cpu_list hash
+                try:
+                    with open(os.path.join(idx_path, "shared_cpu_list"), "r") as f:
+                        cache_id = hash(f.read().strip())
+                except Exception:
+                    cache_id = cpu_num  # Last resort
+
+            size_str = "0"
+            try:
+                with open(os.path.join(idx_path, "size"), "r") as f:
+                    size_str = f.read().strip()
+            except Exception:
+                pass
+
+            # Convert e.g. "32K", "1M" to bytes
+            size = 0
+            if size_str.endswith("K"):
+                size = int(size_str[:-1]) * 1024
+            elif size_str.endswith("M"):
+                size = int(size_str[:-1]) * 1024 * 1024
+            elif size_str.isdigit():
+                size = int(size_str)
+
+            key = (level, type_id, cache_id)
+            if key not in caches:
+                caches[key] = {
+                    'level': level,
+                    'type': type_id,
+                    'size': size,
+                    'cores': set()
+                }
+            caches[key]['cores'].add(cpu_num)
+
+    res = []
+    for c in caches.values():
+        c['cores'] = sorted(list(c['cores']))
+        res.append(c)
+    return sorted(res, key=lambda x: (x['level'], x['type']))
+
+
+def get_die_info() -> list[list[int]]:
+    """
+    Returns a list of logical processor groups representing physical dies (CCDs).
+    """
+    sysfs_root = "/sys/devices/system/cpu"
+    if not os.path.isdir(sysfs_root):
+        return []
+
+    def _read_int(path: str) -> int | None:
+        try:
+            with open(path, "r") as f:
+                return int(f.read().strip())
+        except Exception:
+            return None
+
+    dies = {}  # die_id -> [logical_processors]
+    for cpu_entry in os.listdir(sysfs_root):
+        if not cpu_entry.startswith("cpu") or not cpu_entry[3:].isdigit():
+            continue
+        cpu_num = int(cpu_entry[3:])
+        
+        # Try die_id first, then cluster_id (used on some ARM systems)
+        die_id = _read_int(os.path.join(sysfs_root, cpu_entry, "topology/die_id"))
+        if die_id is None:
+            die_id = _read_int(os.path.join(sysfs_root, cpu_entry, "topology/cluster_id"))
+        
+        if die_id is not None:
+            if die_id not in dies:
+                dies[die_id] = []
+            dies[die_id].append(cpu_num)
+
+    if not dies:
+        return []
+
+    return [sorted(cpus) for _, cpus in sorted(dies.items())]
 
 
 def get_cpu_name() -> str:

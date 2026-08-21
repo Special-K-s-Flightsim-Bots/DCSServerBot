@@ -74,6 +74,12 @@ class Extension(ABC):
     def load_config(self) -> dict:
         return dict()
 
+    def is_installed(self) -> bool:
+        return True
+
+    async def install(self) -> bool:
+        return True
+
     async def prepare(self) -> bool:
         if not self.is_available():
             raise InstallException(f"{self.name} is not installed.")
@@ -131,10 +137,19 @@ class Extension(ABC):
     def enabled(self) -> bool:
         return self.config.get('enabled', True)
 
+    @property
+    def hidden(self) -> bool:
+        return self.config.get('hidden', False)
+
     async def enable(self) -> bool:
+        if not await self.install():
+            self.config['enabled'] = False
+            return False
         self.config['enabled'] = True
         if self.server.status in [Status.RUNNING, Status.PAUSED]:
             if not self.is_running():
+                if not await self.prepare():
+                    return False
                 return await self.startup()
             return True
         else:
@@ -148,7 +163,12 @@ class Extension(ABC):
         return True
 
     async def render(self, param: dict | None = None) -> dict:
-        raise NotImplementedError()
+        if self.hidden:
+            raise NotImplementedError()
+        return {
+            "name": self.name,
+            "version": self.version or 'n/a'
+        }
 
     async def get_config(self, **kwargs) -> dict:
         return self.config
@@ -181,11 +201,6 @@ class InstallableExtension(Extension):
 
     @override
     async def prepare(self) -> bool:
-        # check if the extension is installed
-        if not self.is_installed() and not await self.install():
-            self.log.warning(f"  => {self.name}: Mod not installed, skipping.")
-            return False
-
         if self.autoupdate:
             available_version = await self.update_available()
             if available_version:
@@ -218,6 +233,7 @@ class InstallableExtension(Extension):
             })
         return latest if latest else self.version
 
+    @override
     async def install(self, version: str | None = None) -> bool:
         from services.modmanager import Folder
 
@@ -228,16 +244,23 @@ class InstallableExtension(Extension):
         if not await self.service.get_installed_package(self.server, Folder.SavedGames, self.package_name):
             if not version:
                 version = await self.get_latest_version()
-            return await self.service.install_package(
+            if not await self.service.install_package(
                 self.server,
                 folder=Folder.SavedGames,
                 package_name=self.package_name,
                 version=version,
                 repo=self.repo
-            )
+            ):
+                return False
         else:
             self.log.info(f"  => {self.name}: Mod already installed.")
-            return False
+
+        if not version and self.autoupdate:
+            available_version = await self.update_available()
+            if available_version:
+                await self.update(available_version)
+
+        return True
 
     async def uninstall(self) -> bool:
         if not self.is_installed():
@@ -264,12 +287,6 @@ class InstallableExtension(Extension):
         if await self.uninstall():
            return await self.install(version)
         return False
-
-    async def enable(self) -> bool:
-        if not self.is_installed():
-            if not await self.install():
-                return False
-        return await super().enable()
 
     async def disable(self) -> bool:
         if not await super().disable():

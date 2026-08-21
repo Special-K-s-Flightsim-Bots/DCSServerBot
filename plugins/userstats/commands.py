@@ -53,9 +53,9 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
     async def cog_load(self) -> None:
         await super().cog_load()
+        utils.safe_start(self.refresh_views)
         if self.locals:
             utils.safe_start(self.persistent_highscore)
-            utils.safe_start(self.refresh_views)
             self.refresh_views.add_exception_type(psycopg.DatabaseError)
             if not self.locals.get(DEFAULT_TAG, {}).get('squadrons', {}).get('self_join', True):
                 super().change_commands({
@@ -67,8 +67,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
     async def cog_unload(self):
         if self.locals:
-            await utils.safe_cancel(self.refresh_views)
             await utils.safe_cancel(self.persistent_highscore)
+        await utils.safe_cancel(self.refresh_views)
         await super().cog_unload()
 
     async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
@@ -116,12 +116,10 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         if not _server:
             for s in self.bot.servers.values():
                 if s.status in [Status.RUNNING, Status.PAUSED]:
-                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(
                         f'Please stop all servers before deleting the statistics!', ephemeral=True)
                     return
         elif _server.status in [Status.RUNNING, Status.PAUSED]:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 f'Please stop server "{_server.display_name}" before deleting the statistics!', ephemeral=True)
             return
@@ -181,7 +179,6 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                             StatisticsFilter, PeriodTransformer(
                                 flt=[PeriodFilter, CampaignFilter, MissionFilter, TheatreFilter, SquadronFilter]
                             )] | None = PeriodFilter(), limit: app_commands.Range[int, 3, 20] | None = None):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         file = 'highscore-campaign.json' if isinstance(period, CampaignFilter) else 'highscore.json'
         if not _server:
@@ -217,7 +214,6 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             name = user
 
         if not ucid:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("User {} is not linked.").format(name), ephemeral=True)
             return
 
@@ -240,7 +236,6 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @utils.app_has_role('DCS Admin')
     async def create(self, interaction: discord.Interaction, name: str, locked: bool = False, role: discord.Role | None = None,
                      channel: discord.TextChannel | None = None):
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(SquadronModal(self, name, locked=locked, role=role, channel=channel))
 
     @squadron.command(description='Info about a squadron')
@@ -256,8 +251,11 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         embed = discord.Embed(title=_('Info about Squadron {}').format(row['name']),
                               description=row['description'])
         if row['role']:
-            embed.add_field(name="Role", value=self.bot.get_role(row['role']).name)
-        # noinspection PyUnresolvedReferences
+            role = self.bot.get_role(row['role'])
+            if role:
+                embed.add_field(name="Role", value=role.name)
+            else:
+                self.log.error(f"Role {row['role']} not found in your Discord!")
         await interaction.response.send_message(embed=embed)
 
     @squadron.command(description='Edit a squadron')
@@ -281,7 +279,6 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                     role = self.bot.get_role(row['role'])
                 name = row['name']
                 description = row['description']
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(
             SquadronModal(
                 self, name,
@@ -302,13 +299,12 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                   rank: str | None = None, position: str | None = None):
         ephemeral = utils.get_ephemeral(interaction)
 
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         async with interaction.client.apool.connection() as conn:
             cursor = await conn.execute("SELECT role FROM squadrons WHERE id = %s", (squadron_id,))
             role = (await cursor.fetchone())[0]
             if isinstance(user, str):
-                member = self.bot.get_member_by_ucid(ucid=user, verified=True)
+                member = await self.bot.get_member_by_ucid(ucid=user, verified=True)
                 ucid = user
             else:
                 member = user
@@ -376,14 +372,12 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
         if not user:
             if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message("You're not allowed to delete a squadron.", ephemeral=True)
                 return
             message = "Do you really want to delete this squadron?"
         else:
             if (user == interaction.user and
                     not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user)):
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message("CO/XO can't delete themseleves from a squadron.",
                                                         ephemeral=True)
                 return
@@ -401,7 +395,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         async with interaction.client.apool.connection() as conn:
             async for row in await conn.execute(sql, {"squadron_id": squadron_id, "user": user}):
                 if row[1]:
-                    member = self.bot.get_member_by_ucid(row[0], verified=True)
+                    member = await self.bot.get_member_by_ucid(row[0], verified=True)
                     role = self.bot.get_role(row[1])
                     if member:
                         try:
@@ -430,7 +424,6 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
         async with interaction.client.apool.connection() as conn:
             await conn.execute("UPDATE squadrons SET locked=TRUE WHERE id = %s", (squadron_id, ))
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message("Squadron locked.", ephemeral=ephemeral)
 
     @squadron.command(description='Unlocks a squadrons')
@@ -442,7 +435,6 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
         async with interaction.client.apool.connection() as conn:
             await conn.execute("UPDATE squadrons SET locked=FALSE WHERE id = %s", (squadron_id, ))
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message("Squadron unlocked.", ephemeral=ephemeral)
 
     @squadron.command(description='Join a squadron')
@@ -453,7 +445,6 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     async def join(self, interaction: discord.Interaction, squadron_id: int):
         ucid = await self.bot.get_ucid_by_member(interaction.user)
         if not ucid:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("Your user needs to be linked to use this command!",
                                                     ephemeral=True)
             return
@@ -474,18 +465,14 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                                 message += f" and got the {role.mention} role"
                             except discord.Forbidden:
                                 await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
-                        # noinspection PyUnresolvedReferences
                         await interaction.response.send_message(message, ephemeral=True)
                         if self.get_config().get('squadrons', {}).get('persist_list', False):
                             await self.persist_squadron_list(squadron_id)
                     else:
-                        # noinspection PyUnresolvedReferences
                         await interaction.response.send_message("This squadron is locked.", ephemeral=True)
                 else:
-                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message("This squadron does not exist.", ephemeral=True)
         except UniqueViolation:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("You are a member of this squadron already.", ephemeral=True)
 
     @squadron.command(description='Leave a squadron')
@@ -496,7 +483,6 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     async def leave(self, interaction: discord.Interaction, squadron_id: int):
         ucid = await self.bot.get_ucid_by_member(interaction.user)
         if not ucid:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("Your user needs to be linked to use this command!",
                                                     ephemeral=True)
             return
@@ -515,15 +501,12 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                             message += f" and lost the {role.mention} role"
                         except discord.Forbidden:
                             await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
-                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(message, ephemeral=True)
                     if self.get_config().get('squadrons', {}).get('persist_list', False):
                         await self.persist_squadron_list(squadron_id)
                 else:
-                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message("This squadron is locked.", ephemeral=True)
             else:
-                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message("This squadron does not exist.", ephemeral=True)
 
     @squadron.command(name='list', description='List members of a squadron')
@@ -532,7 +515,6 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @app_commands.rename(squadron_id="squadron")
     @utils.app_has_role('DCS')
     async def _list(self, interaction: discord.Interaction, squadron_id: int):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         embed = await self.render_squadron_list(squadron_id)
         await interaction.followup.send(embed=embed)
@@ -547,8 +529,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 WHERE (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc') 
             """, (squadron_id,)):
                 squadron = utils.get_squadron(node=self.node, squadron_id=squadron_id)
-                squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
-                                                       campaign_id=row[0])
+                squadron_obj = await DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                                               campaign_id=row[0]).prep()
                 ret.append({"id": row[0], "name": row[1], "points": squadron_obj.points})
         return ret
 
@@ -570,7 +552,6 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @app_commands.rename(squadron_id="squadron")
     @utils.squadron_role_check()
     async def credits(self, interaction: discord.Interaction, squadron_id: int):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         data = await self.get_credits(squadron_id)
         if not data:
@@ -609,15 +590,14 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def donate(self, interaction: discord.Interaction, squadron_id: int, points: int,
                      server: app_commands.Transform[Server, utils.ServerTransformer] | None = None):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
-        campaign_id, name = utils.get_running_campaign(self.node, server)
+        campaign_id, name = await utils.get_running_campaign_async(self.node, server)
         if not campaign_id:
             await interaction.followup.send(_("You don't have an active campaign."), ephemeral=True)
             return
         squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
-        squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
-                                               campaign_id=campaign_id)
+        squadron_obj = await DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                                       campaign_id=campaign_id).prep()
         squadron_obj.points += points
         squadron_obj.audit(event='Admin donate', points=points, remark='')
         await interaction.followup.send(_("{} points donated to squadron {}.").format(points, squadron['name']),

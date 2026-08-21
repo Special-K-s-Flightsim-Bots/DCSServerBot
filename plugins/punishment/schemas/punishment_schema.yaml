@@ -14,6 +14,8 @@ schema;element_schema:
     enabled: {type: bool, nullable: false}
     reslot_window: {type: int, nullable: false, range: {min: 1, max: 60}}
     survival_window: {type: int, nullable: false, range: {min: 1}}
+    csar_timeout: {type: int, nullable: false, range: {min: 1}}
+    repair_timeout: {type: int, nullable: false, range: {min: 1}}
     channel: {type: int, nullable: false}
     penalties:
       type: seq
@@ -76,6 +78,7 @@ schema;element_schema:
           sequence:
             - type: text
               nullable: false
+        side: {type: str, nullable: false, enum: ['red', 'blue']}
 
 type: map
 func: check_main_structure

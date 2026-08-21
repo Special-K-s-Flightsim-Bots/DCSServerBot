@@ -41,7 +41,7 @@ schema;modify_map:
       type: map
       nullable: false
       mapping:
-        regex;(.+): {type: text, nullable: false}
+        regex;(.+): {type: any, nullable: false}
     delete: {type: str, nullable: false}
     insert:
       type: map
@@ -74,6 +74,26 @@ schema;preset_map:
   type: map
   nullable: false
   mapping:
+    hidden:
+      type: bool
+      nullable: false
+    terrain:
+      type: str
+      nullable: false
+      enum: [
+        'Caucasus', 'Syria', 'PersianGulf', 'SinaiMap', 'TheChannel', 'Nevada', 'Normandy', 'MarianaIslands',
+        'Falklands', 'Kola', 'Afghanistan', 'Iraq', 'GermanyCW'
+      ]
+    terrains:
+      type: seq
+      nullable: false
+      sequence:
+        - type: str
+          nullable: false
+          enum: [
+            'Caucasus', 'Syria', 'PersianGulf', 'SinaiMap', 'TheChannel', 'Nevada', 'Normandy', 'MarianaIslands',
+            'Falklands', 'Kola', 'Afghanistan', 'Iraq', 'GermanyCW'
+          ]
     date:
       type: str
       nullable: false
@@ -84,7 +104,7 @@ schema;preset_map:
       # seconds since midnight, 'HH:MM', or named moment ('noon', 'morning', 'dusk', etc.)
       # named moments support offsets: 'morning +02:00'
     temperature:
-      type: int
+      type: float
       nullable: false
     atmosphere_type:
       type: int
@@ -152,6 +172,9 @@ schema;preset_map:
       nullable: false
       sequence:
         - {type: str, nullable: false}
+    failures:
+      type: any
+      nullable: false
     accidental_failures:
       type: bool
       nullable: false

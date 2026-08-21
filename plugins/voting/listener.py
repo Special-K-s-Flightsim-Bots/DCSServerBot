@@ -84,10 +84,10 @@ class VotingHandler:
         message += await self.get_leading_vote()
         await self.server.sendPopupMessage(Coalition.ALL, message)
 
-    def _get_possible_voters(self) -> int:
+    async def _get_possible_voters(self) -> int:
         if self.config.get('voter'):
             return len([
-                x for x in self.server.get_active_players() if self.listener.check_role(x, self.config['voter'])
+                x for x in self.server.get_active_players() if await self.listener.check_role(x, self.config['voter'])
             ])
         else:
             return len(self.server.get_active_players())
@@ -95,7 +95,7 @@ class VotingHandler:
     async def check_vote(self) -> int:
         message = _("Voting finished")
         voting_rule = self.config.get('voting_rule', 'majority')
-        possible_voters = self._get_possible_voters() or 1
+        possible_voters = await self._get_possible_voters() or 1
         if not self.votes: # or not possible_voters:
             message += _(" without any (active) participant.")
         elif (self.config.get('voting_threshold') and
@@ -147,12 +147,12 @@ class VotingListener(EventListener["Voting"]):
             return False
         return await super().can_run(command, server, player)
 
-    def check_role(self, player: Player, roles: list[str] | None = None) -> bool:
+    async def check_role(self, player: Player, roles: str | list[str] | None = None) -> bool:
         if not roles:
             return True
         elif isinstance(roles, str):
             roles = [roles]
-        member = self.bot.get_member_by_ucid(player.ucid)
+        member = await self.bot.get_member_by_ucid(player.ucid)
         if not member or not utils.check_roles(roles, member):
             return False
         return True
@@ -205,7 +205,7 @@ class VotingListener(EventListener["Voting"]):
             if points and isinstance(player, CreditPlayer):
                 old_points = player.points
                 player.points -= points
-                player.audit('vote', old_points, _("Paid for a vote"))
+                await player.audit('vote', old_points, _("Paid for a vote"))
                 await player.sendChatMessage(f"Your voting has been created for the cost of {points} credit points.")
         except (TypeError, ValueError) as ex:
             await player.sendChatMessage(str(ex))
@@ -241,12 +241,12 @@ class VotingListener(EventListener["Voting"]):
                 else:
                     await player.sendChatMessage("You don't have the permission to cancel a voting.")
                     return
-            elif not self.check_role(player, config.get('voter')):
+            elif not await self.check_role(player, config.get('voter')):
                 await player.sendChatMessage("You don't have the permission to vote.")
                 return
             await self.do_vote(server, player, params)
             return
-        elif not self.check_role(player, config.get('creator')):
+        elif not await self.check_role(player, config.get('creator')):
             await player.sendChatMessage("You don't have the permission to start a voting.")
             return
         if 'mission_time' in config:

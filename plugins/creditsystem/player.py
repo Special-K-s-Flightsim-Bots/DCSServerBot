@@ -1,7 +1,9 @@
 from contextlib import closing
+
 from core import Player, DataObjectFactory, utils, Plugin
 from dataclasses import field, dataclass
 from typing import cast
+from typing_extensions import override
 
 from .squadron import Squadron
 
@@ -19,21 +21,49 @@ class CreditPlayer(Player):
         super().__post_init__()
         self.plugin = cast(Plugin, self.bot.cogs['CreditSystem'])
         self.config = self.plugin.get_config(self.server)
-        with self.pool.connection() as conn:
-            cursor = conn.execute("""
+
+    @override
+    async def prep(self) -> Player:
+        await super().prep()
+        campaign_id, _ = await utils.get_running_campaign_async(self.node, self.server)
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
                 SELECT s.name FROM squadrons s JOIN squadron_members sm 
                 ON s.id = sm.squadron_id AND sm.player_ucid = %s
             """, (self.ucid,))
             # a squadron needs to be unambiguous to be linked to a player
             if cursor.rowcount == 1:
-                row = cursor.fetchone()
-                campaign_id, _ = utils.get_running_campaign(self.node, self.server)
+                row = await cursor.fetchone()
                 if not campaign_id:
                     self.squadron = None
-                    return
-                self.squadron = DataObjectFactory().new(Squadron, node=self.node, name=row[0], campaign_id=campaign_id)
+                else:
+                    self.squadron = DataObjectFactory().new(Squadron, node=self.node, name=row[0],
+                                                              campaign_id=campaign_id)
+                    await self.squadron.prep()
             else:
                 self.squadron = None
+
+        # load credit points
+        _ = await self.get_points()
+        return self
+
+    async def get_points(self) -> int:
+        # load credit points
+        campaign_id, _ = await utils.get_running_campaign_async(self.node, self.server)
+        if not campaign_id:
+            self._points = -1
+            return -1
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
+                                        (campaign_id, self.ucid))
+            if cursor.rowcount == 1:
+                row = await cursor.fetchone()
+                self._points = row[0]
+            else:
+                self.log.debug(
+                    f'CreditPlayer: No entry found in credits table for player {self.name}({self.ucid})')
+                self._points = 0
+        return self._points
 
     @property
     def points(self) -> int:
@@ -51,6 +81,7 @@ class CreditPlayer(Player):
                     else:
                         self.log.debug(
                             f'CreditPlayer: No entry found in credits table for player {self.name}({self.ucid})')
+                        self._points = 0
         return self._points
 
     @points.setter
@@ -90,18 +121,18 @@ class CreditPlayer(Player):
             'points': self._points
         }))
 
-    def audit(self, event: str, old_points: int, remark: str):
+    async def audit(self, event: str, old_points: int, remark: str):
         if old_points == self.points:
             return
-        campaign_id, _ = utils.get_running_campaign(self.node, self.server)
+        campaign_id, _ = await utils.get_running_campaign_async(self.node, self.server)
         if not campaign_id:
             return
-        with self.pool.connection() as conn:
-            conn.execute("""
+        async with self.apool.connection() as conn:
+            await conn.execute("""
                 INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, remark) 
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (campaign_id, event, self.ucid, old_points, self._points, remark))
 
         if self.squadron and old_points < self.points:
             if self.config.get('squadron_credits', False):
-                self.squadron.audit(event, self._points - old_points, remark, self)
+                await self.squadron.audit(event, self._points - old_points, remark, self)

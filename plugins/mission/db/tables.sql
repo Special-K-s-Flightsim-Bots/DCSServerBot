@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS players (
     manual BOOLEAN NOT NULL DEFAULT FALSE,
     first_seen TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
     last_seen TIMESTAMP,
-    vip BOOLEAN NOT NULL DEFAULT FALSE
+    vip BOOLEAN NOT NULL DEFAULT FALSE,
+    muted BOOLEAN NOT NULL DEFAULT FALSE
 );
 CREATE INDEX IF NOT EXISTS idx_players_discord_id ON players(discord_id);
 CREATE TABLE players_hist (
@@ -73,6 +74,5 @@ CREATE TABLE IF NOT EXISTS watchlist(
     player_ucid TEXT PRIMARY KEY,
     reason TEXT,
     created_by TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'utc'),
-    FOREIGN KEY (player_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE
+    created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'utc')
 );

@@ -6,6 +6,8 @@ if TYPE_CHECKING:
 
 _ = get_translation(__name__.split('.')[1])
 
+MAX_HUNG_MINUTES = 99999
+
 
 class ProfilerListener(EventListener["Profiler"]):
 
@@ -40,7 +42,9 @@ class ProfilerListener(EventListener["Profiler"]):
         if config.get('attach_on_launch'):
             await server.send_to_dcs({
                 'command': 'startProfiling',
-                'verbose': config.get('verbose', False)
+                'verbose': config.get('verbose', False),
+                'memory': config.get('memory', False),
+                'interval': config.get('interval', 10000)
             })
 
     @event(name="onSimulationStop")
@@ -48,12 +52,14 @@ class ProfilerListener(EventListener["Profiler"]):
         await server.send_to_dcs({
             'command': 'stopProfiling'
         })
+        self.plugin.profilers.pop(server.name, None)
 
     @event(name="onProfilingStart")
     async def onProfilingStart(self, server: Server, data: dict) -> None:
         # profiled servers might take more CPU and respond slower
-        self.max_hung_minutes[server.name] = server.instance.locals.get('max_hung_minutes', 3)
-        server.instance.locals['max_hung_minutes'] = 99999
+        if server.instance.locals.get('max_hung_minutes', 3) != MAX_HUNG_MINUTES:
+            self.max_hung_minutes[server.name] = server.instance.locals.get('max_hung_minutes', 3)
+            server.instance.locals['max_hung_minutes'] = MAX_HUNG_MINUTES
         channel = self.bot.get_channel(int(data.get('channel', -1)))
         if channel:
             await channel.send(_("Profiling started."))

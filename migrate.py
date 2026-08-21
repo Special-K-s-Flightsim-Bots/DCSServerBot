@@ -412,7 +412,7 @@ def migrate_3(node: str):
                 bot['message_autodelete'] = int(cfg['BOT']['MESSAGE_AUTODELETE'])
             # take the first admin channel as the single one
             if single_admin:
-                for server_name, instance in utils.findDCSInstances():
+                for instance, server_name in utils.findDCSInstances().items():
                     if instance in cfg and 'ADMIN_CHANNEL' in cfg[instance]:
                         print(f"[yellow]- Configured ADMIN_CHANNEL of instance {instance} as single admin channel.[/]")
                         bot['channels'] = {
@@ -460,7 +460,7 @@ def migrate_3(node: str):
         u['wipe_stats_on_leave'] = cfg['BOT'].getboolean('WIPE_STATS_ON_LEAVE')
 
         nodes[node]['instances'] = {}
-        for server_name, instance in utils.findDCSInstances():
+        for instance, server_name in utils.findDCSInstances().items():
             if instance in cfg:
                 i = nodes[node]['instances'][instance] = {
                     "home": cfg[instance]['DCS_HOME'],

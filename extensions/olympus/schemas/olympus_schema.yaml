@@ -4,6 +4,7 @@ schema;node_olympus_schema:
   mapping:
     name: {type: str, nullable: false, range: {min: 1}}
     nodejs: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
+    autoupdate: {type: bool, nullable: false}
     debug: {type: bool, nullable: false}
     show_passwords: {type: bool, nullable: false}
     authentication:
@@ -29,6 +30,7 @@ schema;instance_olympus_schema:
   allowempty: true
   mapping:
     enabled: {type: bool, nullable: false}
+    autoupdate: {type: bool, nullable: false}
     name: {type: str, nullable: false, range: {min: 1}}
     debug: {type: bool, nullable: false}
     show_passwords: {type: bool, nullable: false}

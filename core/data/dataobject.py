@@ -34,6 +34,9 @@ class DataObject(ABC):
         self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.config = self.node.config
 
+    async def prep(self) -> DataObject:
+        return self
+
     def __hash__(self):
         return hash(self.name)
 

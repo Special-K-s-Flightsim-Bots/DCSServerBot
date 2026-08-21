@@ -431,6 +431,7 @@ class MissionEventListener(EventListener["Mission"]):
         # initialize players
         server.afk.clear()
         server.players_by_id.clear()
+        tasks = []
         for p in data['players']:
             if p['id'] == 1:
                 continue
@@ -443,8 +444,15 @@ class MissionEventListener(EventListener["Mission"]):
                     unit_display_name=p.get('unit_display_name', p['unit_type']), group_id=p['group_id'],
                     group_name=p['group_name'], ipaddr=p.get('ipaddr'))
                 server.add_player(player)
+                tasks.append(player.prep())
             else:
-                await player.update(p)
+                tasks.append(player.update(p))
+        await asyncio.gather(*tasks)
+
+        for p in data['players']:
+            if p['id'] == 1:
+                continue
+            player = server.get_player(ucid=p['ucid'])
             player.connected = True
 
             # give the player the autorole
@@ -455,7 +463,7 @@ class MissionEventListener(EventListener["Mission"]):
 
             # initialize AFK check for players on spectators
             afk_config = server.locals.get('afk', {})
-            if afk_config and afk_config.get('check_on_join', True) and p['slot'] == -1:
+            if afk_config and afk_config.get('check_on_join', True) and p['unit_type'] == '?':
                 server.afk[player.ucid] = datetime.now(timezone.utc)
                 self.log.debug(f"AFK: Player {player.name} on spectators, timer set.")
 
@@ -629,6 +637,7 @@ class MissionEventListener(EventListener["Mission"]):
                 Player, node=server.node, server=server, id=data['id'], name=data['name'],
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'], ipaddr=data.get('ipaddr'))
             server.add_player(player)
+            await player.prep()
         else:
             await player.update(data | {'slot': 0, 'sub_slot': 0})
         player.connected = True
@@ -639,6 +648,8 @@ class MissionEventListener(EventListener["Mission"]):
         asyncio.create_task(self._upload_user_roles(server, player))
         if player.watchlist:
             asyncio.create_task(self._watchlist_alert(server, player))
+        if player.muted:
+            asyncio.create_task(player.mute())
 
         # check if we've reached the max_threshold
         usage_alarm = server.locals.get('usage_alarm', {})
@@ -673,7 +684,7 @@ class MissionEventListener(EventListener["Mission"]):
         if server.locals.get('force_voice', False) and not discord_roles:
             discord_roles = ['@everyone']
         if discord_roles:
-            member = self.bot.get_member_by_ucid(data['ucid'])
+            member = await self.bot.get_member_by_ucid(data['ucid'])
             roles = discord_roles if isinstance(discord_roles, list) else [discord_roles]
             if not member or not utils.check_roles(roles, member):
                 asyncio.create_task(server.send_to_dcs({
@@ -690,6 +701,7 @@ class MissionEventListener(EventListener["Mission"]):
                 Player, node=server.node, server=server, id=data['id'], name=data['name'],
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'], ipaddr=data.get('ipaddr'))
             server.add_player(player)
+            await player.prep()
         else:
             await player.update(data | {'slot': 0, 'sub_slot': 0})
         player.connected = True
@@ -822,7 +834,7 @@ class MissionEventListener(EventListener["Mission"]):
         embed = discord.Embed(title=_("Possible ban-evasion detected"), color=discord.Color.red())
         embed.add_field(name="Name", value=data.get('name', 'n/a'), inline=True)
         embed.add_field(name="UCID", value=data['ucid'], inline=True)
-        member = self.bot.get_member_by_ucid(data['ucid'], verified=True)
+        member = await self.bot.get_member_by_ucid(data['ucid'], verified=True)
         if member:
             embed.add_field(name="Member", value=member.mention, inline=True)
         else:
@@ -836,7 +848,8 @@ class MissionEventListener(EventListener["Mission"]):
                 embed.add_field(name="_ _", value="_ _", inline=True)
         else:
             embed.add_field(name="_ _", value="_ _", inline=True)
-        embed.add_field(name="IP", value=utils.hash_ip_addr(data['ipaddr']), inline=False)
+        embed.add_field(name="IP", value=data['ipaddr'], inline=False)
+        embed.add_field(name="IP Hash", value=utils.hash_ip_addr(data['ipaddr']), inline=False)
         if not ban:
             embed.add_field(name="Reason", value=data['reason'], inline=False)
         else:
@@ -855,9 +868,10 @@ class MissionEventListener(EventListener["Mission"]):
         view = View(timeout=None)
         button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_evade_{data['ucid']}")
         view.add_item(button)
-        button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
+        button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id="cancel")
         view.add_item(button)
-        await admin_channel.send(embed=embed, view=view)
+        mentions = self.bot.mention_admin(server)
+        await admin_channel.send(content=mentions, embed=embed, view=view, delete_after=86400)
 
     async def _stop_player(self, server: Server, player: Player):
         player.active = False
@@ -1101,6 +1115,30 @@ class MissionEventListener(EventListener["Mission"]):
         player = server.get_player(ucid=data['ucid'])
         if player:
             asyncio.create_task(self._upload_user_roles(server, player))
+
+    @event(name="onPlayerBanned")
+    async def onPlayerBanned(self, _server: Server, data: dict) -> None:
+        for server in self.bot.servers.values():
+            await server.send_to_dcs({
+                "command": "ban",
+                "ucid": data['ucid'],
+                "reason": data['reason'],
+                "banned_until": data['banned_until']
+            })
+            player = server.get_player(ucid=data['ucid'])
+            if player:
+                player.banned = True
+
+    @event(name="onPlayerUnbanned")
+    async def onPlayerUnbanned(self, _server: Server, data: dict) -> None:
+        for server in self.bot.servers.values():
+            await server.send_to_dcs({
+                "command": "unban",
+                "ucid": data['ucid']
+            })
+            player = server.get_player(ucid=data['ucid'])
+            if player:
+                player.banned = False
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:

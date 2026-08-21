@@ -364,13 +364,16 @@ class Tournament(Plugin[TournamentEventListener]):
                 WHERE t.tournament_id = %s
             """, (tournament_id, ))
             campaign_id = (await cursor.fetchone())[0]
-        return DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'], campaign_id=campaign_id)
+        return cast(Squadron, await DataObjectFactory().new(
+            Squadron, node=self.node, name=squadron['name'], campaign_id=campaign_id).prep())
 
     async def inform_squadron(self, *, tournament_id: int, squadron_id: int, message: str | None = None,
                               embed: discord.Embed | None = None):
         async with self.apool.connection() as conn:
             async for row in await conn.execute("""
-                SELECT co_ucid FROM squadrons WHERE id = %s
+                SELECT p.discord_id
+                FROM players p JOIN squadrons s ON p.ucid = s.co_ucid
+                WHERE s.id = %s
             """, (squadron_id,)):
                 user = self.bot.get_user(row[0])
                 if user:
@@ -546,8 +549,12 @@ class Tournament(Plugin[TournamentEventListener]):
         else:
             file = None
 
+        channel_id: int | None = self.get_config().get('channels', {}).get('info')
+        if not channel_id:
+            self.log.error(f"{self.plugin_name} - No info channel configured!")
+            return
+
         # create a persistent message
-        channel_id = self.get_config().get('channels', {}).get('info')
         await self.bot.setEmbed(embed_name=f"tournament_status_{tournament_id}", embed=embed, file=file,
                                 channel_id=channel_id)
 
@@ -633,7 +640,6 @@ class Tournament(Plugin[TournamentEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
 
         modal = TournamentModal()
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         if await modal.wait():
             await interaction.followup.send(_("Aborted."), ephemeral=ephemeral)
@@ -696,7 +702,6 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=tournament_autocomplete)
     async def finish(self, interaction: discord.Interaction, tournament_id: int):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
 
         messages = []
@@ -792,10 +797,8 @@ class Tournament(Plugin[TournamentEventListener]):
                     pass
 
             await self.bot.audit(f"deleted tournament {row['campaign']}.", user=interaction.user)
-            # noinspection PyUnresolvedReferences
             await interaction.followup.send(_("Tournament {} deleted.").format(row['campaign']),)
         except Exception as ex:
-            # noinspection PyUnresolvedReferences
             await interaction.followup.send(_("Error deleting tournament: {}").format(ex), ephemeral=True)
 
     @tournament.command(description=_('Signup to a tournament'))
@@ -809,20 +812,17 @@ class Tournament(Plugin[TournamentEventListener]):
         config = self.get_config()
         if config.get('use_signup_form', False):
             modal = ApplicationModal()
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_modal(modal, ephemeral=True)
+            await interaction.response.send_modal(modal)
             if await modal.wait():
                 await interaction.followup.send(_("Aborted."), ephemeral=True)
                 return
         else:
             modal = None
-            # noinspection PyUnresolvedReferences
             await interaction.response.defer()
 
         try:
             squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
             if not squadron['role']:
-                # noinspection PyUnresolvedReferences
                 await interaction.followup.send(
                     _(":warning: To participate in the tournament, your squadron must have an assigned role.\n"
                       "Contact the tournament host to receive your role assignment."), ephemeral=True)
@@ -833,7 +833,6 @@ class Tournament(Plugin[TournamentEventListener]):
                                             (squadron_id,))
                 row = await cursor.fetchone()
                 if row[0] < tournament['num_players']:
-                    # noinspection PyUnresolvedReferences
                     await interaction.followup.send(
                         _(":warning: Your squadron does not have enough players to participate in the tournament yet."),
                         ephemeral=True)
@@ -877,7 +876,6 @@ class Tournament(Plugin[TournamentEventListener]):
                         INSERT INTO tm_squadron_terrain_preferences (tournament_id, squadron_id, terrain)
                         VALUES (%s, %s, %s)
                     """, (tournament_id, squadron_id, value))
-            # noinspection PyUnresolvedReferences
             await interaction.followup.send(
                 _("Squadron application handed in for tournament {}.").format(tournament['name']), ephemeral=True)
             admin_channel = self.get_admin_channel()
@@ -886,7 +884,6 @@ class Tournament(Plugin[TournamentEventListener]):
                     squadron['name'], tournament['name'],
                     (await utils.get_command(self.bot, group=self.tournament.name, name=self.verify.name)).mention))
         except UniqueViolation:
-            # noinspection PyUnresolvedReferences
             await interaction.followup.send(_("Squadron already signed up for tournament."), ephemeral=True)
 
     @tournament.command(description=_('Withdraw from a tournament'))
@@ -897,14 +894,12 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(squadron_id=reject_squadron_autocomplete)
     @utils.squadron_role_check()
     async def withdraw(self, interaction: discord.Interaction, tournament_id: int, squadron_id: int):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
 
         tournament = await self.get_tournament(tournament_id)
         if tournament['start'] <= datetime.now(timezone.utc) and not await utils.yn_question(
                 interaction, _("You are going to withdraw from a running tournament!\n"
                                "All already scheduled matches will be marked as lost.")):
-            # noinspection PyUnresolvedReferences
             await interaction.followup.send("Abort.", ephemeral=True)
             return
 
@@ -947,7 +942,6 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(squadron_id=all_squadron_autocomplete)
     @utils.app_has_role('GameMaster')
     async def verify(self, interaction: discord.Interaction, tournament_id: int, squadron_id: int):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -972,8 +966,9 @@ class Tournament(Plugin[TournamentEventListener]):
                 embed.description = row['application']
                 if row['image_url']:
                     embed.set_thumbnail(url=row['image_url'])
+                role = self.bot.get_role(row['role']) if row['role'] else None
                 embed.add_field(name=_("# Members"), value=str(row['member_count']))
-                embed.add_field(name=_("Role"), value=self.bot.get_role(row['role']).name if row['role'] else _("n/a"))
+                embed.add_field(name=_("Role"), value=role.name if role else _("n/a"))
                 embed.add_field(name=_("State"), value=row['status'])
 
                 terrains = await self.get_terrain_preferences(tournament_id, squadron_id)
@@ -1002,7 +997,6 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(tournament_id=tournament_autocomplete)
     @utils.app_has_role('GameMaster')
     async def bracket(self, interaction: discord.Interaction, tournament_id: int):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
 
         async with self.apool.connection() as conn:
@@ -1020,7 +1014,6 @@ class Tournament(Plugin[TournamentEventListener]):
         buffer: bytes = create_tournament_sheet(squadrons_df, matches_df, tournament_id)
         filename = f"tournament_{tournament_id}.xlsx"
         file = discord.File(BytesIO(buffer), filename=filename)
-        # noinspection PyUnresolvedReferences
         await interaction.followup.send(file=file, ephemeral=utils.get_ephemeral(interaction))
 
     @tournament.command(description=_('Export matches'))
@@ -1029,7 +1022,6 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(tournament_id=tournament_autocomplete)
     @utils.app_has_role('GameMaster')
     async def export(self, interaction: discord.Interaction, tournament_id: int, unflown: bool | None = False):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
 
         subquery = "AND winner_squadron_id IS NULL" if unflown else ""
@@ -1141,7 +1133,6 @@ class Tournament(Plugin[TournamentEventListener]):
 
         buffer.seek(0)
         try:
-            # noinspection PyUnresolvedReferences
             await interaction.followup.send(file=discord.File(fp=buffer, filename=f'tournament_{tournament_id}.xlsx'))
         finally:
             buffer.close()
@@ -1152,7 +1143,6 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(tournament_id=tournament_autocomplete)
     @utils.app_has_role('GameMaster')
     async def preferences(self, interaction: discord.Interaction, tournament_id: int | None = None):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         report = Report(bot=self.bot, plugin=self.plugin_name, filename="preferences.json")
         env = await report.render(tournament_id=tournament_id)
@@ -1262,7 +1252,6 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
     @utils.app_has_role('GameMaster')
     async def generate(self, interaction: discord.Interaction, tournament_id: int, num_groups: int = 4):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         tournament = await self.get_tournament(tournament_id)
 
@@ -1295,7 +1284,6 @@ class Tournament(Plugin[TournamentEventListener]):
                     interaction,
                     question=_("Do you want to generate new matches for tournament {}?").format(tournament['name']),
                     message=_("This will overwrite any existing **unflown** matches!")):
-                # noinspection PyUnresolvedReferences
                 await interaction.followup.send("Abort.", ephemeral=True)
                 return
 
@@ -1385,7 +1373,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 await self.bot.audit(f"generated matches for tournament {tournament['name']}.",
                                      user=interaction.user)
             except ValueError as ex:
-                await interaction.followup.send(f"Error: {ex}")
+                await interaction.followup.send(f"Error: {ex}", ephemeral=True)
                 return
 
         asyncio.create_task(self.render_status_embed(tournament_id, phase=phase))
@@ -1393,7 +1381,7 @@ class Tournament(Plugin[TournamentEventListener]):
         await interaction.followup.send(_("{} matches generated:").format(len(matches)), embed=embed,
                                         ephemeral=utils.get_ephemeral(interaction))
 
-    @match.command(description=_('Create a manual match'))
+    @match.command(name="create", description=_('Create a manual match'))
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.describe(stage=_("The level of your match. If all matches on one level are finished, increase the level by one."))
@@ -1405,8 +1393,17 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(day=date_autocomplete)
     @app_commands.autocomplete(time=time_autocomplete)
     @utils.app_has_role('GameMaster')
-    async def create(self, interaction: discord.Interaction, tournament_id: int, stage: app_commands.Range[int, 1, 7],
-                     server_name: str, squadron_blue: int, squadron_red: int, day: int, time: int):
+    async def create_match(
+            self,
+            interaction: discord.Interaction,
+            tournament_id: int,
+            stage: app_commands.Range[int, 1, 7],
+            server_name: str,
+            squadron_blue: int,
+            squadron_red: int,
+            day: int,
+            time: int
+    ):
         match_time = datetime.fromtimestamp(day, tz=timezone.utc) + timedelta(seconds=time)
         async with self.apool.connection() as conn:
             await conn.execute("""
@@ -1419,7 +1416,6 @@ class Tournament(Plugin[TournamentEventListener]):
         red = utils.get_squadron(self.node, squadron_id=squadron_red)
         await self.bot.audit(f"created a match for tournament {tournament['name']} "
                                f"between squadrons {blue['name']} and {red['name']}.", user=interaction.user)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Match created."), ephemeral=utils.get_ephemeral(interaction))
 
     async def render_matches(self, tournament: dict, unflown: bool | None = False) -> discord.Embed | None:
@@ -1471,7 +1467,6 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
     @utils.app_has_role('DCS')
     async def _list(self, interaction: discord.Interaction, tournament_id: int, unflown: bool = False):
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         tournament = await self.get_tournament(tournament_id)
         if not tournament:
@@ -1681,7 +1676,7 @@ class Tournament(Plugin[TournamentEventListener]):
         else:
             raise IndexError(f"Mission {mission} not found in mission list.")
 
-    async def get_mission(self, server: Server, tournament_id: int, match: dict) -> str | None:
+    async def get_mission(self, server: Server, tournament_id: int, match: dict) -> str | int | None:
         config = self.get_config(server)
         if isinstance(config.get('mission'), str):
             return config['mission']
@@ -1876,7 +1871,6 @@ class Tournament(Plugin[TournamentEventListener]):
     async def start(self, interaction: discord.Interaction, tournament_id: int, match_id: int,
                     mission_id: int | None = None, round_number: int | None = None):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         match = await self.get_match(match_id)
         if match['winner_squadron_id']:
@@ -2010,7 +2004,6 @@ class Tournament(Plugin[TournamentEventListener]):
                 "required": False
             }
         }, old_values=match)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         if await modal.wait():
             await interaction.followup.send(_("Aborted."), ephemeral=True)
@@ -2071,7 +2064,6 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.guild_only()
     async def customize(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -2121,7 +2113,6 @@ class Tournament(Plugin[TournamentEventListener]):
         view = ChoicesView(self, tournament_id=tournament_id, match_id=match_id, squadron_id=squadron_id,
                            config=self.get_config(server))
         embed = await view.render()
-        # noinspection PyUnresolvedReferences
         if not view.children[0].options:
             await interaction.followup.send(_("You do not have enough squadron credits to buy a choice."),
                                             ephemeral=True)
@@ -2131,7 +2122,7 @@ class Tournament(Plugin[TournamentEventListener]):
             if await view.wait():
                 return
 
-            if view.acknowledged is True:
+            if view.acknowledged:
                 embed = await view.render()
                 embed.description = None
                 embed.set_footer(text=None)
@@ -2172,6 +2163,25 @@ class Tournament(Plugin[TournamentEventListener]):
             except discord.NotFound:
                 pass
 
+    @match.command(name="delete", description=_('Delete a match'))
+    @app_commands.guild_only()
+    @app_commands.rename(tournament_id="tournament")
+    @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
+    @app_commands.rename(match_id="match")
+    @app_commands.autocomplete(match_id=all_matches_autocomplete)
+    @utils.app_has_role('GameMaster')
+    async def delete_match(self, interaction: discord.Interaction, tournament_id: int, match_id: int):
+        if not await yn_question(interaction, question=_("Do you want to delete this match?"), ephemeral=True):
+            await interaction.followup.send(_("Aborted."), ephemeral=True)
+            return
+
+        async with self.apool.connection() as conn:
+            await conn.execute("DELETE FROM tm_matches WHERE tournament_id = %s and match_id = %s",
+                               (tournament_id, match_id))
+        await interaction.followup.send(_("Match deleted.\nPlease use {} to create a replacement match.").format(
+            (await utils.get_command(self.bot, group=self.match.name, name=self.create_match.name)).mention),
+        ephemeral=True)
+
     # New command group "/tickets"
     tickets = Group(name="tickets", description=_("Commands to manage tickets in a tournament"))
 
@@ -2194,13 +2204,11 @@ class Tournament(Plugin[TournamentEventListener]):
                     ticket_names.append(row['ticket_name'])
                     ticket_counts.append(row['ticket_count'])
         if not ticket_names:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Your squadron does not have any tickets."), ephemeral=True)
             return
 
         embed.add_field(name=_("Tickets"),
                         value="\n".join([f"{y} x {x}" for x, y in zip(ticket_names, ticket_counts)]))
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @tickets.command(name="sell", description=_('Sell tickets for credits'))
@@ -2215,7 +2223,6 @@ class Tournament(Plugin[TournamentEventListener]):
         squadron = await self.get_squadron(tournament_id, squadron_id)
         ticket = self.get_config().get('presets', {}).get('tickets', {}).get(ticket_name)
         if not ticket:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("The ticket {} does not exist.").format(ticket_name),
                                                     ephemeral=True)
             return
@@ -2231,14 +2238,12 @@ class Tournament(Plugin[TournamentEventListener]):
                     my_tickets[row['ticket_name']] = row['ticket_count']
 
                 if not my_tickets.get(ticket_name):
-                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(_("You do not have any tickets of this type."),
                                                             ephemeral=True)
                     return
 
                 credits = ticket.get('credits', 0)
                 if credits == 0:
-                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(
                         _("Tickets of type {} are not for sale.").format(ticket_name), ephemeral=True)
                     return
@@ -2262,8 +2267,7 @@ class Tournament(Plugin[TournamentEventListener]):
                         DELETE FROM tm_tickets WHERE tournament_id = %s AND squadron_id = %s AND ticket_name = %s
                     """, (tournament_id, squadron_id, ticket_name))
                 squadron.points += credits
-                squadron.audit(event='Ticket sale', points=credits, remark=f"{ticket_name} sold")
-            # noinspection PyUnresolvedReferences
+                await squadron.audit(event='Ticket sale', points=credits, remark=f"{ticket_name} sold")
             await interaction.followup.send(
                 _("You sold a ticket of type {} and got {} credits back.\n"
                   "Your total squadron balance is {} credits.").format(ticket_name, credits, squadron.points),

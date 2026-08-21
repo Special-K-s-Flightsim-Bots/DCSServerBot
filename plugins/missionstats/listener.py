@@ -159,6 +159,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                 'target_type': get_value(data, 'target', 'unit_type'),
                 'target_cat': target_cat,
                 'weapon': get_value(data, 'weapon', 'name'),
+                'weapon_id': get_value(data, 'weapon', 'id'),
                 'place': get_value(data, 'place', 'name'),
                 'comment': data['comment'] if 'comment' in data else ''
             }
@@ -166,12 +167,25 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                 async with self.apool.connection() as conn:
                     await conn.execute("""
                         INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, init_cat, 
-                                                  target_id, target_side, target_type, target_cat, weapon, place, 
-                                                  comment) 
+                                                  target_id, target_side, target_type, target_cat, weapon_id, weapon, 
+                                                  place, comment) 
                         VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, %(init_type)s, %(init_cat)s, 
-                                %(target_id)s, %(target_side)s, %(target_type)s, %(target_cat)s, %(weapon)s, 
-                                %(place)s, %(comment)s)
+                                %(target_id)s, %(target_side)s, %(target_type)s, %(target_cat)s, %(weapon_id)s, 
+                                %(weapon)s, %(place)s, %(comment)s)
                     """, dataset)
+                    if data['eventName'] == 'S_EVENT_HIT':
+                        await conn.execute("""
+                            UPDATE missionstats 
+                               SET target_id = %(target_id)s, 
+                                   target_side = %(target_side)s, 
+                                   target_type = %(target_type)s, 
+                                   target_cat = %(target_cat)s
+                            WHERE mission_id = %(mission_id)s 
+                              AND init_id = %(init_id)s 
+                              AND event = 'S_EVENT_SHOT'
+                              AND weapon_id = %(weapon_id)s
+                              AND target_type IS NULL
+                        """, dataset)
             except Exception as ex:
                 self.log.warning(str(ex) + ' / ignoring event')
 

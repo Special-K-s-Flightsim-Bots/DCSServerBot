@@ -11,7 +11,8 @@ import sys
 import zipfile
 
 from contextlib import suppress
-from core import Extension, MizFile, utils, DEFAULT_TAG, Server, UnsupportedMizFileException
+from core import InstallableExtension, MizFile, utils, DEFAULT_TAG, Server, UnsupportedMizFileException, \
+    ServerMaintenanceManager
 from io import BytesIO
 from packaging.version import parse
 from typing_extensions import override
@@ -28,7 +29,7 @@ __all__ = [
     "RealWeatherException"
 ]
 
-RW_GITHUB_URL = "https://github.com/evogelsa/dcs-real-weather/releases/latest"
+RW_GITHUB_URL = "https://api.github.com/repos/evogelsa/dcs-real-weather/releases/latest"
 RW_DOWNLOAD_URL = "https://github.com/evogelsa/dcs-real-weather/releases/download/{version}/realweather_{version}.zip"
 ANSI_ESCAPE_RE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
@@ -37,8 +38,17 @@ class RealWeatherException(Exception):
     pass
 
 
-class RealWeather(Extension):
+class RealWeather(InstallableExtension):
     _lock = asyncio.Lock()
+
+    NODE_CONFIG_DICT = {
+        "installation": {
+            "type": str,
+            "label": "Installation Path",
+            "placeholder": "Path to DCS Real Weather installation",
+            "required": True
+        }
+    }
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
@@ -47,11 +57,19 @@ class RealWeather(Extension):
     @override
     @property
     def version(self) -> str | None:
-        return utils.get_windows_version(self.get_rw_exe())
+        version = utils.get_windows_version(self.get_exe_path())
+        if version:
+            elements = version.split('.')
+            if len(elements) > 3:
+                elements = elements[0:3]
+            version = '.'.join(elements)
+        return version
 
     @override
     def load_config(self) -> dict:
         try:
+            if not self.is_installed():
+                return {}
             with open(self.config_path, mode='rb') as infile:
                 return tomli.load(infile)
         except Exception as ex:
@@ -65,13 +83,15 @@ class RealWeather(Extension):
         else:
             return self.config
 
-    def get_rw_exe(self):
-        return os.path.expandvars(os.path.join(self.config['installation'], 'realweather.exe'))
+    def get_inst_path(self) -> str:
+        return os.path.expandvars(self.config['installation'])
+
+    def get_exe_path(self):
+        return os.path.join(self.get_inst_path(), 'realweather.exe')
 
     @property
     def config_path(self) -> str:
-        rw_home = os.path.expandvars(self.config['installation'])
-        return os.path.join(rw_home, 'config.toml')
+        return os.path.join(self.get_inst_path(), 'config.toml')
 
     @staticmethod
     def get_icao_code(filename: str) -> str | None:
@@ -80,27 +100,6 @@ class RealWeather(Extension):
             return filename[index + 5:index + 9]
         else:
             return None
-
-    async def _autoupdate(self):
-        try:
-            version = await self.check_for_updates()
-            if version:
-                self.log.info(f"A new DCS Real Weather update is available. Updating to version {version} ...")
-                await self.do_update(version)
-                self._version = version.lstrip('v')
-                self.log.info("DCS Real Weather updated.")
-                await self.bot.audit(message=f"DCS Real Weather updated to version {version} on node {self.node.name}.")
-        except Exception as ex:
-            self.log.exception(ex)
-
-    @override
-    async def prepare(self) -> bool:
-        if not await super().prepare():
-            return False
-
-        if self.config.get('autoupdate', False):
-            await self._autoupdate()
-        return True
 
     async def generate_config(self, input_mission: str, output_mission: str, override: dict | None = None) -> bool:
         tmpfd, tmpname = tempfile.mkstemp()
@@ -174,9 +173,9 @@ class RealWeather(Extension):
                 # double-check that no mission_unpacked dir is there
                 cleanup(clean_logfile=True)
                 # run RW
-                self.log.debug(f"{self.name}: Running Real Weather: {self.get_rw_exe()} in {cwd}")
+                self.log.debug(f"{self.name}: Running Real Weather: {self.get_exe_path()} in {cwd}")
                 process = subprocess.Popen(
-                    [self.get_rw_exe()],
+                    [self.get_exe_path()],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     cwd=cwd
@@ -246,6 +245,7 @@ class RealWeather(Extension):
 
     @override
     async def render(self, param: dict | None = None) -> dict:
+        ret = await super().render(param)
         icao = self.config.get('options', {}).get('weather', {}).get('icao')
         if self.metar:
             value = f'METAR: {self.metar}'
@@ -253,9 +253,7 @@ class RealWeather(Extension):
             value = f'ICAO: {icao}'
         else:
             value = 'enabled'
-        return {
-            "name": self.name,
-            "version": self.version,
+        return ret | {
             "value": value
         }
 
@@ -264,8 +262,8 @@ class RealWeather(Extension):
         if not installation:
             self.log.error(f"  => {self.name}: No 'installation' specified in your nodes.yaml.")
             return False
-        if not os.path.exists(self.get_rw_exe()):
-            self.log.error(f"  => {self.name}: {self.get_rw_exe()} not found.")
+        if not os.path.exists(self.get_exe_path()):
+            self.log.error(f"  => {self.name}: {self.get_exe_path()} not found.")
             return False
         if not self.version or parse(self.version) < parse('2.0.0'):
             self.log.error(f"  => {self.name}: Versions < 2.0.0 are not supported, please upgrade.")
@@ -283,25 +281,74 @@ class RealWeather(Extension):
     def shutdown(self, *, quiet: bool = False) -> bool:
         return super().shutdown(quiet=True)
 
-    async def check_for_updates(self) -> str | None:
-        with suppress(aiohttp.ClientConnectionError):
+    @override
+    async def get_latest_version(self) -> str | None:
+        with suppress(aiohttp.ClientError):
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-                async with session.get(RW_GITHUB_URL, proxy=self.node.proxy,
-                                       proxy_auth=self.node.proxy_auth) as response:
-                    if response.status in [200, 302]:
-                        version = response.url.raw_parts[-1]
-                        if parse(version) > parse(self.version):
-                            return version
+                async with session.get(
+                        RW_GITHUB_URL,
+                        proxy=self.node.proxy,
+                        proxy_auth=self.node.proxy_auth,
+                        raise_for_status=True
+                ) as response:
+                    data = await response.json()
+                    if isinstance(data, list):
+                        data = data[0]
+                    return data.get('tag_name', '').strip('v')
         return None
 
-    async def do_update(self, version: str):
-        installation_dir = os.path.expandvars(self.config['installation'])
-        async with aiohttp.ClientSession() as session:
-            async with session.get(RW_DOWNLOAD_URL.format(version=version), raise_for_status=True, proxy=self.node.proxy,
-                                   proxy_auth=self.node.proxy_auth) as response:
-                with zipfile.ZipFile(BytesIO(await response.content.read())) as z:
-                    for member in z.namelist():
-                        destination_path = os.path.join(installation_dir, member)
-                        with open(destination_path, 'wb') as output_file:
-                            output_file.write(z.read(member))
+    @override
+    def is_installed(self) -> bool:
+        exe = self.get_exe_path()
+        return exe is not None and os.path.exists(exe)
+
+    async def do_install(self, version: str) -> bool:
+        try:
+            async with ServerMaintenanceManager(self.node, shutdown=False):
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(
+                            RW_DOWNLOAD_URL.format(version='v' + version),
+                            raise_for_status=True,
+                            proxy=self.node.proxy,
+                            proxy_auth=self.node.proxy_auth
+                    ) as response:
+                        os.makedirs(self.get_inst_path(), exist_ok=True)
+                        inst_path = self.get_inst_path()
+                        with zipfile.ZipFile(BytesIO(await response.content.read())) as z:
+                            for member in z.namelist():
+                                destination_path = os.path.join(inst_path, member)
+                                with open(destination_path, 'wb') as output_file:
+                                    output_file.write(z.read(member))
+                        return True
+        except Exception as ex:
+            self.log.warning(f"Failed to install {self.name}: {ex}")
+            return False
+
+    @override
+    async def install(self, version: str | None = None) -> bool:
+        if self.is_installed():
+            return True
+        try:
+            if not version:
+                version = await self.get_latest_version()
+            if await self.do_install(version):
+                self.log.info(f"{self.name} version {version} installed.")
+                return True
+            return False
+        except Exception as ex:
+            self.log.error(f"Failed to install {self.name}: {ex}")
+            return False
+
+    @override
+    async def uninstall(self) -> bool:
+        # we do not uninstall DCS Real Weather itself
+        return True
+
+    @override
+    async def repair(self) -> bool:
+        if self.is_installed():
+            utils.safe_rmtree(self.get_inst_path())
+            self.log.info(f"{self.name} uninstalled.")
+        version = self.version
+        return await self.install(version)

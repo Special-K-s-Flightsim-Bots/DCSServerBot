@@ -1,16 +1,16 @@
 # Plugin Monitoring
-This is a default plugin of DCSServerBot. It gathers load statistics of your DCS server. The plugin itself is only
-the frontend to the [Monitoring Service](../../services/monitoring/README.md).
+This is a default plugin of DCSServerBot. It gathers load statistics of your DCS server. 
+The plugin itself is only the frontend to the [Monitoring Service](../../services/monitoring/README.md).
 
 ## Configuration
-There is no specific plugin configuration. Please see the [service documentation](../../services/monitoring/README.md) for configuration.
+There is no specific plugin configuration. 
+Please see the [service documentation](../../services/monitoring/README.md) for configuration.
 
 ## Discord Commands
-
-| Command      | Parameter                 | Role  | Description                                                                                                                                                  |
-|--------------|---------------------------|-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| /serverstats | [server] [day/week/month] | Admin | Displays server statistics, like usual playtime, most frequented servers and missions.<br/>If no server is provided, you can cycle through all your servers. |
-| /serverload  | [server] [hour/day/week]  | Admin | Displays technical server statistics, like CPU load, memory consumption, etc.<br/>If no server is provided, you can cycle through all your servers.          |
+| Command                | Parameter                           | Role      | Description                                                                                                                                                   |
+|------------------------|-------------------------------------|-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| /serverstats           | [server] [day/week/month]           | Admin     | Displays server statistics, like usual playtime, most frequented servers and missions.<br/>If no server is provided, you can cycle through all your servers.  |
+| /serverload            | [server] [hour/day/week]            | Admin     | Displays technical server statistics, like CPU load, memory consumption, etc.<br/>If no server is provided, you can cycle through all your servers.           |
 
 ## Tables
 ### Serverstats

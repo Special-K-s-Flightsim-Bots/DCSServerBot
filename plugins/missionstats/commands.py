@@ -1,16 +1,16 @@
-from datetime import datetime, timedelta
-from io import BytesIO
-
+import asyncio
 import discord
 import pandas as pd
 import psycopg
-from openpyxl.utils import get_column_letter
-from psycopg.rows import dict_row
 
 from core import Plugin, PluginRequiredError, utils, Report, Status, Server, command, get_translation
+from datetime import datetime, timedelta
 from discord import app_commands
+from io import BytesIO
+from openpyxl.utils import get_column_letter
 from plugins.userstats.filter import StatisticsFilter, MissionStatisticsFilter, PeriodTransformer, PeriodFilter, \
     CampaignFilter, MissionFilter
+from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 
 from .listener import MissionStatisticsEventListener
@@ -62,11 +62,156 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
 
 class MissionStatistics(Plugin[MissionStatisticsEventListener]):
 
+    async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
+        if new_version == '3.5':
+            asyncio.create_task(self.generate_missing_shots())
+
+    async def merge_shots_hits(self, shots: dict[str, list[dict]], hits: dict[str, list[dict]]) -> list[dict]:
+        updated_shots = []
+        for init_id, player_shots in shots.items():
+            player_hits = hits.get(init_id, [])
+            if not player_hits:
+                continue
+
+            # 1. Filter out pre-matched events
+            unmatched_shots = []
+            for shot in player_shots:
+                if shot.get('target_type'):
+                    # Remove the corresponding hit from consideration
+                    for i, hit in enumerate(player_hits):
+                        if (
+                                hit.get('target_id') == shot['target_id']
+                                and hit.get('weapon') == shot.get('weapon')
+                                and hit['id'] > shot['id']
+                        ):
+                            player_hits.pop(i)
+                            break
+                else:
+                    unmatched_shots.append(shot)
+
+            if not unmatched_shots or not player_hits:
+                continue
+
+            # 2. Match remaining shots
+            for shot in unmatched_shots:
+                # Filter hits by weapon and time (hit must be after the shot)
+                valid_hits = [
+                    h for h in player_hits
+                    if (
+                            h.get('weapon') == shot.get('weapon')
+                            and h.get('target_cat') in ['Airplanes', 'Helicopters']
+                            and h['id'] > shot['id']
+                    )
+                ]
+
+                if not valid_hits:
+                    continue
+
+                # Preference logic: Try 'Airplanes' or 'Helicopters' first
+                preferred_hits = [h for h in valid_hits if h.get('target_cat') in ['Airplanes', 'Helicopters']]
+                candidates = preferred_hits if preferred_hits else valid_hits
+
+                # Select the hit with the smallest time difference
+                best_hit = min(candidates, key=lambda h: (h['time'] - shot['time']).total_seconds())
+
+                shot.update({
+                    'target_id': best_hit['target_id'],
+                    'target_side': best_hit['target_side'],
+                    'target_type': best_hit['target_type'],
+                    'target_cat': best_hit['target_cat']
+                })
+                updated_shots.append(shot)
+                player_hits.remove(best_hit)
+
+        return updated_shots
+
+    async def generate_missing_shots(self, init_update: bool = True):
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                if init_update:
+                    self.log.info("MissionStats: Marking stale SHOT events ...")
+                    async with conn.transaction():
+                        await conn.execute("""
+                            UPDATE missionstats 
+                            SET comment = 'unsupported' 
+                            WHERE event = 'S_EVENT_SHOT'
+                            AND target_type IS NULL
+                            AND weapon_id IS NULL
+                        """)
+                await cursor.execute("""
+                    SELECT id 
+                    FROM missions 
+                    ORDER BY id
+                """)
+                missions = [x['id'] for x in await cursor.fetchall()]
+
+        async def _fix_mission_shots(mission: int):
+            async with self.apool.connection() as conn:
+                async with conn.cursor(row_factory=dict_row) as cursor:
+                    shots = {}
+                    hits = {}
+                    async for row in await cursor.execute("""
+                        SELECT * FROM missionstats 
+                        WHERE mission_id = %s 
+                          AND init_id IS NOT NULL
+                          AND event IN ('S_EVENT_SHOT', 'S_EVENT_HIT')
+                          AND (weapon LIKE 'AIM%%' OR weapon LIKE 'P\\_%%' ESCAPE '\\' 
+                               OR weapon LIKE 'PL-%%' OR weapon ILIKE 'R-%%' OR weapon = 'SD-10')
+                          AND weapon_id IS NULL
+                        ORDER BY ID
+                    """, (mission, )):
+                        init_id = row['init_id']
+                        if row['event'] == 'S_EVENT_SHOT':
+                            if init_id not in shots:
+                                shots[init_id] = []
+                            shots[init_id].append(row.copy())
+                        elif row['event'] == 'S_EVENT_HIT':
+                            if init_id not in hits:
+                                hits[init_id] = []
+                            hits[init_id].append(row.copy())
+
+                    if not hits:
+                        return
+                    updated_shots = await self.merge_shots_hits(shots, hits)
+                    if not updated_shots:
+                        return
+
+                    self.log.info(f"MissionStats: Fixing {len(updated_shots)} shot events for mission {mission} ...")
+                    async with conn.transaction():
+                        for shot in updated_shots:
+                            await conn.execute("""
+                                UPDATE missionstats 
+                                   SET target_id = %(target_id)s, 
+                                       target_side = %(target_side)s, 
+                                       target_type = %(target_type)s, 
+                                       target_cat = %(target_cat)s
+                                WHERE id = %(id)s 
+                            """, shot)
+
+        semaphore = asyncio.Semaphore(5)
+
+        async def semaphore_wrapper(mission_id):
+            async with semaphore:
+                await _fix_mission_shots(mission_id)
+
+        self.log.info(f"MissionStats: Fixing stale shot events. This can take a while ...")
+        await asyncio.gather(*[semaphore_wrapper(m) for m in missions])
+        self.log.info(f"MissionStats: Stale shot events fixed.")
+
     async def prune(self, conn: psycopg.AsyncConnection, days: int) -> None:
         self.log.debug('Pruning Missionstats ...')
         await conn.execute("DELETE FROM missionstats WHERE time < (DATE(NOW()) - %s::interval)",
                            (f'{days} days', ))
         self.log.debug('Missionstats pruned.')
+
+#    @command(description=_('Fix stale SHOT events'))
+#    @app_commands.guild_only()
+#    @utils.app_has_role('Admin')
+#    async def fix_shots(self, interaction: discord.Interaction, init_update: bool = False):
+#        await interaction.response.defer(ephemeral=True)
+#        await interaction.followup.send("Fixing stale shot events. This can take a while. Check the bot log for progress.")
+#        await self.generate_missing_shots(init_update)
+#        await interaction.followup.send("Shot events fixed.")
 
     @command(description=_('Display Mission Statistics'))
     @app_commands.guild_only()
@@ -116,6 +261,41 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         finally:
             if env.buffer:
                 env.buffer.close()
+
+    @command(description=_('Generate an After Action Report'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.describe(user=_("Report user, default is caller"))
+    @app_commands.describe(period=_("Time period, default is quarter"))
+    async def aar(self, interaction: discord.Interaction,
+                  user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None,
+                  period: app_commands.Transform[
+                              StatisticsFilter,
+                              PeriodTransformer(flt=[MissionStatisticsFilter])
+                          ] | None = MissionStatisticsFilter("quarter")):
+        if not user:
+            user = interaction.user
+        if isinstance(user, str):
+            ucid = user
+            user = await self.bot.get_member_or_name_by_ucid(ucid)
+            if isinstance(user, discord.Member):
+                name = user.display_name
+            else:
+                name = user
+        else:
+            ucid = await self.bot.get_ucid_by_member(user)
+            name = user.display_name
+        await interaction.response.defer(ephemeral=True)
+        from .reports import AAR
+        report = AAR(self.bot, ucid, name, period)
+        file = await report.render()
+        if file:
+            await interaction.followup.send(
+                _("Here is your After Action Report, {}").format(name),
+                file=file, ephemeral=utils.get_ephemeral(interaction)
+            )
+        else:
+            await interaction.followup.send(_("No data found to generate an After Action Report."), ephemeral=True)
 
     @command(description=_('Module statistics'))
     @app_commands.guild_only()
@@ -301,6 +481,13 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
 
         # Write only the specified columns in the desired order
         existing_columns = [col for col in columns_order if col in events_df.columns]
+
+        # Escape potential Excel formula characters in name columns
+        for col in ['init_name', 'target_name']:
+            if col in events_df.columns:
+                events_df[col] = events_df[col].apply(
+                    lambda x: f"'{x}" if isinstance(x, str) and x.startswith(('=', '+', '-', '@')) else x
+                )
 
         with pd.ExcelWriter(excel_binary, engine='openpyxl') as writer:
             events_df[existing_columns].to_excel(writer, sheet_name='Events', index=False)

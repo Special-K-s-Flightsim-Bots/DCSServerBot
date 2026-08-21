@@ -24,20 +24,86 @@ local function has_value(tab, value)
 end
 
 local function is_vip(ucid)
-    if not dcsbot.params then
+    if not dcsbot.params or not dcsbot.params.slotblocking or not dcsbot.params.slotblocking.VIP then
         return false
     end
     local cfg = dcsbot.params.slotblocking.VIP
-    if not cfg then
-        return false
-    end
     if cfg.ucid and has_value(cfg.ucid, ucid) then
         return true
     end
-    if cfg.discord and dcsbot.userInfo[ucid].roles ~= nil and has_value(cfg.discord, dcsbot.userInfo[ucid].roles) then
-        return true
+    -- Check if userInfo exists for this player before indexing roles
+    if cfg.discord and dcsbot.userInfo[ucid] and dcsbot.userInfo[ucid].roles ~= nil then
+        if has_value(cfg.discord, dcsbot.userInfo[ucid].roles) then
+            return true
+        end
     end
     return false
+end
+
+local function count_players_on_side(playerID, side)
+    local count = 0
+    for _, id in base.pairs(net.get_player_list()) do
+        if id ~= playerID and net.get_player_info(id, 'side') == side and net.get_player_info(id, 'slot') ~= '' then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+local function count_vips()
+    local count = 0
+    for _, id in base.pairs(net.get_player_list()) do
+        local ucid = net.get_player_info(id, 'ucid')
+        if ucid and is_vip(ucid) then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+local function get_maximum(side)
+    if not dcsbot.params or not dcsbot.params.slotblocking then
+        return nil
+    end
+    local cfg = dcsbot.params.slotblocking.maximum
+    if not cfg then
+        return nil
+    end
+    local max_players = (tonumber(utils.loadSettingsRaw()['maxPlayers']) or 16) - 1
+    local blue = tonumber(cfg.blue)
+    local red = tonumber(cfg.red)
+
+    if side == 2 then
+        if blue ~= nil then
+            return blue
+        end
+        if red ~= nil then
+            return math.max(max_players - red, 0)
+        end
+    elseif side == 1 then
+        if red ~= nil then
+            return red
+        end
+        if blue ~= nil then
+            return math.max(max_players - blue, 0)
+        end
+    end
+    return nil
+end
+
+local function limit_side_slots(playerID, side)
+    local maximum = get_maximum(side)
+    if not maximum then
+        return
+    end
+
+    local current = count_players_on_side(playerID, side)
+    if current >= maximum then
+        log.write('DCSServerBot', log.DEBUG, 'Slotblocking: side maximum reached for side ' .. tostring(side) .. ' (' .. tostring(current) .. '/' .. tostring(maximum) .. ')')
+        local message = dcsbot.params.slotblocking.maximum.message or 'This coalition is full, please try the other.'
+        net.send_chat_to(message, playerID)
+        return false
+    end
 end
 
 function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
@@ -54,9 +120,15 @@ function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
     end
     if cfg.slots ~= nil then
         local max = tonumber(utils.loadSettingsRaw()['maxPlayers']) or 16
-        local current = #net.get_player_list() + 1
-        if current >= (max - tonumber(cfg.slots)) then
-            if not is_vip(ucid) then
+        local player_list = net.get_player_list()
+        local total_connected = #player_list
+
+        if not is_vip(ucid) then
+            local vip_count = count_vips()
+            local non_vip_count = total_connected - vip_count
+            local max_public_slots = max - tonumber(cfg.slots)
+
+            if non_vip_count >= max_public_slots then
                 return false, cfg.message_server_full or 'The server is full, please try again later!'
             end
         end
@@ -173,8 +245,14 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
         return
     end
     if not dcsbot.params or not dcsbot.params.slotblocking then
-        log.write('DCSServerBot', log.ERROR, 'Slotblocking: No configuration found, skipping.')
+        log.write('DCSServerBot', log.DEBUG, 'Slotblocking: No configuration found, skipping.')
         return
+    end
+    -- check slot restrictions by thresholds
+    if dcsbot.params.slotblocking.maximum then
+        if limit_side_slots(playerID, side) == false then
+            return false
+        end
     end
     -- check slot restrictions by role and points
     if dcsbot.params.slotblocking.restricted then
@@ -189,5 +267,38 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
         return balance_slots(playerID, side, slotID)
     end
 end
+
+--[[
+function slotblock.onPlayerTryChangeCoalition(playerID, side)
+    log.write('DCSServerBot', log.DEBUG, 'Slotblocking: onPlayerTryChangeCoalition(' .. playerID .. ',' .. side ..')')
+
+    if not dcsbot.params or not dcsbot.params.slotblocking then
+        log.write('DCSServerBot', log.DEBUG, 'Slotblocking: No configuration found, skipping.')
+        return
+    end
+
+    if dcsbot.params.slotblocking.restricted then
+        local player = net.get_player_info(playerID, 'ucid')
+        for _, unit in pairs(dcsbot.params.slotblocking.restricted) do
+            if unit.side and tonumber(unit.side) == side and unit.unit_type == nil and unit.unit_name == nil and unit.group_name == nil then
+                log.write('DCSServerBot', log.DEBUG, 'Slotblocking: ' .. net.lua2json(unit))
+                if unit.ucids and not has_value(unit.ucids, player) then
+                    log.write('DCSServerBot', log.DEBUG, 'Slotblocking: Here 2.')
+                    local message = unit.message or 'This coalition is only accessible to certain users.'
+                    net.send_chat_to(message, playerID)
+                    return false, "wrongCoalitionPassword"
+                elseif unit.discord and not has_value(unit.discord, dcsbot.userInfo[player].roles) then
+                    log.write('DCSServerBot', log.DEBUG, 'Slotblocking: Here 3.')
+                    local message = unit.message or 'This coalition is only accessible to members with a specific Discord role.'
+                    net.send_chat_to(message, playerID)
+                    return false, "wrongCoalitionPassword"
+                else
+                    log.write('DCSServerBot', log.ERROR, 'Slotblocking: Side configured but no ucids / discord roles, skipping.')
+                end
+            end
+        end
+    end
+end
+]]--
 
 Sim.setUserCallbacks(slotblock)

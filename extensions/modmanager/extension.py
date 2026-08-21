@@ -31,6 +31,7 @@ class ModManager(Extension):
 
     @override
     async def render(self, param: dict | None = None) -> dict:
+        await super().render(param)
         mods = self.modules.get(self.server.name)
         if not mods:
             raise NotImplementedError()

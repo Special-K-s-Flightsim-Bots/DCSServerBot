@@ -130,9 +130,7 @@ class Server(DataObject, ABC):
                 row = cursor.fetchone()
                 if row:
                     self._mission_id = row[0]
-                else:
-                    self._mission_id = -1
-        return self._mission_id
+        return self._mission_id or -1
 
     @mission_id.setter
     def mission_id(self, mission_id: int):
@@ -242,7 +240,7 @@ class Server(DataObject, ABC):
         self.players.clear()
         self.players_by_id.clear()
 
-    def get_active_players(self, *, side: Side = None) -> list[Player]:
+    def get_active_players(self, *, side: Side | None = None) -> list[Player]:
         return [x for x in self.players.values() if x.active and (not side or side == x.side)]
 
     def get_crew_members(self, pilot: Player | None) -> list[Player]:

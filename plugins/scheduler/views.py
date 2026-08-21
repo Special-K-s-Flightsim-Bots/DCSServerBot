@@ -302,7 +302,7 @@ class UploadModal(discord.ui.Modal):
                         self.config[key] = value
 
 
-class ConfigView(discord.ui.View):
+class ServerConfigView(discord.ui.View):
     def __init__(self, bot: DCSServerBot, server: Server):
         super().__init__()
         self.bot = bot

@@ -159,7 +159,7 @@ class BackupService(Service):
                     self.zip_path(zf, "", directory)
             self.log.info("Backup of DCSServerBot complete.")
             return True
-        except Exception as ex:
+        except Exception:
             self.log.error(f'Backup of DCSServerBot failed.', exc_info=True)
             return False
 
@@ -250,7 +250,7 @@ class BackupService(Service):
                         self.log.error(f'Backup of server "{server_name}" failed.', exc_info=True)
                         rc = False
             return rc
-        except Exception as ex:
+        except Exceptio:
             self.log.error(f'Backup of all servers failed.', exc_info=True)
             return False
 
@@ -327,7 +327,7 @@ class BackupService(Service):
 
             self.log.info(f"Backup of database {database} complete.")
             return True
-        except Exception as ex:
+        except Exception:
             self.log.error(f"Backup of database failed.", exc_info=True)
             return False
 

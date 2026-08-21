@@ -1,0 +1,47 @@
+schema;instance_schema:
+  type: map
+  func: is_node
+  nullable: false
+  mapping:
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
+  func: is_element
+  nullable: false
+  mapping:
+    ddos_detection:
+      type: map
+      nullable: false
+      mapping:
+        enabled: {type: bool, nullable: false}
+        action: {type: str, nullable: false, enum: ['alert', 'block']}
+        threshold_sigma: {type: float, nullable: false, range: {min: 1.0, max: 10.0}}
+        min_samples: {type: int, nullable: false, range: {min: 3, max: 1000}}
+        min_abs_recv_mbps: {type: int, nullable: false, range: {min: 1, max: 10000}}
+        consecutive_ticks: {type: int, nullable: false, range: {min: 1, max: 60}}
+        recovery_ticks: {type: int, nullable: false, range: {min: 1, max: 120}}
+        alert_cooldown_minutes: {type: int, nullable: false, range: {min: 1, max: 1440}}
+        baseline_lookback_minutes: {type: int, nullable: false, range: {min: 5, max: 10080}}
+        udp_sniff_duration: {type: int, nullable: false, range: {min: 1, max: 60}}
+        udp_sniff_iface: {type: str, nullable: true}
+        whitelist:
+          type: seq
+          nullable: false
+          sequence:
+            - {type: str, nullable: false}
+        node_block: {type: bool, nullable: false}
+        max_conns_per_ip: {type: int, nullable: false, range: {min: 0, max: 100}}
+
+type: map
+func: check_main_structure
+nullable: false
+mapping:
+  DEFAULT:
+    include: 'element_schema'
+  regex;(.+):
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

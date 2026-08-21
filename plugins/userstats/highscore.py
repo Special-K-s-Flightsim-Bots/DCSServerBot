@@ -4,7 +4,7 @@ import numpy as np
 
 from core import report, utils
 from decimal import Decimal
-from matplotlib import cm
+from matplotlib import colormaps
 from psycopg.rows import dict_row
 
 from .filter import StatisticsFilter
@@ -62,7 +62,7 @@ class HighscorePlaytime(report.GraphElement):
             fontsize = compute_font_size(num_bars)
             bar_height = max(0.75, 3 / num_bars)
 
-            color_map = cm.get_cmap('viridis', num_bars)
+            color_map = colormaps['viridis'].resampled(num_bars)
             colors = color_map(np.linspace(0, 1, num_bars))
 
             self.axes.barh(labels, values, color=colors, height=bar_height)
@@ -157,7 +157,7 @@ class HighscoreElement(report.GraphElement):
             fontsize = compute_font_size(num_bars)
             bar_height = max(0.75, 3 / num_bars)
 
-            color_map = cm.get_cmap('viridis', num_bars)
+            color_map = colormaps['viridis'].resampled(num_bars)
             colors = color_map(np.linspace(0, 1, num_bars))
 
             self.axes.barh(labels, values, color=colors, label=kill_type, height=bar_height)

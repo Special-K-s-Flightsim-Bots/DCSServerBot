@@ -75,6 +75,7 @@ __all__ = [
     "server_selection",
     "get_ephemeral",
     "get_command",
+    "ConfigView",
     "ConfigModal",
     "DirectoryPicker",
     "NodeUploadHandler",
@@ -1109,8 +1110,9 @@ class InstanceTransformer(app_commands.Transformer):
             if not node:
                 return []
             if self.unused:
+                all_instances = await node.find_all_instances()
                 instances = [
-                    instance for server_name, instance in await node.find_all_instances()
+                    instance for instance in all_instances.keys()
                     if instance not in node.instances
                 ]
             else:
@@ -1228,7 +1230,10 @@ class UserTransformer(app_commands.Transformer):
     async def transform(self, interaction: discord.Interaction, value: str) -> discord.Member | str | None:
         if value:
             if is_ucid(value):
-                return interaction.client.get_member_by_ucid(value) or value
+                if self.sel_type in [PlayerType.ALL, PlayerType.MEMBER]:
+                    return await interaction.client.get_member_by_ucid(value) or value
+                else:
+                    return value
             elif value.isnumeric():
                 return interaction.guild.get_member(int(value))
             else:
@@ -1387,17 +1392,94 @@ async def get_command(bot: DCSServerBot, *, name: str,
     raise app_commands.CommandNotFound(name, [group] if group else [])
 
 
+class ConfigView(View):
+    def __init__(self, title: str, config: dict[str, ConfigModal]):
+        super().__init__(timeout=300)
+        self.title = title
+        self.config = config
+        self.retval = {}
+        for name in config.keys():
+            button = Button(label=name, style=ButtonStyle.primary)
+            button.callback = lambda interaction, n=name: self.callback(interaction, n)
+            self.add_item(button)
+            self.retval[name] = self.config[name].value
+        button = Button(label="Save", style=ButtonStyle.green)
+        button.callback = self.save
+        self.add_item(button)
+        button = Button(label="Cancel", style=ButtonStyle.secondary)
+        button.callback = self.cancel
+        self.add_item(button)
+        self.validate()
+
+    def render(self) -> discord.Embed:
+        embed = discord.Embed(title=self.title, color=discord.Color.blue())
+        embed.description = _("Press the buttons below to change the configuration.")
+        missing = self.validate()
+        if missing:
+            embed.add_field(name=_("The following values are required and missing:"), value="_ _", inline=False)
+            for name, fields in missing.items():
+                embed.add_field(name=name, value='\n'.join(fields))
+        else:
+            embed.set_footer(text=_('Press "Save" when ready.'))
+        return embed
+
+    def validate(self) -> dict[str, list]:
+        ret = {}
+        for name, modal in self.config.items():
+            v = modal.validate()
+            if v:
+                ret[name] = v
+
+        if not ret:
+            # noinspection PyUnresolvedReferences
+            self.children[-2].disabled = False
+        else:
+            # noinspection PyUnresolvedReferences
+            self.children[-2].disabled = True
+        return ret
+
+    async def callback(self, interaction: discord.Interaction, name: str):
+        modal = self.config[name]
+        await interaction.response.send_modal(modal)
+        if await modal.wait():
+            return
+        await interaction.edit_original_response(embed=self.render(), view=self)
+
+    async def save(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        for name, modal in self.config.items():
+            self.retval[name] = modal.value
+        self.stop()
+
+    async def cancel(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        self.retval = None
+        self.stop()
+
+
+class DefaultSelect(discord.ui.Select):
+    @property
+    def values(self) -> list[str]:
+        if not super().values:
+            value = next((x.value for x in self.options if x.default), None)
+            if value:
+                return [value]
+            else:
+                return []
+        return super().values
+
+
 class ConfigModal(Modal):
-    def __init__(self, title: str, config: dict, old_values: dict | None = None, ephemeral: bool | None = False):
+    def __init__(self, title: str, config: dict, old_values: dict | None = None, ephemeral: bool = False):
         super().__init__(title=title)
         self.ephemeral = ephemeral
-        self.value = None
         self.config = config
         self.setup(old_values or {})
+        self.value = self.get_value()
 
     def setup(self, old_values: dict):
         for k, v in self.config.items():
-            if v.get('type') in [int, str, float]:
+            if v.get('type') in [int, str, float, datetime]:
                 component = discord.ui.TextInput(
                     custom_id=k,
                     style=discord.TextStyle(v.get('style', 1)),
@@ -1408,7 +1490,7 @@ class ConfigModal(Modal):
                     max_length=v.get('max_length')
                 )
             elif v.get('type') == list:
-                component = discord.ui.Select(
+                component = DefaultSelect(
                     custom_id=k,
                     placeholder=v.get('placeholder'),
                     options=[
@@ -1431,6 +1513,20 @@ class ConfigModal(Modal):
                 text=v.get('label'),
                 component=component
             ))
+
+    def get_value(self) -> dict:
+        # noinspection PyUnresolvedReferences
+        return {
+            v.component.custom_id: self.unparse(
+                v.component.value if getattr(v.component, 'value', None) is not None else v.component.values[0],
+                self.config[v.component.custom_id].get('type')
+            )
+            for v in self.children
+            if (
+                (v.component.value.strip() if isinstance(v.component.value, str) else v.component.value is not None)
+                if getattr(v.component, 'value', None) is not None else v.component.values
+            )
+        }
 
     @staticmethod
     def parse(value: Any) -> str:
@@ -1459,17 +1555,23 @@ class ConfigModal(Modal):
                 raise ValueError(f"{value} is not a boolean!")
         return value
 
+    def validate(self) -> list:
+        missing = []
+        for v in self.children:
+            # noinspection PyUnresolvedReferences
+            if getattr(v.component, 'required', False):
+                if isinstance(v.component, discord.ui.Select):
+                    for option in v.component.options:
+                        if option.default:
+                            break
+                elif not (getattr(v.component, 'value', None) or getattr(v.component, 'values', None)):
+                    # noinspection PyUnresolvedReferences
+                    missing.append(v.component.custom_id)
+        return missing
+
     async def on_submit(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=self.ephemeral)
-        # noinspection PyUnresolvedReferences
-        self.value = {
-            v.component.custom_id: self.unparse(
-                v.component.value if getattr(v.component, 'value', None) is not None else v.component.values[0],
-                self.config[v.component.custom_id].get('type')
-            )
-            for v in self.children
-#            if not isinstance(v, discord.ui.Label)
-        }
+        self.value = self.get_value()
         self.stop()
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
@@ -1779,7 +1881,7 @@ class ServerUploadHandler(NodeUploadHandler):
             *,
             channel_id: int | None = None,
             filter_func: Callable[[Server], bool] = None
-    ) -> Server | None:
+    ) -> Server | list[Server] | None:
         from services.bot import BotService
 
         bot = ServiceRegistry.get(BotService).bot

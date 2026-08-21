@@ -339,12 +339,16 @@ class PaginationReport(Report):
         @discord.ui.button(label="Back", style=ButtonStyle.primary)
         async def on_left(self, interaction: Interaction, _: Button):
             self.index -= 1
+            if self.index < 0:
+                self.index = 0
             await self.paginate(self.values[self.index], interaction)
 
         # noinspection PyTypeChecker
         @discord.ui.button(label="Next", style=ButtonStyle.primary)
         async def on_right(self, interaction: Interaction, _: Button):
             self.index += 1
+            if self.index >= len(self.values):
+                self.index = len(self.values) - 1
             await self.paginate(self.values[self.index], interaction)
 
         # noinspection PyTypeChecker

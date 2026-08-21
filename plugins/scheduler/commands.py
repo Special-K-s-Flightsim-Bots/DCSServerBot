@@ -19,7 +19,7 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 from .listener import SchedulerListener
-from .views import ConfigView
+from .views import ServerConfigView
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -119,8 +119,44 @@ class Scheduler(Plugin[SchedulerListener]):
             yaml.dump(data, outfile)
         self.locals = self.read_locals()
 
-    @staticmethod
-    async def check_server_state(server: Server, config: dict) -> Status:
+    async def _handle_load(self, server: Server, config: dict) -> Status:
+        cfg = config['load_balancing']
+        reference: Server | None = next(
+            (x for x in self.bot.servers.values() if x.instance.name == cfg['reference']),
+            None
+        )
+        if not reference:
+            self.log.warning(f"{self.plugin_name}: Reference instance {cfg['reference']} not found!")
+            return server.status
+
+        active_players = len(reference.get_active_players())
+        max_players = reference.settings.get('maxPlayers', 16) - 1
+        load = round(max_players / active_players) if active_players else 0
+        if server.status == Status.SHUTDOWN and load >= cfg['max']:
+            self.log.info(f"{self.plugin_name}: Server {reference.name} is loaded, spooling up server {server.name}.")
+            return Status.RUNNING
+        elif 'min' in cfg and server.status == Status.RUNNING and load <= cfg['min']:
+            # Merge logic: can we fit everyone on the reference server?
+            my_players = len(server.get_active_players())
+            if my_players > 0:
+                if (active_players + my_players) <= max_players:
+                    if not server.on_empty:
+                        self.log.info(f"{self.plugin_name}: Merging {server.name} into {reference.name}.")
+                        server.on_empty = {"method": "shutdown"}
+                        server.restart_pending = True
+                        msg = _("The server load is low. Please join {} to continue playing! "
+                                "This server will shut down when empty.").format(reference.display_name)
+                        await server.sendPopupMessage(Coalition.ALL, msg)
+                        await server.sendChatMessage(Coalition.ALL, msg)
+
+                return Status.RUNNING
+
+            self.log.info(
+                f"{self.plugin_name}: Server {reference.name} is underpopulated, shutting down server {server.name}.")
+            return Status.SHUTDOWN
+        return server.status
+
+    async def check_server_state(self, server: Server, config: dict) -> Status:
         """
         Return the status that the server should be in at the moment
         based on the schedule supplied in *config*.
@@ -128,6 +164,10 @@ class Scheduler(Plugin[SchedulerListener]):
         The logic follows the rules expressed in the original code,
         but the flow is now linear and easier to read.
         """
+
+        if 'load_balancing' in config:
+            return await self._handle_load(server, config)
+
         # No schedule or the server is in maintenance → keep current status
         if not ('schedule' in config and not server.maintenance):
             return server.status
@@ -156,7 +196,6 @@ class Scheduler(Plugin[SchedulerListener]):
 
         # Day of week for the *future* moment when the restart would be required
         weekday = now_plus_restart.weekday()
-
 
         # ------------------------------------------------------------------
         # 3.  Walk through the schedule periods
@@ -1336,7 +1375,7 @@ class Scheduler(Plugin[SchedulerListener]):
                 await interaction.followup.send(_('Aborted.'))
                 return
 
-        view = ConfigView(self.bot, server)
+        view = ServerConfigView(self.bot, server)
         embed = view.render()
         msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
         try:

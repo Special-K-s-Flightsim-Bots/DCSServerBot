@@ -22,3 +22,5 @@ config
 /.emmyrc.json
 .copilot-docs/*
 reference/
+/.junie/
+version.sha

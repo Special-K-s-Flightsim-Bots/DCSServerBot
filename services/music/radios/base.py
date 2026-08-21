@@ -7,7 +7,7 @@ from abc import ABC
 from core import Server, utils
 from discord.ext import tasks
 from enum import Enum
-from random import randrange
+from random import shuffle
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -44,7 +44,8 @@ class Radio(ABC):
         self._playlist = None
         # TODO: async
         self.playlist = self._get_active_playlist()
-        self.idx = self._reset_index()
+        self.idx = 0
+        self.reset()
 
     def _get_active_playlist(self) -> str | None:
         with self.pool.connection() as conn:
@@ -73,20 +74,25 @@ class Radio(ABC):
 
     @playlist.setter
     def playlist(self, playlist: str) -> None:
-        if playlist and self._playlist != playlist:
+        if not playlist:
+            return
+        if self._playlist != playlist:
             with self.pool.connection() as conn:
                 conn.execute("""
-                    INSERT INTO music_radios (server_name, radio_name, playlist_name) 
-                    VALUES (%s, %s, %s) 
-                    ON CONFLICT (server_name, radio_name) DO UPDATE 
-                    SET playlist_name = excluded.playlist_name
-                """, (self.server.name, self.name, playlist))
+                             INSERT INTO music_radios (server_name, radio_name, playlist_name)
+                             VALUES (%s, %s, %s)
+                             ON CONFLICT (server_name, radio_name) DO UPDATE
+                                 SET playlist_name = excluded.playlist_name
+                             """, (self.server.name, self.name, playlist))
             self._playlist = playlist
-            self.songs = self._read_playlist()
-            self.idx = self._reset_index()
+
+        self.songs = self._read_playlist()
+        self.reset()
 
     def _reset_index(self) -> int:
-        return 0 if (self._mode == Mode.REPEAT or not self.songs) else randrange(len(self.songs))
+        if self.songs and self._mode == Mode.SHUFFLE:
+            shuffle(self.songs)
+        return 0
 
     @property
     def config(self) -> dict:
@@ -122,6 +128,8 @@ class Radio(ABC):
         return
 
     def reset(self) -> None:
+        if self._mode == Mode.SHUFFLE and self.songs:
+            shuffle(self.songs)
         self.idx = 0
 
     @property
@@ -145,15 +153,32 @@ class Radio(ABC):
     async def queue_worker(self):
         music_dir = self.service.music_dir
         while not self.queue_worker.is_being_cancelled():
-            if self.songs:
-                filename = os.path.join(music_dir, self.songs[self.idx])
-                if os.path.exists(filename):
-                    await self.play(filename)
-                else:
-                    self.log.warning(f"Can't play {self.songs[self.idx]} - file does not exist.")
+            if not self.songs:
+                self._current = None
+                await asyncio.sleep(1)
+                continue
+
+            if self.idx >= len(self.songs):
+                self.idx = 0
+
+            filename = os.path.join(music_dir, self.songs[self.idx])
+            if os.path.exists(filename):
+                await self.play(filename)
+            else:
+                self.log.warning(f"Can't play {self.songs[self.idx]} - file does not exist.")
+
             self._current = None
             if self._mode == Mode.SHUFFLE:
-                self.idx = randrange(len(self.songs)) if self.songs else 0
+                last_song = self.songs[self.idx]
+                self.idx += 1
+                if self.idx >= len(self.songs):
+                    while True:
+                        shuffle(self.songs)
+                        # Prevent the first song of the new shuffle from being
+                        # the same as the last song of the previous shuffle.
+                        if len(self.songs) <= 1 or self.songs[0] != last_song:
+                            break
+                    self.idx = 0
             elif self._mode == Mode.REPEAT:
                 self.idx += 1
                 if self.idx >= len(self.songs):

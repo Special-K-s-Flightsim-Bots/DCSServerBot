@@ -21,18 +21,22 @@ class Member(DataObject):
     def __post_init__(self):
         super().__post_init__()
         self.is_remote = False
-        with self.pool.connection() as conn:
-            row = conn.execute("""
+
+    async def prep(self) -> Member:
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
                 SELECT p.ucid, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, manual 
                 FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
                 WHERE p.discord_id = %s 
                 AND COALESCE(b.banned_until, now() AT TIME ZONE 'utc') >= (now() AT TIME ZONE 'utc')
                 ORDER BY manual DESC LIMIT 1
-            """, (self.member.id, )).fetchone()
+            """, (self.member.id, ))
+            row = await cursor.fetchone()
             if row:
                 self._ucid = row[0]
                 self.banned = row[1] is True
                 self._verified = row[2]
+        return self
 
     @property
     def ucid(self) -> str:

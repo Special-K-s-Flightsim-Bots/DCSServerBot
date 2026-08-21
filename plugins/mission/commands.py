@@ -26,7 +26,7 @@ from openpyxl.utils import get_column_letter
 from pathlib import Path
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Literal, Type
+from typing import Literal, Type, cast
 
 from .airbase import Info
 from .const import LIQUIDS
@@ -1269,7 +1269,7 @@ class Mission(Plugin[MissionEventListener]):
                 message = _("Do you really want to set all {} values in your warehouse to {}?").format(
                     category, value)
                 if not await utils.yn_question(interaction, message):
-                    await interaction.followup.send(_("Aborted."))
+                    await interaction.followup.send(_("Aborted."), ephemeral=True)
                     return
 
                 await Mission.manage_category(_server, airbase, category, value)
@@ -1826,9 +1826,11 @@ class Mission(Plugin[MissionEventListener]):
                    ):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
-        _member = DataObjectFactory().new(Member, name=member.name, node=self.node, member=member)
+        _member = cast(Member, await DataObjectFactory().new(
+            Member, name=member.name, node=self.node, member=member).prep())
         if isinstance(user, discord.Member):
-            _new_member = DataObjectFactory().new(Member, name=user.name, node=self.node, member=user)
+            _new_member = cast(Member, await DataObjectFactory().new(
+                Member, name=user.name, node=self.node, member=user).prep())
             ucid = _new_member.ucid
             if ucid == _member.ucid:
                 if _member.verified:
@@ -1872,8 +1874,7 @@ class Mission(Plugin[MissionEventListener]):
         for server_name, server in self.bot.servers.items():
             player = server.get_player(ucid=ucid)
             if player:
-                player.member = self.bot.get_member_by_ucid(player.ucid)
-                player.verified = True
+                await player.prep()
                 break
         else:
             server = None
@@ -1940,7 +1941,7 @@ class Mission(Plugin[MissionEventListener]):
                     await unlink_member(user, ucid)
             elif utils.is_ucid(user):
                 ucid = user
-                member = self.bot.get_member_by_ucid(ucid)
+                member = await self.bot.get_member_by_ucid(ucid)
                 if not member:
                     await interaction.followup.send(_('Player is not linked!'), ephemeral=True)
                     return
@@ -2010,7 +2011,7 @@ class Mission(Plugin[MissionEventListener]):
             await interaction.response.defer(ephemeral=ephemeral)
         if isinstance(member, str):
             ucid = member
-            member = self.bot.get_member_by_ucid(ucid)
+            member = await self.bot.get_member_by_ucid(ucid)
         player: Player | None = None
         for server in self.bot.servers.values():
             if isinstance(member, discord.Member):
@@ -2041,7 +2042,7 @@ class Mission(Plugin[MissionEventListener]):
                           player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
         report = Report(self.bot, 'mission', 'player-info.json')
         env = await report.render(player=player)
-        await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
+        await interaction.response.send_message(embed=env.embed, ephemeral=True)
 
     @command(description=_('Shows player information'))
     @utils.app_has_role('DCS Admin')
@@ -2079,7 +2080,7 @@ class Mission(Plugin[MissionEventListener]):
                     WHERE discord_id = -1 AND name IS NOT NULL 
                     ORDER BY last_seen DESC
                 """):
-                    matched_member = self.bot.match_user(dict(row), True)
+                    matched_member = await self.bot.match_user(dict(row), True)
                     if matched_member:
                         unmatched.append({"name": row['name'], "ucid": row['ucid'], "match": matched_member})
             if len(unmatched) == 0:
@@ -2132,7 +2133,7 @@ class Mission(Plugin[MissionEventListener]):
                         ORDER BY last_seen DESC
                     """, (member.id, ))
                     async for row in cursor:
-                        matched_member = self.bot.match_user(dict(row), True)
+                        matched_member = await self.bot.match_user(dict(row), True)
                         if not matched_member:
                             suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member})
                         elif matched_member.id != member.id:
@@ -2178,7 +2179,7 @@ class Mission(Plugin[MissionEventListener]):
                 ephemeral=True)
 
         await interaction.response.defer(ephemeral=True)
-        member = DataObjectFactory().new(Member, name=interaction.user.name, node=self.node, member=interaction.user)
+        member = await DataObjectFactory().new(Member, name=interaction.user.name, node=self.node, member=interaction.user).prep()
         if member.ucid and not utils.is_ucid(member.ucid):
             await send_token(member.ucid)
             return
@@ -2187,7 +2188,7 @@ class Mission(Plugin[MissionEventListener]):
                                            _("You already have a verified DCS account!\n"
                                              "Are you sure you want to re-link your account? "
                                              "(Ex: Switched from Steam to Standalone)"), ephemeral=True):
-                await interaction.followup.send(_('Aborted.'))
+                await interaction.followup.send(_('Aborted.'), ephemeral=True)
                 return
             member.unlink()
 
@@ -2826,7 +2827,7 @@ class Mission(Plugin[MissionEventListener]):
             await interaction.response.edit_message(view=None)
             await interaction.message.add_reaction('✅')
 
-        elif custom_id.startswith('ban_'):
+        elif custom_id.startswith('ban_profanity_') or custom_id.startswith('ban_evade_'):
             config = self.get_config()
             if custom_id.startswith('ban_profanity_'):
                 ucid = custom_id[len('ban_profanity_'):]

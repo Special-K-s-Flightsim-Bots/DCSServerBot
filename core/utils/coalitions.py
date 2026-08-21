@@ -21,6 +21,8 @@ def get_sides(bot: DCSServerBot, ctx: discord.Interaction | discord.Message, ser
     else:
         user = ctx.author
     channel = ctx.channel
+    if isinstance(channel, discord.Thread):
+        channel = channel.parent
 
     da_roles = [bot.get_role(x) for x in bot.roles['DCS Admin']]
     gm_roles = [bot.get_role(x) for x in bot.roles['GameMaster']]

@@ -9,7 +9,7 @@ end
 
 function dcsbot.startProfiling(json)
     log.write('DCSServerBot', log.DEBUG, 'Profiler: startProfiling()')
-    net.dostring_in('mission', 'a_do_script("start_profiling(\\"' .. (json.channel or -1) .. '\\", ' .. tostring(json.verbose or false) .. ')")')
+    net.dostring_in('mission', 'a_do_script("start_profiling(\\"' .. (json.channel or -1) .. '\\", ' .. tostring(json.verbose or false) .. ', ' .. tostring(json.memory or false) .. ', ' .. tostring(json.interval or 10000) .. ')")')
 end
 
 function dcsbot.stopProfiling(json)

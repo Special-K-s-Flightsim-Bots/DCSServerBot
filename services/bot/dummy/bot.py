@@ -112,15 +112,15 @@ class DummyBot:
         ...
 
     async def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> DummyMember | None:
-        return self.get_member_by_ucid(ucid, verified)
+        return await self.get_member_by_ucid(ucid, verified)
 
     async def get_ucid_by_member(self, member: DummyMember, _verified: bool | None = False) -> str:
         return member.id
 
-    def get_member_by_ucid(self, ucid: str, _verified: bool | None = False) -> DummyMember | None:
+    async def get_member_by_ucid(self, ucid: str, _verified: bool | None = False) -> DummyMember | None:
         return self.guilds[0].get_member(ucid)
 
-    def match_user(self, data: dict, rematch=False) -> None:
+    async def match_user(self, data: dict, rematch=False) -> None:
         ...
 
     def get_server(self, ctx: Any, *, admin_only: bool | None = False) -> None:

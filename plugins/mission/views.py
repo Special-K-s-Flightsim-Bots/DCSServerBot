@@ -177,15 +177,18 @@ class InfoView(View):
         self.ephemeral = ephemeral
         self.player = player
         self.server = server
-        if isinstance(self.member, discord.Member):
-            self._member = DataObjectFactory().new(Member, name=self.member.name, node=self.bot.node,
-                                                   member=self.member)
-            self.ucid = self._member.ucid
-        else:
-            self._member = None
+        self.ucid = None
+        if not isinstance(self.member, discord.Member):
             self.ucid = self.member
 
     async def render(self) -> discord.Embed:
+        if isinstance(self.member, discord.Member):
+            self._member = cast(Member, await DataObjectFactory().new(
+                Member, name=self.member.name, node=self.bot.node, member=self.member
+            ).prep())
+            self.ucid = self._member.ucid
+        else:
+            self._member = None
         if not self._member or self._member.ucid:
             if isinstance(self.member, discord.Member):
                 button = Button(emoji="🔀")
@@ -265,13 +268,16 @@ class InfoView(View):
         await interaction.response.defer()
         member: discord.Member = self._member.member
         self._member.unlink()
+        if self.player:
+            await self.player.prep()
+        # propagate the event
         await self.bus.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
             "method": "propagate_event",
             "params": {
                 "command": "onMemberUnlinked",
-                "server": None,
+                "server": self.server.name,
                 "data": {
                     "ucid": self.ucid,
                     "discord_id": member.id
@@ -293,13 +299,15 @@ class InfoView(View):
         await interaction.response.defer()
         member: discord.Member = self._member.member
         self._member.verified = True
+        if self.player:
+            await self.player.prep()
         await self.bus.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
             "method": "propagate_event",
             "params": {
                 "command": "onMemberLinked",
-                "server": None,
+                "server": self.server.name,
                 "data": {
                     "ucid": self.ucid,
                     "discord_id": member.id

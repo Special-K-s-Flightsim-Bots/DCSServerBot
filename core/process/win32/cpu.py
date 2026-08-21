@@ -4,8 +4,6 @@ import traceback
 import winreg
 
 from ctypes import wintypes
-from io import BytesIO
-from matplotlib import pyplot as plt, patches
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +13,10 @@ __all__ = [
     "get_cpu_set_information",
     "get_scheduling_classes",
     "get_cache_info",
+    "get_die_info",
     "get_e_core_affinity",
     "get_p_core_affinity",
-    "get_cpus_from_affinity",
-    "create_cpu_topology_visualization"
+    "get_cpus_from_affinity"
 ]
 
 # Define ULONG_PTR
@@ -33,6 +31,8 @@ RelationNumaNode = 1
 RelationCache = 2
 RelationProcessorPackage = 3
 RelationGroup = 4
+RelationProcessorDie = 5
+RelationProcessorModule = 6
 RelationAll = 0xffff
 # Cache type constants
 CacheUnified = 0
@@ -79,21 +79,29 @@ class CACHE_RELATIONSHIP(ctypes.Structure):
 
 
 class SYSTEM_CPU_SET_INFORMATION(ctypes.Structure):
+    class _CpuSet(ctypes.Structure):
+        class _U1(ctypes.Union):
+            _fields_ = [
+                ("Reserved", wintypes.DWORD),
+                ("SchedulingClass", wintypes.BYTE),
+            ]
+        _anonymous_ = ("u",)
+        _fields_ = [
+            ("Id", wintypes.DWORD),
+            ("Group", wintypes.WORD),
+            ("LogicalProcessorIndex", wintypes.BYTE),
+            ("CoreIndex", wintypes.BYTE),
+            ("LastLevelCacheIndex", wintypes.BYTE),
+            ("NumaNodeIndex", wintypes.BYTE),
+            ("EfficiencyClass", wintypes.BYTE),
+            ("AllFlags", wintypes.BYTE),
+            ("u", _U1),
+            ("AllocationTag", ctypes.c_uint64),
+        ]
     _fields_ = [
-        ("Size", wintypes.DWORD),  # Size of the structure
-        ("Type", wintypes.DWORD),  # Should be 1 (SystemCpuSetInformation)
-        ("Id", wintypes.DWORD),  # Logical CPU ID
-        ("Group", wintypes.WORD),  # CPU group number
-        ("LogicalProcessorIndex", wintypes.BYTE),
-        ("CoreIndex", wintypes.BYTE),
-        ("LastLevelCacheIndex", wintypes.BYTE),
-        ("NumaNodeIndex", wintypes.BYTE),
-        ("EfficiencyClass", wintypes.BYTE),  # Efficiency class field
-        ("AllFlags", wintypes.BYTE),
-        ("SchedulingClass", wintypes.BYTE),  # Scheduling class field
-        ("Reserved", wintypes.BYTE * 9),
-        ("Reserved2", wintypes.DWORD),
-        ("GroupAffinity", GROUP_AFFINITY),
+        ("Size", wintypes.DWORD),
+        ("Type", wintypes.DWORD),
+        ("CpuSet", _CpuSet),
     ]
 
 
@@ -218,11 +226,13 @@ def get_cpu_set_information():
 
         # Add relevant fields to the dictionary
         cpu_info_list.append({
-            "CPU Id": cpu_info.Id,
-            "Logical Processor Index": cpu_info.LogicalProcessorIndex,
-            "Core Index": cpu_info.CoreIndex,
-            "Efficiency Class": cpu_info.EfficiencyClass,
-            "Scheduling Class": cpu_info.SchedulingClass
+            "CPU Id": cpu_info.CpuSet.Id,
+            "Logical Processor Index": cpu_info.CpuSet.LogicalProcessorIndex,
+            "Core Index": cpu_info.CpuSet.CoreIndex,
+            "Efficiency Class": cpu_info.CpuSet.EfficiencyClass,
+            "Scheduling Class": cpu_info.CpuSet.SchedulingClass,
+            "Numa Node Index": cpu_info.CpuSet.NumaNodeIndex,
+            "Last Level Cache Index": cpu_info.CpuSet.LastLevelCacheIndex
         })
 
         # Move to the next structure
@@ -405,7 +415,38 @@ def get_cache_info():
     return sorted(cache_info, key=lambda x: x['level'])
 
 
-def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display: bool = False):
+def get_die_info() -> list[list[int]]:
+    """
+    Returns a list of logical processor groups representing physical dies (CCDs).
+    Only supported on Windows 10 1809 and later.
+    """
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    buffer_size = wintypes.DWORD(0)
+    RelationProcessorDie = 5
+    
+    # Check if the relation is supported by querying size
+    kernel32.GetLogicalProcessorInformationEx(RelationProcessorDie, None, ctypes.byref(buffer_size))
+    err = ctypes.get_last_error()
+    if err != 122 or buffer_size.value == 0:
+        return []
+
+    buffer = ctypes.create_string_buffer(buffer_size.value)
+    if not kernel32.GetLogicalProcessorInformationEx(RelationProcessorDie, buffer, ctypes.byref(buffer_size)):
+        return []
+
+    die_info = []
+    offset = 0
+    while offset < buffer_size.value:
+        info = ctypes.cast(ctypes.byref(buffer, offset), 
+                           ctypes.POINTER(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)).contents
+        if info.Relationship == RelationProcessorDie:
+            mask = info.Processor.GroupMask[0].Mask
+            die_info.append(get_cpus_from_affinity(mask))
+        offset += info.Size
+    return die_info
+
+
+def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display: bool = False, topology: dict = None):
     if not display:
         plt.switch_backend('agg')
     plt.style.use('dark_background')
@@ -463,6 +504,32 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
             key = tuple(sorted(cache['cores']))
             l2_groups[key] = {'cores': cache['cores'], 'size': cache['size']}
 
+    # Map each logical core to its NUMA node and LLC index (CCD)
+    core_to_numa = {}
+    core_to_llc = {}
+    if topology:
+        for n_idx, scheds in topology.items():
+            for group_key, cores_map in scheds.items():
+                llc_idx = group_key[1]
+                for c_idx, logicals in cores_map.items():
+                    for l_idx in logicals:
+                        core_to_numa[l_idx] = n_idx
+                        core_to_llc[l_idx] = llc_idx
+
+    numa_extents = {}
+    llc_extents = {}
+
+    def update_extent(ext_dict, key, x, y, w, h):
+        if key is None: return
+        if key not in ext_dict:
+            ext_dict[key] = [x, x + w, y, y + h]
+        else:
+            ext = ext_dict[key]
+            ext[0] = min(ext[0], x)
+            ext[1] = max(ext[1], x + w)
+            ext[2] = min(ext[2], y)
+            ext[3] = max(ext[3], y + h)
+
     # Draw P-cores
     for i, core in enumerate(sorted(p_cores)):
         row = i // p_cores_per_row
@@ -479,6 +546,10 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
                                  linewidth=0.5)
         ax.add_patch(rect)
         ax.text(x + core_width / 2, y + core_height / 2, f"P{core}", ha='center', va='center', color=text_color)
+        
+        # Update NUMA and LLC extents
+        update_extent(numa_extents, core_to_numa.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
+        update_extent(llc_extents, core_to_llc.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
 
         if i % 2 == 0:
             for cache in cache_structure:
@@ -521,6 +592,10 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
                                  facecolor=e_core_color, edgecolor='white', linewidth=0.5)
         ax.add_patch(rect)
         ax.text(x + core_width / 2, y + core_height / 2, f"E{core}", ha='center', va='center', color=text_color)
+        
+        # Update NUMA and LLC extents
+        update_extent(numa_extents, core_to_numa.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
+        update_extent(llc_extents, core_to_llc.get(core), x, y - 2.4, x_spacing, 2.4 + core_height)
 
         for cache in cache_structure:
             if cache['level'] == 1 and core in cache['cores']:
@@ -553,31 +628,34 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
         shared_cores = sorted(l3_cache['cores'])
         leftmost_core = min(shared_cores)
         rightmost_core = max(shared_cores)
+        
+        # Determine the row(s) this L3 belongs to
         row = leftmost_core // p_cores_per_row
-
-        # Calculate y position for L3 cache - simplified
-        y_position = row * y_spacing * 3 - 2.4  # Changed from -2.0 to -2.4 to avoid overlap with L1/L2
+        
+        # Calculate y position for L3 cache - matching core y calculation
+        y_at_row = 0
+        for prev_row in range(row):
+            if prev_row in rows_with_l3:
+                y_at_row += y_spacing * 3 + l3_spacing
+            else:
+                y_at_row += y_spacing * 3
+        
+        y_position = y_at_row - 2.4
 
         # Calculate the x-coordinates for this L3 section
         if leftmost_core in p_cores:
             start_x = (leftmost_core % p_cores_per_row) * x_spacing
         else:
-            # For E-cores, adjust the starting position (only if e_cores exists)
-            if e_cores:
-                e_core_index = sorted(e_cores).index(leftmost_core)
-                start_x = e_section_start + (e_core_index % e_cores_per_row) * x_spacing
-            else:
-                continue
+            # For E-cores, adjust the starting position
+            e_core_index = sorted(list(e_cores)).index(leftmost_core)
+            start_x = e_section_start + (e_core_index % e_cores_per_row) * x_spacing
 
         if rightmost_core in p_cores:
             end_x = (rightmost_core % p_cores_per_row) * x_spacing
         else:
-            # For E-cores, adjust the ending position (only if e_cores exists)
-            if e_cores:
-                e_core_index = sorted(e_cores).index(rightmost_core)
-                end_x = e_section_start + (e_core_index % e_cores_per_row) * x_spacing
-            else:
-                continue
+            # For E-cores, adjust the ending position
+            e_core_index = sorted(list(e_cores)).index(rightmost_core)
+            end_x = e_section_start + (e_core_index % e_cores_per_row) * x_spacing
 
         l3_width = end_x - start_x + core_width
 
@@ -587,7 +665,34 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
         ax.add_patch(l3)
         ax.text(start_x + l3_width / 2, y_position + l3_height / 2,
                 f"L3 {format_size(l3_cache['size'])} (Cores {min(shared_cores)}-{max(shared_cores)})",
-                ha='center', va='center', color=text_color)
+                ha='center', va='center', color=text_color, fontsize=8)
+
+    # Draw CCD (LLC) boxes if multiple exist
+    if len(llc_extents) > 1:
+        for llc_idx, (min_x, max_x, min_y, max_y) in llc_extents.items():
+            box_x = min_x - 0.1
+            box_y = min_y - 0.1
+            box_w = max_x - min_x + 0.2
+            box_h = max_y - min_y + 0.2
+            
+            rect = patches.Rectangle((box_x, box_y), box_w, box_h,
+                                     facecolor='none', edgecolor='#444444', linestyle=':', linewidth=0.5)
+            ax.add_patch(rect)
+            ax.text(box_x + 0.1, max_y - 0.1, f"CCD {llc_idx}", color='#888888',
+                    fontsize=8, ha='left', va='top')
+
+    # Draw NUMA boxes
+    for n_idx, (min_x, max_x, min_y, max_y) in numa_extents.items():
+        box_x = min_x - 0.2
+        box_y = min_y - 0.5
+        box_w = max_x - min_x + 0.4
+        box_h = max_y - min_y + 1.6
+
+        rect = patches.Rectangle((box_x, box_y), box_w, box_h,
+                                 facecolor='none', edgecolor='#666666', linestyle='--', linewidth=1)
+        ax.add_patch(rect)
+        ax.text(box_x + 0.1, max_y + 0.9, f"NUMA NODE {n_idx}", color='#AAAAAA',
+                fontsize=10, fontweight='bold', ha='left')
 
     # Create legend elements
     legend_elements = [
@@ -609,6 +714,12 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display
     ax.axis('off')
 
     plt.title(f"CPU Topology with Cache Hierarchy for {get_cpu_name()}", color=text_color, y=0.98)
+
+    # Add NUMA info if available
+    if topology:
+        numa_nodes = sorted(topology.keys())
+        ax.text(total_width / 2, -4.5, f"Detected {len(numa_nodes)} NUMA Node(s)", 
+                color='#AAAAAA', fontsize=12, ha='center')
 
     # Set figure background to dark
     fig.patch.set_facecolor('#1C1C1C')

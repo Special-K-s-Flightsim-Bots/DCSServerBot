@@ -4,9 +4,9 @@ import base64
 import hashlib
 import hmac
 import ipaddress
+import logging
 import secrets
 import socket
-import sys
 import time
 
 from contextlib import closing, suppress
@@ -34,6 +34,8 @@ API_URLS = [
     'https://www.trackip.net/ip',
     'https://api4.my-ip.io/v1/ip'  # they have an issue with their cert atm, hope they get it fixed
 ]
+
+logger = logging.getLogger(__name__)
 
 
 def get_hash_secret(config_dir='config') -> bytes:
@@ -72,13 +74,17 @@ def hash_ip_addr(ip_addr: str, prefix_len: int | None = None) -> str:
     return hmac_hash(get_network_prefix(ip_addr, prefix_len))
 
 
-def is_open(ip, port):
+def is_open(ip: str, port: int, *, timeout: float = 1.0) -> bool:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.settimeout(1.0)
-        return s.connect_ex((ip, int(port))) == 0
+        s.settimeout(timeout)
+        try:
+            s.connect((ip, int(port)))
+            return True
+        except (socket.timeout, OSError):
+            return False
 
 
-async def get_public_ip(node: "Node | None" = None):
+async def get_public_ip():
     for url in API_URLS:
         with suppress(aiohttp.ClientError, ValueError):
             async with aiohttp.ClientSession() as session:
@@ -87,56 +93,15 @@ async def get_public_ip(node: "Node | None" = None):
     raise TimeoutError("Public IP could not be retrieved.")
 
 
-if sys.version_info >= (3, 14):
+def is_upnp_available() -> bool:
+    """
+    Check if a UPnP Internet Gateway Device (IGD) is available on the network.
 
-    def is_upnp_available() -> bool:
-        from upnpy import UPnP
-
-        try:
-            upnp = UPnP()
-            devices = upnp.discover()
-            if not devices:
-                return False
-
-            # Look for an InternetGatewayDevice and its WANIPConnection (or WANPPPConnection) service
-            for device in devices:
-                if "InternetGatewayDevice" in (device.device_type or ""):
-                    try:
-                        # Try WANIPConnection first
-                        wan_services = device.get_services()
-                        has_wan = any(
-                            ("WANIPConnection" in s.service_type) or ("WANPPPConnection" in s.service_type)
-                            for s in wan_services
-                        )
-                        if has_wan:
-                            return True
-                    except Exception:
-                        continue
-            return False
-        except Exception:
-            return False
-
-else:
-
-    def is_upnp_available() -> bool:
-        import miniupnpc
-
-        try:
-            upnp = miniupnpc.UPnP()
-            devices = upnp.discover()  # Discover UPnP-enabled devices
-            if devices > 0:
-                if upnp.selectigd():
-                    # UPnP is enabled and an IGD was found.
-                    return True
-                else:
-                    # UPnP is enabled, but no Internet Gateway Device (IGD) is selected
-                    return False
-            else:
-                # No UPnP devices detected on the network.
-                return False
-        except Exception:
-            # A UPnP device was found, but no IGD was found.
-            return False
+    Note: full UPnP port-mapping operations moved to ``core.utils.upnp``.
+    This function is kept for backward compatibility.
+    """
+    from core.utils.upnp import is_available
+    return is_available()
 
 
 def fw_rule(port: int, protocol: str, name: str, description: str) -> str:

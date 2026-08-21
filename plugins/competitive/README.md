@@ -91,23 +91,25 @@ To do that, you copy your /plugins/userstats/reports/highscore.json to /reports/
 Select the col and row of the element you replaced (I took the "Ships" in the above example).
 
 ## Discord Commands
-| Command            | Parameter        | Channel       | Role      | Description                                               |
-|--------------------|------------------|---------------|-----------|-----------------------------------------------------------|
-| /trueskill rating  | [user\|squadron] | all           | DCS       | Shows the TrueSkill™️ ratings of this user or squadron.   |
-| /trueskill delete  | [user]           | admin-channel | DCS Admin | Deletes the TrueSkill™️ ratings of this user or everyone. |
+| Command           | Parameter                    | Channel       | Role      | Description                                                         |
+|-------------------|------------------------------|---------------|-----------|---------------------------------------------------------------------|
+| /trueskill rating | [user\|squadron]             | all           | DCS       | Shows the TrueSkill™️ ratings of this user or squadron.              |
+| /trueskill delete | [user]                       | admin-channel | DCS Admin | Deletes the TrueSkill™️ ratings of this user or everyone.            |
+| /compare players  | <player1> [player2] [period] | all           | DCS       | Compare your PvP stats to another player or two different players.  |
+| /compare modules  | <module1> <module2> [period] | all           | DCS       | Compare the PvP stats of two modules against each other.            |
 
 ## In-Game Chat Commands
-| Command    | Parameter | Role      | Description                     |
-|------------|-----------|-----------|---------------------------------|
+| Command    | Parameter | Role      | Description                    |
+|------------|-----------|-----------|--------------------------------|
 | -trueskill |           | all       | Shows your TrueSkill™️ rating.  |
 
 ## Tables
 ### trueskill
-| Column       | Type  | Description                                       |
-|--------------|-------|---------------------------------------------------|
-| #player_ucid | TEXT  | Unique ID of this user (DCS ID).                  |
-| skill_mu     | FLOAT | μ of this player (see TrueSkill™️ documentation)  |
-| skill_sigma  | FLOAT | σ of this player (see TrueSkill™️ documentation)  |
+| Column       | Type  | Description                                     |
+|--------------|-------|-------------------------------------------------|
+| #player_ucid | TEXT  | Unique ID of this user (DCS ID).                |
+| skill_mu     | FLOAT | μ of this player (see TrueSkill™️ documentation) |
+| skill_sigma  | FLOAT | σ of this player (see TrueSkill™️ documentation) |
 
 > [!NOTE]
 > Squadron TrueSkill™️ is calculated based on the rating of each member.

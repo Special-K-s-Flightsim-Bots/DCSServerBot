@@ -38,6 +38,12 @@ DEFAULT:                # valid for all servers
     points: 5
   - category: Helicopters
     points: 3
+  - category: User    # Bounty for specific users / roles. Could also be added to Planes / Helicopters.
+    ucid:
+      - 1122334455667788
+    discord:
+      - Cannon Fodder # Discord role (name or id)
+    points: 5
   achievements:       # OPTIONAL: you can give players Discord roles according to their achievements
   - credits: 0
     playtime: 0       # Playtime is in hours

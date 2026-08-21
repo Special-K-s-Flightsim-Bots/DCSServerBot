@@ -4,10 +4,10 @@ MizEdit's `modify` DSL (Domain Specific Language) lets you search and modify Lua
 
 A `.miz` file is a ZIP archive containing three Lua table files:
 
-| File | Contents                                                             |
-|------|----------------------------------------------------------------------|
-| `mission` | Units, routes, weather, triggers, coalition data — the main mission  |
-| `options` | Mission options (overrides the player's `options.lua`)               |
+| File         | Contents                                                             |
+|--------------|----------------------------------------------------------------------|
+| `mission`    | Units, routes, weather, triggers, coalition data — the main mission  |
+| `options`    | Mission options (overrides the player's `options.lua`)               |
 | `warehouses` | Airport warehouse data and dynamic spawn configuration               |
 
 MizEdit unpacks the `.miz`, amends these Lua tables, and repacks into a new `.miz` file.
@@ -42,13 +42,13 @@ PresetName:
 
 Paths navigate the Lua table tree from root to leaf:
 
-| Syntax | Meaning                                                                                                       |
-|--------|---------------------------------------------------------------------------------------------------------------|
-| `/node` | Descend into a named key                                                                                      |
-| `*` | Iterate all elements in a list or table                                                                       |
-| `[x]` | Select the n-th element from a **Lua list** (1-based) or a specific key from a table                          |
-| `[x,y]` | Select multiple elements                                                                                      |
-| `$'...'` | Evaluate the content as a **Python expression** (returns a boolean for filtering, or a value for replacement) |
+| Syntax    | Meaning                                                                                                       |
+|-----------|---------------------------------------------------------------------------------------------------------------|
+| `/node`   | Descend into a named key                                                                                      |
+| `*`       | Iterate all elements in a list or table                                                                       |
+| `[x]`     | Select the n-th element from a **Lua list** (1-based) or a specific key from a table                          |
+| `[x,y]`   | Select multiple elements                                                                                      |
+| `$'...'`  | Evaluate the content as a **Python expression** (returns a boolean for filtering, or a value for replacement) |
 | `'{var}'` | Substitute a previously defined variable's value                                                              |
 
 **Important on indexing:** Lua lists are 1-based, so `[1]` is the first element. However, when accessing data via Python 
@@ -149,10 +149,10 @@ merge:
 
 The following variables are available in all `modify` blocks:
 
-| Variable | Description                                                                                                                            |
-|----------|----------------------------------------------------------------------------------------------------------------------------------------|
+| Variable      | Description                                                                                                                            |
+|---------------|----------------------------------------------------------------------------------------------------------------------------------------|
 | `{reference}` | The current reference element (set by `for-each`). Access properties like `{reference[units][0][type]}`. Uses Python 0-based indexing. |
-| `{type}` | The type name of the current element (when iterating units)                                                                            |
+| `{type}`      | The type name of the current element (when iterating units)                                                                            |
 
 ---
 
@@ -200,11 +200,11 @@ run: core.utils.mizedit.relocate_carrier
 
 The function receives three arguments:
 
-| Parameter | Description            |
-|-----------|------------------------|
-| `data` | The selected element   |
+| Parameter   | Description            |
+|-------------|------------------------|
+| `data`      | The selected element   |
 | `reference` | The reference element  |
-| `kwargs` | All defined variables  |
+| `kwargs`    | All defined variables  |
 
 ```python
 def my_function(data: dict, reference: dict, **kwargs) -> dict:

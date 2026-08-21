@@ -1,4 +1,5 @@
 import asyncio
+import discord
 import re
 
 from core import EventListener, Server, Status, utils, event, Side
@@ -118,7 +119,7 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                     return unit.get('costs', 0)
         return 0
 
-    def _is_vip(self, config: dict, data: dict) -> bool:
+    async def _is_vip(self, config: dict, data: dict) -> bool:
         if 'VIP' not in config:
             return False
         if 'ucid' in config['VIP']:
@@ -126,7 +127,7 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
             if (isinstance(ucid, str) and ucid == data['ucid']) or (isinstance(ucid, list) and data['ucid'] in ucid):
                 return True
         if 'discord' in config['VIP']:
-            member = self.bot.get_member_by_ucid(data['ucid'])
+            member = await self.bot.get_member_by_ucid(data['ucid'])
             return utils.check_roles(config['VIP']['discord'], member) if member else False
         return False
 
@@ -135,8 +136,8 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
         config = self.plugin.get_config(server)
         if not config or data['id'] == 1:
             return
-        if self._is_vip(config, data) and 'audit' in config['VIP'] and config['VIP']['audit']:
-            member = self.bot.get_member_by_ucid(data['ucid'])
+        if await self._is_vip(config, data) and 'audit' in config['VIP'] and config['VIP']['audit']:
+            member = await self.bot.get_member_by_ucid(data['ucid'])
             if member:
                 message = "VIP member {} joined".format(utils.escape_string(member.display_name))
             else:
@@ -153,7 +154,11 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                 return
             old_points = player.points
             player.points -= plane_costs
-            player.audit('buy', old_points, f'{plane_costs} points taken for using a reserved module')
+            await player.audit(
+                'buy',
+                old_points,
+                f'{plane_costs} points taken for using a reserved module'
+            )
             if payback:
                 player.deposit = plane_costs
             message = self.get_config(server).get('messages', {}).get(
@@ -175,7 +180,7 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                 player.points += plane_costs
             else:
                 player.points += player.deposit
-            player.audit('payback', old_points, reason)
+            await player.audit('payback', old_points, reason)
             player.deposit = 0
             player.squadron = squadron
             message = self.get_config(server).get('messages', {}).get(
@@ -246,10 +251,36 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
         elif data['eventName'] == 'mission_end':
             # give all players their credits back if the mission ends, and they are still airborne
             for player in server.players.values():
-                asyncio.create_task(self._payback(server, player, 'Refund on mission end', plane_only=True))
+                asyncio.create_task(
+                    self._payback(server,
+                                  cast(CreditPlayer, player),
+                                  'Refund on mission end',
+                                  plane_only=True)
+                )
         elif data['eventName'] == 'crash':
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
             player.deposit = 0
             if player.points < self._get_costs(server, player):
                 asyncio.create_task(server.move_to_spectators(
                     player, reason="You do not have enough credits to use this slot anymore."))
+
+    @event(name="onMemberLinked")
+    async def onMemberLinked(self, _server: Server, data: dict) -> None:
+        async def upload_vip(server: Server, member: discord.Member, ucid: str):
+            roles = [x.id for x in member.roles]
+            await server.send_to_dcs({
+                'command': 'uploadUserRoles',
+                'ucid': ucid,
+                'discord_id': member.id,
+                'roles': roles
+            })
+
+        member = self.bot.guilds[0].get_member(data['discord_id'])
+        if not member:
+            return
+
+        ucid = data['ucid']
+        for server in self.bot.servers.values():
+            config = self.get_config(server)
+            if utils.check_roles(config.get('VIP', {}).get('discord', []), member):
+                await upload_vip(server, member, ucid)

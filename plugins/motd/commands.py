@@ -155,7 +155,7 @@ class MOTD(Plugin[MOTDListener]):
                     continue
                 elif handles:
                     continue
-                config: dict = config['nudge']
+                config: dict | list = config['nudge']
                 self.nudge_active[server_name] = {}
                 if isinstance(config, list):
                     for c in config:

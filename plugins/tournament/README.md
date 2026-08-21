@@ -116,6 +116,9 @@ It will be posted to everyone when creating the tournament!
 > [!NOTE]
 > The name and description of the campaign will be the name and description of the tournament!
 
+> [!IMPORTANT]
+> Do not set an end date for the campaign yet!
+
 ### Squadrons
 For each participating party, a squadron needs to be created (if none exists yet). 
 Each member that wants to fly in the tournament needs to be set up in one of these squadrons. 

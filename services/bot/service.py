@@ -110,6 +110,11 @@ class BotService(Service):
                 # Allow users to @mention the bot instead of using a prefix
                 return commands.when_mentioned_or(*prefixes)(client, message)
 
+            intents = discord.Intents.default()
+            # set privileged intents
+            intents.members=True            # necessary to be able to send welcome messages and such
+            intents.message_content=True    # necessary to allow file uploads
+
             # Create the Bot
             return DCSServerBot(version=self.node.bot_version,
                                 sub_version=self.node.sub_version,
@@ -117,7 +122,7 @@ class BotService(Service):
                                 description='Interact with DCS World servers',
                                 owner_id=self.locals['owner'],
                                 case_insensitive=True,
-                                intents=discord.Intents.all(),
+                                intents=intents,
                                 node=self.node,
                                 locals=self.locals,
                                 help_command=None,
@@ -196,25 +201,32 @@ class BotService(Service):
             self.bot = None
         await super().stop()
 
-    async def alert(self, title: str, message: str, server: Server | None = None) -> None:
+    async def alert(
+            self,
+            title: str,
+            message: str,
+            server: Server | None = None,
+            fields: list[tuple[str, str]] | None = None,
+            filename: str | None = None
+    ) -> None:
         try:
-            # if we have dedicated managers of a server, send the alerts to them
-            if server and server.locals.get('managed_by'):
-                alert_roles = server.locals['managed_by']
-            # use the default Alert role otherwise
-            else:
-                alert_roles = self.bot.roles['Alert']
-            try:
-                mentions = ''.join([self.bot.get_role(role).mention for role in alert_roles if role is not None])
-            except AttributeError:
-                self.log.error(f"Alert-Role {alert_roles} not found.")
-                mentions = ""
-            embed = utils.create_warning_embed(title=title, text=utils.escape_string(message))
+            mentions = self.bot.mention_admin(server)
+            embed = utils.create_warning_embed(title=title, text=utils.escape_string(message), fields=fields)
             admin_channel = self.bot.get_admin_channel(server)
             audit_channel = self.bot.get_channel(self.bot.locals.get('channels', {}).get('audit', -1))
             channel = admin_channel or audit_channel
+            attachment: discord.File | None = None
             if channel:
-                await channel.send(content=mentions, embed=embed)
+                if server and filename:
+                    file = await server.node.read_file(filename)
+                    zip_buffer = BytesIO()
+                    with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
+                        zip_file.writestr(filename, file)
+                    file = zip_buffer.getvalue()
+                    filename += '.zip'
+                    attachment = discord.File(fp=BytesIO(file), filename=os.path.basename(filename))
+
+                await channel.send(content=mentions, embed=embed, file=attachment)
             else:
                 self.log.critical(f"{title}: {message}")
         except Exception:

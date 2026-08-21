@@ -21,7 +21,7 @@ if sys.platform == 'win32':
     import win32console
     import winreg
 
-    from pywinauto.win32defines import SEE_MASK_NOCLOSEPROCESS, SW_HIDE, SW_SHOWMINNOACTIVE
+    from pywinauto.win32defines import SEE_MASK_NOCLOSEPROCESS, SW_HIDE
 
     class SHELLEXECUTEINFO(ctypes.Structure):
         _fields_ = [
@@ -293,7 +293,7 @@ def sanitize_filename(
     """
 
     # 1. Normalize the inputs
-    base = Path(base_directory).resolve(strict=True)          # absolute & real
+    base = Path(base_directory).resolve(strict=False)
     user_path = Path(filename)
 
     # 2. Resolve the combined path (collapse .., symlinks, etc.)
@@ -427,7 +427,7 @@ def start_elevated(exe_path: str, cwd: str, *args) -> psutil.Process | None:
     sei.lpFile = os.path.abspath(exe_path)
     sei.lpDirectory = os.path.abspath(cwd) if cwd else os.path.dirname(exe_path)
     sei.lpParameters = ' '.join(map(str, args))
-    sei.nShow = SW_SHOWMINNOACTIVE
+    sei.nShow = SW_HIDE
 
     # noinspection PyUnresolvedReferences
     if not ctypes.windll.shell32.ShellExecuteExW(ctypes.byref(sei)):
