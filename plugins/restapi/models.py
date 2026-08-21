@@ -1287,7 +1287,7 @@ class AirbaseAtisResponse(BaseModel):
     temp: float = Field(..., description="Temperature in Celsius")
     qfe: PressureInfo | dict = Field(..., description="QFE pressure")
     qnh: PressureInfo | dict = Field(..., description="QNH pressure")
-    turbulence: Optional[str] = Field(None, description="Turbulence description")
+    turbulence: Optional[float] = Field(None, description="Turbulence in m/s")
     wind: WindInfo | dict = Field(..., description="Wind conditions")
     weather: Optional[dict] = Field(None, description="Raw mission weather data")
     clouds: Optional[dict] = Field(None, description="Cloud cover information")
