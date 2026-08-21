@@ -549,8 +549,12 @@ class Tournament(Plugin[TournamentEventListener]):
         else:
             file = None
 
+        channel_id: int | None = self.get_config().get('channels', {}).get('info')
+        if not channel_id:
+            self.log.error(f"{self.plugin_name} - No info channel configured!")
+            return
+
         # create a persistent message
-        channel_id = self.get_config().get('channels', {}).get('info')
         await self.bot.setEmbed(embed_name=f"tournament_status_{tournament_id}", embed=embed, file=file,
                                 channel_id=channel_id)
 

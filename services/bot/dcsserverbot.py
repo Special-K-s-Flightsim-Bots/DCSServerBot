@@ -633,7 +633,7 @@ class DCSServerBot(commands.Bot):
                 # we should not write to this channel
                 if channel_id == -1:
                     return None
-            else:
+            elif isinstance(channel_id, str):
                 channel_id = int(channel_id)
 
             # find the channel

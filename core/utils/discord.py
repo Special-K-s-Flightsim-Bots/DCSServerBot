@@ -1479,7 +1479,7 @@ class ConfigModal(Modal):
 
     def setup(self, old_values: dict):
         for k, v in self.config.items():
-            if v.get('type') in [int, str, float]:
+            if v.get('type') in [int, str, float, datetime]:
                 component = discord.ui.TextInput(
                     custom_id=k,
                     style=discord.TextStyle(v.get('style', 1)),
