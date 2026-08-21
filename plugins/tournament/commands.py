@@ -1373,7 +1373,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 await self.bot.audit(f"generated matches for tournament {tournament['name']}.",
                                      user=interaction.user)
             except ValueError as ex:
-                await interaction.followup.send(f"Error: {ex}")
+                await interaction.followup.send(f"Error: {ex}", ephemeral=True)
                 return
 
         asyncio.create_task(self.render_status_embed(tournament_id, phase=phase))
@@ -1381,7 +1381,7 @@ class Tournament(Plugin[TournamentEventListener]):
         await interaction.followup.send(_("{} matches generated:").format(len(matches)), embed=embed,
                                         ephemeral=utils.get_ephemeral(interaction))
 
-    @match.command(description=_('Create a manual match'))
+    @match.command(name="create", description=_('Create a manual match'))
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.describe(stage=_("The level of your match. If all matches on one level are finished, increase the level by one."))
@@ -1393,8 +1393,17 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(day=date_autocomplete)
     @app_commands.autocomplete(time=time_autocomplete)
     @utils.app_has_role('GameMaster')
-    async def create(self, interaction: discord.Interaction, tournament_id: int, stage: app_commands.Range[int, 1, 7],
-                     server_name: str, squadron_blue: int, squadron_red: int, day: int, time: int):
+    async def create_match(
+            self,
+            interaction: discord.Interaction,
+            tournament_id: int,
+            stage: app_commands.Range[int, 1, 7],
+            server_name: str,
+            squadron_blue: int,
+            squadron_red: int,
+            day: int,
+            time: int
+    ):
         match_time = datetime.fromtimestamp(day, tz=timezone.utc) + timedelta(seconds=time)
         async with self.apool.connection() as conn:
             await conn.execute("""
@@ -2153,6 +2162,25 @@ class Tournament(Plugin[TournamentEventListener]):
                 await msg.delete()
             except discord.NotFound:
                 pass
+
+    @match.command(name="delete", description=_('Delete a match'))
+    @app_commands.guild_only()
+    @app_commands.rename(tournament_id="tournament")
+    @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
+    @app_commands.rename(match_id="match")
+    @app_commands.autocomplete(match_id=all_matches_autocomplete)
+    @utils.app_has_role('GameMaster')
+    async def delete_match(self, interaction: discord.Interaction, tournament_id: int, match_id: int):
+        if not await yn_question(interaction, question=_("Do you want to delete this match?"), ephemeral=True):
+            await interaction.followup.send(_("Aborted."), ephemeral=True)
+            return
+
+        async with self.apool.connection() as conn:
+            await conn.execute("DELETE FROM tm_matches WHERE tournament_id = %s and match_id = %s",
+                               (tournament_id, match_id))
+        await interaction.followup.send(_("Match deleted.\nPlease use {} to create a replacement match.").format(
+            (await utils.get_command(self.bot, group=self.match.name, name=self.create_match.name)).mention),
+        ephemeral=True)
 
     # New command group "/tickets"
     tickets = Group(name="tickets", description=_("Commands to manage tickets in a tournament"))
