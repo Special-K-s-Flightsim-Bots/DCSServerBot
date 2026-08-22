@@ -323,6 +323,7 @@ This documentation is automatically generated from the RestAPI plugin definition
   },
   "temp": 15.5,
   "turbulence": "None",
+  "visibility": 10000,
   "wind": {
     "dir": 270.0,
     "speed": 5.2
@@ -2059,6 +2060,7 @@ Below are the data structures and response models used across the API endpoints:
 | `wind` | `WindInfo | object` | **Yes** | Wind conditions in kts |
 | `preset` | `object | None` | No | Weather preset |
 | `clouds` | `object | None` | No | Cloud cover information |
+| `visibility` | `int | None` | No | Visibility in m |
 | `active_runways` | `list[any] | None` | No | Active Runways |
 
 #### Example
@@ -2140,6 +2142,7 @@ Below are the data structures and response models used across the API endpoints:
   },
   "temp": 15.5,
   "turbulence": "None",
+  "visibility": 10000,
   "wind": {
     "dir": 270.0,
     "speed": 5.2

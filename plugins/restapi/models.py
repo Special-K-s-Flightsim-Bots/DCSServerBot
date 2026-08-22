@@ -1291,6 +1291,7 @@ class AirbaseAtisResponse(BaseModel):
     wind: WindInfo | dict = Field(..., description="Wind conditions in kts")
     preset: Optional[dict] = Field(None, description="Weather preset")
     clouds: Optional[dict] = Field(None, description="Cloud cover information")
+    visibility: Optional[int] = Field(None, description="Visibility in m")
     active_runways: Optional[list] = Field(None, description="Active Runways")
 
     model_config = {
@@ -1372,6 +1373,7 @@ class AirbaseAtisResponse(BaseModel):
                     "thickness": 1000,
                     "density": 4
                 },
+                "visibility": 10000,
                 "active_runways": [
                     "31L"
                 ]

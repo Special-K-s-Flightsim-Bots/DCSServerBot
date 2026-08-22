@@ -11,15 +11,18 @@ from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
 from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, File, UploadFile, Response
 from fastapi.security import APIKeyHeader
-from typing import Any, Literal, cast
+from typing import Any, Literal, cast, TYPE_CHECKING
+
 from plugins.creditsystem.squadron import Squadron
-from plugins.srs.commands import SRS
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
 from psycopg.errors import UndefinedTable
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.servicebus import ServiceBus
 from services.webservice import WebService
+
+if TYPE_CHECKING:
+    from plugins.srs.commands import SRS
 
 from .models import (
     TopKill,
@@ -1184,12 +1187,21 @@ class RestAPI(Plugin):
         }
         if atisData.get('clouds', {}).get('preset'):
             ret['preset'] = atisData['clouds']['preset']
-        else:
-            ret['clouds'] = {
-                "base": int(atisData.get('clouds', {}).get('base', 0) * const.METER_IN_FEET + 0.5),
-                "thickenss": int(atisData.get('clouds', {}).get('thickness', 0) * const.METER_IN_FEET + 0.5),
-                "density": atisData.get('clouds', {}).get('density', 0)
-            }
+
+        ret['clouds'] = {
+            "base": int(atisData.get('clouds', {}).get('base', 0) * const.METER_IN_FEET + 0.5),
+            "thickenss": int(atisData.get('clouds', {}).get('thickness', 0) * const.METER_IN_FEET + 0.5),
+            "density": atisData.get('clouds', {}).get('density', 0)
+        }
+
+        visibility: int = atisData.get('weather', {}).get('visibility', {}).get('distance', 80000)
+        fog = await server.send_to_dcs_sync({
+            "command": "getFog"
+        })
+        if fog['thickness'] > 0:
+            visibility = int(fog['visibility'])
+
+        ret['visibility'] = int(visibility / const.METER_IN_FEET)
 
         return AirbaseAtisResponse.model_validate(ret)
 
@@ -1601,7 +1613,7 @@ class RestAPI(Plugin):
             return None
 
     async def get_srs_channels(self, server_name: str, nick: str) -> list[int]:
-        srs: SRS | None = cast(SRS, self.bot.cogs.get('SRS'))
+        srs: SRS | None = self.bot.cogs.get('SRS')
         if not srs:
             return []
         player = srs.eventlistener.srs_users.get(server_name, {}).get(nick)
