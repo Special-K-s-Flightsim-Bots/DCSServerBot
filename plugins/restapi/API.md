@@ -248,12 +248,69 @@ This documentation is automatically generated from the RestAPI plugin definition
 
 ```json
 {
+  "active_runways": [
+    "31L"
+  ],
   "clouds": {
     "base": 8000,
     "density": 4,
     "thickness": 1000
   },
-  "command": "getWeatherInfo",
+  "preset": {
+    "detailNoiseMapSize": 9000,
+    "layers": [
+      {
+        "altitudeMax": 3440,
+        "altitudeMin": 2520,
+        "coverage": 0.418,
+        "coverageMapFactor": 0,
+        "coverageMapUVOffsetX": 0,
+        "coverageMapUVOffsetY": 0,
+        "density": 0.506,
+        "densityGrad": 1.2,
+        "noiseBlur": 1.5,
+        "noiseFreq": 2.088,
+        "shapeFactor": 0,
+        "tile": 4.336
+      },
+      {
+        "altitudeMax": 8400,
+        "altitudeMin": 7560,
+        "coverage": 0.469,
+        "coverageMapFactor": 0,
+        "coverageMapUVOffsetX": 0,
+        "coverageMapUVOffsetY": 0,
+        "density": 0.572,
+        "densityGrad": 1.466,
+        "noiseBlur": 1.303,
+        "noiseFreq": 1.857,
+        "shapeFactor": 0.264,
+        "tile": 2.992
+      },
+      {
+        "altitudeMax": 10920,
+        "altitudeMin": 10000,
+        "coverage": 0,
+        "coverageMapFactor": 0,
+        "coverageMapUVOffsetX": 0,
+        "coverageMapUVOffsetY": 0,
+        "density": 0,
+        "densityGrad": 0,
+        "noiseBlur": 0.27,
+        "noiseFreq": 2,
+        "shapeFactor": 0,
+        "tile": 1
+      }
+    ],
+    "levelMap": "bazar/effects/clouds/cloudsMap01.png",
+    "precipitationPower": -1,
+    "presetAltMax": 2520,
+    "presetAltMin": 1260,
+    "readableName": "02 ##Two Layers Few and Scattered \nMETAR: FEW/SCT 8/10 SCT 23/24",
+    "readableNameShort": "Light Scattered 2",
+    "thumbnailName": "Bazar/Effects/Clouds/Thumbnails/cloud_2.png",
+    "visibleInGUI": true
+  },
   "qfe": {
     "pressureHPA": 1013.25,
     "pressureIN": 29.92,
@@ -266,6 +323,7 @@ This documentation is automatically generated from the RestAPI plugin definition
   },
   "temp": 15.5,
   "turbulence": "None",
+  "visibility": 10000,
   "wind": {
     "dir": 270.0,
     "speed": 5.2
@@ -1995,25 +2053,83 @@ Below are the data structures and response models used across the API endpoints:
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `command` | `string | None` | No | Command name |
 | `temp` | `float` | **Yes** | Temperature in Celsius |
 | `qfe` | `PressureInfo | object` | **Yes** | QFE pressure |
 | `qnh` | `PressureInfo | object` | **Yes** | QNH pressure |
-| `turbulence` | `string | None` | No | Turbulence description |
-| `wind` | `WindInfo | object` | **Yes** | Wind conditions |
-| `weather` | `object | None` | No | Raw mission weather data |
+| `turbulence` | `float | None` | No | Turbulence in kts |
+| `wind` | `WindInfo | object` | **Yes** | Wind conditions in kts |
+| `preset` | `object | None` | No | Weather preset |
 | `clouds` | `object | None` | No | Cloud cover information |
+| `visibility` | `int | None` | No | Visibility in m |
+| `active_runways` | `list[any] | None` | No | Active Runways |
 
 #### Example
 
 ```json
 {
+  "active_runways": [
+    "31L"
+  ],
   "clouds": {
     "base": 8000,
     "density": 4,
     "thickness": 1000
   },
-  "command": "getWeatherInfo",
+  "preset": {
+    "detailNoiseMapSize": 9000,
+    "layers": [
+      {
+        "altitudeMax": 3440,
+        "altitudeMin": 2520,
+        "coverage": 0.418,
+        "coverageMapFactor": 0,
+        "coverageMapUVOffsetX": 0,
+        "coverageMapUVOffsetY": 0,
+        "density": 0.506,
+        "densityGrad": 1.2,
+        "noiseBlur": 1.5,
+        "noiseFreq": 2.088,
+        "shapeFactor": 0,
+        "tile": 4.336
+      },
+      {
+        "altitudeMax": 8400,
+        "altitudeMin": 7560,
+        "coverage": 0.469,
+        "coverageMapFactor": 0,
+        "coverageMapUVOffsetX": 0,
+        "coverageMapUVOffsetY": 0,
+        "density": 0.572,
+        "densityGrad": 1.466,
+        "noiseBlur": 1.303,
+        "noiseFreq": 1.857,
+        "shapeFactor": 0.264,
+        "tile": 2.992
+      },
+      {
+        "altitudeMax": 10920,
+        "altitudeMin": 10000,
+        "coverage": 0,
+        "coverageMapFactor": 0,
+        "coverageMapUVOffsetX": 0,
+        "coverageMapUVOffsetY": 0,
+        "density": 0,
+        "densityGrad": 0,
+        "noiseBlur": 0.27,
+        "noiseFreq": 2,
+        "shapeFactor": 0,
+        "tile": 1
+      }
+    ],
+    "levelMap": "bazar/effects/clouds/cloudsMap01.png",
+    "precipitationPower": -1,
+    "presetAltMax": 2520,
+    "presetAltMin": 1260,
+    "readableName": "02 ##Two Layers Few and Scattered \nMETAR: FEW/SCT 8/10 SCT 23/24",
+    "readableNameShort": "Light Scattered 2",
+    "thumbnailName": "Bazar/Effects/Clouds/Thumbnails/cloud_2.png",
+    "visibleInGUI": true
+  },
   "qfe": {
     "pressureHPA": 1013.25,
     "pressureIN": 29.92,
@@ -2026,6 +2142,7 @@ Below are the data structures and response models used across the API endpoints:
   },
   "temp": 15.5,
   "turbulence": "None",
+  "visibility": 10000,
   "wind": {
     "dir": 270.0,
     "speed": 5.2
@@ -3859,6 +3976,7 @@ Below are the data structures and response models used across the API endpoints:
 | `temperature` | `float | None` | No | Temperature in Celsius |
 | `wind_speed` | `float | None` | No | Wind speed in kts |
 | `wind_direction` | `int | None` | No | Wind direction in degrees |
+| `turbulence` | `float | None` | No | Turbulence at ground in kts |
 | `pressure` | `float | None` | No | Atmospheric pressure in mmHg |
 | `clouds_base` | `int | None` | No | Cloud base altitude in feet |
 | `clouds_density` | `int | None` | No | Cloud density (0-10) |

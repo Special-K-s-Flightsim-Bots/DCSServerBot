@@ -11,15 +11,18 @@ from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
 from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, File, UploadFile, Response
 from fastapi.security import APIKeyHeader
-from typing import Any, Literal, cast
+from typing import Any, Literal, cast, TYPE_CHECKING
+
 from plugins.creditsystem.squadron import Squadron
-from plugins.srs.commands import SRS
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
 from psycopg.errors import UndefinedTable
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.servicebus import ServiceBus
 from services.webservice import WebService
+
+if TYPE_CHECKING:
+    from plugins.srs.commands import SRS
 
 from .models import (
     TopKill,
@@ -1147,18 +1150,60 @@ class RestAPI(Plugin):
         if not server:
             raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
 
-        # Get airbase info using the same logic as mission/commands.py get_airbase
-        airbase_data = await server.send_to_dcs_sync({"command": "getAirbase", "name": airbase_name}, timeout=60)
-        
+        if server.status not in[Status.RUNNING, Status.PAUSED]:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not running.")
+
+        # read the cache first ...
+        airbase_data = next((
+            x for x in server.current_mission.airbases
+            if airbase_name == x['name']
+        ), None) if server.current_mission else None
+
+        # ... then read the airbase information from the running mission
+        if not airbase_data:
+            airbase_data = await server.send_to_dcs_sync({
+                "command": "getAirbase",
+                "name": airbase_name
+            })
+
         atisData = await server.send_to_dcs_sync({
             "command": "getWeatherInfo",
             "x": airbase_data['position']['x'],
             "y": airbase_data['position']['y'],
             "z": airbase_data['position']['z']
         }, timeout=60)
-        
+
         # Return only the ATIS info
-        return AirbaseAtisResponse.model_validate(atisData)
+        ret = {
+            "temp": atisData['temp'],
+            "qfe": atisData['qfe'],
+            "qnh": atisData['qnh'],
+            "turbulence": int(atisData.get('turbulence', 0) * const.METER_PER_SECOND_IN_KNOTS + 0.5),
+            "wind": {
+                "speed": int(atisData.get('wind', {}).get('speed', 0) * const.METER_PER_SECOND_IN_KNOTS + 0.5),
+                "dir": atisData.get('wind', {}).get('dir', 0) + 180 % 360,
+            },
+            "active_runways": utils.get_active_runways(airbase_data['runwayList'], atisData['wind'])
+        }
+        if atisData.get('clouds', {}).get('preset'):
+            ret['preset'] = atisData['clouds']['preset']
+
+        ret['clouds'] = {
+            "base": int(atisData.get('clouds', {}).get('base', 0) * const.METER_IN_FEET + 0.5),
+            "thickenss": int(atisData.get('clouds', {}).get('thickness', 0) * const.METER_IN_FEET + 0.5),
+            "density": atisData.get('clouds', {}).get('density', 0)
+        }
+
+        visibility: int = atisData.get('weather', {}).get('visibility', {}).get('distance', 80000)
+        fog = await server.send_to_dcs_sync({
+            "command": "getFog"
+        })
+        if fog['thickness'] > 0:
+            visibility = int(fog['visibility'])
+
+        ret['visibility'] = int(visibility / const.METER_IN_FEET)
+
+        return AirbaseAtisResponse.model_validate(ret)
 
     async def airbase_warehouse(self, server_name: str = Query(...), airbase_name: str = Query(...)):
         """Return warehouse information for a given airbase on a server."""
@@ -1553,6 +1598,7 @@ class RestAPI(Plugin):
                 temperature=weather_data.get('season', {}).get('temperature'),
                 wind_speed=int(wind_data.get('speed', 0) * const.METER_PER_SECOND_IN_KNOTS + 0.5),
                 wind_direction=wind_dir,
+                turbulence=int(weather_data.get('turbulence', 0)  * const.METER_PER_SECOND_IN_KNOTS + 0.5),
                 pressure=weather_data.get('qnh'),  # QNH pressure in mmHg
                 clouds_base=int(clouds_data.get('base', 0) * const.METER_IN_FEET + 0.5),
                 clouds_density=clouds_data.get('density', 0),
@@ -1567,7 +1613,7 @@ class RestAPI(Plugin):
             return None
 
     async def get_srs_channels(self, server_name: str, nick: str) -> list[int]:
-        srs: SRS | None = cast(SRS, self.bot.cogs.get('SRS'))
+        srs: SRS | None = self.bot.cogs.get('SRS')
         if not srs:
             return []
         player = srs.eventlistener.srs_users.get(server_name, {}).get(nick)

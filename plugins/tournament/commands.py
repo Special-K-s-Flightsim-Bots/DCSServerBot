@@ -850,7 +850,6 @@ class Tournament(Plugin[TournamentEventListener]):
                 terrain_options = [
                     discord.SelectOption(label=x, value=x)
                     for x in THEATRES.keys()
-                    if x not in ['Caucasus', 'MarianaIslands']
                 ]
                 view = SignupView(times_options, terrain_options)
                 msg = await interaction.followup.send(view=view, ephemeral=True)
@@ -1624,11 +1623,15 @@ class Tournament(Plugin[TournamentEventListener]):
                     WHERE m.match_id = %s 
                 """, (match_id,)):
                     self.log.debug(f"Applying persistent preset for side {side}: {row[0]} ...")
-                    await asyncio.to_thread(
-                        miz.apply_preset,
-                        utils.get_preset(self.node, row[0], filename=preset_file),
-                        side=side, **row[1]
-                    )
+                    try:
+                        await asyncio.to_thread(
+                            miz.apply_preset,
+                            utils.get_preset(self.node, row[0], filename=preset_file),
+                            side=side, **row[1]
+                        )
+                    except ValueError:
+                        self.log.error(f"Preset {row[0]} not found in {preset_file}!")
+
                 # apply choices
                 async for row in await conn.execute(f"""
                     SELECT preset, config FROM tm_choices c 
@@ -1636,11 +1639,14 @@ class Tournament(Plugin[TournamentEventListener]):
                     WHERE m.match_id = %(match_id)s AND m.choices_{side}_ack = TRUE
                 """, {"match_id": match_id}):
                     self.log.debug(f"Applying custom preset for side {side}: {row[0]} ...")
-                    await asyncio.to_thread(
-                        miz.apply_preset,
-                        utils.get_preset(self.node, row[0], filename=preset_file),
-                        side=side, **row[1]
-                    )
+                    try:
+                        await asyncio.to_thread(
+                            miz.apply_preset,
+                            utils.get_preset(self.node, row[0], filename=preset_file),
+                            side=side, **row[1]
+                        )
+                    except ValueError:
+                        self.log.error(f"Preset {row[0]} not found in {preset_file}!")
 
             # delete the choices from the database and update the acknoledgement
             await conn.execute("DELETE FROM tm_choices WHERE match_id = %s", (match_id,))
@@ -1680,6 +1686,9 @@ class Tournament(Plugin[TournamentEventListener]):
         config = self.get_config(server)
         if isinstance(config.get('mission'), str):
             return config['mission']
+        if isinstance(config.get('mission'), list):
+            if len(config.get('mission', [])) == 1:
+                return config['mission'][0]
         prefs_red = set(await self.get_terrain_preferences(tournament_id, match['squadron_red']))
         prefs_blue = set(await self.get_terrain_preferences(tournament_id, match['squadron_blue']))
 
@@ -1706,6 +1715,8 @@ class Tournament(Plugin[TournamentEventListener]):
                 mission for mission, terrain in config['mission'].items()
                 if terrain in common_maps
             ]
+            if not valid_missions:
+                self.log.warning("No mission found that matches the preferred terrains, taking the active mission ...")
             return random.choice(valid_missions) if valid_missions else None
         return None
 
@@ -1904,13 +1915,16 @@ class Tournament(Plugin[TournamentEventListener]):
             await interaction.followup.send(_("Server {} not found.").format(match['server_name']), ephemeral=True)
             return
 
-        # start the match
-        await self.start_match(server, tournament_id, match_id, mission_id, round_number)
+        try:
+            # start the match
+            await self.start_match(server, tournament_id, match_id, mission_id, round_number)
 
-        # audit event
-        await self.bot.audit(f"started a match for tournament {tournament['name']} "
-                             f"between squadrons {squadrons['blue']['name']} and {squadrons['red']['name']}.",
-                             user=interaction.user)
+            # audit event
+            await self.bot.audit(f"started a match for tournament {tournament['name']} "
+                                 f"between squadrons {squadrons['blue']['name']} and {squadrons['red']['name']}.",
+                                 user=interaction.user)
+        except ValueError as ex:
+            await interaction.followup.send(_("Cannot start match due to an error: {}").format(ex))
 
     async def open_channel(self, match_id: int, server: Server) -> dict[str, int]:
         config = self.get_config(server)
@@ -1972,7 +1986,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 channel = await self.get_squadron_channel(match_id, side)
                 if channel:
                     await channel.edit(name=channel.name + " (closed)")
-                await channel.set_permissions(role, overwrite=None)
+                    await channel.set_permissions(role, overwrite=None)
             except discord.Forbidden:
                 raise PermissionError("You need to give the bot the Manage Roles permission!")
 

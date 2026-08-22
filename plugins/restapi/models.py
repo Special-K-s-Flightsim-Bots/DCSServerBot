@@ -492,6 +492,7 @@ class WeatherInfo(BaseModel):
     temperature: float | None = Field(None, description="Temperature in Celsius")
     wind_speed: float | None = Field(None, description="Wind speed in kts")
     wind_direction: int | None = Field(None, description="Wind direction in degrees")
+    turbulence: float | None = Field(None, description="Turbulence at ground in kts")
     pressure: float | None = Field(None, description="Atmospheric pressure in mmHg")
     clouds_base: int | None = Field(None, description="Cloud base altitude in feet")
     clouds_density: int | None = Field(None, description="Cloud density (0-10)")
@@ -1283,19 +1284,19 @@ class WindInfo(BaseModel):
 
 
 class AirbaseAtisResponse(BaseModel):
-    command: Optional[str] = Field(None, description="Command name")
     temp: float = Field(..., description="Temperature in Celsius")
     qfe: PressureInfo | dict = Field(..., description="QFE pressure")
     qnh: PressureInfo | dict = Field(..., description="QNH pressure")
-    turbulence: Optional[str] = Field(None, description="Turbulence description")
-    wind: WindInfo | dict = Field(..., description="Wind conditions")
-    weather: Optional[dict] = Field(None, description="Raw mission weather data")
+    turbulence: Optional[float] = Field(None, description="Turbulence in kts")
+    wind: WindInfo | dict = Field(..., description="Wind conditions in kts")
+    preset: Optional[dict] = Field(None, description="Weather preset")
     clouds: Optional[dict] = Field(None, description="Cloud cover information")
+    visibility: Optional[int] = Field(None, description="Visibility in m")
+    active_runways: Optional[list] = Field(None, description="Active Runways")
 
     model_config = {
         "json_schema_extra": {
             "example": {
-                "command": "getWeatherInfo",
                 "temp": 15.5,
                 "qfe": {
                     "pressureHPA": 1013.25,
@@ -1312,11 +1313,70 @@ class AirbaseAtisResponse(BaseModel):
                     "speed": 5.2,
                     "dir": 270.0
                 },
+                "preset": {
+                    "levelMap": "bazar/effects/clouds/cloudsMap01.png",
+                    "readableName": "02 ##Two Layers Few and Scattered \nMETAR: FEW/SCT 8/10 SCT 23/24",
+                    "visibleInGUI": True,
+                    "layers": [
+                        {
+                            "altitudeMax": 3440,
+                            "noiseFreq": 2.088,
+                            "noiseBlur": 1.5,
+                            "tile": 4.336,
+                            "coverageMapUVOffsetX": 0,
+                            "density": 0.506,
+                            "densityGrad": 1.2,
+                            "coverageMapUVOffsetY": 0,
+                            "altitudeMin": 2520,
+                            "coverageMapFactor": 0,
+                            "coverage": 0.418,
+                            "shapeFactor": 0
+                        },
+                        {
+                            "altitudeMax": 8400,
+                            "noiseFreq": 1.857,
+                            "noiseBlur": 1.303,
+                            "tile": 2.992,
+                            "coverageMapUVOffsetX": 0,
+                            "density": 0.572,
+                            "densityGrad": 1.466,
+                            "coverageMapUVOffsetY": 0,
+                            "altitudeMin": 7560,
+                            "coverageMapFactor": 0,
+                            "coverage": 0.469,
+                            "shapeFactor": 0.264
+                        },
+                        {
+                            "altitudeMax": 10920,
+                            "noiseFreq": 2,
+                            "noiseBlur": 0.27,
+                            "tile": 1,
+                            "coverageMapUVOffsetX": 0,
+                            "density": 0,
+                            "densityGrad": 0,
+                            "coverageMapUVOffsetY": 0,
+                            "altitudeMin": 10000,
+                            "coverageMapFactor": 0,
+                            "coverage": 0,
+                            "shapeFactor": 0
+                        }
+                    ],
+                    "presetAltMin": 1260,
+                    "readableNameShort": "Light Scattered 2",
+                    "detailNoiseMapSize": 9000,
+                    "precipitationPower": -1,
+                    "presetAltMax": 2520,
+                    "thumbnailName": "Bazar/Effects/Clouds/Thumbnails/cloud_2.png"
+                },
                 "clouds": {
                     "base": 8000,
                     "thickness": 1000,
                     "density": 4
-                }
+                },
+                "visibility": 10000,
+                "active_runways": [
+                    "31L"
+                ]
             }
         }
     }

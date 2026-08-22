@@ -159,6 +159,9 @@ class MizFile:
             os.remove(tmpname)
 
     def apply_preset(self, preset: dict | list, **kwargs):
+        if not preset:
+            raise ValueError("Preset empty / not found!")
+
         if isinstance(preset, list):
             for _preset in preset:
                 self.apply_preset(_preset, **kwargs)

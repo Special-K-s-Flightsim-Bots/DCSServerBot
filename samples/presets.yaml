@@ -115,3 +115,7 @@ AllowAirbossAndLSO:
         passwordLso: '$hash_password("red")'
         allowAirboss: true
         passwordAirboss: '$hash_password("red")'
+DisableDeckCrew:
+  forcedOptions:
+    Supercarrier:
+      deck_crew: false
