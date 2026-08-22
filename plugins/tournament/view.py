@@ -93,7 +93,7 @@ class SignupView(View):
             select.max_values = len(terrain_options)
             select.callback = self.maps_callback
             self.add_item(select)
-        button = Button(label=_("Signup"), style=ButtonStyle.green)
+        button = Button(label=_("Signup"), style=ButtonStyle.green, disabled=True)
         button.callback = self.signup
         self.add_item(button)
         button = Button(label=_("Cancel"), style=ButtonStyle.red)
@@ -103,14 +103,22 @@ class SignupView(View):
         self.terrains = []
 
     async def times_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         # noinspection PyUnresolvedReferences
         self.times = self.children[0].values
-        await interaction.response.defer()
+        if self.times and self.terrains:
+            # noinspection PyUnresolvedReferences
+            self.children[-2].disabled = False
+            await interaction.edit_original_response(view=self)
 
     async def maps_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         # noinspection PyUnresolvedReferences
         self.terrains = self.children[1].values
-        await interaction.response.defer()
+        if self.times and self.terrains:
+            # noinspection PyUnresolvedReferences
+            self.children[-2].disabled = False
+            await interaction.edit_original_response(view=self)
 
     async def signup(self, interaction: discord.Interaction):
         await interaction.response.defer()

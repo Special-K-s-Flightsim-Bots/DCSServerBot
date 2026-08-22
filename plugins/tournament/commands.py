@@ -850,7 +850,6 @@ class Tournament(Plugin[TournamentEventListener]):
                 terrain_options = [
                     discord.SelectOption(label=x, value=x)
                     for x in THEATRES.keys()
-                    if x not in ['Caucasus', 'MarianaIslands']
                 ]
                 view = SignupView(times_options, terrain_options)
                 msg = await interaction.followup.send(view=view, ephemeral=True)
