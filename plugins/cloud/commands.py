@@ -450,7 +450,8 @@ class Cloud(Plugin[CloudListener]):
                     self.guild_bans.append(user)
             # read the list of potential troublemakers
             self.troublemakers = {x['ucid']: x for x in await self.get('troublemakers')}
-        except aiohttp.ClientError:
+        except aiohttp.ClientError as ex:
+            self.log.exception(ex)
             self.log.warning("Cloud service unavailable.")
         except discord.Forbidden:
             self.log.error('DCSServerBot needs the "Ban Members" permission.')
