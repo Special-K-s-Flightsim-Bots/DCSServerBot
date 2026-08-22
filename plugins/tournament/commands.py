@@ -1904,13 +1904,16 @@ class Tournament(Plugin[TournamentEventListener]):
             await interaction.followup.send(_("Server {} not found.").format(match['server_name']), ephemeral=True)
             return
 
-        # start the match
-        await self.start_match(server, tournament_id, match_id, mission_id, round_number)
+        try:
+            # start the match
+            await self.start_match(server, tournament_id, match_id, mission_id, round_number)
 
-        # audit event
-        await self.bot.audit(f"started a match for tournament {tournament['name']} "
-                             f"between squadrons {squadrons['blue']['name']} and {squadrons['red']['name']}.",
-                             user=interaction.user)
+            # audit event
+            await self.bot.audit(f"started a match for tournament {tournament['name']} "
+                                 f"between squadrons {squadrons['blue']['name']} and {squadrons['red']['name']}.",
+                                 user=interaction.user)
+        except ValueError as ex:
+            await interaction.followup.send(_("Cannot start match due to an error: {}").format(ex))
 
     async def open_channel(self, match_id: int, server: Server) -> dict[str, int]:
         config = self.get_config(server)
@@ -1972,7 +1975,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 channel = await self.get_squadron_channel(match_id, side)
                 if channel:
                     await channel.edit(name=channel.name + " (closed)")
-                await channel.set_permissions(role, overwrite=None)
+                    await channel.set_permissions(role, overwrite=None)
             except discord.Forbidden:
                 raise PermissionError("You need to give the bot the Manage Roles permission!")
 
