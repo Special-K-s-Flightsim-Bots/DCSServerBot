@@ -13,6 +13,7 @@ from discord.utils import MISSING
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
+from typing import cast
 
 from .filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, SquadronFilter, \
     TheatreFilter
@@ -600,10 +601,11 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             await interaction.followup.send(_("You don't have an active campaign."), ephemeral=True)
             return
         squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
-        squadron_obj = await DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
-                                                       campaign_id=campaign_id).prep()
+        squadron_obj = cast(Squadron, await DataObjectFactory().new(
+            Squadron, node=self.node, name=squadron['name'], campaign_id=campaign_id).prep()
+        )
         squadron_obj.points += points
-        squadron_obj.audit(event='Admin donate', points=points, remark='')
+        await squadron_obj.audit(event='Admin donate', points=points, remark='')
         await interaction.followup.send(_("{} points donated to squadron {}.").format(points, squadron['name']),
                                         ephemeral=utils.get_ephemeral(interaction))
 
