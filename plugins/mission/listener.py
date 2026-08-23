@@ -147,7 +147,7 @@ class MissionEventListener(EventListener["Mission"]):
         except Exception as ex:
             self.log.debug("Exception in print_queue(): " + str(ex))
 
-    @tasks.loop(seconds=10)
+    @tasks.loop(seconds=30)
     async def update_player_embed(self):
         for server_name, update in self.player_embeds.copy().items():
             if not update:
@@ -163,7 +163,7 @@ class MissionEventListener(EventListener["Mission"]):
             finally:
                 self.player_embeds[server_name] = False
 
-    @tasks.loop(seconds=10)
+    @tasks.loop(seconds=30)
     async def update_mission_embed(self):
         for server_name, update in self.mission_embeds.copy().items():
             if not update:
