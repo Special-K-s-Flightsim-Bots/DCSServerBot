@@ -1,5 +1,7 @@
 from __future__ import annotations
 import asyncio
+from asyncio.queues import _T
+
 import discord
 import os
 import shlex
@@ -24,6 +26,25 @@ if TYPE_CHECKING:
     from .commands import Mission
 
 _ = get_translation(__name__.split('.')[1])
+
+RATE_LIMIT_SLEEP = 1.2
+
+
+class DevNullQueue(asyncio.Queue):
+    async def put(self, item: _T) -> None:
+        return
+
+    def put_nowait(self, item: _T) -> None:
+        return None
+
+    def empty(self) -> bool:
+        return True
+
+    def qsize(self) -> int:
+        return 0
+
+    def task_done(self) -> None:
+        return None
 
 
 class MissionEventListener(EventListener["Mission"]):
@@ -110,30 +131,38 @@ class MissionEventListener(EventListener["Mission"]):
         return await super().can_run(command, server, player)
 
     async def work_queue(self):
-        for channel in list(self.queue.keys()):
-            if self.queue[channel].empty():
+        channel_ids = list(self.queue.keys())
+        for channel_id in channel_ids:
+            q = self.queue[channel_id]
+            if q.empty():
                 continue
-            _channel = self.bot.get_channel(channel)
+
+            _channel = self.bot.get_channel(channel_id)
             if not _channel:
                 try:
-                    _channel = await self.bot.fetch_channel(channel)
+                    _channel = await self.bot.fetch_channel(channel_id)
                 except Exception:
                     pass
                 if not _channel:
-                    return
+                    self.log.error(f"Channel {channel_id} does not exists. Please check your chat / events channels!")
+                    self.queue[channel_id] = DevNullQueue()
+                    continue
+
             messages = message_old = ''
-            while not self.queue[channel].empty():
-                message = await self.queue[channel].get()
+            while not q.empty():
+                message = await q.get()
                 if message != message_old:
                     if len(messages + message) > 2000:
                         await _channel.send(messages)
-                        await asyncio.sleep(self.print_queue.seconds or 2)
+                        await asyncio.sleep(RATE_LIMIT_SLEEP)
                         messages = message
                     else:
                         messages += message
                     message_old = message
+                q.task_done()
             if messages:
                 await _channel.send(messages)
+                await asyncio.sleep(RATE_LIMIT_SLEEP)
 
     @tasks.loop(seconds=2)
     async def print_queue(self):
@@ -158,6 +187,8 @@ class MissionEventListener(EventListener["Mission"]):
                     report = PersistentReport(self.bot, self.plugin_name, 'players.json',
                                               embed_name='players_embed', server=server)
                     await report.render(server=server, sides=[Coalition.BLUE, Coalition.RED])
+                    # avoid rate limits
+                    await asyncio.sleep(RATE_LIMIT_SLEEP)
             except Exception as ex:
                 self.log.exception(ex)
             finally:
@@ -175,6 +206,8 @@ class MissionEventListener(EventListener["Mission"]):
                 report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json',
                                           embed_name='mission_embed', server=server)
                 await report.render(server=server)
+                # avoid rate limits
+                await asyncio.sleep(RATE_LIMIT_SLEEP)
             except (TimeoutError, asyncio.TimeoutError):
                 pass
             except Exception as ex:
