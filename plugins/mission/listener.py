@@ -1,7 +1,5 @@
 from __future__ import annotations
 import asyncio
-from asyncio.queues import _T
-
 import discord
 import os
 import shlex
