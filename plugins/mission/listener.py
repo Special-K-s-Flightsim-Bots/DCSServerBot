@@ -16,7 +16,7 @@ from discord.ui import View, Button
 from functools import partial
 from pathlib import Path
 from psycopg.rows import dict_row
-from typing import TYPE_CHECKING, Callable, Coroutine, cast
+from typing import TYPE_CHECKING, Callable, Coroutine, cast, Any
 
 from .menu import read_menu_config, filter_menu
 from ..missionstats.commands import MissionStatistics
@@ -31,10 +31,10 @@ RATE_LIMIT_SLEEP = 1.2
 
 
 class DevNullQueue(asyncio.Queue):
-    async def put(self, item: _T) -> None:
+    async def put(self, item: Any) -> None:
         return
 
-    def put_nowait(self, item: _T) -> None:
+    def put_nowait(self, item: Any) -> None:
         return None
 
     def empty(self) -> bool:
