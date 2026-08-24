@@ -342,6 +342,7 @@ function mission.onPlayerTryChangeSlot(id, side, slot)
 	end
 end
 
+--[[
 function mission.onPlayerChangeSlot(id)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerChangeSlot()')
     local msg = {
@@ -374,6 +375,44 @@ function mission.onPlayerChangeSlot(id)
     end
     utils.sendBotTable(msg)
 end
+]]--
+
+-- Workaround for DCS bug with onPlayerChangeSlot() calls for dynamic spawns
+local function onPlayerChangeSlot(id, side, unit_type, slot, sub_slot)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerChangeSlot()')
+    local msg = {
+        command = 'onPlayerChangeSlot',
+        id = id,
+        ucid = net.get_player_info(id, 'ucid'),
+        name = net.get_player_info(id, 'name'),
+        side = side,
+        active = true,
+        unit_type = unit_type,
+        slot = slot,
+        sub_slot = sub_slot,
+        unit_name = Sim.getUnitProperty(slot, Sim.UNIT_NAME),
+        group_name = Sim.getUnitProperty(slot, Sim.UNIT_GROUPNAME),
+        group_id = Sim.getUnitProperty(slot, Sim.UNIT_GROUP_MISSION_ID),
+        unit_callsign = Sim.getUnitProperty(slot, Sim.UNIT_CALLSIGN)
+    }
+    if msg.unit_type ~= '?' then
+        msg.unit_category = utils.getCategory(msg.unit_type)
+    else
+        msg.unit_category = ""
+    end
+    msg.unit_display_name = Sim.getUnitTypeAttribute(Sim.getUnitType(msg.slot), "DisplayName") or msg.unit_name
+
+    -- DCS MC bug workaround
+    if msg.sub_slot > 0 then
+        if dcsbot.blue_slots[net.get_player_info(id, 'slot')] ~= nil then
+            msg.side = 2
+        elseif dcsbot.red_slots[net.get_player_info(id, 'slot')] ~= nil then
+            msg.side = 1
+        end
+    end
+    utils.sendBotTable(msg)
+end
+
 
 function mission.onSimulationStart()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onSimulationStart()')
@@ -420,9 +459,21 @@ local function handleTakeoffLanding(arg1)
 end
 
 local eventHandlers = {
-    change_slot = function(arg1)
+    change_slot = function(arg1, arg2, arg3)
         mission.last_change_slot[arg1] = os.clock()
-        log.write('DCSServerBot', log.DEBUG, 'Mission: change_slot(' .. arg1 .. ') = ' .. mission.last_change_slot[arg1])
+        log.write('DCSServerBot', log.DEBUG, 'Mission: change_slot(' .. arg1 .. ', ' .. tostring(arg2) .. ', ' .. arg3 .. ') = ' .. mission.last_change_slot[arg1])
+        -- Workaround DCS bug
+        local unit_type, slot, sub_slot, side
+        if arg2 == nil or arg2 == "" then
+            side = 0
+            unit_type = "?"
+            slot = -1
+            sub_slot = -1
+        else
+            side = net.get_player_info(arg1, 'side')
+            unit_type, slot, sub_slot = utils.getMulticrewAllParameters(arg1)
+        end
+        onPlayerChangeSlot(arg1, side, unit_type, slot, sub_slot)
     end,
     takeoff = handleTakeoffLanding,
     landing = handleTakeoffLanding,

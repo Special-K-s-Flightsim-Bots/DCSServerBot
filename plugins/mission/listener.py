@@ -1003,12 +1003,12 @@ class MissionEventListener(EventListener["Mission"]):
                     side = Side(data['side'])
                     self.send_dcs_event(
                         server, side, self.EVENT_TEXTS[side]['change_slot'].format(player.side.name,
-                        data['name'], Side(data['side']).name, data['unit_type'])
+                        player.name, Side(data['side']).name, data['unit_type'])
                     )
                 else:
                     side = player.side
                     self.send_dcs_event(
-                        server, side, self.EVENT_TEXTS[side]['spectators'].format(data['name'])
+                        server, side, self.EVENT_TEXTS[side]['spectators'].format(player.name)
                     )
         finally:
             await player.update(data)

@@ -50,15 +50,15 @@ The bot supports two solutions:
 
 1) SRS-TTS
 Using SRS-TTS in a mission can cause some trouble, as you usually need to desanitize os and call an external program.
-This is no longer necessary, if you use DCSServerBot. DCSSB decouples the TTS functionality from the mission and 
+This is no longer necessary if you use DCSServerBot. DCSSB decouples the TTS functionality from the mission and 
 provides a more reliable and efficient way to handle TextToSpeech.
 2) HoundTTS
 [HoundTTS](https://github.com/uriba107/HoundTTS) is an addon developed by Uri. 
 It supports different TTS providers and hooks nicely into DCS.
-To install HoundTTS with DCSServerBot, you can just enable it with `/extension enable <HoundTTS>`.
+To install HoundTTS with DCSServerBot, you can enable it with `/extension enable <HoundTTS>`.
 
 If DCSServerBot finds HoundTTS installed, it will automatically use it instead of SRS-TTS.
-To make sure, your mission always uses the best available TTS implementation, you can use TTS like so:
+To make sure your mission always uses the best available TTS implementation, you can use TTS like so:
 ```lua
 if dcsbot then
     -- function dcsbot.send_tts(<message>, <frequency>, <coalition>, [volume], [point])
@@ -69,12 +69,12 @@ end
 ## Discord Commands
 The following Discord commands are available through the SRS plugin:
 
-| Command     | Parameter                                    | Channel | Role      | Description                                                                                     |
-|-------------|----------------------------------------------|---------|-----------|-------------------------------------------------------------------------------------------------|
-| /srs list   |                                              | all     | DCS       | Shows active users on SRS with their connected radios.                                          |
-| /srs tts    | server text [player] [coalition] <frequency> | all     | DCS Admin | Send a TTS message to a specific frequency. Chose coalition or player to limit the frequencies. |
-| /srs update | server                                       | all     | DCS Admin | Updates SRS on the respective node.                                                             |
-| /srs repair | server                                       | all     | DCS Admin | Repairs (re-installs) SRS on the respective node.                                               |
+| Command     | Parameter                                          | Channel | Role      | Description                                                                                     |
+|-------------|----------------------------------------------------|---------|-----------|-------------------------------------------------------------------------------------------------|
+| /srs list   |                                                    | all     | DCS       | Shows active users on SRS with their connected radios.                                          |
+| /srs tts    | server text \[player\] \[coalition\] \<frequency\> | all     | DCS Admin | Send a TTS message to a specific frequency. Chose coalition or player to limit the frequencies. |
+| /srs update | server                                             | all     | DCS Admin | Updates SRS on the respective node.                                                             |
+| /srs repair | server                                             | all     | DCS Admin | Repairs (re-installs) SRS on the respective node.                                               |
 
 ## Mission-Scripting - Text To Speech
 If you want to use TTS (text-to-speech) in your mission, you can do it like so:

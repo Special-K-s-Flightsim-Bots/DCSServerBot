@@ -202,14 +202,18 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
         if 'side' not in data or data['id'] == 1:
             return
+        player = server.get_player(id=data['id'])
+        if not player:
+            return
+        ucid = player.ucid
         async with self.apool.connection() as conn:
-            await conn.execute(self.SQL_MISSION_HANDLING['stop_player'], (server.mission_id, data['ucid']))
+            await conn.execute(self.SQL_MISSION_HANDLING['stop_player'], (server.mission_id, ucid))
             if Side(data['side']) != Side.NEUTRAL:
                 await conn.execute(
                     self.SQL_MISSION_HANDLING['start_player'],
                     (
                         server.mission_id,
-                        data['ucid'],
+                        ucid,
                         self.get_unit_type(data),
                         self.get_unit_callsign(data),
                         data['side'])

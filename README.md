@@ -892,7 +892,8 @@ If you’re interested in becoming a member of DGSA, don’t hesitate to reach o
 If you need support, want to chat with me or other users, or are interested in contributing, feel free to join 
 my [Support Discord](https://discord.gg/h2zGDH9szZ).<br>
 
-If you enjoy what I do and would like to support me, you can do so on my [Patreon Page](https://www.patreon.com/DCS_SpecialK).
+If you enjoy what I do and would like to support me, you can do so on my [Patreon Page](https://www.patreon.com/DCS_SpecialK) 
+or you can [buy me a coffee](https://buymeacoffee.com/special_k).
 
 ---
 
