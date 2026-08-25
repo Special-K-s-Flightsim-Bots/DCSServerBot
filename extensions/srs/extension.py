@@ -140,9 +140,18 @@ class SRS(InstallableExtension, FileSystemEventHandler):
         if not os.path.exists(cfg_file):
             self.log.warning(f"  => {self.name}: Config file {cfg_file} not found!")
             return {}
-        with open(cfg_file, 'r', encoding='utf-8') as f:
-            raw_content = f.read()
-        self.cfg.read_string(raw_content)
+        with open(cfg_file, 'rb') as f:
+            raw_bytes = f.read()
+
+        # UTF8-BOM handling (due to SRS change)
+        BOM = b'\xef\xbb\xbf'
+        if raw_bytes.startswith(BOM):
+            cleaned_bytes = raw_bytes[len(BOM):]
+        else:
+            cleaned_bytes = raw_bytes
+
+        clean_content_string = cleaned_bytes.decode('utf-8')
+        self.cfg.read_string(clean_content_string)
         return {
             s: {_name: Autoexec.parse(_value) for _name, _value in self.cfg.items(s)}
             for s in self.cfg.sections()
