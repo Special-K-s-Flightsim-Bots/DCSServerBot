@@ -309,4 +309,4 @@ Common helper functions:
 
 Reports are defined in `plugins/<plugin>/reports/<report>.json`. 
 They use a structured JSON format to define headers, tables, charts, and maps, with data provided via ReportEnv.
-See `reports/README.md` for full documentation.
+See [here](../reports/README.md) for full documentation.
