@@ -145,6 +145,8 @@ async def wh_category_autocomplete(interaction: discord.Interaction, _current: s
         return []
     try:
         server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
+        if not server.current_mission:
+            return []
         idx: int = interaction.namespace.airbase
         airbase: dict = server.current_mission.airbases[idx]
         data = await get_airbase(server, airbase['name'])
@@ -733,6 +735,7 @@ class Mission(Plugin[MissionEventListener]):
         except MarkedYAMLError:
             await interaction.response.send_message(
                 _("Can't load presets file {}.").format(presets_file), ephemeral=True)
+            return
         except FileNotFoundError:
             await interaction.response.send_message(
                 _('No presets available, please configure them in {}.').format(presets_file), ephemeral=True)
@@ -1067,10 +1070,13 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.rename(idx=_('airbase'))
     @app_commands.describe(idx=_('Airbase for warehouse information'))
     @app_commands.autocomplete(idx=utils.airbase_autocomplete)
-    async def airbase_info(self, interaction: discord.Interaction,
-                           _server: app_commands.Transform[Server, utils.ServerTransformer(
-                               status=[Status.RUNNING, Status.PAUSED])],
-                           idx: int):
+    async def airbase_info(
+            self,
+            interaction: discord.Interaction,
+            _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED])],
+            coalition: Coalition,
+            idx: int
+    ):
         if _server.status not in [Status.RUNNING, Status.PAUSED]:
             await interaction.response.send_message(_("Server {} is not running.").format(_server.display_name),
                                                     ephemeral=True)
@@ -1121,10 +1127,13 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.rename(idx=_('airbase'))
     @app_commands.describe(idx=_('Airbase for ATIS information'))
     @app_commands.autocomplete(idx=utils.airbase_autocomplete)
-    async def atis(self, interaction: discord.Interaction,
-                   _server: app_commands.Transform[Server, utils.ServerTransformer(
-                       status=[Status.RUNNING, Status.PAUSED])],
-                   idx: int):
+    async def atis(
+            self,
+            interaction: discord.Interaction,
+            _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED])],
+            coalition: Coalition,
+            idx: int
+    ):
         if _server.status not in [Status.RUNNING, Status.PAUSED]:
             await interaction.response.send_message(_("Server {} is not running.").format(_server.display_name),
                                                     ephemeral=True)
@@ -1145,13 +1154,19 @@ class Mission(Plugin[MissionEventListener]):
     @airbase.command(description=_('Capture an airbase'))
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     @app_commands.guild_only()
+    @app_commands.describe(coalition=_("Coalition of the airbase prior to capturing"))
     @app_commands.rename(idx=_('airbase'))
     @app_commands.describe(idx=_('Airbase to capture'))
+    @app_commands.describe(to_coalition=_("Coalition to change to"))
     @app_commands.autocomplete(idx=utils.airbase_autocomplete)
-    async def capture(self, interaction: discord.Interaction,
-                      server: app_commands.Transform[Server, utils.ServerTransformer(
-                          status=[Status.RUNNING, Status.PAUSED])],
-                      idx: int, coalition: Literal['Red', 'Blue', 'Neutral']):
+    async def capture(
+            self,
+            interaction: discord.Interaction,
+            server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED])],
+            coalition: Coalition,
+            idx: int,
+            to_coalition: Literal['Red', 'Blue', 'Neutral']
+    ):
         if server.status not in [Status.RUNNING, Status.PAUSED]:
             await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
                                                     ephemeral=True)
@@ -1159,24 +1174,30 @@ class Mission(Plugin[MissionEventListener]):
 
         await interaction.response.defer(ephemeral=utils.get_ephemeral(interaction))
         airbase = server.current_mission.airbases[idx]
-        data = await server.send_to_dcs_sync({
+        data: dict | None = await server.send_to_dcs_sync({
             "command": "getAirbase",
             "name": airbase['name']
         }, timeout=60)
-        ret_coalition = 'Red' if data['coalition'] == 1 else 'Blue' if data['coalition'] == 2 else 'Neutral'
-        if ret_coalition == coalition:
-            await interaction.followup.send(_('Airbase \"{}\" belonged to coalition {} already.').format(
-                airbase['name'], coalition.lower()), ephemeral=True)
+        if not data:
+            await interaction.followup.send(_("No data received from DCS, aborting."), ephemeral=True)
             return
 
+        ret_coalition = 'Red' if data['coalition'] == 1 else 'Blue' if data['coalition'] == 2 else 'Neutral'
+        if ret_coalition == to_coalition:
+            await interaction.followup.send(_('Airbase \"{}\" belonged to coalition {} already.').format(
+                airbase['name'], to_coalition.lower()), ephemeral=True)
+            return
+
+        change_coalition = 1 if to_coalition == 'Red' else 2 if to_coalition == 'Blue' else 0
         await server.send_to_dcs_sync({
             "command": "captureAirbase",
             "name": airbase['name'],
-            "coalition": 1 if coalition == 'Red' else 2 if coalition == 'Blue' else 0
+            "coalition": change_coalition
         }, timeout=60)
+        airbase['coalition'] = change_coalition
         await interaction.followup.send(
             _("Airbase \"{}\": Coalition changed to **{}**.\n:warning: Auto-capturing is now **disabled**!").format(
-                airbase['name'], coalition.lower()))
+                airbase['name'], to_coalition.lower()))
 
     warehouse = Group(name='warehouse', description=_('Commands to manage warehouses'))
 
@@ -1297,10 +1318,16 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.autocomplete(idx=utils.airbase_autocomplete)
     @app_commands.autocomplete(category=wh_category_autocomplete)
     @app_commands.autocomplete(item=wh_item_autocomplete)
-    async def set(self, interaction: discord.Interaction,
-                        _server: app_commands.Transform[Server, utils.ServerTransformer(
-                            status=[Status.RUNNING, Status.PAUSED])],
-                        idx: int, category: str, item: str | None = None, value: int = 0):
+    async def set(
+            self,
+            interaction: discord.Interaction,
+            _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED])],
+            coalition: Coalition,
+            idx: int,
+            category: str,
+            item: str | None = None,
+            value: int = 0
+    ):
         await self._manage_warehouse(interaction, _server, idx, category, item, value)
 
     @warehouse.command(description=_('Get warehouses items'))
@@ -1312,10 +1339,15 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.autocomplete(idx=utils.airbase_autocomplete)
     @app_commands.autocomplete(category=wh_category_autocomplete)
     @app_commands.autocomplete(item=wh_item_autocomplete)
-    async def get(self, interaction: discord.Interaction,
-                  _server: app_commands.Transform[Server, utils.ServerTransformer(
-                      status=[Status.RUNNING, Status.PAUSED])],
-                  idx: int, category: str | None = None, item: str | None = None):
+    async def get(
+            self,
+            interaction: discord.Interaction,
+            _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED])],
+            coalition: Coalition,
+            idx: int,
+            category: str | None = None,
+            item: str | None = None
+    ):
         await self._manage_warehouse(interaction, _server, idx, category, item)
 
     @staticmethod
@@ -1377,10 +1409,13 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.rename(idx=_('airbase'))
     @app_commands.describe(idx=_('Airbase for warehouse information'))
     @app_commands.autocomplete(idx=utils.airbase_autocomplete)
-    async def export(self, interaction: discord.Interaction,
-                     _server: app_commands.Transform[Server, utils.ServerTransformer(
-                         status=[Status.RUNNING, Status.PAUSED])],
-                     idx: int):
+    async def export(
+            self,
+            interaction: discord.Interaction,
+            _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED])],
+            coalition: Coalition,
+            idx: int
+    ):
         if _server.status not in [Status.RUNNING, Status.PAUSED]:
             await interaction.response.send_message(_("Server {} is not running.").format(_server.display_name),
                                                     ephemeral=True)

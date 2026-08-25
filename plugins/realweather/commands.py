@@ -1,6 +1,6 @@
 import discord
 
-from core import Plugin, command, utils, Status, Server, UnsupportedMizFileException
+from core import Plugin, command, utils, Status, Server, UnsupportedMizFileException, Coalition
 from discord import app_commands
 from services.bot import DCSServerBot
 
@@ -47,14 +47,23 @@ class RealWeather(Plugin[RealWeatherEventListener]):
     @app_commands.autocomplete(idx=utils.airbase_autocomplete)
     @app_commands.rename(idx="airport")
     @utils.app_has_role('DCS Admin')
-    async def realweather(self, interaction: discord.Interaction,
-                          server: app_commands.Transform[Server, utils.ServerTransformer(
-                              status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
-                          idx: int, use_orig: bool | None = True, wind: bool | None = False,
-                          clouds: bool | None = False,
-                          fog: bool | None = False, dust: bool | None = False,
-                          temperature: bool | None = False, pressure: bool | None = False,
-                          time: bool | None = False):
+    async def realweather(
+            self,
+            interaction: discord.Interaction,
+            server: app_commands.Transform[Server, utils.ServerTransformer(
+                status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])
+            ],
+            coalition: Coalition,
+            idx: int,
+            use_orig: bool | None = True,
+            wind: bool | None = False,
+            clouds: bool | None = False,
+            fog: bool | None = False,
+            dust: bool | None = False,
+            temperature: bool | None = False,
+            pressure: bool | None = False,
+            time: bool | None = False
+    ):
         ephemeral = utils.get_ephemeral(interaction)
         airbase = server.current_mission.airbases[idx]
         # noinspection PyUnresolvedReferences

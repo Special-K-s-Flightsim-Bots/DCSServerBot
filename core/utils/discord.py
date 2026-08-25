@@ -8,7 +8,7 @@ import os
 import re
 
 from contextlib import suppress
-from core import Status, utils
+from core import Status, utils, Coalition
 from core.data.node import SortOrder, UploadStatus
 from core.services.registry import ServiceRegistry
 from core.translations import get_translation
@@ -1137,12 +1137,24 @@ async def airbase_autocomplete(interaction: discord.Interaction, current: str) -
         server: Server = await ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server or not server.current_mission:
             return []
+        coalition = interaction.namespace.coalition or Coalition.ALL.value
+        match coalition:
+            case 'neutral': coalition_id = 0
+            case 'red': coalition_id = 1
+            case 'blue': coalition_id = 2
+            case _: coalition_id = None
+
         return [
-            app_commands.Choice[int](name="{}".format(x['name'] if x.get('type', '') != 'FARP' else f"FARP {x['name']}"),
-                                value=idx)
+            app_commands.Choice[int](
+                name="{}".format(x['name'] if x.get('type', '') != 'FARP' else f"FARP {x['name']}"),
+                value=idx
+            )
             for idx, x in enumerate(server.current_mission.airbases)
-            if not current or current.casefold() in x['name'].casefold() or
-               current.casefold() in x.get('code', x.get('type')).casefold()
+            if (not coalition_id or x['coalition'] == coalition_id)
+               and (
+                    not current or current.casefold() in x['name'].casefold()
+                    or current.casefold() in x.get('code', x.get('type')).casefold()
+               )
         ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)

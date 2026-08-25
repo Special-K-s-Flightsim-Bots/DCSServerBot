@@ -4,7 +4,7 @@ import json
 import logging
 import re
 
-from core import Plugin, utils, Server, Status, Group, get_translation
+from core import Plugin, utils, Server, Status, Group, get_translation, Coalition
 from datetime import datetime, timedelta, timezone
 from discord import app_commands
 from psycopg.rows import dict_row
@@ -626,6 +626,7 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
         _server: app_commands.Transform[Server, utils.ServerTransformer],
         callsign: str,
         aircraft_type: str,
+        coalition: Coalition,
         departure_idx: int,
         destination_idx: int,
         alternate_idx: Optional[int] = None,

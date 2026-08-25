@@ -1244,12 +1244,22 @@ class RestAPI(Plugin):
         resolved_server_name, server = self.get_resolved_server(server_name)
         if not server:
             raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
-        
+
+        if not server.current_mission:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not running.")
+
+        airbase = next((x for x in server.current_mission.airbases if x['name'] == airbase_name), None)
+        if not airbase:
+            raise HTTPException(status_code=404, detail=f"Airbase '{airbase_name}' not found.")
+
         await server.send_to_dcs_sync({
             "command": "captureAirbase",
             "name": airbase_name,
             "coalition": coalition
         }, timeout=60)
+
+        # change the coalition
+        airbase['coalition'] = coalition
 
         return AirbaseCaptureResponse(
             server_name=server_name,

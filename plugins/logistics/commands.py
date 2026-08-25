@@ -2,7 +2,7 @@ import discord
 import json
 import logging
 
-from core import Plugin, utils, Server, Status, Group, get_translation
+from core import Plugin, utils, Server, Status, Group, get_translation, Coalition
 from datetime import datetime, timezone
 from discord import app_commands
 from psycopg.rows import dict_row
@@ -239,11 +239,11 @@ class Logistics(Plugin[LogisticsEventListener]):
     @app_commands.autocomplete(source_idx=utils.airbase_autocomplete, dest_idx=utils.airbase_autocomplete)
     async def create(self, interaction: discord.Interaction,
                      _server: app_commands.Transform[Server, utils.ServerTransformer],
+                     coalition: Coalition,
                      source_idx: int,
                      dest_idx: int,
                      cargo: str,
                      priority: Literal['low', 'normal', 'high', 'urgent'] = 'normal',
-                     coalition: Literal['red', 'blue'] = 'blue',
                      deadline: Optional[str] = None,
                      remarks: Optional[str] = None):
         """
@@ -290,7 +290,7 @@ class Logistics(Plugin[LogisticsEventListener]):
         source_position = json.dumps(source_airbase.get('position')) if source_airbase.get('position') else None
         dest_position = json.dumps(dest_airbase.get('position')) if dest_airbase.get('position') else None
 
-        coalition_id = 1 if coalition == 'red' else 2
+        coalition_id = 1 if coalition == Coalition.RED else 2
 
         # Parse deadline if provided
         deadline_dt = None
@@ -951,16 +951,21 @@ class Logistics(Plugin[LogisticsEventListener]):
     @app_commands.rename(_server='server', airbase_idx='airbase')
     @app_commands.describe(airbase_idx='Airbase or carrier to query')
     @app_commands.autocomplete(airbase_idx=utils.airbase_autocomplete)
-    async def warehouse_status(self, interaction: discord.Interaction,
-                     _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
-                     airbase_idx: int,
-                     category: Literal['all', 'aircraft', 'weapon', 'liquids'] = 'all'):
+    async def warehouse_status(
+            self,
+            interaction: discord.Interaction,
+            _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+            coalition: Coalition,
+            airbase_idx: int,
+            category: Literal['all', 'aircraft', 'weapon', 'liquids'] = 'all'
+    ):
         """
         Query warehouse inventory at an airbase or carrier.
 
         Parameters
         ----------
         _server: The server to query
+        coalition: Coalition filter for airbases
         airbase_idx: Airbase or carrier to query
         category: Filter by category
         """
@@ -1060,16 +1065,21 @@ class Logistics(Plugin[LogisticsEventListener]):
     @app_commands.describe(source_idx='First location to compare')
     @app_commands.describe(dest_idx='Second location to compare')
     @app_commands.autocomplete(source_idx=utils.airbase_autocomplete, dest_idx=utils.airbase_autocomplete)
-    async def warehouse_compare(self, interaction: discord.Interaction,
-                      _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
-                      source_idx: int,
-                      dest_idx: int):
+    async def warehouse_compare(
+            self,
+            interaction: discord.Interaction,
+            _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+            coalition: Coalition,
+            source_idx: int,
+            dest_idx: int
+    ):
         """
         Compare warehouse inventories between two locations.
 
         Parameters
         ----------
         _server: The server to query
+        coalition: coalition filter for airports
         source_idx: First location to compare
         dest_idx: Second location to compare
         """

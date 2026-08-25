@@ -435,12 +435,12 @@ class AirbaseView(View):
         self.render()
 
     def render(self):
-        capture = self.children[0]
+        capture = cast(discord.ui.Button, self.children[0])
         capture.style = discord.ButtonStyle.blurple if self.data['coalition'] == 1 else discord.ButtonStyle.red
-        capture_toggle = self.children[1]
+        capture_toggle = cast(discord.ui.Button, self.children[1])
         capture_toggle.style = discord.ButtonStyle.primary if not self.data['auto_capture'] else discord.ButtonStyle.secondary
         capture_toggle.label = _('Auto Capture') if not self.data['auto_capture'] else _('No Auto Capture')
-        radio_toggle = self.children[2]
+        radio_toggle = cast(discord.ui.Button, self.children[2])
         radio_toggle.style = discord.ButtonStyle.primary if not self.data['radio_silent'] else discord.ButtonStyle.secondary
         radio_toggle.label = _('ATC On') if self.data['radio_silent'] else _('ATC Off')
         # noinspection PyUnresolvedReferences
@@ -456,6 +456,7 @@ class AirbaseView(View):
             "coalition": self.data['coalition']
         })
         self.data['auto_capture'] = False
+        self.airbase['coalition'] = data['coalition']
         self.render()
         msg = await interaction.original_response()
         embed = msg.embeds[0]
@@ -512,8 +513,8 @@ class BanModal(Modal):
     def __init__(self, ucid: str):
         super().__init__(title=_("Ban Details"))
         self.ucid = ucid
-        self.bus: ServiceBus = ServiceRegistry.get(ServiceBus)
-        self.bot: BotService = ServiceRegistry.get(BotService)
+        self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get(ServiceBus))
+        self.bot: BotService = cast(BotService, ServiceRegistry.get(BotService))
 
     async def on_submit(self, interaction: discord.Interaction):
         days = int(self.period.value) if self.period.value else None
@@ -537,7 +538,7 @@ class WatchModal(Modal):
     def __init__(self, ucid: str):
         super().__init__(title=_("Watch Details"))
         self.ucid = ucid
-        self.bot: BotService = ServiceRegistry.get(BotService)
+        self.bot: BotService = cast(BotService, ServiceRegistry.get(BotService))
 
     async def on_submit(self, interaction: discord.Interaction):
         name = await self.bot.bot.get_member_or_name_by_ucid(self.ucid)
