@@ -41,6 +41,7 @@ DEFAULT:
   host: dcsserverbot-prod.herokuapp.com # Don't change that until told otherwise.
   port: 443                             # Don't change that until told otherwise.
   protocol: https                       # Don't change that until told otherwise.
+  use_proxy: true                       # Optional: use the proxy in nodes.yaml, if configured (default: true). 
   register: true                        # True, send general statistics to my community stats (please do that!)
   upload_errors: true                   # True, upload exceptions to the central error database, so that I can see what happened in your bot (and fix it)
 #  token: xxxyyyzzz111222333444         # If you got a TOKEN to participate in the cloud statistics, then put it in here.
