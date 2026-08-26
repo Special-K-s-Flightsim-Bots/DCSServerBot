@@ -12,6 +12,7 @@ mapping:
       host: {type: str, nullable: false, range: {min: 1}}
       port: {type: int, range: {min: 80, max: 65535}, nullable: false}
       protocol: {type: str, enum: ['http', 'https'], nullable: false}
+      use_proxy: {type: bool, nullable: false}
       register: {type: bool, nullable: false}
       upload_errors: {type: bool, nullable: false}
       token: {type: str, nullable: false, range: {min: 1}}
