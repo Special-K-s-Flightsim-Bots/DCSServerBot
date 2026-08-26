@@ -196,7 +196,7 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
         config = self.plugin.get_config(server)
         if not config:
             return
-        player: CreditPlayer = cast(CreditPlayer, server.get_player(ucid=data['ucid'], active=True))
+        player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['id'], active=True))
         if not player:
             return
         # if payback is enabled, we need to clear the deposit on any slot change
