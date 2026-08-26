@@ -222,7 +222,7 @@ class Node(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
+    async def write_file(self, target: str, source: str | int, overwrite: bool = False) -> UploadStatus:
         raise NotImplementedError()
 
     @abstractmethod

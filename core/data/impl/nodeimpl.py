@@ -1,3 +1,5 @@
+from io import BytesIO
+
 import aiofiles
 import aiohttp
 import asyncio
@@ -162,7 +164,7 @@ class NodeImpl(Node):
             await self.get_dcs_branch_and_version()
         await self.init_db()
         # Do we have a cluster?
-        if len(self.all_nodes) > 1:
+        if len(self.all_nodes) > 1 or self.is_federation():
             self._claimed_master = await self.heartbeat()
             if self.is_shutdown.is_set():
                 return
@@ -457,6 +459,9 @@ class NodeImpl(Node):
             self.cpool = self.apool
 
         self.log.debug("- Database pools initialized.")
+
+    def is_federation(self):
+        return self.apool != self.cpool
 
     async def close_db(self):
         if self._heartbeat_conn and not self._heartbeat_conn.closed:
@@ -1428,24 +1433,44 @@ class NodeImpl(Node):
                 return (await cursor.fetchone())[0]
 
     @override
-    async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
-        if os.path.exists(filename) and not overwrite:
+    async def write_file(self, target: str, source: str | int, overwrite: bool = False) -> UploadStatus:
+        if os.path.exists(target) and not overwrite:
             return UploadStatus.FILE_EXISTS
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
-                if response.status == 200:
-                    try:
-                        # make sure the directory exists
-                        os.makedirs(os.path.dirname(filename), exist_ok=True)
-                        async with aiofiles.open(filename, mode='wb') as outfile:
-                            await outfile.write(await response.read())
-                            return UploadStatus.OK
-                    except Exception as ex:
-                        self.log.error(ex)
-                        return UploadStatus.WRITE_ERROR
-                else:
-                    return UploadStatus.READ_ERROR
+        if source.startswith('http'):
+            async with aiohttp.ClientSession() as session:
+                async with session.get(source, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
+                    if response.status == 200:
+                        try:
+                            # make sure the directory exists
+                            os.makedirs(os.path.dirname(target), exist_ok=True)
+                            async with aiofiles.open(target, mode='wb') as outfile:
+                                await outfile.write(await response.read())
+                                return UploadStatus.OK
+                        except Exception as ex:
+                            self.log.error(ex)
+                            return UploadStatus.WRITE_ERROR
+                    else:
+                        return UploadStatus.READ_ERROR
+        elif self.node.master:
+            try:
+                shutil.copy2(source, target)
+                return UploadStatus.OK
+            except Exception as ex:
+                self.log.error(ex)
+                return UploadStatus.WRITE_ERROR
+        else:
+            async with self.apool.connection() as conn:
+                cursor = await conn.execute("SELECT data FROM files WHERE id = %s", (source,), binary=True)
+                data = (await cursor.fetchone())[0]
+                await conn.execute("DELETE FROM files WHERE id = %s", (source,))
+            try:
+                async with aiofiles.open(target, mode='wb') as out:
+                    await out.write(data)
+                return UploadStatus.OK
+            except Exception as ex:
+                self.log.error(ex)
+                return UploadStatus.WRITE_ERROR
 
     @override
     async def list_directory(self, path: str, *, pattern: str | list[str] = '*',

@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 
+import psycopg
+
 from core.data.node import Node, UploadStatus, SortOrder
 from core.data.proxy.instanceproxy import InstanceProxy
 from core.services.registry import ServiceRegistry
@@ -249,15 +251,24 @@ class NodeProxy(Node):
         return file
 
     @override
-    async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
+    async def write_file(self, target: str, source: str | int, overwrite: bool = False) -> UploadStatus:
         timeout = 60 if not self.slow_system else 120
+        if not target.startswith('http'):
+            async with self.apool.connection() as conn:
+                cursor = await conn.execute("""
+                    INSERT INTO files (guild_id, name, data)
+                    VALUES (%s, %s, %s)
+                    RETURNING id
+                """, (self.guild_id, target, psycopg.Binary(Path(source).read_bytes())))
+                source = (await cursor.fetchone())[0]
+
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
             "method": "write_file",
             "params": {
-                "filename": filename,
-                "url": url,
+                "target": target,
+                "source": source,
                 "overwrite": overwrite
             }
         }, timeout=timeout, node=self.name)
