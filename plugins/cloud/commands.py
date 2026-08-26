@@ -47,7 +47,7 @@ class Cloud(Plugin[CloudListener]):
         Honors the node's HTTP proxy settings if configured."""
         host = self.config['host']
         port = self.config['port']
-        proxy = getattr(self.node, 'proxy', None)
+        proxy = getattr(self.node, 'proxy', None) if self.config.get('use_proxy', True) else None
         proxy_auth = getattr(self.node, 'proxy_auth', None)
 
         try:
@@ -450,7 +450,7 @@ class Cloud(Plugin[CloudListener]):
                     self.guild_bans.append(user)
             # read the list of potential troublemakers
             self.troublemakers = {x['ucid']: x for x in await self.get('troublemakers')}
-        except aiohttp.ClientError:
+        except aiohttp.ClientError as ex:
             self.log.warning("Cloud service unavailable.")
         except discord.Forbidden:
             self.log.error('DCSServerBot needs the "Ban Members" permission.')
