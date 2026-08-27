@@ -238,7 +238,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             cursor = await conn.execute("""
                 SELECT p.name, t.player_ucid FROM tm_players t JOIN players p ON t.player_ucid = p.ucid 
                 WHERE t.tournament_id = %s AND t.ip_hash = %s AND t.player_ucid != %s
-            """, (tournament['id'], utils.hash_ip_addr(player.ipaddr), player.ucid))
+            """, (tournament['tournament_id'], utils.hash_ip_addr(player.ipaddr), player.ucid))
             row = await cursor.fetchone()
             if row:
                 await self.audit(
@@ -250,7 +250,7 @@ class TournamentEventListener(EventListener["Tournament"]):
                 VALUES (%s, %s, %s)
                 ON CONFLICT (tournament_id, player_ucid) DO UPDATE
                     SET ip_hash = EXCLUDED.ip_hash
-            """, (tournament['id'], player.ucid, utils.hash_ip_addr(player.ipaddr)))
+            """, (tournament['tournament_id'], player.ucid, utils.hash_ip_addr(player.ipaddr)))
 
     async def disqualify(self, server: Server, player: Player, reason: str) -> None:
         await server.kick(player, reason)

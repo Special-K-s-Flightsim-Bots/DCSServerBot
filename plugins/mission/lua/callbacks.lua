@@ -465,7 +465,7 @@ local eventHandlers = {
         -- Workaround DCS bug
         local unit_type, slot, sub_slot, side
         if arg2 == nil or arg2 == "" then
-            side = 0
+            side = nil
             unit_type = "?"
             slot = -1
             sub_slot = -1
