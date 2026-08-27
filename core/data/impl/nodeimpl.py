@@ -1437,28 +1437,31 @@ class NodeImpl(Node):
         if os.path.exists(target) and not overwrite:
             return UploadStatus.FILE_EXISTS
 
-        if source.startswith('http'):
-            async with aiohttp.ClientSession() as session:
-                async with session.get(source, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
-                    if response.status == 200:
-                        try:
-                            # make sure the directory exists
-                            os.makedirs(os.path.dirname(target), exist_ok=True)
-                            async with aiofiles.open(target, mode='wb') as outfile:
-                                await outfile.write(await response.read())
-                                return UploadStatus.OK
-                        except Exception as ex:
-                            self.log.error(ex)
-                            return UploadStatus.WRITE_ERROR
-                    else:
-                        return UploadStatus.READ_ERROR
-        elif self.node.master:
-            try:
-                shutil.copy2(source, target)
-                return UploadStatus.OK
-            except Exception as ex:
-                self.log.error(ex)
-                return UploadStatus.WRITE_ERROR
+        if isinstance(source, str):
+            if source.startswith('http'):
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(source, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
+                        if response.status == 200:
+                            try:
+                                # make sure the directory exists
+                                os.makedirs(os.path.dirname(target), exist_ok=True)
+                                async with aiofiles.open(target, mode='wb') as outfile:
+                                    await outfile.write(await response.read())
+                                    return UploadStatus.OK
+                            except Exception as ex:
+                                self.log.error(ex)
+                                return UploadStatus.WRITE_ERROR
+                        else:
+                            return UploadStatus.READ_ERROR
+            elif self.node.master:
+                try:
+                    shutil.copy2(source, target)
+                    return UploadStatus.OK
+                except Exception as ex:
+                    self.log.error(ex)
+                    return UploadStatus.WRITE_ERROR
+            else:
+                self.log.warning("Trying to write a file from an Agent to the Master node. This is not supported.")
         else:
             async with self.apool.connection() as conn:
                 cursor = await conn.execute("SELECT data FROM files WHERE id = %s", (source,), binary=True)
