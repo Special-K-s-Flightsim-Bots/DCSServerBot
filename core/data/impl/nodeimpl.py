@@ -1462,6 +1462,7 @@ class NodeImpl(Node):
                     return UploadStatus.WRITE_ERROR
             else:
                 self.log.warning("Trying to write a file from an Agent to the Master node. This is not supported.")
+                return UploadStatus.WRITE_ERROR
         else:
             async with self.apool.connection() as conn:
                 cursor = await conn.execute("SELECT data FROM files WHERE id = %s", (source,), binary=True)
