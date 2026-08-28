@@ -268,6 +268,15 @@ function mission.onPlayerConnect(id)
 	utils.sendBotTable(msg)
 end
 
+function mission.onPlayerDisconnect(id, err_code)
+    local msg = {
+        command = "onPlayerDisconnect",
+        id = id,
+        err_code = err_code
+    }
+	utils.sendBotTable(msg)
+end
+
 function mission.onPlayerStart(id)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerStart()')
 	if id == SERVER_USER_ID and dcsbot.registered == false then
@@ -465,7 +474,7 @@ local eventHandlers = {
         -- Workaround DCS bug
         local unit_type, slot, sub_slot, side
         if arg2 == nil or arg2 == "" then
-            side = nil
+            side = net.get_player_info(arg1, 'side')
             unit_type = "?"
             slot = -1
             sub_slot = -1

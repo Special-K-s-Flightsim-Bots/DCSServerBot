@@ -967,6 +967,13 @@ class MissionEventListener(EventListener["Mission"]):
             if player.active:
                 await self._stop_player(server, player)
 
+    @event(name="onPlayerDisconnect")
+    async def onPlayerDisconnect(self, server: Server, data: dict) -> None:
+        player = server.get_player(id=data['id'], active=True)
+        if not player:
+            return
+        await self._disconnect(server, player)
+
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
         player = server.get_player(id=data['id'], active=True)
@@ -974,9 +981,9 @@ class MissionEventListener(EventListener["Mission"]):
             return
 
         # Workaround for missing disconnect events
-        if 'side' not in data:
-            await self._disconnect(server, player)
-            return
+        #if 'side' not in data:
+        #    await self._disconnect(server, player)
+        #    return
 
         try:
             # (re-)initialize the AFK timer unless a CA slot is selected
@@ -990,6 +997,9 @@ class MissionEventListener(EventListener["Mission"]):
             elif data['slot'] > 0:
                 # we can only track BIRTH events if mission stats are enabled
                 if self.get_mission_stats(server):
+                    # set pending flag, as we have changed the slot
+                    player.pending = True
+                    # and initialize AFK timer
                     afk_config = server.locals.get('afk', {})
                     if afk_config and afk_config.get('check_on_join', True):
                         server.afk[player.ucid] = datetime.now(timezone.utc)
