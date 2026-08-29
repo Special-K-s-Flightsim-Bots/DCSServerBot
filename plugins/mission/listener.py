@@ -1239,6 +1239,14 @@ class MissionEventListener(EventListener["Mission"]):
                 server.afk[player.ucid] = datetime.now(timezone.utc)
                 self.log.debug(f"AFK: {player.name} landed, timer set.")
 
+        elif data['eventName'] == 'S_EVENT_PLAYER_ENTER_UNIT':
+            player = server.get_player(name=data.get('initiator', {}).get('name'), active=True)
+            if not player:
+                return
+
+            # remove pending
+            player.pending = False
+
         elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
             initiator = data.get('initiator', {})
             if initiator:
