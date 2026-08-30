@@ -42,66 +42,6 @@ class Cloud(Plugin[CloudListener]):
         self.guild_bans = []
         self.troublemakers = ThreadSafeDict()
 
-    async def _is_cloud_available(self, timeout: float = 10.0) -> bool:
-        """Check if the cloud service is reachable via a quick TCP connect.
-        Honors the node's HTTP proxy settings if configured."""
-        host = self.config['host']
-        port = self.config['port']
-        proxy = getattr(self.node, 'proxy', None) if self.config.get('use_proxy', True) else None
-        proxy_auth = getattr(self.node, 'proxy_auth', None)
-
-        try:
-            if proxy:
-                from urllib.parse import urlparse
-                parsed = urlparse(proxy)
-                proxy_host = parsed.hostname
-                proxy_port = parsed.port or 8080
-
-                reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(proxy_host, proxy_port),
-                    timeout=timeout
-                )
-
-                connect_req = f"CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n"
-                if proxy_auth and proxy_auth.login:
-                    import base64
-                    creds = base64.b64encode(
-                        f"{proxy_auth.login}:{proxy_auth.password or ''}".encode()
-                    ).decode()
-                    connect_req += f"Proxy-Authorization: Basic {creds}\r\n"
-                connect_req += "\r\n"
-
-                writer.write(connect_req.encode())
-                await writer.drain()
-
-                response = await asyncio.wait_for(reader.readline(), timeout=timeout)
-                if not response.startswith(b"200"):
-                    writer.close()
-                    await writer.wait_closed()
-                    return False
-
-                while True:
-                    line = await asyncio.wait_for(reader.readline(), timeout=timeout)
-                    if line == b"\r\n" or line == b"":
-                        break
-
-                writer.close()
-                await writer.wait_closed()
-                return True
-
-            else:
-                _, writer = await asyncio.wait_for(
-                    asyncio.open_connection(host, port),
-                    timeout=timeout
-                )
-                writer.close()
-                await writer.wait_closed()
-                return True
-
-        except (OSError, asyncio.TimeoutError):
-            return False
-
-
     @property
     def session(self):
         if not self._session or self._session.closed:
@@ -135,11 +75,10 @@ class Cloud(Plugin[CloudListener]):
         self.cloud_bans.add_exception_type(DiscordServerError)
         utils.safe_start(self.cloud_bans)
         if self.config.get('register', True):
-            if await self._is_cloud_available():
-                self.cloud_sync.add_exception_type(IndexError)
-                self.cloud_sync.add_exception_type(aiohttp.ClientError)
-                self.cloud_sync.add_exception_type(psycopg.DatabaseError)
-                utils.safe_start(self.cloud_sync)
+            self.cloud_sync.add_exception_type(IndexError)
+            self.cloud_sync.add_exception_type(aiohttp.ClientError)
+            self.cloud_sync.add_exception_type(psycopg.DatabaseError)
+            utils.safe_start(self.cloud_sync)
             self.register.add_exception_type(psycopg.DatabaseError)
             utils.safe_start(self.register)
         if self.config.get('upload_errors', True):
@@ -377,10 +316,6 @@ class Cloud(Plugin[CloudListener]):
     @tasks.loop(minutes=15.0)
     async def cloud_bans(self):
         try:
-            if not await self._is_cloud_available():
-                self.log.warning("Cloud service unreachable.")
-                return
-
             banlist = self.config.get('banlist', 'both').lower()
             if banlist == 'both':
                 banlist = None
@@ -453,7 +388,7 @@ class Cloud(Plugin[CloudListener]):
             # read the list of potential troublemakers
             self.troublemakers = {x['ucid']: x for x in await self.get('troublemakers')}
         except aiohttp.ClientError as ex:
-            self.log.warning("Cloud service unavailable.")
+            self.log.warning(f"Cloud service unavailable: {ex}")
         except discord.Forbidden:
             self.log.error('DCSServerBot needs the "Ban Members" permission.')
         except Exception as ex:
@@ -565,10 +500,6 @@ class Cloud(Plugin[CloudListener]):
 
     @tasks.loop(hours=1)
     async def register(self):
-        if not await self._is_cloud_available():
-            self.log.warning("Cloud service unreachable.")
-            return
-
         async with self.apool.connection() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
@@ -633,8 +564,8 @@ class Cloud(Plugin[CloudListener]):
             }
             self.log.debug("Updating registration with this data: " + str(bot))
             await self.post('register', bot)
-        except aiohttp.ClientError:
-            self.log.debug('Cloud: Bot could not register due to service unavailability. Ignored.')
+        except aiohttp.ClientError as ex:
+            self.log.warning(f"Cloud service unavailable: {ex}")
         except Exception:
             self.log.debug("Error while registering: ", exc_info=True)
 
