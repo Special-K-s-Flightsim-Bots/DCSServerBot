@@ -42,7 +42,7 @@ class Cloud(Plugin[CloudListener]):
         self.guild_bans = []
         self.troublemakers = ThreadSafeDict()
 
-    async def _is_cloud_available(self, timeout: float = 5.0) -> bool:
+    async def _is_cloud_available(self, timeout: float = 10.0) -> bool:
         """Check if the cloud service is reachable via a quick TCP connect.
         Honors the node's HTTP proxy settings if configured."""
         host = self.config['host']
@@ -198,10 +198,12 @@ class Cloud(Plugin[CloudListener]):
     async def _request_with_retry(self, method: str, url: str, *, retries: int = 1, **kwargs) -> Any:
         last_error: Exception | None = None
 
+        proxy = getattr(self.node, 'proxy', None) if self.config.get('use_proxy', True) else None
+        proxy_auth = getattr(self.node, 'proxy_auth', None) if self.config.get('use_proxy', True) else None
         for attempt in range(retries + 1):
             try:
                 session_method = getattr(self.session, method)
-                async with session_method(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth, **kwargs) as response:
+                async with session_method(url, proxy=proxy, proxy_auth=proxy_auth, **kwargs) as response:
                     return await response.json()
             except (aiohttp.ClientError, asyncio.TimeoutError) as ex:
                 if isinstance(ex, aiohttp.ClientResponseError) and ex.status == 403:
@@ -376,7 +378,7 @@ class Cloud(Plugin[CloudListener]):
     async def cloud_bans(self):
         try:
             if not await self._is_cloud_available():
-                self.log.warning("Cloud service unavailable.")
+                self.log.warning("Cloud service unreachable.")
                 return
 
             banlist = self.config.get('banlist', 'both').lower()
@@ -564,7 +566,7 @@ class Cloud(Plugin[CloudListener]):
     @tasks.loop(hours=1)
     async def register(self):
         if not await self._is_cloud_available():
-            self.log.warning("Cloud service unavailable.")
+            self.log.warning("Cloud service unreachable.")
             return
 
         async with self.apool.connection() as conn:
