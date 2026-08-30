@@ -278,10 +278,9 @@ class TournamentEventListener(EventListener["Tournament"]):
         if data['eventName'] == 'S_EVENT_BIRTH':
             tournament = self.tournaments[server.name]
             initiator = data['initiator']
-            player = server.get_player(name=initiator['name'])
-
-            # ignore multicrew members
-            if player.sub_slot != 0:
+            player = server.get_player(name=initiator.get('name'))
+            # ignore AI and multicrew members
+            if not player or player.sub_slot != 0:
                 return
 
             # check if we have the necessary number of players
@@ -322,17 +321,17 @@ class TournamentEventListener(EventListener["Tournament"]):
                 await server.kick(player, "All seats are taken, you are not allowed to join anymore!")
 
         elif data['eventName'] == 'S_EVENT_SHOT':
-            initiator = server.get_player(name=data['initiator']['name'])
+            initiator = server.get_player(name=data['initiator'].get('name'))
             target = server.get_player(name=data.get('target', {}).get('name'))
-            if target:
+            if initiator and target:
                 asyncio.create_task(self.inform_streamer(server, _("{} player {} shot an {} at {} player {}").format(
                     initiator.coalition.value.title(), initiator.display_name, data['weapon']['name'],
                     target.coalition.value, target.display_name), coalition=initiator.coalition))
 
         elif data['eventName'] == 'S_EVENT_HIT':
-            initiator = server.get_player(name=data['initiator']['name'])
+            initiator = server.get_player(name=data['initiator'].get('name'))
             target = server.get_player(name=data['target'].get('name'))
-            if target:
+            if initiator and target:
                 asyncio.create_task(self.inform_streamer(server, _("{} player {} hit {} player {}").format(
                     initiator.coalition.value.title(), initiator.display_name, target.coalition.value,
                     target.display_name), coalition=initiator.coalition))
@@ -340,7 +339,7 @@ class TournamentEventListener(EventListener["Tournament"]):
         elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
             if not data['initiator']:
                 return
-            player = server.get_player(name=data['initiator']['name'])
+            player = server.get_player(name=data['initiator'].get('name'))
             if player:
                 coalition = player.coalition.value.title() if player.coalition else Coalition.NEUTRAL.value.title()
                 asyncio.create_task(self.inform_streamer(server, _("{} player {} is out!").format(
@@ -349,8 +348,8 @@ class TournamentEventListener(EventListener["Tournament"]):
         elif data['eventName'] in ['S_EVENT_UNIT_LOST']:
             config = self.get_config(server)
             pattern = config.get('remove_on_death')
-            initiator = server.get_player(name=data['initiator']['name'])
-            if pattern and re.search(pattern, initiator.unit_name):
+            initiator = server.get_player(name=data['initiator'].get('name'))
+            if initiator and pattern and re.search(pattern, initiator.unit_name):
                 self.log.debug(f"The unit {initiator.unit_name} will be removed from the match.")
                 match_id = await self.get_active_match(server)
                 match = await self.plugin.get_match(match_id)
