@@ -433,7 +433,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             asyncio.create_task(self.plugin.render_status_embed(tournament['tournament_id'],
                                                                 phase=TOURNAMENT_PHASE.MATCH_FINISHED))
             message = _("Squadron {squadron} is the winner of the match!").format(squadron=squadron['name'])
-            message += _("\nServer will be shut down in 60 seonds ...")
+            message += _("\nServer will be shut down in 60 seconds ...")
             asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message, 60))
             await asyncio.sleep(60)
             asyncio.create_task(self.cleanup(server))
@@ -478,6 +478,9 @@ class TournamentEventListener(EventListener["Tournament"]):
     async def onMatchFinished(self, server: Server, data: dict) -> None:
         winner = data['winner']
         match_id = await self.get_active_match(server)
+        if not match_id:
+            return
+
         if self.tasks.get(server.name):
             task = self.tasks.pop(server.name)
             task.cancel()

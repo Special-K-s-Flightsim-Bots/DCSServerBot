@@ -551,7 +551,7 @@ class DCSServerBot(commands.Bot):
                 return member
         return utils.match(data['name'], [x for x in self.get_all_members() if not x.bot])
 
-    def get_servers(self, manager: discord.Member | None = None) -> dict[str, "Server"] | None:
+    def get_servers(self, manager: discord.Member | None = None) -> dict[str, "Server"]:
         def check_server_roles(server: "Server") -> bool:
             if server.locals.get('managed_by') and not utils.check_roles(server.locals.get('managed_by'), manager):
                 return False
@@ -559,10 +559,12 @@ class DCSServerBot(commands.Bot):
 
         return {k: v for k,v in self.servers.items() if check_server_roles(v)}
 
-    def get_server(self, ctx: commands.Context | discord.Interaction | discord.Message | str, *,
+    def get_server(self, ctx: discord.Interaction | discord.Message | str, *,
                    admin_only: bool | None = False) -> "Server | None":
 
-        all_servers = self.get_servers(manager=ctx.user if isinstance(ctx, discord.Interaction) else ctx.author)
+        all_servers = self.get_servers(
+            manager=ctx.user if isinstance(ctx, discord.Interaction) else ctx.author if isinstance(ctx, discord.Message) else None
+        )
         if len(all_servers) == 1:
             server = next(iter(all_servers.values()))
             if admin_only:
@@ -575,9 +577,12 @@ class DCSServerBot(commands.Bot):
                     return None
             else:
                 return server
+
         for server_name, server in all_servers.items():
-            if isinstance(ctx, commands.Context) or isinstance(ctx, discord.Interaction) \
-                    or isinstance(ctx, discord.Message):
+            if isinstance(ctx, str):
+                if server_name == ctx:
+                    return server
+            else:
                 if server.status == Status.UNREGISTERED:
                     continue
                 for channel in [Channel.ADMIN, Channel.STATUS, Channel.EVENTS, Channel.CHAT,
@@ -586,9 +591,6 @@ class DCSServerBot(commands.Bot):
                     if int(server.locals.get('channels', {}).get(channel.value, -1)) != -1 and \
                             server.channels[channel] == ctx.channel.id:
                         return server
-            else:
-                if server_name == ctx:
-                    return server
         return None
 
     async def fetch_embed(self, embed_name: str, channel: GuildChannel, server: "Server | None" = None):
