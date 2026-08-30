@@ -521,7 +521,7 @@ class TournamentEventListener(EventListener["Tournament"]):
         asyncio.create_task(self.render_aar(server, data))
 
         # check if the match is finished
-        await self.check_match_finished(server, match_id)
+        asyncio.create_task(self.check_match_finished(server, match_id))
 
     async def wait_until_choices_finished(self, server: Server):
         config = self.get_config(server)
