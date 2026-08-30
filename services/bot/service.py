@@ -85,18 +85,24 @@ class BotService(Service):
 
     @property
     def proxy(self) -> str | None:
-        return self.locals.get('proxy', {}).get('url')
+        if self.locals.get('proxy'):
+            return self.locals.get('proxy', {}).get('url')
+        else:
+            return self.node.proxy
 
     @property
     def proxy_auth(self) -> BasicAuth | None:
-        username = self.locals.get('proxy', {}).get('username')
-        try:
-            password = utils.get_password('proxy', self.node.config_dir)
-        except ValueError:
+        if self.locals.get('proxy'):
+            username = self.locals.get('proxy', {}).get('username')
+            try:
+                password = utils.get_password('proxy', self.node.config_dir)
+            except ValueError:
+                return None
+            if username and password:
+                return BasicAuth(username, password)
             return None
-        if username and password:
-            return BasicAuth(username, password)
-        return None
+        else:
+            return self.node.proxy_auth
 
     def init_bot(self):
         if self.locals.get('no_discord', False):
@@ -127,7 +133,8 @@ class BotService(Service):
                                 locals=self.locals,
                                 help_command=None,
                                 activity=discord.Game(
-                                    name=self.locals['discord_status']) if 'discord_status' in self.locals else None,
+                                    name=self.locals['discord_status']
+                                ) if 'discord_status' in self.locals else None,
                                 heartbeat_timeout=120,
                                 assume_unsync_clock=True,
                                 proxy=self.proxy,
