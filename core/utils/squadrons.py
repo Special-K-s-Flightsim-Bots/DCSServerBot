@@ -35,11 +35,11 @@ async def squadron_autocomplete_admin(interaction: discord.Interaction, current:
         if not check_roles(interaction.client.roles["DCS Admin"], interaction.user):
             ucid = await interaction.client.get_ucid_by_member(interaction.user)
             query = sql.SQL("""
-                SELECT DISTINCT s.id, s.name
-                FROM squadrons s JOIN squadron_members m ON s.id = m.squadron_id
-                WHERE m.player_ucid = '{ucid}' AND m.admin IS TRUE
-                AND s.name ILIKE %s
-                ORDER BY s.name 
+                SELECT DISTINCT id, name
+                FROM squadrons 
+                WHERE {ucid} IN (co_ucid, xo_ucid)
+                AND name ILIKE %s
+                ORDER BY name 
                 LIMIT 25
             """).format(ucid=ucid)
         else:
