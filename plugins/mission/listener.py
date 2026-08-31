@@ -483,7 +483,7 @@ class MissionEventListener(EventListener["Mission"]):
         for p in data['players']:
             if p['id'] == 1:
                 continue
-            player = server.get_player(ucid=p['ucid'])
+            player = cast(Player, server.get_player(ucid=p['ucid']))
             player.connected = True
 
             # give the player the autorole

@@ -257,7 +257,10 @@ class PunishmentEventListener(EventListener["Punishment"]):
             return
 
         # no penalty configured for this event
-        penalty = next((item for item in config['penalties'] if item['event'] == data['eventName']), None)
+        penalty = next(
+            (item for item in config.get('penalties', []) if item.get('event') == data.get('eventName')),
+            None
+        )
         if not penalty:
             return
 
