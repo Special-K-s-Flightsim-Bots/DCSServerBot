@@ -482,7 +482,7 @@ class Tournament(Plugin[TournamentEventListener]):
             message = _("## :warning: Attention all Squadron Leaders! :warning:\n"
                         "A new tournament has been created:\n"
                         "\n"
-                        "```{}```").format(tournament['description'])
+                        "```{}```").format(tournament.get('description', 'No description added.'))
             message += _("\nYou can use {} to sign up.").format(
                 (await utils.get_command(self.bot, group=self.tournament.name, name=self.signup.name)).mention)
             embed.add_field(name=utils.print_ruler(ruler_length=27), value="_ _", inline=False)
