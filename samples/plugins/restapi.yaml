@@ -1,9 +1,51 @@
+# config/plugins/restapi.yaml
 DEFAULT:
-  prefix: stats # Optional: add a prefix for the WebService / REST API
-  api_key: 23n<2z23irgqwdgnqw7r2djhck # some sample API key (you can use any that you like to secure your API)
-  endpoints:
-    servers:
-      include_weather: true  # Include weather information in /servers endpoint (default: true)
-    server_attendance:
-      # Configuration options for the /server_attendance endpoint if needed in the future
-      enabled: true
+  prefix: /stats            # Optional: use this prefix
+  auth:
+    api_key: "CHANGE_ME"
+    jwt:
+      key: "some-shared-token-key"
+      jwks:
+        keys:
+          - kid: "..."
+            kty: "RSA"
+            use: "sig"
+            alg: "RS256"
+            n: "..."
+            e: "AQAB"
+
+  security:
+    # Defines which source networks are treated as "trusted".
+    # Trusted requests can use separate endpoint auth rules from remote requests.
+    # Loopback is always "local" and does not need to be listed here.
+    trusted:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+      - fc00::/7
+    
+    # optional fallback if an endpoint has no explicit rule
+    default:
+      local: none           # We do not need any auth when we connect through the loopback interface
+      trusted: api_key      # We need an API key if we connect through trusted networks
+      remote: jwt           # We need a JWT if we connect through the internet
+      # remote: disabled    # You can also disable connections from specific networks at all like so.
+
+  endpoints:                # endpoint configuration
+    servers:                # /servers
+      security:
+        local: none
+        trusted: none
+        remote: api_key
+
+      filter:               # config parameter (in this case, the server filter list)
+        - 'MyPrivateServer' # Do not show a server named "MyPrivateServer"
+        - '(.*)Private(.*)' # Do not show any server that has "Private" in its name 
+      include_weather: true # Include weather information in /servers endpoint (default: true)
+    
+    server_attendance:      # /server_attendance 
+      enabled: true         # Enable the server attendance statistics endpoint (default: true)
+      security:
+        local: none
+        trusted: api_key
+        remote: jwt
