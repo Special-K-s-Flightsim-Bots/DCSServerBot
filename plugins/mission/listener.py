@@ -999,6 +999,7 @@ class MissionEventListener(EventListener["Mission"]):
                 if self.get_mission_stats(server):
                     # set pending flag, as we have changed the slot
                     player.pending = True
+                    self.display_player_embed(server)
                     # and initialize AFK timer
                     afk_config = server.locals.get('afk', {})
                     if afk_config and afk_config.get('check_on_join', True):
@@ -1191,6 +1192,7 @@ class MissionEventListener(EventListener["Mission"]):
 
             # remove pending
             player.pending = False
+            self.display_player_embed(server)
 
             # Send ATIS information (if configured)
             place: str | None = data.get('place', {}).get('name')
@@ -1246,6 +1248,7 @@ class MissionEventListener(EventListener["Mission"]):
 
             # remove pending
             player.pending = False
+            self.display_player_embed(server)
 
         elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
             initiator = data.get('initiator', {})
