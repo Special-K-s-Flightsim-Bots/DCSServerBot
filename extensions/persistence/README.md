@@ -27,5 +27,5 @@ It will then automatically amend your mission on startup to restore the time and
 > Date and time will be saved for every mission individually.
 
 To reset the stored persistence data, either delete the respective ".pkl" file from your Missions/Saves folder
-or use `/mission rollback` in your Admin channel. You can also just disable the extension 
-with `/extension disable <Persistence>`.
+or use `/mission rollback` in your Admin channel. 
+You can also disable the extension with `/extension disable <Persistence>`.

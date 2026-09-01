@@ -107,7 +107,7 @@ async def get_visibility(server: Server) -> int:
         ret = await server.send_to_dcs_sync({
             "command": "getFog"
         })
-        if ret['visibility']:
+        if ret.get('visibility') is not None:
             return int(ret['visibility'])
     except (TimeoutError, asyncio.TimeoutError):
         pass

@@ -1001,7 +1001,7 @@ class ServerImpl(Server):
             filename: str,
             url: str,
             *,
-            missions_dir: str = None,
+            missions_dir: str | None = None,
             force: bool = False
     ) -> UploadStatus:
         if not missions_dir:

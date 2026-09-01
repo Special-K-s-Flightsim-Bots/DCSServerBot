@@ -1,5 +1,7 @@
 import aiofiles
 import asyncio
+import ipaddress
+import jwt
 import os
 import psycopg
 import random
@@ -10,8 +12,10 @@ from core import (Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, S
 from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
 from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, File, UploadFile, Response
-from fastapi.security import APIKeyHeader
-from typing import Any, Literal, cast, TYPE_CHECKING
+from fastapi.security import APIKeyHeader, HTTPBearer, HTTPAuthorizationCredentials
+from pathlib import Path
+from starlette.requests import Request
+from typing import Any, Literal, cast, TYPE_CHECKING, Callable
 
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
@@ -20,6 +24,10 @@ from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.servicebus import ServiceBus
 from services.webservice import WebService
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 if TYPE_CHECKING:
     from plugins.srs.commands import SRS
@@ -72,7 +80,6 @@ from .models import (
 
 app: FastAPI | None = None
 
-
 # Bit field constants
 BIT_USER_LINKED = 1
 BIT_LINK_IN_PROGRESS = 2
@@ -104,6 +111,18 @@ class RestAPI(Plugin):
                     self.app.routes.remove(route)
         await super().cog_unload()
 
+    async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
+        if new_version == '1.5':
+            config = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
+            data = yaml.load(Path(config).read_text(encoding='utf-8'))
+            api_key = data.get(DEFAULT_TAG, {}).pop('api_key', None)
+            if api_key:
+                data[DEFAULT_TAG]['auth'] = {
+                    "api_key": api_key
+                }
+                with Path(config).open(mode='w', encoding='utf-8') as outfile:
+                    yaml.dump(data, outfile)
+
     async def init_webservice(self):
         # give the webservice 10 seconds to launch on master switches
         for i in range(0, 10):
@@ -128,33 +147,200 @@ class RestAPI(Plugin):
         prefix = self.locals.get(DEFAULT_TAG, {}).get('prefix', '')
         if prefix and not prefix.startswith('/'):
             prefix = '/' + prefix
-        api_key = self.locals.get(DEFAULT_TAG, {}).get('api_key')
 
-        if api_key:
-            api_key_header = APIKeyHeader(name="X-API-Key")
+        default_config = self.locals.get(DEFAULT_TAG, {})
+        auth_config = default_config.get('auth', {})
+        api_key = auth_config.get("api_key")
+        jwt_info = auth_config.get("jwt")
+        security_config = default_config.get('security', {})
+        default_security = security_config.get('default', {
+            "local": "none",
+            "trusted": "api_key",
+            "remote": "jwt"
+        })
+        trusted_networks = [
+            ipaddress.ip_network(network)
+            for network in security_config.get('trusted', [
+                "10.0.0.0/8",
+                "172.16.0.0/12",
+                "192.168.0.0/16",
+                "fc00::/7"
+            ])
+        ]
 
-            def get_api_key(api_key_in_header: str = Depends(api_key_header)):
-                if api_key_in_header != str(api_key):
-                    raise HTTPException(status_code=403, detail="Invalid API Key")
+        api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+        bearer_scheme = HTTPBearer(auto_error=False)
 
-            dependencies = [Depends(get_api_key)]
-        else:
-            dependencies = None
+        auth_rank = {
+            "none": 0,
+            "api_key": 1,
+            "jwt": 2,
+            "disabled": 3
+        }
 
-        self.router = APIRouter(prefix=prefix, dependencies=dependencies)
+        def get_request_ip(request: Request) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+            if not request.client:
+                return None
+
+            try:
+                return ipaddress.ip_address(request.client.host)
+            except ValueError:
+                return None
+
+        def get_request_scope(request: Request) -> str:
+            client_ip = get_request_ip(request)
+            if not client_ip:
+                return "remote"
+
+            if client_ip.is_loopback:
+                return "local"
+
+            if any(client_ip in network for network in trusted_networks):
+                return "trusted"
+
+            return "remote"
+
+        async def verify_token(token: str, jwt_info: dict) -> dict[str, Any] | None:
+            try:
+                header = jwt.get_unverified_header(token)
+                kid = header.get("kid")
+
+                if not kid:
+                    return None
+
+                jwk_set = jwt.PyJWKSet.from_dict(jwt_info['jwks'])
+
+                signing_key = None
+                for key in jwk_set.keys:
+                    if key.key_id == kid:
+                        signing_key = key
+                        break
+
+                if not signing_key:
+                    return None
+
+                data = jwt.decode(
+                    token,
+                    signing_key.key,
+                    algorithms=[signing_key.algorithm_name],
+                    audience='dcssb',
+                    leeway=10
+                )
+
+                if data.get('key') != jwt_info.get('key'):
+                    return None
+
+                return data
+
+            except Exception:
+                return None
+
+        async def get_authenticated_scheme(
+                request: Request,
+                credentials: HTTPAuthorizationCredentials | None,
+                provided_api_key: str | None,
+        ) -> str | None:
+            if jwt_info and credentials and credentials.scheme == "Bearer":
+                payload = await verify_token(credentials.credentials, jwt_info)
+
+                if payload:
+                    request.state.auth_scheme = "jwt"
+                    request.state.jwt_token = credentials.credentials
+                    request.state.jwt_payload = payload
+                    return "jwt"
+
+            if api_key and provided_api_key == str(api_key):
+                request.state.auth_scheme = "api_key"
+                return "api_key"
+
+            return None
+
+        def get_required_auth_level(endpoint: str, scope: str) -> str:
+            endpoint_security = self.get_endpoint_config(endpoint).get('security', {})
+            required_level = endpoint_security.get(scope, default_security.get(scope, "jwt"))
+
+            if required_level not in auth_rank:
+                self.log.warning(
+                    f"Invalid REST API auth level '{required_level}' for endpoint '{endpoint}' and scope '{scope}'. "
+                    f"Falling back to 'jwt'."
+                )
+                return "jwt"
+
+            return required_level
+
+        def auth_dependency(endpoint: str):
+            async def auth(
+                    request: Request,
+                    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+                    provided_api_key: str | None = Depends(api_key_header),
+            ):
+                scope = get_request_scope(request)
+                required_level = get_required_auth_level(endpoint, scope)
+
+                if required_level == 'disabled':
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Not found."
+                    )
+
+                request.state.auth_scope = scope
+                request.state.required_auth_level = required_level
+
+                if required_level == "none":
+                    request.state.auth_scheme = "none"
+                    return
+
+                provided_scheme = await get_authenticated_scheme(request, credentials, provided_api_key)
+
+                if provided_scheme and auth_rank[provided_scheme] >= auth_rank[required_level]:
+                    return
+
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Invalid authentication"
+                )
+
+            return auth
+
+        self.router = APIRouter(prefix=prefix)
         if not self.router:
             return
 
+        def add_secured_api_route(
+                path: str,
+                endpoint: Callable[..., Any],
+                *,
+                methods: list[str],
+                response_model: Any = None,
+                description: str = "",
+                summary: str = "",
+                tags: list[str] | None = None
+        ):
+            endpoint_config_key = path.lstrip("/")
+            # only register enabled endpoints
+            if self.get_config().get('endpoints', {}).get(endpoint_config_key, {}).get('enabled', True):
+                self.router.add_api_route(
+                    path,
+                    endpoint,
+                    methods=methods,
+                    response_model=response_model,
+                    description=description,
+                    summary=summary,
+                    tags=tags,
+                    dependencies=[Depends(auth_dependency(endpoint_config_key))]
+                )
+
         ## Airbase Routes
-        self.router.add_api_route(
+        add_secured_api_route(
             "/airbases", self.airbases,
             methods=["GET"],
-            response_model = AirbasesResponse,
+            response_model=AirbasesResponse,
             description="Get a listing of all airbases on a given server.",
             summary="Airbases Listing",
             tags=["Airbase"]
         )
-        self.router.add_api_route(
+
+        add_secured_api_route(
             "/airbase", self.airbase_info,
             methods=["GET"],
             response_model = AirbaseInfoResponse,
@@ -162,7 +348,7 @@ class RestAPI(Plugin):
             summary="Airbase Information",
             tags=["Airbase"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/airbase/atis", self.airbase_atis,
             methods=["GET"],
             response_model=AirbaseAtisResponse,
@@ -170,7 +356,7 @@ class RestAPI(Plugin):
             summary="Airbase ATIS",
             tags=["Airbase"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/airbase/warehouse", self.airbase_warehouse,
             methods=["GET"],
             response_model = AirbaseWarehouseResponse,
@@ -178,7 +364,7 @@ class RestAPI(Plugin):
             summary="Airbase Warehouse",
             tags=["Airbase"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/airbase/warehouse/item", self.set_warehouse_item,
             methods=["POST"],
             response_model=AirbaseSetWarehouseItemResponse,
@@ -186,7 +372,7 @@ class RestAPI(Plugin):
             summary="Set Quantity of an Airbase Warehouse Item",
             tags=["Airbase"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/airbase/capture", self.capture_airbase,
             methods=["POST"],
             response_model = AirbaseCaptureResponse,
@@ -196,7 +382,7 @@ class RestAPI(Plugin):
         )
         
         ## Info Routes
-        self.router.add_api_route(
+        add_secured_api_route(
             "/serverstats", self.serverstats,
             methods = ["GET"],
             response_model = ServerStats,
@@ -204,7 +390,7 @@ class RestAPI(Plugin):
             summary = "Server Statistics",
             tags = ["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/server_attendance", self.server_attendance,
             methods = ["GET"],
             response_model = ServerAttendanceStats,
@@ -212,7 +398,7 @@ class RestAPI(Plugin):
             summary = "Server Attendance Statistics", 
             tags = ["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/servers", self.servers,
             methods = ["GET"],
             response_model = list[ServerInfo],
@@ -220,7 +406,7 @@ class RestAPI(Plugin):
             summary = "Server list",
             tags = ["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/squadrons", self.squadrons,
             methods = ["GET"],
             response_model = list[SquadronInfo],
@@ -228,7 +414,7 @@ class RestAPI(Plugin):
             summary = "Squadron list",
             tags = ["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/squadron_members", self.squadron_members,
             methods = ["POST"],
             response_model = list[UserEntry],
@@ -236,7 +422,7 @@ class RestAPI(Plugin):
             summary = "Squadron Members",
             tags = ["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/getuser", self.getuser,
             methods = ["POST"],
             response_model = list[UserEntry],
@@ -244,7 +430,7 @@ class RestAPI(Plugin):
             summary = "User list",
             tags = ["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/linkme", self.linkme,
             methods=["POST"],
             response_model=LinkMeResponse,
@@ -252,7 +438,7 @@ class RestAPI(Plugin):
             summary="Link Discord to DCS",
             tags=["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/current_server", self.current_server,
             methods = ["GET"],
             response_model = str | None,
@@ -260,7 +446,7 @@ class RestAPI(Plugin):
             summary = "Current Server",
             tags = ["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/player_squadrons", self.player_squadrons,
             methods = ["POST"],
             response_model = list[PlayerSquadron],
@@ -269,8 +455,8 @@ class RestAPI(Plugin):
             tags = ["Info"]
         )
 
-        ##Statistics Routes
-        self.router.add_api_route(
+        ## Statistics Routes
+        add_secured_api_route(
             "/leaderboard", self.leaderboard,
             methods = ["GET"],
             response_model = LeaderBoard,
@@ -278,7 +464,7 @@ class RestAPI(Plugin):
             summary = "Leaderboard",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/topkills", self.topkills,
             methods = ["GET"],
             response_model = list[TopKill],
@@ -286,7 +472,7 @@ class RestAPI(Plugin):
             summary = "Top Kills",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/topkdr", self.topkdr,
             methods = ["GET"],
             response_model = list[TopKill],
@@ -294,7 +480,7 @@ class RestAPI(Plugin):
             summary = "Top KDR",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/trueskill", self.trueskill,
             methods = ["GET"],
             response_model = list[Trueskill],
@@ -302,7 +488,7 @@ class RestAPI(Plugin):
             summary = "TrueSkill:tm:",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/weaponpk", self.weaponpk,
             methods = ["POST"],
             response_model = list[WeaponPK],
@@ -310,7 +496,7 @@ class RestAPI(Plugin):
             summary = "Weapon PK",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/stats", self.stats,
             methods = ["POST"],
             response_model = PlayerStats,
@@ -318,7 +504,7 @@ class RestAPI(Plugin):
             summary = "Player Statistics",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/modulestats", self.modulestats,
             methods = ["POST"],
             response_model = list[ModuleStats],
@@ -326,7 +512,7 @@ class RestAPI(Plugin):
             summary = "Module Statistics",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/player_info", self.player_info,
             methods = ["POST"],
             response_model = PlayerInfo,
@@ -334,7 +520,7 @@ class RestAPI(Plugin):
             summary = "Player Information",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/highscore", self.highscore,
             methods = ["GET"],
             response_model = Highscore,
@@ -342,7 +528,7 @@ class RestAPI(Plugin):
             summary = "Highscore",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/traps", self.traps,
             methods = ["POST"],
             response_model = list[TrapEntry],
@@ -350,7 +536,7 @@ class RestAPI(Plugin):
             summary = "Carrier Traps",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/traps/img", self.traps_image,
             methods = ["GET"],
             response_model = bytes,
@@ -358,7 +544,7 @@ class RestAPI(Plugin):
             summary = "Carrier Trap Image",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/greenieboard", self.greenieboard,
             methods = ["POST"],
             response_model = GreenieboardResponse,
@@ -366,7 +552,7 @@ class RestAPI(Plugin):
             summary = "GreenieBoard",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/events", self.events,
             methods = ["GET"],
             response_model = list[EventEntry],
@@ -375,8 +561,8 @@ class RestAPI(Plugin):
             tags = ["Statistics"]
         )
 
-        # Credits routes
-        self.router.add_api_route(
+        ## Credits routes
+        add_secured_api_route(
             "/credits", self.credits,
             methods = ["POST"],
             response_model = CampaignCredits,
@@ -384,7 +570,7 @@ class RestAPI(Plugin):
             summary = "Campaign Credits",
             tags = ["Credits"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/squadron_credits", self.squadron_credits,
             methods = ["POST"],
             response_model = SquadronCampaignCredit,
@@ -393,8 +579,8 @@ class RestAPI(Plugin):
             tags = ["Credits"]
         )
 
-        # Helper routes
-        self.router.add_api_route(
+        ## Helper routes
+        add_secured_api_route(
             "/convertCoordinates", self.convertCoordinates,
             methods = ["GET"],
             response_model = ConvertCoordinates,
@@ -402,7 +588,7 @@ class RestAPI(Plugin):
             summary = "Converts the provided coordinate into multiple formats.",
             tags = ["Utilities"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/mission/group/waypoints", self.group_waypoints,
             methods=["GET"],
             response_model=GroupWaypointsResponse,
@@ -410,7 +596,7 @@ class RestAPI(Plugin):
             summary="Group Waypoints",
             tags=["Utilities"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/mission/bullseyes", self.mission_bullseyes,
             methods=["GET"],
             response_model=MissionBullseyesResponse,
@@ -418,7 +604,7 @@ class RestAPI(Plugin):
             summary="Mission Bullseyes",
             tags=["Utilities"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/mission/drawings", self.mission_drawings,
             methods=["GET"],
             response_model=MissionDrawingsResponse,
@@ -426,7 +612,7 @@ class RestAPI(Plugin):
             summary="Mission Drawings",
             tags=["Utilities"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/mission/unit", self.mission_unit,
             methods=["GET"],
             response_model=MissionUnitResponse,
@@ -435,8 +621,8 @@ class RestAPI(Plugin):
             tags=["Utilities"]
         )
 
-        # Instance routes
-        self.router.add_api_route(
+        ## Instance routes
+        add_secured_api_route(
             "/instance/start", self.instance_start,
             methods = ["POST"],
             response_model = ServerStartResponse,
@@ -444,7 +630,7 @@ class RestAPI(Plugin):
             summary = "Start a server instance.",
             tags = ["Instance Control"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/instance/stop", self.instance_stop,
             methods = ["POST"],
             response_model = ServerStopResponse,
@@ -452,7 +638,7 @@ class RestAPI(Plugin):
             summary = "Stop a server instance.",
             tags = ["Instance Control"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/instance/restart", self.instance_restart,
             methods = ["POST"],
             response_model = ServerRestartResponse,
@@ -461,8 +647,8 @@ class RestAPI(Plugin):
             tags = ["Instance Control"]
         )
 
-        # Mission routes
-        self.router.add_api_route(
+        ## Mission routes
+        add_secured_api_route(
             "/instance/missions", self.instance_missions,
             methods = ["GET"],
             response_model = MissionsResponse,
@@ -470,7 +656,7 @@ class RestAPI(Plugin):
             summary = "Mission listing for a server instance.",
             tags = ["Mission Control"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/instance/mission/pause", self.instance_mission_pause,
             methods = ["POST"],
             response_model = MissionPauseResponse,
@@ -478,7 +664,7 @@ class RestAPI(Plugin):
             summary = "Pause mission for a server instance.",
             tags = ["Mission Control"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/instance/mission/unpause", self.instance_mission_unpause,
             methods = ["POST"],
             response_model = MissionUnpauseResponse,
@@ -486,7 +672,7 @@ class RestAPI(Plugin):
             summary = "Unpause mission for a server instance.",
             tags = ["Mission Control"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/instance/mission/restart", self.instance_mission_restart,
             methods = ["POST"],
             response_model = MissionRestartResponse,
@@ -494,7 +680,7 @@ class RestAPI(Plugin):
             summary = "Restart mission for a server instance.",
             tags = ["Mission Control"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/instance/mission/load", self.instance_mission_load,
             methods = ["POST"],
             response_model = MissionLoadResponse,
@@ -502,7 +688,7 @@ class RestAPI(Plugin):
             summary = "Load mission for a server instance.",
             tags = ["Mission Control"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/mission/upload", self.mission_upload,
             methods=["POST"],
             response_model=MissionUploadResponse,

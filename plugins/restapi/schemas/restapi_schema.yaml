@@ -1,3 +1,202 @@
+schema;jwks_rsa:
+  # --------------------
+  # RSA key
+  # --------------------
+  type: map
+  required: true   # All RSA fields must be present
+  mapping:
+    kty:
+      type: str
+      required: true
+      enum:
+        - RSA
+    use:
+      type: str
+      required: false
+      enum:
+        - sig
+        - enc
+    kid:
+      type: str
+      required: true
+    n:
+      type: str
+      required: true
+    e:
+      type: str
+      required: true
+    # Optional RSA‑only extras
+    d: # private exponent
+      type: str
+      required: false
+    p:
+      type: str
+      required: false
+    q:
+      type: str
+      required: false
+    dp:
+      type: str
+      required: false
+    dq:
+      type: str
+      required: false
+    qi:
+      type: str
+      required: false
+    oth:
+      type: seq
+      sequence:
+        - type: map
+          mapping:
+            kty:
+              type: str
+              required: true
+            n:
+              type: str
+              required: true
+            e:
+              type: str
+              required: true
+            d:
+              type: str
+              required: true
+
+schema;jwks_ec:
+  # --------------------
+  # EC key
+  # --------------------
+  type: map
+  required: true
+  mapping:
+    kty:
+      type: str
+      required: true
+      enum:
+        - EC
+    use:
+      type: str
+      required: false
+      enum:
+        - sig
+        - enc
+    kid:
+      type: str
+      required: true
+    crv:
+      type: str
+      required: true
+      enum:
+        - P-256
+        - P-384
+        - P-521
+        - secp256k1
+    x:
+      type: str
+      required: true
+    y:
+      type: str
+      required: true
+    # Optional EC‑only extras
+    d:
+      type: str
+      required: false
+    alg:
+      type: str
+      required: false
+
+schema;jwks_oct:
+  # --------------------
+  # oct (symmetric secret)
+  # --------------------
+  type: map
+  required: true
+  mapping:
+    kty:
+      type: str
+      required: true
+      enum:
+        - oct
+    use:
+      type: str
+      required: false
+      enum:
+        - sig
+        - enc
+    kid:
+      type: str
+      required: true
+    k:
+      type: str
+      required: true
+    alg:
+      type: str
+      required: false
+    k_ops:
+      type: seq
+      required: false
+      sequence:
+        - type: str
+
+schema;jwks:
+  type: map
+  mapping:
+    keys:
+      type: seq
+      sequence:
+        - type: any
+          func: any_of
+          nullable: false
+          enum: ['jwks_rsa', 'jwks_ec', 'jwks_oct']
+
+schema;auth:
+  type: map
+  nullable: false
+  mapping:
+    api_key: {type: text, nullable: false}
+    jwt:
+      type: map
+      nullable: false
+      mapping:
+        key: {type: text, nullable: false}
+        jwks:
+          include: 'jwks'
+
+schema;security:
+  type: map
+  nullable: false
+  mapping:
+    trusted:
+      type: seq
+      nullable: false
+      sequence:
+        - {type: str, nullable: false, unique: true, range: {min: 1}}
+    default:
+      type: map
+      nullable: false
+      mapping:
+        local: {type: str, nullable: false, enum: ['none', 'api_key', 'jwt', 'disabled']}
+        trusted: {type: str, nullable: false, enum: ['none', 'api_key', 'jwt', 'disabled']}
+        remote: {type: str, nullable: false, enum: ['none', 'api_key', 'jwt', 'disabled']}
+
+schema;endpoint:
+  type: map
+  nullable: false
+  mapping:
+    regex;(.+):
+      type: map
+      nullable: false
+      allowempty: true
+      mapping:
+        enabled: { type: bool, nullable: false, default: true }
+        security:
+          type: map
+          nullable: false
+          mapping:
+            local: {type: str, nullable: false, enum: ['none', 'api_key', 'jwt', 'disabled']}
+            trusted: {type: str, nullable: false, enum: ['none', 'api_key', 'jwt', 'disabled']}
+            remote: {type: str, nullable: false, enum: ['none', 'api_key', 'jwt', 'disabled']}
+
 type: map
 nullable: false
 mapping:
@@ -6,28 +205,9 @@ mapping:
     nullable: false
     mapping:
       prefix: {type: str, nullable: false}
-      api_key: {type: text, nullable: false}
+      auth:
+        include: 'auth'
+      security:
+        include: 'security'
       endpoints:
-        type: map
-        nullable: false
-        mapping:
-          servers:
-            type: map
-            nullable: false
-            mapping:
-              filter:
-                type: seq
-                nullable: false
-                func: is_server
-                sequence:
-                  - type: str
-                    nullable: false
-                    unique: true
-              include_weather: {type: bool, nullable: false, default: true}
-          server_attendance:
-            type: map
-            nullable: true
-            mapping:
-              enabled: {type: bool, nullable: false, default: true}
-          regex;(.+):
-            type: any
+        include: 'endpoint'
