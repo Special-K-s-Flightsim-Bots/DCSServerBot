@@ -19,6 +19,9 @@ contourpy==1.3.3
 # Croniter: Python iterator implementing a cron schedule format
 croniter==6.2.4
 
+# Cryptography for JWS
+cryptography==50.0.1
+
 # discord.py: The python interface for the Discord API
 discord.py==2.7.1
 
