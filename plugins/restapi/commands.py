@@ -206,6 +206,7 @@ class RestAPI(Plugin):
                 kid = header.get("kid")
 
                 if not kid:
+                    self.log.error("RestAPI: No kid provided!")
                     return None
 
                 jwk_set = jwt.PyJWKSet.from_dict(jwt_info['jwks'])
@@ -217,6 +218,7 @@ class RestAPI(Plugin):
                         break
 
                 if not signing_key:
+                    self.log.error("RestAPI: No signing key provided!")
                     return None
 
                 data = jwt.decode(
@@ -228,11 +230,13 @@ class RestAPI(Plugin):
                 )
 
                 if data.get('key') != jwt_info.get('key'):
+                    self.log.error("RestAPI: Signing key does not match!")
                     return None
 
                 return data
 
-            except Exception:
+            except Exception as ex:
+                self.log.exception(ex)
                 return None
 
         async def get_authenticated_scheme(
