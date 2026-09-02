@@ -1,5 +1,3 @@
-from io import BytesIO
-
 import aiofiles
 import aiohttp
 import asyncio
