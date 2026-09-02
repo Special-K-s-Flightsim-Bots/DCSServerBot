@@ -1,15 +1,17 @@
 import asyncio
+import ipaddress
 import logging
 import os
 import uvicorn
 
 from contextlib import suppress
 from core import Service, ServiceRegistry, NodeImpl, DEFAULT_TAG, Port, PortType
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
 from pathlib import Path
 from services.servicebus import ServiceBus
+from starlette.requests import Request
 from typing_extensions import override
 from uvicorn import Config
 
@@ -84,34 +86,52 @@ class WebService(Service):
         logging.getLogger("uvicorn").setLevel(logging.DEBUG)
         logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
 
+        def local_networks_only(request: Request):
+            if not request.client:
+                raise HTTPException(status_code=404, detail="Not found.")
+
+            try:
+                client_ip = ipaddress.ip_address(request.client.host)
+            except ValueError:
+                raise HTTPException(status_code=404, detail="Not found.")
+
+            if not client_ip.is_loopback and not client_ip.is_private:
+                raise HTTPException(status_code=404, detail="Not found.")
+
         # Enable OpenAPI schema
-        self.app.add_api_route("/openapi.json",
-                               lambda: get_openapi(
-                                   title="DCSServerBot REST API",
-                                   version=f"{self.node.bot_version}.{self.node.sub_version}",
-                                   description="REST functions to be used for DCSServerBot.",
-                                   routes=self.app.routes,
-                               ),
-                               include_in_schema=False
-                               )
+        self.app.add_api_route(
+            "/openapi.json",
+            lambda: get_openapi(
+                title="DCSServerBot REST API",
+                version=f"{self.node.bot_version}.{self.node.sub_version}",
+                description="REST functions to be used for DCSServerBot.",
+                routes=self.app.routes,
+            ),
+            include_in_schema=False,
+            dependencies=[Depends(local_networks_only)]
+        )
 
         # Enable Swagger UI
-        self.app.add_api_route("/docs",
-                               lambda: get_swagger_ui_html(
-                                   openapi_url="/openapi.json",
-                                   title="DCSServerBot REST API - Swagger UI",
-                               ),
-                               include_in_schema=False
-                               )
+        self.app.add_api_route(
+            "/docs",
+            lambda: get_swagger_ui_html(
+                openapi_url="/openapi.json",
+                title="DCSServerBot REST API - Swagger UI",
+            ),
+            include_in_schema=False,
+            dependencies=[Depends(local_networks_only)]
+        )
 
         # Enable ReDoc
-        self.app.add_api_route("/redoc",
-                               lambda: get_redoc_html(
-                                   openapi_url="/openapi.json",
-                                   title="DCSServerBot REST API - ReDoc",
-                               ),
-                               include_in_schema=False
-                               )
+        self.app.add_api_route(
+            "/redoc",
+            lambda: get_redoc_html(
+                openapi_url="/openapi.json",
+                title="DCSServerBot REST API - ReDoc",
+            ),
+            include_in_schema=False,
+            dependencies=[Depends(local_networks_only)]
+        )
 
     @override
     async def start(self):
