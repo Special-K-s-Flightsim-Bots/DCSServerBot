@@ -114,6 +114,8 @@ class RestAPI(Plugin):
     async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
         if new_version == '1.5':
             config = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
+            if not os.path.exists(config):
+                return
             data = yaml.load(Path(config).read_text(encoding='utf-8'))
             api_key = data.get(DEFAULT_TAG, {}).pop('api_key', None)
             if api_key:
