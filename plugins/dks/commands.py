@@ -41,8 +41,6 @@ class DKS(Plugin):
         self.web_service: WebService | None = None
         self.app: FastAPI | None = None
         self.router: APIRouter | None = None
-        # JWKS
-        self.jwks = None
         # Simple OTP handling
         self._otp: str | None = None
         self._task: Task | None = None
@@ -51,7 +49,6 @@ class DKS(Plugin):
 
     async def cog_load(self) -> None:
         await super().cog_load()
-        self.jwks = await self.read_jwks()
         asyncio.create_task(self.init_webservice())
 
     async def cog_unload(self) -> None:
@@ -60,16 +57,6 @@ class DKS(Plugin):
                 if route in self.app.routes:
                     self.app.routes.remove(route)
         await super().cog_unload()
-
-    async def read_jwks(self) -> str:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                    DKS_JWKS_URL,
-                    raise_for_status=True,
-                    proxy=self.node.proxy,
-                    proxy_auth=self.node.proxy_auth
-            ) as response:
-                return json.loads(await response.read())
 
     async def init_webservice(self):
         # give the webservice 10 seconds to launch on master switches
@@ -112,7 +99,7 @@ class DKS(Plugin):
             methods=["POST"],
             description="Register with Digital Kneeboard Simulator.",
             tags=["DKS"],
-            dependencies=[Depends(TokenBearer(plugin=self))]
+            dependencies=[Depends(TokenBearer(plugin=self, jwks_url=DKS_JWKS_URL))]
         )
 
         self.app.include_router(self.router)
@@ -154,7 +141,7 @@ class DKS(Plugin):
             data = yaml.load(Path(config).read_text(encoding='utf-8'))
             data.setdefault(DEFAULT_TAG, {})['auth'].update({
                 "jwt": {
-                    "jwks": self.jwks,
+                    "jwks_url": DKS_JWKS_URL,
                     "key": key
                 }
             })

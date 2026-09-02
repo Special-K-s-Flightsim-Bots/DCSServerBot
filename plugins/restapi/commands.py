@@ -7,6 +7,8 @@ import psycopg
 import random
 import re
 
+from jwt import PyJWKClient
+
 from core import (Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, ServiceProxy,
                   PluginInstallationError, Server, async_cache, const)
 from datetime import datetime, timedelta, timezone
@@ -154,6 +156,8 @@ class RestAPI(Plugin):
         auth_config = default_config.get('auth', {})
         api_key = auth_config.get("api_key")
         jwt_info = auth_config.get("jwt")
+        if jwt_info:
+            jwt_client = jwt.PyJWKClient(jwt_info['jwks_url'])
         security_config = default_config.get('security', {})
         default_security = security_config.get('default', {
             "local": "none",
@@ -202,22 +206,15 @@ class RestAPI(Plugin):
 
             return "remote"
 
-        async def verify_token(token: str, jwt_info: dict) -> dict[str, Any] | None:
+        async def verify_token(token: str, key: str) -> dict[str, Any] | None:
             try:
                 header = jwt.get_unverified_header(token)
                 kid = header.get("kid")
 
                 if not kid:
-                    self.log.error("RestAPI: No kid provided!")
                     return None
 
-                jwk_set = jwt.PyJWKSet.from_dict(jwt_info['jwks'])
-
-                signing_key = None
-                for key in jwk_set.keys:
-                    if key.key_id == kid:
-                        signing_key = key
-                        break
+                signing_key = await asyncio.to_thread(jwt_client.get_signing_key, kid)
 
                 if not signing_key:
                     self.log.error("RestAPI: No signing key provided!")
@@ -231,7 +228,7 @@ class RestAPI(Plugin):
                     leeway=10
                 )
 
-                if data.get('key') != jwt_info.get('key'):
+                if data.get('key') != key:
                     self.log.error("RestAPI: Signing key does not match!")
                     return None
 
@@ -247,7 +244,7 @@ class RestAPI(Plugin):
                 provided_api_key: str | None,
         ) -> str | None:
             if jwt_info and credentials and credentials.scheme == "Bearer":
-                payload = await verify_token(credentials.credentials, jwt_info)
+                payload = await verify_token(credentials.credentials, jwt_info['key'])
 
                 if payload:
                     request.state.auth_scheme = "jwt"

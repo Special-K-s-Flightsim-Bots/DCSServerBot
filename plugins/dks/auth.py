@@ -13,9 +13,10 @@ _ = get_translation(__name__.split('.')[1])
 
 
 class TokenBearer(HTTPBearer):
-    def __init__(self, *, plugin: "DKS", auto_error: bool = True):
+    def __init__(self, *, plugin: "DKS", jwks_url: str, auto_error: bool = True):
         super().__init__(auto_error=auto_error)
         self.plugin = plugin
+        self.jwt_client = jwt.PyJWKClient(jwks_url)
 
     async def __call__(self, request: Request, allow_ip_check: bool = True):
         try:
@@ -47,13 +48,7 @@ class TokenBearer(HTTPBearer):
             if not kid:
                 return None
 
-            jwk_set = jwt.PyJWKSet.from_dict(self.plugin.jwks)
-
-            signing_key = None
-            for key in jwk_set.keys:
-                if key.key_id == kid:
-                    signing_key = key
-                    break
+            signing_key = await asyncio.to_thread(self.jwt_client.get_signing_key, kid)
 
             if not signing_key:
                 return None
@@ -72,5 +67,5 @@ class TokenBearer(HTTPBearer):
 
             return data
 
-        except Exception:
+        except Exception as ex:
             return None

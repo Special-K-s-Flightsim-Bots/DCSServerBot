@@ -14,19 +14,12 @@ You can configure the RestAPI endpoints in your config\plugins\restapi.yaml like
 ```yaml
 # config/plugins/restapi.yaml
 DEFAULT:
-  prefix: /stats            # Optional: use this prefix
+  prefix: /stats            # Optional: use this prefix (you can omit the leading / if you like)
   auth:
     api_key: "CHANGE_ME"
     jwt:
       key: "some-shared-token-key"
-      jwks:
-        keys:
-          - kid: "..."
-            kty: "RSA"
-            use: "sig"
-            alg: "RS256"
-            n: "..."
-            e: "AQAB"
+      jwks_url: https://digitalkneeboardsimulator.com/api/pubkey  # the URL of your JWKS
 
   security:
     # Defines which source networks are treated as "trusted".
