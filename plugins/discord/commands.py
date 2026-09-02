@@ -72,14 +72,16 @@ class Discord(Plugin):
                     after_id: str | None = None, before_id: str | None = None):
         if not channel:
             channel = interaction.channel
-        await interaction.response.defer(thinking=True, ephemeral=utils.get_ephemeral(interaction))
-        msg = await interaction.followup.send(_("Deleting messages ..."))
-        await purge_channel(node=self.node, channel=channel.id, older_than=older_than,
-                            ignore=ignore.id if ignore else None, after_id=int(after_id) if after_id else None,
-                            before_id=int(before_id) if before_id else None)
-        with suppress(discord.NotFound):
-            await msg.delete()
-        await interaction.followup.send(_("All messages deleted."))
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(thinking=True, ephemeral=ephemeral)
+        msg = await interaction.followup.send(_("Deleting messages ..."), ephemeral=ephemeral)
+        try:
+            await purge_channel(node=self.node, channel=channel.id, older_than=older_than,
+                                ignore=ignore.id if ignore else None, after_id=int(after_id) if after_id else None,
+                                before_id=int(before_id) if before_id else None)
+            await msg.edit(content=_("All messages deleted."))
+        except Exception as ex:
+            await msg.edit(content=_("Error while deleting messages: {}").format(ex))
 
     @disc.command(name='addrole', description=_('Adds a role to a member'))
     @app_commands.guild_only()
