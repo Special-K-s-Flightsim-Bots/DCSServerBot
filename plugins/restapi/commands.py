@@ -2562,8 +2562,8 @@ class RestAPI(Plugin):
                     detail=f"Squadron {name} does not have any credits"
                 )
             squadron = utils.get_squadron(node=self.node, name=name)
-            squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
-                                                   campaign_id=row[0]).prep()
+            squadron_obj = await DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                                         campaign_id=row[0]).prep()
             return SquadronCampaignCredit.model_validate({"campaign": row[1], "credits": squadron_obj.points})
 
     async def linkme(self,
