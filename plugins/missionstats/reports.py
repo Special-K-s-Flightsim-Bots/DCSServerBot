@@ -296,6 +296,7 @@ class ModuleStats2(report.EmbedElement):
                     AND m.time BETWEEN s.hop_on AND COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC')
                     -- Existing filters
                     AND m.target_cat IS NOT NULL 
+                    AND m.target_side != '0'
                     AND m.init_id = %(ucid)s
                     AND m.init_type = %(module)s
                     AND m.init_side <> m.target_side
@@ -374,6 +375,7 @@ class ModuleStats3(report.EmbedElement):
               AND m.init_type = %(module)s 
               AND {flt.filter(self.env.bot)}
               AND target_cat IS NOT NULL 
+              AND target_side != '0'
             GROUP BY 1, 2 
             ORDER BY 1,3 DESC       
         """
@@ -573,6 +575,7 @@ class AAR:
                     WHERE ms.init_id = %(ucid)s 
                     AND ms.event = 'S_EVENT_KILL' AND {flt}
                     AND ms.weapon != ms.init_type
+                    AND ms.target_side != '0'
                     ORDER BY ms.time
                 """, params)
                 kills = await cursor.fetchall()
@@ -587,6 +590,7 @@ class AAR:
                     JOIN missions m ON m.id = ms.mission_id
                     LEFT JOIN players p ON p.ucid = ms.init_id
                     WHERE ms.target_id = %(ucid)s 
+                    AND ms.init_side != '0'
                     AND ms.event = 'S_EVENT_KILL' AND {flt}
                     AND ms.weapon != ms.init_type
                     ORDER BY ms.time
@@ -608,6 +612,7 @@ class AAR:
                     WHERE init_id = %(ucid)s
                       AND event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START', 'S_EVENT_HIT',
                                     'S_EVENT_KILL')
+                      AND target_side != '0'
                       AND COALESCE(target_side, '') <> COALESCE(init_side, '')
 					  AND COALESCE(init_type, '') <> COALESCE(weapon, '')
                       AND {flt}
