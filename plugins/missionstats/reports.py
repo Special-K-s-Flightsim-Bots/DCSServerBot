@@ -299,7 +299,7 @@ class ModuleStats2(report.EmbedElement):
                     AND m.target_side != '0'
                     AND m.init_id = %(ucid)s
                     AND m.init_type = %(module)s
-                    AND m.init_side <> m.target_side
+                    AND m.init_side IS DISTINCT FROM m.target_side
                     AND {flt.filter(self.env.bot)}
             ),
             UniqueHitEvents AS (
@@ -376,6 +376,7 @@ class ModuleStats3(report.EmbedElement):
               AND {flt.filter(self.env.bot)}
               AND target_cat IS NOT NULL 
               AND target_side != '0'
+              AND init_id IS DISTINCT FROM target_id
             GROUP BY 1, 2 
             ORDER BY 1,3 DESC       
         """
@@ -576,6 +577,7 @@ class AAR:
                     AND ms.init_id IS DISTINCT FROM ms.target_id
                     AND ms.event = 'S_EVENT_KILL' AND {flt}
                     AND ms.weapon != ms.init_type
+                    AND ms.target_cat IS NOT NULL
                     AND ms.target_side != '0'
                     ORDER BY ms.time
                 """, params)
@@ -593,6 +595,7 @@ class AAR:
                     WHERE ms.target_id = %(ucid)s 
                     AND ms.init_id IS DISTINCT FROM ms.target_id
                     AND ms.init_side != '0'
+                    AND ms.init_cat IS NOT NULL
                     AND ms.event = 'S_EVENT_KILL' AND {flt}
                     AND ms.weapon != ms.init_type
                     ORDER BY ms.time
@@ -614,6 +617,7 @@ class AAR:
                     WHERE init_id = %(ucid)s
                       AND event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START', 'S_EVENT_HIT',
                                     'S_EVENT_KILL')
+                      AND target_cat IS NOT NULL
                       AND target_side != '0'
                       AND init_id IS DISTINCT FROM target_id
                       AND COALESCE(target_side, '') <> COALESCE(init_side, '')
