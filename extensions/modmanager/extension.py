@@ -13,6 +13,8 @@ class ModManager(Extension):
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
         self.modules: dict[str, list[str]] = {}
+        if not config.get('name'):
+            self._name = 'Required Mods'
 
     @override
     async def startup(self, *, quiet: bool = False) -> bool:
@@ -31,12 +33,11 @@ class ModManager(Extension):
 
     @override
     async def render(self, param: dict | None = None) -> dict:
-        await super().render(param)
+        ret = await super().render(param)
         mods = self.modules.get(self.server.name)
         if not mods:
             raise NotImplementedError()
 
-        return {
-            "name": "Required Mods",
+        return ret | {
             "value": '\n'.join([f"- {mod}" for mod in mods])
         }

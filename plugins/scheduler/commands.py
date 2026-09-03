@@ -1346,6 +1346,8 @@ class Scheduler(Plugin[SchedulerListener]):
                     await self.bot.audit(f"changed password", user=interaction.user, server=server)
                 if server.status in [Status.PAUSED, Status.RUNNING]:
                     message = _("Password will be changed on next server restart.")
+                elif not derived.password.value:
+                    message = _("Password cleared.")
                 else:
                     message = _("Password changed.")
 

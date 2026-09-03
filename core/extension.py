@@ -166,6 +166,7 @@ class Extension(ABC):
         if self.hidden:
             raise NotImplementedError()
         return {
+            "_class": self.__class__.__name__,
             "name": self.name,
             "version": self.version or 'n/a'
         }

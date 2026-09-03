@@ -97,6 +97,7 @@ class DKS(Plugin):
         self.router.add_api_route(
             "/register_dks", self.register_dks,
             methods=["POST"],
+            summary="Register with DKS.",
             description="Register with Digital Kneeboard Simulator.",
             tags=["DKS"],
             dependencies=[Depends(TokenBearer(plugin=self, jwks_url=DKS_JWKS_URL))]

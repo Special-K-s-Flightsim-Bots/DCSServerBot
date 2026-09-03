@@ -136,10 +136,11 @@ async def purge_channel(node: Node, channel: int | list[int], older_than: int = 
                 after = None
             deleted_messages = await channel.purge(limit=None, after=after, before=before, check=check, bulk=True)
             node.log.debug(f"Purged {len(deleted_messages)} messages from channel {channel.name}.")
-        except discord.NotFound:
-            node.log.error(f"Cron: Can't delete messages in channel {channel.name}: Not found")
         except discord.Forbidden:
             node.log.error(f"Cron: Can't delete messages in channel {channel.name}: Missing permissions")
+            raise
+        except discord.NotFound:
+            node.log.error(f"Cron: Can't delete message in channel {channel.name}: Not found")
         except discord.HTTPException:
             node.log.error(f"Cron: Failed to delete message in channel {channel.name}", exc_info=True)
 
