@@ -573,7 +573,7 @@ class AAR:
                     JOIN missions m ON m.id = ms.mission_id
                     LEFT JOIN players p ON p.ucid = ms.target_id
                     WHERE ms.init_id = %(ucid)s 
-                    AND ms.init_id != ms.target_id
+                    AND ms.init_id IS DISTINCT FROM ms.target_id
                     AND ms.event = 'S_EVENT_KILL' AND {flt}
                     AND ms.weapon != ms.init_type
                     AND ms.target_side != '0'
@@ -591,7 +591,7 @@ class AAR:
                     JOIN missions m ON m.id = ms.mission_id
                     LEFT JOIN players p ON p.ucid = ms.init_id
                     WHERE ms.target_id = %(ucid)s 
-                    AND ms.init_id != ms.target_id
+                    AND ms.init_id IS DISTINCT FROM ms.target_id
                     AND ms.init_side != '0'
                     AND ms.event = 'S_EVENT_KILL' AND {flt}
                     AND ms.weapon != ms.init_type
@@ -615,7 +615,7 @@ class AAR:
                       AND event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START', 'S_EVENT_HIT',
                                     'S_EVENT_KILL')
                       AND target_side != '0'
-                      AND init_id != target_id
+                      AND init_id IS DISTINCT FROM target_id
                       AND COALESCE(target_side, '') <> COALESCE(init_side, '')
 					  AND COALESCE(init_type, '') <> COALESCE(weapon, '')
                       AND {flt}
