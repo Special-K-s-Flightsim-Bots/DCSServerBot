@@ -385,7 +385,7 @@ class ModuleStats3(report.EmbedElement):
                 await cursor.execute(sql, self.env.params)
                 async for row in cursor:
                     categories.append(row['Category'])
-                    target_types.append(row['Unit Type'])
+                    target_types.append(row['Unit Type'] or 'n/a')
                     kills.append(str(row['Kills']))
         if categories:
             await report.Ruler(self.env).render(ruler_length=20)
