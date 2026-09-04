@@ -250,7 +250,7 @@ class BackupService(Service):
                         self.log.error(f'Backup of server "{server_name}" failed.', exc_info=True)
                         rc = False
             return rc
-        except Exceptio:
+        except Exception:
             self.log.error(f'Backup of all servers failed.', exc_info=True)
             return False
 
