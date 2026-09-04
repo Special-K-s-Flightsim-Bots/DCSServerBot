@@ -197,18 +197,18 @@ class Main:
                     # switch master
                     if self.node.claimed_master:
                         self.log.info("Taking over as the MASTER node ...")
+
                         # stop all agent-only services
                         tasks = []
                         for cls in [x for x in registry.services().keys() if registry.agent_only(x)]:
                             tasks.append(registry.get(cls).stop())
                         await asyncio.gather(*tasks)
+
                         # start all master-only services
                         tasks = []
                         for cls in [x for x in registry.services().keys() if registry.master_only(x)]:
                             tasks.append(self.start_service(registry, cls))
                         await asyncio.gather(*tasks)
-                        # now we are the real master
-                        self.node.commit_claimed_master()
 
                         # switch all others services / register the agent nodes
                         tasks = []
@@ -220,20 +220,23 @@ class Main:
                             if service:
                                 tasks.append(service.switch(True))
                         await asyncio.gather(*tasks)
+
+                        # now we are the real master
+                        self.node.commit_claimed_master()
                     else:
                         self.log.info("Second MASTER found, stepping back to AGENT configuration.")
+
                         # stop all master-only services
                         tasks = []
                         for cls in [x for x in registry.services().keys() if registry.master_only(x)]:
                             tasks.append(registry.get(cls).stop())
                         await asyncio.gather(*tasks)
+
                         # start all agent-only services
                         tasks = []
                         for cls in [x for x in registry.services().keys() if registry.agent_only(x)]:
                             tasks.append(self.start_service(registry, cls))
                         await asyncio.gather(*tasks)
-                        # now we are the agent
-                        self.node.commit_claimed_master()
 
                         # switch all others services
                         tasks = []
@@ -245,6 +248,9 @@ class Main:
                             if service:
                                 tasks.append(service.switch(False))
                         await asyncio.gather(*tasks)
+
+                        # now we are the agent
+                        self.node.commit_claimed_master()
             except OperationalError:
                 db_available = False
                 raise

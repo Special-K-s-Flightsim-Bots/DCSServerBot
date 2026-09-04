@@ -238,7 +238,8 @@ class ServiceBus(Service):
                 "node": self.node.name,
                 "dcs_port": int(server.instance.dcs_port),
                 "webgui_port": int(server.instance.webgui_port),
-                "maintenance": server.maintenance
+                "maintenance": server.maintenance,
+                "config": server.locals
             }
         }, timeout=timeout)
 
@@ -255,10 +256,6 @@ class ServiceBus(Service):
         await self.bot.wait_until_ready()
 
     async def register_local_servers(self, master: bool):
-        # we only run once
-        if self._lock.locked():
-            return
-
         # wait for the bot service to be started
         if master:
             await self._wait_for_bot()
@@ -325,15 +322,15 @@ class ServiceBus(Service):
 
     async def register_remote_node(self, name: str, public_ip: str, dcs_version: str):
         from core import NodeProxy
-        from ..bot.service import BotService
 
         # in case of a race condition during master takeovers, ignore this registration
         if name == self.node.name:
             return
 
-#        if self.node.all_nodes.get(name):
-#            self.log.debug(f"Node {name} already registered, skipping registration request.")
-#            return
+        existing_node = self.node.all_nodes.get(name)
+        if existing_node and await existing_node.is_alive():
+            self.log.debug(f"Node {name} already registered and alive, skipping duplicate registration request.")
+            return
 
         node = NodeProxy(self.node, name, public_ip, dcs_version)
         if not await node.is_alive(self.node.config.get('cluster', {}).get('heartbeat', 30)):
@@ -547,7 +544,7 @@ class ServiceBus(Service):
 
     async def init_remote_server(self, server_name: str, status: str, instance: str, home: str,
                                  settings: dict, options: dict, node: Node | str, channels: dict, dcs_port: int,
-                                 webgui_port: int, maintenance: bool) -> None:
+                                 webgui_port: int, maintenance: bool, config: dict) -> None:
         from core import InstanceProxy
 
         # init event for an unregistered remote node received or a race condition due to master switches, ignoring
@@ -563,7 +560,7 @@ class ServiceBus(Service):
                     bus=self
                 )
                 if not server.locals:
-                    server.locals = await server.get_config()
+                    server.locals = config
                     if not server.locals:
                         self.log.warning(f'No configuration found for server "{server.name}" in servers.yaml!')
 
