@@ -1,0 +1,8 @@
+DEFAULT:
+  device: nutdev1       # UPS device name
+  host: 192.168.178.11  # UPS host
+  port: 3493            # default NUT port
+  thresholds:
+    warn: 90            # warn users
+    shutdown: 50        # shutdown DCS
+    halt: 20            # shutdown PC
