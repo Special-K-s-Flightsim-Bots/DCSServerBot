@@ -2463,14 +2463,17 @@ class Mission(Plugin[MissionEventListener]):
             try:
                 channel_id = server.channels.get(Channel.STATUS, -1)
                 if channel_id == -1:
+                    self.log.debug("Channel name could not be updated, no status channel set.")
                     continue
                 channel = self.bot.get_channel(channel_id)
                 if not channel:
                     channel = await self.bot.fetch_channel(server.channels[Channel.STATUS])
                 # name changes of the status channel will only happen with the correct permission
                 if not channel.permissions_for(self.bot.member).manage_channels:
+                    self.log.debug("Channel name could not be updated, no permission.")
                     return
                 if channel.type in [discord.ChannelType.forum, discord.ChannelType.public_thread]:
+                    self.log.debug(f"Channel name could not be updated, wrong channel type: {channel.type.name}")
                     continue
 # TODO: Alternative implementation, if Discord decides to no longer use system messages for a thread rename
 #                    for thread in channel.threads:
@@ -2496,6 +2499,7 @@ class Mission(Plugin[MissionEventListener]):
                 if name != channel.name:
                     await channel.edit(name=name)
             except discord.Forbidden:
+                self.log.debug("Channel name could not be updated, no permission.")
                 pass
             except Exception:
                 self.log.debug(f"Exception in update_channel_name() for server {server_name}", exc_info=True)
