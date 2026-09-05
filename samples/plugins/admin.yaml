@@ -1,8 +1,4 @@
-##############################################################
-# Configuration for the Admin plugin.                        #
-##############################################################
-# At the moment, this only holds the download configuration. #
-##############################################################
+# config/plugins/admin.yaml
 DEFAULT:  # The DEFAULT section is valid for all your servers
   downloads:
   # that's for your DCS logs. It should work for all your servers.
