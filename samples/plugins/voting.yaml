@@ -1,5 +1,6 @@
+# config/plugins/voting.yaml
 DEFAULT:
-  options:              # These are the voting options, players can choose from. It is up to you, to enable them or not!
+  options:              # These are the voting options players can choose from. It is up to you to enable them or not!
     preset:             # Selection of presets that need to be specified in your presets.yaml
       choices:
         - Summer        # If no preset section is specified, all available presets will be used (not recommended).
@@ -21,7 +22,7 @@ DEFAULT:
     - DCS
   mission_time: 30      # If specified, a voting can take place when the mission is running at least that many minutes.
   time: 300             # Seconds the voting is open.
-  reminder:             # When to send reminders to people to vote including the current top vote.
+  reminder:             # When to send reminders to people to vote, including the current top vote.
     - 180
     - 60
     - 30

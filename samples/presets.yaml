@@ -1,3 +1,4 @@
+# config/presets.yaml
 # For weather presets in DCS, please refer to C:\Program Files\Eagle Dynamics\DCS World\Config\Effects\clouds.lua
 Spring:
   date: '2016-04-21'

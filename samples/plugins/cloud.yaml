@@ -1,10 +1,4 @@
-###############################################################
-# Configuration for the Cloud-plugin.                         #
-###############################################################
-# You configure the connection to the DGSA global ban service #
-# in here and your TOKEN to participate with the cloud        #
-# statistics system.                                          #
-################################################################
+# config/plugins/cloud.yaml
 DEFAULT:
   banlist: both                         # One of pvp, pve or both. For DCS bans / watchlist only (default: both).
   dcs-ban: false                        # true: subscribe to the global ban service for DCS users (default: false).
@@ -14,5 +8,5 @@ DEFAULT:
   port: 443                             # Don't change that until told otherwise.
   protocol: https                       # Don't change that until told otherwise.
   register: true                        # True, send general statistics to my community stats (please do that!)
-  upload_errors: true                   # True, upload exceptions to the central error database, so that I can see what happened in your bot (and fix it)
+  upload_errors: true                   # True, upload exceptions to the central error database so that I can see what happened in your bot (and fix it)
 #  token: xxxyyyzzz111222333444         # If you got a TOKEN to participate in the cloud statistics, then put it in here.

@@ -1,3 +1,4 @@
+# config/plugins/scheduler.yaml
 DEFAULT:
   startup_delay: 10                                 # delay in seconds between the startup of each DCS instance (default: 10)
   warn:                                             # warn times before a restart / shutdown
@@ -21,11 +22,11 @@ instance2:
     times:
     - 04:00
     - 08:00
-    method: rotate                                # .. it will rotate ..
-    populated: true                               # .. independently if players are flying or not.
-  # onSimulationStart: load:Scripts/net/start.lua # We will run a specific lua script on server start
-  # onSimulationStop: load:Scripts/net/stop.lua   # We will run a specific lua script on server stop (restart will trigger stop and start!)
-  # onMissionEnd: load:Scripts/net/end.lua        # We will run a specific lua script on mission end
+    method: rotate                                # ... it will rotate ...
+    populated: true                               # ... independently if players are flying or not.
+  # onSimulationStart: load:Scripts/net/start.lua # We will run a specific Lua script on server start
+  # onSimulationStop: load:Scripts/net/stop.lua   # We will run a specific Lua script on server stop (restart will trigger stop and start!)
+  # onMissionEnd: load:Scripts/net/end.lua        # We will run a specific Lua script on mission end
   # onShutdown: run:shutdown /r                   # if the DCS server is shut down, the real PC will restart
 instance3:
   schedule:                                       # server "instance3" will run every day from noon to midnight

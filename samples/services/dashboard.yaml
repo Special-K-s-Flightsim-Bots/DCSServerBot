@@ -1,3 +1,4 @@
+# config/services/dashboard.yaml
 DEFAULT:  # you must configure the colors below the default tag
   header:
     background: white on navy_blue

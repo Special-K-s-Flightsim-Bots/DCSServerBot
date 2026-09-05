@@ -29,7 +29,7 @@ DEFAULT:
       local: none           # We do not need any auth when we connect through the loopback interface
       trusted: api_key      # We need an API key if we connect through trusted networks
       remote: jwt           # We need a JWT if we connect through the internet
-      # remote: disabled    # You can also disable connections from specific networks at all like so.
+      # remote: disabled    # You can also disable connections from specific networks like so.
 
   endpoints:                # endpoint configuration
     servers:                # /servers

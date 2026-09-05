@@ -1,3 +1,4 @@
+# config/plugins/motd.yaml
 DEFAULT:
   on_birth:                   # message will fire when someone enters a plane / helicopter
     message: Teamkills will be punished.

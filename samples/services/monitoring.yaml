@@ -1,3 +1,4 @@
+# config/services/monitoring.yaml
 DEFAULT:
   time_sync: true           # sync the PC time with a time-server every 12 hrs, default: false
   time_server: pool.ntp.org # and use this non-default time-server for it, default: Windows default

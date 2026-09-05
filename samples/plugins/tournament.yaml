@@ -1,7 +1,8 @@
+# config/plugins/tournament.yaml
 DEFAULT:
   use_signup_form: false      # Do you want the participating squadrons to write an application form on signup? (default: false)
   match_generation: trueskill # One of trueskill or standard (see below)
-  autostart_matches: false    # If you want your matches to be autostarted by the bot (with a 1 day and 1 hour reminder per DM), set this to true (default: false)
+  autostart_matches: false    # If you want your matches to be autostarted by the bot (with a 1-day and 1-hour reminder per DM), set this to true (default: false)
   coalition_passwords: true   # Auto-generate coalition passwords for red and blue.
   allow_exports: false        # Do not allow exports (default: false).
   auto_join: true             # If true, your pilot will be automatically assigned to the associated squadron on join (default: false).
@@ -23,14 +24,14 @@ DEFAULT:
       - sanitize              # preset to be used for sanitization (security settings in mission)
       - random_weather        # Randomize the weather
     even:
-      - switch_sides          # This will switch the blue and red sides on any even round (2, 4, ..)
+      - switch_sides          # This will switch the blue and red sides on any even round (2, 4, ...)
     # uneven:                 # just to show you that it is there also
     choices:  # list of preset | cost in squadron credits
       'AIM-120': {"costs": 2}                   # each AIM-120 costs you 2 credit points
       'AIM-9x': {"costs": 1}                    # each AIM-9x costs you 1 credit points
       'AWACS': {"costs": 0, "max": 1, "ticket": "AWACS"}  # each AWACS costs you no credit points but one AWACS ticket. You can only choose one AWACS per round.
     tickets:                        # you can get a specific number of tickets per tournament
-      AWACS: {num: 1, credits: 500} # you get 1 ticket per default, but you can optionally sell tickets with /ticket sell and get the number in credits for it
+      AWACS: {num: 1, credits: 500} # you get 1 ticket per default, but you can optionally sell tickets with /ticket sell and get the number of credits for it
   channels:
     info: 112233445566778899      # information channel
     streamer: 91827364519283745   # channel for a tournament streamer

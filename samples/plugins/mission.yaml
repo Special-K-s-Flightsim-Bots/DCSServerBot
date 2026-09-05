@@ -1,5 +1,6 @@
+# config/plugins/mission.yaml
 DEFAULT:
   uploads:          # Configure how mission uploads are handled
-    enabled: true   # Here you can disable the feature at all (default: true = enabled)
+    enabled: true   # Disable the upload-feature (default: true = enabled)
     discord:
       - DCS Admin   # Define which roles are allowed to upload missions (default: DCS Admin)

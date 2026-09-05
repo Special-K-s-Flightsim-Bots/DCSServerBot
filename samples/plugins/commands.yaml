@@ -1,3 +1,4 @@
+# config/plugins/commands.yaml
 commands:
   startup:              # Create a command /startup
     roles:              # that can be run by the DCS Admin role
@@ -7,7 +8,7 @@ commands:
       args: -w {instance.name}
       cwd: C:\Program Files\Eagle Dynamics\DCS World Server\bin
     params:             # parameter list
-      instance:         # instance parameters have auto completion
+      instance:         # instance parameters have auto-completion
         required: true  # mandatory parameter
   dir:                  # Command /dir
     description: shows a directory listing
