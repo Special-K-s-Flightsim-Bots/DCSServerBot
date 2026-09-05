@@ -20,8 +20,8 @@ schema;element_schema:
         device: {type: str, nullable: false, range: {min: 1}}
         host: {type: str, pattern: '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', nullable: false}
         port: {type: int, nullable: false, default: 3493, func: unique_port}
-        username: {type: str, nullabled: false, range: {min: 1}}
-        password: {type: str, nullabled: false, range: {min: 1}}
+        username: {type: str, nullable: false, range: {min: 1}}
+        password: {type: str, nullable: false, range: {min: 1}}
         thresholds:
           type: map
           nullable: false
