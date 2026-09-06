@@ -90,7 +90,7 @@ Here is a minimal, complete plugin template.
 
 ### 1. `version.py`
 ```python
-__version__ = "1.0.0"
+__version__ = "1.0"
 ```
 
 ### 2. `__init__.py`
