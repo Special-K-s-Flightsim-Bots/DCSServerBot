@@ -205,8 +205,6 @@ To enable your plugin, add its directory name to the `opt_plugins` list in `conf
 ```yaml
 # config/main.yaml
 guild_id: 112233445566
-chat_command_prefix: .
-
 opt_plugins:
   - serverstats
   - motd
