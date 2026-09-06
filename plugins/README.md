@@ -10,24 +10,25 @@ mission scripting, and relational database storage.
 1. [Architecture Overview](#architecture-overview)
 2. [Plugin Directory Structure](#plugin-directory-structure)
 3. [Quick Start: Hello World Plugin](#quick-start-hello-world-plugin)
-4. [Configuration System](#configuration-system)
-5. [Core Classes & Reference](#core-classes--reference)
+4. [Enabling Plugins (`opt_plugins` in `main.yaml`)](#enabling-plugins-opt_plugins-in-mainyaml)
+5. [Configuration System](#configuration-system)
+6. [Core Classes & Reference](#core-classes--reference)
    - [Plugin Class (`commands.py`)](#plugin-class-commandspy)
    - [EventListener Class (`listener.py`)](#eventlistener-class-listenerpy)
    - [DCS Hook Callbacks (`lua/callbacks.lua`)](#dcs-hook-callbacks-luacallbackslua)
    - [DCS Hook Commands (`lua/commands.lua`)](#dcs-hook-commands-luacommandslua)
    - [Mission Scripting Environment (`lua/mission.lua`)](#mission-scripting-environment-luamissionlua)
-6. [DCSServerBot Data Classes](#dcsserverbot-data-classes)
+7. [DCSServerBot Data Classes](#dcsserverbot-data-classes)
    - [Server](#server)
    - [Player](#player)
    - [Instance](#instance)
    - [Mission](#mission)
    - [discord.Member](#discordmember)
-7. [Database Integration & Schema](#database-integration--schema)
-8. [Migrations & Versioning](#migrations--versioning)
-9. [Third-Party Dependencies](#third-party-dependencies)
-10. [Reports Framework Integration](#reports-framework-integration)
-11. [Best Practices & Checklist](#best-practices--checklist)
+8. [Database Integration & Schema](#database-integration--schema)
+9. [Migrations & Versioning](#migrations--versioning)
+10. [Third-Party Dependencies](#third-party-dependencies)
+11. [Reports Framework Integration](#reports-framework-integration)
+12. [Best Practices & Checklist](#best-practices--checklist)
 
 ---
 
@@ -169,6 +170,72 @@ function dcsbot.echoMessage(json)
     utils.sendBotTable(msg, json.channel)
 end
 ```
+
+### 6. Enable the Plugin in `config/main.yaml`
+Add your new plugin folder name to `opt_plugins` in `config/main.yaml`:
+```yaml
+opt_plugins:
+  - helloworld
+```
+
+---
+
+## Enabling Plugins (`opt_plugins` in `main.yaml`)
+
+DCSServerBot categorizes plugins into **default core plugins** and **optional/custom plugins**:
+
+### Core Default Plugins vs Optional Plugins
+- **Default Core Plugins**: Automatically loaded at bot startup without requiring entry in `config/main.yaml`:
+  - `mission`
+  - `scheduler`
+  - `help`
+  - `admin`
+  - `userstats`
+  - `missionstats`
+  - `monitoring`
+  - `gamemaster`
+  - `creditsystem`
+  - `cloud`
+- **Optional & Custom Plugins**: Any additional built-in plugins (e.g. `serverstats`, `motd`, `greenieboard`, `punishment`, `slotblocking`, `music`, `funkman`, `modmanager`, `commands`, `restapi`) as well as **any new custom plugins you develop** must be registered under `opt_plugins` in `config/main.yaml`.
+
+### Configuration in `config/main.yaml`
+
+To enable your plugin, add its directory name to the `opt_plugins` list in `config/main.yaml`:
+
+```yaml
+# config/main.yaml
+guild_id: 112233445566
+chat_command_prefix: .
+
+opt_plugins:
+  - serverstats
+  - motd
+  - greenieboard
+  - punishment
+  - slotblocking
+  - music
+  - funkman
+  - modmanager
+  - commands
+  - restapi
+  - helloworld      # Your new custom plugin directory under ./plugins/helloworld
+```
+
+### What Happens During Plugin Initialization
+
+When DCSServerBot starts up (`NodeImpl`):
+1. **List Aggregation**: Merges default core plugins with all plugins listed in `opt_plugins`.
+2. **Database Initialization & Migrations**: Checks for `db/tables.sql` (first install) or `db/update_v*.sql` / `migrate()` (version upgrades) and executes them.
+3. **Report Templates**: Automatically copies JSON templates from `plugins/<plugin>/reports/` to `reports/<plugin>/`.
+4. **DCS Hooks & Lua Scripts**: Installs hook callbacks (`callbacks.lua`) and command handlers (`commands.lua`) to the DCS World hook directory.
+5. **Discord Cog Registration**: Loads the plugin cog (`plugins.<plugin>.commands`) into the Discord bot and registers slash commands.
+6. **EventListener Registration**: Binds `@event` and `@chat_command` listeners to the `ServiceBus`.
+
+### Dynamic Management via Discord Commands
+
+Administrators can also add or remove optional plugins dynamically at runtime without manually editing YAML:
+- `/plugin install <plugin_name>`: Automatically adds the plugin to `opt_plugins` in `config/main.yaml`, runs installation routines, and loads the extension.
+- `/plugin uninstall <plugin_name>`: Unloads the plugin and removes it from `opt_plugins` in `config/main.yaml`.
 
 ---
 
@@ -647,6 +714,7 @@ Refer to the [Report Framework Documentation](../reports/README.md) for paginati
 
 When developing or reviewing a new plugin:
 
+- [ ] **Enable in `main.yaml`**: Add your plugin name to `opt_plugins` in `config/main.yaml` (or activate it via `/node plugin add <name>`).
 - [ ] **Async First**: Use `self.apool` and asynchronous calls everywhere. Avoid blocking I/O or `time.sleep()`.
 - [ ] **Sync vs Async DCS RPC**: Use `server.send_to_dcs_sync()` only when you require an immediate return payload from Lua; otherwise use fire-and-forget `server.send_to_dcs()`.
 - [ ] **Unique Callback Names**: Prefix Lua callback message commands with your plugin name (e.g., `myplugin_playerEvent`) to avoid collisions.
