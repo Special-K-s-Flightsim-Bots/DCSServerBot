@@ -66,6 +66,7 @@ class ServiceBus(Service):
         self.intercom_channel = PubSub(self.node, 'intercom', cpool_url, self.handle_rpc)
         self.broadcasts_channel = PubSub(self.node, 'broadcasts', lpool_url, self.handle_broadcast_event)
         self._lock = asyncio.Lock()
+        self._registering_nodes: set[str] = set()
 
     async def start(self):
         await super().start()
@@ -322,36 +323,46 @@ class ServiceBus(Service):
 
     async def register_remote_node(self, name: str, public_ip: str, dcs_version: str):
         from core import NodeProxy
+        from services.bot import BotService
 
         # in case of a race condition during master takeovers, ignore this registration
         if name == self.node.name:
             return
 
+        if name in self._registering_nodes:
+            self.log.debug(f"Registration for node {name} already in progress, skipping duplicate request.")
+            return
+
         existing_node = self.node.all_nodes.get(name)
-        if existing_node and await existing_node.is_alive():
+        has_servers = any(s.node.name == name for s in self.servers.values() if s.is_remote)
+        if existing_node and has_servers and await existing_node.is_alive():
             self.log.debug(f"Node {name} already registered and alive, skipping duplicate registration request.")
             return
 
-        node = NodeProxy(self.node, name, public_ip, dcs_version)
-        if not await node.is_alive(self.node.config.get('cluster', {}).get('heartbeat', 30)):
-            self.log.warning(f"Node {name} is not alive (anymore). Skipping registration request.")
-            return
+        self._registering_nodes.add(name)
+        try:
+            node = NodeProxy(self.node, name, public_ip, dcs_version)
+            if not await node.is_alive(self.node.config.get('cluster', {}).get('heartbeat', 30)):
+                self.log.warning(f"Node {name} is not alive (anymore). Skipping registration request.")
+                return
 
-        self.log.info(f"- Registering remote node {name} ...")
-        # we did not find a configuration for this node, load it from remote
-        if not node.locals:
-            node.locals = await node.get_config()
+            self.log.info(f"- Registering remote node {name} ...")
+            # we did not find a configuration for this node, load it from remote
             if not node.locals:
-                self.log.warning(f'No configuration found for node "{node.name}" in nodes.yaml!')
+                node.locals = await node.get_config()
+                if not node.locals:
+                    self.log.warning(f'No configuration found for node "{node.name}" in nodes.yaml!')
 
-        self.node.all_nodes[node.name] = node
-        while not self.bot:
-            await asyncio.sleep(1)
-            service = ServiceRegistry.get(BotService)
-            if service:
-                self.bot = ServiceRegistry.get(BotService).bot
-        await self.bot.wait_until_ready()
-        await self.register_remote_servers(node)
+            self.node.all_nodes[node.name] = node
+            while not self.bot:
+                await asyncio.sleep(1)
+                service = ServiceRegistry.get(BotService)
+                if service:
+                    self.bot = ServiceRegistry.get(BotService).bot
+            await self.bot.wait_until_ready()
+            await self.register_remote_servers(node)
+        finally:
+            self._registering_nodes.discard(name)
 
     async def unregister_remote_node(self, node: Node):
         # unregister event for a non-registered node received or for myself in case of a race condition, ignoring
