@@ -1,9 +1,9 @@
 # Cron Service
-You can use this service to run pre-defined actions at specific times. See [here](#actions) for examples.
-More to come.
+The cron service can restart your server, reboot the PC, send popup warnings, or generate reports at any scheduled 
+time using cron expressions.
 
 ## Configuration
-As per usual, the service is configured with a yaml file, in this case config/services/cron.yaml:
+As per usual, the service is configured with a YAML file, in this case config/services/cron.yaml:
 ```yaml
 # config/services/cron.yaml
 DEFAULT:
@@ -69,12 +69,12 @@ DEFAULT:
 ```
 
 b) restart
-Restarts the running mission / server / PC.
+Restarts the running mission, or the DCS server, or the whole PC.
 ```yaml
 # config/services/cron.yaml
 DEFAULT:
   actions:
-    - cron: '0 3 * * 0,2-6'             # reboot the server each night but Monday at 03:00
+    - cron: '0 3 * * 0,2-6'             # reboot every night but Monday at 03:00 a.m.
       action:
         type: restart                   
         params:
@@ -85,14 +85,14 @@ DEFAULT:
 ```
 
 c) halt
-Shuts the PC down.
+Shuts the whole PC down.
 ```yaml
 # config/services/cron.yaml
 DEFAULT:
   actions:
-    - cron: '0 4 * * 1'                 # shut the server down once a week on Monday
+    - cron: '0 4 * * 1'                 # shut the PC down once a week on Monday
       action:
-        type: halt                      # reboot the server each monday night at 03:00
+        type: halt                      # reboot the PC each monday night at 03:00
         params:
           maintenance: false            # Optional: reset any maintenance flag to false
 ```
@@ -111,7 +111,7 @@ DEFAULT:
 ```
 
 e) popup
-Send a popup to a running server.
+Send a popup to a running DCS server.
 ```yaml
 # config/services/cron.yaml
 DCS.server_release:
@@ -125,7 +125,7 @@ DCS.server_release:
 ```
 
 f) broadcast
-Send a popup to all running servers.
+Send a popup to all running DCS servers.
 ```yaml
 # config/services/cron.yaml
 DEFAULT:
@@ -188,14 +188,14 @@ DEFAULT:
 ```
 
 j) node_shutdown
-Shutdown / restart the bot.
+Shut down or restart your DCSServerBot node.
 ```yaml
 # config/services/cron.yaml
 DEFAULT:
   actions:
     - cron: '0 3 * * *'     # run every night at 03:00
       action:
-        type: node_shutdown  # restart the bot
+        type: node_shutdown  # restart the node (aka the bot)
         params:
           restart: true
 ```

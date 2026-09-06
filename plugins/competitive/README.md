@@ -13,12 +13,12 @@ People that have not been involved in any PvP activities yet will get a default 
 
 ## How do 1vs1 engagements work?
 If you enable the plugin and don't do anything else, you will get a 1vs1 rating that will change after each engagement. 
-You already get some kind of team rating, when you fly in a multi-crew aircraft. As usually all members of such an 
+You already get some kind of team rating when you fly in a multi-crew aircraft. As usually all members of such an 
 aircraft participate in a kill (or die with the pilot in the opposite case), they will be treated as a team already. 
 This means you get ranked up as a RIO as if you were the pilot of the killing aircraft.
 
 ## How do Team-Matches work?
-So this is the more complex stuff. To play N vs N or N vs M, you need to register as teams. As I don't know how your 
+So this is the more complex stuff. To play N vs. N or N vs. M, you need to register as teams. As I don't know what your 
 specific missions look like, I can only assume how you do this. One way would be to create some zone where players
 either spawn in or fly into. Whenever they do this, you can call a DCSServerBot function to add a member to the match:
 ```lua
@@ -63,7 +63,7 @@ opt_plugins:
 If you want to disable the plugin for one or more servers, you can do it by creating a config/plugins/competitive.yaml:
 ```yaml
 # config/plugins/competitive.yaml
-DCS.server:
+DCS.dcs_serverrelease:
   enabled: false        # optional: disable the plugin (default: true)
   silent: false         # optional: silent mode, only calculate TrueSkill:tm: ratings, but do not tell anybody about it (default: false)
   join_on: birth        # Match only: join on birth, takeoff, enter_zone (future)
@@ -72,7 +72,7 @@ DCS.server:
   kick_time: 30         # Match only: Seconds after a dead player will be kicked.
   end_mission: false    # Match only: end the mission if a match is over (default: false)
   delayed_start: 300    # optional: give people 300 seconds to join and prepare their planes.
-  win_on_noshow: 300    # optional: you win, if nobody of the opposite coalition shows up for 300 seconds
+  win_on_noshow: 300    # optional: you win if nobody of the opposite coalition shows up for 300 seconds
   credit_on_leave: true # Tournament only: squadrons will gain credits on a crash, disconnect, change_slot
 ```
 > [!NOTE]

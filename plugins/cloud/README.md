@@ -27,25 +27,38 @@ If you are a server admin of a large server and not part of DGSA, the "DCS Globa
 ## Configuration
 ```yaml
 # config/plugins/cloud.yml
+# ---------------------------------------
+#   Cloud Plugin – configuration
+# ---------------------------------------
+
+# Use the minimal example as a starting point:
 DEFAULT:
-  banlist: both                         # One of pvp, pve or both. For dcs-ban / watchlist_only (default: both).
-  dcs-ban: true                         # true: subscribe to the global ban service for DCS users (default: false).
-  discord-ban: true                     # true: subscribe to the global ban service for Discord users (default: false).
-  watchlist_only: false                 # true: a player being on the global banlist will be added to the watchlist only (default: false, does not work with dcs-ban: true)
-  troublemakers:                        # Handle so-called troublemakers, who are banned on other servers already.
-    warn: true                          # Warn if a troublemaker joins your server ... (default: true)
-    warn_threshold: 3                   # ... if they are banned on at least 3 other servers (min: 3)
-    kick: true                          # Kick a potential troublemaker ... (default: false)
-    kick_threshold: 5                   # ... if they are banned on at least 5 other servers (min: 3)
-    message: 'You are not welcome on this server.'
-  host: dcsserverbot-prod.herokuapp.com # Don't change that until told otherwise.
-  port: 443                             # Don't change that until told otherwise.
-  protocol: https                       # Don't change that until told otherwise.
-  use_proxy: true                       # Optional: use the proxy in nodes.yaml, if configured (default: true). 
-  register: true                        # True, send general statistics to my community stats (please do that!)
-  upload_errors: true                   # True, upload exceptions to the central error database, so that I can see what happened in your bot (and fix it)
-#  token: xxxyyyzzz111222333444         # If you got a TOKEN to participate in the cloud statistics, then put it in here.
+  banlist: both                     # Allowed: pvp | pve | both   (default: both)
+  dcs-ban: true                     # Subscribe to global DCS bans   (default: false)
+  discord-ban: true                 # Subscribe to global Discord bans  (default: false)
+  watchlist_only: false             # Add to watchlist only (requires dcs-ban: true) (default: false)
+
+  # Troubleshooter settings – can be omitted if you don't need them
+  troublemakers:
+    warn: true                      # Warn when a potential troublemaker joins (default: true)
+    warn_threshold: 3               # Warn if banned on ≥3 other servers  (min: 3)
+    kick: true                      # Kick if banned on ≥5 servers (default: false)
+    kick_threshold: 5               # Kick if banned on ≥5 servers  (min: 3)
+    message: "You are not welcome on this server."
+
+  host: dcsserverbot-prod.herokuapp.com
+  port: 443
+  protocol: https
+  use_proxy: true                   # Use the proxy from nodes.yaml if configured (default: true)
+
+  register: true                    # Send anonymous stats to my cloud service (recommended)
+  upload_errors: true               # Upload crash reports to the central DB (recommended)
+
+  # OPTIONAL – Cloud token for telemetry
+  # token: "<your-cloud-token>"
+  #   Provide by me, please ask in a DM or on my Discord
 ```
+
 The online registration helps me to better understand which installations are out there. There is no personal
 information sent to the cloud, and you can always see what is being sent (logs/dcssb-*.log) and disable it if you feel
 uncomfortable with it. I appreciate it if you send me that little bit of data, as it helps me (and you) in
