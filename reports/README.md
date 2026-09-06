@@ -1,511 +1,730 @@
-# Report Framework
-One of the main goals of DCSServerBot is gathering data of your DCS World servers 
-and to display them in a useful format.<br/>
-To achieve this, DCSServerBot already comes with some built-in reports. 
-Many plugins display simple-to-complex data, which I thought might be of interest.
-<p>
-To allow you to change the look and feel of existing reports and to make it easier to build your own, I've developed 
-a JSON-based reporting framework. Here you'll find the main features and elements of this framework.
+# DCSServerBot Reporting Framework Guide
 
-## Using Reports in your Plugins
-It is quite simple to generate a report in your plugins. You need to instantiate one of the available Report classes
-with a json file which is stored in the ./reports subdirectory of your plugin.
+The DCSServerBot **Reporting Framework** provides a declarative, JSON-based Domain-Specific Language (DSL) for 
+designing rich Discord Embeds, formatted tabular data, and high-resolution graphical charts (bar charts, pie charts, 
+rendered tables).
 
-```python
-import discord
+---
 
-from core import command, Plugin, Report
-from services.bot import DCSServerBot
+## Table of Contents
+1. [Architecture & Resolution Order](#architecture--resolution-order)
+   - [Default vs Custom Overrides](#default-vs-custom-overrides)
+   - [Modular Composition & Inclusions](#modular-composition--inclusions)
+2. [JSON DSL Specification](#json-dsl-specification)
+   - [Top-Level Report Schema](#top-level-report-schema)
+   - [Dynamic Formatting & Variable Substitution](#dynamic-formatting--variable-substitution)
+   - [Input Pipeline (`input`)](#input-pipeline-input)
+   - [Pagination Configuration (`pagination`)](#pagination-configuration-pagination)
+3. [Built-in Embed Elements](#built-in-embed-elements)
+   - [Ruler](#ruler)
+   - [Image](#image)
+   - [Field](#field)
+   - [Table](#table)
+   - [SQLField](#sqlfield)
+   - [SQLTable](#sqltable)
+   - [Button](#button)
+4. [Built-in Graph Elements (Matplotlib)](#built-in-graph-elements-matplotlib)
+   - [Graph Container (`Graph`)](#graph-container-graph)
+   - [BarChart & SQLBarChart](#barchart--sqlbarchart)
+   - [PieChart & SQLPieChart](#piechart--sqlpiechart)
+   - [SQLRenderedTable](#sqlrenderedtable)
+5. [Using Reports in Plugins (Python API)](#using-reports-in-plugins-python-api)
+   - [Standard Report (`Report`)](#standard-report-report)
+   - [Paginated Report (`PaginationReport`)](#paginated-report-paginationreport)
+   - [Persistent Auto-Updating Report (`PersistentReport`)](#persistent-auto-updating-report-persistentreport)
+   - [Working with `ReportEnv`](#working-with-reportenv)
+6. [Extending the Framework with Custom Python Code](#extending-the-framework-with-custom-python-code)
+   - [Custom Embed Element (`EmbedElement`)](#custom-embed-element-embedelement)
+   - [Custom Graph Element (`GraphElement`)](#custom-graph-element-graphelement)
+   - [Custom Pagination Provider (`Pagination`)](#custom-pagination-provider-pagination)
+7. [Best Practices & Developer Checklist](#best-practices--developer-checklist)
 
+---
 
-class Test(Plugin):
-   
-   @command(description='Test')
-   async def test(self, interaction: discord.Interaction):
-      # we defer the interaction to avoid timeouts
-      await interaction.response.defer()
-      report = Report(self.bot, self.plugin_name, 'test.json')
-      env = await report.render(params={"name": "Special K"})
-      await interaction.followup.send(embed=env.embed)
+## Architecture & Resolution Order
 
+### Default vs Custom Overrides
+DCSServerBot ships with default report definitions packaged with plugins. 
+Users can override any existing report template without modifying bot source files:
 
-async def setup(bot: DCSServerBot):
-    await bot.add_cog(Test(bot))
-```
+1. **Custom Override**: `./reports/<plugin>/<filename>` (Checked first)
+2. **Plugin Default**: `./plugins/<plugin>/reports/<filename>` (Fallback)
 
-## General Report Structure
-Every report results in an Embed in Discord.<br/> 
-An Embed has several attributes, and many of them can be set inside the report description:
+If `reports/<plugin>/<filename>` exists in the bot root directory, it takes precedence over the plugin's default file.
+
+### Modular Composition & Inclusions
+Reports can be composed hierarchically using the `"include"` keyword at either the report root level or inside 
+the `elements` array:
+
+#### 1. Root-Level Report Inheritance / Merging
 ```json
 {
-  "color": "blue",
-  "mention": [
-    112233445566,
-    223344556677
-  ],
-  "title": "This is the title of the Embed.",
-  "description": "This is a brief description.",
-  "url": "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot",
-  "img": "https://raw.githubusercontent.com/Special-K-s-Flightsim-Bots/DCSServerBot/master/images/play_256.png",
-  "input": [],
-  "pagination": {},
-  "elements": [],
-  "footer": "This is the footer (will be added to any other footers)"
+  "include": {
+    "plugin": "userstats",
+    "filename": "base_stats.json"
+  },
+  "title": "Custom Overridden Title"
 }
 ```
-Mentioning is done with role IDs. So you need to add the IDs of the roles to be mentioned in here.
 
-### Input Section
-Within the "input" section you can define variables that will be used inside the report or validate such, that came 
-from your render(...) call.
-```json
-  "input":
-  [
-    {
-      "name": "ruler_length",                          -- set a variable (here a reserved one, the length of the ruler)
-      "value": 27                                      -- to a new value (default is 30)
-    },
-    {
-      "name": "period",
-      "range": ["", "day", "week", "month", "year"],   -- validate these passed parameters against a list of possible values
-      "default": "day"                                 -- if no value for this variable is provided, set a default
-    },
-    {
-      "sql": "SELECT ucid, name FROM players WHERE discord_id = %(discord_id)s"  -- read these parameters from the database
-    },
-    {
-      "callback": "MissionFocusString"                 -- read a mission variable from DCS with this name
-    }
-  ],
-```
-### Pagination Section
-Only needed for PaginationReports (see below).
-
-### Elements Section
-The "elements" section contains the real data that you want to present with your report.<br/>
-You can either use pre-defined elements or write your own element by inheritance of one of the base classes provided by the framework.
-
-### Variables
-You usually work with variables that you pass to the corresponding render() call or that you define in the "input" section. These can be dictionaries like server- or player-data or just single values like server_name.
-To use them in your reports, expect all strings to be f-string capable:
+#### 2. Element-Level Inclusions
 ```json
 {
-  "title": "Report for Server {server_name}",
-  "description": "Player {player[name]} is causing trouble."
-}
-```
-Be aware that player\['name'\] is written as player\[name\] in the reports!
-
-## Simple Report Elements for Embeds
-The following elements can be used in your reports without any additional coding. Anybody familiar with Discord Embeds should be able to create a simple report with them.
-
-### Ruler
-A ruler, default size is 25 characters.
-```json
-"elements": [
-  {
-    "Ruler"
-  }
-]
-```
-Or if you want to change the size:
-```json
-"elements": [
+  "title": "Combined Server Status",
+  "elements": [
     {
-      "type": "Ruler",
-      "params": {
-        "ruler_length": 10
+      "include": {
+        "plugin": "mission",
+        "filename": "server_header.json"
       }
-    }
-]
-```
-> [!NOTE]
-> Discord allows a maximum size of 34 characters in an embed.
-
-You can add a header, too:
-```json
-"elements": [
-    {
-      "type": "Ruler",
-      "params": {
-        "header": "Active Servers"
-      }
-    }
-]
-```
-
-### Image
-An image used as a thumbnail.
-```json
-"elements": [
-    {
-      "type": "Image",
-      "params": {
-        "url": "https://static.wikia.nocookie.net/simpsons/images/a/a1/Flying_Hellfish_Logo.png"
-      }
-    }
-]
-```
-
-### Field
-A field with a single key/value pair. "default" is optional.
-```json
-"elements": [
+    },
     {
       "type": "Field",
       "params": {
-        "name": "Name",
-        "value": "Special K",
-        "inline": false,
-        "default": "n/a"
+        "name": "Custom Notes",
+        "value": "Mission running smoothly."
       }
     }
-]
+  ]
+}
+```
+
+---
+
+## JSON DSL Specification
+
+### Top-Level Report Schema
+
+```json
+{
+  "color": "blue",
+  "mention": [112233445566, 223344556677],
+  "title": "Embed Title (max 256 chars)",
+  "description": "Embed Description (max 4096 chars)",
+  "url": "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot",
+  "img": "https://example.com/thumbnail.png",
+  "author": "Author Name",
+  "author_url": "https://example.com/author",
+  "author_icon": "https://example.com/author_icon.png",
+  "footer": "Custom footer text (max 2048 chars)",
+  "input": [],
+  "pagination": {},
+  "elements": []
+}
+```
+
+#### Top-Level Fields
+| Field         | Type         | Description                                                                                                                        |
+|---------------|--------------|------------------------------------------------------------------------------------------------------------------------------------|
+| `color`       | `str`        | Embed stripe color name (`"blue"`, `"red"`, `"green"`, `"gold"`, etc. matching `discord.Color`). Supports `{variable}` formatting. |
+| `mention`     | `list[int]`  | Discord role or user IDs to ping alongside the message.                                                                            |
+| `title`       | `str`        | Main embed title.                                                                                                                  |
+| `description` | `str`        | Embed body description text.                                                                                                       |
+| `url`         | `str`        | Hyperlink attached to the embed title.                                                                                             |
+| `img`         | `str`        | URL to display as the embed thumbnail image.                                                                                       |
+| `author`      | `str`        | Author field text.                                                                                                                 |
+| `author_url`  | `str`        | Link attached to the author name.                                                                                                  |
+| `author_icon` | `str`        | Small icon URL next to author name.                                                                                                |
+| `footer`      | `str`        | Embed footer note (appended to standard bot footers).                                                                              |
+| `input`       | `list[dict]` | Variable declarations, validations, DB queries, or DCS variable fetch steps.                                                       |
+| `pagination`  | `dict`       | Pagination parameter source (for `PaginationReport`).                                                                              |
+| `elements`    | `list[dict]` | Array of Embed or Graph elements rendered inside the report.                                                                       |
+
+---
+
+### Dynamic Formatting & Variable Substitution
+
+All string values in the JSON DSL support Python f-string syntax using parameters passed into `render(...)` or created via the `input` section:
+
+```json
+{
+  "title": "Statistics for {server_name}",
+  "description": "Player **{player[name]}** (UCID: `{player[ucid]}`)"
+}
+```
+
+- **Dictionary Access**: Write `{player[name]}` (do **not** quote inside brackets like `{player['name']}`).
+- **Arithmetic Expressions**: Used in dimension fields like `height`, `width`, `dpi`:
+  ```json
+  {
+    "height": "${limit} / 2 + 2"
+  }
+  ```
+
+---
+
+### Input Pipeline (`input`)
+
+The `input` array lets reports declare variables, apply default values, validate input ranges, query the database, execute Python helper functions, or fetch live DCS variables:
+
+```json
+{
+  "input": [
+    {
+      "name": "ruler_length",
+      "value": 27
+    },
+    {
+      "name": "period",
+      "range": ["", "day", "week", "month", "year"],
+      "default": "day"
+    },
+    {
+      "name": "campaign_data",
+      "call": "plugins.gamemaster.helper.get_active_campaign",
+      "params": {
+        "server_name": "{server_name}"
+      }
+    },
+    {
+      "sql": "SELECT ucid, name FROM players WHERE discord_id = %(discord_id)s"
+    },
+    {
+      "callback": "MissionFocusString"
+    },
+    {
+      "event": "getMissionUpdate",
+      "params": { "detailed": true }
+    }
+  ]
+}
+```
+
+#### Input Pipeline Directives
+1. **Set / Override Variable (`value`)**: Assigns a static or formatted string to `params[name]`.
+2. **Range Validation (`range`) & Default (`default`)**: Validates parameter against allowed values; raises `ValueNotInRange` if invalid. If missing, assigns `default`.
+3. **Function Call (`call`)**: Invokes a sync or async Python callable by dotted path (`module.func`). Passes available parameters matching the function signature.
+4. **SQL Query (`sql`)**: Executes an async PostgreSQL query. If exactly one row is returned, columns are unpacked directly into `params`.
+5. **DCS Variable Callback (`callback`)**: Queries a global Lua variable from the running DCS server via `{ "command": "getVariable", "name": callback }`.
+6. **DCS Event Call (`event`)**: Sends a synchronous JSON command to DCS via `{ "command": event }` and stores the response object in `params[event]`.
+
+---
+
+### Pagination Configuration (`pagination`)
+
+Used in conjunction with `PaginationReport` to generate interactive pagination dropdowns/buttons:
+
+```json
+{
+  "pagination": {
+    "param": {
+      "name": "server_name",
+      "sql": "SELECT DISTINCT server_name FROM missions ORDER BY 1"
+    }
+  }
+}
+```
+
+Alternatively, pagination options can be populated by a custom Python `Pagination` class:
+```json
+{
+  "pagination": {
+    "param": {
+      "name": "selected_user",
+      "class": "plugins.userstats.pagination.UserPagination"
+    }
+  }
+}
+```
+
+---
+
+## Built-in Embed Elements
+
+Embed elements render directly into Discord embed fields, text blocks, or interactive buttons.
+
+### Ruler
+Adds a visual line separator in an embed field (max 34 characters per Discord field limits).
+```json
+{
+  "type": "Ruler",
+  "params": {
+    "header": "Active Servers",
+    "ruler_length": 30
+  }
+}
+```
+
+### Image
+Sets the thumbnail of the embed.
+```json
+{
+  "type": "Image",
+  "params": {
+    "url": "https://example.com/logo.png"
+  }
+}
+```
+
+### Field
+Displays a single key/value field.
+```json
+{
+  "type": "Field",
+  "params": {
+    "name": "Server Status",
+    "value": "{server.status.name}",
+    "inline": true,
+    "default": "Offline"
+  }
+}
 ```
 
 ### Table
-Multiple fields displayed as a table with a single header line and a maximum of 3 columns.
+Displays structured tabular data using multiple inline fields.
 ```json
-"elements": [
-    {
-      "type": "Table",
-      "params": {
-        "values": [
-          {
-            "name": "Special K",
-            "skill": "limited"
-          },
-          {
-            "name": "Special A",
-            "skill": "expert"
-          }
-        ]
-      }
-    }
-]
+{
+  "type": "Table",
+  "params": {
+    "obj": "servers",
+    "values": {
+      "display_name": "Server Name",
+      "status": "Status",
+      "num_players": "Active Players"
+    },
+    "ansi_colors": false
+  }
+}
 ```
-A table can be built up from a passed object that needs to be a list of dict. The values section then contains
-the key of the fields you want to use from these dictionaries and the name you want to display:
-```json
-"elements": [
-    {
-      "type": "Table",
-      "params": {
-        "obj": "servers",
-        "values": {
-          "display_name": "Server Name",
-          "status": "Status",
-          "num_players": "Active Players"
-        },
-        "ansi_colors": false
-      }
-    }
-]
-```
-If ansi_colors is set to true you can use color coding like `\u001b[0;31m` to color your values. 
-Default is "false" and it is therefore optional. 
-Works with SQLTables also (see the code of the `/infractions` command as an example).
+- `obj`: Parameter name containing a `list[dict]`.
+- `values`: Mapping of dictionary keys to displayed column titles (maximum 3 columns per table).
+- `ansi_colors`: When `true`, parses ANSI escape sequences (e.g. `\u001b[0;31m`) for colored Discord code blocks.
 
 ### SQLField
-If you want to display a single value from a database table, use the SQLField for it.
+Queries a single scalar value from the database and displays it as an embed field.
 ```json
-"elements": [
-    {
-      "type": "SQLField",
-      "params": {
-        "sql": "SELECT points AS \"Points\" FROM sb_points WHERE player_ucid = %(ucid)s",
-        "inline": false,
-        "no_data": { "Points": 0 },
-        "on_error": { "Points": 0 }
-      }
-    }
-]
+{
+  "type": "SQLField",
+  "params": {
+    "name": "Total Points",
+    "sql": "SELECT SUM(points) AS \"Points\" FROM pu_events WHERE init_id = %(ucid)s",
+    "inline": false,
+    "no_data": { "Points": 0 },
+    "on_error": { "Points": "Error loading points" }
+  }
+}
 ```
-If your query needs values, you can provide them as a dictionary to your report() call.
 
 ### SQLTable
-Similar to the Table element but with values from an SQL query:
+Executes an SQL query and displays up to 3 columns as aligned Discord fields.
 ```json
-"elements": [
-    {
-      "type": "SQLTable",
-      "params": {
-        "sql": "SELECT init_id as ucid, event, SUM(points) AS points FROM pu_events WHERE init_id = %(ucid)s GROUP BY 1,2",
-        "no_data": "You have no points yet!",
-        "on_error": "An error occured: {ex}"
-      }
-    }
-]
-```
-> [!NOTE]
-> "no_data" can be either a string or a dictionary.<br>
-> In case of a string, the "name" value will be empty.
-
-## Graph Elements
-To display nice graphics like bar-charts or pie-charts, you need to wrap them in a Graph element:
-```json
-"elements": [
-  {
-    "type": "Graph",
-    "params": {
-      "width": 10,            -- width of the resulting image in inch
-      "height": 10,           -- height of the resulting image in inch
-      "cols": 2,              -- number of columns in the grid
-      "rows": 1,              -- number of rows in the grid
-      "wspace": 0.5,          -- horizontal spacing between subplots
-      "hspace": 0.5,          -- vertical spacing between subplots
-      "dpi": 100,             -- DPI of the image
-      "facecolor": "#2C2F33", -- the background color of the image
-      "elements": [
-        ... describe your GraphElements in here ...
-      ]
-    }
-  }      
-]
-```
-> [!NOTE]
-> Only one Graph element is allowed per report.
-> You can use a MultiGraphElement though.
-
-> [!TIP]
-> If you are using graph elements that can vary in size, especially tables, you can dynamically adjust the width, 
-> height, or dpi using arithmetic expressions like so:
-> ```json
-> {
->   "height": "${limit} / 2 + 2"
-> }
-> ```
-> This will be evaluated at runtime. If you pass a "limit" of 10 to your graph, the height will be 7.
-
-You can configure sub-elements like so:
-```json
-    "elements": [
-      {
-        "type": "xxx",    -- the type of the element (BarChart, PieChart, etc.)
-        "params": {
-        "col": 0,         -- the x position of the chart in the grid
-        "row": 0,         -- the y position of the chart in the grid
-        "colspan": 1,     -- optional: the number of columns that this chart uses
-        "rowspan": 1      -- optional: the number of rows that this chart uses
-      }
-    ]
+{
+  "type": "SQLTable",
+  "params": {
+    "sql": "SELECT init_id as ucid, event, SUM(points) AS points FROM pu_events WHERE init_id = %(ucid)s GROUP BY 1,2",
+    "no_data": "You have no points yet!",
+    "on_error": "An error occurred: {ex}",
+    "ansi_colors": false
+  }
+}
 ```
 
-### SQLRenderedTable
-A formatted table.
+### Button
+Adds an interactive Discord UI button directly to the view.
 ```json
-  "elements": [
-    {
-      "class": "core.report.elements.SQLRenderedTable",
-      "params": {
-        "col": 0,
-        "row": 0,
-        "title": "Bans (last {limit})",
-        "sql": "SELECT * FROM bans ORDER BY banned_at DESC LIMIT {limit}",
-        "no_data": "There are no bans logged.",
-        "fontsize": 10
-      }
-    }
-```
-> [!TIP]
-> See how this element uses a dynamic title by replacing {limit} with the actual value.
-
-### BarChart
-Simple bar chart that will display all elements of a given dictionary.
-```json
-    "elements": [
-      {
-        "type": "BarChart",
-        "params": {
-          "col": 0,
-          "row": 0,
-          "title": "Test BarChart",
-          "color": "blue",
-          "rotate_labels": 30,         -- rotate the labels by 30°        
-          "bar_labels": true,          -- put the value of each bar at the top
-          "is_time": true,             -- select the time formatter
-          "orientation": "horizontal", -- set the orientation (vertical is default)
-          "show_no_data": false,       -- if no data is available, don't display "No data available." but nothing
-          "values": { "Takeoffs": 2, "Landings": 1, "Crashes": 1 }
-        }
-      }
-    ]
+{
+  "type": "Button",
+  "params": {
+    "label": "View Server Live Map",
+    "style": "link",
+    "url": "https://myserver.com/map"
+  }
+}
 ```
 
-### SQLBarChart
-Same as bar chart, but with an SQL to grab the data from the database.
+---
+
+## Built-in Graph Elements (Matplotlib)
+
+Graph elements generate high-resolution PNG charts via Matplotlib and automatically attach them to the Discord embed 
+as `attachment://report.png`.
+
+### Graph Container (`Graph`)
+The `Graph` element defines the figure canvas and subplot layout. **Only one `Graph` element is allowed per report.**
+
 ```json
+{
+  "type": "Graph",
+  "params": {
+    "width": 10,
+    "height": 6,
+    "cols": 2,
+    "rows": 1,
+    "wspace": 0.4,
+    "hspace": 0.4,
+    "dpi": 100,
+    "facecolor": "#2C2F33",
     "elements": [
       {
         "type": "SQLBarChart",
         "params": {
           "col": 0,
           "row": 0,
-          "title": "Kills & Deaths",
-          "sql": "SELECT SUM(kills) AS Kills, SUM(deaths) AS Deaths FROM statistics WHERE player_ucid = %(ucid)s"
+          "title": "Kills by Type",
+          "sql": "SELECT event, COUNT(*) AS count FROM pu_events WHERE init_id = %(ucid)s GROUP BY event"
         }
-      }
-    ]
-```
-
-### PieChart
-Simple pie chart that will display all elements of a given dictionary.
-```json
-    "elements": [
-      {
-        "type": "PieChart",
-        "params": {
-          "col": 0,
-          "row": 0,
-          "title": "Test PieChart",
-          "is_time": true,             -- select the time formatter
-          "show_no_data": false,       -- if no data is available, don't display "No data available." but nothing
-          "values": { "Takeoffs": 2, "Landings": 1, "Crashes": 1 }
-        }
-      }
-    ]
-```
-
-### SQLPieChart
-Same as pie chart, but with an SQL to grab the data from the database.
-```json
-    "elements": [
+      },
       {
         "type": "SQLPieChart",
         "params": {
-          "col": 0,
+          "col": 1,
           "row": 0,
-          "title": "Test PieChart",
-          "sql": "SELECT SUM(kills) AS Kills, SUM(deaths) AS Deaths FROM statistics WHERE player_ucid = %(ucid)s"
+          "title": "Flight Hours by Airframe",
+          "is_time": true,
+          "sql": "SELECT slot, ROUND(SUM(EXTRACT(EPOCH FROM (hop_off - hop_on)))) AS duration FROM statistics WHERE player_ucid = %(ucid)s GROUP BY slot"
         }
       }
     ]
-```
-
-## Report Types
-
-There are three report types that you can use:
-
-1. **Report**  
-   Standard implementation. Will output a single report as an embed.
-
-2. **PaginationReport**  
-   Will enable pagination based on a provided parameter list.
-
-3. **PersistentReport**  
-   For auto-updates. Every time a persistent report is generated, it will update the former embed.
-
-Let's look at the more complex ones.
-
-### PaginationReport
-To use a PaginationReport, your code could look like the following:
-
-```python
-import discord
-
-from discord import app_commands
-from typing import Optional
-
-from core import command, utils, Plugin, Server, PaginationReport
-from plugins.userstats.filter import (StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, 
-                                      TheatreFilter)
-from services.bot import DCSServerBot
-
-
-class Test(Plugin):
-
-   @command(description='Pagination Test')
-   async def test(self, interaction: discord.Interaction, 
-                  period: Optional[app_commands.Transform[
-                                StatisticsFilter, PeriodTransformer(
-                                    flt=[PeriodFilter, CampaignFilter, MissionFilter, TheatreFilter]
-                                )]] = PeriodFilter(),
-                  server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None):
-      # we defer the interaction to avoid timeouts
-      await interaction.response.defer()
-      report = PaginationReport(interaction, plugin=self.plugin_name, filename='mytest.json')
-      await report.render(period=period, server_name=server.name if server else None)
-
-
-async def setup(bot: DCSServerBot):
-    await bot.add_cog(Test(bot))
-```
-> [!NOTE]
-> Providing None to the pagination value (here server_name) will result in None being the first element to allow 
-> aggregated displays. If you provide a strict value, this will be the first to be displayed out of the pagination list.
-
-
-In your report, you have to specify a pagination section:
-```json
-{
-  "color": "blue",
-  "title": "My Pagination Test",
-  "input": [
-    {
-      "name": "period",
-      "range": ["", "day", "week", "month", "year"],
-      "default": "day"
-    }
-  ],
-  "pagination":
-  {
-    "param":
-    {
-      "name": "server_name",
-      "sql": "SELECT DISTINCT server_name FROM missions"
-    }
-  },
-  "elements": []
+  }
 }
 ```
-Now you can use {server_name} in your report elements:
+
+#### Canvas Grid Parameters
+| Parameter   | Type            | Default     | Description                                                               |
+|-------------|-----------------|-------------|---------------------------------------------------------------------------|
+| `width`     | `float` / `str` | `8`         | Canvas width in inches (supports dynamic math like `"${limit} / 2 + 2"`). |
+| `height`    | `float` / `str` | `4`         | Canvas height in inches.                                                  |
+| `cols`      | `int`           | `1`         | Number of subplot grid columns.                                           |
+| `rows`      | `int`           | `1`         | Number of subplot grid rows.                                              |
+| `wspace`    | `float`         | `0.2`       | Horizontal spacing between subplots.                                      |
+| `hspace`    | `float`         | `0.2`       | Vertical spacing between subplots.                                        |
+| `dpi`       | `int`           | `100`       | Output image DPI.                                                         |
+| `facecolor` | `str`           | `"#2C2F33"` | Canvas background color hex.                                              |
+
+#### Common Subplot Placement Options
+- `col` (`int`): Subplot column index (0-indexed).
+- `row` (`int`): Subplot row index (0-indexed).
+- `colspan` (`int`, optional): Number of columns spanned (default `1`).
+- `rowspan` (`int`, optional): Number of rows spanned (default `1`).
+
+---
+
+### BarChart & SQLBarChart
+Renders vertical or horizontal bar charts.
+
 ```json
-    "elements": [
-      {
-        "type": "SQLPieChart",
-        "params": {
-          "col": 0,
-          "row": 0,
-          "title": "Server Time",
-          "sql": "select mission_name, ROUND(SUM(EXTRACT(EPOCH FROM (mission_end - mission_start))) / 3600) FROM missions GROUP BY 1 WHERE server_name LIKE '{server_name}'"
-        }
-      }
-    ]
+{
+  "type": "BarChart",
+  "params": {
+    "col": 0,
+    "row": 0,
+    "title": "Mission Events",
+    "color": "dodgerblue",
+    "orientation": "vertical",
+    "rotate_labels": 30,
+    "bar_labels": true,
+    "is_time": false,
+    "show_no_data": true,
+    "values": {
+      "Takeoffs": 12,
+      "Landings": 10,
+      "Crashes": 2
+    }
+  }
+}
 ```
 
-### Persistent Report
-To use a PersistentReport, in general you produce a normal report but provide a unique key with it, that will be used to access and update it later on.
+For `SQLBarChart`, replace `"values"` with an `"sql"` query returning label-value pairs:
+```json
+{
+  "type": "SQLBarChart",
+  "params": {
+    "col": 0,
+    "row": 0,
+    "title": "Air-to-Air vs Ground Kills",
+    "sql": "SELECT 'Air Kills' AS label, SUM(kills_air) AS value FROM statistics WHERE player_ucid = %(ucid)s UNION ALL SELECT 'Ground Kills', SUM(kills_ground) FROM statistics WHERE player_ucid = %(ucid)s"
+  }
+}
+```
+
+### PieChart & SQLPieChart
+Renders pie charts with automatic slice percentage calculation and color schemes.
+
+```json
+{
+  "type": "SQLPieChart",
+  "params": {
+    "col": 0,
+    "row": 0,
+    "title": "Coalition Flight Distribution",
+    "is_time": true,
+    "sql": "SELECT coalition, SUM(flight_time) FROM player_stats WHERE player_ucid = %(ucid)s GROUP BY coalition"
+  }
+}
+```
+- `is_time` (`bool`): When `true`, formats values as HH:MM:SS time strings instead of raw integers.
+
+### SQLRenderedTable
+Renders a high-resolution, graphically styled data table directly onto the Matplotlib canvas.
+
+```json
+{
+  "type": "SQLRenderedTable",
+  "params": {
+    "col": 0,
+    "row": 0,
+    "title": "Top 10 Highscores",
+    "sql": "SELECT name AS \"Player\", kills AS \"Kills\", score AS \"Score\" FROM statistics ORDER BY score DESC LIMIT 10",
+    "no_data": "No statistics available.",
+    "fontsize": 10
+  }
+}
+```
+
+---
+
+## Using Reports in Plugins (Python API)
+
+Reports are instantiated and executed inside plugin command handlers (`commands.py`).
+
+### Standard Report (`Report`)
 
 ```python
 import discord
-
-from discord import app_commands
-from typing import Optional
-
-from core import command, utils, Plugin, Server, PersistentReport
-from plugins.userstats.filter import (StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, 
-                                      TheatreFilter)
+from core import Plugin, command, Report
 from services.bot import DCSServerBot
 
 
-class Test(Plugin):
+class MyStatsPlugin(Plugin):
 
-   @command(description='Pagination Test')
-   async def test(self, interaction: discord.Interaction, 
-                  period: Optional[app_commands.Transform[
-                                StatisticsFilter, PeriodTransformer(
-                                    flt=[PeriodFilter, CampaignFilter, MissionFilter, TheatreFilter]
-                                )]] = PeriodFilter(),
-                  server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None):
-       report = PersistentReport(self.bot, plugin=self.plugin_name, filename='mytest.json', embed_name="myfancyreport")
-       await report.render(period=period, server_name=server.name if server else None)
+    @command(description="Display user statistics")
+    async def stats(self, interaction: discord.Interaction, user: discord.Member = None):
+        await interaction.response.defer()
+        target = user or interaction.user
+
+        report = Report(self.bot, self.plugin_name, "stats.json")
+        env = await report.render(
+            discord_id=target.id,
+            name=target.display_name
+        )
+
+        file = discord.File(env.buffer, filename=env.filename) if env.buffer else discord.utils.MISSING
+        await interaction.followup.send(embed=env.embed, file=file)
 
 
 async def setup(bot: DCSServerBot):
-    await bot.add_cog(Test(bot))
+    await bot.add_cog(MyStatsPlugin(bot))
 ```
 
-Whenever you call `/test`, you will not generate a new report but update the existing one.<br/>
-> [!WARNING]
-> The key is unique in that server. 
-> You must not use the same key for two different reports, they will overwrite each other.
+---
+
+### Paginated Report (`PaginationReport`)
+
+Interactive multi-page report with select menus and page flipping:
+
+```python
+import discord
+from discord import app_commands
+from typing import Optional
+from core import Plugin, command, utils, Server, PaginationReport
+from services.bot import DCSServerBot
+
+
+class ServerStats(Plugin):
+
+    @command(description="View paginated server activity")
+    async def serveractivity(self, interaction: discord.Interaction,
+                             server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None):
+        await interaction.response.defer()
+        report = PaginationReport(interaction, plugin=self.plugin_name, filename="activity.json")
+        await report.render(server_name=server.name if server else None)
+
+
+async def setup(bot: DCSServerBot):
+    await bot.add_cog(ServerStats(bot))
+```
+
+---
+
+### Persistent Auto-Updating Report (`PersistentReport`)
+
+Used for persistent dashboard embeds (e.g. pinned server status boards, auto-updating highscores). Every execution updates the existing Discord embed:
+
+```python
+from core import Plugin, PersistentReport, Server
+from discord.ext import tasks
+
+
+class StatusDashboard(Plugin):
+
+    @tasks.loop(minutes=5.0)
+    async def update_dashboard(self):
+        server: Server = self.bot.servers.get("DCS.dcs_server1")
+        if not server:
+            return
+
+        report = PersistentReport(
+            self.bot,
+            plugin=self.plugin_name,
+            filename="dashboard.json",
+            embed_name="server_dashboard"  # Unique key per server/channel
+        )
+        await report.render(server_name=server.name)
+```
+
+---
+
+### Working with `ReportEnv`
+
+`report.render()` returns an instance of `ReportEnv` (`core.report.ReportEnv`):
+
+| Attribute      | Type                       | Description                                                     |
+|----------------|----------------------------|-----------------------------------------------------------------|
+| `env.bot`      | `DCSServerBot`             | The active bot service instance.                                |
+| `env.embed`    | `discord.Embed`            | The generated Discord embed.                                    |
+| `env.figure`   | `matplotlib.figure.Figure` | The Matplotlib figure object (if graphs were rendered).         |
+| `env.buffer`   | `io.BytesIO`               | In-memory stream containing the generated PNG image bytes.      |
+| `env.filename` | `str`                      | Attachment filename (e.g., `"report.png"`).                     |
+| `env.params`   | `dict`                     | Merged parameters dictionary after `input` pipeline processing. |
+| `env.view`     | `discord.ui.View`          | Interactive Discord View containing attached buttons or menus.  |
+
+---
+
+## Extending the Framework with Custom Python Code
+
+When pre-built elements do not satisfy specific requirements, developers can write custom Python elements and reference them directly in JSON reports via the `"class"` property.
+
+### Custom Embed Element (`EmbedElement`)
+
+Create a custom subclass of `core.report.EmbedElement` to generate custom Discord embed fields:
+
+```python
+# plugins/myplugin/elements.py
+from core.report import EmbedElement
+
+
+class SystemLoadField(EmbedElement):
+
+    async def render(self, cpu_threshold: int = 80):
+        # Access parameters from self.env.params
+        server = self.env.params.get("server")
+        cpu_usage = server.node.stats.get("cpu", 0) if server else 0
+
+        status_icon = "⚠️" if cpu_usage >= cpu_threshold else "✅"
+        self.embed.add_field(
+            name="CPU Load",
+            value=f"{status_icon} **{cpu_usage}%** (Threshold: {cpu_threshold}%)",
+            inline=True
+        )
+```
+
+#### Reference in JSON Report:
+```json
+{
+  "elements": [
+    {
+      "class": "plugins.myplugin.elements.SystemLoadField",
+      "params": {
+        "cpu_threshold": 75
+      }
+    }
+  ]
+}
+```
+
+---
+
+### Custom Graph Element (`GraphElement`)
+
+Subclass `core.report.GraphElement` to render custom visualizations using Matplotlib:
+
+```python
+# plugins/myplugin/graphs.py
+import numpy as np
+from core.report import GraphElement
+
+
+class RadarThreatChart(GraphElement):
+
+    async def render(self, threats: dict):
+        # Create radar / polar visualization on self.axes
+        labels = list(threats.keys())
+        values = list(threats.values())
+
+        angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
+        values += values[:1]
+        angles += angles[:1]
+
+        self.axes.plot(angles, values, color='red', linewidth=2)
+        self.axes.fill(angles, values, color='red', alpha=0.25)
+        self.axes.set_thetagrids(np.degrees(angles[:-1]), labels)
+        self.axes.set_title("Threat Proximity Radar", color="white", fontsize=12)
+```
+
+#### Reference in JSON Report:
+```json
+{
+  "type": "Graph",
+  "params": {
+    "width": 6,
+    "height": 6,
+    "cols": 1,
+    "rows": 1,
+    "elements": [
+      {
+        "class": "plugins.myplugin.graphs.RadarThreatChart",
+        "params": {
+          "col": 0,
+          "row": 0,
+          "threats": {
+            "SAM": 4,
+            "CAP": 2,
+            "AAA": 8,
+            "EWR": 1
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+---
+
+### Custom Pagination Provider (`Pagination`)
+
+Subclass `core.report.Pagination` to supply dynamic pagination options from external APIs or complex algorithms:
+
+```python
+# plugins/myplugin/pagination.py
+from core.report import Pagination
+
+
+class ActiveSquadronsPagination(Pagination):
+
+    async def values(self, **kwargs) -> list[str]:
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("SELECT DISTINCT squadron_name FROM squadrons ORDER BY 1")
+            rows = await cursor.fetchall()
+            return [row[0] for row in rows]
+```
+
+#### Reference in JSON Report:
+```json
+{
+  "pagination": {
+    "param": {
+      "name": "squadron_name",
+      "class": "plugins.myplugin.pagination.ActiveSquadronsPagination"
+    }
+  }
+}
+```
+
+---
+
+## Best Practices & Developer Checklist
+
+When creating or customizing reports, follow this checklist:
+
+- [ ] **Declarative First**: Prefer JSON DSL features (`input`, `sql`, `params`, built-in elements) before writing custom Python classes.
+- [ ] **Directory Hierarchy**: Place user overrides under `reports/<plugin>/<filename>.json` and plugin defaults under `plugins/<plugin>/reports/<filename>.json`.
+- [ ] **SQL Sanitization**: Always use parameterized SQL (`%(param)s`) in `input` and `sql` elements rather than string concatenation to prevent SQL injection.
+- [ ] **Async Safety**: Use async database connections (`self.apool`) and `asyncio.to_thread` for heavy disk/math operations in custom elements.
+- [ ] **Discord Limits**:
+  - Title: max 256 characters.
+  - Description: max 4096 characters.
+  - Fields: max 25 fields per embed; field values max 1024 characters.
+  - Tables: max 3 inline columns per row.
+- [ ] **Graph Optimization**: Keep DPI reasonable (`100`–`150`) and canvas sizes balanced (`width: 8–12`, `height: 4–8`) to ensure fast generation and responsive Discord upload times.
+- [ ] **Unique Embed Keys**: When using `PersistentReport`, ensure `embed_name` is strictly unique per server/channel to prevent reports from overwriting each other.
