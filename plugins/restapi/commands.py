@@ -7,8 +7,6 @@ import psycopg
 import random
 import re
 
-from jwt import PyJWKClient
-
 from core import (Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, ServiceProxy,
                   PluginInstallationError, Server, async_cache, const)
 from datetime import datetime, timedelta, timezone
@@ -1775,7 +1773,7 @@ class RestAPI(Plugin):
             
             # Extract wind data (use ground level wind by default)
             wind_data = weather_data.get('wind', {}).get('atGround', {})
-            wind_dir = (wind_data.get('dir', 0) + 180) % 360
+            wind_dir = (int(wind_data.get('dir', 0)) + 180) % 360
 
             # Extract clouds data (it's directly in weather_data, not separate)
             clouds_data = weather_data.get('clouds', {})
@@ -1877,6 +1875,12 @@ class RestAPI(Plugin):
             # add extensions
             if server.status in [Status.RUNNING, Status.PAUSED]:
                 data['extensions'] = await server.render_extensions()
+#                data['extensions'] = []
+#                for extension in await server.render_extensions():
+#                    ports = await server.run_on_extension(extension['_class'], 'get_ports')
+#                    data['extensions'].append(extension | {
+#                        "ports": {k: v.to_dict() for k,v in ports.items()}
+#                    })
             else:
                 data['extensions'] = []
 
