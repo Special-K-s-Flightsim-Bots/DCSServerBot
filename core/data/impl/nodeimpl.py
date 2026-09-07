@@ -1348,12 +1348,15 @@ class NodeImpl(Node):
                 finally:
                     if (not cancelled and not self.node.is_shutdown.is_set()
                             and self.cpool is not None and not self.cpool.closed):
-                        async with self.cpool.connection() as conn2:
-                            await conn2.execute("""
-                                INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
-                                ON CONFLICT (guild_id, node) DO UPDATE 
-                                SET last_seen = (NOW() AT TIME ZONE 'UTC')
-                            """, (self.guild_id, self.name))
+                        try:
+                            async with self.cpool.connection() as conn2:
+                                await conn2.execute("""
+                                    INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
+                                    ON CONFLICT (guild_id, node) DO UPDATE 
+                                    SET last_seen = (NOW() AT TIME ZONE 'UTC')
+                                """, (self.guild_id, self.name))
+                        except Exception:
+                            pass  # inner exception is already propagating
         except UndefinedTable:
             # we should only be here when the CLUSTER table does not exist
             # it will be created directly afterward
@@ -1375,6 +1378,14 @@ class NodeImpl(Node):
         except FatalException as ex:
             self.log.critical(ex)
             exit(SHUTDOWN)
+        except (psycopg.OperationalError, psycopg.InterfaceError) as ex:
+            self.log.warning(f"Database connection error in heartbeat: {ex}")
+            if self._heartbeat_conn and not self._heartbeat_conn.closed:
+                try:
+                    await self._heartbeat_conn.close()
+                except Exception:
+                    pass
+            self._heartbeat_conn = None
         except Exception as ex:
             self.log.exception(ex)
             await self.restart()

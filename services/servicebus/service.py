@@ -123,10 +123,33 @@ class ServiceBus(Service):
                 if not row:
                     self.log.warning("No master available, can't register.")
                     return
-                master = row[0]
+                master_node = row[0]
 
-            if master not in await self.node.get_active_nodes():
-                self.log.debug(f"Master node {master} is not active (yet), waiting ...")
+            # Retry loop: master might not yet be in active_nodes
+            # if it's busy with slow startup (DB migrations, etc.)
+            max_retries = 10
+            delay = 2
+            for attempt in range(max_retries):
+                # Abort if we became master ourselves during retry
+                if self.node.claimed_master:
+                    self.log.debug("This node is now master, aborting agent registration.")
+                    return
+                # Abort on shutdown
+                if self.node.is_shutdown.is_set():
+                    return
+
+                if master_node in await self.node.get_active_nodes():
+                    break  # master is ready, proceed
+
+                self.log.debug(f"Master node {master_node} is not active yet "
+                               f"(attempt {attempt + 1}/{max_retries}), retrying in {delay}s ...")
+
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, 30)
+            else:
+                # loop exited without break — exhausted retries
+                self.log.warning(f"Master node {master_node} never became active "
+                                 f"after {max_retries} retries, giving up.")
                 return
 
             await self.send_to_node({

@@ -260,7 +260,10 @@ class Main:
             finally:
                 self.log.warning("Aborting the main loop ...")
                 if db_available:
-                    await self.node.unregister()
+                    try:
+                        await asyncio.wait_for(self.node.unregister(), timeout=5.0)
+                    except (asyncio.TimeoutError, Exception) as ex:
+                        self.log.error(f"Node unregister failed (forcing exit anyway): {ex}")
 
 
 def handle_exception(loop, context):

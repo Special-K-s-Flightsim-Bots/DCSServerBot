@@ -1,12 +1,31 @@
-# config/plugins/cloud.yaml
+# config/plugins/cloud.yml
+# ---------------------------------------
+#   Cloud Plugin – configuration
+# ---------------------------------------
+
+# Use the minimal example as a starting point:
 DEFAULT:
-  banlist: both                         # One of pvp, pve or both. For DCS bans / watchlist only (default: both).
-  dcs-ban: false                        # true: subscribe to the global ban service for DCS users (default: false).
-  discord-ban: false                    # true: subscribe to the global ban service for Discord users (default: false).
-  watchlist_only: false                 # true: a player being on the global banlist will be added to the watchlist only (default: false, does not work with dcs-ban: true)
-  host: dcsserverbot-prod.herokuapp.com # Don't change that until told otherwise.
-  port: 443                             # Don't change that until told otherwise.
-  protocol: https                       # Don't change that until told otherwise.
-  register: true                        # True, send general statistics to my community stats (please do that!)
-  upload_errors: true                   # True, upload exceptions to the central error database so that I can see what happened in your bot (and fix it)
-#  token: xxxyyyzzz111222333444         # If you got a TOKEN to participate in the cloud statistics, then put it in here.
+  banlist: both                     # Allowed: pvp | pve | both   (default: both)
+  dcs-ban: true                     # Subscribe to global DCS bans   (default: false)
+  discord-ban: true                 # Subscribe to global Discord bans  (default: false)
+  watchlist_only: false             # Add to watchlist only (requires dcs-ban: true) (default: false)
+
+  # Troubleshooter settings – can be omitted if you don't need them
+  troublemakers:
+    warn: true                      # Warn when a potential troublemaker joins (default: true)
+    warn_threshold: 3               # Warn if banned on ≥3 other servers  (min: 3)
+    kick: true                      # Kick if banned on ≥5 servers (default: false)
+    kick_threshold: 5               # Kick if banned on ≥5 servers  (min: 3)
+    message: "You are not welcome on this server."
+
+  host: dcsserverbot-prod.herokuapp.com
+  port: 443
+  protocol: https
+  use_proxy: true                   # Use the proxy from nodes.yaml if configured (default: true)
+
+  register: true                    # Send anonymous stats to my cloud service (recommended)
+  upload_errors: true               # Upload crash reports to the central DB (recommended)
+
+  # OPTIONAL – Cloud token for telemetry
+  # token: "<your-cloud-token>"
+  #   Provide by me, please ask in a DM or on my Discord
