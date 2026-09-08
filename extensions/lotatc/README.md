@@ -1,9 +1,17 @@
 # Extension "LotAtc"
 Another famous extension for DCS is [LotAtc](https://www.lotatc.com/) by D'Art. If you think about any kind of proper
 GCI or ATC work, there is no way around it. It perfectly integrates with DCS and DCS-SRS.<br/>
-You'll get a notification in your servers status embed about ports and - if you like - passwords and the version of 
+You'll get a notification in your server status embed about ports and - if you like - passwords and the version of 
 LotAtc printed in the footer. If a GCI gets active on your server, players of the respective coalition will be informed
 via the in-game chat and a popup. Same if the GCI leaves their slot again.
+
+> [!IMPORTANT]
+> LotAtc > 2.5+ uses Qt6, which is not compatible with Windows Server 2016 anymore.
+> You might encounter an error like "Entry Point Not Found" for SetThreadDescription in Qt6Core.dll. 
+> This is because Windows Server 2016 lacks some DLL support required by Qt6.
+> To work around this, you can either update your operating system (recommended) or you download the zip file
+> at https://www.lotatc.com/download/packages/qtwin2016_270.zip and unpack it into your Mods/services/LotAtc/bin
+> directory.
 
 ## Configuration
 ```yaml
