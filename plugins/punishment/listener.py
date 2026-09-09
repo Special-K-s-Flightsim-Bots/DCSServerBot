@@ -684,7 +684,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             if shot_time == -1 or not s_event:
                 # create a repair window to repair the ejection seat
                 if data['eventName'] == 'S_EVENT_EJECTION':
-                    repair_window = self.get_config(server).get('repair_timeout', 0)
+                    repair_window = self.get_config(server).get('csar_timeout', 0)
                     if repair_window > 0:
                         task = asyncio.create_task(self._repair_window(initiator, repair_window, data['eventName']))
                         self.pending_repair[initiator.ucid] = task
