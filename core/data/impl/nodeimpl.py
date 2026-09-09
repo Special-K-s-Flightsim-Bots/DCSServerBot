@@ -41,7 +41,7 @@ from psycopg import sql
 from psycopg.errors import ConnectionTimeout, UniqueViolation, UndefinedTable, UndefinedColumn
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
-from typing import Awaitable, Callable, Any
+from typing import Awaitable, Callable, Any, cast
 from typing_extensions import override
 from urllib.parse import urlparse, quote, unquote
 from version import __version__
@@ -1204,13 +1204,21 @@ class NodeImpl(Node):
 
             active_nodes = set(await self.get_active_nodes())
             all_nodes = set(self.all_nodes.keys())
+            bus = cast(ServiceBus, ServiceRegistry.get(ServiceBus))
+            bot = cast(BotService, ServiceRegistry.get(BotService))
 
             # check if suspect nodes came back again
             for node_name in {name: self.suspect[name] for name in active_nodes if name in self.suspect}:
                 node = self.suspect.pop(node_name)
                 self.all_nodes[node.name] = node
                 self.log.info(f"Node {node.name} is alive again, asking for registration ...")
-                await ServiceRegistry.get(ServiceBus).register_remote_servers(node)
+                await bus.register_remote_servers(node)
+                await bot.alert(
+                    title=_("Node {node} is back up!").format(node=node.name),
+                    message=_("Node {node} was re-added to the cluster.").format(node=node.name),
+                    mention=False,
+                    warn=False
+                )
 
             # remove nodes that are no longer active
             for node_name in all_nodes - active_nodes:
@@ -1222,8 +1230,8 @@ class NodeImpl(Node):
                 if not node:
                     continue
                 self.log.error(f"Node {node.name} is not responding.")
-                await ServiceRegistry.get(ServiceBus).unregister_remote_node(node)
-                await ServiceRegistry.get(BotService).alert(
+                await bus.unregister_remote_node(node)
+                await bot.alert(
                     title=_("Node {node} is not responding").format(node=node.name),
                     message=_("Node {node} was unregistered from the cluster.").format(node=node.name)
                 )

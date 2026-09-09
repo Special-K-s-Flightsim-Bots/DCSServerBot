@@ -214,11 +214,19 @@ class BotService(Service):
             message: str,
             server: Server | None = None,
             fields: list[tuple[str, str]] | None = None,
-            filename: str | None = None
+            filename: str | None = None,
+            mention: bool = True,
+            warn: bool = True
     ) -> None:
         try:
-            mentions = self.bot.mention_admin(server)
-            embed = utils.create_warning_embed(title=title, text=utils.escape_string(message), fields=fields)
+            mentions = self.bot.mention_admin(server) if mention else ""
+            if warn:
+                embed = utils.create_warning_embed(title=title, text=utils.escape_string(message), fields=fields)
+            else:
+                embed = discord.Embed(color=discord.Color.blue(), title=title, description=message or "")
+                if fields:
+                    for name, value in fields:
+                        embed.add_field(name=name, value=value)
             admin_channel = self.bot.get_admin_channel(server)
             audit_channel = self.bot.get_channel(self.bot.locals.get('channels', {}).get('audit', -1))
             channel = admin_channel or audit_channel
