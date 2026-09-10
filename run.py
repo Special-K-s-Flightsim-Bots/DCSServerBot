@@ -57,6 +57,8 @@ LOGLEVEL = {
     'FATAL': logging.FATAL
 }
 
+async_error_rc: int | None = None
+
 
 class Main:
 
@@ -267,12 +269,17 @@ class Main:
 
 
 def handle_exception(loop, context):
+    global async_error_rc
+
     # Extract exception details from context
     exception = context.get('exception')
     message = context.get('message')
 
     # Log detailed information
     if exception:
+        # restart on AssertionErrors
+        if isinstance(exception, AssertionError):
+            async_error_rc = -1
         log.error(f"Async error: {message}", exc_info=exception)
     else:
         log.error(f"Async error: {message}")
@@ -411,8 +418,8 @@ if __name__ == "__main__":
         rc = -1
     except asyncio.CancelledError:
         log.warning("Main loop cancelled.")
-        # do not restart again
-        rc = -2
+        # restart only in specific cases
+        rc = async_error_rc or -2
     except (YAMLError, FatalException) as ex:
         log.exception(ex)
         input("Press any key to continue ...")
@@ -429,10 +436,10 @@ if __name__ == "__main__":
         rc = ex.code
         if rc not in [0, -1, -2]:
             log.exception(ex)
-    except:
+    except BaseException as ex:
+        log.exception("Unhandled exception in main runner.")
         console.print_exception(show_locals=True, max_frames=1)
-        # do not restart on unknown errors
-        rc = -2
+        rc = async_error_rc or -2
     finally:
         log.info("DCSServerBot stopped.")
         fault_log.close()
