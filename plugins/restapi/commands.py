@@ -139,6 +139,8 @@ class RestAPI(Plugin):
             return
         self.log.debug(f"   - {self.__cog_name__}: WebService is running")
         self.app = self.web_service.app
+        # also, wait for the bot before exposing API endpoints
+        await self.bot.wait_until_ready()
         if self.app:
             self.register_routes()
         else:
