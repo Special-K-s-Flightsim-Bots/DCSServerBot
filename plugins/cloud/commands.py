@@ -145,7 +145,7 @@ class Cloud(Plugin[CloudListener]):
                 async with session_method(url, proxy=proxy, proxy_auth=proxy_auth, **kwargs) as response:
                     return await response.json()
             except (aiohttp.ClientError, asyncio.TimeoutError) as ex:
-                if isinstance(ex, aiohttp.ClientResponseError) and ex.status == 403:
+                if isinstance(ex, aiohttp.ClientResponseError) and ex.status in [401, 403]:
                     raise ex
 
                 last_error = ex

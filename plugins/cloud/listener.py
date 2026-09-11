@@ -299,7 +299,10 @@ class CloudListener(EventListener["Cloud"]):
 
     @event(name="onPlayerUnbanned")
     async def onPlayerUnbanned(self, _server: Server, data: dict) -> None:
-        await self.plugin.post('unregister_ban', {
-            "guild_id": self.bot.guilds[0].id,
-            "ucid": data['ucid']
-        })
+        try:
+            await self.plugin.post('unregister_ban', {
+                "guild_id": self.bot.guilds[0].id,
+                "ucid": data['ucid']
+            })
+        except aiohttp.ClientError as ex:
+            self.log.debug(f"Could not sync player unban to the cloud: {ex}")
