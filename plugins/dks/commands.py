@@ -139,8 +139,11 @@ class DKS(Plugin):
             key = jwt_payload.get('key')
 
             config = os.path.join(self.node.config_dir, 'plugins', 'restapi.yaml')
-            data = yaml.load(Path(config).read_text(encoding='utf-8'))
-            data.setdefault(DEFAULT_TAG, {})['auth'].update({
+            if os.path.exists(config):
+                data = yaml.load(Path(config).read_text(encoding='utf-8'))
+            else:
+                data = {}
+            data.setdefault(DEFAULT_TAG, {}).setdefault('auth', {}).update({
                 "jwt": {
                     "jwks_url": DKS_JWKS_URL,
                     "key": key
