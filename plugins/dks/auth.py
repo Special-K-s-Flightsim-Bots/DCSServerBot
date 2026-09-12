@@ -71,4 +71,5 @@ class TokenBearer(HTTPBearer):
             return data
 
         except Exception as ex:
+            self.plugin.log.debug(f"verify_token(): Exception: {ex}")
             return None
