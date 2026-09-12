@@ -856,12 +856,22 @@ function dcsbot.getMissionGroups(json)
     if coa_data.country and type(coa_data.country) == "table" then
         for _, country in pairs(coa_data.country) do
             if type(country) == "table" then
-                local country_name = country.name or "Unknown"
                 for _, cat in ipairs(categories) do
                     if country[cat] and country[cat].group and type(country[cat].group) == "table" then
                         for _, grp in pairs(country[cat].group) do
                             if type(grp) == "table" and grp.name then
-                                table.insert(msg.groups, parseMissionGroup(grp, cat, country_name, coa_err_or_name, false))
+                                local u_count = 0
+                                if grp.units and type(grp.units) == "table" then
+                                    for _ in pairs(grp.units) do
+                                        u_count = u_count + 1
+                                    end
+                                end
+                                table.insert(msg.groups, {
+                                    group_type = cat,
+                                    name = grp.name,
+                                    task = type(grp.task) == "string" and grp.task or nil,
+                                    unit_count = u_count
+                                })
                             end
                         end
                     end
@@ -870,7 +880,6 @@ function dcsbot.getMissionGroups(json)
         end
     end
 
-    msg.total = #msg.groups
     utils.sendBotTable(msg, json.channel)
 end
 

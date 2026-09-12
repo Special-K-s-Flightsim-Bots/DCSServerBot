@@ -74,6 +74,7 @@ from .models import (
     GroupWaypointsResponse,
     MissionGroupResponse,
     MissionGroupsResponse,
+    MissionGroupSummary,
     MissionBullseyesResponse,
     MissionDrawingsResponse,
     MissionUnitResponse,

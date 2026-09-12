@@ -1658,53 +1658,12 @@ This documentation is automatically generated from the RestAPI plugin definition
 
 ```json
 {
-  "total": 1,
   "groups": [
     {
-      "name": "Enfield 1",
-      "group_id": 1,
-      "coalition": "blue",
       "group_type": "plane",
-      "country": "USA",
+      "name": "Enfield 1",
       "task": "CAP",
-      "hidden": false,
-      "frequency": 251.0,
-      "modulation": 0,
-      "start_time": 0.0,
-      "uncontrolled": false,
-      "unit_count": 1,
-      "units": [
-        {
-          "name": "Enfield 1-1",
-          "unit_id": 1,
-          "type": "F-16C_50",
-          "skill": "High",
-          "lat": 35.12345,
-          "lon": 36.54321,
-          "alt": 5000.0,
-          "heading": 1.57,
-          "speed": 220.0,
-          "callsign": "Enfield 1-1",
-          "onboard_num": "010",
-          "livery_id": "16th FS",
-          "x": 42430.0,
-          "y": 5719.0
-        }
-      ],
-      "waypoints": [
-        {
-          "name": "WP 1",
-          "lat": 35.12345,
-          "lon": 36.54321,
-          "alt": 5000.0,
-          "speed": 220.0,
-          "action": "Turning Point",
-          "type": "Turning Point",
-          "eta": 0.0,
-          "x": 42430.0,
-          "y": 5719.0
-        }
-      ]
+      "unit_count": 1
     }
   ]
 }
@@ -2795,8 +2754,16 @@ Below are the data structures and response models used across the API endpoints:
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `total` | `int` | **Yes** | Total number of groups |
-| `groups` | `list[MissionGroup]` | **Yes** | List of groups |
+| `groups` | `list[MissionGroupSummary]` | **Yes** | List of groups |
+
+### `MissionGroupSummary`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `group_type` | `string` | **Yes** | Category of the group ('plane', 'helicopter', 'vehicle', 'ship', 'static') |
+| `name` | `string` | **Yes** | Group name |
+| `task` | `string \| None` | No | Main task of the group |
+| `unit_count` | `int` | **Yes** | Number of units in the group |
 
 ### `Highscore`
 

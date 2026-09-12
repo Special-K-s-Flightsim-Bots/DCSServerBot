@@ -1787,60 +1787,36 @@ class MissionGroupResponse(MissionGroup):
     pass
 
 
-class MissionGroupsResponse(BaseModel):
-    total: int = Field(..., description="Total number of groups returned")
-    groups: list[MissionGroup] = Field(default_factory=list, description="List of groups in the mission")
+class MissionGroupSummary(BaseModel):
+    group_type: str = Field(..., description="Category of the group ('plane', 'helicopter', 'vehicle', 'ship', 'static')")
+    name: str = Field(..., description="Group name")
+    task: str | None = Field(None, description="Main task of the group")
+    unit_count: int = Field(0, description="Number of units in the group")
 
     model_config = {
         "json_schema_extra": {
             "example": {
-                "total": 1,
+                "group_type": "plane",
+                "name": "Enfield 1",
+                "task": "CAP",
+                "unit_count": 1
+            }
+        }
+    }
+
+
+class MissionGroupsResponse(BaseModel):
+    groups: list[MissionGroupSummary] = Field(default_factory=list, description="List of groups in the mission")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
                 "groups": [
                     {
-                        "name": "Enfield 1",
-                        "group_id": 1,
-                        "coalition": "blue",
                         "group_type": "plane",
-                        "country": "USA",
+                        "name": "Enfield 1",
                         "task": "CAP",
-                        "hidden": False,
-                        "frequency": 251.0,
-                        "modulation": 0,
-                        "start_time": 0.0,
-                        "uncontrolled": False,
-                        "unit_count": 1,
-                        "units": [
-                            {
-                                "name": "Enfield 1-1",
-                                "unit_id": 1,
-                                "type": "F-16C_50",
-                                "skill": "High",
-                                "lat": 35.12345,
-                                "lon": 36.54321,
-                                "alt": 5000.0,
-                                "heading": 1.57,
-                                "speed": 220.0,
-                                "callsign": "Enfield 1-1",
-                                "onboard_num": "010",
-                                "livery_id": "16th FS",
-                                "x": 42430.0,
-                                "y": 5719.0
-                            }
-                        ],
-                        "waypoints": [
-                            {
-                                "name": "WP 1",
-                                "lat": 35.12345,
-                                "lon": 36.54321,
-                                "alt": 5000.0,
-                                "speed": 220.0,
-                                "action": "Turning Point",
-                                "type": "Turning Point",
-                                "eta": 0.0,
-                                "x": 42430.0,
-                                "y": 5719.0
-                            }
-                        ]
+                        "unit_count": 1
                     }
                 ]
             }
