@@ -46,11 +46,13 @@ class TokenBearer(HTTPBearer):
             kid = header.get("kid")
 
             if not kid:
+                self.plugin.log.debug("verify_token(): No kid present.")
                 return None
 
             signing_key = await asyncio.to_thread(self.jwt_client.get_signing_key, kid)
 
             if not signing_key:
+                self.plugin.log.debug("verify_token(): No signing key present.")
                 return None
 
             data = jwt.decode(
@@ -63,6 +65,7 @@ class TokenBearer(HTTPBearer):
 
             otp = data.pop("otp", None)
             if otp and otp != self.plugin.otp:
+                self.plugin.log.debug("verify_token(): OTP does not match.")
                 return None
 
             return data
