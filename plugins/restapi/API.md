@@ -43,6 +43,8 @@ This documentation is automatically generated from the RestAPI plugin definition
 | /linkme | POST | discord_id: string, [force: bool] | Link your Discord account to your DCS account |
 | /mission/bullseyes | GET | server_name: string | Get the bullseye coordinates for blue and red coalitions in the current mission. |
 | /mission/drawings | GET | server_name: string | Get mission drawing objects grouped by drawing layer. |
+| /mission/group | GET | server_name: string, coalition: string, group_name: string, [group_type: string] | Get details for a single group in the current mission. |
+| /mission/groups | GET | server_name: string, coalition: string, [group_type: string] | Get all groups in the currently running mission for a coalition. |
 | /mission/group/waypoints | GET | server_name: string, group_name: string, group_type: string | Get the lat/lon waypoints for a named group in the current mission. |
 | /mission/unit | GET | server_name: string, unit_name: string | Get mission unit data including current position, loadout, navaids, and waypoints. |
 | /mission/upload | POST | server_name: string, file: string, filename: string, load_after: bool | Upload a .miz mission file to the server. |
@@ -1566,6 +1568,109 @@ This documentation is automatically generated from the RestAPI plugin definition
 
 ---
 
+### `GET` /mission/group
+
+**Summary:** Mission Group
+
+**Description:** Get details for a single group in the current mission.
+
+#### Parameters
+
+| Name | Type | In | Required | Default | Description |
+|------|------|----|----------|---------|-------------|
+| `server_name` | `string` | query | **Yes** | - | Name of the server |
+| `coalition` | `string` | query | **Yes** | - | Coalition ('blue', 'red', 'neutral') |
+| `group_name` | `string` | query | **Yes** | - | Name of the group to retrieve details for |
+| `group_type` | `string` | query | No | - | Optional category of the group ('plane', 'helicopter', 'vehicle', 'ship', 'static') |
+
+**Response:** `MissionGroupResponse`
+
+#### Response Example
+
+```json
+{
+  "name": "Enfield 1",
+  "group_id": 1,
+  "coalition": "blue",
+  "group_type": "plane",
+  "country": "USA",
+  "task": "CAP",
+  "hidden": false,
+  "frequency": 251.0,
+  "modulation": 0,
+  "start_time": 0.0,
+  "uncontrolled": false,
+  "unit_count": 1,
+  "units": [
+    {
+      "name": "Enfield 1-1",
+      "unit_id": 1,
+      "type": "F-16C_50",
+      "skill": "High",
+      "lat": 35.12345,
+      "lon": 36.54321,
+      "alt": 5000.0,
+      "heading": 1.57,
+      "speed": 220.0,
+      "callsign": "Enfield 1-1",
+      "onboard_num": "010",
+      "livery_id": "16th FS",
+      "x": 42430.0,
+      "y": 5719.0
+    }
+  ],
+  "waypoints": [
+    {
+      "name": "WP 1",
+      "lat": 35.12345,
+      "lon": 36.54321,
+      "alt": 5000.0,
+      "speed": 220.0,
+      "action": "Turning Point",
+      "type": "Turning Point",
+      "eta": 0.0,
+      "x": 42430.0,
+      "y": 5719.0
+    }
+  ]
+}
+```
+
+---
+
+### `GET` /mission/groups
+
+**Summary:** Mission Groups
+
+**Description:** Get all groups in the currently running mission for a coalition.
+
+#### Parameters
+
+| Name | Type | In | Required | Default | Description |
+|------|------|----|----------|---------|-------------|
+| `server_name` | `string` | query | **Yes** | - | Name of the server |
+| `coalition` | `string` | query | **Yes** | - | Coalition ('blue', 'red', 'neutral') |
+| `group_type` | `string` | query | No | - | Optional category to filter groups by ('plane', 'helicopter', 'vehicle', 'ship', 'static') |
+
+**Response:** `MissionGroupsResponse`
+
+#### Response Example
+
+```json
+{
+  "groups": [
+    {
+      "group_type": "plane",
+      "name": "Enfield 1",
+      "task": "CAP",
+      "unit_count": 1
+    }
+  ]
+}
+```
+
+---
+
 ### `GET` /mission/group/waypoints
 
 **Summary:** Group Waypoints
@@ -2590,6 +2695,75 @@ Below are the data structures and response models used across the API endpoints:
   }
 }
 ```
+
+### `MissionGroupUnit`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | `string` | **Yes** | Unit name |
+| `unit_id` | `int \| None` | No | DCS unit ID |
+| `type` | `string` | **Yes** | Unit type name |
+| `skill` | `string \| None` | No | Unit skill level |
+| `lat` | `float \| None` | No | Unit latitude in decimal degrees |
+| `lon` | `float \| None` | No | Unit longitude in decimal degrees |
+| `alt` | `float \| None` | No | Unit altitude in meters |
+| `heading` | `float \| None` | No | Unit heading in radians |
+| `speed` | `float \| None` | No | Unit speed in m/s |
+| `callsign` | `string \| int \| object \| None` | No | Unit callsign |
+| `onboard_num` | `string \| None` | No | Unit onboard/tail number |
+| `livery_id` | `string \| None` | No | Unit livery ID |
+| `x` | `float \| None` | No | DCS X coordinate in meters |
+| `y` | `float \| None` | No | DCS Y coordinate in meters |
+
+### `MissionGroupWaypoint`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | `string \| None` | No | Waypoint name |
+| `lat` | `float \| None` | No | Waypoint latitude in decimal degrees |
+| `lon` | `float \| None` | No | Waypoint longitude in decimal degrees |
+| `alt` | `float \| None` | No | Waypoint altitude in meters |
+| `speed` | `float \| None` | No | Waypoint speed in m/s |
+| `action` | `string \| None` | No | Waypoint action |
+| `type` | `string \| None` | No | Waypoint type |
+| `eta` | `float \| None` | No | Estimated time of arrival |
+| `x` | `float \| None` | No | DCS X coordinate in meters |
+| `y` | `float \| None` | No | DCS Y coordinate in meters |
+
+### `MissionGroup` / `MissionGroupResponse`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | `string` | **Yes** | Group name |
+| `group_id` | `int \| None` | No | DCS group ID |
+| `coalition` | `string` | **Yes** | Coalition ('blue', 'red', 'neutral') |
+| `group_type` | `string` | **Yes** | Group category ('plane', 'helicopter', 'vehicle', 'ship', 'static') |
+| `country` | `string \| None` | No | Country name |
+| `task` | `string \| None` | No | Main group task |
+| `hidden` | `bool \| None` | No | Whether group is hidden on F10 map |
+| `frequency` | `float \| None` | No | Radio frequency in MHz |
+| `modulation` | `int \| None` | No | Modulation (0=AM, 1=FM) |
+| `start_time` | `float \| None` | No | Start time in seconds |
+| `uncontrolled` | `bool \| None` | No | Whether group is uncontrolled |
+| `unit_count` | `int` | **Yes** | Number of units in group |
+| `units` | `list[MissionGroupUnit]` | **Yes** | List of units |
+| `waypoints` | `list[MissionGroupWaypoint]` | **Yes** | List of waypoints |
+| `raw` | `object \| None` | No | Raw DCS mission group table |
+
+### `MissionGroupsResponse`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `groups` | `list[MissionGroupSummary]` | **Yes** | List of groups |
+
+### `MissionGroupSummary`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `group_type` | `string` | **Yes** | Category of the group ('plane', 'helicopter', 'vehicle', 'ship', 'static') |
+| `name` | `string` | **Yes** | Group name |
+| `task` | `string \| None` | No | Main task of the group |
+| `unit_count` | `int` | **Yes** | Number of units in the group |
 
 ### `Highscore`
 

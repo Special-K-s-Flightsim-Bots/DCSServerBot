@@ -643,6 +643,247 @@ function dcsbot.getGroupWaypoints(json)
     utils.sendBotTable(msg, json.channel)
 end
 
+local function getMissionCoalitionData(mission, coalition_name)
+    if not mission or not mission.mission or not mission.mission.coalition then
+        return nil, "No mission coalition data is currently loaded."
+    end
+    if type(coalition_name) ~= "string" or coalition_name == "" then
+        return nil, "Missing or invalid coalition. Must be 'blue', 'red', or 'neutral'."
+    end
+    local coa_key = string.lower(coalition_name)
+    local coa_data = mission.mission.coalition[coa_key]
+    if not coa_data then
+        if coa_key == "neutral" then
+            coa_data = mission.mission.coalition["neutrals"]
+            if coa_data then coa_key = "neutrals" end
+        elseif coa_key == "neutrals" then
+            coa_data = mission.mission.coalition["neutral"]
+            if coa_data then coa_key = "neutral" end
+        end
+    end
+    if not coa_data then
+        return nil, string.format("Coalition '%s' was not found in the loaded mission.", coalition_name)
+    end
+    return coa_data, coa_key
+end
+
+local allowedGroupTypes = { plane = true, helicopter = true, vehicle = true, ship = true, static = true }
+local function resolveMissionCategories(group_type)
+    if group_type and group_type ~= "" then
+        local gt = string.lower(tostring(group_type))
+        if not allowedGroupTypes[gt] then
+            return nil, string.format("Invalid group type '%s'. Must be 'plane', 'helicopter', 'vehicle', 'ship', or 'static'.", tostring(group_type))
+        end
+        return { gt }
+    end
+    return { "plane", "helicopter", "vehicle", "ship", "static" }
+end
+
+local function parseMissionGroup(group, category, country_name, coa_name, include_raw)
+    local g = {
+        name = group.name,
+        group_id = group.groupId,
+        coalition = coa_name,
+        group_type = category,
+        country = country_name,
+        task = type(group.task) == "string" and group.task or nil,
+        hidden = group.hidden or false,
+        frequency = group.frequency,
+        modulation = group.modulation,
+        start_time = group.start_time,
+        uncontrolled = group.uncontrolled or false,
+        unit_count = 0,
+        units = {},
+        waypoints = {}
+    }
+
+    if group.units and type(group.units) == "table" then
+        for _, u in pairs(group.units) do
+            if type(u) == "table" then
+                local lat, lon = nil, nil
+                if u.x and u.y then
+                    lat, lon = Terrain.convertMetersToLatLon(u.x, u.y)
+                end
+                local unit_callsign = nil
+                if type(u.callsign) == "table" then
+                    unit_callsign = u.callsign.name or tostring(u.callsign[1] or "")
+                elseif u.callsign ~= nil then
+                    unit_callsign = tostring(u.callsign)
+                end
+
+                table.insert(g.units, {
+                    name = u.name,
+                    unit_id = u.unitId,
+                    type = u.type,
+                    skill = u.skill,
+                    lat = lat,
+                    lon = lon,
+                    alt = u.alt,
+                    heading = u.heading,
+                    speed = u.speed,
+                    callsign = unit_callsign,
+                    onboard_num = u.onboard_num,
+                    livery_id = u.livery_id,
+                    x = u.x,
+                    y = u.y
+                })
+            end
+        end
+    end
+    g.unit_count = #g.units
+
+    if group.route and group.route.points and type(group.route.points) == "table" then
+        for i = 1, #group.route.points do
+            local wp = group.route.points[i]
+            if type(wp) == "table" then
+                local wp_lat, wp_lon = nil, nil
+                if wp.x and wp.y then
+                    wp_lat, wp_lon = Terrain.convertMetersToLatLon(wp.x, wp.y)
+                end
+                table.insert(g.waypoints, {
+                    name = wp.name,
+                    lat = wp_lat,
+                    lon = wp_lon,
+                    alt = wp.alt,
+                    speed = wp.speed,
+                    action = wp.action,
+                    type = wp.type,
+                    eta = wp.ETA,
+                    x = wp.x,
+                    y = wp.y
+                })
+            end
+        end
+    end
+
+    if include_raw then
+        g.raw = group
+    end
+
+    return g
+end
+
+function dcsbot.getMissionGroup(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionGroup()')
+    local msg = {
+        command = 'getMissionGroup'
+    }
+
+    local targetGroupName = json.group_name or json.name
+    if type(targetGroupName) ~= "string" or targetGroupName == "" then
+        msg.error = "Missing or invalid group name. Must be a non-empty string."
+        utils.sendBotTable(msg, json.channel)
+        return
+    end
+
+    local mission = Sim.getCurrentMission()
+    local coa_data, coa_err_or_name = getMissionCoalitionData(mission, json.coalition)
+    if not coa_data then
+        msg.error = coa_err_or_name
+        utils.sendBotTable(msg, json.channel)
+        return
+    end
+
+    local categories, cat_err = resolveMissionCategories(json.group_type)
+    if not categories then
+        msg.error = cat_err
+        utils.sendBotTable(msg, json.channel)
+        return
+    end
+
+    local groupFound = nil
+    local groupCategory = nil
+    local groupCountry = nil
+
+    if coa_data.country and type(coa_data.country) == "table" then
+        for _, country in pairs(coa_data.country) do
+            if type(country) == "table" then
+                local country_name = country.name or "Unknown"
+                for _, cat in ipairs(categories) do
+                    if country[cat] and country[cat].group and type(country[cat].group) == "table" then
+                        for _, grp in pairs(country[cat].group) do
+                            if type(grp) == "table" and grp.name == targetGroupName then
+                                groupFound = grp
+                                groupCategory = cat
+                                groupCountry = country_name
+                                break
+                            end
+                        end
+                    end
+                    if groupFound then break end
+                end
+            end
+            if groupFound then break end
+        end
+    end
+
+    if not groupFound then
+        if json.group_type and json.group_type ~= "" then
+            msg.error = string.format("Group '%s' was not found under category '%s' in coalition '%s'.", targetGroupName, tostring(json.group_type), tostring(json.coalition))
+        else
+            msg.error = string.format("Group '%s' was not found in coalition '%s'.", targetGroupName, tostring(json.coalition))
+        end
+        utils.sendBotTable(msg, json.channel)
+        return
+    end
+
+    msg.group = parseMissionGroup(groupFound, groupCategory, groupCountry, coa_err_or_name, true)
+    utils.sendBotTable(msg, json.channel)
+end
+
+function dcsbot.getMissionGroups(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionGroups()')
+    local msg = {
+        command = 'getMissionGroups',
+        groups = {}
+    }
+
+    local mission = Sim.getCurrentMission()
+    local coa_data, coa_err_or_name = getMissionCoalitionData(mission, json.coalition)
+    if not coa_data then
+        msg.error = coa_err_or_name
+        utils.sendBotTable(msg, json.channel)
+        return
+    end
+
+    local categories, cat_err = resolveMissionCategories(json.group_type)
+    if not categories then
+        msg.error = cat_err
+        utils.sendBotTable(msg, json.channel)
+        return
+    end
+
+    if coa_data.country and type(coa_data.country) == "table" then
+        for _, country in pairs(coa_data.country) do
+            if type(country) == "table" then
+                for _, cat in ipairs(categories) do
+                    if country[cat] and country[cat].group and type(country[cat].group) == "table" then
+                        for _, grp in pairs(country[cat].group) do
+                            if type(grp) == "table" and grp.name then
+                                local u_count = 0
+                                if grp.units and type(grp.units) == "table" then
+                                    for _ in pairs(grp.units) do
+                                        u_count = u_count + 1
+                                    end
+                                end
+                                table.insert(msg.groups, {
+                                    group_type = cat,
+                                    name = grp.name,
+                                    task = type(grp.task) == "string" and grp.task or nil,
+                                    unit_count = u_count
+                                })
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    utils.sendBotTable(msg, json.channel)
+end
+
+
 function dcsbot.getMissionBullseyes(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionBullseyes()')
     local msg = {

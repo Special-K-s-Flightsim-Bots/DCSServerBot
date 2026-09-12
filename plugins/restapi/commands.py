@@ -15,7 +15,7 @@ from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, Fil
 from fastapi.security import APIKeyHeader, HTTPBearer, HTTPAuthorizationCredentials
 from pathlib import Path
 from starlette.requests import Request
-from typing import Any, Literal, cast, TYPE_CHECKING, Callable
+from typing import Any, Literal, Optional, cast, TYPE_CHECKING, Callable
 
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
@@ -72,6 +72,9 @@ from .models import (
     ServerRestartResponse,
     MissionUploadResponse,
     GroupWaypointsResponse,
+    MissionGroupResponse,
+    MissionGroupsResponse,
+    MissionGroupSummary,
     MissionBullseyesResponse,
     MissionDrawingsResponse,
     MissionUnitResponse,
@@ -597,6 +600,22 @@ class RestAPI(Plugin):
             response_model=GroupWaypointsResponse,
             description="Get the lat/lon waypoints for a named group in the current mission.",
             summary="Group Waypoints",
+            tags=["Utilities"]
+        )
+        add_secured_api_route(
+            "/mission/group", self.mission_group,
+            methods=["GET"],
+            response_model=MissionGroupResponse,
+            description="Get details for a single group in the current mission.",
+            summary="Mission Group",
+            tags=["Utilities"]
+        )
+        add_secured_api_route(
+            "/mission/groups", self.mission_groups,
+            methods=["GET"],
+            response_model=MissionGroupsResponse,
+            description="Get all groups in the currently running mission for a coalition.",
+            summary="Mission Groups",
             tags=["Utilities"]
         )
         add_secured_api_route(
@@ -1167,6 +1186,96 @@ class RestAPI(Plugin):
             group_type=group_type,
             waypoints=sorted_waypoints
         )
+
+    # Get details for a single group in the current mission.
+    # Endpoint:   /mission/group
+    # Method:     [GET]
+    # Params:     - server_name   [required]
+    #             - coalition     [required]  blue | red | neutral
+    #             - group_name    [required]
+    #             - group_type    [optional]  plane | helicopter | vehicle | ship | static
+    async def mission_group(
+        self,
+        server_name: str = Query(..., description="Name of the server"),
+        coalition: str = Query(..., description="Coalition ('blue', 'red', 'neutral')"),
+        group_name: str = Query(..., description="Name of the group to retrieve details for"),
+        group_type: str | None = Query(default=None, description="Optional category of the group ('plane', 'helicopter', 'vehicle', 'ship', 'static')")
+    ) -> MissionGroupResponse:
+        """Return details for a single group in the current mission."""
+        if group_type and group_type.lower() not in ["plane", "helicopter", "vehicle", "ship", "static"]:
+            raise HTTPException(status_code=400, detail=f"Invalid group_type '{group_type}'. Must be 'plane', 'helicopter', 'vehicle', 'ship', or 'static'.")
+
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not running or paused.")
+
+        payload = {
+            "command": "getMissionGroup",
+            "group_name": group_name,
+            "coalition": coalition
+        }
+        if group_type:
+            payload["group_type"] = group_type
+
+        try:
+            result = await server.send_to_dcs_sync(payload, timeout=60)
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout waiting for DCS response.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve mission group: {str(ex)}")
+
+        if result.get("error"):
+            raise HTTPException(status_code=404, detail=result["error"])
+
+        group_data = result.get("group", {})
+        return MissionGroupResponse.model_validate(group_data)
+
+    # Get all groups in the currently running mission for a coalition.
+    # Endpoint:   /mission/groups
+    # Method:     [GET]
+    # Params:     - server_name   [required]
+    #             - coalition     [required]  blue | red | neutral
+    #             - group_type    [optional]  plane | helicopter | vehicle | ship | static
+    async def mission_groups(
+        self,
+        server_name: str = Query(..., description="Name of the server"),
+        coalition: str = Query(..., description="Coalition ('blue', 'red', 'neutral')"),
+        group_type: str | None = Query(default=None, description="Optional category to filter groups by ('plane', 'helicopter', 'vehicle', 'ship', 'static')")
+    ) -> MissionGroupsResponse:
+        """Return all groups in the currently running mission for a coalition."""
+        if group_type and group_type.lower() not in ["plane", "helicopter", "vehicle", "ship", "static"]:
+            raise HTTPException(status_code=400, detail=f"Invalid group_type '{group_type}'. Must be 'plane', 'helicopter', 'vehicle', 'ship', or 'static'.")
+
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not running or paused.")
+
+        payload = {
+            "command": "getMissionGroups",
+            "coalition": coalition
+        }
+        if group_type:
+            payload["group_type"] = group_type
+
+        try:
+            result = await server.send_to_dcs_sync(payload, timeout=60)
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout waiting for DCS response.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve mission groups: {str(ex)}")
+
+        if result.get("error"):
+            raise HTTPException(status_code=404, detail=result["error"])
+
+        return MissionGroupsResponse.model_validate(result)
 
     # Get bullseye coordinates for blue and red coalitions in the current mission.
     # Endpoint:   /mission/bullseyes
