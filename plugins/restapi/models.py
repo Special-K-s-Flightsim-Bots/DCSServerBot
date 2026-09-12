@@ -1646,6 +1646,208 @@ class GroupWaypointsResponse(BaseModel):
     }
 
 
+class MissionGroupUnit(BaseModel):
+    name: str = Field(..., description="Unit name")
+    unit_id: int | None = Field(None, description="DCS unit ID")
+    type: str = Field(..., description="Unit type name")
+    skill: str | None = Field(None, description="Unit skill level (e.g. 'Player', 'Client', 'High')")
+    lat: float | None = Field(None, description="Unit latitude in decimal degrees")
+    lon: float | None = Field(None, description="Unit longitude in decimal degrees")
+    alt: float | None = Field(None, description="Unit altitude in meters")
+    heading: float | None = Field(None, description="Unit heading in radians")
+    speed: float | None = Field(None, description="Unit speed in m/s")
+    callsign: str | int | dict | None = Field(None, description="Unit callsign")
+    onboard_num: str | None = Field(None, description="Unit onboard/tail number")
+    livery_id: str | None = Field(None, description="Unit livery ID")
+    x: float | None = Field(None, description="DCS X coordinate in meters")
+    y: float | None = Field(None, description="DCS Y coordinate in meters")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "name": "Enfield 1-1",
+                "unit_id": 1,
+                "type": "F-16C_50",
+                "skill": "High",
+                "lat": 35.12345,
+                "lon": 36.54321,
+                "alt": 5000.0,
+                "heading": 1.57,
+                "speed": 220.0,
+                "callsign": "Enfield 1-1",
+                "onboard_num": "010",
+                "livery_id": "16th FS",
+                "x": 42430.0,
+                "y": 5719.0
+            }
+        }
+    }
+
+
+class MissionGroupWaypoint(BaseModel):
+    name: str | None = Field(None, description="Waypoint name")
+    lat: float | None = Field(None, description="Waypoint latitude in decimal degrees")
+    lon: float | None = Field(None, description="Waypoint longitude in decimal degrees")
+    alt: float | None = Field(None, description="Waypoint altitude in meters")
+    speed: float | None = Field(None, description="Waypoint speed in m/s")
+    action: str | None = Field(None, description="Waypoint action")
+    type: str | None = Field(None, description="Waypoint type")
+    eta: float | None = Field(None, description="Estimated time of arrival in seconds from mission start")
+    x: float | None = Field(None, description="DCS X coordinate in meters")
+    y: float | None = Field(None, description="DCS Y coordinate in meters")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "name": "WP 1",
+                "lat": 35.12345,
+                "lon": 36.54321,
+                "alt": 5000.0,
+                "speed": 220.0,
+                "action": "Turning Point",
+                "type": "Turning Point",
+                "eta": 0.0,
+                "x": 42430.0,
+                "y": 5719.0
+            }
+        }
+    }
+
+
+class MissionGroup(BaseModel):
+    name: str = Field(..., description="Group name")
+    group_id: int | None = Field(None, description="DCS group ID")
+    coalition: str = Field(..., description="Coalition ('blue', 'red', 'neutral')")
+    group_type: str = Field(..., description="Category of the group ('plane', 'helicopter', 'vehicle', 'ship', 'static')")
+    country: str | None = Field(None, description="Country name")
+    task: str | None = Field(None, description="Main task of the group")
+    hidden: bool | None = Field(False, description="Whether the group is hidden on the F10 map/planner")
+    frequency: float | None = Field(None, description="Radio frequency in MHz")
+    modulation: int | None = Field(None, description="Modulation (0=AM, 1=FM)")
+    start_time: float | None = Field(None, description="Group start time in seconds")
+    uncontrolled: bool | None = Field(False, description="Whether the group is uncontrolled")
+    unit_count: int = Field(0, description="Number of units in the group")
+    units: list[MissionGroupUnit] = Field(default_factory=list, description="Units in the group")
+    waypoints: list[MissionGroupWaypoint] = Field(default_factory=list, description="Waypoints for the group")
+    raw: dict | None = Field(None, description="Raw group mission definition table if available")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "name": "Enfield 1",
+                "group_id": 1,
+                "coalition": "blue",
+                "group_type": "plane",
+                "country": "USA",
+                "task": "CAP",
+                "hidden": False,
+                "frequency": 251.0,
+                "modulation": 0,
+                "start_time": 0.0,
+                "uncontrolled": False,
+                "unit_count": 1,
+                "units": [
+                    {
+                        "name": "Enfield 1-1",
+                        "unit_id": 1,
+                        "type": "F-16C_50",
+                        "skill": "High",
+                        "lat": 35.12345,
+                        "lon": 36.54321,
+                        "alt": 5000.0,
+                        "heading": 1.57,
+                        "speed": 220.0,
+                        "callsign": "Enfield 1-1",
+                        "onboard_num": "010",
+                        "livery_id": "16th FS",
+                        "x": 42430.0,
+                        "y": 5719.0
+                    }
+                ],
+                "waypoints": [
+                    {
+                        "name": "WP 1",
+                        "lat": 35.12345,
+                        "lon": 36.54321,
+                        "alt": 5000.0,
+                        "speed": 220.0,
+                        "action": "Turning Point",
+                        "type": "Turning Point",
+                        "eta": 0.0,
+                        "x": 42430.0,
+                        "y": 5719.0
+                    }
+                ]
+            }
+        }
+    }
+
+
+class MissionGroupResponse(MissionGroup):
+    pass
+
+
+class MissionGroupsResponse(BaseModel):
+    total: int = Field(..., description="Total number of groups returned")
+    groups: list[MissionGroup] = Field(default_factory=list, description="List of groups in the mission")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "total": 1,
+                "groups": [
+                    {
+                        "name": "Enfield 1",
+                        "group_id": 1,
+                        "coalition": "blue",
+                        "group_type": "plane",
+                        "country": "USA",
+                        "task": "CAP",
+                        "hidden": False,
+                        "frequency": 251.0,
+                        "modulation": 0,
+                        "start_time": 0.0,
+                        "uncontrolled": False,
+                        "unit_count": 1,
+                        "units": [
+                            {
+                                "name": "Enfield 1-1",
+                                "unit_id": 1,
+                                "type": "F-16C_50",
+                                "skill": "High",
+                                "lat": 35.12345,
+                                "lon": 36.54321,
+                                "alt": 5000.0,
+                                "heading": 1.57,
+                                "speed": 220.0,
+                                "callsign": "Enfield 1-1",
+                                "onboard_num": "010",
+                                "livery_id": "16th FS",
+                                "x": 42430.0,
+                                "y": 5719.0
+                            }
+                        ],
+                        "waypoints": [
+                            {
+                                "name": "WP 1",
+                                "lat": 35.12345,
+                                "lon": 36.54321,
+                                "alt": 5000.0,
+                                "speed": 220.0,
+                                "action": "Turning Point",
+                                "type": "Turning Point",
+                                "eta": 0.0,
+                                "x": 42430.0,
+                                "y": 5719.0
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    }
+
+
 class MissionBullseye(BaseModel):
     coalition: str = Field(..., description="Coalition name ('blue' or 'red')")
     lat: float = Field(..., description="Bullseye latitude in decimal degrees")
