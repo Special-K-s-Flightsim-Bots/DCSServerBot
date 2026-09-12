@@ -88,7 +88,7 @@ _ = get_translation('core')
 # Logging
 logger = logging.getLogger(__name__)
 
-DISCORD_FILE_SIZE_LIMIT = 10 * 1024 * 1024
+DISCORD_FILE_SIZE_LIMIT = 20 * 1024 * 1024
 
 
 class PlayerType(Enum):
