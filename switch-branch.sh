@@ -23,7 +23,7 @@ if [ "$branch" == "master" ]; then
     case "$choice" in
         [yY])
             git checkout development
-            ./update.sh  # Call the equivalent `update.cmd` script in Bash
+            ./update.sh --install
             ;;
         *)
             echo "Operation aborted."
@@ -35,7 +35,7 @@ elif [ "$branch" == "development" ]; then
     case "$choice" in
         [yY])
             git checkout master
-            ./update.sh  # Call the equivalent `update.cmd` script in Bash
+            ./update.sh --install
             ;;
         *)
             echo "Operation aborted."
