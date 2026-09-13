@@ -329,16 +329,20 @@ class PubSub:
                     if self.node.master:
                         query = sql.SQL("""
                             DELETE FROM {table} 
-                            WHERE time < ((now() AT TIME ZONE 'utc') - interval '300 seconds')
+                            WHERE guild_id = %s
+                             AND time < ((now() AT TIME ZONE 'utc') - interval '300 seconds')
                         """).format(table=sql.Identifier(self.name))
-                        await conn.execute(query)
+                        await conn.execute(query, (self.node.guild_id, ))
                         query = sql.SQL("""
                             UPDATE {table} SET node = 'Master' WHERE node = %s
                         """).format(table=sql.Identifier(self.name))
                         await conn.execute(query, (self.node.name, ))
                     else:
                         query = sql.SQL("""
-                            DELETE FROM {table} WHERE guild_id = %s AND node = %s
+                            DELETE FROM {table}
+                            WHERE guild_id = %s
+                              AND node = %s
+                              AND time < ((now() AT TIME ZONE 'utc') - interval '300 seconds')
                         """).format(table=sql.Identifier(self.name))
                         await conn.execute(query, (self.node.guild_id, self.node.name))
                     return
@@ -354,6 +358,38 @@ class PubSub:
                 self.log.warning(
                     f"Error while clearing {self.name}: {ex}. "
                     f"Retry {attempt + 1}/{max_retries} in {delay}s ..."
+                )
+
+                if not await self._sleep_before_retry(delay):
+                    return
+                delay = min(delay * 2, max_delay)
+
+    async def purge(self) -> None:
+        """Delete every message created before `now` (used on a master takeover)."""
+        delay = 1
+        max_delay = 10
+        max_retries = 3
+
+        for attempt in range(max_retries + 1):
+            try:
+                async with await AsyncConnection.connect(self.url, autocommit=True) as conn:
+                    query = sql.SQL("""
+                        DELETE FROM {table} 
+                        WHERE guild_id = %s 
+                          AND time < (now() AT TIME ZONE 'utc')
+                    """).format(table=sql.Identifier(self.name))
+                    await conn.execute(query, (self.node.guild_id, ))
+                    return
+            except asyncio.CancelledError:
+                raise
+            except OperationalError as ex:
+                if attempt >= max_retries:
+                    raise FatalException(
+                        f"Could not purge {self.name} after {max_retries} retries: {ex}"
+                    )
+
+                self.log.warning(
+                    f"Error while purging {self.name}: {ex}. Retry {attempt + 1}/{max_retries} in {delay}s ..."
                 )
 
                 if not await self._sleep_before_retry(delay):

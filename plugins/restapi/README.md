@@ -91,9 +91,9 @@ The following commands are available through the API. For detailed parameter def
 | /linkme | POST | discord_id: string, [force: bool] | Link your Discord account to your DCS account |
 | /mission/bullseyes | GET | server_name: string | Get the bullseye coordinates for blue and red coalitions in the current mission. |
 | /mission/drawings | GET | server_name: string | Get mission drawing objects grouped by drawing layer. |
-| /mission/group | GET | server_name: string, coalition: string, group_name: string, [group_type: string] | Get details for a single group in the current mission. |
-| /mission/groups | GET | server_name: string, coalition: string, [group_type: string] | Get all groups in the currently running mission for a coalition. |
+| /mission/group | GET | server_name: string, coalition: string, group_name: string, [group_type: string | None] | Get details for a single group in the current mission. |
 | /mission/group/waypoints | GET | server_name: string, group_name: string, group_type: string | Get the lat/lon waypoints for a named group in the current mission. |
+| /mission/groups | GET | server_name: string, coalition: string, [group_type: string | None] | Get all groups in the currently running mission for a coalition. |
 | /mission/unit | GET | server_name: string, unit_name: string | Get mission unit data including current position, loadout, navaids, and waypoints. |
 | /mission/upload | POST | server_name: string, file: string, filename: string, load_after: bool | Upload a .miz mission file to the server. |
 | /modulestats | POST | nick: string, [date: string | None], [server_name: string | None] | Get module statistics |

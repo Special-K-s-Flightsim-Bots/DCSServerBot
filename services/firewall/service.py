@@ -48,9 +48,9 @@ class FirewallService(Service):
         # Node-wide anomaly streak and DDoS state
         self._node_bw_anomaly_streak: int = 0
         self._node_ddos_active: bool = False
-        # DDoS helper process (Windows firewall rule manager, runs elevated)
-        self._ddos_helper: psutil.Process | None = None
-        self._ddos_helper_lock = asyncio.Lock()
+        # Firewall helper process (Windows firewall rule manager, runs elevated)
+        self._fw_helper: psutil.Process | None = None
+        self._fw_helper_lock = asyncio.Lock()
         # Dynamic whitelist: IPs seen connecting via TCP during a UDP DDoS block
         # key = (server_name, port) → set of IP strings
         self._dynamic_whitelist: dict[tuple[str, int], set[str]] = {}
@@ -63,6 +63,8 @@ class FirewallService(Service):
         self._paused_scopes: set[str] = set()
         # Map base rule name → set of generated full rule names (e.g. "DCS" → {"DCS-tcp-1308", "DCS-udp-1308"})
         self._rule_name_map: dict[str, set[str]] = {}
+        # Map server_name -> set of Port objects registered by extensions
+        self._server_extension_ports: dict[str, set[Port]] = {}
         # IPs that have been auto-blocked permanently (to avoid re-blocking)
         self._auto_blocked_ips: set[str] = set()
         # Log tail tasks per server: key = server_name → asyncio.Task
@@ -71,6 +73,10 @@ class FirewallService(Service):
         self._re_client_connect = re.compile(
             r'added client\[\d+\] name=.+ addr=(\d+\.\d+\.\d+\.\d+):\d+'
         )
+
+    @property
+    def manage_rules(self) -> bool:
+        return self.get_config().get('manage_rules', True)
 
     async def _load_baselines_from_db(self) -> None:
         """
@@ -89,14 +95,15 @@ class FirewallService(Service):
 
         try:
             async with self.apool.connection() as conn:
-                # Load per-port baselines for excess connections
+                # Load per-port baselines for excess connections (TCP)
                 rows = await conn.execute("""
                     SELECT server_name, port, protocol,
-                           AVG(connections - (players * 2)) as avg_excess,
-                           STDDEV(connections - (players * 2)) as std_excess,
+                           AVG(connections - players) as avg_excess,
+                           STDDEV(connections - players) as std_excess,
                            COUNT(*) as cnt
                     FROM port_traffic
                     WHERE node = %s
+                      AND protocol = 'tcp'
                       AND under_attack = FALSE
                       AND time > (NOW() AT TIME ZONE 'utc') - interval '%s minutes'
                     GROUP BY server_name, port, protocol
@@ -187,84 +194,87 @@ class FirewallService(Service):
             self.log.debug(f"Could not load baselines from DB: {ex}")
 
     # ------------------------------------------------------------------
-    # DDoS helper process (Windows firewall rule manager)
+    # Firewall helper process (Windows firewall rule manager)
     # ------------------------------------------------------------------
 
-    def _ddos_helper_path(self) -> str:
-        """Return the absolute path to ddos_helper.py."""
-        return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ddos_helper.py')
+    def _firewall_helper_path(self) -> str:
+        """Return the absolute path to firewall_helper.py."""
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'firewall_helper.py')
 
-    async def _start_ddos_helper(self) -> None:
-        """Start the elevated DDoS helper process (Windows only)."""
+    async def _start_firewall_helper(self) -> None:
+        """Start the elevated firewall helper process (Windows only)."""
         if sys.platform != 'win32':
             return
-        helper_path = self._ddos_helper_path()
+        helper_path = self._firewall_helper_path()
         if not os.path.exists(helper_path):
-            self.log.warning(f"DDoS helper not found at {helper_path}")
+            self.log.warning(f"Firewall helper not found at {helper_path}")
             return
         try:
             # Resolve DCS installation path from node config
             dcs_install = self.node.locals.get('DCS', {}).get('installation', '')
             # Build command line with proper quoting via list2cmdline (same pattern as do_repair)
             cmdline = subprocess.list2cmdline([helper_path, dcs_install])
-            self._ddos_helper = utils.start_elevated(
+            self._fw_helper = utils.start_elevated(
                 sys.executable, os.getcwd(), cmdline
             )
-            if self._ddos_helper:
-                self.log.info(f"DDoS helper started (PID {self._ddos_helper.pid})")
+            if self._fw_helper:
+                self.log.info(f"Firewall helper started (PID {self._fw_helper.pid})")
                 # Ensure the helper is stopped when the main process exits
                 import atexit
-                atexit.register(self._stop_ddos_helper_sync)
+                atexit.register(self._stop_firewall_helper_sync)
                 try:
-                    # Init: disable DCS general rules (base rules created by server startup / extensions)
-                    resp = await self._send_helper_command('init')
-                    self.log.info(f"DDoS helper init: {resp}")
+                    if self.manage_rules:
+                        # Init: disable DCS general rules (base rules created by server startup / extensions)
+                        resp = await self._send_helper_command('init')
+                        self.log.info(f"Firewall helper init: {resp}")
+                    else:
+                        self.log.info("Firewall helper started (manual rule management active)")
                 except Exception as ex:
-                    self.log.warning(f"DDoS helper init failed: {ex}")
+                    self.log.warning(f"Firewall helper init failed: {ex}")
                     # Kill the helper if init failed — don't leave it orphaned
                     try:
-                        self._ddos_helper.kill()
-                        self._ddos_helper.wait(timeout=5)
+                        self._fw_helper.kill()
+                        self._fw_helper.wait(timeout=5)
                     except Exception:
                         pass
-                    self._ddos_helper = None
+                    self._fw_helper = None
             else:
-                self.log.warning("DDoS helper failed to start (no process returned)")
+                self.log.warning("Firewall helper failed to start (no process returned)")
         except Exception as ex:
-            self.log.warning(f"Failed to start DDoS helper: {ex}")
-            self._ddos_helper = None
+            self.log.warning(f"Failed to start firewall helper: {ex}")
+            self._fw_helper = None
 
-    def _stop_ddos_helper_sync(self) -> None:
-        """Synchronous version of _stop_ddos_helper for atexit registration."""
-        if self._ddos_helper and self._ddos_helper.is_running():
+    def _stop_firewall_helper_sync(self) -> None:
+        """Synchronous version of _stop_firewall_helper for atexit registration."""
+        if self._fw_helper and self._fw_helper.is_running():
             try:
                 # Send graceful exit command via named pipe
                 self._send_helper_command_win32("exit")
                 # Wait for the process to exit cleanly
-                self._ddos_helper.wait(timeout=5)
+                self._fw_helper.wait(timeout=5)
             except Exception:
                 # Fall back to kill if graceful exit fails
                 try:
-                    self._ddos_helper.kill()
-                    self._ddos_helper.wait(timeout=5)
+                    self._fw_helper.kill()
+                    self._fw_helper.wait(timeout=5)
                 except Exception:
                     pass
-            self.log.info("DDoS helper stopped (atexit)")
-        self._ddos_helper = None
+            self.log.info("Firewall helper stopped (atexit)")
+        self._fw_helper = None
 
-    async def _stop_ddos_helper(self) -> None:
-        """Stop the DDoS helper process."""
-        if self._ddos_helper and self._ddos_helper.is_running():
+    async def _stop_firewall_helper(self) -> None:
+        """Stop the firewall helper process."""
+        if self._fw_helper and self._fw_helper.is_running():
             try:
                 await self._send_helper_command("exit")
             except Exception:
                 pass
             try:
-                self._ddos_helper.wait(timeout=5)
+                self._fw_helper.wait(timeout=5)
             except Exception:
-                self._ddos_helper.kill()
-            self.log.info("DDoS helper stopped")
-        self._ddos_helper = None
+                self._fw_helper.kill()
+            self.log.info("Firewall helper stopped")
+        self._fw_helper = None
 
     # ------------------------------------------------------------------
     # DCS update callbacks: pause/resume node-wide bandwidth detection
@@ -282,16 +292,16 @@ class FirewallService(Service):
 
     async def _send_helper_command(self, command: str) -> str:
         """
-        Send a command to the DDoS helper via named pipe.
+        Send a command to the firewall helper via named pipe.
 
         Returns the response string.
         """
-        if not self._ddos_helper or not self._ddos_helper.is_running():
-            raise RuntimeError("DDoS helper is not running")
+        if not self._fw_helper or not self._fw_helper.is_running():
+            raise RuntimeError("firewall helper is not running")
 
         if sys.platform == 'win32':
             return await asyncio.to_thread(self._send_helper_command_win32, command)
-        raise RuntimeError("DDoS helper is only supported on Windows")
+        raise RuntimeError("firewall helper is only supported on Windows")
 
     @staticmethod
     def _send_helper_command_win32(command: str) -> str:
@@ -301,7 +311,7 @@ class FirewallService(Service):
         GENERIC_READ_WRITE = 0xC0000000
         OPEN_EXISTING = 3
         INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
-        PIPE_NAME = r'\\.\pipe\ddos_helper'
+        PIPE_NAME = r'\\.\pipe\firewall_helper'
         kernel32 = ctypes.windll.kernel32
 
         # Retry up to 10 seconds for the pipe to become available
@@ -315,7 +325,7 @@ class FirewallService(Service):
             time.sleep(0.2)
 
         if hPipe == INVALID_HANDLE_VALUE:
-            raise RuntimeError(f"Cannot connect to DDoS helper pipe after 10s (error {ctypes.GetLastError()})")
+            raise RuntimeError(f"Cannot connect to firewall helper pipe after 10s (error {ctypes.GetLastError()})")
 
         try:
             # Send command
@@ -341,9 +351,11 @@ class FirewallService(Service):
             return ['tcp', 'udp']
         return [port_obj.typ.value]
 
-    async def ensure_rule(self, port: Port, remote_ips: list[str] = None,
-                          rule_name: str = None,
-                          reset_on_existing: bool = False) -> bool:
+    async def ensure_rule(self, port: Port, remote_ips: list[str] | None = None,
+                          rule_name: str | None = None,
+                          reset_on_existing: bool = False,
+                          server: Server | None = None,
+                          manage_rules: bool | None = None) -> bool:
         """
         Ensure per-port allow rule(s) exist for a Port object.
         Called by server startup and extensions to register their ports.
@@ -360,11 +372,21 @@ class FirewallService(Service):
                        'DCS-base-{protocol}-{port}'.
             reset_on_existing: if True, delete and recreate existing rules instead
                                of just re-enabling them.
+            server: optional Server object to associate this port with. Used for
+                    DDoS protection of extension ports.
+            manage_rules: optional override for rule management. If None, uses the
+                          global manage_rules setting.
 
         Returns True if all rules were created successfully.
         """
-        if not self._ddos_helper or not self._ddos_helper.is_running():
-            self.log.warning("DDoS helper not running, cannot ensure rule")
+        if server:
+            self._server_extension_ports.setdefault(server.name, set()).add(port)
+        if manage_rules is None:
+            manage_rules = self.manage_rules
+        if not port.public or not manage_rules:
+            return True
+        if not self._fw_helper or not self._fw_helper.is_running():
+            self.log.warning("firewall helper not running, cannot ensure rule")
             return False
         all_ok = True
         ip_str = ','.join(remote_ips) if remote_ips else None
@@ -393,7 +415,7 @@ class FirewallService(Service):
                 all_ok = False
         return all_ok
 
-    async def enable_rule(self, rule_name: str) -> bool:
+    async def enable_rule(self, rule_name: str, manage_rules: bool = None) -> bool:
         """
         Enable firewall rule(s) by name.
 
@@ -403,11 +425,17 @@ class FirewallService(Service):
 
         Args:
             rule_name: the base or exact name of the firewall rule(s) to enable.
+            manage_rules: optional override for rule management. If None, uses the
+                          global manage_rules setting.
 
         Returns True if all rules were found and enabled successfully.
         """
-        if not self._ddos_helper or not self._ddos_helper.is_running():
-            self.log.warning("DDoS helper not running, cannot enable rule")
+        if manage_rules is None:
+            manage_rules = self.manage_rules
+        if not manage_rules:
+            return True
+        if not self._fw_helper or not self._fw_helper.is_running():
+            self.log.warning("firewall helper not running, cannot enable rule")
             return False
         # Resolve base rule name to full rule names if available
         names = self._rule_name_map.get(rule_name, {rule_name})
@@ -425,7 +453,7 @@ class FirewallService(Service):
                 all_ok = False
         return all_ok
 
-    async def disable_rule(self, rule_name: str) -> bool:
+    async def disable_rule(self, rule_name: str, manage_rules: bool = None) -> bool:
         """
         Disable firewall rule(s) by name.
 
@@ -435,11 +463,17 @@ class FirewallService(Service):
 
         Args:
             rule_name: the base or exact name of the firewall rule(s) to disable.
+            manage_rules: optional override for rule management. If None, uses the
+                          global manage_rules setting.
 
         Returns True if all rules were found and disabled successfully.
         """
-        if not self._ddos_helper or not self._ddos_helper.is_running():
-            self.log.warning("DDoS helper not running, cannot disable rule")
+        if manage_rules is None:
+            manage_rules = self.manage_rules
+        if not manage_rules:
+            return True
+        if not self._fw_helper or not self._fw_helper.is_running():
+            self.log.warning("firewall helper not running, cannot disable rule")
             return False
         # Resolve base rule name to full rule names if available
         names = self._rule_name_map.get(rule_name, {rule_name})
@@ -464,11 +498,7 @@ class FirewallService(Service):
         2. Re-create base per-port allow rules for DCS + WebGUI ports
         Extension ports are handled separately when extensions are loaded.
         """
-        if not self._ddos_helper or not self._ddos_helper.is_running():
-            self.log.warning("DDoS helper not running, cannot reset firewall rules")
-            return
         server_name = server.name
-        self.log.info(f"Resetting firewall rules for {server_name}")
         if not server.instance:
             return
 
@@ -482,6 +512,17 @@ class FirewallService(Service):
             port_val = locals_dict.get(pk)
             if port_val:
                 ports_to_register.append((display_name, Port(int(port_val), pk_type)))
+
+        if not self.manage_rules:
+            for _, port_obj in ports_to_register:
+                self._server_extension_ports.setdefault(server.name, set()).add(port_obj)
+            return
+
+        if not self._fw_helper or not self._fw_helper.is_running():
+            self.log.warning("firewall helper not running, cannot reset firewall rules")
+            return
+
+        self.log.info(f"Resetting firewall rules for {server_name}")
 
         for port_name, port_obj in ports_to_register:
             # Clean up any stale DDoS deny rules for all protocols of this port
@@ -562,7 +603,7 @@ class FirewallService(Service):
 
     async def _refresh_block(self, server_name: str, port: int, proto: str) -> None:
         """Re-issue the restrict command with the current IP set (after dynamic whitelist update)."""
-        if not self._ddos_helper:
+        if not self._fw_helper:
             return
         player_ips = await asyncio.to_thread(_get_tcp_player_ips, {port})
         dynamic = self._dynamic_whitelist.get((server_name, port), set())
@@ -678,17 +719,18 @@ class FirewallService(Service):
         self.bus = cast(ServiceBus, ServiceRegistry.get(ServiceBus))
         # Load historical baselines from DB so we don't false-positive on startup
         await self._load_baselines_from_db()
-        # Start DDoS helper if action is 'block' (Windows only)
+        # Start firewall helper if management or DDoS detection is enabled (Windows only)
         config = self.get_config().get('ddos_detection', {})
-        if config.get('enabled', False):
-            await self._start_ddos_helper()
+        if self.manage_rules or config.get('enabled', False):
+            await self._start_firewall_helper()
             # Register DCS update callbacks to auto-pause/resume node-wide detection
-            self.node.register_callback('before_dcs_update', self.name, self.before_dcs_update)
-            self.node.register_callback('after_dcs_update', self.name, self.after_dcs_update)
+            if config.get('enabled', False):
+                self.node.register_callback('before_dcs_update', self.name, self.before_dcs_update)
+                self.node.register_callback('after_dcs_update', self.name, self.after_dcs_update)
         utils.safe_start(self.monitoring)
 
     async def stop(self):
-        await self._stop_ddos_helper()
+        await self._stop_firewall_helper()
         # Stop all log tail tasks
         for server_name in list(self._log_tail_tasks.keys()):
             self._stop_log_tail(server_name)
@@ -790,7 +832,7 @@ class FirewallService(Service):
             players = 0
             for srv in self.bus.servers.values():
                 if srv.name == server_name:
-                    players = len(srv.get_active_players())
+                    players = len([p for p in srv.players.values() if p.connected])
                     break
 
             # --- Build PortStats for TCP ---
@@ -970,7 +1012,7 @@ class FirewallService(Service):
             self.log.debug("Failed to send node DDoS start alert: %s", ex)
 
         # Node-wide firewall block: apply per-instance blocking to ALL running servers
-        if self._ddos_helper and config.get('action') == 'block' and config.get('node_block', True):
+        if self._fw_helper and config.get('action') == 'block' and config.get('node_block', True):
             await self._ddos_block_all_servers(config)
 
     async def _on_node_ddos_update(self, node_name: str, bytes_recv_per_sec: int, baseline: dict) -> None:
@@ -1016,7 +1058,7 @@ class FirewallService(Service):
             self.log.debug("Failed to send node DDoS end alert: %s", ex)
 
         # Node-wide firewall unblock: restore all servers blocked by the node-wide event
-        if self._ddos_helper:
+        if self._fw_helper:
             await self._ddos_unblock_all_servers()
 
     # ------------------------------------------------------------------
@@ -1024,19 +1066,19 @@ class FirewallService(Service):
     # ------------------------------------------------------------------
 
     @proxy
-    async def ensure_ddos_helper(self, node: Node) -> str:
+    async def ensure_firewall_helper(self, node: Node) -> str:
         """
-        Start the DDoS helper process if it is not already running.
+        Start the firewall helper process if it is not already running.
         Returns a status message (empty string on success).
         """
-        if self._ddos_helper and self._ddos_helper.is_running():
+        if self._fw_helper and self._fw_helper.is_running():
             return ""
         try:
-            await self._start_ddos_helper()
+            await self._start_firewall_helper()
         except Exception as ex:
-            return f"Failed to start DDoS helper: {ex}"
-        if not self._ddos_helper or not self._ddos_helper.is_running():
-            return "DDoS helper failed to start. Check logs for details."
+            return f"Failed to start firewall helper: {ex}"
+        if not self._fw_helper or not self._fw_helper.is_running():
+            return "firewall helper failed to start. Check logs for details."
         return ""
 
     @proxy
@@ -1045,7 +1087,7 @@ class FirewallService(Service):
         Manually activate DDoS blocking for ALL running servers on the node.
         Returns a status message.
         """
-        error = await self.ensure_ddos_helper(node)
+        error = await self.ensure_firewall_helper(node)
         if error:
             return error
 
@@ -1061,8 +1103,8 @@ class FirewallService(Service):
         Manually deactivate DDoS blocking for the whole node.
         Returns a status message.
         """
-        if not self._ddos_helper or not self._ddos_helper.is_running():
-            return "DDoS helper is not running."
+        if not self._fw_helper or not self._fw_helper.is_running():
+            return "firewall helper is not running."
 
         await self._ddos_unblock_all_servers()
         return "Node-wide DDoS block deactivated."
@@ -1075,7 +1117,7 @@ class FirewallService(Service):
         protocols: list of 'tcp', 'udp', or 'both'. Defaults to ['tcp', 'udp'].
         Returns a status message.
         """
-        error = await self.ensure_ddos_helper(server.node)
+        error = await self.ensure_firewall_helper(server.node)
         if error:
             return error
 
@@ -1086,7 +1128,7 @@ class FirewallService(Service):
 
         port = int(server.instance.locals.get('dcs_port',
                      server.settings.get('port', 10308)))
-        player_ips = [p.ipaddr for p in server.get_active_players() if p.ipaddr]
+        player_ips = [p.ipaddr for p in server.players.values() if p.connected and p.ipaddr]
 
         if not player_ips:
             self.log.info(f"activate_ddos_block: no player IPs for {server.name}, "
@@ -1139,8 +1181,8 @@ class FirewallService(Service):
         Manually deactivate DDoS blocking for a specific server.
         Returns a status message.
         """
-        if not self._ddos_helper or not self._ddos_helper.is_running():
-            return "DDoS helper is not running."
+        if not self._fw_helper or not self._fw_helper.is_running():
+            return "firewall helper is not running."
 
         port = int(server.instance.locals.get('dcs_port',
                      server.settings.get('port', 10308)))
@@ -1156,7 +1198,7 @@ class FirewallService(Service):
         self._port_ddos_active.pop(udp_key, None)
 
         from .portstats import PortStats
-        players = len(server.get_active_players()) if server.status in (Status.RUNNING, Status.PAUSED) else 0
+        players = len([p for p in server.players.values() if p.connected]) if server.status in (Status.RUNNING, Status.PAUSED) else 0
         tcp_ps = PortStats(port=port, protocol='tcp', tcp_conns=players)
         udp_ps = PortStats(port=port, protocol='udp')
 
@@ -1244,7 +1286,7 @@ class FirewallService(Service):
             self._port_ddos_active[udp_key] = True
 
             # Collect player IPs from the server's active player list
-            player_ips = [p.ipaddr for p in server.get_active_players() if p.ipaddr]
+            player_ips = [p.ipaddr for p in server.players.values() if p.connected and p.ipaddr]
 
             self.log.info(f"Node block: blocking {server_name} ({port}) with {len(player_ips)} player IPs")
 
@@ -1294,7 +1336,7 @@ class FirewallService(Service):
             self._port_ddos_active.pop((server_name, port, 'udp'), None)
 
             # Build minimal PortStats for the end callbacks
-            players = len(server.get_active_players()) if server.status == Status.RUNNING else 0
+            players = len([p for p in server.players.values() if p.connected]) if server.status == Status.RUNNING else 0
             tcp_ps = PortStats(port=port, protocol='tcp', tcp_conns=players)
             udp_ps = PortStats(port=port, protocol='udp')
 
@@ -1338,7 +1380,7 @@ class FirewallService(Service):
                     f"{server_name}:{port} (max {max_conns})"
                 )
                 # Auto-block this IP permanently
-                if self._ddos_helper:
+                if self._fw_helper:
                     try:
                         response = await self._send_helper_command(f"block_ip {ip}")
                         if response.startswith('OK'):
@@ -1425,7 +1467,8 @@ class FirewallService(Service):
         # Check if current tick is anomalous based on excess connections
         std = math.sqrt(baseline['m2'] / baseline['count']) if baseline['count'] > 1 else 0
         is_anomalous = False
-        if std > 0:
+        min_excess_conns = config.get('min_excess_conns', 10)
+        if std > 0 and excess_conns >= min_excess_conns:
             z_score = (excess_conns - baseline['mean']) / std
             if z_score > threshold_sigma:
                 is_anomalous = True
@@ -1499,7 +1542,8 @@ class FirewallService(Service):
 
         std = math.sqrt(baseline['m2'] / baseline['count']) if baseline['count'] > 1 else 0
         is_anomalous = False
-        if std > 0:
+        min_non_player_ips = config.get('min_non_player_ips', 10)
+        if std > 0 and non_player_udp_count >= min_non_player_ips:
             z_score = (non_player_udp_count - baseline['mean']) / std
             if z_score > threshold_sigma:
                 is_anomalous = True
@@ -1577,7 +1621,7 @@ class FirewallService(Service):
             self.log.debug("Failed to send DDoS start alert: %s", ex)
         # Firewall blocking (action='block')
         _action = action_override or self.get_config().get('ddos_detection', {}).get('action')
-        if self._ddos_helper and _action == 'block':
+        if self._fw_helper and _action == 'block':
             try:
                 player_ips = await asyncio.to_thread(_get_tcp_player_ips, {port})
                 ips = list(player_ips.get(port, set()))
@@ -1587,6 +1631,15 @@ class FirewallService(Service):
                 else:
                     self.log.info(f"DDoS block: no player IPs online for {proto}/{port}, creating block with whitelist only")
                     await self._ddos_block(server_name, port, proto, [])
+
+                # Protect extension ports associated with this server
+                for ext_port in self._server_extension_ports.get(server_name, set()):
+                    if not ext_port.public:
+                        continue
+                    for ext_proto in self._port_protocols(ext_port):
+                        await self._ddos_block(server_name, ext_port.port, ext_proto, ips)
+                        self.log.info(f"DDoS block: extension port {ext_proto}/{ext_port.port} protected for {server_name}")
+
                 # Start tailing dcs.log for new TCP connects (UDP block only)
                 if proto == 'udp':
                     self._start_log_tail(server_name, port)
@@ -1630,9 +1683,16 @@ class FirewallService(Service):
             self.log.debug("Failed to send DDoS end alert: %s", ex)
         # Firewall unblock (action='block')
         _action = action_override or self.get_config().get('ddos_detection', {}).get('action')
-        if self._ddos_helper and _action == 'block':
+        if self._fw_helper and _action == 'block':
             try:
                 await self._ddos_unblock(server_name, port, proto)
+
+                # Unprotect extension ports
+                for ext_port in self._server_extension_ports.get(server_name, set()):
+                    if not ext_port.public:
+                        continue
+                    for ext_proto in self._port_protocols(ext_port):
+                        await self._ddos_unblock(server_name, ext_port.port, ext_proto)
             except Exception as ex:
                 self.log.warning(f"DDoS unblock failed: {ex}")
 
@@ -1735,7 +1795,7 @@ class FirewallService(Service):
             self.log.debug("Failed to send UDP DDoS start alert: %s", ex)
         # Firewall blocking (action='block')
         _action = action_override or self.get_config().get('ddos_detection', {}).get('action')
-        if self._ddos_helper and _action == 'block':
+        if self._fw_helper and _action == 'block':
             try:
                 player_ips = await asyncio.to_thread(_get_tcp_player_ips, {port})
                 ips = list(player_ips.get(port, set()))
@@ -1745,6 +1805,15 @@ class FirewallService(Service):
                 else:
                     self.log.info(f"DDoS block UDP: no player IPs online for udp/{port}, creating block with whitelist only")
                     await self._ddos_block(server_name, port, 'udp', [])
+
+                # Protect extension ports associated with this server
+                for ext_port in self._server_extension_ports.get(server_name, set()):
+                    if not ext_port.public:
+                        continue
+                    for ext_proto in self._port_protocols(ext_port):
+                        await self._ddos_block(server_name, ext_port.port, ext_proto, ips)
+                        self.log.info(f"DDoS block UDP: extension port {ext_proto}/{ext_port.port} protected for {server_name}")
+
                 # Start tailing dcs.log for new TCP connects
                 self._start_log_tail(server_name, port)
             except Exception as ex:
@@ -1784,9 +1853,16 @@ class FirewallService(Service):
             self.log.debug("Failed to send UDP DDoS end alert: %s", ex)
         # Firewall unblock (action='block')
         _action = action_override or self.get_config().get('ddos_detection', {}).get('action')
-        if self._ddos_helper and _action == 'block':
+        if self._fw_helper and _action == 'block':
             try:
                 await self._ddos_unblock(server_name, port, 'udp')
+
+                # Unprotect extension ports
+                for ext_port in self._server_extension_ports.get(server_name, set()):
+                    if not ext_port.public:
+                        continue
+                    for ext_proto in self._port_protocols(ext_port):
+                        await self._ddos_unblock(server_name, ext_port.port, ext_proto)
             except Exception as ex:
                 self.log.warning(f"DDoS unblock UDP failed: {ex}")
         # Stop tailing dcs.log
@@ -1941,7 +2017,7 @@ class FirewallService(Service):
         """
         Permanently block an IP address via Windows Firewall on this node.
         """
-        error = await self.ensure_ddos_helper(node)
+        error = await self.ensure_firewall_helper(node)
         if error:
             return error
         try:
@@ -1958,8 +2034,8 @@ class FirewallService(Service):
         """
         Remove an IP from the permanent block list on this node.
         """
-        if not self._ddos_helper or not self._ddos_helper.is_running():
-            return "DDoS helper is not running."
+        if not self._fw_helper or not self._fw_helper.is_running():
+            return "firewall helper is not running."
         try:
             response = await self._send_helper_command(f"unblock_ip {ip}")
             if response.startswith('OK'):

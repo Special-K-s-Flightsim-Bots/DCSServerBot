@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DDoS Helper — Windows Firewall rule manager for DCSServerBot.
+Firewall Helper — Windows Firewall rule manager for DCSServerBot.
 
 Runs with administrator privileges (started via ShellExecuteExW / runas).
 Communicates with the bot via a named pipe.
@@ -14,13 +14,13 @@ import threading
 import time
 import logging
 
-# Set up file logging to <bot_root>/logs/ddos_helper.log
+# Set up file logging to <bot_root>/logs/firewall_helper.log
 _bot_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _log_dir = os.path.join(_bot_root, 'logs')
 os.makedirs(_log_dir, exist_ok=True)
-_log_path = os.path.join(_log_dir, 'ddos_helper.log')
+_log_path = os.path.join(_log_dir, 'firewall_helper.log')
 
-_logger = logging.getLogger('ddos_helper')
+_logger = logging.getLogger('firewall_helper')
 _logger.setLevel(logging.DEBUG)
 _logger.propagate = False
 try:
@@ -33,7 +33,7 @@ try:
     _logger.addHandler(_fh)
 except Exception:
     import traceback
-    crash_log = os.path.join(os.environ.get('TEMP', '.'), 'ddos_helper_crash.log')
+    crash_log = os.path.join(os.environ.get('TEMP', '.'), 'firewall_helper_crash.log')
     with open(crash_log, 'a') as f:
         f.write(traceback.format_exc() + '\n')
     raise
@@ -162,6 +162,20 @@ def _fw_create_rule(rule_name, direction, action, protocol, local_port=None,
 # DCS exe resolution (unchanged from working version)
 # ---------------------------------------------------------------------------
 
+def normalize_path(path: str) -> str:
+    """Normalize a Windows path: expand vars, normpath, lowercase."""
+    if not path:
+        return ""
+    try:
+        # Expand environment variables like %ProgramFiles%
+        path = os.path.expandvars(path)
+        # Convert / to \ and handle double slashes
+        path = os.path.normpath(path)
+        return path.lower()
+    except Exception:
+        return path.lower()
+
+
 def _resolve_dcs_exe() -> str:
     """
     Resolve the DCS executable path.
@@ -199,6 +213,122 @@ def _resolve_dcs_exe() -> str:
 # Firewall rule management (using COM API instead of netsh)
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Manual rule suppression (for when manage_rules is False)
+# ---------------------------------------------------------------------------
+
+# Map rule key -> reference count
+_suppressed_manual_rules = {}
+# Map (protocol, port) -> list of rule keys
+_port_to_manual_rules = {}
+
+
+def _rule_key(rule):
+    """Create a uniquely-ish identifying key for a firewall rule."""
+    return rule.Name, rule.ApplicationName, rule.LocalPorts, rule.Protocol
+
+
+def _port_in_range(port: int, port_range: str) -> bool:
+    """Check if a port is within a firewall port specification (single, list, or range)."""
+    if '-' in port_range:
+        try:
+            start, end = map(int, port_range.split('-'))
+            return start <= port <= end
+        except ValueError:
+            return False
+    try:
+        return int(port_range) == port
+    except ValueError:
+        return False
+
+
+def _matches_port(port: int, local_ports: str) -> bool:
+    """Check if a port matches the LocalPorts specification of a rule."""
+    if not local_ports or local_ports == '*':
+        return True
+    return any(_port_in_range(port, p.strip()) for p in local_ports.split(','))
+
+
+def _suppress_manual_rules(protocol: int, port: int) -> list:
+    """Find and disable manual firewall rules matching the port or DCS exe."""
+    exe_path = _resolve_dcs_exe()
+    normalized_exe = normalize_path(exe_path) if exe_path else None
+
+    suppressed_keys = []
+    try:
+        policy = _get_fw_policy()
+        for rule in policy.Rules:
+            # Ignore our own rules
+            if rule.Grouping == "DCSServerBot" or rule.Name.startswith("DCS-"):
+                continue
+
+            matches = False
+            # Match by ApplicationName (DCS exe)
+            if normalized_exe and rule.ApplicationName:
+                if normalize_path(rule.ApplicationName) == normalized_exe:
+                    matches = True
+
+            # Match by Port
+            if not matches and rule.LocalPorts:
+                if _matches_port(port, rule.LocalPorts):
+                    if rule.Protocol == protocol or rule.Protocol == NET_FW_IP_PROTOCOL_ANY:
+                        matches = True
+
+            if matches:
+                key = _rule_key(rule)
+                if rule.Enabled:
+                    # If not already suppressed by another port attack, disable it
+                    if _suppressed_manual_rules.get(key, 0) == 0:
+                        _set_rule_enabled_obj(rule, False)
+                        _logger.info("Suppressed manual rule: %s (matches port %d or exe)", rule.Name, port)
+                    
+                    # Increment ref count for this port/protocol
+                    _suppressed_manual_rules[key] = _suppressed_manual_rules.get(key, 0) + 1
+                    suppressed_keys.append(key)
+                elif key in _suppressed_manual_rules:
+                    # Rule is already disabled AND it is in our suppression list, 
+                    # meaning it was disabled by another port attack.
+                    _suppressed_manual_rules[key] += 1
+                    suppressed_keys.append(key)
+                # Else: rule is disabled but NOT in our suppression list, 
+                # meaning it was disabled by the user manually. We leave it alone.
+        
+        if suppressed_keys:
+            _port_to_manual_rules[(protocol, port)] = suppressed_keys
+
+    except Exception as ex:
+        _logger.error("Error suppressing manual rules: %s", ex)
+
+    return [k[0] for k in suppressed_keys]
+
+
+def _restore_manual_rules(protocol: int, port: int) -> list:
+    """Decrement suppression ref count and re-enable manual rules if it reaches zero."""
+    keys = _port_to_manual_rules.pop((protocol, port), [])
+    restored = []
+    if not keys:
+        return restored
+
+    try:
+        policy = _get_fw_policy()
+        # Collect all rules first to avoid multiple iterations? 
+        # Actually, iterating once is safer.
+        for rule in policy.Rules:
+            key = _rule_key(rule)
+            if key in keys:
+                _suppressed_manual_rules[key] = max(0, _suppressed_manual_rules.get(key, 0) - 1)
+                if _suppressed_manual_rules[key] == 0:
+                    # No more attacks require this rule suppressed -> restore it
+                    if not rule.Enabled:
+                        _set_rule_enabled_obj(rule, True)
+                        restored.append(rule.Name)
+                        _logger.info("Restored manual rule: %s", rule.Name)
+    except Exception as ex:
+        _logger.error("Error restoring manual rules: %s", ex)
+    
+    return restored
+
+
 def rule_exists(rule_name: str) -> bool:
     """Check if a firewall rule exists."""
     if not _COM_AVAILABLE:
@@ -226,6 +356,11 @@ def restrict_rule(rule_name: str, protocol: str, port: int, allowed_ips: list[st
     if _fw_rule_exists(base_rule):
         _set_rule_enabled(base_rule, False)
         _logger.info("restrict_rule: disabled base rule %s", base_rule)
+
+    # Step 1b: Suppress manual rules matching this port or DCS exe
+    suppressed = _suppress_manual_rules(proto_num, port)
+    if suppressed:
+        _logger.info("restrict_rule: suppressed %d manual rules for %s/%d", len(suppressed), protocol, port)
 
     # Step 2: Remove any existing deny rule with this name
     if _fw_rule_exists(rule_name):
@@ -312,7 +447,13 @@ def restore_rule(rule_name: str, base_rule: str = None) -> tuple:
         _set_rule_enabled(base_rule, True)
         results.append(f"Base rule '{base_rule}' re-enabled")
     else:
-        results.append(f"Base rule '{base_rule}' does not exist")
+        results.append(f"Base rule '{base_rule}' did not exist")
+
+    # Step 4: Restore manual rules matching this port or DCS exe
+    proto_num = NET_FW_IP_PROTOCOL_TCP if protocol == 'tcp' else NET_FW_IP_PROTOCOL_UDP
+    restored = _restore_manual_rules(proto_num, port)
+    if restored:
+        results.append(f"Restored {len(restored)} manual rules")
 
     _logger.info("restore_rule: %s", "; ".join(results))
     return True, "; ".join(results)
@@ -422,7 +563,7 @@ def disable_dcs_general_rules():
     exe_path = _resolve_dcs_exe()
     if not exe_path:
         return False, "DCS executable not found"
-    exe_dir = os.path.normpath(os.path.dirname(exe_path)).lower()
+    normalized_exe_dir = os.path.dirname(normalize_path(exe_path))
     disabled = []
     try:
         policy = _get_fw_policy()
@@ -431,8 +572,8 @@ def disable_dcs_general_rules():
                 continue
             if not rule.ApplicationName:
                 continue
-            rule_dir = os.path.normpath(os.path.dirname(rule.ApplicationName)).lower()
-            if rule_dir != exe_dir:
+            rule_dir = os.path.dirname(normalize_path(rule.ApplicationName))
+            if rule_dir != normalized_exe_dir:
                 continue
             if rule.Enabled:
                 ok, msg = _set_rule_enabled_obj(rule, False)
@@ -455,7 +596,7 @@ def restore_dcs_general_rules():
     exe_path = _resolve_dcs_exe()
     if not exe_path:
         return False, "DCS executable not found"
-    exe_dir = os.path.dirname(exe_path).lower()
+    normalized_exe_dir = os.path.dirname(normalize_path(exe_path))
     enabled = []
     try:
         policy = _get_fw_policy()
@@ -464,8 +605,8 @@ def restore_dcs_general_rules():
                 continue
             if not rule.ApplicationName:
                 continue
-            rule_dir = os.path.dirname(rule.ApplicationName).lower()
-            if rule_dir != exe_dir:
+            rule_dir = os.path.dirname(normalize_path(rule.ApplicationName))
+            if rule_dir != normalized_exe_dir:
                 continue
             if not rule.Enabled:
                 ok, msg = _set_rule_enabled_obj(rule, True)
@@ -645,7 +786,7 @@ def handle_command(line: str) -> str:
 # Named pipe server (unchanged from working version)
 # ---------------------------------------------------------------------------
 
-PIPE_NAME = r'\\.\pipe\ddos_helper'
+PIPE_NAME = r'\\.\pipe\firewall_helper'
 
 
 def _create_security_attributes():
@@ -654,7 +795,6 @@ def _create_security_attributes():
     integrity levels. This is needed because the helper runs elevated (high
     integrity) and the bot runs non-elevated (medium integrity).
     """
-    import ctypes
     import ctypes.wintypes
 
     PSECURITY_DESCRIPTOR = ctypes.c_void_p
@@ -687,7 +827,6 @@ def _create_security_attributes():
 
 def pipe_server(stop_event: threading.Event):
     """Run the named pipe server, handling one client at a time."""
-    import ctypes
     import ctypes.wintypes
 
     # Initialize COM on this thread (required for comtypes COM calls)
@@ -779,7 +918,7 @@ def pipe_server(stop_event: threading.Event):
 # ---------------------------------------------------------------------------
 
 def main():
-    _logger.info("DDoS Helper started. Listening on %s", PIPE_NAME)
+    _logger.info("Firewall Helper started. Listening on %s", PIPE_NAME)
     _logger.info("DCS executable: %s", _resolve_dcs_exe() or "NOT FOUND")
 
     stop_event = threading.Event()
@@ -794,7 +933,7 @@ def main():
 
     stop_event.set()
     server_thread.join(timeout=5)
-    _logger.info("DDoS Helper stopped.")
+    _logger.info("Firewall Helper stopped.")
 
 
 if __name__ == '__main__':
@@ -802,7 +941,7 @@ if __name__ == '__main__':
         main()
     except Exception:
         import traceback
-        crash_log = os.path.join(os.environ.get('TEMP', '.'), 'ddos_helper_crash.log')
+        crash_log = os.path.join(os.environ.get('TEMP', '.'), 'firewall_helper_crash.log')
         with open(crash_log, 'a') as f:
             f.write(traceback.format_exc() + '\n')
         raise

@@ -105,6 +105,9 @@ class ServiceBus(Service):
     async def switch(self, master: bool):
         await super().switch(master)
         if master:
+            if master and not self.master:
+                await self.intercom_channel.purge()
+                await self.broadcasts_channel.purge()
             asyncio.create_task(self.register_local_servers(master))
             for node in await self.node.get_active_nodes():
                 await self.send_to_node({
@@ -359,7 +362,11 @@ class ServiceBus(Service):
         existing_node = self.node.all_nodes.get(name)
         has_servers = any(s.node.name == name for s in self.servers.values() if s.is_remote)
         if existing_node and has_servers and await existing_node.is_alive():
-            self.log.debug(f"Node {name} already registered and alive, skipping duplicate registration request.")
+            # The node re-announced itself => it was restarted. Our node/server state for it
+            # is stale, so the handshake must be completed again (server init + status resync).
+            # Never swallow an explicit registration request.
+            self.log.info(f"Node {name} re-requested registration, re-sending the handshake.")
+            await self.register_remote_servers(existing_node)
             return
 
         self._registering_nodes.add(name)
