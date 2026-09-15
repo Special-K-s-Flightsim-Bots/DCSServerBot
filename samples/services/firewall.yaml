@@ -1,9 +1,13 @@
+# config/services/firewall.yaml
 DEFAULT:
+  manage_rules: true                # Set to false if you want to manage your own firewall rules
   ddos_detection:                 # Optional DDoS-check
     enabled: true
     threshold_sigma: 3.0          # z-score threshold for anomaly detection (default: 3.0)
     min_samples: 30               # minimum baseline samples before detection starts (default: 30)
     min_abs_recv_mbps: 10         # minimum absolute bandwidth in MB/s to consider (default: 10)
+    min_excess_conns: 10          # minimum excess TCP connections to trigger anomaly (default: 10)
+    min_non_player_ips: 10        # minimum non-player UDP source IPs to trigger anomaly (default: 10)
     consecutive_ticks: 3          # consecutive anomaly ticks to confirm DDoS START (default: 3)
     recovery_ticks: 5             # consecutive normal ticks to confirm DDoS END (default: 5)
     alert_cooldown_minutes: 15    # minimum minutes between repeated alerts (default: 15)

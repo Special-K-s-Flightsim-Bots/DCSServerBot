@@ -118,6 +118,7 @@ class NodeImpl(Node):
         self.cpool: AsyncConnectionPool | None = None
         self._heartbeat_conn: psycopg.AsyncConnection | None = None
         self._master = None
+        self._ready = False
         self._claimed_master =None
 
     @property
@@ -1204,11 +1205,12 @@ class NodeImpl(Node):
 
             active_nodes = set(await self.get_active_nodes())
             all_nodes = set(self.all_nodes.keys())
+            ready_nodes = await self.get_ready_nodes()
             bus = cast(ServiceBus, ServiceRegistry.get(ServiceBus))
             bot = cast(BotService, ServiceRegistry.get(BotService))
 
             # check if suspect nodes came back again
-            for node_name in {name: self.suspect[name] for name in active_nodes if name in self.suspect}:
+            for node_name in {name: self.suspect[name] for name in ready_nodes if name in self.suspect}:
                 node = self.suspect.pop(node_name)
                 self.all_nodes[node.name] = node
                 self.log.info(f"Node {node.name} is alive again, asking for registration ...")
@@ -1359,15 +1361,17 @@ class NodeImpl(Node):
                         try:
                             async with self.cpool.connection() as conn2:
                                 await conn2.execute("""
-                                    INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
-                                    ON CONFLICT (guild_id, node) DO UPDATE 
-                                    SET last_seen = (NOW() AT TIME ZONE 'UTC')
-                                """, (self.guild_id, self.name))
+                                    INSERT INTO nodes (guild_id, node, ready)
+                                    VALUES (%s, %s, %s)
+                                    ON CONFLICT (guild_id, node) DO UPDATE
+                                        SET last_seen = (NOW() AT TIME ZONE 'UTC'),
+                                            ready     = EXCLUDED.ready
+                                """, (self.guild_id, self.name, self._ready))
                         except Exception:
                             pass  # inner exception is already propagating
-        except UndefinedTable:
-            # we should only be here when the CLUSTER table does not exist
-            # it will be created directly afterward
+        except (UndefinedTable, UndefinedColumn):
+            # We should only be here when the CLUSTER table does not exist or needs to be updated.
+            # It will be created directly afterward.
             return True
 
     @tasks.loop(seconds=5.0)
@@ -1408,6 +1412,27 @@ class NodeImpl(Node):
             """).format(interval=sql.Literal(f"{self.locals.get('cluster', {}).get('heartbeat', 30)} seconds"))
             cursor = await conn.execute(query, (self.guild_id, self.name))
             return [row[0] async for row in cursor]
+
+    async def set_ready(self) -> None:
+        """Mark this node as fully started (its services can serve RPCs)."""
+        self._ready = True
+        if self.cpool and not self.cpool.closed:
+            async with self.cpool.connection() as conn:
+                await conn.execute("""
+                    UPDATE nodes SET ready = TRUE WHERE guild_id = %s AND node = %s
+                """, (self.guild_id, self.name))
+
+    async def get_ready_nodes(self) -> set[str]:
+        async with self.cpool.connection() as conn:
+            query = sql.SQL("""
+                SELECT node FROM nodes 
+                WHERE guild_id = %s
+                AND node <> %s
+                AND ready = TRUE
+                AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval {interval})
+            """).format(interval=sql.Literal(f"{self.locals.get('cluster', {}).get('heartbeat', 30)} seconds"))
+            cursor = await conn.execute(query, (self.guild_id, self.name))
+            return {row[0] async for row in cursor}
 
     @override
     async def shell_command(self, cmd: str, timeout: int = 60) -> tuple[str, str] | None:

@@ -447,6 +447,8 @@ def get_die_info() -> list[list[int]]:
 
 
 def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display: bool = False, topology: dict = None):
+    from matplotlib import pyplot as plt
+
     if not display:
         plt.switch_backend('agg')
     plt.style.use('dark_background')

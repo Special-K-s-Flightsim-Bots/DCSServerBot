@@ -7,13 +7,14 @@ import traceback
 from configparser import ConfigParser
 from contextlib import suppress
 from copy import deepcopy
-from core import utils
 from core.const import DEFAULT_TAG, SAVED_GAMES
 from core.plugin import BACKUP_FOLDER
 from core.data.node import Node
 from pathlib import Path
+from psycopg import Connection
 from rich import print
 from rich.prompt import IntPrompt, Confirm
+from typing import cast
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -141,6 +142,8 @@ def migrate(node: Node, old_version: str, new_version: str) -> int:
         return migrate_3_15(node)
     elif old_version == 'v3.15' and new_version == 'v3.16':
         return migrate_3_16(node)
+    elif old_version == 'v3.17' and new_version == 'v3.18':
+        return migrate_3_18(node)
     return 0
 
 def migrate_3_11(node: Node) -> int:
@@ -271,6 +274,16 @@ def migrate_3_16(node: Node) -> int:
         node.log.info("  => node.yaml auto-migrated, please check")
         return -1
     return 0
+
+
+def migrate_3_18(node: Node) -> int:
+    if not node.master:
+        return -1
+
+    c_pool_url, _ = node.get_database_urls()
+    with Connection.connect(c_pool_url, autocommit=True) as conn:
+        conn.execute("ALTER TABLE nodes ADD COLUMN IF NOT EXISTS ready BOOLEAN NOT NULL DEFAULT TRUE")
+    return -1
 
 
 def migrate_3(node: str):

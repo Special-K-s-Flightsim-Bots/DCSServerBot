@@ -186,6 +186,7 @@ class Main:
         await self.node.register()
         db_available = True
         async with ServiceRegistry(node=self.node) as registry:
+            await self.node.set_ready()
             self.log.info("DCSServerBot {} started.".format("MASTER" if self.node.master else "AGENT"))
             try:
                 while not self.node.is_shutdown.is_set():

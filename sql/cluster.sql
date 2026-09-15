@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS nodes (
     guild_id BIGINT NOT NULL,
     node TEXT NOT NULL,
     last_seen TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
+    ready BOOLEAN NOT NULL DEFAULT TRUE,
     PRIMARY KEY (guild_id, node)
 );
 CREATE TABLE IF NOT EXISTS files (
