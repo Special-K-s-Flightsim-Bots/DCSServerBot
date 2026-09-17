@@ -116,6 +116,173 @@ local function is_vertical_takeoff(velocity, threshold)
     return vh < threshold or ratio > 2
 end
 
+----------------------------------------------------------------
+-- AAR fuel tracking
+--
+-- Problem: in MULTIPLAYER DCS never fires S_EVENT_REFUELING_START for the
+-- receiver (long-standing ED bug, forum topics 297833 + 341025). Only
+-- S_EVENT_REFUELING_STOP (id 14) reaches the server, and its initiator is the
+-- unit that RECEIVED the fuel. So the "start" half has to be reconstructed:
+-- poll getFuel() and remember the sample from just before the fuel starts rising.
+--
+-- Credits to [.ID] EagleEye who built the original aar.lua script my code is based on.
+----------------------------------------------------------------
+
+local AAR = {
+    INTERVAL  = 2,       -- poll interval
+    THRESHOLD = 0.001,   -- min getFuel() rise that counts as a transfer
+    GIVE_UP   = 4,       -- ticks without a further rise -> drop unconfirmed baseline
+    timer_id  = nil,
+    tasks     = {},      -- [unit_id] = { unit, fuel_prev, base, t_base, ticks, confirmed }
+    real      = {}       -- [unit_id] = true while DCS itself reported the START
+}
+
+-- --------------------------------------------------------------
+-- 1) one sample per player per tick
+-- --------------------------------------------------------------
+local function aar_sample(uid, unit)
+    local t = AAR.tasks[uid]
+    local fuel = unit:getFuel() or 0
+
+    if not t then
+        -- first sight: we only need the previous value, nothing else
+        AAR.tasks[uid] = { unit = unit, fuel_prev = fuel }
+        return
+    end
+
+    local rose = fuel > (t.fuel_prev or fuel) + AAR.THRESHOLD
+
+    if t.base then
+        if fuel < t.base - AAR.THRESHOLD then
+            -- fell below the baseline => that was engine burn, never a transfer
+            t.base, t.confirmed, t.ticks = nil, false, 0
+        elseif rose then
+            t.confirmed = true                      -- rise continues => real transfer
+        elseif not t.confirmed then
+            t.ticks = (t.ticks or 0) + 1
+            if t.ticks >= AAR.GIVE_UP then
+                t.base, t.ticks = nil, 0            -- one-off jump (spawn/script), drop
+            end
+        end
+    elseif rose then
+        -- >>> THE REPLACEMENT FOR THE MISSING START EVENT <<<
+        -- baseline = the sample taken BEFORE the rise
+        t.base   = t.fuel_prev
+        t.t_base = timer.getTime()
+        t.ticks  = 0
+        AAR.emitStart(unit, t)   -- the single emit site: first positive rise
+    end
+
+    t.fuel_prev = fuel
+end
+
+local function aar_tick()
+    for _, side in ipairs({coalition.side.BLUE, coalition.side.RED}) do
+        for _, group in ipairs(coalition.getGroups(side, Group.Category.AIRPLANE) or {}) do
+            for _, unit in ipairs(group:getUnits()) do
+                if unit and unit:isExist() then
+                    local uid = unit:getID()
+                    if unit:inAir() then
+                        aar_sample(uid, unit)
+                    else
+                        AAR.tasks[uid] = nil      -- on the ground (airbase refuel!) => no session
+                        AAR.real[uid]  = nil
+                    end
+                end
+            end
+        end
+    end
+    -- MP quits do not always raise DEAD/CRASH/PLAYER_LEAVE_UNIT: the unit just
+    -- disappears, so garbage-collect on the tick as well.
+    for uid, t in pairs(AAR.tasks) do
+        if not t.unit or not t.unit:isExist() then
+            AAR.tasks[uid] = nil
+            AAR.real[uid]  = nil
+        end
+    end
+    return timer.getTime() + AAR.INTERVAL
+end
+
+-- --------------------------------------------------------------
+-- 2) the closer: S_EVENT_REFUELING_STOP builds the comment
+-- --------------------------------------------------------------
+local function aar_onStop(unit)
+    local uid = unit:getID()
+    local t   = AAR.tasks[uid]
+    AAR.tasks[uid] = nil                  -- next boom/basket contact re-baselines
+    AAR.real[uid]  = nil
+    if not t or not t.base then
+        return nil                        -- nothing known -> comment stays empty
+    end
+
+    local gained = (unit:getFuel() or 0) - t.base
+    if gained <= AAR.THRESHOLD then
+        return nil                        -- touched the basket, took nothing
+    end
+
+    local desc = unit:getDesc()
+    local lbs  = gained * ((desc and desc.fuelMassMax) or 0) * 2.20462   -- kg -> lbs
+
+    local r4 = function(x) return math.floor(x * 10000 + 0.5) / 10000 end
+    return net.lua2json({
+        gained   = r4(gained),                                              -- fraction of internal capacity
+        lbs      = math.floor(lbs + 0.5),
+        secs     = r4(timer.getTime() - t.t_base),
+        gauge    = { from = r4(t.base), to = r4(unit:getFuel() or 0) }   -- before/after getFuel()
+    })
+end
+
+-- --------------------------------------------------------------
+-- 2b) synthesise the MP-missing START event (S_EVENT_REFUELING, id 7)
+-- --------------------------------------------------------------
+-- DCS never fires it on MP servers, so the STOP row would have no partner.
+-- Emitted at the FIRST positive rise inside aar_sample() - the moment the transfer
+-- actually starts. It needs no confirmation, and it also covers contacts that never
+-- get a STOP (player disconnects on the boom).
+-- BOTH PATHS, ONE ROW: on SP / a non-dedicated server DCS fires id 7 itself, so
+-- AAR.real[uid] is set and emitStart() stays silent - DCS' own event is richer
+-- (position/lat-lon) and travels the normal path. If the synthetic row is already
+-- out when the real event shows up, the real one is swallowed (aar_skip) so one
+-- contact can never produce two START rows. Safe to inject: nothing on
+-- the Python side validates eventName - listener.py writes data['eventName']
+-- verbatim (line 152/164) and the live-stat branches (BIRTH / KILL /
+-- UNIT_LOST / BASE_CAPTURED) simply ignore it, so no embed or report changes.
+function AAR.emitStart(unit, t)
+    -- respect event_filter: if id 7 is filtered out, event_by_id has no name for
+    -- it and we must not inject a row the user asked not to receive either
+    local name = event_by_id[world.event.S_EVENT_REFUELING]
+    if not name or not t or t.start_sent then
+        return
+    end
+    if AAR.real[unit:getID()] then
+        return                            -- DCS sent its own START -> never double up
+    end
+    t.start_sent = true
+    dcsbot.sendBotTable({
+        command   = 'onMissionEvent',
+        id        = world.event.S_EVENT_REFUELING,
+        time      = t.t_base,                 -- mission time of the baseline sample
+        eventName = name,
+        initiator = AAR.initiator(unit)
+    })
+end
+
+function AAR.initiator(unit)                  -- same shape _update_database() reads
+    local group = unit:getGroup()
+    local desc  = unit:getDesc()
+    return {
+        type       = 'UNIT',
+        unit       = unit,
+        unit_name  = unit:getName(),
+        group      = group,
+        group_name = (group and group:isExist()) and group:getName() or nil,
+        name       = unit:getPlayerName(),
+        coalition  = unit:getCoalition(),
+        unit_type  = unit:getTypeName(),
+        category   = desc and desc.category
+    }
+end
+
 function dcsbot.eventHandler:onEvent(event)
 	status, err = pcall(onMissionEvent, event)
 	if not status then
@@ -198,8 +365,8 @@ function onMissionEvent(event)
                             if is_vertical_takeoff(velocity) then
                                 return
                             end
-                            msg['eventName'] = 'S_EVENT_TAXIWAY_TAKEOFF'
-                            msg['velocity'] = velocity
+                            msg.eventName = 'S_EVENT_TAXIWAY_TAKEOFF'
+                            msg.velocity = velocity
                             --[[
                             if msg.initiator.name then
                                 trigger.action.markToAll(marker_num, "Takeoff " .. msg.initiator.name, point, true, '')
@@ -209,6 +376,16 @@ function onMissionEvent(event)
                         end
                     end
                 end
+            elseif event.id == world.event.S_EVENT_REFUELING then
+                -- SP / non-dedicated server -> DCS reports the START itself
+                local uid = event.initiator:getID()
+                AAR.real[uid] = true                 -- aar_sample() must not synthesise
+                local t = AAR.tasks[uid]
+                if t and t.start_sent then
+                    return                           -- ignore the event
+                end
+            elseif event.id == world.event.S_EVENT_REFUELING_STOP then
+                msg.comment = aar_onStop(event.initiator)          -- also clears AAR.real[uid]
             end
         elseif category == Object.Category.WEAPON then
             msg.initiator.type = 'WEAPON'
@@ -434,6 +611,10 @@ function dcsbot.enableMissionStats(filter)
         end
     end
     world.addEventHandler(dcsbot.eventHandler)
+    -- enable AAR timer
+    if not AAR.timer_id then
+        AAR.timer_id = timer.scheduleFunction(aar_tick, {}, timer.getTime() + AAR.INTERVAL)
+    end
     env.info('DCSServerBot - Mission Statistics enabled.')
     dcsbot.mission_stats_enabled = true
 end
@@ -441,8 +622,14 @@ end
 function dcsbot.disableMissionStats()
 	if dcsbot.mission_stats_enabled then
         world.removeEventHandler(dcsbot.eventHandler)
-        env.info('DCSServerBot - Mission Statistics disabled.')
+        -- disable AAR timer
+        if AAR.timer_id then
+            timer.removeFunction(AAR.timer_id)
+            AAR.timer_id = nil
+        end
+        AAR.tasks = {}
         dcsbot.mission_stats_enabled = false
+        env.info('DCSServerBot - Mission Statistics disabled.')
     end
 end
 
