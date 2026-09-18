@@ -134,7 +134,11 @@ local AAR = {
     GIVE_UP   = 4,       -- ticks without a further rise -> drop unconfirmed baseline
     timer_id  = nil,
     tasks     = {},      -- [unit_id] = { unit, fuel_prev, base, t_base, ticks, confirmed }
-    real      = {}       -- [unit_id] = true while DCS itself reported the START
+    real      = {},      -- [unit_id] = true while DCS itself reported the START
+    SCAN      = 30,      -- s between tanker-table refreshes
+    RANGE     = 100,     -- m, true 3D distance that counts as "on the tanker"
+    tankers   = {},
+    last_scan = 0
 }
 
 -- --------------------------------------------------------------
@@ -170,6 +174,7 @@ local function aar_sample(uid, unit)
         t.base   = t.fuel_prev
         t.t_base = timer.getTime()
         t.ticks  = 0
+        t.tanker, t.tanker_dist = AAR.findTanker(unit)
         AAR.emitStart(unit, t)   -- the single emit site: first positive rise
     end
 
@@ -224,12 +229,13 @@ local function aar_onStop(unit)
     local lbs  = gained * ((desc and desc.fuelMassMax) or 0) * 2.20462   -- kg -> lbs
 
     local r4 = function(x) return math.floor(x * 10000 + 0.5) / 10000 end
+    t.tanker = t.tanker or AAR.findTanker(unit)
     return net.lua2json({
         gained   = r4(gained),                                              -- fraction of internal capacity
         lbs      = math.floor(lbs + 0.5),
         secs     = r4(timer.getTime() - t.t_base),
         gauge    = { from = r4(t.base), to = r4(unit:getFuel() or 0) }   -- before/after getFuel()
-    })
+    }), t.tanker
 end
 
 -- --------------------------------------------------------------
@@ -263,7 +269,8 @@ function AAR.emitStart(unit, t)
         id        = world.event.S_EVENT_REFUELING,
         time      = t.t_base,                 -- mission time of the baseline sample
         eventName = name,
-        initiator = AAR.initiator(unit)
+        initiator = AAR.initiator(unit),
+        target    = t.tanker and AAR.initiator(t.tanker) or nil
     })
 end
 
@@ -279,8 +286,45 @@ function AAR.initiator(unit)                  -- same shape _update_database() r
         name       = unit:getPlayerName(),
         coalition  = unit:getCoalition(),
         unit_type  = unit:getTypeName(),
-        category   = desc and desc.category
+        category   = desc and desc.category,
+        life       = unit:getLife() / unit:getLife0(),
+        fuel       = unit:getFuel(),
+        in_air     = unit:inAir()
     }
+end
+
+local function aar_isTanker(u)                     -- 'Tankers' is a real DCS attribute
+    if not u or not u:isExist() then return false end
+    local ok, has = pcall(function() return u:hasAttribute('Tankers') end)
+    if ok and has ~= nil then return has end
+    local d = u:getDesc()
+    return d and d.attributes and d.attributes['Tankers'] == true
+end
+
+function AAR.scanTankers()
+    local list = {}
+    for _, side in ipairs({coalition.side.BLUE, coalition.side.RED}) do
+        for _, group in ipairs(coalition.getGroups(side, Group.Category.AIRPLANE) or {}) do
+            for _, unit in ipairs(group:getUnits()) do
+                if aar_isTanker(unit) then list[#list + 1] = unit end
+            end
+        end
+    end
+    AAR.tankers, AAR.last_scan = list, timer.getTime()
+end
+
+function AAR.findTanker(unit, range)               -- nearest, TRUE 3D, lazy refresh
+    if timer.getTime() - AAR.last_scan > AAR.SCAN then AAR.scanTankers() end
+    if not unit or not unit:isExist() then return nil end
+    local p, best, bestd = unit:getPoint()
+    for _, t in ipairs(AAR.tankers) do
+        if t:isExist() then
+            local q = t:getPoint()
+            local d = math.sqrt((p.x-q.x)^2 + (p.y-q.y)^2 + (p.z-q.z)^2)
+            if d <= (range or AAR.RANGE) and (not bestd or d < bestd) then best, bestd = t, d end
+        end
+    end
+    return best, bestd
 end
 
 function dcsbot.eventHandler:onEvent(event)
@@ -306,6 +350,7 @@ function onMissionEvent(event)
         eventName = event_by_id[event.id]
     }
 
+    local tanker_target = nil
     if event.initiator then
         msg.initiator = {}
         local category = Object.getCategory(event.initiator)
@@ -321,6 +366,10 @@ function onMissionEvent(event)
             msg.initiator.coalition = msg.initiator.unit:getCoalition()
             msg.initiator.unit_type = msg.initiator.unit:getTypeName()
             msg.initiator.category = msg.initiator.unit:getDesc().category
+            msg.initiator.life = msg.initiator.unit:getLife() / msg.initiator.unit:getLife0()
+            msg.initiator.fuel = msg.initiator.unit:getFuel()
+            msg.initiator.in_air = msg.initiator.unit:inAir()
+
             local point = msg.initiator.unit:getPosition().p
             if point.y > 0 and point.y < 20000 then
                 local lat, lon = Terrain.convertMetersToLatLon(point.x, point.z)
@@ -381,11 +430,22 @@ function onMissionEvent(event)
                 local uid = event.initiator:getID()
                 AAR.real[uid] = true                 -- aar_sample() must not synthesise
                 local t = AAR.tasks[uid]
-                if t and t.start_sent then
-                    return                           -- ignore the event
+                local tanker, ds =  AAR.findTanker(event.initiator)
+                if t then
+                    t.tanker, t.tanker_dist = tanker, ds
+                    if t.start_sent then
+                        return
+                    end
+                end
+                if not event.target and tanker then
+                    tanker_target = tanker
                 end
             elseif event.id == world.event.S_EVENT_REFUELING_STOP then
-                msg.comment = aar_onStop(event.initiator)          -- also clears AAR.real[uid]
+                local comment, tanker = aar_onStop(event.initiator)        -- also clears AAR.real[uid]
+                msg.comment = comment
+                if not event.target and tanker then
+                    tanker_target = tanker
+                end
             end
         elseif category == Object.Category.WEAPON then
             msg.initiator.type = 'WEAPON'
@@ -440,12 +500,13 @@ function onMissionEvent(event)
             return
         end
     end
-    if event.target then
+    local tgt = event.target or tanker_target
+    if tgt then
         msg.target = {}
-        local category = Object.getCategory(event.target)
+        local category = Object.getCategory(tgt)
         if category == Object.Category.UNIT then
             msg.target.type = 'UNIT'
-            msg.target.unit = event.target
+            msg.target.unit = tgt
             msg.target.unit_name = msg.target.unit:getName()
             msg.target.group = msg.target.unit:getGroup()
             if msg.target.group and msg.target.group:isExist() then
@@ -455,6 +516,10 @@ function onMissionEvent(event)
             msg.target.coalition = msg.target.unit:getCoalition()
             msg.target.unit_type = msg.target.unit:getTypeName()
             msg.target.category = msg.target.unit:getDesc().category
+            msg.target.life = msg.initiator.unit:getLife() / msg.initiator.unit:getLife0()
+            msg.target.fuel = msg.initiator.unit:getFuel()
+            msg.target.in_air = msg.initiator.unit:inAir()
+
             local point = msg.target.unit:getPosition().p
             if point.y > 0 and point.y < 20000 then
                 local lat, lon = Terrain.convertMetersToLatLon(point.x, point.z)
@@ -469,14 +534,14 @@ function onMissionEvent(event)
             end
         elseif category == Object.Category.WEAPON then
             msg.target.type = 'WEAPON'
-            msg.target.unit = event.target
+            msg.target.unit = tgt
             msg.target.unit_name = msg.target.unit:getName()
             msg.target.coalition = msg.target.unit:getCoalition()
             msg.target.unit_type = msg.target.unit:getTypeName()
             msg.target.category = msg.target.unit:getDesc().category
         elseif category == Object.Category.STATIC then
             msg.target.type = 'STATIC'
-            msg.target.unit = event.target
+            msg.target.unit = tgt
             if msg.target.unit.isExist ~= nil and msg.target.unit:isExist() == true then
                 msg.target.unit_name = msg.target.unit:getName()
                 if msg.target.unit_name ~= nil and msg.target.unit_name ~= '' then
@@ -486,13 +551,13 @@ function onMissionEvent(event)
             end
         elseif category == Object.Category.BASE then
             msg.target.type = 'BASE'
-            msg.target.unit = event.target
+            msg.target.unit = tgt
             msg.target.unit_name = msg.target.unit:getName()
             msg.target.coalition = msg.target.unit:getCoalition()
             msg.target.unit_type = msg.target.unit:getTypeName()
         elseif category == Object.Category.SCENERY then
             msg.target.type = 'SCENERY'
-            msg.target.unit = event.target
+            msg.target.unit = tgt
             if msg.target.unit.getName ~= nil then
                 msg.target.unit_name = msg.target.unit:getName()
             else
@@ -506,7 +571,7 @@ function onMissionEvent(event)
             end
         elseif category == Object.Category.CARGO then
             msg.target.type = 'CARGO'
-            msg.target.unit = event.target
+            msg.target.unit = tgt
             msg.target.unit_name = msg.target.unit:getName()
             msg.target.coalition = msg.target.unit:getCoalition()
             msg.target.unit_type = msg.target.unit:getTypeName()
@@ -534,7 +599,7 @@ function onMissionEvent(event)
         if msg.weapon.name == nil or msg.weapon.name == '' then
             msg.weapon.name = 'Gun'
         end
-        if event.target == nil then
+        if tgt == nil then
             msg.comment = "unsupported"
         end
     elseif event.weapon_name ~= nil then
@@ -611,6 +676,8 @@ function dcsbot.enableMissionStats(filter)
         end
     end
     world.addEventHandler(dcsbot.eventHandler)
+    -- initial scan of tankers
+    AAR.scanTankers()
     -- enable AAR timer
     if not AAR.timer_id then
         AAR.timer_id = timer.scheduleFunction(aar_tick, {}, timer.getTime() + AAR.INTERVAL)
@@ -627,7 +694,7 @@ function dcsbot.disableMissionStats()
             timer.removeFunction(AAR.timer_id)
             AAR.timer_id = nil
         end
-        AAR.tasks = {}
+        AAR.tasks, AAR.tankers = {}, {}
         dcsbot.mission_stats_enabled = false
         env.info('DCSServerBot - Mission Statistics disabled.')
     end
