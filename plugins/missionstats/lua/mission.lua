@@ -417,7 +417,7 @@ function onMissionEvent(event)
             msg.initiator.coalition = msg.initiator.unit:getCoalition()
             msg.initiator.unit_type = msg.initiator.unit:getTypeName()
             msg.initiator.category = msg.initiator.unit:getDesc().category
-            msg.initiator.fuel = msg.initiator.unit:getFuel()
+            msg.initiator.fuel = msg.initiator.unit.getFuel and msg.initiator.unit:getFuel() or 0
             msg.initiator.in_air = msg.initiator.unit:inAir()
 
             local point = msg.initiator.unit:getPosition().p
@@ -429,6 +429,7 @@ function onMissionEvent(event)
                     lon = lon
                 }
             end
+
             if event.id == world.event.S_EVENT_RUNWAY_TAKEOFF then
                 if not event.place then
                     msg['eventName'] = 'S_EVENT_GROUND_TAKEOFF'
@@ -475,22 +476,47 @@ function onMissionEvent(event)
                         end
                     end
                 end
+
             elseif event.id == world.event.S_EVENT_SHOOTING_START then
+                local uid = event.initiator:getID()
+                local key = event.weapon_name or 'n/a'
                 local snap = gun_rounds(event.initiator)
-                GUN[event.initiator:getID()] = snap
-                msg.comment = net.lua2json({ guns = snap })          -- loadout at burst start
-            elseif event.id == world.event.S_EVENT_SHOOTING_END then
-                local uid    = event.initiator:getID()
-                local before = GUN[uid] or {}
-                local after  = gun_rounds(event.initiator)
-                GUN[uid] = nil
-                local left = {}
-                for _, g in ipairs(after) do left[g.type] = g.count end
-                local fired = {}
-                for _, g in ipairs(before) do
-                    fired[g.type] = math.max(0, g.count - (left[g.type] or 0))
+                GUN[uid] = GUN[uid] or {}
+                GUN[uid][key] = snap                     -- per WEAPON, not per unit
+                if #snap == 1 then
+                    msg.comment = net.lua2json({ left = snap[1].count })
+                else
+                    local guns = {}
+                    for _, g in ipairs(snap) do guns[g.type] = { left = g.count } end
+                    msg.comment = net.lua2json({ guns = guns })
                 end
-                msg.comment = net.lua2json({ fired = fired, left = left })
+
+            elseif event.id == world.event.S_EVENT_SHOOTING_END then
+                local uid   = event.initiator:getID()
+                local key   = event.weapon_name or 'n/a'
+                local wsn   = (GUN[uid] or {})[key]         -- snapshot of THIS weapon
+                local after = gun_rounds(event.initiator)
+                if GUN[uid] then
+                    GUN[uid][key] = nil
+                    if not next(GUN[uid]) then GUN[uid] = nil end
+                end
+
+                local left, changed = {}, {}
+                for _, g in ipairs(after)    do left[g.type] = g.count end
+                for _, g in ipairs(wsn or {}) do
+                    local l = left[g.type] or 0
+                    local f = math.max(0, g.count - l)
+                    if f > 0 then changed[#changed + 1] = { type = g.type, fired = f, left = l } end
+                end
+                if #changed == 1 then
+                    msg.comment = net.lua2json({ fired = changed[1].fired, left = changed[1].left })
+                elseif #changed > 1 then                     -- guns fired simultaneously: keep all
+                    local guns = {}
+                    for _, c in ipairs(changed) do guns[c.type] = { fired = c.fired, left = c.left } end
+                    msg.comment = net.lua2json({ guns = guns })
+                end
+                -- no snapshot (reload / missed START) -> no comment rather than a guessed number
+
             elseif event.id == world.event.S_EVENT_REFUELING then
                 -- SP / non-dedicated server -> DCS reports the START itself
                 local uid = event.initiator:getID()
@@ -506,6 +532,7 @@ function onMissionEvent(event)
                 if not event.target and tanker then
                     tanker_target = tanker
                 end
+
             elseif event.id == world.event.S_EVENT_REFUELING_STOP then
                 local comment, tanker = aar_onStop(event.initiator)        -- also clears AAR.real[uid]
                 msg.comment = comment
@@ -582,7 +609,7 @@ function onMissionEvent(event)
             msg.target.coalition = msg.target.unit:getCoalition()
             msg.target.unit_type = msg.target.unit:getTypeName()
             msg.target.category = msg.target.unit:getDesc().category
-            msg.target.fuel = msg.initiator.unit:getFuel()
+            msg.target.fuel = msg.initiator.unit.getFuel and msg.initiator.unit:getFuel() or 0
             msg.target.in_air = msg.initiator.unit:inAir()
 
             local point = msg.target.unit:getPosition().p
@@ -597,9 +624,12 @@ function onMissionEvent(event)
             if msg.initiator ~= nil and msg.initiator.position ~= nil and msg.target.position ~= nil then
                 msg.distance = get_distance(msg.initiator.position.point, msg.target.position.point)
             end
-            if event.id == world.event.S_EVENT_HIT and msg.target.unit.getLife0 then
-                msg.target.life = msg.target.unit:getLife() / msg.target.unit:getLife0()
-                msg.comment = string.format("Life: %f", msg.target.life)
+            if event.id == world.event.S_EVENT_HIT then
+                local raw  = msg.target.unit:getLife() or 0
+                local max  = msg.target.unit.getLife0 and msg.target.unit:getLife0()
+                local life = (max and max > 0) and (raw / max) or raw
+                msg.target.life = life
+                msg.comment = string.format("Life: %.1f", life)
             end
         elseif category == Object.Category.WEAPON then
             msg.target.type = 'WEAPON'
