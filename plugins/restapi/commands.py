@@ -78,7 +78,7 @@ from .models import (
     MissionBullseyesResponse,
     MissionDrawingsResponse,
     MissionUnitResponse,
-    EventEntry
+    EventEntry, RefuelingEntry
 )
 
 app: FastAPI | None = None
@@ -564,6 +564,14 @@ class RestAPI(Plugin):
             response_model = list[EventEntry],
             description = "Get mission events for players",
             summary = "Mission Events",
+            tags = ["Statistics"]
+        )
+        add_secured_api_route(
+            "/refuelings", self.refuelings,
+            methods = ["GET"],
+            response_model = list[RefuelingEntry],
+            description = "Get refueling stats for players",
+            summary = "Refueling Stats",
             tags = ["Statistics"]
         )
 
@@ -2632,6 +2640,40 @@ class RestAPI(Plugin):
                       {sql_part}
                 """, {"ucid": ucid, "start_time": start_time, "end_time": end_time})
                 return [EventEntry.model_validate(result) for result in await cursor.fetchall()]
+
+    async def refuelings(self,
+                         ucid: str = Query(...),
+                         module: str | None = Query(default=None),
+                         tanker: str | None = Query(default=None),
+                         start_time: datetime | None = Query(default=None),
+                         end_time: datetime | None = Query(default=None)):
+        where = ""
+        if start_time:
+            where += " AND time >= %(start_time)"
+        if end_time:
+            where += " AND time <= %(end_time)"
+        if module:
+            where += " AND init_type = %(module)"
+        if tanker:
+            where += " AND tanker = %(tanker)"
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(f"""
+                    SELECT init_type AS module, 
+                         tanker,
+                         COUNT(*) AS refuelings, 
+                         ROUND(SUM(fuel_taken), 2) AS fuel_taken, 
+                         ROUND(AVG(fuel_taken), 2) avg_fuel, 
+                         ROUND(AVG(transfer_time), 2) avg_time,
+                         SUM(CASE WHEN COALESCE(transfer_complete, TRUE) IS TRUE THEN 1 ELSE 0 END) completed_transfers
+                    FROM refuelingstats 
+                    WHERE init_id = %(ucid)s
+                    {where}
+                    GROUP BY 1, 2
+                    ORDER BY 3 DESC
+                """, {"ucid": ucid, "module": module, "tanker": tanker, "start_time": start_time, "end_time": end_time})
+                return [RefuelingEntry.model_validate(result) for result in await cursor.fetchall()]
+
 
     async def squadron_members(self, name: str = Form(...)):
         self.log.debug(f'Calling /squadron_members with name="{name}"')

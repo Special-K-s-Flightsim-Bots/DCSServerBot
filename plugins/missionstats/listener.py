@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from core import EventListener, PersistentReport, Server, Coalition, Channel, event, Report, get_translation, \
     ThreadSafeDict, Side, utils
@@ -312,6 +313,38 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             events_channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
             if events_channel:
                 asyncio.create_task(events_channel.send(message))
+
+        elif data['eventName'] == 'S_EVENT_REFUELING':
+            player = server.get_player(name=data['initiator'].get('name'))
+            if player:
+                tanker = data['target']['unit_type']
+                async with self.apool.connection() as conn:
+                    await conn.execute("""
+                        INSERT INTO refuelingstats (
+                            mission_id, init_id, init_type, tanker
+                        ) VALUES (
+                            %s, %s, %s, %s
+                        )
+                    """, (server.mission_id, player.ucid, player.unit_type, tanker))
+
+        elif data['eventName'] == 'S_EVENT_REFUELING_STOP':
+            player = server.get_player(name=data['initiator'].get('name'))
+            if player:
+                tanker = data['target']['unit_type']
+                data = json.loads(data.get('comment', {"lbs": 0, "secs": 0.0}))
+                async with self.apool.connection() as conn:
+                    await conn.execute("""
+                        UPDATE refuelingstats
+                        SET fuel_taken = %s,
+                            transfer_complete = %s,
+                            transfer_time = %s
+                        WHERE mission_id = %s 
+                          AND init_id = %s 
+                          AND init_type = %s 
+                          AND tanker = %s
+                          AND transfer_time IS NULL
+                    """, (data['lbs'], data.get('full'), data['secs'],
+                          server.mission_id, player.ucid, player.unit_type, tanker))
 
         # is an embed update necessary?
         self.update[server.name] = update

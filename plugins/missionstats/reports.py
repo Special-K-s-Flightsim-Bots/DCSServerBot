@@ -397,31 +397,45 @@ class ModuleStats3(report.EmbedElement):
             self.add_field(name=_("Kills"), value="\n".join(kills))
 
 
-class Refuelings(report.EmbedElement):
+class Refuelings(report.GraphElement):
     async def render(self, ucid: str, flt: StatisticsFilter) -> None:
         sql = f"""
-              SELECT init_type, COUNT(*) 
-              FROM missionstats 
-              WHERE EVENT = 'S_EVENT_REFUELING_STOP'
+              SELECT init_type AS module, 
+                     tanker,
+                     COUNT(*) AS refuelings, 
+                     ROUND(SUM(fuel_taken), 2) AS fuel_taken, 
+                     ROUND(AVG(fuel_taken), 2) avg_fuel, 
+                     ROUND(AVG(transfer_time), 2) avg_time,
+                     SUM(CASE WHEN COALESCE(transfer_complete, TRUE) IS TRUE THEN 1 ELSE 0 END) completed_transfers
+              FROM refuelingstats 
+              WHERE init_id = %s
               AND {flt.filter(self.env.bot)}
-              AND init_id = %s 
-              GROUP BY 1 
-              ORDER BY 2 DESC
+              GROUP BY 1, 2
+              ORDER BY 3 DESC
         """
         self.env.embed.title = flt.format(self.env.bot) + (self.env.embed.title or '')
 
-        modules = []
-        numbers = []
         async with self.apool.connection() as conn:
-            cursor = await conn.execute(sql, (ucid,))
-            async for row in cursor:
-                modules.append(row[0])
-                numbers.append(str(row[1]))
-        if len(modules):
-            self.add_field(name=_('Module'), value='\n'.join(modules))
-            self.add_field(name=_('Refuelings'), value='\n'.join(numbers))
-        else:
-            self.add_field(name=_('No refuelings found for this user.'), value='_ _')
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, (ucid,))
+                if cursor.rowcount > 0:
+                    df = pd.DataFrame.from_dict(await cursor.fetchall())
+                    self.axes = df_to_table(
+                        self.axes,
+                        df[['module', 'tanker', 'refuelings', 'fuel_taken', 'avg_fuel', 'avg_time', 'completed_transfers']],
+                        col_labels=[
+                            'Module', 'Tanker', '# Refuelings',
+                            'Fuel taken (lbs)', 'Fuel taken (avg)',
+                            'Time (avg)', 'Transfer Complete'
+                        ]
+                    )
+                else:
+                    self.axes.axis('off')
+                    self.axes.text(
+                        0.5, 0.5, _('No refuelings found for this player.'),
+                        ha='center', va='center', rotation=45, size=15,
+                        transform=self.axes.transAxes
+                    )
 
 
 class Nemesis(report.EmbedElement):

@@ -4,7 +4,22 @@
   "elements":
   [
     {
-      "class": "plugins.missionstats.reports.Refuelings"
+      "type": "Graph",
+      "params": {
+        "width": 1,
+        "height": 1,
+        "rows": 1,
+        "cols": 1,
+        "elements": [
+          {
+            "class": "plugins.missionstats.reports.Refuelings",
+            "params": {
+              "row": 0,
+              "col": 0
+            }
+          }
+        ]
+      }
     }
   ]
 }

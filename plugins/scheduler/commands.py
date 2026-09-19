@@ -522,7 +522,7 @@ class Scheduler(Plugin[SchedulerListener]):
         if method == 'load':
             new_mission = rconf.get('mission_id')
             if isinstance(new_mission, list):
-                new_mission = random.choice(new_mission)
+                new_mission = int(random.choice(new_mission))
             elif isinstance(new_mission, (int, str)):
                 new_mission = int(new_mission)
                 if new_mission > len(mission_list):

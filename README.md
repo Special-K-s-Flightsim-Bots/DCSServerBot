@@ -93,7 +93,7 @@ I enhance the bot from time to time, but you as a community member can also crea
 | Profiler      | LUA profilers for DCS (WIP)                                                                |   yes    |                                       | [README](./plugins/profiler/README.md)      |
 | Punishment    | Punish system for team-kills & more                                                        |   yes    | Mission                               | [README](./plugins/punishment/README.md)    |
 | RealWeather   | Have real weather in your missions                                                         |   yes    |                                       | [README](./plugins/realweather/README.md)   |
-| RestAPI       | Simple REST-API to query & control the bot (WIP)                                           |   yes    | Userstats, MissionStats               | [README](./plugins/restapi/README.md)       |
+| RestAPI       | REST-API to query & control the bot                                                        |   yes    | Userstats, MissionStats               | [README](./plugins/restapi/README.md)       |
 | SkyEye        | [SkyEye](https://github.com/dharmab/skyeye) support (location.json file uploading)         |   yes    |                                       | [README](./plugins/skyeye/README.md)        |
 | SlotBlocking  | Slot blocking based on roles or credits                                                    |   yes    | Mission, CreditSystem                 | [README](./plugins/slotblocking/README.md)  |
 | SRS           | Player radio display, slot blocking                                                        |   yes    | MissionStats                          | [README](./plugins/srs/README.md)           |
