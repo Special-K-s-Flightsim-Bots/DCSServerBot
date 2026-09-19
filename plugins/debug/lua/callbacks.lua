@@ -21,7 +21,6 @@ local function sanitizer(t)
             else
                 k = tostring(k)
             end
-            t[k] = k
             if type(v) == "function" then
                 t[k] = "function"
             elseif type(v) == "userdata" then
@@ -53,9 +52,8 @@ debug.mt = {
             utils.loadScript('debug/mission.lua')
         end
         return function(...)
-            js = JSON:encode(sanitizer(arg))
+            local js = JSON:encode(sanitizer(arg))
             log.write('EVENT DEBUGGER', log.DEBUG, key .. '(' .. js .. ')')
-            visitedTable = {}
         end
     end
 }

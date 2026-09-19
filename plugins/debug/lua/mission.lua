@@ -21,7 +21,6 @@ local function sanitizer(t)
             else
                 k = tostring(k)
             end
-            t[k] = k
             if type(v) == "function" then
                 t[k] = "function"
             elseif type(v) == "userdata" then

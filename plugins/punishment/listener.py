@@ -188,9 +188,9 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 message = _("{}, you landed outside of an airfield.\n"
                             "CSAR has been deployed to pick you up.").format(initiator.name)
             elif event_name == 'S_EVENT_EJECTION':
-                message = _("{}, your aircraft must be fitted with a new ejection seat.")
+                message = _("{}, your aircraft must be fitted with a new ejection seat.").format(initiator.name)
             else:
-                message = _("{}, your aircraft needs an inspection.")
+                message = _("{}, your aircraft needs an inspection.").format(initiator.name)
             message += "\n" + _("Please stand by for {}").format(utils.format_time(window))
             await initiator.lock()
             await initiator.sendUserMessage(message)
