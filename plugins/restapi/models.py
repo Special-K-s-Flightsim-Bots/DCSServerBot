@@ -112,6 +112,7 @@ class ExtensionInfo(BaseModel):
     name: str
     version: str | None = None
     value: str
+    # ports: dict[str, dict] | None = None
 
     model_config = {
         "json_schema_extra": {
@@ -119,6 +120,15 @@ class ExtensionInfo(BaseModel):
                 "name": "SRS",
                 "version": "1.9.0.0",
                 "value": "127.0.0.1:5002"
+#                "ports": {
+#                    "Tavciew": {
+#                        "tacviewRealTimeTelemetryPort": {
+#                            "port": 42674,
+#                            "type": "TCP",
+#                            "public": True
+#                        }
+#                    }
+#                }
             }
         }
     }
@@ -770,6 +780,29 @@ class EventEntry(BaseModel):
         }
     }
 
+
+class RefuelingEntry(BaseModel):
+    module: str = Field(..., description="Aircraft")
+    tanker: str = Field(..., description="Tanker used")
+    refuelings: int = Field(..., description="# of refuelings")
+    fuel_taken: int = Field(..., description="Fuel taken in lbs")
+    avg_fuel: float = Field(..., description="Avg fuel taken per refueling")
+    avg_time: float = Field(..., description="Avg time to refuel")
+    completed_transfers: int = Field(..., description="Number of transfer complete")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "module": "F-16C_50",
+                "tanker": "KC-135",
+                "refuelings": 5,
+                "fuel_taken": 8500,
+                "avg_fuel": 1700.0,
+                "avg_time": 30.5,
+                "completed_transfers": 4
+            }
+        }
+    }
 
 class SquadronCampaignCredit(BaseModel):
     campaign: str | None = Field(None, description="Campaign name")
