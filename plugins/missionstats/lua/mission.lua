@@ -609,8 +609,8 @@ function onMissionEvent(event)
             msg.target.coalition = msg.target.unit:getCoalition()
             msg.target.unit_type = msg.target.unit:getTypeName()
             msg.target.category = msg.target.unit:getDesc().category
-            msg.target.fuel = msg.initiator.unit.getFuel and msg.initiator.unit:getFuel() or 1
-            msg.target.in_air = msg.initiator.unit:inAir()
+            msg.target.fuel = msg.target.unit.getFuel and msg.target.unit:getFuel() or 1
+            msg.target.in_air = msg.target.unit:inAir()
 
             local point = msg.target.unit:getPosition().p
             if point.y > 0 and point.y < 20000 then
