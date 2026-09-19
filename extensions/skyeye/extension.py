@@ -544,7 +544,7 @@ class SkyEye(InstallableExtension):
                 async with session.get(SKYEYE_GITHUB_URL, proxy=self.node.proxy,
                                        proxy_auth=self.node.proxy_auth) as response:
                     if response.status in [200, 302]:
-                        return response.url.raw_parts[-1]
+                        return response.url.raw_parts[-1].lstrip('v')
         except ClientConnectionError as ex:
             self.log.error(ex)
         return None
