@@ -132,13 +132,15 @@ local AAR = {
     INTERVAL  = 2,       -- poll interval
     THRESHOLD = 0.001,   -- min getFuel() rise that counts as a transfer
     GIVE_UP   = 4,       -- ticks without a further rise -> drop unconfirmed baseline
+    FULL_TOL  = 0.003,   -- gauge slack at unplug (~10 kg) when proving "internals full"
     timer_id  = nil,
     tasks     = {},      -- [unit_id] = { unit, fuel_prev, base, t_base, ticks, confirmed }
     real      = {},      -- [unit_id] = true while DCS itself reported the START
     SCAN      = 30,      -- s between tanker-table refreshes
     RANGE     = 100,     -- m, true 3D distance that counts as "on the tanker"
     tankers   = {},
-    last_scan = 0
+    last_scan = 0,
+    refuelable = {},     -- [typeName] = true/false - attributes are type-static, so cache them
 }
 
 -- --------------------------------------------------------------
@@ -155,6 +157,10 @@ local function aar_sample(uid, unit)
     end
 
     local rose = fuel > (t.fuel_prev or fuel) + AAR.THRESHOLD
+
+    if t.base and fuel > 1 + AAR.THRESHOLD then
+        t.over = true                 -- fuel beyond the internals: bags in play -> unprovable
+    end
 
     if t.base then
         if fuel < t.base - AAR.THRESHOLD then
@@ -185,7 +191,7 @@ local function aar_tick()
     for _, side in ipairs({coalition.side.BLUE, coalition.side.RED}) do
         for _, group in ipairs(coalition.getGroups(side, Group.Category.AIRPLANE) or {}) do
             for _, unit in ipairs(group:getUnits()) do
-                if unit and unit:isExist() then
+                if unit and unit:isExist() and AAR.canRefuel(unit) then
                     local uid = unit:getID()
                     if unit:inAir() then
                         aar_sample(uid, unit)
@@ -220,21 +226,31 @@ local function aar_onStop(unit)
         return nil                        -- nothing known -> comment stays empty
     end
 
-    local gained = (unit:getFuel() or 0) - t.base
+    local to     = unit:getFuel() or 0
+    local gained = to - t.base
     if gained <= AAR.THRESHOLD then
         return nil                        -- touched the basket, took nothing
     end
 
-    local desc = unit:getDesc()
-    local lbs  = gained * ((desc and desc.fuelMassMax) or 0) * 2.20462   -- kg -> lbs
+    local full = nil
+    if not t.over then
+        full = (to >= 1 - AAR.FULL_TOL)   -- capacity == internals, so this is provable either way
+    end
 
-    local r4 = function(x) return math.floor(x * 10000 + 0.5) / 10000 end
+    local desc = unit:getDesc()
+    local mass = (desc and desc.fuelMassMax) or 0
+    local r4   = function(x) return math.floor(x * 10000 + 0.5) / 10000 end
+    local tolbs = function(x) return math.floor(x * mass * 2.20462 + 0.5) end
+
     t.tanker = t.tanker or AAR.findTanker(unit)
     return net.lua2json({
-        gained   = r4(gained),                                              -- fraction of internal capacity
-        lbs      = math.floor(lbs + 0.5),
-        secs     = r4(timer.getTime() - t.t_base),
-        gauge    = { from = r4(t.base), to = r4(unit:getFuel() or 0) }   -- before/after getFuel()
+        gained    = r4(gained),                                   -- fraction of internal capacity
+        lbs       = tolbs(gained),                                -- fuel taken
+        secs      = r4(timer.getTime() - t.t_base),
+        gauge     = { from = r4(t.base), to = r4(to) },        -- before/after getFuel()
+        total_lbs = tolbs(to),                                    -- fuel on board at unplug
+        full      = full,                                            -- absent = unknown, true/false = provable
+        bags      = t.over or nil                                    -- bonus: fuel beyond internals was seen
     }), t.tanker
 end
 
@@ -327,6 +343,41 @@ function AAR.findTanker(unit, range)               -- nearest, TRUE 3D, lazy ref
     return best, bestd
 end
 
+function AAR.canRefuel(unit)                 -- 'Refuelable' is a real DCS attribute (see desc)
+    local tn = unit:getTypeName()
+    local v  = AAR.refuelable[tn]
+    if v == nil then
+        local ok, has = pcall(function() return unit:hasAttribute('Refuelable') end)
+        if not ok or has == nil then
+            local d = unit:getDesc()
+            has = d ~= nil and d.attributes ~= nil and d.attributes['Refuelable'] == true
+        end
+        v = has and true or false
+        AAR.refuelable[tn] = v                -- first unit of a type pays, all others are lookups
+    end
+    return v
+end
+
+-- GUN efficiency
+local GUN = {}                                  -- [unit_id] = { [typeName] = count }
+local function gun_rounds(unit)
+    local list = {}
+    local ok, ammo = pcall(function() return unit:getAmmo() end)
+    for _, e in ipairs(ok and ammo or {}) do
+        local d = e.desc or {}
+        if d.category == 0 then                 -- 0 = Shell (guns), same mapping as listener.py
+            list[#list + 1] = {
+                type    = d.typeName,           -- "weapons.shells.M61_20_PGU28" - stable key
+                name    = d.displayName,        -- "PGU-28/B SAPHEI" - localized, for display only
+                count   = e.count or 0,
+                caliber = d.warhead and d.warhead.caliber
+            }
+        end
+    end
+    return list
+end
+
+
 function dcsbot.eventHandler:onEvent(event)
 	status, err = pcall(onMissionEvent, event)
 	if not status then
@@ -366,7 +417,6 @@ function onMissionEvent(event)
             msg.initiator.coalition = msg.initiator.unit:getCoalition()
             msg.initiator.unit_type = msg.initiator.unit:getTypeName()
             msg.initiator.category = msg.initiator.unit:getDesc().category
-            msg.initiator.life = msg.initiator.unit:getLife() / msg.initiator.unit:getLife0()
             msg.initiator.fuel = msg.initiator.unit:getFuel()
             msg.initiator.in_air = msg.initiator.unit:inAir()
 
@@ -425,6 +475,25 @@ function onMissionEvent(event)
                         end
                     end
                 end
+            elseif event.id == world.event.S_EVENT_BDA and msg.initiator.unit.getLife0 then
+                msg.initiator.life = msg.initiator.unit:getLife() / msg.initiator.unit:getLife0()
+                msg.comment = string.format("Life: %f", msg.initiator.life)
+            elseif event.id == world.event.S_EVENT_SHOOTING_START then
+                local snap = gun_rounds(event.initiator)
+                GUN[event.initiator:getID()] = snap
+                msg.comment = net.lua2json({ guns = snap })          -- loadout at burst start
+            elseif event.id == world.event.S_EVENT_SHOOTING_END then
+                local uid    = event.initiator:getID()
+                local before = GUN[uid] or {}
+                local after  = gun_rounds(event.initiator)
+                GUN[uid] = nil
+                local left = {}
+                for _, g in ipairs(after) do left[g.type] = g.count end
+                local fired = {}
+                for _, g in ipairs(before) do
+                    fired[g.type] = math.max(0, g.count - (left[g.type] or 0))
+                end
+                msg.comment = net.lua2json({ fired = fired, left = left })
             elseif event.id == world.event.S_EVENT_REFUELING then
                 -- SP / non-dedicated server -> DCS reports the START itself
                 local uid = event.initiator:getID()
