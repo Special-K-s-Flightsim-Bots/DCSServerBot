@@ -417,7 +417,7 @@ function onMissionEvent(event)
             msg.initiator.coalition = msg.initiator.unit:getCoalition()
             msg.initiator.unit_type = msg.initiator.unit:getTypeName()
             msg.initiator.category = msg.initiator.unit:getDesc().category
-            msg.initiator.fuel = msg.initiator.unit.getFuel and msg.initiator.unit:getFuel() or 0
+            msg.initiator.fuel = msg.initiator.unit.getFuel and msg.initiator.unit:getFuel() or 1
             msg.initiator.in_air = msg.initiator.unit:inAir()
 
             local point = msg.initiator.unit:getPosition().p
@@ -609,7 +609,7 @@ function onMissionEvent(event)
             msg.target.coalition = msg.target.unit:getCoalition()
             msg.target.unit_type = msg.target.unit:getTypeName()
             msg.target.category = msg.target.unit:getDesc().category
-            msg.target.fuel = msg.initiator.unit.getFuel and msg.initiator.unit:getFuel() or 0
+            msg.target.fuel = msg.initiator.unit.getFuel and msg.initiator.unit:getFuel() or 1
             msg.target.in_air = msg.initiator.unit:inAir()
 
             local point = msg.target.unit:getPosition().p
