@@ -475,9 +475,6 @@ function onMissionEvent(event)
                         end
                     end
                 end
-            elseif event.id == world.event.S_EVENT_BDA and msg.initiator.unit.getLife0 then
-                msg.initiator.life = msg.initiator.unit:getLife() / msg.initiator.unit:getLife0()
-                msg.comment = string.format("Life: %f", msg.initiator.life)
             elseif event.id == world.event.S_EVENT_SHOOTING_START then
                 local snap = gun_rounds(event.initiator)
                 GUN[event.initiator:getID()] = snap
@@ -585,7 +582,6 @@ function onMissionEvent(event)
             msg.target.coalition = msg.target.unit:getCoalition()
             msg.target.unit_type = msg.target.unit:getTypeName()
             msg.target.category = msg.target.unit:getDesc().category
-            msg.target.life = msg.initiator.unit:getLife() / msg.initiator.unit:getLife0()
             msg.target.fuel = msg.initiator.unit:getFuel()
             msg.target.in_air = msg.initiator.unit:inAir()
 
@@ -600,6 +596,10 @@ function onMissionEvent(event)
             end
             if msg.initiator ~= nil and msg.initiator.position ~= nil and msg.target.position ~= nil then
                 msg.distance = get_distance(msg.initiator.position.point, msg.target.position.point)
+            end
+            if event.id == world.event.S_EVENT_HIT and msg.target.unit.getLife0 then
+                msg.target.life = msg.target.unit:getLife() / msg.target.unit:getLife0()
+                msg.comment = string.format("Life: %f", msg.target.life)
             end
         elseif category == Object.Category.WEAPON then
             msg.target.type = 'WEAPON'
