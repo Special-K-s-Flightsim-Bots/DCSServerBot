@@ -350,7 +350,7 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
 
     @event(name="onMemberLinked")
     async def onMemberLinked(self, _server: Server, data: dict) -> None:
-        member = self.bot.guilds[0].get_member(data['discord_id'])
+        member = await self.bot.get_member(data['discord_id'])
         if not member:
             return
 

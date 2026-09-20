@@ -117,9 +117,12 @@ class BotService(Service):
                 return commands.when_mentioned_or(*prefixes)(client, message)
 
             intents = discord.Intents.default()
-            # set privileged intents
-            intents.members=True            # necessary to be able to send welcome messages and such
-            intents.message_content=True    # necessary to allow file uploads
+            # set privileged intents, if enabled
+            if self.locals.get('privileged_intents', True):
+                intents.members=True            # necessary to be able to send welcome messages and such
+                intents.message_content=True    # necessary to allow file uploads
+
+            self.log.info(f"- Privileged intents: members={intents.members}, message_content={intents.message_content}")
 
             # Create the Bot
             return DCSServerBot(version=self.node.bot_version,

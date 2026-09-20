@@ -660,7 +660,7 @@ def async_cache(func: Callable):
     return wrapper
 
 
-def cache_with_expiration(expiration: int):
+def cache_with_expiration(expiration: int, maxsize: int | None = None):
     """
     Decorator to cache function results for a specific duration.
     Works with both sync and async functions.
@@ -671,39 +671,47 @@ def cache_with_expiration(expiration: int):
         cache_expiry: dict[Any, float] = {}
         pending: dict[Any, asyncio.Future] = {}
         locks: dict[Any, asyncio.Lock] = {}
+        signature = inspect.signature(func)
         _SENTINEL = object()
 
         def get_cache_key(*args, **kwargs):
-            signature = inspect.signature(func)
-            bound_args = signature.bind(*args, **kwargs)
-            bound_args.apply_defaults()
-
-            # Convert unhashable types to hashable forms
-            hashable_args = []
-            for k, v in bound_args.arguments.items():
-                # For the self-parameter, use its id as part of the key
+            bound = signature.bind(*args, **kwargs)
+            bound.apply_defaults()                 # keep: positional/kwargs share one key
+            key = []
+            for k, v in bound.arguments.items():
                 if k == "self":
-                    hashable_args.append(id(v))
-                # if we have a .name element, use this as key instead
+                    key.append(id(v))
                 elif hasattr(v, "name") and not isinstance(v, (str, bytes)):
-                    hashable_args.append(("name", getattr(v, "name", None)))
-                # Convert lists to tuples and handle nested lists
+                    key.append(("name", getattr(v, "name", None)))
                 elif isinstance(v, list):
-                    hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
+                    key.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
                 else:
-                    hashable_args.append(v)
-            return func.__name__, tuple(hashable_args)
+                    key.append(v)
+            return func.__name__, tuple(key)
+
+        def _drop(key):
+            cache.pop(key, None); cache_expiry.pop(key, None); locks.pop(key, None)
 
         def check_cache(cache_key):
             ts = cache_expiry.get(cache_key)
-            if ts is not None and time.time() < ts:
+            if ts is None:
+                return _SENTINEL
+            if time.monotonic() < ts:
                 return cache.get(cache_key, _SENTINEL)
+            _drop(cache_key)
             return _SENTINEL
 
-        def update_cache(cache_key, result):
-            cache[cache_key] = result
-            cache_expiry[cache_key] = time.time() + expiration
+        def update_cache(key, result):
+            cache[key] = result
+            cache_expiry[key] = time.monotonic() + expiration
+            while maxsize and len(cache) > maxsize:
+                _drop(next(iter(cache)))
             return result
+
+        def cache_clear():
+            cache.clear()
+            cache_expiry.clear()
+            locks.clear()
 
         async def _get_lock(cache_key) -> asyncio.Lock:
             # Fast path
@@ -759,6 +767,7 @@ def cache_with_expiration(expiration: int):
             result = func(*args, **kwargs)
             return update_cache(cache_key, result)
 
+        async_wrapper.cache_clear = sync_wrapper.cache_clear = cache_clear
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         return sync_wrapper

@@ -416,12 +416,14 @@ class BackupService(Service):
             if not os.path.exists(path):
                 self.log.warning(f"Backup target directory {path} does not exist, skipping cleanup.")
                 return
-            delete_after = int(self.locals['delete_after'])
-            threshold_time = time.time() - delete_after * 86400
+
+            delete_after_days = int(self.locals['delete_after'])
+            cutoff_timestamp = time.time() - delete_after_days * 86400
+
             for file in os.listdir(path):
                 file_path = os.path.join(path, file)
-                if os.path.getctime(file_path) < threshold_time:
-                    self.log.debug(f"  => {file} is older then {delete_after} days, deleting ...")
+                if os.path.getmtime(file_path) < cutoff_timestamp:
+                    self.log.debug(f"  => {file} is older than {delete_after_days} days, deleting ...")
                     utils.safe_rmtree(file_path)
         except Exception as ex:
             self.log.exception(ex)

@@ -1,6 +1,5 @@
 import discord
 
-from contextlib import suppress
 from core import Plugin, utils, get_translation, Group
 from datetime import timedelta
 from discord import app_commands, Permissions
@@ -250,14 +249,17 @@ class Discord(Plugin):
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         # ignore ourselves adding the initial reactions
-        if payload.message_id != self.reaction_message_id or payload.member.id == self.bot.user.id:
+        if payload.message_id != self.reaction_message_id or payload.user_id == self.bot.user.id:
+            return
+        member = payload.member or await self.bot.get_member(payload.user_id)
+        if not member:
             return
         if payload.emoji.name == '🤖':
-            self.log.warning(f"Member {payload.member.display_name} fell into the bot trap!")
-            if payload.member.id != self.bot.owner_id:
-                await self.bot.audit(_("Kicked for falling into the bot trap."), member=payload.member)
+            self.log.warning(f"Member {member.display_name} fell into the bot trap!")
+            if member.id != self.bot.owner_id:
+                await self.bot.audit(_("Kicked for falling into the bot trap."), member=member)
                 try:
-                    await payload.member.kick(reason="Bot user")
+                    await member.kick(reason="Bot user")
                 except discord.Forbidden:
                     self.log.error('DCSServerBot is missing permission "Kick, Approve and Reject Members"!')
             else:
@@ -269,15 +271,15 @@ class Discord(Plugin):
                 role = self.bot.get_role(config.get('role'))
                 if role:
                     try:
-                        await payload.member.add_roles(role)
-                        self.log.debug(f"Added role {role.name} to {payload.member.display_name}")
+                        await member.add_roles(role)
+                        self.log.debug(f"Added role {role.name} to {member.display_name}")
                     except discord.Forbidden:
                         self.log.warning('DCSServerBot is missing permission "Manage Roles"!')
                 else:
                     self.log.warning(f"Role {config['role']} not found for emoji {payload.emoji.name}")
             else:
                 message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
-                await message.remove_reaction(payload.emoji, payload.member)
+                await message.remove_reaction(payload.emoji, member)
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
@@ -291,7 +293,11 @@ class Discord(Plugin):
             return
         role = self.bot.get_role(config.get('role'))
         if role:
-            member = self.bot.guilds[0].get_member(int(payload.user_id))
+            member = await self.bot.get_member(int(payload.user_id))
+            if not member:
+                # we should never be here
+                self.log.warning(f"Member {payload.user_id} not found!")
+                return
             try:
                 await member.remove_roles(role)
                 self.log.info(f"Removed role {role.name} from {member.display_name}")

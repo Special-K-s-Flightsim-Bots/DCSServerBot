@@ -309,7 +309,6 @@ class GameMasterEventListener(EventListener["GameMaster"]):
         await server.send_to_dcs({"command": "resetUserCoalition", "id": player.id})
 
     async def reset_coalitions(self, server: Server, discord_roles: bool):
-        guild = self.bot.guilds[0]
         roles = {
             "red": self.bot.get_role(server.locals['coalitions']['red_role']),
             "blue": self.bot.get_role(server.locals['coalitions']['blue_role'])
@@ -323,7 +322,7 @@ class GameMasterEventListener(EventListener["GameMaster"]):
             rows = await cursor.fetchall()
             for row in rows:
                 if discord_roles and row[1] != -1:
-                    member = guild.get_member(row[1])
+                    member = await self.bot.get_member(row[1])
                     if member:
                         try:
                             await member.remove_roles(roles[row[2]])

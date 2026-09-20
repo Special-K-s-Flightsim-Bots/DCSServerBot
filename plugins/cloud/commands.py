@@ -592,11 +592,12 @@ class Cloud(Plugin[CloudListener]):
             async with self.apool.connection() as conn:
                 for link in links:
                     await conn.execute("""
-                        UPDATE players 
-                           SET discord_id = %s, 
-                               manual = TRUE 
-                        WHERE ucid = %s 
-                    """, (member.id, link['ucid']))
+                        INSERT INTO players (ucid, discord_id, name, first_seen, manual)
+                        VALUES (%(ucid)s, %(discord_id)s, %(name)s, NOW() AT TIME ZONE 'UTC', TRUE)
+                        ON CONFLICT (ucid) DO UPDATE
+                            SET discord_id = excluded.discord_id,
+                                manual = TRUE
+                    """, link)
         except aiohttp.ClientError:
             self.log.warning("Cloud service unavailable.")
 

@@ -2575,39 +2575,47 @@ class Mission(Plugin[MissionEventListener]):
     async def before_afk_check(self):
         await self.bot.wait_until_ready()
 
-    @tasks.loop(minutes=5.0, count=2)
+    @tasks.loop(minutes=5.0, count=1)
     async def check_roles(self):
         if not self.bot.is_ready():
             return
 
-        role = self.bot.get_role(self.bot.locals.get('autorole', {}).get('online'))
-        if role:
-            online_members: set[discord.Member] = set()
-            for server in self.bot.servers.values():
-                for player in server.get_active_players():
-                    if player.member:
-                        online_members.add(player.member)
-            try:
-                # check who needs to lose the role
-                for member in (set(role.members) - online_members):
-                    await member.remove_roles(role)
-            except discord.Forbidden:
-                await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
-                return
+        # Removing stale roles needs role.members (GUILD_MEMBERS intent).
+        # Without the intent, role members cannot be enumerated - the online role
+        # is maintained by the connect/disconnect events instead.
+        if self.bot.intents.members:
+            role = self.bot.get_role(self.bot.locals.get('autorole', {}).get('online'))
+            if role:
+                online_members: set[discord.Member] = set()
+                for server in self.bot.servers.values():
+                    for player in server.get_active_players():
+                        if player.member:
+                            online_members.add(player.member)
+                try:
+                    for member in (set(role.members) - online_members):
+                        await member.remove_roles(role)
+                except discord.Forbidden:
+                    await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+                    return
+        else:
+            self.log.debug("Stale online-role cleanup skipped: no members intent.")
+
         role = self.bot.get_role(self.bot.locals.get('autorole', {}).get('linked'))
         if role:
             linked_members: set[discord.Member] = set()
             async with self.apool.connection() as conn:
-                async for row in await conn.execute("""
-                    SELECT DISTINCT discord_id FROM players 
-                    WHERE discord_id <> -1 AND manual IS TRUE
-                """):
-                    member = self.bot.guilds[0].get_member(row[0])
+                async for row in await conn.execute(""" ... same SQL ... """):
+                    member = await self.bot.get_member(row[0])
                     if member:
                         linked_members.add(member)
-            for member in (linked_members - set(role.members)):
+            holders = set(role.members) if self.bot.intents.members else set()
+            for member in (linked_members - holders):
                 await member.add_roles(role)
                 self.log.debug(f"=> Member {member.display_name} is linked and got the {role.name} role.")
+
+    @check_roles.before_loop
+    async def before_check_roles(self):
+        await self.bot.wait_until_ready()
 
     async def handle_miz_uploads(self, message: discord.Message):
         patterns = [r'\.miz$', r'\.sav$']

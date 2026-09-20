@@ -47,7 +47,7 @@ class HighscoreTrueSkill(report.GraphElement):
                 values = []
                 await cursor.execute(sql, {"campaign": campaign})
                 async for row in cursor:
-                    member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
+                    member = (await self.bot.get_member(row['discord_id'])) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']
                     labels.insert(0, name)
                     values.insert(0, float(row['value']))

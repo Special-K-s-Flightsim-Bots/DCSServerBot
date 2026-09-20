@@ -24,8 +24,8 @@ class PunishmentEventListener(EventListener["Punishment"]):
         self.active_servers: set[str] = set()
         self.pending_forgiveness: dict[tuple[str, str], list[asyncio.Task]] = {}
         self.pending_repair: dict[str, asyncio.Task] = {}
-        self.pending_kill: dict[str, tuple[int, dict | None]] = ThreadSafeDict()
-        self.disconnected: dict[str, tuple[int, dict | None]] = ThreadSafeDict()
+        self.pending_kill: dict[str, tuple[float, dict | None]] = ThreadSafeDict()
+        self.disconnected: dict[str, tuple[float, dict | None]] = ThreadSafeDict()
         self.awaiting_task: dict[str, asyncio.TimerHandle] = ThreadSafeDict()
         self.missile_parameters: dict[str, dict[str, float]] = self.read_missile_parameters()
 
@@ -447,7 +447,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             if shot_time == -1 or not evt or data['arg4'] != 0:
                 return
 
-            delta_time = int(time.time()) - shot_time
+            delta_time = time.monotonic() - shot_time
             if delta_time < config.get('reslot_window', 60):
                 # the kill will be given to the opponent
                 asyncio.create_task(self._give_kill(server, evt.copy()))
@@ -457,7 +457,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             else:
                 return
             # mark the event for a potential penalty
-            self.disconnected[initiator.ucid] = (int(time.time()), evt)
+            self.disconnected[initiator.ucid] = (time.monotonic(), evt)
 
     async def _send_player_points(self, player: Player):
         points = await self._get_punishment_points(player)
@@ -559,7 +559,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         config = self.get_config(server)
         tm, _evt = self.disconnected.pop(data['ucid'])
         # we do not punish if the disconnect was longer than reslot_window seconds ago
-        delta_time = int(time.time()) - tm
+        delta_time = time.monotonic() - tm
         if delta_time > config.get('reslot_window', 60):
             return
 
@@ -618,7 +618,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 return
 
             shot_time, s_event = self.pending_kill.get(target.ucid, (-1, None))
-            now = int(time.time())
+            now = time.monotonic()
             if data['eventName'] == 'S_EVENT_SHOT':
                 # if there is an older shot ...
                 if shot_time > 0 and s_event:
@@ -697,7 +697,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                         asyncio.create_task(self._check_punishment(evt.copy()))
                 return
 
-            delta_time = int(time.time()) - shot_time
+            delta_time = time.monotonic() - shot_time
             weapon = s_event.get('weapon', {}).get('name')
             distance_old = float(s_event.get('distance', 0))
 
@@ -740,7 +740,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         if shot_time == -1 or not s_event:
             return
 
-        delta_time = int(time.time()) - shot_time
+        delta_time = time.monotonic() - shot_time
         if delta_time < config.get('reslot_window', 60):
             evt = {
                 "eventName": "reslot",

@@ -62,16 +62,6 @@ class CloudListener(EventListener["Cloud"]):
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
-        async def get_member(discord_id: int) -> discord.Member | None:
-            try:
-                guild = self.bot.guilds[0]
-                m = guild.get_member(discord_id)
-                if m:
-                    return m
-                return await guild.fetch_member(discord_id)
-            except discord.NotFound:
-                return None
-
         if isinstance(self.bot, DummyBot):
            return
         if data['id'] == 1 or 'ucid' not in data:
@@ -89,7 +79,7 @@ class CloudListener(EventListener["Cloud"]):
                     discord_id = link[0]['discord_id']
                     # we have a cloud link, but the player is not verified yet
                     if not player.verified and discord_id:
-                        member = await get_member(discord_id)
+                        member = await self.bot.get_member(discord_id)
                         if member:
                             player.member = member
                             player.verified = True

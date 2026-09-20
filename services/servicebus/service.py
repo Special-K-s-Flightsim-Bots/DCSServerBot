@@ -863,14 +863,14 @@ class ServiceBus(Service):
                 member_key = kwargs.get('member')
                 if member_key:
                     try:
-                        kwargs['member'] = self.bot.guilds[0].get_member(int(member_key.strip('<@>')))
+                        kwargs['member'] = await self.bot.get_member(int(member_key.strip('<@>')))
                     except ValueError:
                         kwargs['member'] = None
 
                 user_key = kwargs.get('user')
                 if user_key and user_key.startswith('<@'):
                     try:
-                        kwargs['user'] = self.bot.guilds[0].get_member(int(user_key.strip('<@>')))
+                        kwargs['user'] = await self.bot.get_member(int(user_key.strip('<@>')))
                     except ValueError:
                         kwargs['user'] = None
 
@@ -929,7 +929,7 @@ class ServiceBus(Service):
                     buf = derived._data.setdefault(key, {
                         "total": total,
                         "parts": {},
-                        "timestamp": time.time(),
+                        "timestamp": time.monotonic(),
                     })
                     # Sanity check – ignore out‑of‑range or duplicate fragments
                     if seq < 1 or seq > total:
@@ -940,7 +940,7 @@ class ServiceBus(Service):
                         return False
 
                     buf["parts"][seq] = payload
-                    buf["timestamp"] = time.time()
+                    buf["timestamp"] = time.monotonic()
 
                     # Are we done yet?
                     if len(buf["parts"]) == total:
@@ -968,7 +968,7 @@ class ServiceBus(Service):
                 Drop any fragment set that has been idle longer than MAX_WAIT.
                 """
                 async with derived._lock:
-                    now = time.time()
+                    now = time.monotonic()
                     keys_to_remove = [
                         k for k, v in derived._data.items()
                         if now - v["timestamp"] > MAX_WAIT

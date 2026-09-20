@@ -1492,7 +1492,7 @@ class MissionEventListener(EventListener["Mission"]):
                         f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.')
                 return
             discord_id = row[0]
-        member = self.bot.guilds[0].get_member(discord_id)
+        member = await self.bot.get_member(discord_id)
         if not member:
             await player.sendChatMessage("Your discord user was not found. Please use /linkme again in Discord.")
             return

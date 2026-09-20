@@ -17,9 +17,7 @@ proxy:                                          # Optional: proxy server for peo
   username: admin
   password: secret
 automatch: false                                # Optional: Use the bots auto-matching functionality (see below), default is false.
-autoban: false                                  # Use the bots auto-ban functionality (see below), default is false.
 autorole:                                       # Automatically give roles to people, depending on conditions (see below). The roles need to be set up in your Discord server.
-  on_join: Member                               #   Give anyone the "Member" role if they join your Discord.
   linked: DCS                                   #   Give people that get linked the DCS role.
   online: Online                                #   Give people that are online on any of your servers the "Online" role.
 no_dcs_autoban: false                           # If true, people banned on your Discord will not be banned on your servers (default: false)
@@ -45,6 +43,17 @@ roles:                                          # Roles mapping. The bot uses in
   - @everyone
 ```
 
+If you have "Server Members Intent" enabled in your Discord Developer Portal (and you have less than 10.000 users),
+you can enabled these settings also:
+```yaml
+privileged_intents: true                  # Use privileged intents (see below). Default: true
+autoban: false                            # Use the bots auto-ban functionality (see below), default is false.
+autorole:                                 # Automatically give roles to people, depending on conditions (see below). The roles need to be set up in your Discord server.
+  on_join: Member                         #   Give anyone the "Member" role if they join your Discord.
+greeting_dm: {name}, welcome to {guild}!  # Send a welcome DM to a new user. 
+```
+
+
 > [!CAUTION]
 > Never ever share your Discord TOKEN with anyone. If you plan to check in your configuration to GitHub, don't do that
 > for the Discord TOKEN. GitHub will automatically revoke it from Discord for security reasons.
@@ -53,6 +62,21 @@ roles:                                          # Roles mapping. The bot uses in
 > The bot will remove the Discord token on the first startup from your bot.yaml.<br>
 > If you want to replace the token later, re-add the line into your bot.yaml and DCSServerBot will replace the 
 > internal token with this one.
+
+## Privileged Intents
+Discord allows you to elevate the permissions of your Discord bots, if your Discord server has less than 10.000 users.
+If you enable `privileged_intents` in your bot.yaml (defaul: true = enabled), your need to enable the following
+privileged intents in your [Discord developer portal](https://discord.com/developers/applications):
+
+| Intent                 | Why enable it?                                                                                      |
+|------------------------|-----------------------------------------------------------------------------------------------------|
+| Server Members Intent  | Allows you to detect role changes of your members to auto-upload changed roles to your DCS servers. | 
+| Message Content Intent | Allows you to upload missions to your admin channels.                                               |
+
+> [!NOTE]
+> It was neither my decision to add this limitation to Discord nor do I like it.
+> I've also tried to convince Discord that there is no other option to achieve what we are doing here, 
+> but they just don't care. So I fear we have to live with it.
 
 ## Non-Discord Installations
 DCSServerBot is made for Discord and I highly recommend using it with that. Nevertheless, there are people that do not
