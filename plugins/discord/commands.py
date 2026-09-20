@@ -147,25 +147,38 @@ class Discord(Plugin):
 
         # check roles
         guild = self.bot.guilds[0]
-        admin_roles = []
-        admins = []
-        elevated_roles = []
-        elevated = []
-        everyone_ping = []
-        external_apps = []
+        members_intent = self.bot.intents.members  # role.members needs GUILD_MEMBERS
+        admin_roles, admins = [], []
+        elevated_roles, elevated = [], []
+        everyone_ping, external_apps = [], []
         for role in guild.roles:
             if role.permissions.administrator:
                 admin_roles.append(role)
-                admins.extend(role.members)
+                if members_intent:
+                    admins.extend(role.members)
             elif role.permissions.value & Permissions.elevated().value > 0:
                 elevated_roles.append(role)
-                elevated.extend(role.members)
+                if members_intent:
+                    elevated.extend(role.members)
             else:
                 if role.permissions.mention_everyone:
                     everyone_ping.append(role)
                 if role.permissions.use_external_apps:
                     external_apps.append(role)
-        all_bots = [x for x in guild.members if x.bot]
+        bot_ids = {x.id for x in guild.members if x.bot} if members_intent else set()
+
+        def _roles(entries: list[discord.Role], mention: bool = False) -> str:
+            if not entries:
+                return _("none")
+            return '\n'.join(x.mention if mention else x.name for x in entries)
+
+        def _members(entries: list[discord.Member], mention: bool = False) -> str:
+            if not members_intent:
+                return _("unavailable without the 'Server Members Intent'")
+            if not entries:
+                return _("none")
+            return '\n'.join((x.mention if mention else x.display_name) +
+                             (' (🤖)' if x.id in bot_ids else '') for x in entries)
 
         # check channels
         channels_for_everyone = []
@@ -177,25 +190,24 @@ class Discord(Plugin):
 
         embed = discord.Embed(colour=discord.Colour.blue())
         embed.title = f"Healthcheck for {guild.name}"
+
         # Roles
-        embed.add_field(name=_("Admin Roles"), value='\n'.join([x.name for x in admin_roles]))
-        embed.add_field(name=_("Members"), value='\n'.join([
-            x.display_name + (' (🤖)' if x in all_bots else '') for x in admins
-        ]))
+        embed.add_field(name=_("Admin Roles"), value=_roles(admin_roles))
+        embed.add_field(name=_("Members"), value=_members(admins))
         embed.add_field(name=utils.print_ruler(header="Elevated Roles"), value='_ _', inline=False)
-        embed.add_field(name=_("Elevated Roles"), value='\n'.join([x.mention for x in elevated_roles]))
-        embed.add_field(name=_("Members"), value='\n'.join([
-            x.mention + (' (🤖)' if x in all_bots else '') for x in elevated
-        ]))
+        embed.add_field(name=_("Elevated Roles"), value=_roles(elevated_roles, mention=True))
+        embed.add_field(name=_("Members"), value=_members(elevated, mention=True))
         embed.add_field(name=utils.print_ruler(header="⚠️ Critical Roles ⚠️"), value='_ _', inline=False)
         if everyone_ping or external_apps:
-            embed.add_field(name=_("Everyone Ping"), value='\n'.join([x.name for x in everyone_ping]))
-            embed.add_field(name=_("External Apps"), value='\n'.join([x.name for x in external_apps]))
-            embed.set_footer(text="🤖 = Discord Bot")
+            embed.add_field(name=_("Everyone Ping"), value=_roles(everyone_ping))
+            embed.add_field(name=_("External Apps"), value=_roles(external_apps))
+            if members_intent:
+                embed.set_footer(text="🤖 = Discord Bot")
             view = HealthcheckView(everyone_ping, external_apps)
         else:
             embed.add_field(name='_ _', value=_("No critical permissions found."), inline=False)
             view = None
+
         # Channels
         if len(channels_for_everyone) > 1:
             embed.add_field(name=utils.print_ruler(header=_("Channels")), value='_ _', inline=False)

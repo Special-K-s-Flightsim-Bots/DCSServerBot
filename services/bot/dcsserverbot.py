@@ -618,6 +618,8 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
                 return None
 
     async def match_user(self, data: dict, rematch=False) -> discord.Member | None:
+        if not self.intents.members:
+            return None  # auto-matching needs the full member list
         if not rematch:
             member = await self.get_member_by_ucid(data['ucid'])
             if member:

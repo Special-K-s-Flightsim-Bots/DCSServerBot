@@ -16,7 +16,6 @@ proxy:                                          # Optional: proxy server for peo
   url: 'https://myfancyproxy:8080'              #   If a node-wide proxy is already specified in nodes.yaml, you can omit it here.
   username: admin
   password: secret
-automatch: false                                # Optional: Use the bots auto-matching functionality (see below), default is false.
 autorole:                                       # Automatically give roles to people, depending on conditions (see below). The roles need to be set up in your Discord server.
   linked: DCS                                   #   Give people that get linked the DCS role.
   online: Online                                #   Give people that are online on any of your servers the "Online" role.
@@ -44,9 +43,10 @@ roles:                                          # Roles mapping. The bot uses in
 ```
 
 If you have "Server Members Intent" enabled in your Discord Developer Portal (and you have less than 10.000 users),
-you can enabled these settings also:
+you can enable these settings also:
 ```yaml
 privileged_intents: true                  # Use privileged intents (see below). Default: true
+automatch: false                          # Optional: Use the bots auto-matching functionality (see below), default is false.
 autoban: false                            # Use the bots auto-ban functionality (see below), default is false.
 autorole:                                 # Automatically give roles to people, depending on conditions (see below). The roles need to be set up in your Discord server.
   on_join: Member                         #   Give anyone the "Member" role if they join your Discord.

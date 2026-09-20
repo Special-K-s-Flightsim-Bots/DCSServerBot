@@ -2105,6 +2105,11 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def linkcheck(self, interaction: discord.Interaction):
+        if not self.bot.intents.members:
+            await interaction.response.send_message(
+                _('You need to enable "Server Members Intent" in your Discord Developer Portal to run this command.'))
+            return
+
         await interaction.response.defer(thinking=True)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -2153,6 +2158,11 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def mislinks(self, interaction: discord.Interaction):
+        if not self.bot.intents.members:
+            await interaction.response.send_message(
+                _('You need to enable "Server Members Intent" in your Discord Developer Portal to run this command.'))
+            return
+
         await interaction.response.defer(thinking=True)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
