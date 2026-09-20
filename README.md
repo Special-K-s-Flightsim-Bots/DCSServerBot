@@ -189,9 +189,10 @@ The bot needs a unique Token per installation. This one can be obtained at http:
 - Select "Bot" from the left menu and give it a nice name, icon, and maybe a banner.
 - Press "Reset Token" and then "Copy" to get your token. 
 - Now your Token is in your clipboard. Paste it in some editor for later use. 
-- The following "Privileged Gateway Intents" have to be **enabled** on that page.<br/>
+- If your Discord server has less than 10.000 members, please enable these two "Privileged Gateway Intents":
   - Server Members Intent
   - Message Content Intent
+- If you have _more_ than 10.000 members, you have to answer the respective question during the installation process.
 - To add the bot to your Discord "guild" (aka your Discord server), select "OAuth2" from the left menu
 - Select the "bot" checkbox in "OAuth2 URL Generator"
 - Select the following "Bot Permissions":
@@ -558,6 +559,7 @@ This is your Discord-bot configuration.
 # config/services/bot.yaml
 token: SECRET_DISCORD_TOKEN                     # Your TOKEN, as received from the discord developer portal. The bot will auto-move this to a secret place.
 owner: 1122334455667788                         # The Discord ID of the owner. Right-click on your Discord user, select "Copy User ID". If unsure, use the bot user.
+privileged_intents: true                        # Optional: set to false if you have more than 10.000 members in your Discord server.
 proxy:                                          # Optional: proxy server for people that cannot reach Discord without a proxy
   url: 'https://myfancyproxy:8080'              #   If a node-wide proxy is already specified in nodes.yaml, you can omit it here.
   username: admin
