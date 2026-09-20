@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib
 import io
 import logging
+import zlib
+
 import luadata
 import os
 import re
@@ -131,7 +133,19 @@ class MizFile:
                                           "warehouses = " + luadata.serialize(self.warehouses, 'utf-8', indent='\t',
                                                                               indent_level=0))
                         elif item.filename not in filenames:
-                            zout.writestr(item, zin.read(item.filename))
+                            try:
+                                zout.writestr(item, zin.read(item.filename))
+                            except (zlib.error, zipfile.BadZipFile, RuntimeError) as ex:
+                                self.log.error(
+                                    f"Mission archive appears to be corrupt while reading '{item.filename}' "
+                                    f"from '{self.filename}': {ex}"
+                                )
+                                raise UnsupportedMizFileException(
+                                    self.filename,
+                                    f"The mission archive is corrupt or incomplete. "
+                                    f"Failed while reading '{item.filename}'. "
+                                    f"Please restore the mission from backup or re-save it in DCS Mission Editor."
+                                ) from ex
                     for item in self._files:
                         def get_dir_path(name):
                             return name if os.path.isdir(name) else os.path.dirname(name)
