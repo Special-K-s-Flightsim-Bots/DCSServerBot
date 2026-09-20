@@ -101,9 +101,16 @@ end
 -- returns    : true  if vertical, false if normal
 local function is_vertical_takeoff(velocity, threshold)
     threshold = threshold or 15
+    if not velocity then
+        return false
+    end
 
-    -- horizontal speed (ground‑plane component)
-    local vh = math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z)
+    local vx = velocity.x or 0
+    local vy = velocity.y or 0
+    local vz = velocity.z or 0
+
+    -- horizontal speed (ground-plane component)
+    local vh = math.sqrt(vx * vx + vz * vz)
 
     -- also check the ratio (vertical / horizontal)
     if vh == 0 then
@@ -111,7 +118,7 @@ local function is_vertical_takeoff(velocity, threshold)
         return true
     end
 
-    local ratio = velocity.y / vh
+    local ratio = vy / vh
 
     return vh < threshold or ratio > 2
 end
@@ -277,7 +284,7 @@ function AAR.emitStart(unit, t)
         return
     end
     if AAR.real[unit:getID()] then
-        return                            -- DCS sent its own START -> never double up
+        return                                -- DCS sent its own START -> never double up
     end
     t.start_sent = true
     dcsbot.sendBotTable({
@@ -332,7 +339,8 @@ end
 function AAR.findTanker(unit, range)               -- nearest, TRUE 3D, lazy refresh
     if timer.getTime() - AAR.last_scan > AAR.SCAN then AAR.scanTankers() end
     if not unit or not unit:isExist() then return nil end
-    local p, best, bestd = unit:getPoint()
+    local p = unit:getPoint()
+    local best, bestd
     for _, t in ipairs(AAR.tankers) do
         if t:isExist() then
             local q = t:getPoint()
@@ -379,7 +387,7 @@ end
 
 
 function dcsbot.eventHandler:onEvent(event)
-	status, err = pcall(onMissionEvent, event)
+	local status, err = pcall(onMissionEvent, event)
 	if not status then
 		env.warning("DCSServerBot - Error during MissionStatistics:onEvent(): " .. err)
 	end
@@ -402,25 +410,31 @@ function onMissionEvent(event)
     }
 
     local tanker_target = nil
-    if event.initiator then
-        msg.initiator = {}
-        local category = Object.getCategory(event.initiator)
-        if category == Object.Category.UNIT then
-            msg.initiator.type = 'UNIT'
-            msg.initiator.unit = event.initiator
-            msg.initiator.unit_name = msg.initiator.unit:getName()
-            msg.initiator.group = msg.initiator.unit:getGroup()
-            if msg.initiator.group and msg.initiator.group:isExist() then
-                msg.initiator.group_name = msg.initiator.group:getName()
-            end
-            msg.initiator.name = msg.initiator.unit:getPlayerName()
-            msg.initiator.coalition = msg.initiator.unit:getCoalition()
-            msg.initiator.unit_type = msg.initiator.unit:getTypeName()
-            msg.initiator.category = msg.initiator.unit:getDesc().category
-            msg.initiator.fuel = msg.initiator.unit.getFuel and msg.initiator.unit:getFuel() or 1
-            msg.initiator.in_air = msg.initiator.unit:inAir()
+    local unit = event.initiator
 
-            local point = msg.initiator.unit:getPosition().p
+    if unit then
+        msg.initiator = {
+            unit = unit
+        }
+        local category = Object.getCategory(unit)
+        if category == Object.Category.UNIT then
+            local group = unit:getGroup()
+            msg.initiator.type = 'UNIT'
+            msg.initiator.unit_name = unit:getName()
+            msg.initiator.group = group
+            if group and group:isExist() then
+                msg.initiator.group_name = group:getName()
+            end
+            msg.initiator.name = unit:getPlayerName()
+            msg.initiator.coalition = unit:getCoalition()
+            msg.initiator.unit_type = unit:getTypeName()
+            msg.initiator.category = unit:getDesc().category
+            msg.initiator.fuel = unit.getFuel and unit:getFuel() or 1.00
+            local life0 = unit:getLife()
+            msg.initiator.life = life0 and life0 > 0 and unit:getLife() / life0 or unit:getLife()
+            msg.initiator.in_air = unit:inAir()
+
+            local point = unit:getPosition().p
             if point.y > 0 and point.y < 20000 then
                 local lat, lon = Terrain.convertMetersToLatLon(point.x, point.z)
                 msg.initiator.position = {
@@ -436,7 +450,7 @@ function onMissionEvent(event)
                 elseif msg.initiator.name then  -- we only check for taxiway takeoffs for players
                     local place = event.place:getName()
                     local airbase = Airbase.getByName(place)
-                    local velocity = msg.initiator.unit:getVelocity()
+                    local velocity = unit:getVelocity()
                     -- ignore takeoffs from ships and FARPs
                     if airbase:getDesc().category == Airbase.Category.AIRDROME then
                         local runways = airbase:getRunways()
@@ -452,7 +466,7 @@ function onMissionEvent(event)
                         -- check and allow missing runways
                         if not on_runway then
                             local runway = MISSING_RUNWAYS[place]
-                            if runway then
+                            if runway ~= nil then
                                 on_runway = is_on_runway(runway, point, velocity)
                             end
                         end
@@ -478,9 +492,9 @@ function onMissionEvent(event)
                 end
 
             elseif event.id == world.event.S_EVENT_SHOOTING_START then
-                local uid = event.initiator:getID()
+                local uid = unit:getID()
                 local key = event.weapon_name or 'n/a'
-                local snap = gun_rounds(event.initiator)
+                local snap = gun_rounds(unit)
                 GUN[uid] = GUN[uid] or {}
                 GUN[uid][key] = snap                     -- per WEAPON, not per unit
                 if #snap == 1 then
@@ -492,7 +506,7 @@ function onMissionEvent(event)
                 end
 
             elseif event.id == world.event.S_EVENT_SHOOTING_END then
-                local uid   = event.initiator:getID()
+                local uid   = unit:getID()
                 local key   = event.weapon_name or 'n/a'
                 local wsn   = (GUN[uid] or {})[key]         -- snapshot of THIS weapon
                 local after = gun_rounds(event.initiator)
@@ -502,7 +516,7 @@ function onMissionEvent(event)
                 end
 
                 local left, changed = {}, {}
-                for _, g in ipairs(after)    do left[g.type] = g.count end
+                for _, g in ipairs(after) do left[g.type] = g.count end
                 for _, g in ipairs(wsn or {}) do
                     local l = left[g.type] or 0
                     local f = math.max(0, g.count - l)
@@ -519,7 +533,7 @@ function onMissionEvent(event)
 
             elseif event.id == world.event.S_EVENT_REFUELING then
                 -- SP / non-dedicated server -> DCS reports the START itself
-                local uid = event.initiator:getID()
+                local uid = unit:getID()
                 AAR.real[uid] = true                 -- aar_sample() must not synthesise
                 local t = AAR.tasks[uid]
                 local tanker, ds =  AAR.findTanker(event.initiator)
@@ -534,85 +548,90 @@ function onMissionEvent(event)
                 end
 
             elseif event.id == world.event.S_EVENT_REFUELING_STOP then
-                local comment, tanker = aar_onStop(event.initiator)        -- also clears AAR.real[uid]
+                local comment, tanker = aar_onStop(unit)        -- also clears AAR.real[uid]
                 msg.comment = comment
                 if not event.target and tanker then
                     tanker_target = tanker
                 end
             end
+
         elseif category == Object.Category.WEAPON then
             msg.initiator.type = 'WEAPON'
-            msg.initiator.unit = event.initiator
-            msg.initiator.unit_name = msg.initiator.unit:getName()
-            msg.initiator.coalition = msg.initiator.unit:getCoalition()
-            msg.initiator.unit_type = msg.initiator.unit:getTypeName()
-            msg.initiator.category = msg.initiator.unit:getDesc().category
+            msg.initiator.unit_name = unit:getName()
+            msg.initiator.coalition = unit:getCoalition()
+            msg.initiator.unit_type = unit:getTypeName()
+            msg.initiator.category = unit:getDesc().category
+
         elseif category == Object.Category.STATIC then
             msg.initiator.type = 'STATIC'
             -- ejected pilot, unit will not be counted as dead but only lost
             if event.id == world.event.S_EVENT_LANDING_AFTER_EJECTION then
-                msg.initiator.unit = event.initiator
                 msg.initiator.unit_name = string.format("Ejected Pilot ID %s", tostring(event.initiator.id_))
                 msg.initiator.coalition = 0
                 msg.initiator.unit_type = 'Ejected Pilot'
                 msg.initiator.category = 0
             else
-                msg.initiator.unit = event.initiator
                 msg.initiator.unit_name = msg.initiator.unit:getName()
                 msg.initiator.coalition = msg.initiator.unit:getCoalition()
                 msg.initiator.unit_type = msg.initiator.unit:getTypeName()
             end
+
         elseif category == Object.Category.BASE then
             msg.initiator.type = 'BASE'
-            msg.initiator.unit = event.initiator
-            msg.initiator.unit_name = msg.initiator.unit:getName()
-            msg.initiator.coalition = msg.initiator.unit:getCoalition()
-            msg.initiator.unit_type = msg.initiator.unit:getTypeName()
+            msg.initiator.unit_name = unit:getName()
+            msg.initiator.coalition = unit:getCoalition()
+            msg.initiator.unit_type = unit:getTypeName()
+
         elseif category == Object.Category.SCENERY  then
             msg.initiator.type = 'SCENERY'
-            msg.initiator.unit = event.initiator
             if msg.initiator.unit.getName ~= nil then
-                msg.initiator.unit_name = msg.initiator.unit:getName()
+                msg.initiator.unit_name = unit:getName()
             else
                 msg.initiator.unit_name = 'n/a'
             end
             if msg.initiator.unit.getTypeName ~= nil then
-                msg.initiator.unit_type = msg.initiator.unit:getTypeName()
+                msg.initiator.unit_type = unit:getTypeName()
             else
                 msg.initiator.unit_type = "SCENERY"
             end
             msg.initiator.coalition = coalition.side.NEUTRAL
+
         elseif category == Object.Category.CARGO then
             msg.initiator.type = 'CARGO'
-            msg.initiator.unit = event.initiator
-            msg.initiator.unit_name = msg.initiator.unit:getName()
-            msg.initiator.coalition = msg.initiator.unit:getCoalition()
-            msg.initiator.unit_type = msg.initiator.unit:getTypeName()
+            msg.initiator.unit_name = unit:getName()
+            msg.initiator.coalition = unit:getCoalition()
+            msg.initiator.unit_type = unit:getTypeName()
+
         else
-            -- ignore the event
-            return
+            -- skip the initiator but keep the event
+            env.error("Unknown initiator category received: %d", category)
         end
     end
-    local tgt = event.target or tanker_target
-    if tgt then
-        msg.target = {}
-        local category = Object.getCategory(tgt)
-        if category == Object.Category.UNIT then
-            msg.target.type = 'UNIT'
-            msg.target.unit = tgt
-            msg.target.unit_name = msg.target.unit:getName()
-            msg.target.group = msg.target.unit:getGroup()
-            if msg.target.group and msg.target.group:isExist() then
-                msg.target.group_name = msg.target.group:getName()
-            end
-            msg.target.name = msg.target.unit:getPlayerName()
-            msg.target.coalition = msg.target.unit:getCoalition()
-            msg.target.unit_type = msg.target.unit:getTypeName()
-            msg.target.category = msg.target.unit:getDesc().category
-            msg.target.fuel = msg.target.unit.getFuel and msg.target.unit:getFuel() or 1
-            msg.target.in_air = msg.target.unit:inAir()
 
-            local point = msg.target.unit:getPosition().p
+    unit = event.target or tanker_target
+    if unit then
+        msg.target = {
+            unit = unit
+        }
+        local category = Object.getCategory(unit)
+        if category == Object.Category.UNIT then
+            local group = unit:getGroup()
+            msg.target.type = 'UNIT'
+            msg.target.unit_name = unit:getName()
+            msg.target.group = group
+            if group and group:isExist() then
+                msg.target.group_name = group:getName()
+            end
+            msg.target.name = unit:getPlayerName()
+            msg.target.coalition = unit:getCoalition()
+            msg.target.unit_type = unit:getTypeName()
+            msg.target.category = unit:getDesc().category
+            msg.target.fuel = unit.getFuel and unit:getFuel() or 1.00
+            local life0 = unit:getLife()
+            msg.target.life = life0 and life0 > 0 and unit:getLife() / life0 or unit:getLife()
+            msg.target.in_air = unit:inAir()
+
+            local point = unit:getPosition().p
             if point.y > 0 and point.y < 20000 then
                 local lat, lon = Terrain.convertMetersToLatLon(point.x, point.z)
                 msg.target.position = {
@@ -625,65 +644,57 @@ function onMissionEvent(event)
                 msg.distance = get_distance(msg.initiator.position.point, msg.target.position.point)
             end
             if event.id == world.event.S_EVENT_HIT then
-                local raw  = msg.target.unit:getLife() or 0
-                local max  = msg.target.unit.getLife0 and msg.target.unit:getLife0()
-                local life = (max and max > 0) and (raw / max) or raw
-                msg.target.life = life
-                msg.comment = string.format("Life: %.1f", life)
+                msg.comment = string.format("Life: %.2f", msg.target.life)
             end
+
         elseif category == Object.Category.WEAPON then
             msg.target.type = 'WEAPON'
-            msg.target.unit = tgt
-            msg.target.unit_name = msg.target.unit:getName()
-            msg.target.coalition = msg.target.unit:getCoalition()
-            msg.target.unit_type = msg.target.unit:getTypeName()
-            msg.target.category = msg.target.unit:getDesc().category
+            msg.target.unit_name = unit:getName()
+            msg.target.coalition = unit:getCoalition()
+            msg.target.unit_type = unit:getTypeName()
+            msg.target.category = unit:getDesc().category
+
         elseif category == Object.Category.STATIC then
             msg.target.type = 'STATIC'
-            msg.target.unit = tgt
-            if msg.target.unit.isExist ~= nil and msg.target.unit:isExist() == true then
-                msg.target.unit_name = msg.target.unit:getName()
+            if unit.isExist ~= nil and unit:isExist() == true then
+                msg.target.unit_name = unit:getName()
                 if msg.target.unit_name ~= nil and msg.target.unit_name ~= '' then
-                    msg.target.coalition = msg.target.unit:getCoalition()
-                    msg.target.unit_type = msg.target.unit:getTypeName()
+                    msg.target.coalition = unit:getCoalition()
+                    msg.target.unit_type = unit:getTypeName()
                 end
             end
+
         elseif category == Object.Category.BASE then
             msg.target.type = 'BASE'
-            msg.target.unit = tgt
-            msg.target.unit_name = msg.target.unit:getName()
-            msg.target.coalition = msg.target.unit:getCoalition()
-            msg.target.unit_type = msg.target.unit:getTypeName()
+            msg.target.unit_name = unit:getName()
+            msg.target.coalition = unit:getCoalition()
+            msg.target.unit_type = unit:getTypeName()
+
         elseif category == Object.Category.SCENERY then
             msg.target.type = 'SCENERY'
-            msg.target.unit = tgt
-            if msg.target.unit.getName ~= nil then
-                msg.target.unit_name = msg.target.unit:getName()
-            else
-                msg.target.unit_name = 'n/a'
-            end
+            msg.target.unit_name = unit.getName and unit:getName() or 'n/a'
             msg.target.coalition = coalition.side.NEUTRAL
-            if msg.target.unit.getTypeName ~= nil then
-                msg.target.unit_type = msg.target.unit:getTypeName()
-            else
-                msg.target.unit_type = 'n/a'
-            end
+            msg.target.unit_type = unit.getTypeName and unit:getTypeName() or 'n/a'
+
         elseif category == Object.Category.CARGO then
             msg.target.type = 'CARGO'
-            msg.target.unit = tgt
-            msg.target.unit_name = msg.target.unit:getName()
-            msg.target.coalition = msg.target.unit:getCoalition()
-            msg.target.unit_type = msg.target.unit:getTypeName()
+            msg.target.unit_name = unit:getName()
+            msg.target.coalition = unit:getCoalition()
+            msg.target.unit_type = unit:getTypeName()
+
         else
-            -- ignore the event
-            return
+            -- skip the target but keep the event
+            env.error("Unknown target category received: %d", category)
         end
     end
+
     if event.place and event.place:isExist() then
-        msg.place = {}
-        msg.place.id = event.place.id_
-        msg.place.name = event.place:getName()
+        msg.place = {
+            id = event.place.id_,
+            name = event.place:getName()
+        }
     end
+
     if event.weapon then
         msg.weapon = {}
         msg.weapon.id = event.weapon.id_
@@ -698,9 +709,11 @@ function onMissionEvent(event)
         if msg.weapon.name == nil or msg.weapon.name == '' then
             msg.weapon.name = 'Gun'
         end
-        if tgt == nil then
+        -- no target is set
+        if unit == nil then
             msg.comment = "unsupported"
         end
+
     elseif event.weapon_name ~= nil then
         msg.weapon = {}
         msg.weapon.name = event.weapon_name
@@ -708,6 +721,7 @@ function onMissionEvent(event)
             msg.weapon.name = 'Gun'
         end
     end
+
     if event.comment then
         msg.comment = event.comment
     end

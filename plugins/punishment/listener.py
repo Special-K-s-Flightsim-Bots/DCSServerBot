@@ -688,6 +688,13 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     if repair_window > 0:
                         task = asyncio.create_task(self._repair_window(initiator, repair_window, data['eventName']))
                         self.pending_repair[initiator.ucid] = task
+                    if data.get('inAir', False):
+                        evt = {
+                            "server_name": server.name,
+                            "initiator": initiator,
+                            "eventName": "ground_ejection"
+                        }
+                        asyncio.create_task(self._check_punishment(evt.copy()))
                 return
 
             delta_time = int(time.time()) - shot_time

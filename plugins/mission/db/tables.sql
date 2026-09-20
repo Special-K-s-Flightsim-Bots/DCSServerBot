@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS missions (
     mission_end TIMESTAMP,
     FOREIGN KEY (server_name) REFERENCES servers (server_name) ON UPDATE CASCADE ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS idx_missions_server_name ON missions(server_name);
 CREATE TABLE IF NOT EXISTS watchlist(
     player_ucid TEXT PRIMARY KEY,
     reason TEXT,

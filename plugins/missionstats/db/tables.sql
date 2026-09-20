@@ -23,6 +23,8 @@ CREATE INDEX IF NOT EXISTS idx_missionstats_mission_id ON missionstats(mission_i
 CREATE INDEX IF NOT EXISTS idx_missionstats_init_id ON missionstats(init_id);
 CREATE INDEX IF NOT EXISTS idx_missionstats_target_id ON missionstats(target_id);
 CREATE INDEX IF NOT EXISTS idx_missionstats_event_init_id on missionstats (event, init_id);
+CREATE INDEX IF NOT EXISTS idx_missionstats_init_id_time on missionstats (init_id, time);
+CREATE INDEX IF NOT EXISTS idx_missionstats_target_id_time on missionstats (target_id, time);
 CREATE TABLE IF NOT EXISTS refuelingstats (
     id SERIAL PRIMARY KEY,
     mission_id INTEGER NOT NULL,
@@ -35,3 +37,4 @@ CREATE TABLE IF NOT EXISTS refuelingstats (
     time TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 CREATE INDEX IF NOT EXISTS idx_refuelingstats_ucid ON refuelingstats(init_id);
+CREATE INDEX IF NOT EXISTS idx_refuelingstats_init_id_time on refuelingstats(init_id, time);

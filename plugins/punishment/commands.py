@@ -86,12 +86,13 @@ class Punishment(Plugin[PunishmentEventListener]):
         if punishment['action'] == 'credits' and type(player).__name__ == 'CreditPlayer':
             player: CreditPlayer = cast(CreditPlayer, player)
             old_points = player.points
-            player.points -= punishment['penalty']
+            penalty = int(punishment.get('penalty', 1))
+            player.points -= penalty
             await player.audit('punishment', old_points, _("Punished for {}").format(reason))
             await player.sendUserMessage(
-                _("{name}, you have been punished for: {reason}!\n"
+                _("{name}, you lost {penalty} credits for: {reason}!\n"
                   "Your current credit points are: {points}").format(
-                    name=player.name, reason=reason, points=player.points))
+                    name=player.name, reason=reason, penalty=penalty, points=player.points))
             message = _("Player {player} (ucid={ucid}) punished with credits by {punished_by} for {reason}.").format(
                 player=player.name, ucid=player.ucid, punished_by=self.bot.member.display_name, reason=reason)
 
@@ -123,8 +124,8 @@ class Punishment(Plugin[PunishmentEventListener]):
                                                                                                    reason=reason))
             
         elif punishment['action'] == 'message':
-            await player.sendUserMessage(_("{name}, check your fire: {reason}!").format(name=player.name,
-                                                                                        reason=reason))
+            await player.sendUserMessage(_("{name}, pay attention: {reason}!").format(name=player.name, reason=reason))
+
         if points:
             await player.sendUserMessage(_("{name}, you have {points} punishment points.").format(name=player.name,
                                                                                                   points=points))

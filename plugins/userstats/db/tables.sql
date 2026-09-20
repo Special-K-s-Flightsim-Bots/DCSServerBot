@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS statistics (
     FOREIGN KEY (player_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_statistics_player_ucid ON statistics(player_ucid);
+CREATE INDEX IF NOT EXISTS idx_statistics_mission_id ON statistics(mission_id);
+CREATE INDEX IF NOT EXISTS idx_statistics_hop_on ON statistics(hop_on);
 CREATE TABLE IF NOT EXISTS squadrons (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
