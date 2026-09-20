@@ -5,6 +5,11 @@ mapping:
   token: {type: str, nullable: false, range: {min: 1}}
   owner: {type: int, nullable: false}
   privileged_intents: {type: bool, nullable: false}
+  audit_log:
+    type: map
+    nullable: false
+    mapping:
+      poll_interval: {type: int, nullable: false, range: {min: 15}}
   automatch: {type: bool, nullable: false}
   autoban: {type: bool, nullable: false}
   autorole:

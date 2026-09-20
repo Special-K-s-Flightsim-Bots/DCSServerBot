@@ -96,6 +96,7 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
             return
         try:
             async for entry in guild.audit_logs(limit=None, after=self._audit_cursor, oldest_first=True):
+                self._audit_cursor = entry.created_at
                 if entry.action not in (discord.AuditLogAction.member_update,
                                         discord.AuditLogAction.member_role_update):
                     continue
@@ -105,7 +106,6 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
                     self._member_snapshots[member.id] = discord.Member._copy(member)
                     if before and before.roles != member.roles:   # skip our own autorole + nick-only
                         self.dispatch('member_update', before, member)
-                self._audit_cursor = entry.created_at
         except discord.Forbidden:
             self.log.error("You need to give DCSServerBot the 'View Audit Log' permission.")
             self.audit_poll.cancel()
@@ -113,11 +113,6 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
     @audit_poll.before_loop
     async def before_audit_poll(self):
         await self.wait_until_ready()
-        async with self.apool.connection() as conn:
-            async for row in await conn.execute("SELECT DISTINCT discord_id FROM players WHERE discord_id <> -1"):
-                member = await self.get_member(row[0], fetch=False)
-                if member:
-                    self._member_snapshots[member.id] = discord.Member._copy(member)
 
     @property
     def roles(self) -> dict[str, list[str | int]]:
@@ -583,6 +578,31 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
             return self._track(await self._fetch_member(int(user_id)))
         except (discord.HTTPException, ClientError):
             return None
+
+    async def get_members(self, user_ids: Iterable[int], fetch: bool = True,
+                          concurrency: int = 5, budget: int | None = None) -> dict[int, discord.Member]:
+        """Resolve several members at once: cache first, then a bounded number of REST calls."""
+        guild = self.guilds[0]
+        ids = {int(i) for i in user_ids if i not in (-1, None)}
+        members = {i: m for i in ids if (m := guild.get_member(i))}
+        missing = sorted(ids - members.keys())
+        if not fetch or not missing:
+            return members
+        if budget is not None:
+            missing = missing[:budget]
+        sem = asyncio.Semaphore(concurrency)
+
+        async def _get(user_id: int) -> tuple[int, discord.Member | None]:
+            async with sem:
+                try:
+                    return user_id, await self._fetch_member(user_id)
+                except (discord.HTTPException, ClientError):
+                    return user_id, None
+
+        for user_id, member in await asyncio.gather(*[_get(i) for i in missing]):
+            if member:
+                members[user_id] = member
+        return members
 
     async def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> discord.Member | str | None:
         async with self.apool.connection() as conn:

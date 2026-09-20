@@ -2587,9 +2587,6 @@ class Mission(Plugin[MissionEventListener]):
 
     @tasks.loop(minutes=5.0, count=1)
     async def check_roles(self):
-        if not self.bot.is_ready():
-            return
-
         # Removing stale roles needs role.members (GUILD_MEMBERS intent).
         # Without the intent, role members cannot be enumerated - the online role
         # is maintained by the connect/disconnect events instead.

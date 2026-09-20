@@ -45,6 +45,7 @@ roles:                                          # Roles mapping. The bot uses in
 If you have "Server Members Intent" enabled in your Discord Developer Portal (and you have less than 10.000 users),
 you can enable these settings also:
 ```yaml
+# config/services/bot.yaml
 privileged_intents: true                  # Use privileged intents (see below). Default: true
 automatch: false                          # Optional: Use the bots auto-matching functionality (see below), default is false.
 autoban: false                            # Use the bots auto-ban functionality (see below), default is false.
@@ -53,6 +54,15 @@ autorole:                                 # Automatically give roles to people, 
 greeting_dm: {name}, welcome to {guild}!  # Send a welcome DM to a new user. 
 ```
 
+If you have this intent disabled, the bot reads membership changes (especially role changes) via the Discord audit log.
+You need to enable the "View Audit Log" permission for your bot. 
+Also, you can configure how often the audit log is polled:
+
+```yaml
+# config/services/bot.yaml
+audit_log:
+  poll_interval: 30  # 30 seconds, by default. Minimum: 15s. 
+```
 
 > [!CAUTION]
 > Never ever share your Discord TOKEN with anyone. If you plan to check in your configuration to GitHub, don't do that

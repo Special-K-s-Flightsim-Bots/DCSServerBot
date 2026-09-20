@@ -157,8 +157,10 @@ class HighscoreTraps(report.GraphElement):
                 labels = []
                 values = []
                 await cursor.execute(sql, {"server_name": server_name})
-                async for row in cursor:
-                    member = (await self.bot.get_member(row['discord_id'])) if row['discord_id'] != '-1' else None
+                rows = await cursor.fetchall()
+                members = await self.bot.get_members(r['discord_id'] for r in rows if r['discord_id'] != '-1')
+                for row in rows:
+                    member = members.get(int(row['discord_id']))
                     name = member.display_name if member else row['name']
                     labels.insert(0, name)
                     values.insert(0, row['value'])

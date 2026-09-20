@@ -320,9 +320,10 @@ class GameMasterEventListener(EventListener["GameMaster"]):
                 WHERE p.ucid = c.player_ucid AND c.server_name = %s AND c.coalition IS NOT NULL
             """, (server.name,))
             rows = await cursor.fetchall()
+            members = await self.bot.get_members(r[1] for r in rows if r[1] != '-1')
             for row in rows:
                 if discord_roles and row[1] != -1:
-                    member = await self.bot.get_member(row[1])
+                    member = members.get(row[1])
                     if member:
                         try:
                             await member.remove_roles(roles[row[2]])

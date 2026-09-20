@@ -45,8 +45,10 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                     WHERE discord_id != -1 AND LENGTH(ucid) = 32 AND manual = TRUE
                 """)
                 batch = []
-                async for row in cursor:
-                    member = await self.bot.get_member(row[1])
+                rows = await cursor.fetchall()
+                members = await self.bot.get_members(r[1] for r in rows if r[1] != '-1')
+                for row in rows:
+                    member = members.get(row[1])
                     if not member:
                         continue
                     if any(role in roles for role in member.roles):
