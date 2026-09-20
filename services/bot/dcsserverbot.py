@@ -61,7 +61,7 @@ class DCSServerBot(commands.Bot):
     async def start(self, token: str, *, reconnect: bool = True) -> None:
         self.synced: bool = False
         if not self.intents.members:
-            interval = max(5, self.locals.get('audit_log', {}).get('poll_interval', 30))
+            interval = max(15, self.locals.get('audit_log', {}).get('poll_interval', 30))
             self.audit_poll.change_interval(seconds=interval)
             self.audit_poll.start()
         await super().start(token, reconnect=reconnect)
@@ -583,7 +583,7 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
                           concurrency: int = 5, budget: int | None = None) -> dict[int, discord.Member]:
         """Resolve several members at once: cache first, then a bounded number of REST calls."""
         guild = self.guilds[0]
-        ids = {int(i) for i in user_ids if i not in (-1, None)}
+        ids = {i for i in (int(x) if x is not None else 0 for x in user_ids) if i > 0}
         members = {i: m for i in ids if (m := guild.get_member(i))}
         missing = sorted(ids - members.keys())
         if not fetch or not missing:
