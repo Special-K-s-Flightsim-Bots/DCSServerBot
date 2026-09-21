@@ -638,74 +638,79 @@ class GameMaster(Plugin[GameMasterEventListener]):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if message.author.bot or not message.attachments:
+        if message.author.bot:
             return
 
-        if not isinstance(message.author, discord.Member):
-            member = await self.bot.get_member(message.author.id)
-            if not member:
-                return
-            # this is quite a hack honestly, but it works
-            message.author = member
+        if message.attachments:
+            if not isinstance(message.author, discord.Member):
+                member = await self.bot.get_member(message.author.id)
+                if not member:
+                    return
+                # this is quite a hack honestly, but it works
+                message.author = member
 
-        patterns = [r'\.lua$', r'\.json$']
-        config = self.get_config().get('uploads', {})
-        if GameMasterUploadHandler.is_valid(
-                message,
-                patterns=patterns,
-                roles=config.get('discord', self.bot.roles['DCS Admin'])
-        ):
-            attachments = []
-            async with aiofiles.open('plugins/gamemaster/schemas/embed_schema.json', mode='r') as infile:
-                schema = json.loads(await infile.read())
-            for attachment in message.attachments:
-                if attachment.filename.endswith('.lua'):
-                    attachments.append(attachment)
-                    continue
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(attachment.url, proxy=self.node.proxy,
-                                           proxy_auth=self.node.proxy_auth) as response:
-                        if response.status == 200:
-                            data = await response.json(encoding="utf-8")
-                            try:
-                                validate(instance=data, schema=schema)
-                                attachments.append(attachment)
-                            except ValidationError:
-                                continue
+            patterns = [r'\.lua$', r'\.json$']
+            config = self.get_config().get('uploads', {})
+            if GameMasterUploadHandler.is_valid(
+                    message,
+                    patterns=patterns,
+                    roles=config.get('discord', self.bot.roles['DCS Admin'])
+            ):
+                attachments = []
+                async with aiofiles.open('plugins/gamemaster/schemas/embed_schema.json', mode='r') as infile:
+                    schema = json.loads(await infile.read())
+                for attachment in message.attachments:
+                    if attachment.filename.endswith('.lua'):
+                        attachments.append(attachment)
+                        continue
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(attachment.url, proxy=self.node.proxy,
+                                               proxy_auth=self.node.proxy_auth) as response:
+                            if response.status == 200:
+                                data = await response.json(encoding="utf-8")
+                                try:
+                                    validate(instance=data, schema=schema)
+                                    attachments.append(attachment)
+                                except ValidationError:
+                                    continue
 
-            # no valid attachment found
-            if not attachments:
-                return
+                # no valid attachment found
+                if not attachments:
+                    return
 
-            server = await GameMasterUploadHandler.get_server(message)
-            if not server or not config.get('enabled', True):
-                return
-            handler = GameMasterUploadHandler(plugin=self, server=server, message=message, patterns=patterns)
-            try:
-                base_dir = config.get('script_dir', os.path.join(await handler.server.get_missions_dir(), 'Scripts'))
-                await handler.upload(base_dir)
-            except Exception as ex:
-                self.log.exception(ex)
-            finally:
-                await message.delete()
+                server = await GameMasterUploadHandler.get_server(message)
+                if not server or not config.get('enabled', True):
+                    return
+                handler = GameMasterUploadHandler(plugin=self, server=server, message=message, patterns=patterns)
+                try:
+                    base_dir = config.get('script_dir', os.path.join(await handler.server.get_missions_dir(), 'Scripts'))
+                    await handler.upload(base_dir)
+                    return
+                except Exception as ex:
+                    self.log.exception(ex)
+                finally:
+                    await message.delete()
 
-        elif not message.author.bot:
-            for server in self.bot.servers.values():
-                if server.status != Status.RUNNING:
-                    continue
-                if 'coalitions' in server.locals:
-                    sides = utils.get_sides(self.bot, message, server)
-                    if Coalition.BLUE in sides and server.channels[Channel.COALITION_BLUE_CHAT] == message.channel.id:
-                        # TODO: ignore messages for now, as DCS does not understand the coalitions yet
-                        # await server.sendChatMessage(Coalition.BLUE, message.content, message.author.display_name)
-                        pass
-                    elif Coalition.RED in sides and server.channels[Channel.COALITION_RED_CHAT] == message.channel.id:
-                        # TODO:  ignore messages for now, as DCS does not understand the coalitions yet
-                        # await server.sendChatMessage(Coalition.RED, message.content, message.author.display_name)
-                        pass
-                if server.channels[Channel.CHAT] and server.channels[Channel.CHAT] == message.channel.id:
-                    if not message.content.startswith('/'):
-                        await server.sendChatMessage(Coalition.ALL, message.content, message.author.display_name)
+        # relay Discord chat to DCS - needs readable content
+        if not self.bot.intents.message_content:
+            return
+
+        for server in self.bot.servers.values():
+            if server.status != Status.RUNNING:
+                continue
+            if 'coalitions' in server.locals:
+                sides = utils.get_sides(self.bot, message, server)
+                if Coalition.BLUE in sides and server.channels[Channel.COALITION_BLUE_CHAT] == message.channel.id:
+                    # TODO: ignore messages for now, as DCS does not understand the coalitions yet
+                    # await server.sendChatMessage(Coalition.BLUE, message.content, message.author.display_name)
+                    pass
+                elif Coalition.RED in sides and server.channels[Channel.COALITION_RED_CHAT] == message.channel.id:
+                    # TODO:  ignore messages for now, as DCS does not understand the coalitions yet
+                    # await server.sendChatMessage(Coalition.RED, message.content, message.author.display_name)
+                    pass
+            if server.channels[Channel.CHAT] and server.channels[Channel.CHAT] == message.channel.id:
+                if not message.content.startswith('/'):
+                    await server.sendChatMessage(Coalition.ALL, message.content, message.author.display_name)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
