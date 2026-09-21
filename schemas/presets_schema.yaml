@@ -35,7 +35,7 @@ schema;modify_map:
         regex;(.+): {type: text, nullable: false}
     if: {type: str, nullable: false}
     for-each: {type: str, nullable: false}
-    where: {type: str, nullable: false}
+    where: {type: any, nullable: false, func: str_or_list}
     select: {type: str, nullable: false}
     replace:
       type: map
