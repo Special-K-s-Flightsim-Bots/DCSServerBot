@@ -2498,6 +2498,13 @@ class Tournament(Plugin[TournamentEventListener]):
         if message.author.bot or not message.attachments:
             return
 
+        if isinstance(message.author, discord.User):
+            member = await self.bot.get_member(message.author.id)
+            if not member:
+                return
+            # this is quite a hack honestly, but it works
+            message.author = member
+
         att = message.attachments[0]
         filename = att.filename.lower()
         filetype = filename.lower().split('.')[-1]
@@ -2505,7 +2512,7 @@ class Tournament(Plugin[TournamentEventListener]):
             return
 
         if not utils.check_roles(set(self.bot.roles['DCS Admin'] + self.bot.roles['GameMaster']), message.author):
-            await message.channel.send(_("You need to be DCS Admin or GameMaster to upload data."))
+            await message.channel.send(_("You need to be DCS Admin or GameMaster to upload tournament data."))
             return
 
         match = re.match(r'^tournament_(\d+)\.xlsx?$', filename)

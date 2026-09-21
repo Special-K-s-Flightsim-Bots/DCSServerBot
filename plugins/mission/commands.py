@@ -2683,7 +2683,7 @@ class Mission(Plugin[MissionEventListener]):
         except Exception as ex:
             self.log.exception(ex)
         finally:
-            with suppress(discord.errors.NotFound):
+            with suppress(discord.NotFound, discord.Forbidden):
                 await message.delete()
 
     @staticmethod
@@ -2807,6 +2807,14 @@ class Mission(Plugin[MissionEventListener]):
     async def on_message(self, message: discord.Message):
         if message.author.bot or not message.attachments:
             return
+
+        if isinstance(message.author, discord.User):
+            member = await self.bot.get_member(message.author.id)
+            if not member:
+                await message.channel.send(_("You need to be a member of the Discord server to upload files."))
+                return
+            # this is quite a hack honestly, but it works
+            message.author = member
 
         att = message.attachments[0]
         filename = att.filename.lower()

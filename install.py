@@ -203,8 +203,13 @@ class Install:
             token = Prompt.ask(_('Please enter your discord TOKEN (see documentation)')) or '<see documentation>'
             utils.set_password('token', token)
             owner = IntPrompt.ask(_('Please enter your Owner ID (right click on your discord user, "Copy User ID")'))
+
+            # Check if we have more than 10.000 members and adapt the bot accordingly
             privileged_intents = not Confirm.ask(_("Do you have more than 10.000 members in your Discord server?"),
                                                  default=False)
+            if not privileged_intents:
+                print(_("You need to grant the 'View Audit Log' permission to your bot."))
+
             print(_("\nWe now need to setup your Discord roles and channels.\n"
                     "DCSServerBot creates a role mapping for your bot users. It has the following internal roles:"))
             print({

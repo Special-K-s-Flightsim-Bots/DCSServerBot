@@ -318,8 +318,8 @@ class Discord(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # ignore my own messages
-        if message.author.id == self.bot.user.id:
+        # ignore my own messages or DMs
+        if (message.author.id == self.bot.user.id) or not isinstance(message.author, discord.Member):
             return
         config = self.get_config().get('ping_everyone')
         if not config:

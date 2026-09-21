@@ -1925,7 +1925,7 @@ class ServerUploadHandler(NodeUploadHandler):
         if not channel_id:
             channel_id = bot.locals.get('channels', {}).get('admin')
 
-        if not server and message.channel.id == channel_id:
+        if not server and ((message.channel.id == channel_id) or isinstance(message.channel, discord.DMChannel)):
             ctx = await bot.get_context(message)
             server = await utils.server_selection(
                 bot,

@@ -303,6 +303,16 @@ class Music(Plugin[MusicEventListener]):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
+        if message.author.bot or not message.attachments:
+            return
+
+        if isinstance(message.author, discord.User):
+            member = await self.bot.get_member(message.author.id)
+            if not member:
+                return
+            # this is quite a hack honestly, but it works
+            message.author = member
+
         patterns =  [r'\.mp3$', r'\.ogg$']
         if not NodeUploadHandler.is_valid(message, patterns, self.bot.roles['DCS Admin']):
             return

@@ -21,6 +21,16 @@ class SkyEye(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
+        if message.author.bot or not message.attachments:
+            return
+
+        if isinstance(message.author, discord.User):
+            member = await self.bot.get_member(message.author.id)
+            if not member:
+                return
+            # this is quite a hack honestly, but it works
+            message.author = member
+
         patterns = [r'^locations.json$']
         if not ServerUploadHandler.is_valid(message, patterns=patterns, roles=self.bot.roles['DCS Admin']):
             return
@@ -47,6 +57,8 @@ class SkyEye(Plugin):
 
         try:
             server = await ServerUploadHandler.get_server(message, filter_func=self.skyeye_server_filter)
+            if server is None:
+                return
             if not server:
                 await message.channel.send(_("SkyEye is not configured on any server."))
                 return

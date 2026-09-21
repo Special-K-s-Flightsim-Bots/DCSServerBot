@@ -8,7 +8,7 @@ import shutil
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
     PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, ServiceRegistry, NodeTransformer, \
-    InstallException, InstallableExtension, ConfigView
+    InstallException, InstallableExtension, ConfigView, ServerUploadHandler
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
@@ -1547,6 +1547,14 @@ Please make sure you forward the following ports:
         # ignore bot messages or messages that do not contain YAML attachments
         if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.yaml'):
             return
+
+        if isinstance(message.author, discord.User):
+            member = await self.bot.get_member(message.author.id)
+            if not member:
+                return
+            # this is quite a hack honestly, but it works
+            message.author = member
+
         # read the default config if there is any
         config = self.get_config().get('uploads', {})
         # check if upload is enabled
@@ -1556,26 +1564,16 @@ Please make sure you forward the following ports:
                 )
         ):
             return
+
         # check if the user has the correct role to upload, defaults to Admin
         if not utils.check_roles(config.get('discord', self.bot.roles['Admin']), message.author):
             return
-        # check if the upload happens in the server's admin-channel (if provided)
-        server: Server = self.bot.get_server(message, admin_only=True)
-        ctx = await self.bot.get_context(message)
+
+        # check if the upload happens in the server's admin-channel or a DM
+        server = await ServerUploadHandler.get_server(message)
         if not server:
-            # check if there is a central admin channel configured
-            admin_channel = self.bot.locals.get('channels', {}).get('admin')
-            if not admin_channel or admin_channel != message.channel.id:
-                return
-            try:
-                server = await utils.server_selection(
-                    self.bot, ctx, title=_("To which server do you want to upload this configuration to?"))
-                if not server:
-                    await ctx.send(_('Aborted.'))
-                    return
-            except Exception as ex:
-                self.log.exception(ex)
-                return
+            return
+
         att = message.attachments[0]
         name = att.filename[:-5]
         if name in ['main', 'nodes', 'servers'] or name.startswith('presets'):
@@ -1592,15 +1590,16 @@ Please make sure you forward the following ports:
             plugin = True
         else:
             return
+
         target_file = os.path.join(target_path, att.filename)
         # TODO: schema validation
         rc = await server.node.write_file(target_file, att.url, True)
         if rc != UploadStatus.OK:
             if rc == UploadStatus.WRITE_ERROR:
-                await ctx.send(_('Error while uploading file to node {}!').format(server.node.name))
+                await message.channel.send(_('Error while uploading file to node {}!').format(server.node.name))
                 return
             elif rc == UploadStatus.READ_ERROR:
-                await ctx.send(_('Error while reading file from discord.'))
+                await message.channel.send(_('Error while reading file from discord.'))
         if plugin:
             await self.bot.reload(name)
             await message.channel.send(_("Plugin {} re-loaded.").format(name.title()))

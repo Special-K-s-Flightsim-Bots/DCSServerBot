@@ -2,7 +2,8 @@ import discord
 import json
 import os
 
-from core import Plugin, Status, PersistentReport, Channel, utils, Server, Report, get_translation, Group
+from core import Plugin, Status, PersistentReport, Channel, utils, Server, Report, get_translation, Group, \
+    ServerUploadHandler
 from discord import app_commands
 from discord.ext import tasks, commands
 from discord.utils import MISSING
@@ -124,32 +125,26 @@ class Pretense(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # ignore bot messages
-        if message.author.bot:
-            return
-        if not message.attachments or not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
+        if message.author.bot or not message.attachments:
             return
 
-        server = self.bot.get_server(message, admin_only=True)
+        if isinstance(message.author, discord.User):
+            member = await self.bot.get_member(message.author.id)
+            if not member:
+                return
+            # this is quite a hack honestly, but it works
+            message.author = member
+
+        server = await ServerUploadHandler.get_server(message)
+        if not server:
+            ctx = await self.bot.get_context(message)
+            await ctx.send(_('Upload aborted.'))
+            return
+
         for attachment in message.attachments:
             if not (attachment.filename in ['player_stats.json', 'player_stats_v2.0.json'] or
                     (attachment.filename.startswith('pretense') and attachment.filename.endswith('.json'))):
                 continue
-            if not server:
-                ctx = await self.bot.get_context(message)
-                # check if there is a central admin channel configured
-                admin_channel = self.bot.locals.get('channels', {}).get('admin')
-                if not admin_channel or admin_channel != message.channel.id:
-                    return
-                try:
-                    server = await utils.server_selection(self.bot, ctx,
-                                                          title=_("To which server do you want to upload to?"))
-                    if not server:
-                        await ctx.send(_('Upload aborted.'))
-                        return
-                except Exception as ex:
-                    self.log.exception(ex)
-                    return
             try:
                 filename = os.path.join(await server.get_missions_dir(), 'Saves', attachment.filename)
                 await server.node.write_file(filename, attachment.url, overwrite=True)
@@ -159,7 +154,6 @@ class Pretense(Plugin):
                 await message.channel.send(_('Pretense file {} could not be uploaded!').format(attachment.filename))
             finally:
                 await message.delete()
-
 
 
 async def setup(bot: DCSServerBot):
