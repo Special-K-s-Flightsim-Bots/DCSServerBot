@@ -2617,6 +2617,8 @@ class Mission(Plugin[MissionEventListener]):
                         linked_members.add(member)
             holders = set(role.members) if self.bot.intents.members else set()
             for member in (linked_members - holders):
+                if role in member.roles:
+                    continue
                 await member.add_roles(role)
                 self.log.debug(f"=> Member {member.display_name} is linked and got the {role.name} role.")
 

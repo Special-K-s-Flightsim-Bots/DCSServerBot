@@ -643,9 +643,6 @@ function onMissionEvent(event)
             if msg.initiator ~= nil and msg.initiator.position ~= nil and msg.target.position ~= nil then
                 msg.distance = get_distance(msg.initiator.position.point, msg.target.position.point)
             end
-            if event.id == world.event.S_EVENT_HIT then
-                msg.comment = string.format("Life: %.2f", msg.target.life)
-            end
 
         elseif category == Object.Category.WEAPON then
             msg.target.type = 'WEAPON'

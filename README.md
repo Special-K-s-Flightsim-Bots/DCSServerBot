@@ -189,10 +189,10 @@ The bot needs a unique Token per installation. This one can be obtained at http:
 - Select "Bot" from the left menu and give it a nice name, icon, and maybe a banner.
 - Press "Reset Token" and then "Copy" to get your token. 
 - Now your Token is in your clipboard. Paste it in some editor for later use. 
-- If your Discord server has less than 10.000 members, please enable these two "Privileged Gateway Intents":
+- If your Discord server has _less than 10.000 members_, please enable these two "Privileged Gateway Intents":
   - Server Members Intent
   - Message Content Intent
-- If you have _more_ than 10.000 members, you have to answer the respective question during the installation process.
+- If you have _more than 10.000 members_, you have to answer the respective question during the installation process.
 - To add the bot to your Discord "guild" (aka your Discord server), select "OAuth2" from the left menu
 - Select the "bot" checkbox in "OAuth2 URL Generator"
 - Select the following "Bot Permissions":
