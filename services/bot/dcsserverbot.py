@@ -58,16 +58,12 @@ class DCSServerBot(commands.Bot):
         self._audit_cursor = None
         self._member_snapshots = {}
 
-    async def start(self, token: str, *, reconnect: bool = True) -> None:
-        self.synced: bool = False
-        if not self.intents.members:
-            interval = max(15, self.locals.get('audit_log', {}).get('poll_interval', 30))
-            self.audit_poll.change_interval(seconds=interval)
-            self.audit_poll.start()
-        await super().start(token, reconnect=reconnect)
-
     async def connect(self, *, reconnect: bool = True) -> None:
         try:
+            if not self.intents.members:
+                interval = max(15, self.locals.get('audit_log', {}).get('poll_interval', 30))
+                self.audit_poll.change_interval(seconds=interval)
+                self.audit_poll.start()
             await super().connect(reconnect=reconnect)
         except PrivilegedIntentsRequired:
             self.log.critical(
