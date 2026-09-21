@@ -60,8 +60,9 @@ Also, you can configure how often the audit log is polled:
 
 ```yaml
 # config/services/bot.yaml
+privileged_intents: false # Do not use privileged intents
 audit_log:
-  poll_interval: 30  # 30 seconds, by default. Minimum: 15s. 
+  poll_interval: 30       # 30 seconds, by default. Minimum: 15s. 
 ```
 
 > [!CAUTION]
