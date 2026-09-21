@@ -15,7 +15,7 @@ import warnings
 from contextlib import suppress
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
     Group, ReportEnv, command, PlayerType, DataObjectFactory, Member, DEFAULT_TAG, get_translation, \
-    UnsupportedMizFileException, cache_with_expiration
+    UnsupportedMizFileException, cache_with_expiration, ServerUploadHandler
 from datetime import datetime, timezone
 from discord import Interaction, app_commands, SelectOption
 from discord.app_commands import Range, describe
@@ -2732,14 +2732,8 @@ class Mission(Plugin[MissionEventListener]):
             return
 
         ctx = await self.bot.get_context(message)
-        server: Server | None = self.bot.get_server(message, admin_only=True)
+        server = await ServerUploadHandler.get_server(message)
         if not server:
-            server: Server | None = await utils.server_selection(
-                self.bot, ctx, title=_("To which server do you want to upload?")
-            )
-
-        if not server:
-            await message.channel.send(_("Aborted."))
             return
 
         if server.status not in [Status.PAUSED, Status.RUNNING]:
@@ -2753,7 +2747,10 @@ class Mission(Plugin[MissionEventListener]):
             coalition: str | None = await utils.selection(
                 ctx,
                 title=_("Upload to all warehouses of this coalition:"),
-                options=[SelectOption(label="Blue", value="BLUE"), SelectOption(label="Red", value="RED")]
+                options=[
+                    SelectOption(label="Blue", value="BLUE"),
+                    SelectOption(label="Red", value="RED")
+                ]
             )
             if not coalition:
                 await message.channel.send(_("Aborted."))

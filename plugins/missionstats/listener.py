@@ -257,7 +257,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
         elif data['eventName'] in ['S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT']:
             initiator = data['initiator']
             # no stats for Neutral
-            coalition: Coalition = self.COALITION[initiator['coalition']]
+            coalition: Coalition = self.COALITION[initiator.get('coalition', 0)]
             if coalition == Coalition.NEUTRAL:
                 return
 

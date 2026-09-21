@@ -21,6 +21,11 @@ class Discord(Plugin):
         super().__init__(bot)
         self.reaction_message_id = None
 
+    async def cog_load(self) -> None:
+        if self.get_config().get('ping_everyone') and not self.bot.intents.message_content:
+            self.log.warning("The ping_everyone check is configured, but you do not have the Message Content Intent "
+                             "enabled in your Discord Developer Portal!")
+
     async def on_ready(self):
         config = self.get_config()
         for role_id in config.get('roles', {}).keys():
@@ -323,6 +328,8 @@ class Discord(Plugin):
             return
         config = self.get_config().get('ping_everyone')
         if not config:
+            return
+        if not self.bot.intents.message_content:  # fake @everyone detection needs the content
             return
         # only report members that do not have the permission to ping @everyone or @here
         if ('@everyone' in message.content or '@here' in message.content) and not message.mention_everyone:

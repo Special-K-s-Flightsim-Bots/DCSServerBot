@@ -3,14 +3,13 @@ from __future__ import annotations
 import importlib
 import io
 import logging
-import zlib
-
 import luadata
 import os
 import re
 import shutil
 import tempfile
 import zipfile
+import zlib
 
 from astral import LocationInfo
 from astral.sun import sun
