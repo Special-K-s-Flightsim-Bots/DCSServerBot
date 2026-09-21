@@ -2808,7 +2808,7 @@ class Mission(Plugin[MissionEventListener]):
         if message.author.bot or not message.attachments:
             return
 
-        if isinstance(message.author, discord.User):
+        if not isinstance(message.author, discord.Member):
             member = await self.bot.get_member(message.author.id)
             if not member:
                 await message.channel.send(_("You need to be a member of the Discord server to upload files."))

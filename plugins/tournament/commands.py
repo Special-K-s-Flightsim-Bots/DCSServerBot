@@ -2498,7 +2498,7 @@ class Tournament(Plugin[TournamentEventListener]):
         if message.author.bot or not message.attachments:
             return
 
-        if isinstance(message.author, discord.User):
+        if not isinstance(message.author, discord.Member):
             member = await self.bot.get_member(message.author.id)
             if not member:
                 return

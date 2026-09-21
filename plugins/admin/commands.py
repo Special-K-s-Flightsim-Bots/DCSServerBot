@@ -1548,7 +1548,7 @@ Please make sure you forward the following ports:
         if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.yaml'):
             return
 
-        if isinstance(message.author, discord.User):
+        if not isinstance(message.author, discord.Member):
             member = await self.bot.get_member(message.author.id)
             if not member:
                 return

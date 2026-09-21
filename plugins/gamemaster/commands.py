@@ -7,7 +7,7 @@ import os
 import psycopg
 
 from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, get_translation, PlayerType, \
-    Player
+    Player, ConfigModal
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
@@ -248,6 +248,73 @@ class GameMaster(Plugin[GameMasterEventListener]):
         })
         await interaction.response.send_message(_('Script loaded.'), ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f"loaded LUA script {filename}", user=interaction.user, server=server)
+
+    marker = Group(name="marker", description=_("Manage markers on the map"))
+
+    @marker.command(description=_('Sets a marker onto the map'))
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    @app_commands.guild_only()
+    async def set(self, interaction: discord.Interaction,
+                  server: app_commands.Transform[Server, utils.ServerTransformer(status=[
+                      Status.RUNNING, Status.PAUSED
+                  ])],
+                  to: Literal['all', 'red', 'blue']):
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
+            return
+
+        modal = ConfigModal(title="Marker Values", config={
+            "lat": {
+                "type": str,
+                "label": "LAT",
+                "required": True
+            },
+            "lon": {
+                "type": str,
+                "label": "LAT",
+                "required": True
+            },
+            "text": {
+                "type": str,
+                "label": "Text",
+                "required": True
+            },
+            "readonly": {
+                "type": bool,
+                "label": "Read Only",
+                "default": False,
+                "required": False
+            },
+            "message": {
+                "type": str,
+                "label": "Popup Message",
+                "required": False
+            }
+        })
+        await interaction.response.send_modal(modal)
+        if await modal.wait():
+            return
+
+        config = utils.DictWrapper(modal.value, return_none=True)
+        marker_id = await server.setMarker(
+            Coalition(to), config.lat, config.lon, config.text, config.readonly, config.message
+        )
+        await interaction.followup.send(_("Marker {} set").format(marker_id))
+
+    @marker.command(description=_('Removes a marker from the map'))
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    @app_commands.guild_only()
+    async def remove(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[
+                         Status.RUNNING, Status.PAUSED
+                     ])],
+                     marker_id: int):
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
+            return
+
+        await server.removeMarker(marker_id)
+        await interaction.followup.send(_("Marker {} removed").format(marker_id))
 
     @command(description=_('Reset coalition cooldown'))
     @app_commands.guild_only()
@@ -571,6 +638,16 @@ class GameMaster(Plugin[GameMasterEventListener]):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
+        if message.author.bot or not message.attachments:
+            return
+
+        if not isinstance(message.author, discord.Member):
+            member = await self.bot.get_member(message.author.id)
+            if not member:
+                return
+            # this is quite a hack honestly, but it works
+            message.author = member
+
         patterns = [r'\.lua$', r'\.json$']
         config = self.get_config().get('uploads', {})
         if GameMasterUploadHandler.is_valid(

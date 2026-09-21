@@ -128,12 +128,15 @@ class Pretense(Plugin):
         if message.author.bot or not message.attachments:
             return
 
-        if isinstance(message.author, discord.User):
+        if not isinstance(message.author, discord.Member):
             member = await self.bot.get_member(message.author.id)
             if not member:
                 return
             # this is quite a hack honestly, but it works
             message.author = member
+
+        if not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
+            return
 
         server = await ServerUploadHandler.get_server(message)
         if not server:
