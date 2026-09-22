@@ -603,8 +603,8 @@ function onMissionEvent(event)
             msg.initiator.unit_type = unit:getTypeName()
 
         else
-            -- skip the initiator but keep the event
-            env.error("Unknown initiator category received: %d", category)
+            -- ignore the event
+            return
         end
     end
 
@@ -680,8 +680,8 @@ function onMissionEvent(event)
             msg.target.unit_type = unit:getTypeName()
 
         else
-            -- skip the target but keep the event
-            env.error("Unknown target category received: %d", category)
+            -- ignore the event
+            return
         end
     end
 
