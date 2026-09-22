@@ -2611,7 +2611,10 @@ class Mission(Plugin[MissionEventListener]):
         if role:
             linked_members: set[discord.Member] = set()
             async with self.apool.connection() as conn:
-                async for row in await conn.execute(""" ... same SQL ... """):
+                async for row in await conn.execute("""
+                    SELECT DISTINCT discord_id FROM players 
+                    WHERE discord_id <> -1 AND manual IS TRUE
+                """):
                     member = await self.bot.get_member(row[0])
                     if member:
                         linked_members.add(member)
