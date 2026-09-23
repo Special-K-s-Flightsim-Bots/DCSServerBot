@@ -18,7 +18,7 @@ class TokenBearer(HTTPBearer):
         self.plugin = plugin
         self.jwt_client = jwt.PyJWKClient(jwks_url)
 
-    async def __call__(self, request: Request, allow_ip_check: bool = True):
+    async def __call__(self, request: Request):
         try:
             credentials: HTTPAuthorizationCredentials | None = await super().__call__(request)
         except HTTPException:

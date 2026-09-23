@@ -155,9 +155,9 @@ class DKS(Plugin):
             os.replace(tmp, config)
 
             if await self.bot.reload_plugin("RestAPI"):
-                asyncio.create_task(self.update_embed(_("Your bot is now connected to DKS!")))
+                await self.update_embed(_("Your bot is now connected to DKS!"))
             else:
-                asyncio.create_task(self.update_embed(_("Restarting DCSServerBot ...")))
+                await self.update_embed(_("Restarting DCSServerBot ..."))
                 await self.node.restart()
 
             return {
@@ -176,7 +176,7 @@ class DKS(Plugin):
     @utils.app_has_role('Admin')
     async def register(self, interaction: discord.Interaction):
         restapi = cast(RestAPI, self.bot.cogs.get('RestAPI'))
-        if restapi.get_config().get('jwt') and not await utils.yn_question(
+        if restapi.get_config().get('auth', {}).get('jwt') and not await utils.yn_question(
                 interaction,
                 message=_("You have a JWT key configured for your RestAPI service already."),
                 question=_("Do you want to overwrite it?")
