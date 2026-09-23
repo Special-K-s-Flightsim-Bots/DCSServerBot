@@ -53,6 +53,12 @@ schema;element_schema:
         threshold: {type: float, nullable: false, required: true}
         activation_threshold: {type: int, nullable: false}
         message: {type: str, nullable: false, range: {min: 1}}
+    names:
+      type: map
+      nullable: false
+      mapping:
+        pattern: {type: any, func: str_or_list}
+        message: {type: str, nullable: false, range: {min: 1}}
     messages:
       type: map
       nullable: false
