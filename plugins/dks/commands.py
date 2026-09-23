@@ -75,6 +75,8 @@ class DKS(Plugin):
         while not self.bot.cogs.get("RestAPI"):
             await asyncio.sleep(0.1)
 
+        # also, wait for the bot before exposing API endpoints
+        await self.bot.wait_until_ready()
         if self.app:
             self.register_routes()
         else:
@@ -82,12 +84,6 @@ class DKS(Plugin):
             return
 
     def register_routes(self):
-        restapi = cast(RestAPI, self.bot.cogs.get('RestAPI'))
-
-        prefix = restapi.get_config().get('prefix', '')
-        if prefix and not prefix.startswith('/'):
-            prefix = '/' + prefix
-
         self.router = APIRouter(prefix=self._get_prefix())
         if not self.router:
             return
