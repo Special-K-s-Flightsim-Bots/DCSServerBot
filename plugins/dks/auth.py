@@ -64,7 +64,7 @@ class TokenBearer(HTTPBearer):
             )
 
             otp = data.pop("otp", None)
-            if otp and otp != self.plugin.otp:
+            if not otp or otp != self.plugin.otp:
                 self.plugin.log.debug("verify_token(): OTP does not match.")
                 return None
 

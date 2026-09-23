@@ -1,15 +1,14 @@
 import asyncio
 import base64
-import json
-import aiohttp
 import discord
 import os
 import secrets
 
 from asyncio import Task
 from contextlib import suppress
-from core import Plugin, Group, PluginRequiredError, utils, get_translation, ServiceRegistry, PluginInstallationError, \
-    ServiceProxy, DEFAULT_TAG
+from core import (Plugin, Group, PluginRequiredError, utils, get_translation, ServiceRegistry, PluginInstallationError,
+                  ServiceProxy, DEFAULT_TAG)
+from discord import app_commands
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from pathlib import Path
 from plugins.dks.views import RegisterView
@@ -66,7 +65,7 @@ class DKS(Plugin):
                 return
             if self.web_service and self.web_service.is_running():
                 break
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(1)
         else:
             self.log.error(f"  - {self.__cog_name__}: WebService is not running, aborted.")
             return
@@ -150,11 +149,16 @@ class DKS(Plugin):
                 }
             })
 
-            with Path(config).open(mode='w', encoding='utf-8') as outfile:
-                yaml.dump(data, outfile)
+            tmp = Path(config).with_suffix('.yaml.tmp')
+            with tmp.open('w', encoding='utf-8') as f:
+                yaml.dump(data, f)
+            os.replace(tmp, config)
 
-            asyncio.create_task(self.bot.reload_plugin("RestAPI"))
-            asyncio.create_task(self.update_embed(_("Your bot is now connected to DKS!")))
+            if await self.bot.reload_plugin("RestAPI"):
+                asyncio.create_task(self.update_embed(_("Your bot is now connected to DKS!")))
+            else:
+                asyncio.create_task(self.update_embed(_("Restarting DCSServerBot ...")))
+                await self.node.restart()
 
             return {
                 "guild_id": self.node.guild_id,
@@ -168,6 +172,8 @@ class DKS(Plugin):
     dks = Group(name="dks", description=_("Commands to manage Digital Kneeboard Simulator"))
 
     @dks.command(name="register")
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
     async def register(self, interaction: discord.Interaction):
         restapi = cast(RestAPI, self.bot.cogs.get('RestAPI'))
         if restapi.get_config().get('jwt') and not await utils.yn_question(
