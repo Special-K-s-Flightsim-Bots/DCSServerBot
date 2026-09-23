@@ -26,13 +26,11 @@ class TokenBearer(HTTPBearer):
             credentials = None
 
         if not credentials or credentials.scheme != 'Bearer':
-            asyncio.create_task(self.plugin.update_embed(_("Registration failed. DKS passed no bearer token.")))
+            self.plugin.log.warning("register_dks: called without a bearer token.")
             raise HTTPException(status_code=403, detail="Invalid or expired token")
         payload = await self.verify_token(credentials.credentials)
         if not payload:
-            asyncio.create_task(self.plugin.update_embed(
-                _("Registration failed. DKS passed an invalid/outdated token."))
-            )
+            self.plugin.log.warning("register_dks: invalid or expired token.")
             raise HTTPException(status_code=403, detail="Invalid or expired token")
 
         request.state.jwt_token = credentials.credentials
@@ -46,13 +44,13 @@ class TokenBearer(HTTPBearer):
             kid = header.get("kid")
 
             if not kid:
-                self.plugin.log.debug("verify_token(): No kid present.")
+                self.plugin.log.warning("verify_token(): No kid present.")
                 return None
 
             signing_key = await asyncio.to_thread(self.jwt_client.get_signing_key, kid)
 
             if not signing_key:
-                self.plugin.log.debug("verify_token(): No signing key present.")
+                self.plugin.log.warning("verify_token(): No signing key present.")
                 return None
 
             data = jwt.decode(
@@ -65,11 +63,11 @@ class TokenBearer(HTTPBearer):
 
             otp = data.pop("otp", None)
             if not otp or otp != self.plugin.otp:
-                self.plugin.log.debug("verify_token(): OTP does not match.")
+                self.plugin.log.warning("verify_token(): OTP does not match.")
                 return None
 
             return data
 
         except Exception as ex:
-            self.plugin.log.debug(f"verify_token(): Exception: {ex}")
+            self.plugin.log.warning(f"verify_token(): Exception: {ex}")
             return None

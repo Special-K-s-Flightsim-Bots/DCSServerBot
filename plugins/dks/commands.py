@@ -88,7 +88,7 @@ class DKS(Plugin):
         if prefix and not prefix.startswith('/'):
             prefix = '/' + prefix
 
-        self.router = APIRouter(prefix=prefix)
+        self.router = APIRouter(prefix=self._get_prefix())
         if not self.router:
             return
 
@@ -131,6 +131,10 @@ class DKS(Plugin):
             if self.msg:
                 await self.msg.edit(content=message, embed=None, view=None)
                 self.msg = None
+
+    def _get_prefix(self) -> str:
+        prefix = cast(RestAPI, self.bot.cogs.get('RestAPI')).get_config().get('prefix', '')
+        return f"/{prefix}" if prefix and not prefix.startswith('/') else prefix
 
     async def register_dks(self, request: Request):
         try:
@@ -195,7 +199,7 @@ class DKS(Plugin):
         if not callback_url:
             host = self.get_config().get('host', f"http://{webservice.node.public_ip}")
             port = webservice.get_ports()['WebService'].port
-            callback_url = f"{host}:{port}/register_dks"
+            callback_url = f"{host}:{port}{self._get_prefix()}/register_dks"
         url = DKS_URL.format(otp=self.generate_otp(), callback_url=quote(callback_url))
         embed = discord.Embed(
             color=discord.Color.blue(),
