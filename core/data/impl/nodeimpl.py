@@ -240,6 +240,10 @@ class NodeImpl(Node):
     def listen_port(self) -> Port:
         return Port(self.locals.get('listen_port', 10042), PortType.UDP)
 
+    @property
+    def heartbeat_timeout(self) -> int:
+        return self.locals.get('cluster', {}).get('heartbeat_timeout', 20)
+
     def register_callback(self, what: str, name: str, func: Callable[[], Awaitable[Any]]):
         if what == 'before_dcs_update':
             self.before_update[name] = func
@@ -463,11 +467,7 @@ class NodeImpl(Node):
         return self.apool != self.cpool
 
     async def close_db(self):
-        if self._heartbeat_conn and not self._heartbeat_conn.closed:
-            try:
-                await self._heartbeat_conn.close()
-            except Exception as ex:
-                self.log.exception(ex)
+        await self._drop_heartbeat_conn(log_exception=True)
         if self.pool and not self.pool.closed:
             try:
                 self.pool.close()
@@ -1092,6 +1092,16 @@ class NodeImpl(Node):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 await utils.safe_cancel(self.autoupdate)
 
+    async def _drop_heartbeat_conn(self, *, log_exception: bool = False) -> None:
+        conn, self._heartbeat_conn = self._heartbeat_conn, None
+        if not conn or conn.closed:
+            return
+        try:
+            await conn.close()
+        except Exception as ex:
+            if log_exception:
+                self.log.exception(ex)
+
     async def heartbeat(self) -> bool:
         lock_key = zlib.crc32(f"DCSSB:{self.guild_id}".encode("utf-8"))
 
@@ -1100,7 +1110,12 @@ class NodeImpl(Node):
             if not self._heartbeat_conn or self._heartbeat_conn.closed:
                 self._heartbeat_conn = await psycopg.AsyncConnection.connect(
                     self.cpool.conninfo,
-                    autocommit=True
+                    autocommit=True,
+                    connect_timeout=10,
+                    keepalives=1,
+                    keepalives_idle=30,
+                    keepalives_interval=10,
+                    keepalives_count=3
                 )
             return self._heartbeat_conn
 
@@ -1377,27 +1392,28 @@ class NodeImpl(Node):
     @tasks.loop(seconds=5.0)
     async def heartbeat_loop(self):
         try:
-            self._claimed_master = await self.heartbeat()
+            self._claimed_master = await asyncio.wait_for(
+                self.heartbeat(), timeout=self.heartbeat_timeout)
+            self._heartbeat_pool_errors = 0
             if self.heartbeat_loop.seconds == 10.0:
                 self.heartbeat_loop.change_interval(seconds=5.0)
+        except (TimeoutError, asyncio.TimeoutError):
+            self.log.warning(f"Heartbeat timeout after {self.heartbeat_timeout}s, "
+                             f"dropping the connection and retrying ...")
+            await self._drop_heartbeat_conn()
         except psycopg_pool.PoolTimeout:
-            current_stats = self.cpool.get_stats()
-            self.log.warning(f"Pool stats: {repr(current_stats)}")
+            self._heartbeat_pool_errors += 1
+            self.log.warning(f"Pool stats ({self._heartbeat_pool_errors}): {self.cpool.get_stats()!r}")
             if self.heartbeat_loop.seconds == 5.0:
                 self.heartbeat_loop.change_interval(seconds=10.0)
-            else:
+            elif self._heartbeat_pool_errors >= 12:
                 await self.restart()
         except FatalException as ex:
             self.log.critical(ex)
             exit(SHUTDOWN)
         except (psycopg.OperationalError, psycopg.InterfaceError) as ex:
             self.log.warning(f"Database connection error in heartbeat: {ex}")
-            if self._heartbeat_conn and not self._heartbeat_conn.closed:
-                try:
-                    await self._heartbeat_conn.close()
-                except Exception:
-                    pass
-            self._heartbeat_conn = None
+            await self._drop_heartbeat_conn()
         except Exception as ex:
             self.log.exception(ex)
             await self.restart()
