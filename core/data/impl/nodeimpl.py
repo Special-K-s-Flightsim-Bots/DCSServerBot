@@ -119,6 +119,7 @@ class NodeImpl(Node):
         self._heartbeat_conn: psycopg.AsyncConnection | None = None
         self._master = None
         self._ready = False
+        self._heartbeat_pool_errors = 0
         self._claimed_master =None
 
     @property
