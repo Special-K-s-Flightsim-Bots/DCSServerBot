@@ -109,6 +109,7 @@ class NodeImpl(Node):
         self.dcs_branch = None
         self.all_nodes: dict[str, Node | None] = {self.name: self}
         self.suspect: dict[str, Node] = {}
+        self._missed_nodes: dict[str, int] = {}
         self.update_pending = False
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = {}
@@ -117,6 +118,7 @@ class NodeImpl(Node):
         self.apool: AsyncConnectionPool | None = None
         self.cpool: AsyncConnectionPool | None = None
         self._heartbeat_conn: psycopg.AsyncConnection | None = None
+        self._heartbeat_write_error = False
         self._master = None
         self._ready = False
         self._heartbeat_pool_errors = 0
@@ -244,6 +246,10 @@ class NodeImpl(Node):
     @property
     def heartbeat_timeout(self) -> int:
         return self.locals.get('cluster', {}).get('heartbeat_timeout', 20)
+
+    @property
+    def unregister_grace_ticks (self) -> int:
+        return self.locals.get('cluster', {}).get('unregister_grace_ticks', 60)
 
     def register_callback(self, what: str, name: str, func: Callable[[], Awaitable[Any]]):
         if what == 'before_dcs_update':
@@ -443,12 +449,28 @@ class NodeImpl(Node):
         self.log.debug("- Initializing database pools ...")
         self.pool = ConnectionPool(lpool_url, name="SyncPool", min_size=2, max_size=10,
                                    check=ConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,
-                                   open=False)
+                                   open=False,
+                                   kwargs={
+                                       'connect_timeout': 10,
+                                       'keepalives': 1,
+                                       'keepalives_idle': 30,
+                                       'keepalives_interval': 10,
+                                       'keepalives_count': 3}
+                                   )
         self.pool.open()
 
-        self.apool = AsyncConnectionPool(conninfo=lpool_url, name="AsyncPool", min_size=pool_min, max_size=pool_max,
-                                         check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,
-                                         num_workers=num_workers, max_waiting=max_waiting, open=False)
+        self.apool = AsyncConnectionPool(
+            conninfo=lpool_url, name="AsyncPool", min_size=pool_min, max_size=pool_max,
+            check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,
+            num_workers=num_workers, max_waiting=max_waiting, open=False,
+            kwargs = {
+                'connect_timeout': 10,
+                'keepalives': 1,
+                'keepalives_idle': 30,
+                'keepalives_interval': 10,
+                'keepalives_count': 3
+            }
+        )
         await self.apool.open()
 
         # initialize the cluster pool
@@ -457,7 +479,14 @@ class NodeImpl(Node):
             # create the fast cluster pool
             self.cpool = AsyncConnectionPool(
                 conninfo=cpool_url, name="ClusterPool", min_size=2, max_size=4,
-                check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout, open=False)
+                check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout, open=False,
+                kwargs={
+                    'connect_timeout': 10,
+                    'keepalives': 1,
+                    'keepalives_idle': 30,
+                    'keepalives_interval': 10,
+                    'keepalives_count': 3}
+            )
             await self.cpool.open()
         else:
             self.cpool = self.apool
@@ -1238,6 +1267,9 @@ class NodeImpl(Node):
                     warn=False
                 )
 
+            for node_name in self._missed_nodes.keys() & active_nodes:
+                self._missed_nodes.pop(node_name, None)
+
             # remove nodes that are no longer active
             for node_name in all_nodes - active_nodes:
                 # we are never part of the active nodes list
@@ -1248,6 +1280,14 @@ class NodeImpl(Node):
                 if not node:
                     continue
                 self.log.error(f"Node {node.name} is not responding.")
+                misses = self._missed_nodes.get(node_name, 0) + 1
+                if misses < self.unregister_grace_ticks:
+                    self._missed_nodes[node_name] = misses
+                    self.log.warning(f"Node {node.name} missed {misses}/{self.unregister_grace_ticks} "
+                                     f"windows, not unregistering yet ...")
+                    continue
+                self._missed_nodes.pop(node_name, None)  # threshold reached → fence
+
                 await bus.unregister_remote_node(node)
                 await bot.alert(
                     title=_("Node {node} is not responding").format(node=node.name),
@@ -1383,8 +1423,15 @@ class NodeImpl(Node):
                                         SET last_seen = (NOW() AT TIME ZONE 'UTC'),
                                             ready     = EXCLUDED.ready
                                 """, (self.guild_id, self.name, self._ready))
-                        except Exception:
-                            pass  # inner exception is already propagating
+                            self._heartbeat_write_error = False
+                        except Exception as ex:
+                            if not self._heartbeat_write_error:
+                                self.log.warning(
+                                    f"Could not refresh node liveness: {ex}. "
+                                    f"Node unregistered after {self.locals.get('cluster', {}).get('heartbeat', 30)}s!"
+                                )
+                                self._heartbeat_write_error = True
+
         except (UndefinedTable, UndefinedColumn):
             # We should only be here when the CLUSTER table does not exist or needs to be updated.
             # It will be created directly afterward.
