@@ -2446,15 +2446,14 @@ class Mission(Plugin[MissionEventListener]):
             rows = await cursor.fetchall()
             for row in rows:
                 for server in self.bot.servers.values():
-                    if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
-                        continue
-                    await server.send_to_dcs({
-                        "command": "unban",
-                        "ucid": row[0]
-                    })
                     player = server.get_player(ucid=row[0])
                     if player:
                         player.banned = False
+                    if server.status in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
+                        await server.send_to_dcs({
+                            "command": "unban",
+                            "ucid": row[0]
+                        })
                 # delete unbanned accounts from the database
                 await conn.execute("DELETE FROM bans WHERE ucid = %s", (row[0], ))
 

@@ -738,7 +738,8 @@ class MissionEventListener(EventListener["Mission"]):
         player.connected = True
 
         # security check, if a banned player somehow managed to get here (should never happen)
-        if player.is_banned():
+        if await self.bus.is_banned(player.ucid):
+            player.banned = True
             asyncio.create_task(server.kick(player, messages['message_ban'].format('n/a')))
             return
 
