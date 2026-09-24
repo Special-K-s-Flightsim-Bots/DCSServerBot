@@ -498,8 +498,6 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
                 embed.set_author(name=member.display_name, icon_url=member.avatar)
                 if 'error' in kwargs:
                     embed.set_thumbnail(url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
-                else:
-                    embed.set_thumbnail(url=member.avatar)
                 if member != self.member:
                     embed.description = f'<@{member.id}> ' + message
                 else:
