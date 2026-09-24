@@ -15,7 +15,7 @@ from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, Fil
 from fastapi.security import APIKeyHeader, HTTPBearer, HTTPAuthorizationCredentials
 from pathlib import Path
 from starlette.requests import Request
-from typing import Any, Literal, Optional, cast, TYPE_CHECKING, Callable
+from typing import Any, Literal, cast, TYPE_CHECKING, Callable
 
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
