@@ -109,7 +109,6 @@ class NodeImpl(Node):
         self.dcs_branch = None
         self.all_nodes: dict[str, Node | None] = {self.name: self}
         self.suspect: dict[str, Node] = {}
-        self._missed_nodes: dict[str, int] = {}
         self.update_pending = False
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = {}
@@ -248,8 +247,9 @@ class NodeImpl(Node):
         return self.locals.get('cluster', {}).get('heartbeat_timeout', 20)
 
     @property
-    def unregister_grace_ticks (self) -> int:
-        return self.locals.get('cluster', {}).get('unregister_grace_ticks', 60)
+    def unregister_grace(self) -> int:
+        heartbeat = self.locals.get('cluster', {}).get('heartbeat', 30)
+        return max(self.locals.get('cluster', {}).get('unregister_grace', heartbeat * 2), heartbeat)
 
     def register_callback(self, what: str, name: str, func: Callable[[], Awaitable[Any]]):
         if what == 'before_dcs_update':
@@ -1248,9 +1248,11 @@ class NodeImpl(Node):
             from services.bot import BotService
             from services.servicebus import ServiceBus
 
-            active_nodes = set(await self.get_active_nodes())
             all_nodes = set(self.all_nodes.keys())
             ready_nodes = await self.get_ready_nodes()
+            # grace: only fence nodes whose last_seen is older than the grace budget
+            stale_nodes = set(await self.get_active_nodes(self.unregister_grace))
+
             bus = cast(ServiceBus, ServiceRegistry.get(ServiceBus))
             bot = cast(BotService, ServiceRegistry.get(BotService))
 
@@ -1267,11 +1269,8 @@ class NodeImpl(Node):
                     warn=False
                 )
 
-            for node_name in self._missed_nodes.keys() & active_nodes:
-                self._missed_nodes.pop(node_name, None)
-
             # remove nodes that are no longer active
-            for node_name in all_nodes - active_nodes:
+            for node_name in all_nodes - stale_nodes:
                 # we are never part of the active nodes list
                 if node_name == self.name:
                     continue
@@ -1279,15 +1278,8 @@ class NodeImpl(Node):
                 # remove known inactive nodes
                 if not node:
                     continue
-                self.log.error(f"Node {node.name} is not responding.")
-                misses = self._missed_nodes.get(node_name, 0) + 1
-                if misses < self.unregister_grace_ticks:
-                    self._missed_nodes[node_name] = misses
-                    self.log.warning(f"Node {node.name} missed {misses}/{self.unregister_grace_ticks} "
-                                     f"windows, not unregistering yet ...")
-                    continue
-                self._missed_nodes.pop(node_name, None)  # threshold reached → fence
 
+                self.log.error(f"Node {node.name} is not responding.")
                 await bus.unregister_remote_node(node)
                 await bot.alert(
                     title=_("Node {node} is not responding").format(node=node.name),
@@ -1428,7 +1420,7 @@ class NodeImpl(Node):
                             if not self._heartbeat_write_error:
                                 self.log.warning(
                                     f"Could not refresh node liveness: {ex}. "
-                                    f"Node unregistered after {self.locals.get('cluster', {}).get('heartbeat', 30)}s!"
+                                    f"Node unregistered after {self.unregister_grace}s!"
                                 )
                                 self._heartbeat_write_error = True
 
@@ -1466,14 +1458,16 @@ class NodeImpl(Node):
             self.log.exception(ex)
             await self.restart()
 
-    async def get_active_nodes(self) -> list[str]:
+    async def get_active_nodes(self, timeout: int | None = None) -> list[str]:
+        if timeout is None:
+            timeout = self.locals.get('cluster', {}).get('heartbeat', 30)
         async with self.cpool.connection() as conn:
             query = sql.SQL("""
                 SELECT node FROM nodes 
                 WHERE guild_id = %s
                 AND node <> %s
                 AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval {interval})
-            """).format(interval=sql.Literal(f"{self.locals.get('cluster', {}).get('heartbeat', 30)} seconds"))
+            """).format(interval=sql.Literal(f"{timeout} seconds"))
             cursor = await conn.execute(query, (self.guild_id, self.name))
             return [row[0] async for row in cursor]
 

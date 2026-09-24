@@ -28,7 +28,7 @@ mapping:
           no_master: {type: bool, nullable: false}
           heartbeat: {type: int, range: {min: 10}, nullable: false}
           heartbeat_timeout: {type: int, range: {min: 5}, nullable: false}
-          unregister_grace_ticks: {type: int, range: {min: 1}, nullable: false}
+          unregister_grace: {type: int, range: {min: 10}, nullable: false}
           cloud_drive: {type: bool, nullable: false}
       auto_affinity:
         type: map
