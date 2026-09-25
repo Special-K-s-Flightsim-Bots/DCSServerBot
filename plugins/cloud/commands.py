@@ -466,6 +466,10 @@ class Cloud(Plugin[CloudListener]):
         await self.bot.wait_until_ready()
 
     async def sync_stats(self) -> int:
+        # ensure the session
+        if not self._session:
+            _ = self.session
+        
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
