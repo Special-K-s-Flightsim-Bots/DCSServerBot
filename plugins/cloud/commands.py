@@ -204,9 +204,13 @@ class Cloud(Plugin[CloudListener]):
                 async with session_method(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth, **kwargs) as response:
                     return await response.json()
             except (aiohttp.ClientError, asyncio.TimeoutError) as ex:
-                if isinstance(ex, aiohttp.ClientResponseError) and ex.status == 403:
-                    raise ex
-
+                if isinstance(ex, aiohttp.ClientResponseError):
+                    if ex.status in [401, 403]:
+                        raise ex
+                    elif ex.status == 422:
+                        self.log.warning(f"Unprocessable Content: {kwargs['json']}")
+                        raise ex
+                
                 last_error = ex
 
                 if isinstance(ex, (aiohttp.ClientConnectorError, aiohttp.ServerDisconnectedError)):
@@ -215,7 +219,7 @@ class Cloud(Plugin[CloudListener]):
                     self._session = None
 
                 if attempt >= retries:
-                    self.log.warning("Cloud service unavailable.")
+                    self.log.warning(f"Cloud service unavailable: {last_error}")
                     raise
 
         if last_error:
