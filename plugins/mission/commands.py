@@ -26,7 +26,7 @@ from openpyxl.utils import get_column_letter
 from pathlib import Path
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Literal, Type, cast
+from typing import Literal, Type, cast, Callable
 
 from .airbase import Info
 from .const import LIQUIDS
@@ -200,9 +200,13 @@ class Mission(Plugin[MissionEventListener]):
         self.expire_token.add_exception_type(psycopg.DatabaseError)
         utils.safe_start(self.expire_token)
         if self.bot.locals.get('autorole', {}):
-            self.check_roles.add_exception_type(psycopg.DatabaseError)
-            self.check_roles.add_exception_type(discord.errors.DiscordException)
-            utils.safe_start(self.check_roles)
+            if self.bot.intents.members:
+                self.check_roles.add_exception_type(psycopg.DatabaseError)
+                self.check_roles.add_exception_type(discord.errors.DiscordException)
+                utils.safe_start(self.check_roles)
+            else:
+                self.log.warning("\"autorole\" is configured, but you do not have the Server Members Intent enabled in "
+                                 "your Discord Developer Portal!")
 
     async def cog_unload(self):
         tasks = []
@@ -218,7 +222,7 @@ class Mission(Plugin[MissionEventListener]):
     async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
         function_name = f"migrate_{new_version.replace('.', '_')}"
         migrate_module = importlib.import_module('.migrate', package=__package__)
-        migrate_function = getattr(migrate_module, function_name, None)
+        migrate_function = cast(Callable, getattr(migrate_module, function_name, None))
         if callable(migrate_function):
             if inspect.iscoroutinefunction(migrate_function):
                 await migrate_function(self)
@@ -2586,25 +2590,19 @@ class Mission(Plugin[MissionEventListener]):
 
     @tasks.loop(minutes=5.0, count=1)
     async def check_roles(self):
-        # Removing stale roles needs role.members (GUILD_MEMBERS intent).
-        # Without the intent, role members cannot be enumerated - the online role
-        # is maintained by the connect/disconnect events instead.
-        if self.bot.intents.members:
-            role = self.bot.get_role(self.bot.locals.get('autorole', {}).get('online'))
-            if role:
-                online_members: set[discord.Member] = set()
-                for server in self.bot.servers.values():
-                    for player in server.get_active_players():
-                        if player.member:
-                            online_members.add(player.member)
-                try:
-                    for member in (set(role.members) - online_members):
-                        await member.remove_roles(role)
-                except discord.Forbidden:
-                    await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
-                    return
-        else:
-            self.log.debug("Stale online-role cleanup skipped: no members intent.")
+        role = self.bot.get_role(self.bot.locals.get('autorole', {}).get('online'))
+        if role:
+            online_members: set[discord.Member] = set()
+            for server in self.bot.servers.values():
+                for player in server.get_active_players():
+                    if player.member:
+                        online_members.add(player.member)
+            try:
+                for member in (set(role.members) - online_members):
+                    await member.remove_roles(role)
+            except discord.Forbidden:
+                await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+                return
 
         role = self.bot.get_role(self.bot.locals.get('autorole', {}).get('linked'))
         if role:
@@ -2613,6 +2611,7 @@ class Mission(Plugin[MissionEventListener]):
                 async for row in await conn.execute("""
                     SELECT DISTINCT discord_id FROM players 
                     WHERE discord_id <> -1 AND manual IS TRUE
+                      AND last_seen > (CURRENT_TIMESTAMP - interval '1 day')
                 """):
                     member = await self.bot.get_member(row[0])
                     if member:

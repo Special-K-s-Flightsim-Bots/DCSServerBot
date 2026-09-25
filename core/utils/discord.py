@@ -919,6 +919,9 @@ async def get_all_linked_members(
     The function streams rows from the DB, looks up each member in the
     guild cache and stops as soon as 25 matches have been found.
     """
+    if not interaction.client.intents.members:
+        return []
+
     search_lc = search.lower() if search else None
 
     results: list[discord.Member] = []
@@ -932,7 +935,7 @@ async def get_all_linked_members(
             mid = row[0]
             ucid = row[1]
 
-            member = await interaction.client.get_member(mid)
+            member = interaction.client.guilds[0].get_member(mid)
             if not member:
                 continue  # member not there – skip
 
