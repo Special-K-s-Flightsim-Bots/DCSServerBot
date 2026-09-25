@@ -402,7 +402,7 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
                 self.log.info(f"A new LotAtc update is available. Updating to version {version} ...")
                 await asyncio.to_thread(self.do_update)
                 if version != self.get_inst_version()[1]:
-                    self.log.error(f"LotAtc update failed: {version} is not the expected version {self.get_inst_version()[1]}!")
+                    self.log.error(f"LotAtc update failed: {self.get_inst_version()[1]} is not the expected version {version}!")
                     return
 
                 self.log.info("LotAtc installation updated.")

@@ -1,9 +1,11 @@
 import aiohttp
 import asyncio
+import certifi
 import discord
 import logging
-import psycopg
 import os
+import psycopg
+import ssl
 import zipfile
 
 from contextlib import suppress
@@ -33,9 +35,10 @@ class CloudLoggingHandler(logging.Handler):
     @property
     def session(self):
         if not self._session or self._session.closed:
+            headers = {"Content-type": "application/json", 'X-Guild-Id': str(self.node.guild_id)}
             self._session = aiohttp.ClientSession(
-                raise_for_status=True,
-                timeout=aiohttp.ClientTimeout(total=10)
+                connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
+                raise_for_status=True, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
             )
         return self._session
 
@@ -77,14 +80,19 @@ class CloudLoggingHandler(logging.Handler):
         # log the error to the central database
         with suppress(Exception):
             # noinspection PyUnresolvedReferences
-            await self.session.post(self.url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth, json={
-                "guild_id": self.node.guild_id,
-                "version": f"{self.node.bot_version}.{self.node.sub_version}",
-                "filename": file,
-                "lineno": line,
-                "message": exc.__class__.__name__ + ': ' + record.message,
-                "stacktrace": '\n'.join(trace)
-            })
+            await self.session.post(
+                self.url,
+                proxy=self.node.proxy,
+                proxy_auth=self.node.proxy_auth,
+                json={
+                    "guild_id": self.node.guild_id,
+                    "version": f"{self.node.bot_version}.{self.node.sub_version}",
+                    "filename": file,
+                    "lineno": line,
+                    "message": exc.__class__.__name__ + ': ' + record.message,
+                    "stacktrace": '\n'.join(trace)
+                }
+            )
 
     def emit(self, record: logging.LogRecord):
         if record.levelno in [logging.ERROR, logging.CRITICAL] and record.exc_info is not None:

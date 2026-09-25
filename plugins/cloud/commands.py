@@ -38,7 +38,6 @@ class Cloud(Plugin[CloudListener]):
             raise PluginConfigurationError(plugin=self.plugin_name, option=DEFAULT_TAG)
         self.base_url = None
         self._session = None
-        self.client = None
         self.guild_bans = []
         self.troublemakers = ThreadSafeDict()
 
@@ -51,11 +50,6 @@ class Cloud(Plugin[CloudListener]):
             if 'token' in self.config:
                 headers['Authorization'] = f"Bearer {self.config['token']}"
             headers['X-Guild-Id'] = str(self.node.guild_id)
-            self.client = {
-                "guild_id": self.bot.guilds[0].id,
-                "guild_name": self.bot.guilds[0].name,
-                "owner_id": self.bot.owner_id
-            }
             self._session = aiohttp.ClientSession(
                 connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
                 raise_for_status=True, headers=headers
@@ -66,7 +60,6 @@ class Cloud(Plugin[CloudListener]):
         await super().cog_load()
         self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
         self._session = None
-        self.client = None
         # cloud bans / troublemakers
         self.cloud_bans.add_exception_type(IndexError)
         self.cloud_bans.add_exception_type(aiohttp.ClientError)
@@ -145,8 +138,12 @@ class Cloud(Plugin[CloudListener]):
                 async with session_method(url, proxy=proxy, proxy_auth=proxy_auth, **kwargs) as response:
                     return await response.json()
             except (aiohttp.ClientError, asyncio.TimeoutError) as ex:
-                if isinstance(ex, aiohttp.ClientResponseError) and ex.status in [401, 403]:
-                    raise ex
+                if isinstance(ex, aiohttp.ClientResponseError):
+                    if ex.status in [401, 403]:
+                        raise ex
+                    elif ex.status == 422:
+                        self.log.warning(f"Unprocessable Content: {url} - {kwargs['json']}")
+                        raise ex
 
                 last_error = ex
 
@@ -156,7 +153,7 @@ class Cloud(Plugin[CloudListener]):
                     self._session = None
 
                 if attempt >= retries:
-                    self.log.warning("Cloud service unavailable.")
+                    self.log.warning(f"Cloud service unavailable: {last_error}")
                     raise
 
         if last_error:
@@ -434,6 +431,7 @@ class Cloud(Plugin[CloudListener]):
                             "linked_at": linked_at.isoformat(),
                             "last_seen": player['last_seen'].isoformat()
                         })
+
                     await cursor.execute("""
                         SELECT s.player_ucid, m.mission_theatre, s.slot, 
                                SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
@@ -451,7 +449,6 @@ class Cloud(Plugin[CloudListener]):
                         GROUP BY 1, 2, 3
                     """, (row['ucid'], ))
                     async for line in cursor:
-                        line['client'] = self.client
                         await self.post('upload', line)
                     await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
 

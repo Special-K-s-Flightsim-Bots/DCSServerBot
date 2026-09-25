@@ -257,7 +257,6 @@ class CloudListener(EventListener["Cloud"]):
                 """, (player.ucid, server.current_mission.map, player.unit_type))
                 row: dict | None = await cursor.fetchone()
         if row:
-            row['client'] = self.plugin.client
             try:
                 await self.plugin.post('upload', row)
             except aiohttp.ClientError:
