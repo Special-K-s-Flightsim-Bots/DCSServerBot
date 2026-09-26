@@ -91,7 +91,9 @@ class ModManagerService(Service):
                     if package.get('version', 'latest') == 'latest':
                         _version = await self.get_latest_version(package)
                     else:
-                        _version = package['version']
+                        _version = package.get('version')
+                        if _version is not None:
+                            _version = str(_version)
                     # check for valid versions
                     if _version is None:
                         self.log.warning(f"{package['name']} without version in {folder.name}, skipped!")
