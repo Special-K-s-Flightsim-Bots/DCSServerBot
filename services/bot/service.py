@@ -237,12 +237,15 @@ class BotService(Service):
             if channel:
                 if server and filename:
                     file = await server.node.read_file(filename)
-                    zip_buffer = BytesIO()
-                    with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
-                        zip_file.writestr(filename, file)
-                    file = zip_buffer.getvalue()
-                    filename += '.zip'
-                    attachment = discord.File(fp=BytesIO(file), filename=os.path.basename(filename))
+                    if not file:
+                        self.log.warning(f"Logfile attachment skipped because file is empty: {filename}")
+                    else:
+                        zip_buffer = BytesIO()
+                        with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
+                            zip_file.writestr(filename, file)
+                        file = zip_buffer.getvalue()
+                        filename += '.zip'
+                        attachment = discord.File(fp=BytesIO(file), filename=os.path.basename(filename))
 
                 await channel.send(content=mentions, embed=embed, file=attachment)
             else:
