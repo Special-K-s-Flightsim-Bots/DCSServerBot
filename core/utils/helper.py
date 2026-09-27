@@ -579,12 +579,16 @@ def dynamic_import(package_name: str):
     package = importlib.import_module(package_name)
     prefix = package.__name__ + '.'
 
+    # Import every entry the walk yields -- modules as well as packages. Importing only packages
+    # made discovery depend on each package's ``__init__`` importing its own service module (the
+    # ``@ServiceRegistry.register`` decorator runs on import), so a package that resolves its
+    # exports lazily silently unregistered its service.
     for loader, module_name, is_pkg in pkgutil.walk_packages(package.__path__, prefix):
-        if is_pkg:
-            try:
-                importlib.import_module(module_name)
-            except Exception as ex:
-                logger.error(f"Failed to import {module_name} due to {ex}, skipping.")
+        try:
+            importlib.import_module(module_name)
+        except Exception as ex:
+            logger.error(f"Failed to import {module_name} due to {ex}, skipping.")
+
 
 def async_cache(func: Callable):
     cache: dict[Any, Any] = {}

@@ -40,6 +40,9 @@ __all__ = [
     "yn_question",
     "populated_question",
     "check_roles",
+    "holds_scope",
+    "member_scope_tokens",
+    "may_manage_server",
     "has_role",
     "has_roles",
     "app_has_role",
@@ -410,6 +413,50 @@ def check_roles(roles: Iterable[str | int], member: discord.Member | None = None
             role_names.add(valid_role)
 
     return any(role.id in role_ids or role.name in role_names for role in member.roles)
+
+
+def holds_scope(managed_by: Iterable[Any] | None, scope_tokens: Iterable[Any] | None) -> bool:
+    """True when a caller holding *scope_tokens* may see/act on a server with this ``managed_by``.
+
+    THE rule, in one place. An empty ``managed_by`` means "no restriction" (True); otherwise the
+    caller must hold one of the listed roles, matched on **either** an id or a name — the semantics
+    :func:`check_roles` has always had, which is why a ``managed_by`` list may mix ids and names and
+    a token set carries both.
+    """
+    if not managed_by:
+        return True
+    return not set(managed_by).isdisjoint(scope_tokens or ())
+
+
+def member_scope_tokens(member) -> frozenset[Any]:
+    """The comparison tokens of *member*: its role ids AND role names.
+
+    Exactly the pair :func:`check_roles` builds from a member's roles, so a ``managed_by`` entry
+    matches here iff it matched there. Read tolerantly (a member without ``roles`` — a headless
+    double, a REST snapshot — yields nothing, which denies a restricted server rather than
+    crashing).
+    """
+    tokens: set[Any] = set()
+    for role in getattr(member, "roles", None) or ():
+        role_id = getattr(role, "id", None)
+        if isinstance(role_id, int) and not isinstance(role_id, bool):
+            tokens.add(role_id)
+        name = getattr(role, "name", None)
+        if isinstance(name, str) and name:
+            tokens.add(name)
+    return frozenset(tokens)
+
+
+def may_manage_server(managed_by, member, *, is_admin: bool) -> bool:
+    """The Discord Server picker's rule, verbatim: the restriction applies to the admin class only.
+
+    ``is_admin`` is the command's own check (the picker derives it from the command's first role
+    check), and a non-admin caller passes — that asymmetry is Discord's behaviour and it is preserved
+    here rather than "fixed", because this card is behaviour-preserving.
+    """
+    if not is_admin:
+        return True
+    return holds_scope(managed_by, member_scope_tokens(member))
 
 
 @deprecated("Use app_has_role instead")
@@ -1017,11 +1064,11 @@ class ServerTransformer(app_commands.Transformer):
             server = interaction.client.servers.get(value)
             is_admin = self.is_admin(interaction)
 
-            if not server or (
-                is_admin and
-                server.locals.get('managed_by') and
-                not utils.check_roles(server.locals.get('managed_by'), interaction.user)
-            ):
+            # The restriction is the shared `may_manage_server` rule (services/webservice/scope.py),
+            # NOT a re-statement of it: an admin-class caller may only name a server whose
+            # `managed_by` roles they hold, a non-admin caller is not restricted here at all.
+            if not server or not may_manage_server(server.locals.get('managed_by'),
+                                                   interaction.user, is_admin=is_admin):
                 raise app_commands.TransformerError(value, self.type, self)
         else:
             server = interaction.client.get_server(interaction)
@@ -1062,8 +1109,8 @@ class ServerTransformer(app_commands.Transformer):
                     continue
                 if current_lc and current_lc not in name.casefold():
                     continue
-                if (is_admin and value.locals.get('managed_by') and
-                        not utils.check_roles(value.locals.get('managed_by'), interaction.user)):
+                if not may_manage_server(value.locals.get('managed_by'), interaction.user,
+                                         is_admin=is_admin):
                     continue
 
                 choices.append(app_commands.Choice[str](name=name, value=name))
