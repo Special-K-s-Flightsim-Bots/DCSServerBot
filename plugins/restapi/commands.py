@@ -1326,7 +1326,7 @@ class RestAPI(Plugin):
     async def mission_drawings(
         self,
         server_name: str = Query(..., description="Name of the server")
-    ) -> dict[str, Any]:
+    ) -> MissionDrawingsResponse:
         """Return mission drawings grouped by layer name."""
         resolved_server_name, server = self.get_resolved_server(server_name)
         if not server:
@@ -1371,9 +1371,9 @@ class RestAPI(Plugin):
                 elif _is_lua_null_placeholder(layer_data):
                     normalized_drawings[layer_name] = []
 
-        return {
-            "drawings": normalized_drawings
-        }
+        return MissionDrawingsResponse(
+            drawings=normalized_drawings
+        )
 
     # Get current and mission-related data for a named unit.
     # Endpoint:   /mission/unit

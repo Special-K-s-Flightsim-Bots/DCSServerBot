@@ -2000,7 +2000,7 @@ class MissionDrawing(BaseModel):
 
 
 class MissionDrawingsResponse(BaseModel):
-    drawings: dict[str, list[dict[str, MissionDrawing]]] = Field(
+    drawings: dict[str, list[MissionDrawing]] = Field(
         ...,
         description="Drawings keyed by layer name; each drawing contains primitive-specific fields"
     )
