@@ -13,7 +13,7 @@ COMMAND_LINE_ARGS = None
 # The programs this module defines arguments for.  Only these may consume the process argv:
 # any other importer (pytest, `python -m ...`, an embedder) owns its own flags, and parsing
 # them here kills the host process with a SystemExit(2) no `except Exception` can catch.
-OWNED_PROGRAMS = {'run.py', 'update.py', 'install.py', 'mizedit.py', 'recover.py', 'testdriver.py'}
+OWNED_PROGRAMS = {'run.py', 'update.py', 'install.py', 'mizedit.py', 'restore.py', 'testdriver.py'}
 
 if not COMMAND_LINE_ARGS:
     program = os.path.basename(sys.argv[0])
