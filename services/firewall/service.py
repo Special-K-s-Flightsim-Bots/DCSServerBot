@@ -1221,7 +1221,6 @@ class FirewallService(Service):
     # Manual pause / resume of DDoS detection
     # ------------------------------------------------------------------
 
-    @proxy
     async def pause_detection(self, scope: str) -> str:
         """
         Pause DDoS detection for a given scope.
@@ -1240,7 +1239,6 @@ class FirewallService(Service):
         self.log.info(f"DDoS detection paused: {scope}")
         return f"DDoS detection paused: {scope}."
 
-    @proxy
     async def resume_detection(self, scope: str) -> str:
         """
         Resume DDoS detection for a given scope.
