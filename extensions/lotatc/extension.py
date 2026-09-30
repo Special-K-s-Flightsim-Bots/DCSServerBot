@@ -26,7 +26,7 @@ from watchdog.observers import Observer
 _ = get_translation(__name__.split('.')[1])
 
 UPDATER_CODE = '4dctdtna'
-MISSION_SCRIPTING = 'dofile(lfs.writedir().."Mods\\services\\LotAtc\\lua utils\\lotatcMissionServer.lua")'
+MISSION_SCRIPTING = 'dofile(lfs.writedir().."Mods/services/LotAtc/lua utils/lotatcMissionServer.lua")'
 
 __all__ = [
     "LotAtc"
