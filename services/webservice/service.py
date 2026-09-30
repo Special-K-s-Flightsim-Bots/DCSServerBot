@@ -11,6 +11,7 @@ from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
 from pathlib import Path
 from services.servicebus import ServiceBus
+from services.webservice.shell import create_app, frontend_enabled, install_shell
 from starlette.requests import Request
 from typing_extensions import override
 from uvicorn import Config
@@ -35,8 +36,11 @@ class WebService(Service):
 
         self.task = None
         self.server = None
+        self.ui = None
+        #: the upgrade poll's task (card W7b) — created in ``start()``, cancelled in ``stop()``
+        self.upgrade_task = None
         if cfg:
-            self.app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+            self.app = self._create_app()
             self.config = Config(
                 app=self.app,
                 host=cfg.get('listen', '0.0.0.0'),
@@ -49,10 +53,6 @@ class WebService(Service):
             )
             self.config.extra_kwargs = {"backlog": 2048}
             self.server = uvicorn.Server(config=self.config)
-
-            # add debug endpoints
-            if cfg.get('debug', False):
-                self.add_debug_routes()
         else:
             self.app = None
 
@@ -78,7 +78,33 @@ class WebService(Service):
                 with open(new_config, mode='w', encoding='utf-8') as new_out:
                     yaml.dump(new, new_out)
 
-    def add_debug_routes(self):
+    def _create_app(self) -> FastAPI:
+        """Create the FastAPI app and install the admin web shell on it.
+
+        Called from both app-creation paths: __init__ (config exists) and start() (after stop()
+        dropped the app, e.g. across a master/agent switch). The shell install is idempotent, the
+        app object is not — anything registered in __init__ only would be gone after a takeover.
+        """
+        app = create_app()
+        # debug endpoints first: they are created through the app, so they carry the access gate,
+        # and they keep their own local-networks-only dependency (which the gate recognises as a
+        # route that guards itself)
+        if self.get_config().get('debug', False):
+            self.add_debug_routes(app)
+        if frontend_enabled(self.get_config()):
+            self.ui = install_shell(app, self.node, self.get_config())
+        else:
+            # ``frontend: false`` — install NO shell at all: no page route, no ``/auth/*``, no
+            # session middleware, no shell assets and no UI background work. The ``auth:`` block is
+            # not evaluated (the whole install is skipped), so a stale login block cannot hold an
+            # API-only operator hostage, and the REST API is untouched. The refusal handlers, the
+            # access gate and the debug endpoints come from ``create_app`` and stay as they are.
+            self.ui = None
+            self.log.info(f"{self.name}: The admin frontend is disabled (frontend: false); the "
+                          f"auth block was skipped and this service runs as a REST API only.")
+        return app
+
+    def add_debug_routes(self, app: FastAPI):
         self.log.warning("WebService: Debug is enabled, you might expose your API functions!")
 
         # enable debug logging for FastAPI
@@ -99,20 +125,20 @@ class WebService(Service):
                 raise HTTPException(status_code=404, detail="Not found.")
 
         # Enable OpenAPI schema
-        self.app.add_api_route(
+        app.add_api_route(
             "/openapi.json",
             lambda: get_openapi(
                 title="DCSServerBot REST API",
                 version=f"{self.node.bot_version}.{self.node.sub_version}",
                 description="REST functions to be used for DCSServerBot.",
-                routes=self.app.routes,
+                routes=app.routes,
             ),
             include_in_schema=False,
             dependencies=[Depends(local_networks_only)]
         )
 
         # Enable Swagger UI
-        self.app.add_api_route(
+        app.add_api_route(
             "/docs",
             lambda: get_swagger_ui_html(
                 openapi_url="/openapi.json",
@@ -123,7 +149,7 @@ class WebService(Service):
         )
 
         # Enable ReDoc
-        self.app.add_api_route(
+        app.add_api_route(
             "/redoc",
             lambda: get_redoc_html(
                 openapi_url="/openapi.json",
@@ -141,11 +167,8 @@ class WebService(Service):
         await super().start()
 
         if not self.app:
-            self.app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+            self.app = self._create_app()
             self.config.app = self.app
-
-            if self.get_config().get('debug', False):
-                self.add_debug_routes()
 
         # run server in the background but guard against SystemExit
         async def run_server():
@@ -170,9 +193,48 @@ class WebService(Service):
                     break
 
         self.task = asyncio.create_task(run_server())
+        # THE UPGRADE POLL (card W7b): a background check of every node the console knows, from the
+        # node's OWN API (``Node.upgrade_pending()``) — never from a page render. The four triggers
+        # live in ``services/webservice/upgrade.py`` (start = the poller's first, full sweep);
+        # "immediately after an Upgrade is accepted" is the node route's own call to
+        # ``upgrade.check_node``, and a node coming online is a newcomer the sampler notices.
+        #
+        # It is UI BACKGROUND WORK, so with the frontend off it must not run at all: no node is
+        # ever polled for a console nobody serves (``frontend_enabled`` is the one rule the app
+        # factory reads too).
+        if frontend_enabled(self.get_config()):
+            self.upgrade_task = asyncio.create_task(self._poll_upgrades())
+
+    async def _poll_upgrades(self) -> None:
+        """Sample the cluster for pending upgrades and refresh the cache the render reads.
+
+        The task lives for the service's lifetime and does NOTHING but the poll: each tick asks
+        :func:`services.webservice.upgrade.console_nodes` for the current registry and lets the
+        poller decide which nodes to check (newcomers, and every node on a due sweep). Every failure
+        is contained — a poll that raises must never take the webservice down with it, and the
+        cache simply keeps its last honest value.
+        """
+        from services.webservice import upgrade as upgrade_signal
+
+        poller = upgrade_signal.UpgradePoller()
+        while True:
+            try:
+                await poller.tick(upgrade_signal.console_nodes())
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                self.log.exception("WebService: the upgrade check sweep failed.")
+            await asyncio.sleep(poller.sample_seconds)
 
     @override
     async def stop(self):
+        if self.upgrade_task:
+            # the poll runs for the service's lifetime: end it with the service, and wait for the
+            # cancellation so a master/agent switch cannot leave a poller sampling a stopped app.
+            self.upgrade_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.upgrade_task
+            self.upgrade_task = None
         if self.task:
             self.server.should_exit = True
             # Explicitly trigger the shutdown of the uvicorn server
@@ -195,6 +257,7 @@ class WebService(Service):
                 self.server = uvicorn.Server(config=self.config)
                 self.task = None
                 self.app = None
+                self.ui = None
         await super().stop()
 
     @override

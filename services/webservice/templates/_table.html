@@ -1,0 +1,78 @@
+{#-
+  ONE table component — the dashboard's list and every standalone list page render THIS markup.
+
+  A partial on purpose. The dashboard's state panel selects one table by tab and the standalone
+  Servers/Nodes/Instances/Players pages select one by their spec, but the card, the sortable header
+  row, the per-resource row shapes, the players search form and the empty state are ONE rendering —
+  a page that drew them again would be a second copy that drifts the first time a column is added.
+
+  IT COMPUTES NOTHING. `table` is a services.webservice.readmodels.views.TableView (rows in the
+  validated order, one column view per header with its link, its arrow and its `aria-sort`), `view`
+  a ViewState (so the search counts and the echoed query come from the same record the rows do) and
+  `empty` the read models' own copy. No direction logic, no count, no figure is derived here.
+
+  THE SEARCH IS A GET FORM (the players table only): it filters server-side on `?q=`, so it works
+  with JavaScript off, is linkable and mutates nothing. `search_action`/`search_clear`/
+  `search_hidden` are passed by the renderer, because the dashboard's search posts back to `/?tab=…`
+  and the standalone page's posts back to `/players`.
+
+  THE WRITE CONTROLS (`pages/actions.py`) are rendered by the servers and players branches below, as
+  FORMS — a POST per control, carrying the session's CSRF token and the target in the BODY — and only
+  when the renderer passed `row_controls` for the page (`writes=True` on the page spec, and the
+  dashboard's Servers tab) and for that row. `row_controls` is DATA and is keyed by the row's own
+  identity: a server's NAME (the record `pages/actions.server_controls` built — the strip, the menu,
+  the glyphs, the two names per control) or a player's `(server, ucid)` (a form with a message field,
+  W3). This file still derives nothing and renders NO control for a row the map has no entry for. The
+  SERVER strip itself is the partial `_strip.html`, one component used by both screens; a player
+  control is a small form of its own shape, and so is a NODE row's lifecycle trio (W4c-revised:
+  restart / shut down / upgrade, Admin-only, keyed by the node's name). When no row has a control,
+  the column is not rendered at all — no header, no empty cell — so a page with nothing to offer
+  looks exactly as it did before writes existed. A control is OMITTED, never rendered disabled. The
+  INSTANCE table has no write at all.
+-#}
+<div class="card">
+  <div class="hd"><h3>{{ table.label }}</h3><div class="spacer"></div>
+    <span class="tag">{{ table.sorted_label }}</span>
+    <span class="tag">{{ 'actions' if row_controls is defined and row_controls else 'read-only' }}</span></div>
+
+  {% if table.name == 'players' %}
+  <form class="search" method="get" action="{{ search_action }}" role="search">
+    <label for="q">Search players</label>
+    <input type="search" id="q" name="q" value="{{ view.search.query }}" placeholder="name or UCID, e.g. Viper-1 or 4b1f9c22">
+    {% for key, value in search_hidden.items() %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+    <button type="submit">Search</button>
+    <a href="{{ search_clear }}">Clear</a>
+  </form>
+  <p class="sub search-state">{% if view.search.active %}{{ view.search.label }} · <a href="{{ search_clear }}">clear</a>{% else %}{{ view.search.total }} player(s) online{% endif %}</p>
+  {% endif %}
+
+  {% if table.rows %}
+  <div class="tbl sbar">
+    <table>
+      <thead>
+        <tr>
+          {% for column in table.columns %}<th scope="col" aria-sort="{{ column.aria_sort }}" class="{{ 'num' if column.kind == 'num' else 'txt' }}"><a class="sort" href="{{ column.link }}" title="{{ column.title }}">{{ column.label }} <span class="ar" aria-hidden="true">{{ column.arrow }}</span></a></th>{% endfor %}
+          {% if row_controls is defined and row_controls %}<th scope="col" class="acts">Actions</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+      {% if table.name == 'servers' %}
+        {% for row in table.rows %}<tr><td><b>{{ row.name }}</b><div class="meta">node {{ row.node_name }}{% if row.instance_name %} · instance {{ row.instance_name }}{% endif %}{% if row.port %} · :{{ row.port }}{% endif %}</div></td><td>{{ row.node_name }}</td><td><span class="dot {{ row.status.dot }}" title="{{ row.status.raw }}" aria-hidden="true"></span> <span class="tag">{{ row.status.word }}</span>{% if row.maintenance %} <span class="tag">maintenance</span>{% endif %}</td><td>{{ row.mission_name or '—' }}</td><td class="num">{{ row.mission_label }}</td><td class="num">{{ row.active_players }} player(s)</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get(row.name) %}{% if strip %}{% include "_strip.html" %}{% if strip.get('note') %}<span class="act-note">{{ strip.get('note') }}</span>{% endif %}{% endif %}</td>{% endif %}</tr>
+        {% endfor %}
+      {% elif table.name == 'nodes' %}
+        {% for row in table.rows %}<tr><td><b>{{ row.name }}</b>{% if row.master %} <span class="tag">master</span>{% endif %} <span class="tag">{{ 'online' if row.online else 'offline' }}</span>{% if not row.instances %}<div class="meta">{{ empty.node_instances }}</div>{% endif %}</td><td class="num">{{ row.instances }}</td><td class="num">{{ row.servers }}</td><td class="num">{{ row.players }}</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get(row.name) %}{% if strip %}{% include "_strip.html" %}{% if strip.get('note') %}<span class="act-note">{{ strip.get('note') }}</span>{% endif %}{% endif %}</td>{% endif %}</tr>
+        {% endfor %}
+      {% elif table.name == 'instances' %}
+        {% for row in table.rows %}<tr><td><b>{{ row.name }}</b></td><td>{{ row.node_name }}</td><td>{{ row.server_name or '—' }}</td><td class="num">{{ row.dcs_port or '—' }}</td><td class="num">{{ row.webgui_port or '—' }}</td></tr>
+        {% endfor %}
+      {% elif table.name == 'players' %}
+        {% for row in table.rows %}<tr><td><b>{{ row.name }}</b></td><td class="mono">{{ row.ucid }}</td><td>{{ row.server_name }}</td><td>{{ row.slot }}</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get((row.server_name, row.ucid)) %}{% if strip %}{% include "_strip.html" %}{% endif %}</td>{% endif %}</tr>
+        {% endfor %}
+      {% endif %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="bd"><p class="empty">{% if table.name == 'players' and view.search.active %}{{ empty.players_matched }}{% else %}{{ empty[table.name] }}{% endif %}</p></div>
+  {% endif %}
+</div>

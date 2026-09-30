@@ -1,0 +1,147 @@
+{#-
+  THE CONFIRMATION — one destructive server action, in the user's terms, on its own page.
+
+  Frank's decision (2026-09-28): `restart`, `shutdown` and `stop` all confirm. This page is the
+  dialog: it names the CONSEQUENCE FIRST (the red-edged warning block), then what will actually
+  happen, then the two ways out — `Cancel` (left, autofocused, a plain link home) and the destructive
+  button (right).
+
+  IT IS A REAL FORM. The primary button posts to the ACTION's own route with:
+    * the session's CSRF field,
+    * the target in the BODY (never in a URL),
+    * the command's own OPTION, when the action declares one (`dialog.inputs`: a checkbox plus the
+      hidden companion that says "off" — a cleared box sends no field of its own),
+    * and, for a DESTRUCTIVE action, the ONE-SHOT CONFIRM TOKEN minted when this dialog was rendered
+      (`pages/actions`). That action's route refuses a POST that did not come through here, so the
+      confirmation is a control and not a screen: `curl` cannot skip it
+      (`tests/test_webui_write_server_actions.py`).
+
+  ONE TEMPLATE, TWO KINDS OF PAGE, and the difference is DATA on `dialog`, never a condition on an
+  action's name: `dialog.tag` names what this page is ("confirm", or "options" for a form that only
+  clears a state), `dialog.warning` renders the red-edged block (absent = no block at all),
+  `dialog.danger` tints the button, and `dialog.irreversible` decides the sentence that says the
+  operation cannot be undone from here. An online half of the node pair therefore wears none of the
+  confirmation chrome — the mockup's own rule (README-ACTIONS.md §6: offline confirms, online does
+  not) — while sharing the markup, the keyboard script and the token field with its destructive twin.
+
+  KEYBOARD BEHAVIOUR, stated because it is a script and the read pages load none: the design asks for
+  a dialog that a keyboard can dismiss and whose focus it cannot lose. Neither is possible from markup
+  alone, so this ONE page carries a small inline script (`block scripts`) — `Esc` goes back without
+  acting, `Tab` cycles between the two controls. It is a PROGRESSIVE ENHANCEMENT: with JavaScript off
+  the page renders in full, `Cancel` is autofocused and Enter dismisses (the destructive button is
+  never the default), and the markup is a real `role="dialog"` / `aria-modal` region so assistive
+  technology announces it as one.
+
+  THE SUBMIT IS ASYNCHRONOUS TOO, and it is no longer a script of this page's own (card W4h): the
+  interception W4e gave this dialog is now the console's ONE interceptor, `static/submit.js`, loaded
+  by `base.html` on every page so the ROW STRIP (which is on every page) submits in the background
+  too. The form here carries the two attributes that script reads: `data-async` (this is a background
+  write) and `data-back` (the page it returns to).
+
+  IT LEAVES THE MOMENT IT IS PRESSED (card W4m, Frank's third report). W4e's dialog WAITED for the
+  answer and filled a refusal line of its own; that is the behaviour he rejected twice — the modal
+  "still does not vanish the moment I press the button". There is no wait and no refusal line here
+  any more: on press the form fires its POST in the background and hands the page back at once, and a
+  refusal reaches the person through the console's OWN route-level mechanism — the one-shot notice,
+  rendered where they land and on the live path (`pages/live.py`'s `notice` target), which is the
+  same mechanism every other write already uses. Nothing is retried: a confirm token is spent by the
+  POST, so a re-send would only be refused a second time.
+-#}
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}{{ page_title }} — DCSServerBot{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ page_title }}</h1>
+  <div class="sub">Confirming: {{ dialog.go }}.</div>
+</div>
+
+<div class="dlg-back">
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+    <div class="hd">{% if dialog.danger %}{{ icons.act('warn') }}{% endif %}<h3 id="dlg-title">{{ dialog.heading }}</h3>{% if dialog.tag %}<span class="tag">{{ dialog.tag }}</span>{% endif %}</div>
+    <div class="bd">
+      {% if dialog.warning %}<div class="dlg-warn">{{ icons.act('warn') }}<span>{{ dialog.warning|safe }}</span></div>{% endif %}
+      <p class="dlg-what">{{ dialog.detail|safe }}</p>
+      <p class="dlg-what">Target: <span class="target">{{ dialog.target }}</span> — the action and your
+        name are written to the bot log{% if dialog.irreversible %}, and it cannot be undone from here{% endif %}.</p>
+    </div>
+    <div class="ft">
+      <form method="get" action="{{ back }}">
+        <button class="btn" type="submit" autofocus title="Cancel — go back without doing anything (Esc)">Cancel</button>
+      </form>
+      <span class="spacer"></span>
+      <form class="dlg-act" method="post" action="{{ dialog.path }}" data-async data-back="{{ back }}">
+        {% for field in dialog.inputs %}
+        {#- THREE INPUT SHAPES, and the order is the caller's: a HIDDEN field is rendered bare (it is
+            the OFF companion of the checkbox that follows it — never wrap it in a <p>, or the "off"
+            value would carry a label nobody wants), a CHECKBOX gets its label BESIDE it (a box above
+            its own legend reads as a fieldset), and everything else keeps the stacked field the kick
+            and ban reason use. -#}
+        {% if field.type == 'hidden' %}
+        <input type="hidden" name="{{ field.name }}" value="{{ field.value }}">
+        {% elif field.type == 'checkbox' %}
+        <p class="dlg-field opt">
+          <input type="checkbox" id="{{ field.id }}" name="{{ field.name }}" value="{{ field.value }}"
+                 {%- if field.checked %} checked{% endif %}>
+          <span class="opt-txt"><label for="{{ field.id }}">{{ field.label }}</label>
+            {% if field.help %}<span class="hint">{{ field.help }}</span>{% endif %}</span>
+        </p>
+        {% else %}
+        <p class="dlg-field">
+          <label for="{{ field.id }}">{{ field.label }}</label>
+          <input type="{{ field.type }}" id="{{ field.id }}" name="{{ field.name }}"
+                 {%- if field.max %} maxlength="{{ field.max }}"{% endif %}
+                 {%- if field.required %} required{% endif %}
+                 {%- if field.value %} value="{{ field.value }}"{% endif %}
+                 {%- if field.help %} aria-describedby="{{ field.id }}-help"{% endif %}>
+          {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ field.help }}</span>{% endif %}
+        </p>
+        {% endif %}
+        {% endfor %}
+        {#- THE WHOLE TARGET travels in the BODY (design §3.1): an action can never be pointed at
+            another server or another player by editing a URL. A player dialog carries the ucid as
+            well, which is why the hidden fields are a list rather than one hard-coded input. -#}
+        <input type="hidden" name="{{ dialog.csrf_field }}" value="{{ dialog.csrf_token }}">
+        {% for name, value in dialog.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+        {% if dialog.confirm_token %}<input type="hidden" name="{{ dialog.confirm_field }}" value="{{ dialog.confirm_token }}">{% endif %}
+        <button class="btn{{ ' danger' if dialog.danger else '' }}" type="submit" title="{{ dialog.go_title }}">{{ dialog.go }}</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+/* The dialog's keyboard contract — the ONE page-specific script left in the console (the read pages
+   load none; base.html loads `submit.js` on every page and shell.js for a page that passes `live`).
+   The design asks for a dialog a keyboard can dismiss and whose focus it cannot lose, and markup
+   alone gives neither. Progressive enhancement: with JavaScript off the page renders in full, Cancel
+   is autofocused and Enter dismisses, and the destructive button is never the default. The SUBMIT is
+   no longer here: it is the console's one interceptor, `static/submit.js`, which this page's form
+   opts into with `data-async` (see the block at the top of this file). */
+(function () {
+  "use strict";
+  var dialog = document.querySelector('[role="dialog"]');
+  if (!dialog) { return; }
+  var back = {{ back|tojson }};
+  var items = dialog.querySelectorAll("button, [href], input, select, textarea");
+  if (!items.length) { return; }
+  var first = items[0];
+  var last = items[items.length - 1];
+  first.focus();
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") { window.location.assign(back); }
+  });
+  dialog.addEventListener("keydown", function (event) {
+    if (event.key !== "Tab") { return; }
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); first.focus();
+    }
+  });
+})();
+</script>
+{% endblock %}

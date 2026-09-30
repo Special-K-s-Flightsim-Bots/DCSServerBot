@@ -1,0 +1,32 @@
+{#-
+  The console: the attention banner, the tab strip with its count badges, and the ONE list the
+  active tab shows — the fragment the live stream swaps when a server changes state.
+
+  A partial because the same markup is rendered by the initial page (via `dashboard.html`) and by
+  the `state` event (services/webservice/pages/live.py). EVERY VALUE IS READ FROM `state` (an
+  Overview built by the handler), from `view` (the validated tables: sorted rows, one link per
+  column header — the template computes NO direction logic) or from `console` (the banner, the
+  tabs and the tab in force, built by `pages/dashboard`). Nothing is typed here: a figure without a
+  source is the thing the read-model layer exists to prevent.
+
+  ONE LIST AT A TIME. The page never grows with the fleet: the tab decides which table renders and
+  the table scrolls inside its card. That is also why the three KPI tiles are gone — the badges
+  state those totals, and stating one fact twice on one page is the weight Frank called out.
+
+  THE TABLE ITSELF IS NOT HERE: it lives in `_table.html`, which the standalone Servers / Nodes /
+  Instances / Players pages include too. The three `set` lines below are the bridge — this panel
+  picks the tab's table and hands the search form the dashboard's own action/clear/hidden state, so
+  the component reads the same names on every surface it is rendered on.
+-#}
+{% include "_banner.html" %}
+
+<nav class="tabs" aria-label="Cluster">
+  {% for tab in console.tabs %}<a class="tab{{ ' on' if tab.active else '' }}" href="{{ tab.link }}"{% if tab.active %} aria-current="page"{% endif %}>{{ tab.label }} <span class="badge{{ ' bad' if tab.problem else '' }}"{% if tab.problem %} title="{{ tab.problem_text }}"{% endif %}>{{ tab.count }}</span>{% if tab.problem %}<span class="pdot" title="{{ tab.problem_text }}" aria-label="{{ tab.problem_text }}"></span>{% endif %}</a>
+  {% endfor %}
+</nav>
+
+{% set table = view.tables[console.tab] %}
+{% set search_action = console.search_action %}
+{% set search_clear = console.search_clear %}
+{% set search_hidden = console.search_hidden %}
+{% include "_table.html" %}

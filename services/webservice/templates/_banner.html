@@ -1,0 +1,16 @@
+{#-
+  The attention banner — the FIRST element of the console page.
+
+  It states what is wrong, IN WORDS, from fields the read models already carry (`console.banner`,
+  built by `pages/dashboard.attention`): a node not heartbeating, a server down or paused, ERROR
+  lines in the visible log. Every item carries its own dot AND its own sentence, so the state is
+  never colour-only; when the list is empty the banner renders the calm line instead of an empty
+  box (silence is the healthy state).
+
+  It is part of the STATE panel (not a swap target of its own), so a live refresh updates it with
+  the rest of the state. No write control, no link: it reports, it does not act.
+-#}
+<div class="banner {{ 'calm' if console.banner.ok else 'alert' }}" role="status">
+{% if console.banner.ok %}<span class="banner-calm"><span class="dot run" aria-hidden="true"></span>{{ console.banner.calm }}</span>
+{% else %}<ul class="banner-list">{% for item in console.banner.alerts %}<li class="banner-item"><span class="dot {{ item.dot }}" aria-hidden="true"></span>{{ item.text }}</li>{% endfor %}</ul>
+{% endif %}</div>

@@ -3,3 +3,87 @@ DEFAULT:
   debug: true       # Optional: enable /docs, /redoc and /openapi.json endpoints (see warning in README!)
   listen: 0.0.0.0   # The listner address (default: 0.0.0.0)
   port: 9876        # The webservice port (default: 9876)
+  # The log panel's default level filter: info (INFO and up, DEBUG hidden; the default) | warning |
+  #   all. The panel offers the same choice in the URL (?level=all) so a refresh keeps it.
+  log_level: info
+  # The admin frontend. Off = the service runs as a REST API only: no HTML page, no login, no session
+  # cookie, no shell assets, and none of the UI's background work. The REST API is unaffected.
+  frontend: true
+  # Live updates of the read-only dashboard: the log tail and the servers/KPI figures are pushed to
+  # the browser as rendered fragments (Server-Sent Events) so a reader does not have to refresh.
+  dashboard:
+    live: true            # Serve the live stream (default: true). Off = the page is not live.
+    refresh_seconds: 2    # How often the fragments are re-rendered and pushed, in seconds (default: 2)
+    stream_clients: 16    # Most concurrent live streams; past it a client gets its snapshot and the stream closes (default: 16)
+  # Session cookie of the admin web UI. Every value is explicit: nothing is derived from a request,
+  # so the cookie behaves the same behind a reverse proxy as it does on localhost.
+  session:
+    secret: SECRET_SESSION_KEY   # Optional: signs the session cookie. Unset = a random key per start (sessions die on restart)
+    # cookie_name: dcssb_session # Optional: the cookie name (default: dcssb_session)
+    # max_age: 86400             # Optional: session lifetime in seconds (default: 86400)
+    https_only: false          # The Secure flag on the session cookie. There is NO silent default: this
+                               #   sample listens on 0.0.0.0 over plain HTTP, so it sets `false` on
+                               #   purpose and the service logs a warning at startup until TLS is put in
+                               #   front (`true`) or the listener is bound to 127.0.0.1. REMOVE the key
+                               #   (or leave it empty) and it is derived from `listen`: loopback-only may
+                               #   skip Secure, anything reachable from the network must not.
+    # same_site: lax             # Optional: lax (default) | strict | none. Leave it at lax - strict breaks the OAuth callback
+  # The identity layer of the admin web UI. Optional: without it every non-public page answers 403
+  # (deny by default).
+  auth:
+    # The public origin this console is reachable at (scheme + host, explicit). Redirect URIs are
+    # built from this and never from a request.
+    public_base_url: http://localhost:9876
+    # Username + password login. Nothing is enabled unless `enabled: true` is set here.
+    local:
+      enabled: true
+      users:
+        # Generate the hash (never store a plaintext password):
+        #   python -m services.webservice.auth.local --hash --username specialk --roles Admin
+        - username: specialk
+          password_hash: pbkdf2_sha256$...
+          # Role NAMES of the bot's role model: the keys under `roles:` in bot.yaml plus the bot's
+          # own defaults (Admin, DCS Admin, DCS, GameMaster, Alert). Validated at startup - an
+          # unknown name is refused loudly instead of silently granting nothing.
+          roles: [Admin]
+    # Discord OAuth: the second door into the console. A signed-in Discord user's ROLES drive what
+    # they may do, through the RUNNING BOT's own role model (bot.yaml `roles:`, in its DISCORD
+    # meaning: a role NAME -> the Discord roles that grant it), so the console and the bot's
+    # commands can never disagree about who is an Admin.
+    #
+    # Scopes asked for: `identify` plus `guilds.members.read`. `identify` learns WHO signed in; the
+    # second scope is used for ONE user-side membership lookup (`/users/@me/guilds/<id>/member`) and
+    # only when the bot cannot read the guild's members itself - i.e. with `privileged_intents:
+    # false`, where discord.py has no member cache. The roles it returns are still expanded through
+    # the bot's role map, so the role model stays single-sourced.
+    #
+    # Register EXACTLY this redirect URI in the Discord developer portal
+    # (OAuth2 -> Redirects):
+    #     <auth.public_base_url>/auth/discord/callback
+    #   e.g. http://localhost:9876/auth/discord/callback with the public_base_url above.
+    # It is built from `auth.public_base_url` and NEVER from a request, so a proxy cannot move it.
+    #
+    # The client secret comes from `client_secret_key` (a key in the bot's secret store,
+    # config/.secret/<key>.pkl) WHEN THAT KEY IS SET; otherwise from the inline `client_secret`.
+    # Enabled with neither — or with a store key that is absent — the service REFUSES to install
+    # the backend and logs why, rather than starting a login that cannot complete.
+    discord:
+      enabled: false                      # default: nothing is enabled unless this is `true`
+      # client_id: 123456789012345678     # the Discord application's client id
+      # client_secret_key: discord_client_secret   # preferred: wins over client_secret
+      # client_secret: "..."              # inline alternative (used only when no key is named)
+      #
+      # How long (seconds, default 60, clamped to 1..3600) a per-request member resolution may be
+      # served from memory when the bot runs WITHOUT the Server Members Intent
+      # (privileged_intents: false in config/services/bot.yaml). discord.py has no member cache in
+      # that case, so the console resolves the member over REST at login and then answers from this
+      # short-lived cache, refreshing in the background. A member who loses a role or leaves the
+      # guild therefore loses the capability within this window - not at cookie expiry. With the
+      # intent ON the bot's live member list is used and this key does nothing.
+      # member_ttl: 60
+    # One Admin credential for the day the identity provider is what broke. Same store and format
+    # as auth.local. Refused unless `enabled: true` is set explicitly; disable it again once used.
+    breakglass:
+      enabled: false
+      # username: emergency
+      # password_hash: pbkdf2_sha256$600000$...

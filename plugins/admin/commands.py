@@ -9,10 +9,10 @@ import shutil
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
     PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, ServiceRegistry, NodeTransformer, \
     InstallException, InstallableExtension, ConfigView, ServerUploadHandler
+from core.actions import ActionContext, call_action
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
-from functools import partial
 from io import BytesIO
 from plugins.admin.listener import AdminEventListener
 from plugins.admin.views import CleanupView
@@ -884,37 +884,50 @@ class Admin(Plugin[AdminEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
         await self.run_on_nodes(interaction, "restart", node, ephemeral=ephemeral)
 
-    @node_group.command(description=_('Shuts down all servers, enables maintenance'))
+    async def _power_targets(self, node: Node | None) -> list[str]:
+        """The node names a power command with no explicit node covers — each ONCE.
+
+        Every active node of the cluster plus this one. The old ``/node offline`` walked
+        ``all_nodes.values()`` and then called the master AGAIN (and would have raised on an inactive
+        node, whose value is ``None``); reading the same source ``/node online`` used keeps one
+        behaviour and no duplicates.
+        """
+        if node:
+            return [node.name]
+        names = list(await self.node.get_active_nodes())
+        if self.node.name not in names:
+            names.append(self.node.name)
+        return names
+
+    async def _power_nodes(self, interaction: discord.Interaction, qualname: str, node: Node | None, *,
+                           ephemeral: bool, **params):
+        """Run ONE node power action on every target node — the Discord arm of the seam.
+
+        ``/node offline`` and ``/node online`` are THIN wrappers over the SAME action functions the
+        console calls (``plugins/admin/actions.py``), so one word has one implementation on every
+        transport. The ACTION writes the audit entry itself — one per attempt — so nothing here does.
+        """
+        ctx = ActionContext.from_interaction(interaction)
+        for name in await self._power_targets(node):
+            result = await call_action(qualname, ctx, node_name=name, **params)
+            await interaction.followup.send(result.message, ephemeral=ephemeral)
+
+    @node_group.command(description=_('Takes all servers on a node out of service'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    @app_commands.describe(shutdown=_('Shuts all servers down (default: on)'))
+    @app_commands.describe(maintenance=_('Also mark the servers as maintenance (default: on)'))
     async def offline(self, interaction: discord.Interaction,
                       node: app_commands.Transform[Node, utils.NodeTransformer] | None,
-                      shutdown: bool | None = True):
-        async def _node_offline(node_name: str):
-            tasks = []
-            if shutdown:
-                msg = await interaction.followup.send(_("Shutting down all servers on node {} ...").format(node_name))
-            for server in self.bot.servers.values():
-                if server.node.name == node_name:
-                    server.maintenance = True
-                    if shutdown:
-                        tasks.append(asyncio.create_task(server.shutdown()))
-            if shutdown:
-                await asyncio.gather(*tasks)
-                await msg.edit(content=_("All servers on node {} were shut down.").format(node_name))
-            await interaction.followup.send(_("Node {} is now offline.").format(node_name))
-            await self.bot.audit(f"took node {node_name} offline.", user=interaction.user)
-
+                      maintenance: bool | None = True):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
 
-        if shutdown:
+        if maintenance:
             question = _("Are you sure you want to proceed?")
             if not node:
-                message = _("This will shutdown **all** servers on **all** nodes.")
+                message = _("This will shutdown **all** servers on **all** nodes and set them to maintenance.")
             else:
-                message = _("This will shutdown **all** servers on node `{}`.").format(node.name)
+                message = _("This will shutdown **all** servers on node `{}` and set them to maintenance.").format(node.name)
             embed = discord.Embed(color=discord.Color.red())
             embed.description = message
             embed.set_thumbnail(
@@ -923,50 +936,17 @@ class Admin(Plugin[AdminEventListener]):
                 await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
                 return
 
-        if node:
-            await _node_offline(node.name)
-        else:
-            tasks = [_node_offline(node.name) for node in self.node.all_nodes.values()]
-            tasks.append(_node_offline(self.node.name))
-            await asyncio.gather(*tasks)
+        await self._power_nodes(interaction, "take_node_offline", node, ephemeral=ephemeral,
+                                maintenance=bool(maintenance))
 
-    @node_group.command(description=_('Clears the maintenance mode for all servers'))
+    @node_group.command(description=_('Brings all servers on a node back online'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    @app_commands.describe(startup=_('Start all your servers (default: off)'))
     async def online(self, interaction: discord.Interaction,
-                     node: app_commands.Transform[Node, utils.NodeTransformer] | None,
-                     startup: bool | None = False):
-
-        async def _startup(server: Server):
-            try:
-                await server.startup()
-                server.maintenance = False
-            except (TimeoutError, asyncio.TimeoutError):
-                await interaction.followup.send(_("Timeout while starting server {}!").format(server.name),
-                                                ephemeral=True)
-
-        async def _node_online(node_name: str):
-            next_startup = 0
-            for server in [x for x in self.bot.servers.values() if x.node.name == node_name]:
-                if startup:
-                    self.loop.call_later(delay=next_startup,
-                                         callback=partial(asyncio.create_task, _startup(server)))
-                    next_startup += startup_delay
-                else:
-                    server.maintenance = False
-            await interaction.followup.send(_("Node {} is now online.").format(node_name), ephemeral=ephemeral)
-            await self.bot.audit(f"took node {node_name} online.", user=interaction.user)
-
+                     node: app_commands.Transform[Node, utils.NodeTransformer] | None):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
-        startup_delay = self.get_config(plugin_name='scheduler').get('startup_delay', 10)
-        if node:
-            await _node_online(node.name)
-        else:
-            for node in await self.node.get_active_nodes():
-                await _node_online(node)
-            await _node_online(self.node.name)
+        await self._power_nodes(interaction, "bring_node_online", node, ephemeral=ephemeral)
 
     @node_group.command(description=_('Upgrade DCSServerBot'))
     @app_commands.guild_only()

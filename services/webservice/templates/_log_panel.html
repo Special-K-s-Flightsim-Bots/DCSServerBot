@@ -1,0 +1,16 @@
+{#-
+  The dashboard's log panel body — the fragment the live stream swaps.
+
+  A partial because the same markup is rendered by the initial page (via `dashboard.html`) and by
+  the `log` event (services/webservice/pages/live.py). The container id `log-panel` is the swap
+  target; `log-body` stays the scroll container the client measures before it auto-scrolls.
+
+  NOTE the entries loop is on ONE source line, with nothing between the tags. `.log` is
+  `white-space: pre`, so ANY newline the template leaves between two entries renders as a visible
+  blank line — and a wrapped long line is what the no-wrap rule exists to prevent.
+-#}
+{% if state.log.available and state.log.lines %}
+<div class="log" id="log-body">{% for line in state.log.lines %}<div class="ln"><span class="t">{{ line.time }}</span> <span class="{{ line.css }}">{{ line.level }}</span> {{ line.text }}</div>{% endfor %}</div>
+{% else %}
+<div class="bd"><p class="empty">{{ state.log.message }}</p></div>
+{% endif %}

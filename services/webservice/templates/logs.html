@@ -1,0 +1,35 @@
+{#-
+  The Logs page — the log, full width, with the same level filter and body as the dashboard panel.
+
+  It extends the shell like every console page, so the sidebar, the top bar with the user chip, the
+  breadcrumb, the pills and the environment marker are the shell's. The one thing it renders is the
+  log CARD, included from the SAME partial the dashboard uses (`_log_card.html`), so there is no
+  second log viewer to keep in step.
+
+  Read-only: exactly one form reaches this page and it is the shell's Sign out control.
+-#}
+{% extends "base.html" %}
+{% block title %}{{ title }} — DCSServerBot{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ page_title }}</h1>
+  <div class="sub">{{ lead }}</div>
+  <span id="live-status" class="live-status">Live updates: unavailable</span>
+</div>
+
+{# THE ONE-SHOT NOTICE of a write (card W4h) — a LIVE SWAP TARGET here too, and NOT because this page
+   carries a write (it carries none). The live fragments are ONE channel: `pages/live.py` renders the
+   notice as a target of the frames this page already receives, and a frame that popped a notice this
+   page had no container for would DROP it — the outcome would vanish before the page the write
+   returned to could show it. A page that receives the frames must have somewhere to put it. `notice`
+   is None unless a write just happened, so the div is normally empty. #}
+<div id="notice">{% include "_notice.html" %}</div>
+
+{# `logs-page`: the one hook the stylesheet needs to give the log the PAGE's height rather than the
+   dashboard's 320px box — the whole point of the linkable "pop out" is that it is the big-log home. #}
+<div class="logs-page">
+{% include "_log_card.html" %}
+</div>
+
+{% endblock %}

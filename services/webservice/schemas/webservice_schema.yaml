@@ -8,3 +8,139 @@ mapping:
       debug: {type: bool, nullable: false}
       listen: {type: str, pattern: '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', nullable: false}
       port: {type: int, nullable: false, default: 9876, func: unique_port}
+      # The admin frontend switch. `true` (the default) installs the whole web UI, so every
+      # existing configuration keeps the frontend it has always had. `false` runs the service as a
+      # REST API only: the shell is never installed — no page route, no `/auth/*`, no session
+      # middleware, no shell assets and none of the UI's background work — and the `auth:` block is
+      # not evaluated at all, so a stale login block cannot stop an API-only installation. The REST
+      # API is unaffected in both modes. A non-boolean value is refused here.
+      frontend: {type: bool, nullable: false, default: true}
+      # The log panel's default level filter — the SAME vocabulary the page offers in its URL
+      # (`?level=`). "info" is INFO and up (DEBUG hidden), "warning" is WARNING and up, "all" shows
+      # everything. An unknown value is refused here by the schema and again in the read model, so
+      # a value nobody defined can never widen or narrow the panel.
+      log_level: {type: str, nullable: false, default: info, enum: [info, warning, all]}
+      # Live updates of the read-only dashboard (services/webservice/pages/live.py). The log tail
+      # and the servers/KPI figures are pushed as HTML fragments over Server-Sent Events, so a
+      # reader does not have to refresh the page. Every value below has a code default too, so an
+      # installation that never writes this block still works.
+      dashboard:
+        type: map
+        nullable: false
+        mapping:
+          # Serve the live stream at all. Off: the page renders in full (with JavaScript off it
+          # always does) and simply is not live; no script is loaded.
+          live: {type: bool, nullable: false, default: true}
+          # How often the server re-renders the fragments and pushes what changed, in seconds.
+          # Nothing is sent when nothing changed, so this is a poll interval, not a traffic rate.
+          refresh_seconds: {type: int, nullable: false, default: 2, range: {min: 1, max: 60}}
+          # The most concurrent live streams the console serves. Past the cap a client still gets
+          # its snapshot and the stream closes cleanly (rather than queueing forever).
+          stream_clients: {type: int, nullable: false, default: 16, range: {min: 1, max: 256}}
+      # Session cookie of the admin web UI (services/webservice/session.py). Every value is
+      # explicit configuration - nothing is derived from a request, so the cookie behaves the
+      # same behind a reverse proxy as it does on localhost.
+      session:
+        type: map
+        nullable: false
+        mapping:
+          # signing key of the session cookie. Unset = a random key per process start (sessions
+          # do not survive a restart), which is logged as a warning at startup.
+          secret: {type: str, nullable: true}
+          cookie_name: {type: str, nullable: false, default: dcssb_session}
+          # session lifetime in seconds; also the compensating control for treating a signed-in
+          # caller as trusted elsewhere
+          max_age: {type: int, nullable: false, default: 86400, range: {min: 60}}
+          # set the Secure flag: required whenever the console is reachable over TLS.
+          # NOT defaulted here on purpose. Absent OR empty means *unset* (never "off") and is
+          # derived from `listen`: loopback-only (127.0.0.1/localhost/::1) may serve the cookie over
+          # plain HTTP, anything else is Secure unless `false` is written down here - and that
+          # explicit `false` on a non-loopback bind is logged as a warning at startup.
+          https_only: {type: bool, nullable: true}
+          # "lax" is load-bearing: it is what lets the OAuth callback (a cross-site top-level GET)
+          # carry the session cookie. "strict" makes every login fail with an empty session,
+          # "none" requires https_only: true. A non-lax value is logged as a warning.
+          same_site: {type: str, nullable: false, default: lax, enum: [lax, strict, none]}
+      # The identity layer of the admin web UI (services/webservice/auth/). Optional: without it
+      # every non-public page is refused (deny by default), which is the safe direction.
+      auth:
+        type: map
+        nullable: true
+        mapping:
+          # The public origin this console is reachable at, scheme and host explicit. It is what
+          # any redirect URI is built from - NEVER from a request (a proxy would silently flip
+          # https to http, or land the callback on an origin that has no session cookie).
+          public_base_url: {type: str, nullable: true}
+          local:
+            type: map
+            nullable: true
+            mapping:
+              # Nothing is enabled by default: `true` is required, so an installation never grows
+              # a login path by accident.
+              enabled: {type: bool, nullable: false, default: false}
+              users:
+                type: seq
+                nullable: true
+                sequence:
+                  - type: map
+                    mapping:
+                      username: {type: str, nullable: false}
+                      # a PBKDF2-HMAC-SHA256 hash, NEVER a plaintext password. Generate one with
+                      # `python -m services.webservice.auth.local --hash`.
+                      password_hash: {type: str, nullable: false}
+                      # role NAMES of the bot's role model (bot.yaml 'roles:' keys plus the bot's
+                      # own defaults), validated at startup. An unknown name is refused loudly.
+                      roles:
+                        type: seq
+                        nullable: false
+                        sequence:
+                          - type: str
+                      # Optional: the SERVERS this account may see and act on, as the `managed_by`
+                      # values the server configs declare (services/webservice/scope.py). This is
+                      # the web-only principal's answer to `managed_by`: a local user has no Discord
+                      # member whose roles could be compared, so the scope is DECLARED. Absent or
+                      # empty = unrestricted (the account is not restricted by any server). A value
+                      # that is not a non-empty string is refused loudly at startup; a value that
+                      # matches no server's managed_by is warned about once at startup (a typo there
+                      # is otherwise a silent loss of access).
+                      scope:
+                        type: seq
+                        nullable: true
+                        sequence:
+                          - type: str
+          # Discord OAuth (the second door into the console). Nothing is enabled unless
+          # `enabled: true`. The member and their roles are resolved through the RUNNING BOT
+          # (bot.yaml `roles:` in its DISCORD meaning: role NAME -> the Discord roles that grant
+          # it), so the console and the commands share ONE role model. Scopes asked for:
+          # `identify` plus `guilds.members.read` (the latter only for the one user-side membership
+          # lookup used when the bot cannot read the guild's members itself, i.e. with
+          # `privileged_intents: false`).
+          discord:
+            type: map
+            nullable: true
+            mapping:
+              enabled: {type: bool, nullable: false, default: false}
+              client_id: {type: str, nullable: true}
+              # the client secret INLINE. Precedence: `client_secret_key` wins when it is set,
+              # otherwise this value is used.
+              client_secret: {type: str, nullable: true}
+              # the NAME of a key in the bot's secret store (config/.secret/<key>.pkl, written by
+              # utils.set_password). When set it WINS over `client_secret`. An enabled backend
+              # with neither, or with a key the store does not hold, is refused loudly at startup.
+              client_secret_key: {type: str, nullable: true}
+              # How long (seconds) a per-request member resolution may be served from memory when
+              # the bot runs WITHOUT the Server Members Intent (privileged_intents: false), where
+              # discord.py has no member cache to look at. A value is never served older than this,
+              # so a removed member/role loses the capability within the TTL. Ignored with the
+              # intent on. Clamped to 1..3600 (with a warning) rather than refused.
+              member_ttl: {type: int, nullable: true, default: 60}
+          # One Admin credential for the day the identity provider is what broke. Same store and
+          # format as auth.local; refused unless `enabled: true` is set explicitly.
+          breakglass:
+            type: map
+            nullable: true
+            mapping:
+              enabled: {type: bool, nullable: false, default: false}
+              username: {type: str, nullable: true}
+              password_hash: {type: str, nullable: true}
+

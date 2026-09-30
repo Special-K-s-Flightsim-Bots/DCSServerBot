@@ -1,0 +1,69 @@
+{#-
+  The dashboard (card C3, rebuilt as the approved variant 3 refined) — the console's READ page: it
+  renders no write of its own, and the controls a server row may carry (W4a) are `pages/actions`'
+  POST routes, handed in as the `row_controls` data `_table.html` renders. See
+  `pages/dashboard.row_controls_for`.
+
+  It extends the shell and fills in `content`; the chrome (sidebar, top bar with the user chip,
+  breadcrumb, pills, environment marker) is the shell's. EVERY VALUE IS READ FROM `state` (a
+  services.webservice.readmodels.Overview built by the handler), from `view` (the validated tables:
+  sorted rows and one link per column header) or from `console` (the attention banner, the tab
+  strip and the log placement, all built by `pages.dashboard`). There is no literal figure in this
+  file: a number typed into a template cannot be traced to a source.
+
+  THE LIVE CONTENT IS NOT HERE. The two regions the live stream swaps are included from partials —
+  `_state.html` (inside `#state-panel`, which now owns the banner, the tabs and the ONE visible
+  table) and `_log_panel.html` (inside `#log-panel`) — so the initial render and a streamed
+  fragment are the SAME markup from the SAME source. The top bar's pills are the third swap target
+  (`_pills.html`), rendered by `base.html` and refreshed by the same `state` event.
+
+  THE LOG'S PLACEMENT IS SERVER-SIDE (`console.log.position`): the rule reads the COUNTS, never the
+  viewport — a bottom panel while the longest list is short, the right column once the list is the
+  thing being read, and `?log=expanded` hands it the whole content area. No media query decides it.
+
+  NO WRITE CONTROL APPEARS HERE. The mockup's Pause/Restart/Stop/Start, Message/Kick/Ban controls
+  are omitted rather than rendered disabled — a disabled control still advertises the capability,
+  and this page's promise is that nothing on it mutates anything. The one form in the chrome is
+  the Sign out control in the shell's chip.
+-#}
+{% extends "base.html" %}
+{% block title %}{{ title }} — DCSServerBot{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ page_title }}</h1>
+  <div class="sub">{{ lead }}</div>
+  <span id="live-status" class="live-status">Live updates: unavailable</span>
+</div>
+
+{# THE ONE-SHOT NOTICE of a write — the same partial the list pages include. A write pressed on a
+   server/player/node row here redirects back to this page (the origin fix, card W4e), so its outcome
+   is shown here rather than only where the section's own page would have shown it. `notice` is None
+   unless a write just happened; outside `#state-panel` so a live refresh neither repeats nor drops
+   it. THE WRAPPER IS A LIVE SWAP TARGET (card W4h): a strip control submits in the background and
+   hands the page to a fresh render at once, so the outcome is stored a moment LATER than this render
+   — the live path (`static/shell.js`, `pages/live.py`'s `notice` target) swaps it in, and a frame
+   sent with nothing to say omits the id rather than blanking this. #}
+<div id="notice">{% include "_notice.html" %}</div>
+
+{% if console.log and console.log.position == 'expanded' %}
+{# EXPANDED: the log owns the content area. The state summary above it stays one line, and the same
+   level filter and placement tags are in the card's own header, so the way back is one click. #}
+{% include "_log_card.html" %}
+{% else %}
+{# `console.log` is None for a viewer who may not read the bot log (the Admin-only `logs.view`
+   capability): the card, its level filter and its position tags are OMITTED, never emptied and never
+   placeholdered — a "no permission" box still says the console holds a log. #}
+<div class="console {{ 'log-right' if console.log and console.log.position == 'right' else 'log-bottom' }}">
+  <div class="state-col">
+    <div id="state-panel">{% include "_state.html" %}</div>
+  </div>
+  {% if console.log %}
+  <div class="log-col col-log">
+    {% include "_log_card.html" %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

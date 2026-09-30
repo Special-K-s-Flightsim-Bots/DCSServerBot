@@ -1,0 +1,35 @@
+{#-
+  The standalone list pages: Servers, Nodes, Instances, Players — the FULL inventory, one template.
+
+  ONE TEMPLATE FOR FOUR PAGES, deliberately. The four differ by their spec (title, lead, path, the
+  table they render), which the handler passes as data; their markup — the shell, the page head and
+  the table component — is identical. A second template would be a copy that drifts the first time
+  the card or a column changes.
+
+  It extends the shell like every console page, so the sidebar, the top bar with the user chip, the
+  breadcrumb, the pills and the environment marker are the shell's. The list itself is
+  `_table.html` — the SAME partial the dashboard's state panel includes, so the sort links, the
+  header arrows, the players search and the empty states are one rendering rather than two.
+
+  NO JAVASCRIPT. The page is complete when it arrives: no stream URL is handed to the browser, so
+  there is nothing to fall back from. The only form the page carries is the players search (a GET)
+  plus, on the Servers page, one POST form per write control it renders (Pause / Unpause, each with
+  the session's CSRF token) and the shell's Sign out control.
+
+  THE ONE-SHOT NOTICE of a write is included ABOVE the table on the page a write redirects back to
+  (`_notice.html`): it is `notice` from the context — `None` for every page that has no write, so
+  the include renders nothing there.
+-#}
+{% extends "base.html" %}
+{% block title %}{{ title }} — DCSServerBot{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ page_title }}</h1>
+  <div class="sub">{{ lead }}</div>
+</div>
+
+{% include "_notice.html" %}
+{% include "_table.html" %}
+
+{% endblock %}

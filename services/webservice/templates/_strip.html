@@ -1,0 +1,100 @@
+{#-
+  ONE ROW STRIP — a row's controls, as the mockup's `td.acts` cell draws them. ONE component, TWO
+  rows: the SERVER row (W4a) and the PLAYER row (W4b) are the same strip, driven by the record
+  `pages/actions.server_controls` / `pages/actions.player_controls` built for that row.
+
+  IT COMPUTES NOTHING. `strip.strip` are the controls already filtered by capability, scope,
+  availability and state (a control the caller may not use is ABSENT, never rendered disabled), their
+  glyph names, their two names (the native `title` and the `aria-label`, both naming the target),
+  their paths, the hidden fields that carry the TARGET (never a URL — design §3.1) and the session's
+  CSRF token. A page cannot hand this partial a control the predicates did not offer it.
+  A control may also carry a `field` (the message control's inline text field, whose two mode buttons
+  are `buttons`) and `buttons` (one submit button per mode, `name="mode"`).
+
+  TWO WIDTHS, ONE COMPONENT. `wide` means the row has both a strip and a menu: the strip carries the
+  icons and the `⋮` trigger opens the rest with their labels written out. `shell.css` folds the strip
+  into the trigger below 900px (README-ACTIONS.md §7), so the same POSTs are reachable on a phone.
+  A row with ONE applicable control keeps that control's glyph and gets no trigger at all; a PLAYER
+  row has no trigger at all (`wide` false), which is README-ACTIONS.md §4's five-glyph strip.
+
+  THE MENU IS A POPOVER (`popovertarget` + `[popover]`, no JavaScript): it is painted in the browser's
+  TOP LAYER, which is what lets it escape the clipping of `.card { overflow: hidden }` and
+  `.tbl { overflow: auto }` — the mockup had to un-clip both containers to draw it, and that escape is
+  a picture, not a fix (README §9.3). `anchor-name`/`position-anchor` put it under its own trigger
+  where the browser supports CSS anchor positioning; where it does not, the menu still opens in the
+  top layer, centred and unclipped.
+
+  EVERY CONTROL IS A POST FORM with the target in the BODY — the shape the console has used for a
+  write since W2. A CONFIRM-REQUIRED control posts to its dialog's path, not to the action's:
+  `pages/actions._control` decides that, and the action's own route refuses a POST that did not come
+  through the dialog.
+
+  TWO KINDS OF CONTROL, ONE ATTRIBUTE (card W4h). `control.direct` says whether this form IS the
+  write or only OPENS a dialog for it:
+    * `direct` (no confirmation — Startup, Start, Pause, Unpause, Message, Mute/Unmute) — the form
+      carries `data-async`, which the console's one interceptor (`static/submit.js`, loaded by
+      `base.html`) reads. It fires the POST with `fetch` and hands the page over to a fresh render at
+      once, so the pulse is on the rendered row while the action is in flight (the signal is
+      server-side; a page the browser held on a plain POST would never render it).
+    * NOT `direct` (restart/shutdown/stop, kick/ban, and EVERY node control — those post to their
+      dialog's path by construction) — the form must stay a PLAIN form: its answer IS the dialog
+      page, and intercepting it would navigate away from the dialog the person asked to see. The
+      dialog's own action form is where the background submit resumes (it opts in itself,
+      `confirm.html`), and since card W4m IT hands the page back at once too — closing the modal on
+      press — with a refusal delivered by the one-shot notice like every other write.
+
+  TWO SIGNALS, TWO SCOPES (cards W4k/W4l/W4m) — and the template computes neither:
+    * `control.busy` is the EXPECTATION half and belongs to ONE control: it is `True` only while the
+      control THAT WAS PRESSED has a pending expectation and the observable its action moves (the
+      row's status, or the maintenance flag for the flag pair) has not moved yet. The record
+      carries it (`pages/actions.awaiting_change`) — PROCESS-side, keyed by target since card W4m, so
+      the render the at-once navigation lands on sees it with no cookie round-trip — and this partial
+      renders `aria-busy="true"` (the accessible statement), the animating `busy` class and the row's
+      own `title`/`aria-label`, which name what is happening rather than only spinning. So pressing
+      *Maintenance* blinks *Maintenance* and leaves *Startup* dead, and the pulse ends at the glyph
+      swap (or at the ceiling).
+    * `strip.in_flight` is the SEAM's half and belongs to the ROW: an action is running on this target
+      right now (`pages/actions.target_is_busy`), but the guard keys the TARGET and cannot say WHICH
+      action — so it is `True`/absent on the strip container as a ROW marker (`busy` class +
+      `data-busy`), never on a glyph. It is honest where it sits and silent about what it cannot know.
+      The `busy` member is absent on the node and player records (only the server row is wired in),
+      so every lookup here is `.get(...)`: absent is simply "not busy", never a StrictUndefined error.
+-#}
+{% import "_icons.html" as icons %}
+{%- macro control_fields(control) -%}
+<input type="hidden" name="{{ control.csrf_field }}" value="{{ control.csrf_token }}">
+{%- for name, value in control.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor -%}
+{%- if control.field %}<label for="{{ control.field_id }}">{{ control.field_label }}</label><input type="text" id="{{ control.field_id }}" name="{{ control.field }}" maxlength="{{ control.field_max }}" required aria-label="{{ control.aria }}">{% endif -%}
+{%- endmacro -%}
+{%- macro control_buttons(control) -%}
+{%- set busy = control.get('busy') -%}
+{%- set off = ' disabled' if control.get('disabled') else '' -%}
+{%- if control.buttons -%}
+{%- for button in control.buttons %}<button class="act-btn{{ ' danger' if control.danger else '' }}{{ ' busy' if busy else '' }}" type="submit"{{ ' aria-busy="true"'|safe if busy else '' }}{{ off|safe }} name="mode" value="{{ button.mode }}" title="{{ button.title }}" aria-label="{{ button.aria }}">{{ icons.act(button.icon) }}</button>{% endfor -%}
+{%- else -%}
+<button class="act-btn{{ ' danger' if control.danger else '' }}{{ ' busy' if busy else '' }}" type="submit"{{ ' aria-busy="true"'|safe if busy else '' }}{{ off|safe }} title="{{ control.title }}" aria-label="{{ control.aria }}">{{ icons.act(control.icon) }}</button>
+{%- endif -%}
+{%- endmacro -%}
+{%- macro strip_form(control) -%}
+<form method="post" action="{{ control.path }}"{{ ' class="msg"' if control.field else '' }}{{ ' data-async' if control.get('direct') else '' }}>{{ control_fields(control) }}{{ control_buttons(control) }}</form>
+{%- endmacro -%}
+{%- macro menu_item(control) -%}
+{%- set busy = control.get('busy') -%}
+<form method="post" action="{{ control.path }}"{{ ' data-async' if control.get('direct') else '' }}>{{ control_fields(control) }}<button class="mi{{ ' danger' if control.danger else '' }}{{ ' busy' if busy else '' }}" type="submit"{{ ' aria-busy="true"'|safe if busy else '' }}{{ ' disabled'|safe if control.get('disabled') else '' }} title="{{ control.title }}" aria-label="{{ control.aria }}">{{ icons.act(control.icon) }}<span><span class="lbl">{{ control.label }}</span><span class="hint">{{ control.hint }}</span></span></button></form>
+{%- endmacro -%}
+{% if strip.strip or strip.menu %}
+{%- set in_flight = strip.get('in_flight') -%}
+<span class="act-strip{{ ' wide' if strip.wide else '' }}{{ ' busy' if in_flight else '' }}"{{ ' data-busy="true"'|safe if in_flight else '' }}>
+  {% for control in strip.strip %}{{ strip_form(control) }}{% endfor %}
+  {% if strip.wide %}
+  <span class="act-sep" aria-hidden="true"></span>
+  <span class="act-wrap">
+    <button class="act-btn more" type="button" popovertarget="{{ strip.menu_id }}" aria-haspopup="menu" title="More controls" aria-label="{{ strip.aria }}" style="anchor-name: --{{ strip.menu_id }}">{{ icons.act('more') }}</button>
+    <div class="menu" id="{{ strip.menu_id }}" popover role="menu" aria-label="{{ strip.aria }}" style="position-anchor: --{{ strip.menu_id }}">
+      {% for control in strip.menu %}{{ menu_item(control) }}{% endfor %}
+      {% if strip.menu_note %}<div class="mnote">{{ strip.menu_note }}</div>{% endif %}
+    </div>
+  </span>
+  {% endif %}
+</span>
+{% endif %}

@@ -8,6 +8,7 @@ import random
 from contextlib import suppress
 from core import (Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, Group, Node, Instance,
                   DEFAULT_TAG, get_translation, TRAFFIC_LIGHTS)
+from core.actions import ActionContext, call_action
 from datetime import datetime, timedelta, timezone
 from discord import app_commands, TextStyle
 from discord.ext import tasks
@@ -1621,22 +1622,16 @@ class Scheduler(Plugin[SchedulerListener]):
                     ):
                 await interaction.followup.send(_("Aborted."), ephemeral=ephemeral)
                 return
-            server.maintenance = True
-            server.restart_pending = False
-            server.on_empty.clear()
-            server.on_mission_end.clear()
-            server.on_coalition_win.clear()
-            message = _("Maintenance mode set for server \"{}\".").format(server.display_name)
-            if interaction.response.is_done():
-                await interaction.followup.send(message, ephemeral=ephemeral)
-            else:
-                await interaction.response.send_message(message, ephemeral=ephemeral)
-            await self.bot.audit("set maintenance flag", user=interaction.user, server=server)
+        # The change itself — and its trail — are the ACTION's (``plugins/scheduler/actions.py``),
+        # which is the SAME function the console's server-row control calls, so one flag has one
+        # implementation on every transport. The warning above stays here: an action cannot ask a
+        # person a question, and aborting a pending restart is the one consequence worth confirming.
+        ctx = ActionContext.from_interaction(interaction)
+        result = await call_action('set_maintenance', ctx, server_name=server.name)
+        if interaction.response.is_done():
+            await interaction.followup.send(result.message, ephemeral=ephemeral)
         else:
-            await interaction.response.send_message(
-                _("Server \"{}\" is already in maintenance mode.").format(server.display_name),
-                ephemeral=ephemeral
-            )
+            await interaction.response.send_message(result.message, ephemeral=ephemeral)
 
     @scheduler.command(description=_("Clears the server's maintenance flag"))
     @utils.app_has_role('DCS Admin')
@@ -1644,18 +1639,12 @@ class Scheduler(Plugin[SchedulerListener]):
     async def clear(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(maintenance=True)]):
         ephemeral = utils.get_ephemeral(interaction)
-        if server.maintenance:
-            server.maintenance = False
-            await interaction.response.send_message(
-                _("Maintenance mode cleared for server \"{}\".").format(server.display_name),
-                ephemeral=ephemeral
-            )
-            await self.bot.audit("cleared maintenance flag", user=interaction.user, server=server)
+        ctx = ActionContext.from_interaction(interaction)
+        result = await call_action('clear_maintenance', ctx, server_name=server.name)
+        if interaction.response.is_done():
+            await interaction.followup.send(result.message, ephemeral=ephemeral)
         else:
-            await interaction.response.send_message(
-                _("Server \"{}\" is not in maintenance mode.").format(server.display_name),
-                ephemeral=ephemeral
-            )
+            await interaction.response.send_message(result.message, ephemeral=ephemeral)
 
 
 async def setup(bot: DCSServerBot):

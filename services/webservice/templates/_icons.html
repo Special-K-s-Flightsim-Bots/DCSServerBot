@@ -1,0 +1,98 @@
+{#-
+  THE GLYPH SET — one inline SVG per control, on the standard 24px grid (`stroke 2`,
+  `currentColor`), drawn at 16px inside a 28px button. No icon font, no CDN, no sprite, no emoji
+  (emoji render differently per platform and would break the console's one-colour glyph language).
+
+  ONE PLACE, TWO READERS: the row strip (`_strip.html`, a server row today) and the confirm dialog
+  (`confirm.html`, its warning mark). A glyph pasted into a template instead of asked for here is
+  the second copy that drifts the first time a shape is fixed.
+
+  ONE DRAWING PER OPERATION — Frank's decision of 2026-09-29 evening (card W4i), which CORRECTS the
+  same day's W4f rule ("one glyph per meaning", startup = start = unpause). W4f collapsed three
+  controls onto one triangle; the corrected rule is that the triangle means "bring a DOWN server up",
+  and PAUSED is not down — it is a frozen RUNNING server — so Unpause is a different operation from
+  Startup and Start, and keeps the mockup's own bar+triangle drawing that W4f replaced:
+
+    | control    | state it appears in | drawing                     |
+    |------------|---------------------|-----------------------------|
+    | `startup`  | SHUTDOWN            | the bare play triangle      |
+    | `start`    | STOPPED             | the bare play triangle      |
+    | `unpause`  | PAUSED              | bar + triangle              |
+    | `pause`    | RUNNING             | two bars                    |
+    | `shutdown` | RUNNING, PAUSED     | the single power arc        |
+    | `restart`  | RUNNING, PAUSED     | the circular arrow          |
+    | `stop`     | RUNNING, PAUSED     | the filled square (row menu)|
+
+  `startup` and `start` share the triangle safely because their states are DISJOINT: no row is ever in
+  both SHUTDOWN and STOPPED, so one strip never shows that drawing twice. **THE INVARIANT every future
+  change must keep: no single state offers two controls wearing the same drawing.** A PAUSED row shows
+  bar+triangle, the power arc and the circular arrow — no plain triangle. The old Startup glyph (a
+  CLOSED ring with a short bold stem) is DELETED: **the power arc is "shut it down"**, worn by
+  `shutdown` (RUNNING, PAUSED) and shared with the node row's `shutdown`, and it is now the ONLY power
+  drawing in the set — which also removes the two-power-glyphs-one-row ambiguity Frank hit ("shows the
+  'power' button, the same as when it is started up and to shut it down").
+
+  WHY NOT `⏫` FOR STARTUP (Frank's other suggestion of 2026-09-29 — recorded so it is NOT
+  re-proposed): an up arrow already means two other things in this same glyph set and on the same
+  screen — `online` (a box with an arrow rising) and `upgrade` (an arrow rising out of a tray). A
+  third rising arrow would carry the NODE rows' meaning into the server row's first control. The
+  triangle has no such twin: `pause` is the two bars, `restart` the circular arrow, `stop` the
+  filled square.
+
+  The 2026-09-28 mockup (`/home/frank/mockups/dcssb-admin-ui/dashboard-actions`, whose `_build.py`
+  holds the set) is the design source of record. The strip now follows Frank's 2026-09-29 decision
+  (card W4i): the mockup is AUTHORITATIVE for the bar+triangle Unpause drawing — it drew it and W4f
+  replaced it — and is NOT edited. Still standing from the 2026-09-28 set (unchanged):
+
+  * **Popup is the bubble FILLED** (a knocked-out dot, so the fill reads at 16px where the mockup's
+    bold "!") while **Chat keeps the outlined bubble** with its text lines;
+  * **Kick is simplified** to an arrow leaving a barrier — see the note on the glyph itself;
+  * the node row (W4c-revised) shares `restart` and `shutdown` with the server row — the same two
+    operations one level up — and owns `upgrade` (an arrow rising out of a tray: update and restart);
+  * the node row's MAINTENANCE PAIR (W4d) is the mockup's own `online`/`offline` artwork: the same
+    box twice, with the arrow above it pointing up (bring the servers online) and the arrow below it
+    pointing down (take them offline). One box, one mirrored arrow — a coherent pair, and the mockup
+    drew it for exactly these two words (`dashboard-actions/_build.py`, its glyph legend). The W4c
+    card deliberately left it out because that card's three controls were NOT these words; W4d is the
+    card that was missing, and reusing the reviewed pair beats inventing a second drawing.
+
+  THE MAINTENANCE FLAG PAIR (W5b) is on the SERVER row and draws TWO NEW shapes, and they must be new:
+  the flag controls apply in EVERY server state (a flag is not a power state), so they are drawn
+  beside every other glyph on some row — `startup`/`start` (triangle), `unpause` (bar+triangle),
+  `pause` (two bars), `shutdown` (the power arc), `restart` (circular arrow) and `stop` (filled
+  square) are all taken, and the invariant above forbids a second copy of any of them.
+
+  * `maintenance` — a CONE, the one drawing everybody reads as "this is out of service": a trapezoid
+    with a stripe. Deliberately NOT the `warn` triangle (that mark belongs to the dialog's warning)
+    and not a flag/pennant, which at 16px is a sliver;
+  * `end_maintenance` — the same idea RELEASED: a check inside a circle ("all clear"), which also
+    reads as the opposite of `ban` (a circle with a diagonal).
+
+  `title` and `aria-label` are NOT drawn here: they belong to the CONTROL (one per button, naming
+  its target), never to a bare glyph.
+-#}
+{% set GLYPHS = {
+  'startup': '<path d="M7.6 4.8 19.6 12 7.6 19.2Z" fill="currentColor" stroke="none"/>',
+  'shutdown': '<path d="M12 3.2v8.4"/><path d="M18.1 6.5a8.4 8.4 0 1 1-12.2 0"/>',
+  'pause': '<rect x="7" y="4.6" width="3.8" height="14.8" rx="1.1" fill="currentColor" stroke="none"/><rect x="13.2" y="4.6" width="3.8" height="14.8" rx="1.1" fill="currentColor" stroke="none"/>',
+  'unpause': '<rect x="6.2" y="4.6" width="3.2" height="14.8" rx="1.1" fill="currentColor" stroke="none"/><path d="M11.6 5.4 20.2 12l-8.6 6.6Z" fill="currentColor" stroke="none"/>',
+  'restart': '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+  'upgrade': '<path d="M12 15.4V4.6"/><path d="M7.8 8.8 12 4.6l4.2 4.2"/><path d="M4.6 15.6v2.4a1.4 1.4 0 0 0 1.4 1.4h12a1.4 1.4 0 0 0 1.4-1.4v-2.4"/>',
+  'online': '<rect x="4.4" y="9.8" width="15.2" height="10.2" rx="2"/><path d="M12 6.6V2.8"/><path d="M9.4 5.4 12 2.6l2.6 2.8"/>',
+  'offline': '<rect x="4.4" y="4" width="15.2" height="10.2" rx="2"/><path d="M12 17.4v3.8"/><path d="M9.4 18.6 12 21.4l2.6-2.8"/>',
+  'start': '<path d="M7.6 4.8 19.6 12 7.6 19.2Z" fill="currentColor" stroke="none"/>',
+  'stop': '<rect x="6" y="6" width="12" height="12" rx="1.4" fill="currentColor" stroke="none"/>',
+  'kick': '<path d="M4.2 12h9.6"/><path d="M10.4 8.2 14.2 12l-3.8 3.8"/><path d="M18.2 5.4v13.2"/>',
+  'ban': '<circle cx="12" cy="12" r="8.6"/><path d="M6 18 18 6"/>',
+  'chat': '<path d="M20.5 11.6c0 3.9-3.8 7-8.5 7-1 0-2-.1-2.9-.4L4.4 20.4l1.2-3.4c-1.3-1.2-2.1-2.8-2.1-4.6 0-3.9 3.8-7 8.5-7s8.5 3.1 8.5 7Z"/><path d="M8 9.6h8"/><path d="M8 13.2h5"/>',
+  'popup': '<path fill-rule="evenodd" fill="currentColor" stroke="none" d="M20.5 11.6c0 3.9-3.8 7-8.5 7-1 0-2-.1-2.9-.4L4.4 20.4l1.2-3.4c-1.3-1.2-2.1-2.8-2.1-4.6 0-3.9 3.8-7 8.5-7s8.5 3.1 8.5 7Zm-9.4-4a1.7 1.7 0 0 1 3.4 0v3.6a1.7 1.7 0 0 1-3.4 0Z"/>',
+  'mute': '<path d="M11.4 5.2 6.6 9.2H3.4v5.6h3.2l4.8 4z"/><path d="M15.4 9.6 20.6 14.8"/><path d="M20.6 9.6 15.4 14.8"/>',
+  'unmute': '<path d="M11.4 5.2 6.6 9.2H3.4v5.6h3.2l4.8 4z"/><path d="M15.2 9.4a3.6 3.6 0 0 1 0 5.2"/><path d="M18.2 6.6a7.6 7.6 0 0 1 0 10.8"/>',
+  'maintenance': '<path d="M10.1 4.8h3.8L18.6 19.2H5.4Z"/><path d="M8.3 13.6h7.4"/>',
+  'end_maintenance': '<circle cx="12" cy="12" r="8.4"/><path d="M8.2 12.3 11 15.1l5-5.6"/>',
+  'more': '<circle cx="12" cy="5.2" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="18.8" r="1.9" fill="currentColor" stroke="none"/>',
+  'warn': '<path d="M12 3.6 22 20.4H2Z"/><path d="M12 9.8v4.4"/><circle cx="12" cy="17.4" r="1" fill="currentColor" stroke="none"/>'
+} %}
+{%- macro act(name) -%}
+<svg class="ic24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{{ GLYPHS.get(name, '')|safe }}</svg>
+{%- endmacro -%}

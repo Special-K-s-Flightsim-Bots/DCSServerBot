@@ -1,0 +1,11 @@
+{#-
+  The dashboard's status pills — the top bar's KPI strip.
+
+  A partial because it is rendered in TWO places with ONE markup: by `base.html` on the initial
+  page and by the live stream's `state` event (services/webservice/pages/live.py). Duplicating it
+  would let the top bar and the KPI cards disagree about the same counts.
+
+  The loop is on ONE source line so the pills carry no whitespace between them: the container is
+  an inline-flex box whose gap owns the spacing.
+-#}
+{% for pill in (pills if pills is defined else []) %}<span class="pill">{{ pill }}</span>{% endfor %}

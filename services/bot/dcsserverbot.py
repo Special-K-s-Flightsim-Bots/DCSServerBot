@@ -137,6 +137,12 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
         # we need to keep the order for our default plugins...
         for plugin in self.plugins:
             await self.load_plugin(plugin.lower())
+        # let the plugins register their admin web UI pages (no-op when no WebService runs on
+        # this node). This mirrors where the Discord plugins are loaded: after the cogs, from the
+        # same list, so a page and a command of one plugin can never disagree about loading.
+        from core.plugin_manager import PluginManager
+        self.plugin_manager = PluginManager(self.node)
+        await self.plugin_manager.load_plugins(self.plugins)
         # clean up remote servers (if any)
         for key in [key for key, value in self.bus.servers.items() if value.is_remote]:
             self.bus.servers.pop(key)
@@ -642,9 +648,7 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
 
     def get_servers(self, manager: discord.Member | None = None) -> dict[str, "Server"]:
         def check_server_roles(server: "Server") -> bool:
-            if server.locals.get('managed_by') and not utils.check_roles(server.locals.get('managed_by'), manager):
-                return False
-            return True
+            return utils.holds_scope(server.locals.get('managed_by'), utils.member_scope_tokens(manager))
 
         return {k: v for k,v in self.servers.items() if check_server_roles(v)}
 

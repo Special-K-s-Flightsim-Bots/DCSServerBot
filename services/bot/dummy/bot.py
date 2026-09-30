@@ -100,6 +100,12 @@ class DummyBot:
         for plugin in self.plugins:
             if not await self.load_plugin(plugin.lower()):
                 self.log.info(f'  => {plugin.title()} NOT loaded.')
+        # let the plugins register their admin web UI pages (no-op when no WebService runs on
+        # this node). This mirrors where the Discord plugins are loaded: after the cogs, from the
+        # same list, so a page and a command of one plugin can never disagree about loading.
+        from core.plugin_manager import PluginManager
+        self.plugin_manager = PluginManager(self.node)
+        await self.plugin_manager.load_plugins(self.plugins)
         # cleanup remote servers (if any)
         for key in [key for key, value in self.bus.servers.items() if value.is_remote]:
             self.bus.servers.pop(key)

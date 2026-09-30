@@ -1,0 +1,664 @@
+/* The admin web UI shell's own stylesheet.
+ *
+ * One asset owner: everything under /static is served by services/webservice/shell.py through
+ * app.frontend(), which runs the app-level access gate for every asset (a StaticFiles mount
+ * would bypass it, and a second mount on the same path would be silently dead).
+ *
+ * ONE token source. The palette is declared once here and nowhere else — no template carries an
+ * inline <style>, so the "flight ops" look has a single owner. A second value that is the same
+ * measurement is DERIVED (var(--nav-h)), never re-typed: a comment promising parity is what drifts.
+ *
+ * Ported from the design of record (/home/frank/mockups/dcssb-admin-ui/assets/ui.css): same
+ * palette, status dots, cards, tabs, tables and log block, under the shell's own names.
+ *
+ * The KPI tile rules (`.kpi`) are DELETED, not kept: the console's tab badges state those totals
+ * now (stating one fact twice was the weight Frank called out), so the tile block had no consumer
+ * left and a rule nothing renders is the same trap as a knob nothing reads.
+ */
+:root {
+  /* surfaces, near-black ground and one amber accent */
+  --ground: #0b0f14;
+  --ground-2: #111720;
+  --panel: #151c26;
+  --panel-2: #1b2430;
+  --line: #243040;
+  --line-2: #2e3c4f;
+
+  /* text */
+  --text: #e6edf5;
+  --text-2: #9fb0c3;
+  /* raised from #63758a (3.62 contrast, below AA) to ≈5.2 — the mockups' own correction */
+  --text-3: #7f8fa2;
+
+  /* accent + status */
+  --accent: #e8a33d;
+  --accent-2: #c8862a;
+  --run: #3fb950;
+  --pause: #e8a33d;
+  --stop: #8b98a8;
+  --dead: #f85149;
+  --link: #58a6ff;
+  --ok: #3fb950;
+  --danger: #f85149;
+
+  /* geometry + type. Deprecated aliases (--status-*, --r, --bg) are NOT declared: one literal per
+   * quantity means the old names go, rather than being kept in sync by hand. */
+  --nav-h: 58px;
+  --side-w: 248px;
+  --radius: 10px;
+  --radius-s: 6px;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  /* Scrollbar geometry and colours: declared ONCE and read by both axes, so the vertical and the
+   * horizontal bar are the same widget by construction rather than by two hand-kept numbers. */
+  --sbar: 12px;
+  --sbar-thumb: #33445c;
+  --sbar-track: #0a0e13;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body.shell {
+  background: var(--ground);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  display: grid;
+  grid-template-columns: var(--side-w) 1fr;
+  /* APP-SHELL: the page does not scroll — the CONTENT area does. The top bar and the log column
+   * therefore never scroll away from a reader who is looking at row 40 of a 50-server list. One
+   * three-line layout decision, not a per-page rule: `height: 100vh` on the frame and `overflow:
+   * auto` on the scrolling region (`.wrap`). */
+  height: 100vh;
+  overflow: hidden;
+}
+
+a { color: var(--link); text-decoration: none; }
+
+/* ---------------------------------------------------------------- sidebar */
+.side {
+  background: var(--ground-2);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+}
+.brand { display: flex; gap: 10px; align-items: center; padding: 16px 16px 14px;
+  border-bottom: 1px solid var(--line); }
+.brand img.brand-logo { height: 30px; width: auto; display: block; flex: 0 0 auto; }
+/* The brand mark is Frank's own logo (services/webservice/static/logo.png), served from a
+ * DOWNSCALED derivative: `logo-256.png` here and as the favicon, so the two share one request and
+ * one cache entry. A FIXED HEIGHT with `width: auto` is what preserves the artwork's 3:2 aspect at
+ * every viewport (a fixed width would stretch it), and 30px is under the 34px square it replaced,
+ * so this row can only get shorter. The height is stated ONCE, here; the element's own width and
+ * height attributes are only a pre-CSS aspect hint. The 2.1 MB master is served by NO page.
+ *
+ * TO REGENERATE the derivatives (never logo.png itself — it is the canonical master, byte-for-byte
+ * what was supplied) from the repository root, with Pillow on the interpreter:
+ *
+ *   python3 - <<'PY'
+ *   from PIL import Image
+ *   im = Image.open("services/webservice/static/logo.png").convert("RGBA")
+ *   for width in (256, 512):
+ *       size = (width, round(im.size[1] * width / im.size[0]))
+ *       im.resize(size, Image.LANCZOS).save(f"services/webservice/static/logo-{width}.png",
+ *                                           optimize=True)
+ *   PY
+ *
+ * (`logo-256.png` = the header mark and the favicon; `logo-512.png` = the login page's hero, which
+ * displays it at 220px CSS px — a 512px source covers a 2x display at that size.)
+ */
+.brand b { display: block; font-size: 14px; letter-spacing: .2px; }
+.brand small { display: block; color: var(--text-3); font-size: 11px; margin-top: 1px; }
+
+.nav { padding: 10px 8px; overflow: auto; flex: 1; }
+.nav .grp { color: var(--text-3); font-size: 10.5px; text-transform: uppercase;
+  letter-spacing: .11em; padding: 14px 10px 6px; }
+.nav a { display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  border-radius: var(--radius-s); color: var(--text-2); }
+.nav a .ic { width: 18px; text-align: center; opacity: .9; }
+.nav a:hover { background: var(--panel); color: var(--text); }
+.nav a.on { background: linear-gradient(90deg, rgba(232,163,61,.16), rgba(232,163,61,.03));
+  color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
+
+/* The user chip — IN THE TOP BAR (top right, beside the status pills), never in the sidebar
+ * footer: the signed-in state belongs next to the status it qualifies, and the sidebar is brand +
+ * nav. The name column is the ONE element allowed to shrink (`min-width: 0`) and it ellipsizes,
+ * so a long display name cannot push the Sign out control out of the bar; the control itself is
+ * pinned (`flex: 0 0 auto`). It is a real button, so it is keyboard-reachable, and its focus ring
+ * is drawn in the shell's own accent token (`:focus-visible`, so a mouse click shows no ring). */
+.who { display: flex; gap: 10px; align-items: center; padding-left: 14px;
+  border-left: 1px solid var(--line); flex: 0 0 auto; max-width: 40vw; }
+.av { width: 30px; height: 30px; border-radius: 50%; background: var(--panel-2);
+  border: 1px solid var(--line-2); display: grid; place-items: center; font-size: 11px;
+  font-weight: 700; color: var(--accent); flex: 0 0 auto; }
+/* the avatar IMAGE, when the backend resolved one: the same 30px circle as the initials chip */
+.who img.av { display: block; object-fit: cover; }
+.who b { font-size: 12.5px; }
+.who small { display: block; color: var(--text-3); font-size: 11px; }
+
+/* The sign-out control beside the name. The name column is the ONE element allowed to shrink
+ * (`min-width: 0`) and it ellipsizes, so a long display name cannot push the control out of the
+ * top bar; the control itself is pinned (`flex: 0 0 auto`) and pushed to the end. It is a real
+ * button, so it is keyboard-reachable, and its focus ring is drawn in the shell's own accent token
+ * (`:focus-visible`, so a mouse click shows no ring). */
+.who .who-name { min-width: 0; }
+.who .who-name b, .who .who-name small { overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.signout { margin-left: auto; flex: 0 0 auto; }
+.signout button { font: inherit; font-size: 11.5px; color: var(--text-2);
+  background: var(--panel-2); border: 1px solid var(--line-2); border-radius: var(--radius-s);
+  padding: 5px 9px; cursor: pointer; }
+.signout button:hover { background: var(--panel); color: var(--text); border-color: var(--accent-2); }
+.signout button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------------------------------------------------------------- top bar
+ * `.shell-bar` is the shell's original name for this element and is kept (C1's asset test asserts
+ * it); `.top` is the ported name. One element, one declaration — the second selector is an alias,
+ * not a second rule. */
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0;
+  height: 100vh; overflow: hidden; }
+.shell-bar, .top {
+  height: var(--nav-h); display: flex; align-items: center; gap: 14px; padding: 0 20px;
+  border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #121924, #0f151d);
+}
+.crumb { color: var(--text-3); font-size: 12.5px; }
+.crumb b { color: var(--text); font-weight: 600; }
+.spacer { flex: 1; }
+.pill {
+  display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 99px;
+  font-size: 12px; border: 1px solid var(--line-2); background: var(--panel); color: var(--text-2);
+}
+.envbar { font-size: 11.5px; color: var(--text-3); border-left: 2px solid var(--line-2);
+  padding: 4px 0 4px 10px; }
+.envbar.live { color: var(--text-2); border-left-color: var(--accent); }
+
+/* ---------------------------------------------------------------- status dots */
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--stop); flex: 0 0 auto;
+  display: inline-block; }
+.dot.run { background: var(--run); box-shadow: 0 0 0 3px rgba(63,185,80,.15); }
+.dot.pause { background: var(--pause); box-shadow: 0 0 0 3px rgba(232,163,61,.15); }
+.dot.dead { background: var(--dead); box-shadow: 0 0 0 3px rgba(248,81,73,.15); }
+.dot.stop { background: var(--stop); }
+
+/* ---------------------------------------------------------------- content */
+/* THE scrolling region of the app shell (the top bar and the sidebar are fixed around it). */
+.wrap { padding: 20px; display: flex; flex-direction: column; gap: 18px; min-width: 0;
+  flex: 1 1 auto; min-height: 0; overflow: auto; }
+h1 { font-size: 19px; margin: 0; }
+h2 { font-size: 13px; margin: 0; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.sub { color: var(--text-3); font-size: 12.5px; margin-top: 3px; }
+.grid { display: grid; gap: 14px; }
+.g-2 { grid-template-columns: 1.55fr 1fr; }
+.g-3 { grid-template-columns: repeat(3, 1fr); }
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden; }
+.card > .hd { display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #18202b, #151c26); }
+.card > .hd h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.card > .bd { padding: 14px; }
+.card .meta { color: var(--text-3); font-size: 11.5px; }
+
+.empty { color: var(--text-3); font-size: 12.5px; }
+.empty a { color: var(--link); }
+
+.srv { display: flex; align-items: center; gap: 11px; padding: 10px 14px;
+  border-top: 1px solid var(--line); }
+.srv:first-child { border-top: 0; }
+.srv .nm { font-weight: 600; font-size: 13px; }
+.srv .mi { color: var(--text-3); font-size: 11.5px; font-family: var(--font-mono); }
+.srv .rt { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+
+.node { display: flex; flex-direction: column; gap: 4px; padding: 10px 0;
+  border-top: 1px solid var(--line); }
+.node:first-child { border-top: 0; }
+.node .row { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  font-size: 12.5px; }
+.node .m { font-family: var(--font-mono); color: var(--text-3); font-size: 11.5px; }
+
+.tag { font-size: 10.5px; padding: 2px 7px; border-radius: 99px; border: 1px solid var(--line-2);
+  color: var(--text-2); background: var(--panel-2); }
+.tag.a { border-color: #5a4319; color: #f0c689; background: #241c0d; }
+
+table { width: 100%; border-collapse: collapse; }
+th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3);
+  text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); background: #131a24; }
+td { padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 12.5px;
+  vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: #161e29; }
+.mono { font-family: var(--font-mono); color: var(--text-2); }
+
+.log { font-family: var(--font-mono); font-size: 11.5px; background: #0a0e13;
+  border: 1px solid var(--line); border-radius: var(--radius-s); padding: 10px;
+  max-height: 320px; overflow: auto; color: var(--text-2);
+  /* NO WRAP: one log line stays one line. A wrapped line makes a log unreadable at a glance —
+   * timestamps stop lining up and a stack trace doubles the panel's height. The cost is a second
+   * scrollbar, which is exactly why both axes must be ONE widget (see the scrollbar rules below). */
+  white-space: pre; }
+.log div { padding: 1px 0; }
+.log .i { color: #63d0ff; }
+.log .w { color: var(--pause); }
+.log .e { color: var(--dead); }
+.log .d { color: var(--text-3); }
+/* the timestamp: raised from #4a5b6e (2.78 contrast, below AA) to the shell's --stop (≈6.6) */
+.log .t { color: var(--stop); }
+/* The level control beside the log container. A row of links, not a control: the choice lives in
+ * the URL, so it survives a refresh and needs no script (the card that adds live updates owns the
+ * container, not this). */
+.log-level { display: inline-flex; gap: 4px; }
+
+/* The live-update indicator (dashboard). Words only: it says "on" / "polling every 10 seconds" /
+ * "unavailable", so the state is legible without relying on colour. */
+.live-status { display: inline-block; font-size: 11.5px; color: var(--text-3); margin-top: 4px; }
+
+/* The top bar's pill strip, wrapped so the live stream can replace it as one fragment. An
+ * inline-flex box so the gap owns the spacing (the partial renders the pills with no whitespace
+ * between them). */
+#status-pills { display: inline-flex; align-items: center; gap: 14px; }
+
+/* ---------------------------------------------------------------- the sign-in page (login.html)
+ * The door is its OWN page: it renders no sidebar and no breadcrumb (there is nothing to navigate
+ * to while signed out), and it carries its own top bar — built from the same tokens, the same
+ * `.shell-bar`/`.pill`/`.dot` elements and the same `.card` grammar as every page behind it. Rules
+ * are namespaced `.login-*` (plus `body.login-page`) so none of the shell's layout rules is
+ * touched. The mockups' dashed "MOCKUP ONLY" strip is a review annotation and ships nowhere. */
+body.login-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--ground);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+.login-bar { flex: 0 0 auto; }
+.login-wrap { padding: 26px 20px 20px; max-width: 1000px; margin: 0 auto; width: 100%; flex: 1; }
+.login-wrap h1 { font-size: 22px; }
+/* The sign-in page's hero mark: `logo-512.png` shown at 220px, the width the card asks for so the
+ * badge's own "DCS / Server / Bot" wordmark is legible (it is not, at the 30px header size). `width`
+ * is capped with `height: auto`, never a fixed height — that is what keeps the 3:2 aspect. It sits
+ * above the h1 as the page's opening statement, so it has the same left edge the page's own copy
+ * has, and on a narrow screen it steps down with everything else. */
+.login-hero { margin: 0 0 14px; }
+.login-logo { display: block; width: 220px; height: auto; }
+
+/* The card grid. With ONE door the card is centred and narrow — a single 1000px-wide panel would
+ * read as a page that lost half its content. With two, the Discord card leads (wider, amber edge)
+ * and the local card is the secondary panel. */
+.login-grid { display: grid; gap: 16px; margin-top: 22px;
+  grid-template-columns: 1.15fr .85fr; align-items: start; }
+.login-grid.solo { grid-template-columns: minmax(0, 460px); justify-content: center; }
+.login-grid .card.lead { border-color: #3a3320; box-shadow: inset 0 0 0 1px rgba(232, 163, 61, .12); }
+.login-grid .card > .hd .ct { margin: 0; font-size: 13.5px; font-weight: 600; letter-spacing: 0;
+  text-transform: none; color: var(--text); }
+.login-grid .card > .hd .tag { margin-left: auto; }
+
+.login-door { display: flex; align-items: center; gap: 10px; justify-content: center; padding: 13px;
+  border-radius: var(--radius-s); border: 1px solid #a9711f; font-weight: 600; font-size: 14px;
+  background: linear-gradient(180deg, var(--accent), var(--accent-2)); color: #1a1204; }
+.login-door:hover { border-color: #c98f34; }
+.login-door:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.login-why { color: var(--text-2); font-size: 12.5px; margin: 12px 0 0; }
+.login-meta { list-style: none; margin: 12px 0 0; padding: 0; font-size: 11.5px; color: var(--text-3); }
+.login-meta li { display: flex; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); }
+.login-meta .v { margin-left: auto; font-family: var(--font-mono); color: var(--text-2); }
+
+.login-form label { display: block; font-size: 11.5px; color: var(--text-3); margin: 12px 0 4px;
+  text-transform: uppercase; letter-spacing: .06em; }
+.login-form label:first-of-type { margin-top: 0; }
+.login-form input { width: 100%; padding: 9px 11px; border-radius: var(--radius-s);
+  background: var(--ground-2); border: 1px solid var(--line-2); color: var(--text);
+  font: inherit; font-size: 13.5px; }
+.login-form input:hover { border-color: #3d4d63; }
+.login-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.login-btn { width: 100%; margin-top: 16px; padding: 9px; border-radius: var(--radius-s);
+  background: var(--panel-2); border: 1px solid var(--line-2); color: var(--text);
+  font-size: 13px; cursor: pointer; }
+.login-btn:hover { border-color: #3d4d63; }
+.login-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.login-note { color: var(--text-3); font-size: 11.5px; margin: 10px 0 0; }
+
+/* The refused-login sentence, at the top of the card it belongs to. It is the ONE place a reason a
+ * login failed is rendered, and it is a generic sentence — see FAILED_LOGIN_MESSAGE. */
+.login-error { padding: 9px 11px; font-size: 12.5px; color: #ffb3ae; background: rgba(248, 81, 73, .08);
+  border: 1px solid #5a2a28; border-left: 3px solid var(--danger);
+  border-radius: 0 var(--radius-s) var(--radius-s) 0; margin: 0 0 12px; }
+
+.login-unavailable .bd p { margin: 0; font-size: 13px; color: var(--text-2); }
+
+.login-foot { color: var(--text-3); font-size: 11.5px; text-align: center;
+  padding: 16px 20px 22px; border-top: 1px solid var(--line); margin-top: 24px; }
+
+@media (max-width: 820px) {
+  .login-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  /* the bar wraps instead of squeezing the status pill into a two-line box */
+  .login-bar { height: auto; min-height: var(--nav-h); flex-wrap: wrap; padding: 9px 14px;
+    row-gap: 8px; }
+  .login-bar .spacer { display: none; }
+  .login-wrap { padding: 20px 14px; }
+  .login-wrap h1 { font-size: 19px; }
+}
+
+/* ================================================================ the console (variant 3 refined)
+ * The dashboard's own components: the attention banner, the tab strip with its badges, the
+ * adaptive log column and the sortable table. Every rule here is a CONSOLE rule and namespaced so
+ * it cannot restyle the login page. */
+
+.page-head { display: flex; flex-direction: column; }
+
+/* ---------------------------------------------------------------- the attention banner */
+.banner { display: flex; align-items: center; min-height: 38px; padding: 9px 12px;
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); background: var(--panel);
+  font-size: 12.5px; }
+.banner.calm { color: var(--text-2); border-color: #21402a; background: rgba(63, 185, 80, .06); }
+.banner.alert { color: var(--text); border-color: #5a2a28; background: rgba(248, 81, 73, .06); }
+.banner-calm, .banner-item { display: inline-flex; align-items: center; gap: 8px; }
+.banner-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap;
+  gap: 8px 20px; }
+
+/* ---------------------------------------------------------------- a write's one-shot notice */
+/* The outcome of a write, shown ONCE on the page the action redirects back to (`_notice.html`).
+ * Deliberately NOT the attention banner above: that one is derived from live state on every render,
+ * this one is a fact about what JUST HAPPENED, and it carries its own lifetime (the page's context
+ * pops it out of the session, so a reload — or the next live refresh — does not repeat it). */
+.notice { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 9px 12px;
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); background: var(--panel);
+  font-size: 12.5px; }
+.notice.ok { color: var(--text-2); border-color: #21402a; background: rgba(63, 185, 80, .06); }
+.notice.bad { color: var(--text); border-color: #5a2a28; background: rgba(248, 81, 73, .06); }
+.notice-warn { color: var(--pause); font-size: 11.5px; }
+
+/* ---------------------------------------------------------------- the write controls on a row */
+/* One FORM per control, so a write is a POST that works with JavaScript off. The target server and
+ * the CSRF token are hidden inputs: neither ever travels in a URL. */
+td.acts { white-space: nowrap; }
+td.acts form { display: inline; }
+td.acts form + form { margin-left: 6px; }
+td.acts button { padding: 4px 10px; font: inherit; font-size: 11.5px; cursor: pointer;
+  color: var(--text); background: var(--panel-2); border: 1px solid var(--line-2);
+  border-radius: var(--radius-s); }
+td.acts button:hover { color: var(--text); border-color: var(--accent); }
+td.acts button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The MESSAGE control — the first write with a FIELD (W3). It is the same one-form-per-row shape as
+ * the pause buttons, but a text input inside a form has to stop being `inline` (above) or the field
+ * and its label collapse onto one baseline: the form becomes an inline FLEX row, and the width is
+ * capped so a long message cannot push the table's other columns out of the viewport. Namespaced to
+ * `form.msg` so the pilot's plain buttons keep the rules above. */
+td.acts form.msg { display: inline-flex; align-items: center; gap: 6px; }
+td.acts form.msg label { font-size: 10.5px; color: var(--text-3); text-transform: uppercase;
+  letter-spacing: .06em; }
+td.acts form.msg input[type="text"] { width: 16rem; max-width: 40vw; padding: 4px 8px; font: inherit;
+  font-size: 12px; color: var(--text); background: var(--ground-2);
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+td.acts form.msg select { padding: 4px 6px; font: inherit; font-size: 12px; color: var(--text);
+  background: var(--panel-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+td.acts form.msg input[type="text"]:focus-visible, td.acts form.msg select:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------------------------------------------------------------- the row ACTION STRIP (W4a) */
+/* The server row's quick controls as an ICON STRIP — the mockup's `td.acts` cell. One glyph per
+ * control, a native `title` and an `aria-label` on each (never an icon alone), and the row's rarer
+ * control behind a `⋮` trigger.
+ *
+ * QUIET AT REST: shell.css styles EVERY `td.acts button` as a filled chip (the shape the two
+ * labelled buttons wore). Five chips in a row is a wall of buttons where an icon strip was asked
+ * for, so the strip's buttons lose their chrome at rest and get it back on hover and on keyboard
+ * focus. The OVERFLOW TRIGGER is the exception — below 900px it is the only thing the row shows,
+ * and a control with no visible chrome is a control nobody finds.
+ *
+ * The selectors below carry `td.acts .act-strip` on purpose: they must out-specify the shipped
+ * `td.acts button` rules, or the strip silently stays a row of chips. */
+td.acts .act-strip { display: inline-flex; align-items: center; gap: 2px; }
+td.acts .act-sep { width: 1px; height: 16px; background: var(--line-2); margin: 0 4px;
+  flex: 0 0 auto; }
+td.acts .act-strip > form { display: inline-flex; margin-left: 0; }
+td.acts .act-strip > form > .act-btn { padding: 0; background: transparent;
+  border-color: transparent; }
+td.acts .act-strip > form > .act-btn:hover { background: var(--panel-2);
+  border-color: var(--line-2); }
+td.acts .act-strip > form > .act-btn:focus-visible { background: var(--panel-2);
+  border-color: var(--accent); }
+td.acts { text-align: right; }
+th.acts { text-align: right; }
+/* THE HONEST STATEMENT beside a node row's strip (card W7b): shown while a check-gated control's
+ * cached value is UNKNOWN — "no update check yet". Muted and small: it is a fact about the missing
+ * control, not a control itself. */
+td.acts .act-note { display: inline-block; margin-left: 6px; color: var(--text-3);
+  font-size: 11.5px; }
+
+.act-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px;
+  height: 28px; padding: 0; cursor: pointer; font: inherit; color: var(--text-2);
+  background: var(--panel-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.act-btn svg { width: 16px; height: 16px; display: block; }
+.act-btn:hover { color: var(--text); border-color: var(--accent); }
+.act-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* A DESTRUCTIVE control says so on HOVER, before the click; its glyph never changes colour at rest
+ * (five red glyphs in a row would make the strip unreadable). The dialog then names the
+ * consequence, in the user's terms. The selector matches the quiet-at-rest rule on specificity — a
+ * bare `.act-btn.danger:hover` would lose its tint to it. */
+td.acts .act-strip > form > .act-btn.danger:hover,
+.act-btn.danger:hover { color: #ffb3ae; border-color: #5a2a28; background: rgba(248, 81, 73, .10); }
+.act-btn.more { color: var(--text-3); }
+.act-wrap:has(.menu:popover-open) .act-btn.more { color: var(--text); background: var(--panel-2);
+  border-color: var(--line-2); }
+
+/* THE CONTROL'S PULSE (cards W4g/W4k/W4l): the control the person PRESSED pulses while its own
+ * observable has not moved yet — the row's status for a power action (W4k), the maintenance flag for
+ * the flag pair (W4l) — so pressing *Maintenance* blinks *Maintenance* and leaves *Startup* dead, and
+ * the pulse ends at the glyph swap. The `busy` class is SERVER-RENDERED — it comes from THIS session's
+ * expectation, read when the page is rendered (``pages/actions.awaiting_change``), never toggled by a
+ * click handler and never a client timer — so a reload shows the same thing, and the pulse ends BY
+ * ITSELF when the observable moves (the next render simply omits the class).
+ *
+ * The pulse is decoration and nothing more: the ACCESSIBLE statement is the `aria-busy` the template
+ * carries, and the button's `title`/`aria-label` say what is happening in words. THIS IS THE
+ * CONSOLE'S FIRST ANIMATION, so the reduced-motion opt-out ships with it — a reader who asked for
+ * less motion gets NO animation and keeps the aria-busy + wording, i.e. loses nothing but the flash.
+ * The selector does not need `td.acts .act-strip`-level specificity: no other rule sets `animation`
+ * on a `.act-btn`, so a bare `.act-btn.busy` cannot be out-specified by the quiet-at-rest rules. */
+@keyframes act-busy {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
+.act-btn.busy, .mi.busy { animation: act-busy 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .act-btn.busy, .mi.busy { animation: none; }
+}
+
+/* THE ROW-LEVEL MARKER (card W4l). The action seam's in-flight set keys the TARGET, not the
+ * operation, so it cannot say WHICH control is running: that fact belongs to the ROW and is rendered
+ * as a class on the strip container (``templates/_strip.html``), never as a pulsing glyph — a glyph
+ * that blinked for the wrong action is exactly the defect the card fixes. Static on purpose: it is a
+ * marker, not a pulse, so it carries no animation and needs no reduced-motion opt-out. */
+td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radius-s); }
+
+/* The overflow MENU. A POPOVER, so it is painted in the browser's TOP LAYER: that is what lets it
+ * escape `.card { overflow: hidden }` and `.tbl { overflow: auto }` by construction, where the
+ * mockup had to un-clip both containers (a picture-level escape, not a fix). `anchor-name` /
+ * `position-anchor` place it under its own trigger where the browser supports CSS anchor
+ * positioning; where it does not, the menu still opens in the top layer, centred and unclipped. */
+.act-wrap { position: relative; display: inline-flex; }
+.menu { min-width: 232px; max-width: min(340px, calc(100vw - 28px)); margin: 0; padding: 5px;
+  inset: auto; text-align: left; background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: var(--radius); box-shadow: 0 14px 30px rgba(0, 0, 0, .55);
+  /* `white-space: normal` on purpose: the menu lives inside `td.acts`, and shell.css sets
+   * `td.acts { white-space: nowrap }` — inherited, that one rule renders every hint and the note as
+   * a single clipped line. */
+  white-space: normal; }
+.menu:popover-open { position: fixed; top: anchor(bottom); right: anchor(right); }
+.menu > form { display: block; }
+.menu .mi { display: flex; align-items: flex-start; gap: 9px; width: 100%; padding: 7px 8px;
+  font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; color: var(--text);
+  background: transparent; border: 0; border-radius: var(--radius-s); }
+.menu .mi:hover { background: var(--panel-2); }
+.menu .mi:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.menu .mi svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 1px; }
+.menu .mi .lbl { font-weight: 600; }
+.menu .mi .hint { display: block; font-weight: 400; font-size: 11.5px; color: var(--text-3);
+  margin-top: 1px; }
+.menu .mi.danger .lbl { color: #ffb3ae; }
+.menu .mnote { padding: 6px 8px 4px; font-size: 11px; color: var(--text-3);
+  border-top: 1px solid var(--line); margin-top: 4px; }
+
+/* ---------------------------------------------------------------- the confirm dialog (W4a) */
+.dlg-back { display: grid; place-items: start center; padding: 20px 0 0; }
+.dlg { width: min(520px, 100%); background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: var(--radius); box-shadow: 0 24px 60px rgba(0, 0, 0, .6); overflow: hidden; }
+.dlg > .hd { display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #18202b, #151c26); }
+.dlg > .hd h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.dlg > .hd svg { width: 16px; height: 16px; color: var(--accent); flex: 0 0 auto; }
+.dlg > .bd { padding: 14px; }
+.dlg > .bd p { margin: 0 0 10px; font-size: 13px; color: var(--text); }
+.dlg > .bd p:last-child { margin-bottom: 0; }
+.dlg-what { font-size: 12.5px; color: var(--text-2); }
+.dlg-warn { display: flex; gap: 9px; align-items: flex-start; padding: 9px 11px; margin: 0 0 12px;
+  font-size: 12.5px; color: #ffb3ae; background: rgba(248, 81, 73, .08);
+  border: 1px solid #5a2a28; border-left: 3px solid var(--danger);
+  border-radius: 0 var(--radius-s) var(--radius-s) 0; }
+.dlg-warn svg { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 1px; }
+.dlg-warn b { color: #ffd7d3; }
+.dlg > .ft { display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  border-top: 1px solid var(--line); background: var(--ground-2); }
+.dlg > .ft .spacer { flex: 1; }
+.dlg .btn { padding: 8px 14px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  border-radius: var(--radius-s); border: 1px solid var(--line-2); color: var(--text);
+  background: var(--panel-2); }
+.dlg .btn:hover { border-color: var(--accent); }
+.dlg .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dlg .btn.danger { color: #2a0b08; border-color: #ff6a60;
+  background: linear-gradient(180deg, #ff6a60, var(--danger)); }
+.dlg .target { font-family: var(--font-mono); color: var(--text-2); }
+/* THE DIALOG'S FIELDS (W4b). Kick and ban need a REASON (the ban a duration too), so the dialog's
+ * own form carries them — beside the warning that explains the consequence, and directly above the
+ * destructive button, which is the last thing read before acting. The form is a COLUMN inside the
+ * shipped footer row, so the Cancel/spacer/danger layout is untouched and a dialog with no fields
+ * (the three server ones) renders exactly as it did. */
+.dlg > .ft > form.dlg-act { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.dlg-field { display: flex; flex-direction: column; gap: 3px; margin: 0; min-width: min(300px, 60vw); }
+.dlg-field label { font-size: 10.5px; color: var(--text-3); text-transform: uppercase;
+  letter-spacing: .04em; }
+.dlg-field input { padding: 7px 9px; font: inherit; font-size: 12.5px; color: var(--text);
+  background: var(--ground-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.dlg-field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.dlg-field .hint { font-size: 11px; color: var(--text-3); }
+/* A CHECKBOX IS NOT A TEXT FIELD (W4d). The node row's maintenance pair carries the command's own
+ * option — `/node offline`'s shutdown, `/node online`'s startup — as a checkbox, and the rule above
+ * dresses EVERY input as a padded text box; a checkbox wearing that would stop reading as one. So
+ * the option's field lays out as a row (box, then its label beside it, its help under the label)
+ * and the box keeps the platform's own control, tinted with the accent colour. */
+.dlg-field.opt { flex-direction: row; align-items: flex-start; gap: 8px; min-width: min(320px, 62vw); }
+.dlg-field.opt input { width: 15px; height: 15px; padding: 0; margin: 1px 0 0; flex: 0 0 auto;
+  background: none; border: 0; accent-color: var(--accent); }
+.dlg-field.opt .opt-txt { display: flex; flex-direction: column; gap: 3px; }
+.dlg-field.opt label { font-size: 12.5px; color: var(--text); text-transform: none;
+  letter-spacing: normal; }
+
+/* A row whose strip does not fit a phone keeps its trigger and folds the icons into it: the same
+ * POSTs, with their labels written out (README-ACTIONS.md §7). Only a row that HAS a trigger folds —
+ * a row with one control keeps its glyph. The shell's own narrow chrome (the sidebar, the fixed
+ * frame) is a pre-existing gap and is deliberately not redesigned here. */
+@media (max-width: 900px) {
+  td.acts .act-strip.wide > form { display: none; }
+  td.acts .act-strip.wide > .act-sep { display: none; }
+}
+
+/* ---------------------------------------------------------------- the tab strip */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tabs .tab { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px;
+  border: 1px solid var(--line); border-bottom-color: var(--line); border-radius:
+  var(--radius-s) var(--radius-s) 0 0; color: var(--text-2); background: var(--ground-2); }
+.tabs .tab:hover { color: var(--text); }
+.tabs .tab.on { color: var(--text); background: var(--panel); box-shadow: inset 0 2px 0 var(--accent); }
+.badge { font-family: var(--font-mono); font-size: 11px; padding: 1px 7px; border-radius: 99px;
+  border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text-2); }
+.badge.bad { border-color: #5a2a28; color: #ffb3ae; }
+.pdot { width: 7px; height: 7px; border-radius: 50%; background: var(--dead); flex: 0 0 auto; }
+
+/* ---------------------------------------------------------------- the layout: log bottom / right */
+/* The placement is a CLASS the server puts on this container (from the counts, never a media
+ * query). Both placements render the same two children; only the grid changes. */
+.console { display: grid; gap: 14px; align-items: start; min-width: 0; }
+.console.log-bottom { grid-template-columns: minmax(0, 1fr); }
+.console.log-right { grid-template-columns: minmax(0, 1.55fr) minmax(380px, 1fr); }
+.state-col, .log-col { min-width: 0; }
+.console.log-bottom .log-col .log { max-height: 28vh; }
+.console.log-right .log-col .log { max-height: calc(100vh - 320px); }
+.log-card.expanded .log { max-height: calc(100vh - 300px); }
+/* The Logs page: the log IS the page, so it takes the page's height instead of the dashboard
+ * panel's 320px box (see logs.html's `logs-page` wrapper). One rule, one hook — the alternative
+ * (a second log card) is what this page exists to avoid. */
+.logs-page .log-card .log { max-height: calc(100vh - 260px); }
+@media (max-width: 1100px) {
+  /* the right column has nowhere to go on a narrow screen: the log drops to the bottom, which is
+   * a LAYOUT tidying, not the placement rule (the class the server chose is unchanged) */
+  .console.log-right { grid-template-columns: minmax(0, 1fr); }
+  .console.log-right .log-col .log { max-height: 28vh; }
+}
+
+/* ---------------------------------------------------------------- the table inside its card */
+.tbl { overflow: auto; max-height: calc(100vh - 420px); }
+.sort { color: inherit; }
+th a.sort:hover { color: var(--text); }
+th[aria-sort="ascending"] a.sort, th[aria-sort="descending"] a.sort { color: var(--accent); }
+th .ar { font-size: 9px; opacity: .85; margin-left: 2px; }
+th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------- the players search (GET, no JS) */
+.search { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.search label { font-size: 11.5px; color: var(--text-3); text-transform: uppercase;
+  letter-spacing: .06em; }
+.search input[type="search"] { flex: 1 1 260px; min-width: 0; padding: 7px 10px; font: inherit;
+  font-size: 12.5px; color: var(--text); background: var(--ground-2);
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.search input[type="search"]:focus-visible, .search button:focus-visible,
+.logpos a:focus-visible, .tabs .tab:focus-visible, .sort:focus-visible, .pdot:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; }
+.search button { padding: 7px 12px; font: inherit; font-size: 12.5px; cursor: pointer;
+  color: var(--text); background: var(--panel-2); border: 1px solid var(--line-2);
+  border-radius: var(--radius-s); }
+.search-state { padding: 8px 14px 0; }
+
+/* ---------------------------------------------------------------- the log card */
+.log-card > .ft { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 9px 14px; border-top: 1px solid var(--line); color: var(--text-3); font-size: 11.5px; }
+.logpos { display: inline-flex; gap: 4px; }
+.col-log > .log-card { margin: 0; }
+
+/* ================================================================ one scrollbar, both axes
+ *
+ * THE DEFECT this fixes, measured: the old sheet declared BOTH mechanisms on `.log` — the standard
+ * pair (`scrollbar-width`/`scrollbar-color`) AND the `::-webkit-*` pseudo-elements. In CHROMIUM
+ * the standard pair WINS and the WebKit rules are IGNORED, so the browser handed painting to the
+ * platform: different thumb insets and rounding per axis, arrow steppers on both, and thumb
+ * lengths so different the two bars stopped looking like one control.
+ *
+ * THE FIX is the mockup's, and it keeps exactly ONE mechanism per engine:
+ *   * the standard pair is kept away from Chromium behind `@supports not selector(::-webkit-
+ *     scrollbar)` — true ONLY in Firefox, which has no WebKit pair at all;
+ *   * Chromium and Safari get the WebKit pair, on BOTH axes, from ONE `--sbar` variable, one track
+ *     colour, one thumb colour and one radius, with the corner filled and the steppers removed.
+ * Which rule wins where: Firefox — the standard pair (the only pair it understands); Chromium and
+ * Safari — the WebKit pair (and they never even parse the standard pair, because the @supports
+ * condition is false there); any engine with neither — its own default bar.
+ */
+@supports not selector(::-webkit-scrollbar) {
+  :is(.log, .sbar) { scrollbar-width: thin;
+    scrollbar-color: var(--sbar-thumb) var(--sbar-track); }
+}
+:is(.log, .sbar)::-webkit-scrollbar { width: var(--sbar); height: var(--sbar); }
+:is(.log, .sbar)::-webkit-scrollbar-track { background: var(--sbar-track); }
+:is(.log, .sbar)::-webkit-scrollbar-thumb { background: var(--sbar-thumb);
+  border: 2px solid var(--sbar-track); border-radius: 6px; background-clip: padding-box; }
+:is(.log, .sbar)::-webkit-scrollbar-corner { background: var(--sbar-track); }
+:is(.log, .sbar)::-webkit-scrollbar-button { width: 0; height: 0; display: none; }

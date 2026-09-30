@@ -1,0 +1,27 @@
+{#-
+  The log card: the header (title, the level filter, the placement tags), the scroll body (the
+  `_log_panel.html` partial — the SAME markup the live stream swaps) and the footer that states
+  what the panel is showing.
+
+  It reads `state` (the LogTail) and `console.log` (the placement in force, the count that produced
+  it, the rule, and the links). The level filter is a row of LINKS, not a control: the choice lives
+  in the URL, so it survives a refresh and needs no script. The level control sits OUTSIDE
+  `#log-panel` on purpose — a fragment swap must never re-render the reader's chosen level.
+
+  The placement tags are plain links too (`?log=bottom|right|expanded`, and `auto` to go back to
+  the rule). They are rendered only where they mean something: the Logs page passes an empty list.
+-#}
+<div class="card log-card{{ ' expanded' if console.log.position == 'expanded' else '' }}">
+  <div class="hd">
+    <h3>Recent log</h3>
+    <div class="spacer"></div>
+    <span class="log-level" id="log-level">{% for item in console.log.levels %}<a href="{{ item.href }}" class="tag{{ ' a' if item.active else '' }}">{{ item.label }}</a>{% endfor %}</span>
+    <span class="tag">Follow: newest</span>
+    <span class="tag">{{ state.log.path }}</span>
+  </div>
+  <div id="log-panel">{% include "_log_panel.html" %}</div>
+  <div class="ft">
+    <span>Shown: {{ state.log.level|upper }} and up{% if console.log.links %} · log position <b>{{ console.log.position }}</b> — longest list {{ console.log.rows }} row(s), rule "{{ console.log.rule }}"{% endif %}</span>
+    {% if console.log.links %}<span class="spacer"></span><span class="logpos">{% for item in console.log.links %}<a href="{{ item.href }}" class="tag{{ ' a' if item.active else '' }}"{% if item.active %} aria-current="true"{% endif %}>{{ item.label }}</a>{% endfor %}</span>{% endif %}
+  </div>
+</div>

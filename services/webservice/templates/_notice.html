@@ -1,0 +1,25 @@
+{#-
+  THE ONE-SHOT NOTICE of a write — the outcome of the action that just ran, shown ONCE.
+
+  Why it is not the attention banner (`_banner.html`): that banner is DERIVED FROM LIVE STATE on
+  every render and is part of the dashboard's state panel, which a live refresh swaps. This is a
+  fact about what JUST HAPPENED. The page's context POPS it out of the session (`pages/actions.
+  pop_notice`), so a reload — or the next live refresh — does not repeat it.
+
+  It re-derives nothing: `notice.message` is the action's own message and `notice.ok` its own
+  `success`, read off the typed result. `notice.audit_warning` is rendered rather than swallowed:
+  when the audit trail could not be written the action still reports its real outcome, and the page
+  says so IN WORDS — a green banner over a lost audit entry is the one combination that must never
+  be silent.
+
+  Absent when there is nothing to say: `notice` is undefined on a page that has no write, and `None`
+  when nothing just happened. No empty box, no placeholder — a console that reports nothing is the
+  healthy state.
+-#}
+{% if notice is defined and notice %}
+<div class="notice {{ 'ok' if notice.ok else 'bad' }}" role="status">
+  <span class="dot {{ 'run' if notice.ok else 'dead' }}" aria-hidden="true"></span>
+  <span class="notice-msg">{{ notice.message }}</span>
+  {% if notice.audit_warning %}<span class="notice-warn">The audit entry for this action could not be recorded — see the bot log.</span>{% endif %}
+</div>
+{% endif %}
