@@ -540,8 +540,8 @@ def declare() -> None:
 
     ``scope_grants=True`` is the console's access rule, stated where the capability is declared: a
     MANAGER (an identity whose resolved scope holds a server's ``managed_by``) may read the console
-    even though no role of theirs says so — the third kind of identity Frank named, and the only one
-    that has to be expressed outside a role tuple because it is dynamic.
+    even though no role of theirs says so, and the only one that has to be expressed outside a role
+    tuple because it is dynamic.
     """
     permissions.declare_capability(DASHBOARD_CAPABILITY, DASHBOARD_ROLES, scope_grants=True)
 

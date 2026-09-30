@@ -173,9 +173,7 @@ def scoped_source(source, scope) -> Source:
 
     An UNRESTRICTED scope (``Admin``, break-glass, a local account that declares none) returns the
     source UNCHANGED, and that is deliberate on two counts: there is nothing to filter, and an idle
-    instance is part of the Admin's view (the spec omits it for a *scoped* viewer only). Frank's own
-    console therefore reads the very object the process handed over — the strongest form of "his view
-    does not change".
+    instance is part of the Admin's view (the spec omits it for a *scoped* viewer only).
     """
     if getattr(scope, "unrestricted", False):
         return source

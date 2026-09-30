@@ -1332,8 +1332,8 @@ def error_page(request: Request, message: str, *, status_code: int = 400) -> HTM
     IT IS THE CONSOLE'S REAL LOGIN PAGE — rendered by the same renderer and template the login
     route uses (``auth.routes.render_login_page``), so the doors, the status pill, the styling and
     the copy are the config-driven ones. The previous hand-built document advertised the
-    username/password door unconditionally, which an installation can have turned OFF (Frank hit
-    exactly that), printed the status code at the person, and looked nothing like the console.
+    username/password door unconditionally, which an installation can have turned OFF, printed the
+    status code at the person, and looked nothing like the console.
 
     * ``message`` becomes the page's error line. It is one of this module's OWN generic sentences —
       no ``error_description`` and no other query text is ever reflected into the page (Discord's

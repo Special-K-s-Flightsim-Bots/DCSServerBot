@@ -155,15 +155,6 @@ async def restart_server(ctx: Any, server_name: str) -> ServerControlResult:
 # (STOPPED <-> running). The console's row strip offers them on disjoint states, so which one
 # applies is decided by the state, never by the viewer.
 #
-# TEMPORARY-REDUNDANCY(W-R3): the Discord commands ``/server startup`` and ``/server shutdown``
-# (``plugins/scheduler/commands.py``) implement a RICHER flow than these actions, on the SAME domain
-# methods they call directly (``Server.startup`` / ``Server.shutdown``) — one word with two
-# behaviours. Card W5c (2026-09-29) aligned the MAINTENANCE FLAG with the commands: ``shutdown``
-# sets it by default, ``startup`` clears it by default, exactly as Frank described. What is still
-# NOT reproduced is the ``delay`` warning-popup / extension-run chain of those commands — the
-# console's confirm dialog is the warning. The card that fattens the actions with that flow and
-# moves the scheduler commands onto them removes this marker. Frank accepts declared redundancy,
-# never silent redundancy.
 
 
 def _set_maintenance(server: Any, maintenance: bool) -> str | None:
@@ -174,7 +165,7 @@ def _set_maintenance(server: Any, maintenance: bool) -> str | None:
     (``core/data/server.py``) — the SAME mechanism ``/server shutdown|startup`` and the maintenance
     commands use — so the flag reaches the node and DCS exactly as it does from Discord. A write
     that raises is returned, never swallowed: a shutdown that succeeded but could not flag must not
-    report a clean success (card W5c).
+    report a clean success.
     """
     try:
         server.maintenance = maintenance
@@ -193,7 +184,7 @@ async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True
     ``modify_mission`` / ``use_orig`` mirror the arguments ``Server.startup`` takes and the Discord
     command passes (``plugins/scheduler/commands.py``).
 
-    ``maintenance`` mirrors ``/server startup``'s own default (Frank, 2026-09-29): a TRUE value
+    ``maintenance`` mirrors ``/server startup``'s own default: a TRUE value
     CLEARS the maintenance flag on a successful start, so the server rejoins the rotation — a server
     that stays flagged after an explicit startup would be skipped by the scheduler while looking up.
     Pass ``False`` to leave the flag exactly as it is. A flag that could not be cleared is reported
@@ -253,7 +244,7 @@ async def shutdown_server(ctx: Any, server_name: str, force: bool = False,
     The DCS-level counterpart of ``stop_server``: the server stays registered and reads SHUTDOWN
     until a Startup brings it back, where a Stop ends the process and leaves it STOPPED.
 
-    ``maintenance`` mirrors ``/server shutdown``'s own default (Frank, 2026-09-29): after a
+    ``maintenance`` mirrors ``/server shutdown``'s own default: after a
     successful shutdown the flag is set to this value — TRUE (the default) marks the server as in
     maintenance, because a deliberate shutdown that leaves the flag clear is undone by the next
     scheduled start; ``False`` clears it. A write that failed is reported in the message, so a
@@ -698,8 +689,8 @@ async def _audited(ctx: Any, result: PlayerActionResult,
 # * ``ban_player`` -> ``ServiceBus.ban(...)``, which is NOT a redundancy at all: the Discord modal
 #   (``plugins/mission/views.py``, ``BanModal.on_submit``) already calls that one service method, so
 #   the console wraps the SAME operation rather than a second implementation of it. That is why this
-#   card adds no W-R marker for the ban: the ban list stays the single source of truth (Frank's
-#   decision) because both surfaces write through the same call.
+#   card adds no W-R marker for the ban: the ban list stays the single source of truth because both
+#   surfaces write through the same call.
 
 #: The longest REASON the console's kick accepts, in characters (``WRITE-ACTIONS-DESIGN.md`` §3.1:
 #: the route's field is optional and ≤ 200). Enforced HERE, in the action, so every transport is held
@@ -831,7 +822,7 @@ async def ban_player(ctx: Any, server_name: str, ucid: str, reason: str = "",
     ``days`` is the form's own value (a string, or ``None``/``''`` for permanent) and is parsed by
     :func:`parse_ban_days`, so an empty duration is a permanent ban, ``N`` is N days, and nonsense
     (negative, zero, non-numeric, absurdly large) is a TYPED refusal with NOTHING written — the ban
-    list is the single source of truth (Frank's decision), so a malformed duration must not be
+    list is the single source of truth, so a malformed duration must not be
     coerced into an approximation of itself.
 
     ``sender`` is who the ban list names as ``banned_by``, mirroring ``BanModal``'s

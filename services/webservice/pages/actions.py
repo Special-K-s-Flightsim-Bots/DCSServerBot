@@ -1,96 +1,3 @@
-"""The console's WRITE surface — the pause pilot (W2), MESSAGE a player (W3), the SERVER row
-strip (W4a: startup / start / stop / restart / shutdown, with the three confirm dialogs), the
-NODE row's lifecycle trio (W4c-revised: restart / shut down / upgrade, Admin-only) and the NODE
-row's maintenance pair (W4d: offline / online, Admin-only).
-
-Design of record: ``/home/frank/mockups/dcssb-admin-ui/WRITE-ACTIONS-DESIGN.md`` — §2 (the seam),
-§3 (the request shapes), §4 (the capability map), §5.3 (the audit), §6 (the failure matrix) and §8
-(the W2 and W3 entries). The seam it uses is ``core/actions.py`` (W1, reviewed): ``ActionContext.
-from_web``, ``resolve_scoped_server``, ``call_action`` / ``action_available``, the in-flight guard
-and ``audit_action``. **No file outside ``services/webservice/`` is changed to add a control here.**
-
-WHY PAUSE FIRST — the architect's evidence, kept next to the code it justifies, because it is not
-the intuitive answer (kick looks smaller): the action ALREADY EXISTS
-(``plugins/mission/actions.py``, ``pause_mission``/``unpause_mission``), so no new action function
-and no redundancy marker is needed; it is fully reversed by the control next to it, so a mistake
-costs one click; it cannot lose state and cannot kill a process (``Mission.pause()``, not
-``Server.stop()``); and its two guards — refuse unless ``Status.RUNNING``, refuse unless a mission
-exists — exercise the REFUSAL path in the pilot, before any destructive action exists to get it
-wrong.
-
-WHY MESSAGE SECOND (design §8 W3): it is the console's first NEW action, so the pattern for
-"action + route + control + marker" lands on something that cannot hurt anyone — no process state,
-no irreversibility. It is also the first control with a FIELD (a message + a mode), which is why
-``templates/_table.html`` renders a real form for it rather than a button, and why the capability's
-own field length is declared here (``MESSAGE_FIELD_MAX``, pinned to the action's
-``MAX_MESSAGE_LENGTH`` by ``tests/test_webui_write_message.py``).
-
-WHAT LIVES HERE, and what deliberately does not:
-
-* the capability declaration — ONE place per surface (:data:`SERVER_ACTIONS` for a server row,
-  :data:`PLAYER_ACTIONS` for a player row, :data:`NODE_ACTIONS` for a node row), read by the route
-  declaration, the page control and the access gate;
-* the POST routes, each carrying the session's CSRF dependency (a GET never changes state);
-* the target resolution (``resolve_scoped_server`` / ``resolve_scoped_node``) and the audit
-  (``audit_action``);
-* the DATA a page renders its controls from (:func:`server_controls`, :func:`player_controls`,
-  :func:`node_controls`, and :func:`controls_for`, which a list page asks for its own table) — the
-  markup is ``templates/_table.html``'s and this module renders none.
-
-WHY THE NODE ROW IS ADMIN-ONLY (W4c-revised). Restarting, shutting down or upgrading a node takes
-EVERY server on it down with it, so the three capabilities are declared with the narrower role set
-that Discord already uses for ``/node restart|shutdown|upgrade`` (``Admin``) and — unlike every
-write above — with **no** ``scope_grants``: a hoster manager's scope is a set of SERVERS, and it must
-never widen into the node that carries somebody else's.
-
-THE POWER PAIR (W4d, rebuilt as a POWER pair by W5b) is the same row's fourth and fifth controls, and
-it is NOT node power either — ``/node offline`` / ``/node online`` (``plugins/admin/actions.py``,
-``@action take_node_offline`` / ``bring_node_online``) act on the SERVERS the node carries: they
-take the node's in-service servers out of service (through the engine's popup chain) and, unless the
-caller opts out, mark them ``maintenance``; ``online`` reverts exactly what that operation did. They
-touch no node service — so the console that served the request keeps running, and an "offline" node
-can be brought back from this very page. The two capabilities are declared Admin-only like the trio,
-for the same reason: they take every server of a node out of service. Their CLOSED counterpart is the
-heartbeat: a node the cluster cannot reach (``node is None``) is not offered the pair either, because
-there is no server object to change.
-
-WHY THE WORDS ARE "Take servers offline" / "Bring servers online" AND NOTHING ELSE (W5b,
-``MAINTENANCE.md`` §10.6): "offline" here means THE SERVERS, never the node's own process — that is
-*Shut down*, the trio's own third control, and confusing the two was the defect this card fixed. The
-pair is gated on the NODE's own state (:func:`node_power_states`) and not on the maintenance flag
-it no longer manipulates as a whole: ``offline`` is offered on a heartbeating node that has servers
-and no power-off on record, ``online`` on a node whose power-off IS on record — the servers' statuses
-decide neither (W7a). ``offline``'s ONE option is the action's
-``maintenance`` parameter (default ON — without it a scheduled start brings the servers back while
-the node is meant to be offline), and ``online`` has NO option: bringing the servers back IS the
-operation.
-
-THE FLAG'S OWN CONTROLS ARE ON THE SERVER ROW (W5b, ``MAINTENANCE.md`` §4.3/§6/§10.4/§10.9):
-``Maintenance`` and ``End maintenance``, one home per concept, gated per row on the flag's own state
-(``WriteAction.when_maintenance``, the ``when_muted`` shape) and reachable by ``Admin`` / ``DCS
-Admin`` / a manager on their own servers (``scope_grants``), exactly as Discord's
-``/scheduler maintenance|clear`` are. There is deliberately NO bulk flag control on the node row.
-
-AUTHORIZATION IS NOT RE-IMPLEMENTED HERE. The route declares its capability and the app-level gate
-refuses (``permissions.capability_gate``); the control is rendered from the SAME predicate the gate
-runs (``permissions.allows``), so "offered ⊆ authorised" holds by construction rather than by two
-implementations agreeing. The scope is applied by the seam (``resolve_scoped_server``) and, for the
-control, by the source the page already renders from — the ONE owner of "which servers (and whose
-players) are in this caller's view".
-
-REGISTRATION: this module owns its routes and registers them itself (owner :data:`OWNER`), which is
-what makes its capability declaration visible in the module that reaches an action — pinned by
-``tests/test_webui_write_route_pin.py`` (a module that calls ``call_action`` must declare a
-capability in the same module). It is registered by ``install_shell`` right after the shell's own
-pages, so a path collision with a page is refused loudly at registration time.
-
-WHERE A WRITE RETURNS (card W4e, Defect 1): the page a control was rendered on travels in the form
-(:data:`ORIGIN_FIELD`) and the route resolves it by LOOKUP against the registrar's own registry of
-known pages (:func:`origin_path`) — so a Dashboard write keeps the person on the Dashboard rather
-than re-orienting them on the section's page. Never a redirect to raw request input: the allow-list
-is the open-redirect control. The Dashboard also renders the one-shot notice for the same reason
-(``pages/dashboard``), so the outcome is shown where the person lands.
-"""
 from __future__ import annotations
 
 import asyncio
@@ -116,11 +23,11 @@ from core.data.const import Status
 # (``MAINTENANCE.md`` §5 option (a)). It is the engine's own accessor — this module neither keeps nor
 # copies the record, and it never writes one. ``ServerMaintenanceManager.in_service`` is the SAME one
 # definition of "may this server's process be up" that the engine's power halves use, which is what
-# makes the node route's PREDICTION (card W7c) follow the operation rather than a second rule.
+# makes the node route's PREDICTION follow the operation rather than a second rule.
 from core.data.maintenance import ServerMaintenanceManager, power_record
 
 from .. import permissions, readmodels, session
-# THE CACHED UPGRADE SIGNAL (card W7b): the node row's Upgrade control is gated on it, and only the
+# THE CACHED UPGRADE SIGNAL: the node row's Upgrade control is gated on it, and only the
 # poller in the webservice service ever calls the node. This module only READS the cache.
 from .. import upgrade as upgrade_signal
 from ..auth import Identity
@@ -160,71 +67,18 @@ log = logging.getLogger(__name__)
 #: looks for what its routes need.
 OWNER = "actions"
 
-#: THE roles tuple of the console's write map (design §4.1/§4.3). ``Admin`` is here on purpose and
-#: is therefore WIDER than Discord (Q1, decisions 2026-09-27: the console gives ``Admin`` the
-#: DCS-Admin-level writes). ``DCS`` and ``GameMaster`` are NOT here — see design §9 Q2 for the
-#: second one: a write capability a role can satisfy while no page can be shown to that role would
-#: be a privilege with no door.
 WRITE_ROLES: tuple[str, ...] = ("Admin", "DCS Admin")
-
-#: THE roles tuple of the NODE row's map (W4c-revised). One role, for one reason: these three
-#: operations take every server on the node down with them, so they are the console's only
-#: ADMIN-ONLY writes — the same role Discord's ``/node restart|shutdown|upgrade`` require
-#: (``plugins/admin/commands.py``). They are also the only writes declared WITHOUT ``scope_grants``:
-#: a manager's scope is a set of servers (``managed_by``), and "a server of mine runs there" is not a
-#: reason to let a hoster stop somebody else's node.
 NODE_ROLES: tuple[str, ...] = ("Admin",)
 
-#: The three node capabilities, named once each (the declaration, the route and the control all read
-#: these strings). ``nodes.view`` — the page — is a DIFFERENT capability: reading the node list is
-#: ``Admin``/``DCS Admin``/a manager's business, operating a node is Admin's alone.
 NODE_RESTART_CAPABILITY = "nodes.restart"
 NODE_SHUTDOWN_CAPABILITY = "nodes.shutdown"
 NODE_UPGRADE_CAPABILITY = "nodes.upgrade"
-
-#: THE MAINTENANCE PAIR (W4d). Its own two capabilities rather than a reuse of the trio's, because
-#: they are a different operation on a different object: these two change the SERVERS a node carries
-#: (``server.maintenance``, and their stop/start) and touch no node process — the difference Frank
-#: named on 2026-09-29 when he said the pair belongs on the browser. Same Admin-only role set as the
-#: trio, and for the same reason: they take every server of a node out of service.
 NODE_OFFLINE_CAPABILITY = "nodes.offline"
 NODE_ONLINE_CAPABILITY = "nodes.online"
-
-#: The two NODE states a control can be scoped to (``NodeAction.states``). Deliberately NOT the
-#: page's ONLINE/OFFLINE tag: that tag is the heartbeat's verdict (``readmodels/nodes``:
-#: ``node is not None``), while these two describe the MAINTENANCE flag of the servers the node
-#: carries. They are DIFFERENT FACTS, and neither of them is the power pair's gate any more — the
-#: pair is gated on the node's OWN state (:func:`node_power_states`, W7a).
-#:
-#: THEY NO LONGER GATE THE POWER PAIR (W5b, ``MAINTENANCE.md`` §4/§6/§8). The flag state was the
-#: gate while the pair WAS a flag control; now that ``offline``/``online`` are a POWER pair, the
-#: gate is the power state (:data:`NODE_POWER_OFF` / :data:`NODE_POWER_ON`), computed by
-#: :func:`node_power_states`. These two constants remain — the flag state they describe is real and
-#: :func:`node_state` still answers it — and a future node-row control that IS about the flag would
-#: declare them. Nothing declares them today: §10.4 of the design of record declined the bulk flag
-#: control ("one home per concept"), so the flag's own controls live on the SERVER row.
 NODE_IN_SERVICE = "in-service"
 NODE_MAINTENANCE = "maintenance"
-
-#: THE TWO POWER STATES of a node — the gate the power pair is offered on (W5b, rebuilt by W7a;
-#: ``MAINTENANCE.md`` §4.1/§4.2/§6). They are the NODE's own state, never a figure about the
-#: processes it happens to carry (W7a: the servers' statuses decided the half until then, which is
-#: what offered "bring online" on an online node):
-#:
-#: * :data:`NODE_POWER_OFF` — the node is heartbeating, at least one server is in the caller's view
-#:   and no power-off RECORD exists for it: it is IN SERVICE, so *Take servers offline* is offered
-#:   whether or not anything currently runs;
-#: * :data:`NODE_POWER_ON` — a power-off RECORD exists for this node: *Bring servers online* is the
-#:   way back to what that operation took down.
-#:
-#: An unreachable node, and a node carrying no server, are in NEITHER state
-#: (:func:`node_power_states` answers which).
 NODE_POWER_OFF = "servers-up"
 NODE_POWER_ON = "servers-down"
-
-#: THE HONEST STATEMENT a node row carries while a check-gated control's value is UNKNOWN (card
-#: W7b): never checked, or the last check failed. The control itself is NOT offered then — a row
-#: whose Upgrade glyph vanished silently would look like the console had simply forgotten it.
 NOTE_NO_CHECK = upgrade_signal.NOTE_NO_CHECK
 
 PAUSE_PATH = "/actions/server/pause"
@@ -232,155 +86,40 @@ UNPAUSE_PATH = "/actions/server/unpause"
 PAUSE_CAPABILITY = "missions.pause"
 UNPAUSE_CAPABILITY = "missions.unpause"
 
-#: The player write (design §3.1 / §4.1): ONE route for both modes — ``mode`` travels in the body,
-#: so there is no second path to keep in step with the first.
 MESSAGE_PATH = "/actions/player/message"
 MESSAGE_CAPABILITY = "players.message"
 
-#: The default when the body states no mode. ``popup`` is what Frank's "private / in-game" means and
-#: what ``/mission player popup`` offers first; ``chat`` is one field away.
 MESSAGE_DEFAULT_MODE = "popup"
 
-#: THE SERVER ROW'S MAINTENANCE PAIR (W5b, ``MAINTENANCE.md`` §4.3/§6/§10.9). The per-server home of
-#: the flag that used to hide inside the node row's ``online``: ``servers.maintenance``, set by
-#: ``plugins.scheduler.actions.set_maintenance`` and cleared by ``clear_maintenance``. TWO
-#: capabilities rather than one, matching the PAUSE/UNPAUSE pair above — each half is named for the
-#: operation it performs, so a reader of the capability map can see which way a control writes.
-#:
-#: THE ROLES mirror Discord's ``/scheduler maintenance`` / ``/scheduler clear`` (``DCS Admin``,
-#: ``plugins/scheduler/commands.py``) WIDENED by the console's own rule: ``WRITE_ROLES`` (``Admin`` +
-#: ``DCS Admin``, §4.1) WITH ``scope_grants=True``, so a MANAGER may flag their OWN server and
-#: nobody else's — Q9 of the design of record, and the same shape every server-row write above uses.
-#: The node row's pair stays Admin-only and NOT scope-granted: a manager's scope is a set of servers,
-#: and it must never widen into a node.
 SERVER_MAINTENANCE_CAPABILITY = "servers.maintenance"
 SERVER_CLEAR_MAINTENANCE_CAPABILITY = "servers.clear_maintenance"
 
-#: The longest message the control will let a browser submit. The ACTION owns the limit
-#: (``plugins.mission.actions.MAX_MESSAGE_LENGTH``, enforced there for every transport, and this
-#: module must NOT import the plugin — a console whose plugin is absent still has to render its
-#: pages); these two are therefore pinned to each other by ``tests/test_webui_write_message.py``, and
-#: the authoritative refusal is the action's.
 MESSAGE_FIELD_MAX = 1024
 
-#: the session key the one-shot outcome travels in (see :func:`pop_notice`)
 NOTICE_KEY = "_action_notice"
 
-#: The most characters of a write's outcome the ONE-SHOT notice carries into the session. Starlette's
-#: ``SessionMiddleware`` keeps the session IN the signed cookie — not server-side — and browsers
-#: silently drop cookies over ~4 KB, so an UNBOUNDED ``result.message`` (a refusal that quotes a
-#: crafted 200 000-character name) is a self-inflicted logout per crafted POST and a 400/431 at any
-#: reverse proxy with a small header limit (review W2 I-1). The wording the console shows is a short
-#: refusal, never a name dump: 300 characters is far more than any of them, and the clip is VISIBLE
-#: (:func:`core.actions.bound_text` appends the truncation marker), so a clipped refusal never reads
-#: as a whole one to the operator.
 NOTICE_MAX_CHARS = 300
 
-#: THE PROCESS-SIDE EXPECTATION STORE (card W4m, which replaces W4k's SESSION store). The rule it
-#: carries is unchanged — "I started something through THIS control and its glyph has not swapped
-#: yet" — but WHERE it is held is the whole of this card's Defect 2.
-#:
-#: WHY IT IS NOT IN THE SESSION ANY MORE. W4k/W4l kept the expectation in the session, whose cookie
-#: the route writes on its reply — while ``static/submit.js`` hands the page over to a fresh render
-#: the moment it fires the POST, so the render MEANT to show the pulse usually happens BEFORE that
-#: ``Set-Cookie`` lands. Measured on this machine
-#: (``~/.hermes/cache/scratch/probe-cookie.py``): the cookie from an unfollowed 303 IS applied, so
-#: the DELIVERY is sound and the TIMING is the defect — the signal trails the render it is meant to
-#: decorate. What a person then sees is a race: nothing at all (Frank's "normal presses do not do any
-#: blinking now"), or a late pulse that lingers (his "blinks and never stops"). The expectation is
-#: therefore held where the RENDER can see it at the moment it renders — process-side, keyed by
-#: target, exactly like the seam's in-flight set the neighbouring half of the busy rule already reads
-#: (``core.actions.in_flight_targets``).
-#:
-#: ONE ENTRY PER TARGET (``target_key``), each carrying WHICH CONTROL was submitted (``action``),
-#: WHICH observable that control moves (``observable``: the row's status or the maintenance flag,
-#: card W4l), the value that observable held at submission (``value``) and when it was stamped
-#: (``at``) — so the pulse belongs to the pressed control and ends when =its= observable moves.
-#:
-#: THE NON-DISCLOSURE RULE (card W4g) IS UNCHANGED, and it is what keeps a process-wide store
-#: honest: it is consulted ONLY for a row the caller is ALREADY rendering (``server_controls`` walks
-#: the caller's own scoped source and asks about a server it is about to draw), it is never LISTED
-#: and never COUNTED, and no page can ask it about a target it is not showing. It is not a table of
-#: "who is waiting for what" that could be read out — the only fact it can ever yield is a property
-#: of a row the caller already has in front of them.
-#:
-#: BOUNDED BY COUNT (:data:`AWAIT_MAX_PENDING`): unlike a session, a process store outlives every
-#: session, so the oldest entry is dropped once the cap is reached. A dropped expectation can only
-#: end a pulse early, never leave one pulsing forever.
 AWAIT_MAX_PENDING = 8
-
-#: How long a write's expectation may outlive the action call that issued it, in seconds (card W4k,
-#: unchanged by W4m). ONE named place, and the reason it exists: the pulse must end exactly when the
-#: row's glyph changes, which for a DCS ``startup`` (``SHUTDOWN`` -> ``RUNNING``) can take about a
-#: minute — far longer than the ``call_action`` that returns in seconds. Without a ceiling a start
-#: that never comes up would pulse forever; at the cap the pulse stops, and it does NOT raise, retry
-#: or invent a second failure path — the read pages show the truth (the row still reading SHUTDOWN)
-#: either way.
 AWAIT_CHANGE_SECONDS = 120
 
-#: The store itself, behind one lock. FastAPI runs these handlers on one event loop, but the store
-#: is PROCESS state read by every request and cleared by the test fixtures, so the lock is what keeps
-#: a read from seeing a half-written mapping.
 _AWAIT_LOCK = threading.Lock()
 _AWAIT: dict[str, dict] = {}
 
-#: WHICH SIGNAL ENDS AN EXPECTATION (card W4l, Defect 2). W4k recorded only the row's status, which is
-#: what a POWER action moves (a Startup takes the row from SHUTDOWN to RUNNING) and what a FLAG action
-#: never moves at all: setting or clearing ``server.maintenance`` leaves the status exactly where it
-#: was, so a status-keyed expectation was never satisfied for the flag pair and its pulse ran to the
-#: ceiling — re-armed by every further press, which is Frank's "blinks and never stops". The
-#: expectation therefore records WHICH observable its action changes, and ends when THAT one moves:
-#:
-#: * :data:`AWAIT_OBSERVABLE_STATUS` — the row's status/state (:func:`_row_state`). The default, and
-#:   what every power action (startup/start/restart/shutdown/stop) and the mission pair move;
-#: * :data:`AWAIT_OBSERVABLE_MAINTENANCE` — the server's ``maintenance`` flag, the one observable
-#:   ``servers.maintenance`` / ``servers.clear_maintenance`` move (the flag lands before the response
-#:   returns, so their expectation is spent on the very next render and their visible pulse is the
-#:   in-flight marker's, never a stale window).
 AWAIT_OBSERVABLE_STATUS = "status"
 AWAIT_OBSERVABLE_MAINTENANCE = "maintenance"
 
-#: The confirm step (W4a, design §3.3). A destructive control does not POST its action: it POSTs to
-#: ``<path>/confirm``, which renders the dialog, and the DIALOG's form carries a one-shot CONFIRM
-#: TOKEN minted for that render. Without it the action's route answers the console's refusal — a
-#: confirmation a caller can skip with curl is decoration, so this is checked SERVER-side and
-#: asserted by ``tests/test_webui_write_server_actions.py``.
-#:
-#: The loader is a POST, not the design's GET with ``?server=``: the design's own §3.1 rule is that
-#: a target never travels in a URL, and the shipped pin ``tests/test_webui_write_pause.py``
-#: ("a target must never travel in a URL") asserts it on the rendered page. A POST that renders a
-#: dialog changes nothing, exactly as the design's GET did.
 CONFIRM_SUFFIX = "/confirm"
 CONFIRM_FIELD = "_confirm_token"
 CONFIRM_TEMPLATE = "confirm.html"
 
-#: The form field carrying the PAGE a write was submitted FROM (card W4e, Defect 1). The row control
-#: renders it as a hidden field next to the target, and the confirm dialog re-emits it, so the route
-#: that runs the action can 303 back to the page the person was looking at instead of the section's
-#: own page — a Startup pressed on the Dashboard (``/``, which renders the SAME server strip as
-#: ``/servers``) must keep them on the Dashboard.
-#:
-#: IT IS NOT A DESTINATION THE REQUEST CHOOSES. The value a request sends is only ever a CANDIDATE:
-#: :func:`origin_path` accepts it by LOOKUP against the registrar's own registry of known page paths
-#: (``Registrar.page_paths``, read off the pages' nav items) and otherwise answers the section
-#: default. A redirect to raw request input — a free ``next=``, the ``Referer`` header — is an open
-#: redirect, and this is the one place the browser's destination is chosen by the request, so the
-#: allow-list is the control.
 ORIGIN_FIELD = "_origin"
-#: the session key the pending confirm tokens live in, and how many are kept. The session rides in
-#: the signed COOKIE (see NOTICE_MAX_CHARS), so the store is bounded: opening dialogs must never grow
-#: the cookie without limit.
 CONFIRM_KEY = "_action_confirms"
 CONFIRM_MAX_PENDING = 8
 
-#: Which part of the row a control lives in. ``strip`` = the icons on the row; ``menu`` = the row's
-#: overflow menu, which carries the rarer control with its label written out (README-ACTIONS.md §5).
 ROW_STRIP = "strip"
 ROW_MENU = "menu"
 
-#: The one-line note a SERVER row's overflow menu carries, so a reader knows why the two process
-#: controls are not beside the others (README-ACTIONS.md §5). It belongs to the SERVER strip only —
-#: a player row has no menu, and the copy names two controls it does not have.
 MENU_NOTE = ("Start and Stop live only here: they act on fewer states than Startup and Shutdown, so "
              "they do not earn a place in the strip.")
 
@@ -453,22 +192,22 @@ class WriteAction:
     danger: bool = False
     confirm: bool = False
     when_maintenance: bool | None = None
-    #: the command's own OPTION, when the action has one (card W5d, the ``NodeOption`` shape W4d
-    #: uses on the node row): a checkbox with its ``off`` companion, drawn by the action's DIALOG
-    #: (``templates/confirm.html`` via :func:`option_inputs`). Shutdown sets the maintenance flag,
-    #: Startup clears it (``plugins.mission.actions``'s own contract), and the choice is part of the
-    #: operation, so the dialog is where the operator makes it — which is what makes these two
-    #: controls reach their dialog even when they are not destructive (see :attr:`dialog`).
+    #: the command's own OPTION, when the action has one: a checkbox with its ``off`` companion,
+    # drawn by the action's DIALOG (``templates/confirm.html`` via :func:`option_inputs`).
+    # Shutdown sets the maintenance flag, Startup clears it (``plugins.mission.actions``'s own contract),
+    # and the choice is part of the operation, so the dialog is where the operator makes it —
+    # which is what makes these two controls reach their dialog even when they are not destructive
+    # (see :attr:`dialog`).
     option: NodeOption | None = None
-    #: WHICH observable this action MOVES, and therefore which signal ends the pulse it starts (card
-    #: W4l, Defect 2). The default — the row's status/state — is what every power action and the
+    #: WHICH observable this action MOVES, and therefore which signal ends the pulse it starts.
+    # The default — the row's status/state — is what every power action and the
     #: mission pair change; ``AWAIT_OBSERVABLE_MAINTENANCE`` is the flag pair's own, because setting or
     #: clearing ``server.maintenance`` moves no status at all. It lives on the DECLARATION for the same
     #: reason every other fact about a control does: the route that records the expectation and the
     #: read that ends it are two readings of ONE declaration, never a second list of "which actions
     #: are flag actions" that could drift from the pair below.
     observable: str = AWAIT_OBSERVABLE_STATUS
-    #: THE STATE ITS WRITE IS WORKING TOWARD (card W4n): the row reads one of these when the action
+    #: THE STATE ITS WRITE IS WORKING TOWARD: the row reads one of these when the action
     #: has SETTLED, and only then is its pulse spent. Before W4n the end condition was "the status
     #: moved", which a real DCS boot defeats — a launch goes ``SHUTDOWN`` -> ``LOADING`` (most of the
     #: boot) -> ``RUNNING`` (``core/data/impl/serverimpl.py``), so the expectation was spent one or
@@ -497,7 +236,7 @@ class WriteAction:
     @property
     def dialog(self) -> bool:
         """Whether this control is reached through its DIALOG (``confirm.html``) rather than posting
-        the action directly (card W5d).
+        the action directly.
 
         The node row's own rule, applied to the server row (``_node_control``): a control that
         CONFIRMS posts to ``<path>/confirm`` so the action's route can refuse a POST that skipped
@@ -512,30 +251,17 @@ class WriteAction:
         return bool(self.confirm or self.option is not None)
 
 
-#: The SERVER row's controls (W2's pilot plus W4a). The three process/DCS-level writes
+#: The SERVER row's controls. The three process/DCS-level writes
 #: (``startup_server`` / ``shutdown_server`` / ``start_server`` / ``stop_server``) are
 #: ``plugins/mission/actions.py``'s own actions, added by W4a; ``pause_mission`` /
 #: ``unpause_mission`` are the mission plugin's, unchanged since W2. The ``__qualname__`` is the
 #: registry's key (``core/actions.py``), never the function NAME.
 #:
-#: The glyph strings are the mockup's own (``/home/frank/mockups/dcssb-admin-ui/dashboard-actions``
-#: ``_build.py``) EXCEPT where Frank's decisions override it. On 2026-09-29 he settled the "bring it
-#: up" set (card W4i, which CORRECTS the same day's W4f rule "one glyph per meaning"): the play
-#: triangle means "bring a DOWN server up", so **startup (SHUTDOWN) and start (STOPPED) wear the SAME
-#: plain play triangle** — their states are disjoint, so a strip never shows that drawing twice —
-#: while **unpause (PAUSED) keeps the mockup's own bar+triangle**: a paused server is frozen, not
-#: down, so Unpause is a different operation from Startup/Start. He weighed and REJECTED ``⏫`` for
-#: startup — an up arrow already means ``online`` and ``upgrade`` on the same screen. The old
-#: ring-with-stem startup shape is DELETED, and **shutdown's power arc is the only power drawing in
-#: the set** (shared with the node row). The mockup is authoritative for the bar+triangle unpause
-#: drawing (it drew it and W4f replaced it) and is NOT edited; the glyph table itself is
-#: ``services/webservice/templates/_icons.html``.
-#:
 #: * **stop stays the filled square**, **start the play triangle** (it never appears beside startup:
 #:   the states are disjoint);
 #: * the player-row glyphs (popup filled, kick simplified) are W4b's.
 SERVER_ACTIONS: tuple[WriteAction, ...] = (
-    # Startup's maintenance option (card W5d): the same box the node row's ``offline`` carries,
+    # Startup's maintenance option: the same box the node row's ``offline`` carries,
     # mirroring Discord's ``/server startup`` — ON by default, meaning CLEAR any flag so the
     # scheduler may start the server again. It rides on the DIALOG (``WriteAction.dialog``), which
     # is why this non-destructive control opens a form instead of posting directly: the checkbox is
@@ -667,7 +393,7 @@ class PlayerButton:
 
 @dataclass(frozen=True, slots=True)
 class PlayerAction:
-    """One write of the console that acts on a PLAYER row (design §3.1, §8 W3, card W4b).
+    """One write of the console that acts on a PLAYER row.
 
     Its own record rather than a second :class:`WriteAction`, because a player write carries what a
     server write does not: the UCID that completes its target, the MODES it offers and, with them, a
@@ -700,8 +426,7 @@ class PlayerAction:
     danger: bool = False
     confirm: bool = False
     #: record EVERY attempt at this action in the audit, including a refusal the ROUTE made before
-    #: any action ran (card W4b, requirement 6 — the W2 review's finding M-a revisited for the
-    #: destructive pair only).
+    #: any action ran.
     audit_refusals: bool = False
     field: str = ""
     field_label: str = ""
@@ -790,7 +515,7 @@ PLAYER_ACTIONS: tuple[PlayerAction, ...] = (
 
 @dataclass(frozen=True, slots=True)
 class NodeAction:
-    """One write of the console that acts on a NODE row (cards W4c-revised and W4d).
+    """One write of the console that acts on a NODE row.
 
     Its own record rather than a third :class:`WriteAction`, because a node write states what a
     server write does not: the target is a NODE (in the body, as ``node``), the state gates are the
@@ -827,12 +552,12 @@ class NodeAction:
     confirm: bool = True
     danger: bool = True
     #: record EVERY attempt at this action in the audit, including a refusal the ROUTE made before
-    #: any action ran (card W4b, requirement 6 — the W2 review's finding M-a). For these five it is
+    #: any action ran. For these five it is
     #: unconditional: taking a whole node — or every server on it — out of service is exactly the
     #: destructive class that ruling is about.
     audit_refusals: bool = True
     states: tuple[str, ...] = ()
-    #: WHETHER THIS CONTROL IS GATED ON THE CACHED UPGRADE CHECK (card W7b). Only the Upgrade
+    #: WHETHER THIS CONTROL IS GATED ON THE CACHED UPGRADE CHECK. Only the Upgrade
     #: control declares it. When True the control is offered **only while the cache says an update
     #: is pending** (``services.webservice.upgrade.pending``), the row says ``"no update check yet"``
     #: while the value is UNKNOWN, and the dialog reports when the value was last checked. The check
@@ -851,7 +576,7 @@ class NodeAction:
     go_title: str = ""
 
 
-#: The NODE row's controls (cards W4c-revised and W4d): **restart · shut down · upgrade** and the
+#: The NODE row's controls: **restart · shut down · upgrade** and the
 #: maintenance pair **offline · online**.
 #:
 #: THE GLYPHS ARE SHARED WITH THE SERVER ROW, deliberately: ``restart`` and ``shutdown`` are the same
@@ -870,7 +595,7 @@ class NodeAction:
 #: copy has to say. The maintenance pair's words name the SERVER effect (maintenance, stop, start) and
 #: never the node's power: the node's services, this console included, keep running.
 #:
-#: UPGRADE IS OFFERED ONLY WHILE THE NODE REPORTS AN UPDATE PENDING (card W7b), read from the CACHED
+#: UPGRADE IS OFFERED ONLY WHILE THE NODE REPORTS AN UPDATE PENDING, read from the CACHED
 #: background check. ``Node.upgrade_pending()`` is an async git/HTTP check on the local node and an
 #: RPC on a remote one, so a page render must not ask it (``readmodels/nodes.py``: no RPC on render):
 #: the poller in the webservice service asks instead and caches the answer, and this control carries
@@ -993,7 +718,7 @@ NODE_ACTIONS: tuple[NodeAction, ...] = (
 def declare() -> None:
     """Declare every write capability. Idempotent for the same roles AND scope rule.
 
-    ``scope_grants=True`` is Frank's binding rule expressed in the console's existing mechanism: a
+    ``scope_grants=True`` is expressed in the console's existing mechanism: a
     MANAGER (an identity whose resolved scope holds a server's ``managed_by``) may pause a mission —
     or message a player — ON THEIR OWN SERVERS, and the scope inside the seam holds them to exactly
     that. Node and instance writes stay Admin-only and must not be granted to managers; they are not
@@ -1063,7 +788,7 @@ def state_of(value: Any) -> str:
     ``startup_server`` guards on ``Status.SHUTDOWN`` itself. A control whose only possible answer is
     the action's own state refusal is not offered (design §2.5), and a row between two states gets no
     control at all. ``Status`` is the authority: when the mockup's state table and the enum disagree,
-    the enum wins (card ``t_e005b20e``).
+    the enum wins.
     """
     raw = (readmodels.status_view(value).raw or "").strip().lower()
     for member in Status:
@@ -1081,8 +806,7 @@ def target_key(kind: str, name: str | None = "") -> str:
     prefix the KIND (``server:<folded name>`` / ``node:<folded name>``) — kept HERE because the
     console must not reach for a private name in the seam. It is what lets a page ask the guard's
     OWN set (:func:`target_is_busy`) about a row it is rendering, so the pulse a person sees and the
-    refusal a second press meets are ONE fact, never two that disagree (card W4g: "do not add a
-    second flag").
+    refusal a second press meets are ONE fact, never two that disagree.
 
     It is pinned to the guard by ``tests/test_webui_busy_control.py``, which puts a target in flight
     through the REAL :func:`core.actions.call_action` and asserts the rendered control goes busy: if
@@ -1103,7 +827,7 @@ def target_is_busy(kind: str, name: str | None, running: frozenset[str] | None =
     return target_key(kind, name) in (in_flight_targets() if running is None else running)
 
 
-# ------------------------------------- the control that is AWAITING A CHANGE (cards W4k/W4m)
+# ------------------------------------- the control that is AWAITING A CHANGE
 
 def _row_state(server: Any) -> str:
     """The state ONE row's control matches on — the SAME reading :func:`server_controls` uses.
@@ -1139,8 +863,8 @@ def reset_awaiting_changes() -> None:
 def _observable_value(action: WriteAction, state: str, flagged: bool) -> Any:
     """The current value of the observable *action* MOVES — the signal whose move ends its pulse.
 
-    The ONE translation from the declaration's ``observable`` to a value a later render can compare
-    (card W4l, Defect 2): the maintenance flag for the flag pair (a boolean, so ``False`` is a real
+    The ONE translation from the declaration's ``observable`` to a value a later render can compare:
+    the maintenance flag for the flag pair (a boolean, so ``False`` is a real
     value and not an absent one), the row's state for everything else. Kept beside the store that
     records it and the read that spends it, so a third observable is one branch in ONE place.
     """
@@ -1153,7 +877,7 @@ def remember_awaiting_change(kind: str, name: str | None, action: WriteAction,
                              state: str, flagged: bool) -> None:
     """Record that *action*'s write on ``(kind, name)`` is ON ITS WAY, and what its observable read.
 
-    WRITTEN BEFORE THE ACTION RUNS (card W4m): the route calls this once the target is resolved and
+    WRITTEN BEFORE THE ACTION RUNS: the route calls this once the target is resolved and
     the observable has been read, and only then calls the action — so the fresh render the browser
     lands on (issued at the same moment as the POST) already finds the expectation, with no cookie
     round-trip in the way. A write that then FAILS or is REFUSED drops it again
@@ -1161,12 +885,12 @@ def remember_awaiting_change(kind: str, name: str | None, action: WriteAction,
 
     THIS is the pulse's authority — "someone started something through THIS control and the glyph it
     moves has not swapped yet" — held PROCESS-side, keyed by target (see the store's note above for
-    why it left the session). IT NAMES THE ACTION (card W4l, Defect 1): the seam's in-flight guard
+    why it left the session). IT NAMES THE ACTION: the seam's in-flight guard
     keys only the TARGET and cannot say WHICH control was pressed, but this record is written by the
     ROUTE, which knows exactly which action it is running, so :func:`awaiting_change` answers ``True``
     only for that same control — pressing *Maintenance* must not blink *Startup*.
 
-    IT NAMES THE OBSERVABLE TOO (card W4l, Defect 2): ``action.observable`` decides whether the
+    IT NAMES THE OBSERVABLE TOO: ``action.observable`` decides whether the
     expectation ends on the row's status or on the maintenance flag, and the value that observable
     holds AT SUBMISSION is stored beside it. The flag pair therefore spends its expectation on the
     very next render (the flag lands before the response returns), never a 120-second pulse re-armed
@@ -1184,7 +908,7 @@ def remember_awaiting_change(kind: str, name: str | None, action: WriteAction,
     entry = {"action": str(getattr(action, "key", "")),
              "observable": getattr(action, "observable", AWAIT_OBSERVABLE_STATUS),
              "value": _observable_value(action, state, flagged),
-             # the state the write works TOWARD (card W4n): the read spends the expectation when the
+             # the state the write works TOWARD: the read spends the expectation when the
              # row reads one of these AND has left the submitted state — see :func:`awaiting_change`.
              # Empty for an action that names no target state (the pre-W4n "any change" rule).
              "settled": tuple(getattr(action, "settled", ()) or ()),
@@ -1200,7 +924,7 @@ def remember_awaiting_change(kind: str, name: str | None, action: WriteAction,
 def forget_awaiting_change(kind: str, name: str | None) -> None:
     """Drop the expectation for ``(kind, name)`` — a write that FAILED or was REFUSED.
 
-    A failed start must not pulse for two minutes while the notice says it failed (card W4k), so the
+    A failed start must not pulse for two minutes while the notice says it failed, so the
     route forgets the expectation at the same moment it remembers the failure notice. Removing an
     absent key is a no-op.
     """
@@ -1211,12 +935,12 @@ def forget_awaiting_change(kind: str, name: str | None) -> None:
 def _evaluate(entry: dict, state: str, flagged: bool) -> str:
     """Whether a stored expectation has ENDED against the row's current observable — ``"end"``/``"pending"``.
 
-    The ONE place the end condition lives (card W4n), read by both :func:`awaiting_change` (does THIS
+    The ONE place the end condition lives, read by both :func:`awaiting_change` (does THIS
     control pulse?) and :func:`awaiting_action` (which control is pending at all?). Three shapes:
 
     * the flag observable (``AWAIT_OBSERVABLE_MAINTENANCE``) — ENDED as soon as the boolean differs
-      from the value it held at submission (cards W4l/W4n: a flag either moved or it did not);
-    * a STATUS observable WITH a settled set (card W4n) — ENDED when the row reads one of the settled
+      from the value it held at submission;
+    * a STATUS observable WITH a settled set — ENDED when the row reads one of the settled
       states AND it has LEFT the state it was submitted in. The ``departed`` latch is what makes a
       ``restart`` work: it is SUBMITTED in a settled state (``RUNNING``), so the bare
       ``state in settled`` test would spend it on the first render; only once the row has been seen
@@ -1248,8 +972,8 @@ def _pending_key_locked(key: str, state: str, flagged: bool, now: float | None) 
     """The action key of the pending expectation at *key*, evaluated against the row — or ``None``.
 
     Runs the ceiling, the end condition and the drop in ONE place, under the store's lock, so a spent
-    entry is removed WHOEVER reads it (card W4m) and the two public readers cannot drift. Returns the
-    pending action's KEY (never a bool), because card W4n's row needs to know WHICH control is pending
+    entry is removed WHOEVER reads it and the two public readers cannot drift. Returns the
+    pending action's KEY (never a bool), because we need to know WHICH control is pending
     in order to keep it on screen while the state does not match its own gate.
     """
     entry = _AWAIT.get(key)
@@ -1278,37 +1002,13 @@ def awaiting_change(kind: str, name: str | None, action_key: str,
 
     * an expectation exists for this target (a write was issued and has not ended), and
     * the entry was submitted by THIS control — ``action_key`` is the key the record carries, so a
-      SIBLING control of the same row never pulses for an action it did not run (card W4l, Defect 1:
-      pressing *Maintenance* must not blink *Startup*, and vice versa), and
+      SIBLING control of the same row never pulses for an action it did not run, and
     * the observable THAT ACTION MOVES has not reached the END its action declares — the row's status
-      reaching the action's ``settled`` state (card W4n) for a power action, the maintenance flag
-      moving for ``servers.maintenance`` / ``servers.clear_maintenance`` (card W4l, Defect 2) — see
+      reaching the action's ``settled`` state for a power action, the maintenance flag
+      moving for ``servers.maintenance`` / ``servers.clear_maintenance`` — see
       :func:`_evaluate`, and
     * the expectation is younger than :data:`AWAIT_CHANGE_SECONDS` (the ceiling that keeps a start
       that never comes up from pulsing forever).
-
-    THE END CONDITION IS THE SETTLED STATE, NOT "ANY CHANGE" (card W4n). Frank pressed Start and saw
-    no pulse because the row's status moved to ``LOADING`` one or two seconds in — the boot's own
-    state, and the state he was waiting THROUGH — and the old rule spent the expectation there. The
-    pulse now ends at ``RUNNING``/``PAUSED`` (a start/restart) or ``SHUTDOWN``/``STOPPED`` (a
-    shutdown/stop), and ``LOADING`` never ends it.
-
-    IT ENDS THE EXPECTATION IT FINDS SPENT (card W4m), which is Frank's rule made mechanical — NO
-    BLINKING WITHOUT A RUNNING OR GENUINELY PENDING ACTION: as soon as the observable has SETTLED (the
-    write's effect is visible) or the ceiling has passed, the entry is REMOVED and this answers
-    ``False``. Removing it rather than merely ignoring it is what stops a spent expectation from
-    re-arming: a row that returns to the value it had at submission (a server back at SHUTDOWN inside
-    the window) would otherwise pulse again for a write that finished long ago. It must NOT be
-    removed merely because the action's CALL has returned — a DCS start returns in seconds and boots
-    for about a minute, so "the call is over and nothing has changed yet" is the NORMAL shape of a
-    genuinely pending action. A write that was a NO-OP (the action reported a success but the
-    observable will never reach its settled state) is therefore indistinguishable from that boot, and
-    it pulses until the ceiling stops it: the choice made here is to wait the BOUNDED window rather
-    than stop early, because stopping early would hide a start that is still coming. The ceiling is
-    the only reason a pulse may outlive the action's own completion.
-
-    This is NOT an error path: it never raises, retries or invents a second failure. ``now`` is an
-    injectable clock for the cap boundary; production passes nothing and reads :func:`time.monotonic`.
     """
     with _AWAIT_LOCK:
         pending = _pending_key_locked(target_key(kind, name), state, flagged, now)
@@ -1320,13 +1020,6 @@ def awaiting_action(kind: str, name: str | None, state: str, flagged: bool, *,
                     now: float | None = None) -> str | None:
     """The action KEY whose write on ``(kind, name)`` is still pending against the row — or ``None``.
 
-    The ROW-level read card W4n needs: :func:`awaiting_change` answers for ONE control the row is
-    already offering, but a pending start/restart whose action's own gate no longer matches the row
-    (a ``LOADING`` server, where NOTHING is offered) must stay ON the row — see
-    :func:`server_controls`. It evaluates the SAME expectation through the SAME ceiling and drop as
-    :func:`awaiting_change` (both call :func:`_pending_key_locked`), so a spent entry is removed by
-    whichever of the two reads it first and the row can never double-count a pending action.
-
     Like every read of the store it is consulted only for a server already in the caller's scoped
     source — it yields a property of a row the caller is rendering, never a list of busy targets.
     """
@@ -1334,7 +1027,7 @@ def awaiting_action(kind: str, name: str | None, state: str, flagged: bool, *,
         return _pending_key_locked(target_key(kind, name), state, flagged, now)
 
 
-# ------------------------------------- the SERVERS a NODE action will move (card W7c)
+# ------------------------------------- the SERVERS a NODE action will move
 
 #: The SERVER action a node power operation's per-server effect takes its semantics from. The node
 #: route describes each affected server through the SERVER_ACTIONS record — the observable and the
@@ -1351,16 +1044,7 @@ def _server_action(key: str) -> WriteAction:
 
 def node_moved_names(request: Request, node_name: str,
                      action: NodeAction, record: Any = None) -> list[str]:
-    """Seed the expectation on the SERVERS a node power operation WILL move — the card W7c fix.
-
-    Frank, 2026-09-30: *"when I set a node to 'online' the 'play' button does not flash on the server
-    page on the servers that are being started."* A node power action starts or stops its servers
-    INSIDE the bot's own action, so no per-server write is submitted from the browser and their rows
-    carried no expectation — the node row behaved and the server rows did not. This seeds the SAME
-    store the per-server route writes (:func:`remember_awaiting_change`), keyed by the SERVER target,
-    so each affected row pulses on the servers page and the dashboard and ends by the identical rules:
-    the settled state reached, a failure, or the ceiling. Called ONCE per accepted node write (see
-    :func:`_node_handler`); a refused or failed node write calls it not at all.
+    """Seed the expectation on the SERVERS a node power operation WILL move.
 
     ``record`` is the engine's power-off RECORD (``core.data.maintenance.power_record``), which the
     CALLER reads BEFORE the action runs and passes here — *because the action CLEARS it as it reverts
@@ -1445,7 +1129,7 @@ def server_controls(request: Request, origin: str) -> dict[str, dict]:
     controls may not be offered.
 
     ``origin`` is the PAGE this strip is being rendered on (its own path constant), and it travels
-    into every control as a hidden field so the write can return there (card W4e, Defect 1): the
+    into every control as a hidden field so the write can return there: the
     Dashboard (``/``) and ``/servers`` render the SAME strip, so a Startup pressed on either must
     keep the person on the page they were on. The route re-checks it against the registry — this
     value is a rendering aid, never the authority (see :func:`origin_path`).
@@ -1470,10 +1154,10 @@ def server_controls(request: Request, origin: str) -> dict[str, dict]:
     ``SHUTTING_DOWN`` and ``UNREGISTERED`` (both rendered as SHUTDOWN) offer nothing.
 
     Each control ALSO carries ``busy`` — and it is the EXPECTATION half of the busy rule and NOTHING
-    ELSE (card W4l, Defect 1, correcting W4k): ``True`` only while THIS session issued a write by
+    ELSE: ``True`` only while THIS session issued a write by
     THAT control (the record names the action's key) and the observable the action moves has not
-    moved yet — the row's status for a power action (card W4k), the maintenance flag for the flag
-    pair (card W4l, Defect 2) — bounded by :data:`AWAIT_CHANGE_SECONDS`. So pressing *Maintenance*
+    moved yet — the row's status for a power action, the maintenance flag for the flag
+    pair — bounded by :data:`AWAIT_CHANGE_SECONDS`. So pressing *Maintenance*
     makes the *Maintenance* glyph pulse and leaves *Startup* alone, and vice versa. The record is the
     ACTOR's own expectation, held in the session: a second viewer of the same server never sees it —
     see :func:`remember_awaiting_change` for why that is the honest reading rather than a disclosure
@@ -1497,7 +1181,7 @@ def server_controls(request: Request, origin: str) -> dict[str, dict]:
     roles = permissions.role_names_for(request)
     manager = permissions.manages_console(request)
     token = session.get_csrf_token(request)
-    # the seam's own in-flight set, read ONCE for the whole table (card W4g). It is consulted only
+    # the seam's own in-flight set, read ONCE for the whole table. It is consulted only
     # for a server already in ``source`` — the caller's SCOPED view — so the pulse can never be a
     # second list of busy targets that discloses a row the caller cannot see; it is a property of a
     # row they are looking at.
@@ -1508,7 +1192,7 @@ def server_controls(request: Request, origin: str) -> dict[str, dict]:
         if not name:
             continue
         state = _row_state(server)
-        # the flag pair's own per-row state (W5b): read from the SAME scoped object the row is built
+        # the flag pair's own per-row state: read from the SAME scoped object the row is built
         # from, exactly as ``_muted_state`` reads a player's mute flag. Unreadable counts as NOT
         # flagged — which offers *Maintenance*; the action's own "already in maintenance mode" guard
         # is the authority a stale page meets, and a wrong guess costs one typed refusal.
@@ -1519,25 +1203,25 @@ def server_controls(request: Request, origin: str) -> dict[str, dict]:
                              or action.when_maintenance == flagged)
                         and permissions.allows(action.capability, roles, manager=manager)
                         and action_available(action.qualname))
-        # WHICH control is pending for this row (card W4n): read ONCE through the SAME ceiling and
+        # WHICH control is pending for this row: read ONCE through the SAME ceiling and
         # end rule as each control's own read (both call ``_pending_key_locked``), so the row and the
         # controls can never disagree about what is running.
         pending = awaiting_action("server", name, state, flagged)
-        # busy is the EXPECTATION half ONLY (card W4l, Defect 1): this session issued a write by THIS
-        # control and the observable it moves has not reached the end its action declares (card W4n:
-        # the glyph has not swapped yet). The record names the action, so ONE control pulses — the one
+        # busy is the EXPECTATION half ONLY: this session issued a write by THIS
+        # control and the observable it moves has not reached the end its action declares.
+        # The record names the action, so ONE control pulses — the one
         # that was pressed — where W4k stamped the row's whole strip. It is the actor's own view,
-        # held PROCESS-side (card W4m), and bounded by AWAIT_CHANGE_SECONDS.
+        # held PROCESS-side, and bounded by AWAIT_CHANGE_SECONDS.
         #
         # The seam's in-flight half does NOT live here: it keys the TARGET and cannot name the
         # action, so it must not light a glyph (that is the defect). It is reported ONCE per row, as
         # a marker on the strip container — see ``in_flight`` in the record below and
         # ``templates/_strip.html``.
         in_flight = target_is_busy("server", name, running)
-        # A CONTROL WHOSE OPERATION IS PENDING STAYS ON THE ROW (card W4n, item 2). This is what makes
+        # A CONTROL WHOSE OPERATION IS PENDING STAYS ON THE ROW . This is what makes
         # the pulse survive the STARTING state: a real DCS launch reads ``LOADING`` for most of the
         # boot, and NO control is gated on ``LOADING`` — so without this the row renders nothing and
-        # there is no glyph to pulse (Frank's "the start glyph vanishes"). While the row is
+        # there is no glyph to pulse. While the row is
         # transitional and a start/restart is pending, the pending control's OWN glyph is rendered,
         # busy: the honest affordance is "this server is starting". It is DISABLED — not an
         # invitation — because a second start through the UI is meaningless while the first boots.
@@ -1564,7 +1248,7 @@ def _pending_row_control(pending: str | None, offered: tuple[WriteAction, ...], 
                          token: str, origin: str, roles: frozenset[str], manager: bool) -> dict | None:
     """The busy, DISABLED control a row shows for a pending action its own gate no longer matches.
 
-    Card W4n, item 2. ``pending`` is the action key :func:`awaiting_action` read for this row; it
+    ``pending`` is the action key :func:`awaiting_action` read for this row; it
     returns ``None`` when there is nothing pending, when the action is ALREADY among ``offered`` (so
     the normal path renders it, precision-pulsed — never a second copy), or when it is not a SERVER
     power action the caller may run. The clipped gate (``observable == AWAIT_OBSERVABLE_STATUS``)
@@ -1592,7 +1276,7 @@ def _control(action: WriteAction, name: str, token: str, origin: str, busy: bool
     The target travels in the request BODY, never in a URL (design §3.1): there is no path or query
     parameter a person can edit to point an action at another server.
 
-    The ORIGIN travels in the body too, beside the target (card W4e, Defect 1): the page this control
+    The ORIGIN travels in the body too, beside the target: the page this control
     is rendered on, so the route can 303 back to it rather than to the section's own page. It is a
     hidden field and not a URL parameter for the same reason the target is — and the route accepts it
     only by lookup against the registry (:func:`origin_path`), so it is a candidate, not a choice.
@@ -1603,7 +1287,7 @@ def _control(action: WriteAction, name: str, token: str, origin: str, busy: bool
     CARRIES AN OPTION does too (W5d, :attr:`WriteAction.dialog`): the checkbox is chosen on the
     dialog, so the row posts there to collect it.
 
-    ``busy`` is the busy truth for THIS control's own action, read at render time (card W4l): ``True``
+    ``busy`` is the busy truth for THIS control's own action, read at render time: ``True``
     only when THIS session issued a write THROUGH THIS CONTROL and the observable that action moves has
     not moved yet (the glyph has not swapped), bounded by :data:`AWAIT_CHANGE_SECONDS`. The record
     carries it, the strip renders ``aria-busy`` and the animating class from it, and it clears by
@@ -1627,7 +1311,7 @@ def _control(action: WriteAction, name: str, token: str, origin: str, busy: bool
             "aria": aria, "hint": action.hint,
             "danger": action.danger, "server": name, "busy": busy,
             "direct": not action.dialog,
-            # the transitional busy control a row keeps for a pending action (card W4n) is DISABLED —
+            # the transitional busy control a row keeps for a pending action is DISABLED —
             # it is a statement ("this server is starting"), not an invitation to press it again. Every
             # other control leaves this False and stays a real, focusable button (the seam's guard, not
             # a disabled attribute, is what refuses a second press).
@@ -1646,7 +1330,7 @@ def node_state(source, node_name: str) -> str:
     while this reads the servers' own ``maintenance`` flag, which ``/node offline`` sets and
     ``/node online`` clears (``plugins/admin/actions.py``). The two can disagree in both directions —
     a heartbeating node whose servers are all under maintenance, and a node the heartbeat cannot reach
-    whose servers are still listed — and this card's rule is that each keeps its own meaning.
+    whose servers are still listed.
 
     THREE answers, one of them deliberate:
 
@@ -1657,8 +1341,7 @@ def node_state(source, node_name: str) -> str:
     * ``in-service`` — the node carries servers and none of them is under maintenance;
     * ``""`` — the node carries NO server at all, in the caller's view. There is then nothing to take
       out of service and nothing to bring back, so NEITHER half of the pair is offered: a control whose
-      only possible effect is nothing is not a control. (This is the third state the card asked for in
-      its own words: "if the two can disagree, say so and decide sensibly".)
+      only possible effect is nothing is not a control.
 
     Anything unreadable counts as not-under-maintenance: a broken attribute must cost a state, never
     the page.
@@ -1678,8 +1361,7 @@ def node_state(source, node_name: str) -> str:
 def node_power_states(source, node_name: str) -> frozenset[str]:
     """The POWER state of *node_name*, in the caller's view — what the power pair is offered on.
 
-    THE NODE'S OWN STATE DECIDES, not what its servers happen to be doing (card W7a, which
-    supersedes ``MAINTENANCE.md`` §12's "derived from the processes" derivation for this gate). Asked
+    THE NODE'S OWN STATE DECIDES, not what its servers happen to be doing. Asked
     in this order:
 
     * **the heartbeat** — ``source.nodes[node_name] is None`` means the cluster cannot reach the
@@ -1698,7 +1380,7 @@ def node_power_states(source, node_name: str) -> frozenset[str]:
       the operation is available whether or not anything currently runs. This is W7a's fix: the old
       gate added *offline* only while some server's process was up and *online* while one was down
       and unflagged, so an ONLINE node with every server stopped offered the online half and never
-      the offline one — inverted from the node's own state, and Frank's report of 2026-09-30;
+      the offline one — inverted from the node's own state;
     * **a record exists** — :data:`NODE_POWER_ON` only: *Bring servers online*, the way back to what
       the operation actually took down (the flags it set and the servers it stopped).
 
@@ -1760,7 +1442,7 @@ def node_controls(request: Request, origin: str) -> dict[str, dict]:
     not be offered one.
 
     ``origin`` is the PAGE this strip is being rendered on, carried into every control as a hidden
-    field so the write returns there (card W4e, Defect 1) — the registry re-checks it
+    field so the write returns there — the registry re-checks it
     (:func:`origin_path`).
 
     FIVE conditions, each read from the ONE place that decides it (design §3.6); a control is
@@ -1788,8 +1470,8 @@ def node_controls(request: Request, origin: str) -> dict[str, dict]:
       statuses) — because the pair is a power control and not the flag toggle it used to be. A node
       carrying no server is in no state at all and is offered neither half.
 
-    THE MASTER'S OWN ROW IS NOT SPECIAL-CASED HERE, and that is the decision (card W4c-revised §4,
-    "warn and allow"): the console's process lives inside the master, so restarting it or shutting it
+    THE MASTER'S OWN ROW IS NOT SPECIAL-CASED HERE, and that is the decision:
+    the console's process lives inside the master, so restarting it or shutting it
     down kills the process serving this page — but refusing would make the master the ONE node an
     Admin cannot restart from the console, and hiding the control would be a per-row inconsistency
     nobody can see. The warning belongs in the dialog, one sentence longer for that row
@@ -1815,7 +1497,7 @@ def node_controls(request: Request, origin: str) -> dict[str, dict]:
         offered = tuple(action for action in NODE_ACTIONS
                         if (not action.states or (set(action.states) & states))
                         and _node_offered(action, key, roles, manager))
-        # THE HONEST STATEMENT for a check-gated control whose value is UNKNOWN (card W7b): the
+        # THE HONEST STATEMENT for a check-gated control whose value is UNKNOWN: the
         # control is NOT offered, and the row says why rather than leaving the person to guess.
         note = _upgrade_note(key, roles, manager)
         if not offered and not note:
@@ -1835,7 +1517,7 @@ def _node_offered(action: NodeAction, name: str, roles: frozenset[str], manager:
 
     Three readings of the ONE declaration, exactly like the filter it replaces: the capability
     (``permissions.allows``, the predicate the access gate runs), the action's availability
-    (``action_available``), and — for a CHECK-GATED control (card W7b, ``NodeAction.check``) — the
+    (``action_available``), and — for a CHECK-GATED control  — the
     CACHED upgrade value. The value is read from ``services.webservice.upgrade`` and NEVER by asking
     a node: the poller owns every call, and a render must issue none. A value that is ``False`` OR
     UNKNOWN withholds the control ("offered only while the cached value is True"): a control whose
@@ -1857,7 +1539,7 @@ def _upgrade_note(name: str, roles: frozenset[str], manager: bool) -> str:
     availability predicates as :func:`_node_offered`) AND its value is UNKNOWN — never checked, or
     the last check failed. The wording is :data:`NOTE_NO_CHECK` ("no update check yet"). A value
     that is known (``True`` or ``False``) carries no note: True offers the control, and False simply
-    offers nothing, which is Frank's "the button for a pending upgrade should vanish".
+    offers nothing.
     """
     for action in NODE_ACTIONS:
         if not getattr(action, "check", False):
@@ -1895,7 +1577,7 @@ def _node_control(action: NodeAction, name: str, token: str, origin: str) -> dic
 
     The target travels in the request BODY, never in a URL (design §3.1), under the field name the
     node route reads (``node``) — one string, so a name cannot point an action at another machine.
-    The ORIGIN travels beside it (card W4e, Defect 1), the page this control is rendered on.
+    The ORIGIN travels beside it, the page this control is rendered on.
 
     EVERY node control posts to its DIALOG's path (see :data:`CONFIRM_SUFFIX`) — the LIFECYCLE trio
     because the confirmation is what protects a destructive operation, and the MAINTENANCE pair
@@ -1921,7 +1603,7 @@ def controls_for(request: Request, table: str, origin: str) -> dict:
     no write at all (instances) gets ``{}`` — no header cell, no empty column (design §3.6).
 
     ``origin`` is the path of the PAGE that is rendering the table, and it travels into every control
-    as a hidden field so a write returns there (card W4e, Defect 1): the caller states which page it
+    as a hidden field so a write returns there: the caller states which page it
     is (``page.path`` for a list page, the Dashboard's ``/`` for the console), which is the one thing
     this module cannot read off the request — the live stream renders the dashboard's tables through
     its own ``/api/…`` request, so the request path is not the page.
@@ -1965,8 +1647,7 @@ def player_controls(request: Request, origin: str) -> dict[tuple[str, str], dict
     row whose control may not be offered.
 
     ``origin`` is the PAGE this strip is being rendered on, carried into every control as a hidden
-    field so the write returns there (card W4e, Defect 1) — the registry re-checks it
-    (:func:`origin_path`).
+    field so the write returns there  — the registry re-checks it (:func:`origin_path`).
 
     Same three conditions as :func:`server_controls`, each read from the ONE place that decides it
     (design §3.6), and the control is OMITTED — never rendered disabled — when any is false:
@@ -1992,8 +1673,7 @@ def player_controls(request: Request, origin: str) -> dict[tuple[str, str], dict
     The value is ONE record per row, in the SAME shape :func:`server_controls` builds — the row is
     ONE component at two widths (``templates/_strip.html``), and the player row shares it rather than
     growing a second. A player row has no overflow menu: README-ACTIONS.md §4 gives its five glyphs
-    to the strip, and folding five icons into a menu would be a different design (recorded as
-    deliberately NOT done on this card).
+    to the strip, and folding five icons into a menu would be a different design.
     """
     source = dashboard_page.request_source(request)
     roles = permissions.role_names_for(request)
@@ -2027,7 +1707,7 @@ def _player_control(action: PlayerAction, server_name: str, ucid: str, player_na
 
     BOTH halves of the target travel in the request BODY (design §3.1) — there is no URL a person
     can edit to point a write at another server or another player — and the ORIGIN travels beside
-    them (card W4e, Defect 1), the page this control is rendered on.
+    them, the page this control is rendered on.
 
     A CONFIRM-REQUIRED control posts to its DIALOG's path, not to the action's (see
     :data:`CONFIRM_SUFFIX`): the action's own route refuses a POST that did not come through the
@@ -2129,7 +1809,7 @@ def confirm_context(request: Request, action: WriteAction, name: str, players: i
                     token: str, origin: str) -> dict:
     """Everything the confirm dialog's page reads, in one value.
 
-    ``origin`` is the page the row that opened this dialog was rendered on (card W4e, Defect 1): it
+    ``origin`` is the page the row that opened this dialog was rendered on: it
     is re-emitted in the dialog's own form (so the action's route can 303 back there), and it is what
     the dialog's ``Cancel`` and its ``Esc`` go back to — cancelling a Dashboard dialog must not
     strand the person on the Servers page either.
@@ -2157,7 +1837,6 @@ def confirm_context(request: Request, action: WriteAction, name: str, players: i
         #: server; a player dialog targets the player on it.
         "target": name,
         #: the form's hidden fields — the whole target (design §3.1) and the page it was pressed on
-        #: (card W4e, Defect 1), never a URL parameter.
         "hidden": (("server", name), (ORIGIN_FIELD, origin)),
         #: the fields the dialog asks for, drawn before the button: the command's own OPTION when
         #: the action declares one (Shutdown/Startup's maintenance box, W5d), otherwise none — the
@@ -2221,7 +1900,7 @@ def player_confirm_context(request: Request, action: PlayerAction, server: Any, 
     the target (the ucid) and the fields the destructive action needs (a reason, an optional number
     of days), which is why the mockup draws kick and ban as dialogs with a message field while the
     three server dialogs ask for nothing. ``origin`` is the page the row was rendered on, re-emitted
-    in the dialog's form and used for its ``Cancel``/``Esc`` (card W4e, Defect 1).
+    in the dialog's form and used for its ``Cancel``/``Esc``.
 
     The player's label is read off the RESOLVED ``Player`` — never a hidden field the browser sent
     (design §3.3.4) — and the warning is assembled here with :func:`html.escape` for the same reason
@@ -2335,7 +2014,7 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
     * the MASTER row's dialog carries one more sentence (``master_note``). The console runs INSIDE
       the master's process (``services/webservice/service.py``), so restarting or shutting that node
       down ends the very request that is being served — a consequence the machine cannot escape and
-      the operator has to be told before choosing (card W4c-revised §4: warn and allow, never hide,
+      the operator has to be told before choosing: warn and allow, never hide,
       never refuse). The test for it is the ABSENCE of that sentence on an agent's dialog, so the
       wording cannot silently spread to every node;
     * the MAINTENANCE pair's own OPTION is rendered here (:func:`option_inputs`), which is what
@@ -2361,7 +2040,7 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
     if getattr(action, "check", False):
         when = upgrade_signal.checked_at(name)
         if when is not None:
-            # WHEN THE CACHED VALUE WAS PRODUCED (card W7b): a stale answer must read as stale
+            # WHEN THE CACHED VALUE WAS PRODUCED: a stale answer must read as stale
             # rather than authoritative-looking. The value is the poller's own timestamp, never a
             # field the browser sent, and it is present only for a check-gated control.
             detail = f"{detail} Last update check: {_checked_text(when)}."
@@ -2447,7 +2126,7 @@ def pop_notice(request: Request) -> dict | None:
     return stored
 
 
-#: The wording a ROUTE-recorded out-of-scope refusal carries (card W4m). It is deliberately the same
+#: The wording a ROUTE-recorded out-of-scope refusal carries. It is deliberately the same
 #: claim the console's own 403 makes and names NOTHING about the target, so the notice cannot become
 #: a second, softer channel for the enumeration the bare refusal exists to prevent: a name that
 #: exists and a name that does not are answered identically, in the page and in the notice alike.
@@ -2456,7 +2135,7 @@ REFUSAL_OUT_OF_SCOPE = "Not authorized (this target is outside your scope)."
 
 def _refusal_notice(request: Request, action: WriteAction | PlayerAction | NodeAction,
                     message: str) -> None:
-    """Store the ONE-SHOT refusal *message* for the page the person lands on (card W4m).
+    """Store the ONE-SHOT refusal *message* for the page the person lands on.
 
     A refusal the ROUTE makes BEFORE any action runs used to be a bare ``HTTPException`` — which a
     person never read, because ``static/submit.js`` hands the page over to a fresh render the moment
@@ -2531,7 +2210,7 @@ def _handler(action: WriteAction):
         if identity is None:
             # The gate let the request in, so this is a resolver that answered without an identity
             # (a role resolver that cannot see one). Refuse rather than act as anybody. The refusal
-            # is STORED for the page the person lands on (card W4m): the write was submitted in the
+            # is STORED for the page the person lands on: the write was submitted in the
             # background, so an exception alone would be seen by nobody.
             _refusal_notice(request, action, "Not authorized (no signed-in identity).")
             raise HTTPException(status_code=403,
@@ -2540,15 +2219,14 @@ def _handler(action: WriteAction):
         name = readmodels.text(form.get("server"))
         if action.confirm and not consume_confirm_token(request, action.path, name,
                                                         readmodels.text(form.get(CONFIRM_FIELD))):
-            # A confirm-required write REFUSES a POST that did not come through its dialog (card
-            # W4a §5): the row's control posts to the dialog, the dialog's form carries the one-shot
+            # A confirm-required write REFUSES a POST that did not come through its dialog:
+            # the row's control posts to the dialog, the dialog's form carries the one-shot
             # token minted for this target, and a caller who skips the dialog has no token. A
             # confirmation curl can bypass is decoration, so this refusal is the control.
             #
-            # THIS is the class card W4m is about: a REPLAYED dialog form. The token is spent by the
-            # first POST, so the second takes this branch — and since the dialog closes on press, the
-            # person is looking at the page they came from rather than at this answer. The one-shot
-            # notice is what makes the refusal visible (see :func:`_refusal_notice`).
+            # The token is spent by the first POST, so the second takes this branch — and since the
+            # dialog closes on press, the person is looking at the page they came from rather than at
+            # this answer. The one-shot notice is what makes the refusal visible (see :func:`_refusal_notice`).
             _refusal_notice(request, action,
                             "Not authorized (this action must be confirmed through its dialog).")
             raise HTTPException(
@@ -2568,22 +2246,22 @@ def _handler(action: WriteAction):
             # of the audit step below — the trail records the ACTION's own refusals (one entry per
             # attempt, §5.3 D6), and a scope refusal is the route's answer (design §6 row 8). The
             # notice names no target (the wording discloses nothing), and it is stored so a
-            # background submit's refusal is SEEN (card W4m).
+            # background submit's refusal is SEEN.
             _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
             raise dashboard_page.out_of_scope_refusal()
-        # the row's status AS SUBMITTED, and the flag AS SUBMITTED (cards W4k/W4l), read BEFORE the
+        # the row's status AS SUBMITTED, and the flag AS SUBMITTED, read BEFORE the
         # action runs: the action may change them in the same call (pause flips the status immediately,
         # ``set_maintenance`` flips the flag immediately) while a DCS startup leaves the status
         # SHUTDOWN for about a minute — and it is that later change, the glyph swap, that the pulse
         # waits for. WHICH of the two the expectation watches is the ACTION's own declaration
         # (``WriteAction.observable``), so a power action waits on the status and the flag pair waits
         # on the flag: a status-keyed expectation for *Maintenance* was never satisfied (the status
-        # never moves), which is the pulse Frank saw run without end.
+        # never moves).
         submitted = _row_state(resolution.server) if resolution.is_found else ""
         submitted_flag = bool(readmodels.safe(
             lambda: getattr(resolution.server, "maintenance", False), False)) if resolution.is_found \
             else False
-        # THE EXPECTATION IS RECORDED **BEFORE** THE ACTION RUNS (card W4m), and that ordering is the
+        # THE EXPECTATION IS RECORDED **BEFORE** THE ACTION RUNS, and that ordering is the
         # point: ``static/submit.js`` hands the page over the moment it fires the POST, so the fresh
         # render is issued at the same time as this request and must already find the expectation —
         # there is no cookie round-trip to wait for any more, because the store is process-side. A
@@ -2591,7 +2269,7 @@ def _handler(action: WriteAction):
         # failed write's notice.
         if resolution.is_found:
             remember_awaiting_change("server", name, action, submitted, submitted_flag)
-        # THE COMMAND'S OWN OPTION (card W5d), when the action declares one: Shutdown's and
+        # THE COMMAND'S OWN OPTION, when the action declares one: Shutdown's and
         # Startup's ``maintenance`` box, parsed out of the same body and handed to the action as its
         # own parameter — one name for the field and the parameter (``NodeOption.field``), so the
         # route cannot post one thing and the action read another. A body stating an option this
@@ -2621,7 +2299,7 @@ def _handler(action: WriteAction):
             result = await audit_action(ctx, ActionResult(success=False,
                                                           message=resolution.message))
         _remember_notice(request, action, result)
-        # ...AND A WRITE THAT DID NOT SUCCEED DROPS IT AT ONCE (cards W4k/W4m). The pulse is "you
+        # ...AND A WRITE THAT DID NOT SUCCEED DROPS IT AT ONCE. The pulse is "you
         # started something and it has not moved yet" — a FAILED or REFUSED write has nothing to wait
         # for and must not blink while the notice beside it says it failed. A SUCCESSFUL write keeps
         # the entry recorded above (the observable it names is what ends it: the glyph swap, or the
@@ -2629,8 +2307,7 @@ def _handler(action: WriteAction):
         if not (resolution.is_found and bool(getattr(result, "success", False))):
             forget_awaiting_change("server", name)
         # 303 back to the PAGE the control was rendered on — its own constant when the form carried a
-        # known one, else the section default (card W4e, Defect 1: a Startup pressed on the Dashboard
-        # keeps the person on the Dashboard). A POST that re-rendered a table would re-POST on
+        # known one, else the section default. A POST that re-rendered a table would re-POST on
         # refresh; the page re-reads its data, so it shows the state the action produced.
         return RedirectResponse(origin_path(request, form.get(ORIGIN_FIELD), _servers_path()),
                                 status_code=303)
@@ -2641,7 +2318,7 @@ def _handler(action: WriteAction):
 def _confirm_handler(action: WriteAction):
     """The route that RENDERS one action's dialog. It changes nothing.
 
-    TWO readers (card W5d): a DESTRUCTIVE action's confirmation (Restart/Shutdown/Stop) and the FORM
+    TWO readers: a DESTRUCTIVE action's confirmation (Restart/Shutdown/Stop) and the FORM
     that collects a non-destructive action's OPTION (Startup). Both resolve the target here through
     the same scoped seam the action uses, and the numbers in the warning come from the resolved
     object: ``{players}`` is read off the live server, never echoed from the request (design §3.3.4).
@@ -2671,7 +2348,7 @@ def _confirm_handler(action: WriteAction):
             raise HTTPException(status_code=503,
                                 detail="The admin web UI templates are not installed.")
         token = mint_confirm_token(request, action.path, name) if action.confirm else ""
-        # the page the row was rendered on travels THROUGH the dialog (card W4e, Defect 1): the row
+        # the page the row was rendered on travels THROUGH the dialog: the row
         # posts here with the origin hidden field, and the dialog's own form re-emits it so the
         # action's route can 303 back there. Validated here too, so the dialog never echoes an
         # unknown page onward — but the route re-checks, because this field is attacker-modifiable.
@@ -2684,7 +2361,7 @@ def _confirm_handler(action: WriteAction):
 
 async def _audit_refusal(ctx: ActionContext, action: WriteAction | PlayerAction | NodeAction,
                          why: str, target: str) -> None:
-    """Record ONE audit entry for an attempt the ROUTE refused before any action ran (card W4b, §6).
+    """Record ONE audit entry for an attempt the ROUTE refused before any action ran.
 
     The W2 review's finding M-a said a scope-refused or permission-refused POST leaves no audit row,
     and that this was acceptable for PAUSE but had to be revisited once the console carries
@@ -2797,12 +2474,12 @@ def _node_handler(action: NodeAction):
             # a name that does not exist. For these destructive operations the attempt is recorded
             # first (the W2 review's M-a ruling), and the actor, the action and the target are named
             # so a probe is visible in the operator's trail. The person's own page gets the one-shot
-            # notice (card W4m), whose wording discloses nothing about the target.
+            # notice, whose wording discloses nothing about the target.
             await _audit_refusal(ctx, action, "not permitted (outside your scope)",
                                  f"node '{name}'")
             _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
             raise dashboard_page.out_of_scope_refusal()
-        # THE SERVERS THE OPERATION WILL MOVE (card W7c), PREDICTED BEFORE THE ACTION RUNS. The
+        # THE SERVERS THE OPERATION WILL MOVE, PREDICTED BEFORE THE ACTION RUNS. The
         # prediction reads the caller's own SCOPED view and — for ``online`` — the engine's power-off
         # RECORD, which the action CLEARS as part of reverting it: read it HERE, at the same moment the
         # action's own ``power_on`` reads it, or the post-action read would find nothing and predict
@@ -2831,7 +2508,7 @@ def _node_handler(action: NodeAction):
         # :func:`node_moved_names`.
         if resolution.is_found and bool(getattr(result, "success", False)):
             node_moved_names(request, canonical, action, predicted_record)
-        # "IMMEDIATELY AFTER AN UPGRADE IS ACCEPTED" (card W7b): a successful check-gated action
+        # "IMMEDIATELY AFTER AN UPGRADE IS ACCEPTED": a successful check-gated action
         # (Upgrade) re-checks THAT node at once, so the cache does not wait for the next sample. It
         # is FIRE-AND-FORGET — the check is an RPC and must not delay the person's redirect — and
         # the poller's own failure rule applies to it (a node already restarting keeps the last
@@ -2839,7 +2516,7 @@ def _node_handler(action: NodeAction):
         if resolution.is_found and bool(getattr(result, "success", False)) \
                 and getattr(action, "check", False):
             asyncio.create_task(upgrade_signal.check_node(resolution.node))
-        # 303 back to the PAGE the control was rendered on (card W4e, Defect 1) — the Dashboard's
+        # 303 back to the PAGE the control was rendered on — the Dashboard's
         # Nodes tab and /nodes render the same row strip, so the write must not re-orient the person;
         # a POST that re-rendered a table would re-POST on refresh, and the page re-reads its data so
         # it shows the state the operation produced (for the master's own row that state may be
@@ -2889,7 +2566,7 @@ def _node_confirm_handler(action: NodeAction):
             raise HTTPException(status_code=503,
                                 detail="The admin web UI templates are not installed.")
         token = mint_confirm_token(request, action.path, name) if action.confirm else ""
-        # the page the row was rendered on travels THROUGH the dialog (card W4e, Defect 1): the row
+        # the page the row was rendered on travels THROUGH the dialog: the row
         # posts here with the origin hidden field, and this dialog re-emits it so the route can 303
         # back there. For the online half (no token) the dialog's POST runs the action directly, and
         # it still carries the origin — the person stays where they were either way.
@@ -2924,11 +2601,10 @@ def _player_handler(action: PlayerAction):
         if action.confirm and not consume_confirm_token(
                 request, action.path, _player_target(name, ucid),
                 readmodels.text(form.get(CONFIRM_FIELD))):
-            # A confirm-required write REFUSES a POST that did not come through its dialog (card
-            # W4a §5, extended to the player rows). The row's control posts to the dialog, the
-            # dialog's form carries the one-shot token minted for THIS (server, ucid), and a caller
-            # who skips the dialog has no token. A confirmation curl can bypass is decoration, so
-            # this refusal is the control.
+            # A confirm-required write REFUSES a POST that did not come through its dialog. The row's
+            # control posts to the dialog, the dialog's form carries the one-shot token minted for THIS
+            # (server, ucid), and a caller who skips the dialog has no token. A confirmation curl can
+            # bypass is decoration, so this refusal is the control.
             _refusal_notice(request, action,
                             "Not authorized (this action must be confirmed through its dialog).")
             raise HTTPException(
@@ -2939,9 +2615,9 @@ def _player_handler(action: PlayerAction):
             # The console's refusal for a named target outside the caller's scope — the SAME answer
             # as a name that does not exist, so a hoster cannot enumerate the fleet (design §3.5).
             # It happens before any action, so it carries no ActionResult; for the DESTRUCTIVE pair
-            # the attempt is recorded first (card W4b §6), and for every other player write the trail
+            # the attempt is recorded first, and for every other player write the trail
             # is the ACTION's own (one entry per attempt, §5.3 D6). The person's page gets the
-            # one-shot notice (card W4m), whose wording discloses nothing about the target.
+            # one-shot notice, whose wording discloses nothing about the target.
             await _audit_refusal(ctx, action, "not permitted (outside your scope)",
                                  f"server '{name}', ucid={ucid or '?'}")
             _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
@@ -2962,7 +2638,7 @@ def _player_handler(action: PlayerAction):
             result = await audit_action(ctx, ActionResult(success=False,
                                                           message=resolution.message))
         _remember_notice(request, action, result)
-        # 303 back to the PAGE the control was rendered on (card W4e, Defect 1) — the Dashboard's
+        # 303 back to the PAGE the control was rendered on — the Dashboard's
         # Players tab and /players render the same row strip, so the write must not re-orient the
         # person; never a re-render of a POST.
         return RedirectResponse(origin_path(request, form.get(ORIGIN_FIELD), _players_path()),
@@ -3083,7 +2759,7 @@ def origin_path(request: Request, posted: Any, section_default: str) -> str:
     """The page a write returns to: *posted* when the REGISTRY knows it, else *section_default*.
 
     THE ONE place the browser's destination is chosen by request data, and it is an ALLOW-LIST, never
-    a redirect to raw input (card W4e, Defect 1 — the safety line). The candidate travels in the form
+    a redirect to raw input. The candidate travels in the form
     as :data:`ORIGIN_FIELD` (never in a URL), and it is accepted only if it EQUALS a path the registrar
     already knows — ``Registrar.page_paths``, the pages' own nav declarations, so no second mapping
     table can drift from the routes. The value RETURNED is that registry constant, not the posted

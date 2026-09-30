@@ -1,23 +1,3 @@
-"""The Logs page — the log, full width, with the same filters as the dashboard's panel.
-
-WHY A PAGE AND NOT ONLY THE PANEL: a console needs one linkable, bookmarkable place to read the
-log, and the dashboard's panel is a column whose width depends on the data. `/logs` renders the
-SAME card from the SAME partials (`_log_card.html` / `_log_panel.html`) with the level filter and
-the placement vocabulary available in the URL, so "make the log bigger" is one click and never a
-second implementation of the log viewer.
-
-READ-ONLY, like every page of this console: the route is a GET, there is no other method on it, and
-the page renders exactly one form — the Sign out control in the shell's chip.
-
-The capability is its own (`logs.view`) and — since card t_e78ed7c6 — it names the bot's **Admin**
-role ONLY. It used to alias the dashboard's role tuple (Admin / DCS Admin / DCS), which meant every
-member who may open the dashboard could read the bot log: every server's events, UCIDs, player joins
-and node heartbeats. That is fine for a hobby install and wrong the moment this reaches a hoster, so
-the decision is Frank's and it is stated in ONE place: :data:`LOGS_ROLES` below. The nav item, the
-route's gate, the dashboard's Recent log panel and the live stream all read this one declaration
-(through :func:`services.webservice.pages.dashboard.may_read_log`) — nothing special-cases a role
-name in a template.
-"""
 from __future__ import annotations
 
 import logging
@@ -43,11 +23,7 @@ LOGS_PATH = "/logs"
 #: the capability the route declares AND the nav item names — one string, so the two cannot drift.
 LOGS_CAPABILITY = "logs.view"
 
-#: who may read the log: the bot's Admin role ONLY (Frank's decision, card t_e78ed7c6). It used to
-#: alias :data:`services.webservice.pages.dashboard.DASHBOARD_ROLES`, which meant every member who
-#: may open the dashboard could read the bot log. The dashboard's Recent log PANEL, the live stream
-#: and this page's gate all read this one tuple — narrowing it again is this one edit, and no
-#: template compares a role name on its own.
+#: who may read the log
 LOGS_ROLES: tuple[str, ...] = ("Admin",)
 
 LOGS_TEMPLATE = "logs.html"

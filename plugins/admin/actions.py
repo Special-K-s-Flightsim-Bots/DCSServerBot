@@ -12,7 +12,7 @@ TWO FAMILIES, and the difference between them is the whole reason this module ca
   ``maintenance``. ``online`` reverts EXACTLY what ``offline`` did — it clears only the flags that
   operation set and starts only the servers it stopped. The node's services — including the
   webservice serving the console's request — keep running, which is precisely why these two CAN be
-  called from a browser (Frank, 2026-09-29).
+  called from a browser.
 
 The SEMANTICS do not live here: they are the engine's (``core/data/maintenance.py``,
 :class:`~core.data.maintenance.ServerMaintenanceManager`), and the record of what an ``offline`` did
