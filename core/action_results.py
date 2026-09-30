@@ -83,3 +83,43 @@ class NodeControlResult(ActionResult):
     the operation was about, and a second field cannot drift from the message it was built with.
     """
     node_name: str = ""
+
+
+@dataclass
+class ServerConfigResult(ActionResult):
+    """Result for a per-server CONFIGURATION operation (card B1 — the DCS face, ``CONFIGURATION.md`` §4.2).
+
+    Its own record rather than a bare :class:`ActionResult` for the same reason
+    :class:`NodeControlResult` has one — every transport reads the fields back. The four extras are
+    the design's; the shapes are deliberate:
+
+    * ``refused`` — a WHOLE-ACTION typed reason. It is set only where the action did nothing at all:
+      the caller is not an Admin (§6), the name is unknown (the seam's own refusal), or the server is
+      up (§5.3, D4). When it is set, ``applied``/``skipped`` are empty.
+    * ``applied`` — ``{key: {"from": …, "to": …}}`` for every key that WAS written, so the console can
+      offer a revert through this same action (§8.2). A SECRET key's ``from``/``to`` are the redacted
+      sentinels (§7), never the value — a revert of a secret is a re-submission, not a re-print.
+    * ``skipped`` — ``{key: reason}`` for the keys that could not be written: not an editable setting,
+      a type/range failure, a ``unique`` sequence with duplicates, or a key pinned by an F3 override.
+    * ``ok`` — the card's spelling of the base :attr:`success` flag.
+
+    Nothing here ever carries a secret VALUE (§7.4): the audit line and the message name the KEYS.
+    """
+    server_name: str = ""
+    refused: str | None = None
+    applied: dict[str, Any] = field(default_factory=dict)
+    skipped: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def ok(self) -> bool:
+        """The card's name for :attr:`success`."""
+        return self.success
+
+    def to_dict(self) -> dict[str, Any]:
+        """The base transport shape plus the config fields, so REST/MCP callers see the outcome."""
+        out = super().to_dict()
+        out.setdefault("server_name", self.server_name)
+        out.setdefault("refused", self.refused)
+        out.setdefault("applied", self.applied)
+        out.setdefault("skipped", self.skipped)
+        return out

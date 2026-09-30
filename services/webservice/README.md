@@ -101,9 +101,41 @@ the Actions column is not rendered at all — no header, no empty cell — and t
 therefore means *the console found no action to offer*, **not** "you are not allowed" — see the
 empty-registry trap in `core/ACTIONS.md`.
 
-**Every control is a POST form** carrying the session's CSRF token and the **target in the body** —
+**Every WRITE is a POST form** carrying the session's CSRF token and the **target in the body** —
 never a state-changing GET, and never a target in a URL, so an action cannot be pointed at another
-server or another player by editing a link (see the action layer's seam, `core/ACTIONS.md` §3).
+server or another player by editing a link (see the action layer's seam, `core/ACTIONS.md` §3). The
+one control that is not a write is the node row's *Download log* (below): a **GET** link with its
+target in the URL, because that is what a download is — and it is a READ, so there is nothing for a
+CSRF token to protect.
+
+### The node row's log download (card B3)
+
+The node row carries ONE **read** control beside its write strip: *Download log*. It hands over THAT
+node's own bot log file — agent and master alike — as a file download, on demand. It is a route
+(`GET /nodes/{node}/log`, `pages/nodes.py`), never a render step, so the console's no-RPC-on-render
+rule is intact: rendering a page asks no node for anything.
+
+* **The gate is the log PANEL's own capability** — `logs.view` (`Admin` only, no scope grant),
+  named through `pages/logs` as `LOG_DOWNLOAD_CAPABILITY` rather than re-spelled. No new capability
+  exists; a caller who is not offered the control meets the SAME 403 the `/logs` panel answers with.
+* **The path is resolved ON THE NODE.** The console sends the RELATIVE `logs/dcssb-<node>.log` — the
+  very path `run.py:85` writes the node's own rotating log at — to `Node.read_file`, which resolves
+  it in the working directory of the node that answers (the master for its own row, the agent's own
+  process for an agent's row). A master-local absolute path would be wrong on any other machine
+  (this project runs on WSL and Windows), so none is ever built; `plugins/admin/commands.py:515`
+  reads a node-side file the same relative way.
+* **The payload is bounded.** A log AT OR BELOW `LOG_DOWNLOAD_MAX_BYTES` (10 MiB — `run.py`'s own
+  default `logrotate_size`) is served WHOLE; a log ABOVE it is **refused** with its own sentence and
+  served not at all — never a truncated file that downloads like a complete one. The bytes are read
+  before the check because `read_file` is a whole-file contract, so the limit bounds what the console
+  HANDS BACK, and the ruling is stated on the constant.
+* **Every failure is its own sentence**, in plain text (never a zero-byte download that looks like an
+  empty log): the node is offline or unknown (404), there is no log file yet (404), the node cannot
+  read its own file (403), it does not answer in time (504), it answers with a failure CODE instead
+  of bytes (502 — `read_file` is `bytes | int` and an `int` is never content), or the log is above
+  the limit (413).
+* **What it does NOT do:** it does not tail, stream, merge or live-update an agent's log. The console's
+  log PANEL stays master-only; a node's log is here only ever ONE complete file somebody asked for.
 
 **A control submits in the background — the strip AND the dialog** (cards W4h, W4m). Every write is
 submitted with `fetch` by the console's ONE interceptor

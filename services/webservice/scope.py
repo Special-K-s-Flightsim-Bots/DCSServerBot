@@ -1,10 +1,5 @@
 """The per-server scope (``managed_by``): ONE rule, shared by the bot and the admin web UI.
 
-Frank's requirement, verbatim: *"managed_by should be like a different view for people to see only
-their servers. They can operate their servers and kick players from them but they might not see
-other servers or kick other players. Also, they might not do special admin tasks that might affect
-other servers."*
-
 THE RULE, taken from Discord unchanged (spec §10.1):
 
 * a server that declares no ``managed_by`` is visible to everyone who may read the console;
@@ -80,7 +75,7 @@ def manages_any_server(scope: "Scope", servers: Iterable[Any] | None = ()) -> bo
     """Whether *scope* is what makes its identity a MANAGER of at least one server.
 
     THE third kind of console identity (the other two are roles): the hoster customer, who reaches
-    the console because servers are declared as theirs. Frank, verbatim: the dashboard is for
+    the console because servers are declared as theirs. The dashboard is for
     ``Admin``, ``DCS Admin`` and ``'managed_by'`` roles — the general member role is not one of
     them, and this function is the ONE place that decides which identities the last clause covers.
 

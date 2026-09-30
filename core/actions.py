@@ -8,6 +8,7 @@ same action functions and wrap the results for their transport.
 """
 from __future__ import annotations
 
+import asyncio
 import importlib
 import logging
 from dataclasses import dataclass, field
@@ -268,6 +269,41 @@ def in_flight_targets() -> frozenset[str]:
 def reset_in_flight() -> None:
     """Forget every in-flight target. For a rebuilt application, and for tests."""
     _in_flight.clear()
+
+
+# ── the per-server CONFIG WRITE lock (design §8.3 / D9) ────────────────────
+# ONE lock per SERVER — never per action and never per face. The DCS face (this card's actions) and
+# the bot face (a later slice) take the SAME lock, so a DCS-file edit and a `servers.yaml` edit of one
+# server cannot interleave across the F3 override (``CONFIGURATION.md`` §1/§8.3); and because the
+# console, Discord, REST and MCP all reach the same action body, one lock serializes every writer of
+# that server's two faces.
+#
+# It is PROCESS-LOCAL, exactly like ``_in_flight`` above and the power-off record of
+# ``core/data/maintenance.py``. The honest degradation, stated here and not discovered later: during a
+# master FAILOVER a second process has its own locks, so two masters could write the same server's
+# file at once. A deployment that must survive that needs a distributed lock, which this cut does not
+# add (``CONFIGURATION.md`` §8.3 asks only for the process-local shape).
+_write_locks: dict[str, asyncio.Lock] = {}
+
+
+def server_write_lock(server_name: str) -> asyncio.Lock:
+    """The config WRITE lock for *server_name*, created on first use (design §8.3 / D9).
+
+    Keyed on the RESOLVED server's own name (the caller passes ``server.name``), so two spellings of
+    one server — ``SRS-1`` and ``srs-1``, which ``resolve_server`` matches to the same object — share
+    one lock instead of racing on two.
+    """
+    key = str(server_name)
+    lock = _write_locks.get(key)
+    if lock is None:
+        lock = asyncio.Lock()
+        _write_locks[key] = lock
+    return lock
+
+
+def reset_write_locks() -> None:
+    """Forget every config write lock. For a rebuilt application, and for tests."""
+    _write_locks.clear()
 
 
 def _normalise_target(params) -> tuple[str | None, str | None]:
@@ -609,6 +645,17 @@ class ActionContext:
         ctx._audit_backend = _audit_token(getattr(identity, "backend", ""))
         ctx._audit_subject = _audit_token(getattr(identity, "subject", ""))
         return ctx
+
+    @property
+    def roles(self) -> frozenset:
+        """The caller's role NAMES — the capability vocabulary, for an IN-ACTION check (design §2.2).
+
+        Exposed so an action that must authorise itself (``set_server_config``, ``CONFIGURATION.md``
+        §6: "enforced HERE, not only at the route") answers the SAME question the console's gate does,
+        without reaching into ``_roles``. Empty for the transports that carry no roles (REST/MCP), and
+        empty fails CLOSED at any caller that tests membership.
+        """
+        return self._roles
 
     @property
     def audit_actor(self) -> str:

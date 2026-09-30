@@ -434,6 +434,13 @@ th.acts { text-align: right; }
  * control, not a control itself. */
 td.acts .act-note { display: inline-block; margin-left: 6px; color: var(--text-3);
   font-size: 11.5px; }
+/* THE LOG DOWNLOAD (card B3) — the node row's one READ control. It is a LINK where every other
+ * control is a POST form, so it is not inside `.act-strip`: it sits beside the strip, quiet at rest
+ * like its neighbours, and gets its chrome back on hover and on keyboard focus. */
+td.acts .act-btn.dl { padding: 0; margin-left: 6px; background: transparent;
+  border-color: transparent; }
+td.acts .act-btn.dl:hover { background: var(--panel-2); border-color: var(--line-2); }
+td.acts .act-btn.dl:focus-visible { background: var(--panel-2); border-color: var(--accent); }
 
 .act-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px;
   height: 28px; padding: 0; cursor: pointer; font: inherit; color: var(--text-2);

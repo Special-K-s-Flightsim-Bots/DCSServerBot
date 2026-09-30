@@ -41,8 +41,8 @@ from .nodes import nodes
 from .overview import overview
 from .players import players_online
 from .servers import servers
-from .source import EmptySource, LiveSource, ScopedSource, Source, console_source, log_path_for, \
-    resolve_source, scoped_source
+from .source import EmptySource, LiveSource, ScopedSource, Source, console_source, \
+    declared_node_instances, log_path_for, resolve_source, scoped_source
 from .views import (Column, ColumnView, PlayerSearch, TableView, ViewParams, ViewState,
                     column_link, sort_rows, table_view, view_params, view_state)
 
@@ -57,7 +57,7 @@ __all__ = [
     # sources (the scope wrap is the ONE place the hoster view is applied; console_source is the
     # ONE place the application's source seam is resolved)
     "Source", "EmptySource", "LiveSource", "ScopedSource", "scoped_source", "resolve_source",
-    "console_source", "log_path_for",
+    "console_source", "log_path_for", "declared_node_instances",
     # read models
     "nodes", "instances", "servers", "players_online", "log_tail", "tail", "overview",
     "DEFAULT_LINES",

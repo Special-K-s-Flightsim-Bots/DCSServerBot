@@ -31,7 +31,7 @@ from .instances import bound_server_name
 from .model import NO_LIVE_REASON, SourceStatus
 from ..scope import server_managed_by
 
-__all__ = ["LOG_DIR", "LOG_NAME_TEMPLATE", "log_path_for", "Source",
+__all__ = ["LOG_DIR", "LOG_NAME_TEMPLATE", "log_path_for", "declared_node_instances", "Source",
            "EmptySource", "LiveSource", "ScopedSource", "scoped_source", "console_source",
            "resolve_source"]
 
@@ -49,6 +49,34 @@ def log_path_for(node_name: str | None, *, base: str | Path = LOG_DIR) -> Path |
     return Path(base) / LOG_NAME_TEMPLATE.format(node=node_name)
 
 
+def declared_node_instances() -> dict[str, tuple[str, ...]]:
+    """The per-node instance names DECLARED in ``nodes.yaml`` for EVERY node in the cluster.
+
+    THE IN-PROCESS ACCESSOR (card B2): ``core.utils.validators.get_node_data()`` is a ``NodeData``
+    singleton that parses ``nodes.yaml`` ONCE per process (``validators.py:82-98``) and exposes
+    ``.instances`` as ``{node_name: [instance_name, ...]}`` (``validators.py:88-92, 111-113``) — the
+    same loaded configuration the bot's own validators read, so this is the master's node config and
+    NOT a second reading of the file. It costs **no node call** (nothing is RPC'd to any node) and
+    **no per-render YAML read** (the file is opened when the singleton is first built, not here).
+
+    Guarded like every optional read in this package: a process with no readable ``nodes.yaml``
+    (the test suite, an early start) gets ``{}`` rather than an exception, and a node that declares
+    no ``instances:`` block is simply absent — the truthful "declares none" case.
+
+    REFRESH: read ONCE at source build; the singleton is not refreshed, so a ``nodes.yaml`` edit
+    while the bot runs is seen on the next bot restart, not on the next render — the same freshness
+    the rest of the source has (the ``all_nodes`` NAMES come from the same startup read).
+    """
+    try:
+        from core.utils.validators import get_node_data
+        mapping = get_node_data().instances or {}
+    except Exception:  # noqa: BLE001 - a missing/unreadable config must not break a status page
+        return {}
+    return {text(name): tuple(text(instance) for instance in (names or ()))
+            for name, names in mapping.items()}
+
+
+
 class Source:
     """What the read models need. A duck-typed contract, not a base class.
 
@@ -60,6 +88,12 @@ class Source:
     nodes:
         ``{name: node-or-None}``. ``None`` is a node the cluster knows about but has not resolved
         yet; it renders as offline rather than disappearing.
+    declared_instances:
+        ``{node name: (instance name, ...)}`` — the instances each node DECLARES in ``nodes.yaml``,
+        read once at source build from the process's own loaded node configuration
+        (:func:`declared_node_instances`). Used ONLY as the instance COUNT for a node that is
+        offline/``None``; it is NOT merged into :attr:`instances`, so an offline node's declared
+        instances never become Instances-table rows (card B2).
     instances, servers:
         the collections to read (iterables of objects).
     log_path:
@@ -70,6 +104,7 @@ class Source:
 
     status: SourceStatus
     nodes: dict
+    declared_instances: dict
     instances: tuple
     servers: tuple
     log_path: Path | None
@@ -83,6 +118,7 @@ class EmptySource(Source):
                  master: bool = False, log_path: Path | None = None):
         self.status = SourceStatus(live=False, reason=reason, node_name=node_name, master=master)
         self.nodes: dict = {}
+        self.declared_instances: dict = {}
         self.instances: tuple = ()
         self.servers: tuple = ()
         self.log_path = log_path
@@ -93,11 +129,13 @@ class LiveSource(Source):
     """State read from the running process. No await, no RPC, no Discord."""
 
     def __init__(self, *, servers=(), instances=(), nodes=None, node=None,
-                 log_path: Path | None = None):
+                 declared_instances=None, log_path: Path | None = None):
         node_name = getattr(node, "name", None)
         self.status = SourceStatus(live=True, reason="", node_name=node_name,
                                    master=bool(getattr(node, "master", False)))
         self.nodes = dict(nodes or {})
+        self.declared_instances = {text(name): tuple(names or ())
+                                   for name, names in dict(declared_instances or {}).items()}
         self.instances = tuple(instances or ())
         self.servers = tuple(servers or ())
         self.log_path = log_path if log_path is not None else log_path_for(node_name)
@@ -156,6 +194,13 @@ class ScopedSource(Source):
         node_names.discard("")
         self.nodes = {name: node for name, node in (getattr(source, "nodes", None) or {}).items()
                       if text(name) in node_names}
+        # The declared per-node instance names follow the SAME node filter as ``nodes`` (card B2):
+        # a scoped viewer sees a node only when it carries one of their surviving servers, so a
+        # node's declared count must not survive for a node whose row did not.
+        self.declared_instances = {
+            name: names
+            for name, names in (getattr(source, "declared_instances", None) or {}).items()
+            if text(name) in node_names}
         self.status = getattr(source, "status", None)
         self.log_path = getattr(source, "log_path", None)
         self.now = getattr(source, "now", None)
@@ -257,4 +302,10 @@ def resolve_source(node=None, *, bot=None) -> Source:
         if member is not None
         for instance in (getattr(member, "instances", None) or {}).values()
     )
-    return LiveSource(servers=servers, instances=instances, nodes=nodes, node=node)
+    # Card B2: the instances each node DECLARES in ``nodes.yaml``, read ONCE here (source build) so
+    # an offline node's row can report the count it really has without a node call and without a
+    # per-render YAML read. It is kept BESIDE ``instances``, never merged into it: a declared
+    # instance of an offline node becomes a count, not an Instances-table row.
+    declared = declared_node_instances()
+    return LiveSource(servers=servers, instances=instances, nodes=nodes, node=node,
+                      declared_instances=declared)

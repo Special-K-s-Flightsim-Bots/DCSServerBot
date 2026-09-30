@@ -1487,11 +1487,22 @@ def node_controls(request: Request, origin: str) -> dict[str, dict]:
     roles = permissions.role_names_for(request)
     manager = permissions.manages_console(request)
     token = session.get_csrf_token(request)
+    # THE LOG DOWNLOAD's owner is the nodes PAGE module (it owns the route and the capability);
+    # imported here, inside the function, beside the other page imports this module makes lazily.
+    from . import nodes as nodes_page
     controls: dict[str, dict] = {}
     for index, (name, node) in enumerate(
             (getattr(source, "nodes", None) or {}).items()):
         key = readmodels.text(name)
-        if not key or node is None:        # OFFLINE: the cluster knows it and cannot reach it
+        if not key:
+            continue
+        # THE ONE READ CONTROL on the row (card B3): *Download log*, offered on the LOG PANEL's own
+        # capability — the same predicate the route's gate runs. It needs a node the cluster can
+        # REACH (``read_file`` is a call), so an OFFLINE row is offered none, exactly like its
+        # write controls: the row already says the node is offline, and a control that could only
+        # answer "offline or unknown" is not offered.
+        download = nodes_page.log_download_control(key, roles, manager) if node is not None else None
+        if node is None:        # OFFLINE: the cluster knows it and cannot reach it
             continue
         states = node_states(source, key)
         offered = tuple(action for action in NODE_ACTIONS
@@ -1500,7 +1511,10 @@ def node_controls(request: Request, origin: str) -> dict[str, dict]:
         # THE HONEST STATEMENT for a check-gated control whose value is UNKNOWN: the
         # control is NOT offered, and the row says why rather than leaving the person to guess.
         note = _upgrade_note(key, roles, manager)
-        if not offered and not note:
+        # A row is kept when it has ANYTHING to render: an offered write, the unknown-check note, or
+        # the log download. The download needs no plugin, so an install whose ``admin`` actions are
+        # absent still hands over a node's log — it is a READ of a file the Node API owns.
+        if not offered and not note and download is None:
             continue
         controls[key] = {
             "strip": tuple(_node_control(action, key, token, origin) for action in offered),
@@ -1508,6 +1522,9 @@ def node_controls(request: Request, origin: str) -> dict[str, dict]:
             "node": key, "aria": f"Controls for node {key}", "menu_note": "",
             # the row-level statement ``_table.html`` renders beside the strip (`no update check yet`)
             "note": note,
+            # the row's ONE READ control (``pages/nodes.log_download_control``): a LINK, rendered
+            # by ``_table.html`` beside the strip, or ``None`` for a caller who may not use it.
+            "download": download,
         }
     return controls
 
