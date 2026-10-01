@@ -42,7 +42,7 @@ if not COMMAND_LINE_ARGS:
         parser.add_argument('-m', '--mizfile', help='Mission to patch', required=True)
         parser.add_argument('-p', '--preset', help='Preset to use, can be comma-separated')
         parser.add_argument('-f', '--presets-file', help='Presets file', default='presets.yaml')
-    elif program == 'recover.py':
+    elif program == 'restore.py':
         parser.add_argument('-n', '--node', help='Node name', default=platform.node())
     elif program == 'testdriver.py':
         parser.add_argument('-n', '--node', help='Node name', default='TestNode')
