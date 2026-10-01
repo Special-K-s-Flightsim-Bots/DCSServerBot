@@ -1,5 +1,5 @@
 """
-Action functions for NODE operations (cards ``t_52285a51`` W4c-revised and ``t_0fbea9bd`` W4d).
+Action functions for NODE operations.
 
 TWO FAMILIES, and the difference between them is the whole reason this module carries both:
 
