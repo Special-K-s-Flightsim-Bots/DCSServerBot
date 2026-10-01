@@ -34,7 +34,7 @@
 <body class="shell">
   <aside class="side">
     <div class="brand">
-      {#  THE BRAND MARK IS FRANK'S OWN LOGO, referenced as a plain static request (never inline
+      {#  THE BRAND MARK IS THE PROJECT'S OWN LOGO, referenced as a plain static request (never inline
           base64, which would ride in every page and defeat the cache). It replaced the amber
           `.mark` square that stood in for a mark, and it sits BESIDE the text brand rather than
           instead of it: at 30px the logo's own three-line wordmark is not readable, so the product
@@ -105,7 +105,7 @@
       {% block content %}{% endblock %}
     </main>
   </div>
-  {# The ONE submit interceptor (card W4h): every write form the console submits in the background
+  {# The ONE submit interceptor: every write form the console submits in the background
      — the confirmation dialog's destructive form AND the row strip's direct controls — is handled
      by this one script, which is loaded on EVERY page (the dialog extends this template too). It is
      not gated by `live`: the strip is on the standalone pages as well, and there is no page-local

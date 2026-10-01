@@ -517,7 +517,7 @@ def row_controls_for(request: Request | None, tab: str) -> dict:
     offer one set of controls. The import is inside the function because ``pages/actions`` reaches
     THIS module for the page's own paths, and a module-level import would be a cycle.
 
-    The ORIGIN is this page's own path (card W4e, Defect 1): the table here is the DASHBOARD's, on
+    The ORIGIN is this page's own path (Defect 1): the table here is the DASHBOARD's, on
     the initial render and on every streamed fragment alike, so a write returns to ``/`` — and that
     is why this cannot be read off the request, whose path is an ``/api/…`` stream endpoint.
     """
@@ -590,7 +590,7 @@ def add_routes(router: APIRouter) -> APIRouter:
         console = console_context(state, request, view, log_allowed=allowed, roles=roles,
                                  manager=manager)
         # THE ONE-SHOT NOTICE of a write: the Dashboard renders the same server/player/node strips
-        # the list pages do, so a write pressed here redirects back here (card W4e, Defect 1) and its
+        # the list pages do, so a write pressed here redirects back here (Defect 1) and its
         # outcome has to be shown here too — otherwise the notice would sit in the session and pop on
         # whatever page the person opened next. The import is inside the route because
         # ``pages/actions`` imports THIS module.

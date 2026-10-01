@@ -54,7 +54,7 @@ capability and a declared action.
 | node   | Take servers offline | `nodes.offline`             | `take_node_offline`     | **yes**  |
 | node   | Bring servers online | `nodes.online`              | `bring_node_online`     | no       |
 
-**Two server controls open a DIALOG without confirming** (card W5d): *Shutdown* and *Startup* each
+**Two server controls open a DIALOG without confirming**: *Shutdown* and *Startup* each
 carry a `maintenance` **option** — a checkbox with its `off` companion (the `NodeOption` shape the
 node row's *Take servers offline* uses), default ON — that mirrors Discord's `/server shutdown|startup`
 flag defaults: Shutdown **sets** the maintenance flag, Startup **clears** it. Because the checkbox is a
@@ -108,7 +108,7 @@ one control that is not a write is the node row's *Download log* (below): a **GE
 target in the URL, because that is what a download is — and it is a READ, so there is nothing for a
 CSRF token to protect.
 
-### The node row's log download (card B3)
+### The node row's log download
 
 The node row carries ONE **read** control beside its write strip: *Download log*. It hands over THAT
 node's own bot log file — agent and master alike — as a file download, on demand. It is a route
@@ -142,7 +142,7 @@ submitted with `fetch` by the console's ONE interceptor
 (`services/webservice/static/submit.js`, loaded by `base.html` on every page) and the page is handed
 over to a fresh render at once, so a plain form POST no longer holds the browser while the action
 runs and the row can show that something is running (cards W4g/W4k/W4l). A control that opens a
-**dialog** (a confirmation, or Startup's options form, card W5d) is itself a plain form — its answer
+**dialog** (a confirmation, or Startup's options form) is itself a plain form — its answer
 IS the dialog page — but the dialog's OWN action form takes the background path too, and since card
 W4m it hands the page back **the instant it is pressed**, closing the modal rather than waiting for a
 shutdown to finish. A refusal is no longer shown in a line of the dialog's own (that line is gone):
@@ -152,7 +152,7 @@ That shows as TWO signals, with two scopes:
 
 * **the pulse, on the control you pressed** — a control is `busy` (`aria-busy` + the animating class)
   while a write **through that control** has been issued and **the observable that action moves** has
-  not reached the state its action **settles** at (card W4n). The expectation record names the
+  not reached the state its action **settles** at. The expectation record names the
   submitted action's key, the observable it watches and the action's `settled` states
   (`pages/actions.remember_awaiting_change`), so pressing *Maintenance* pulses *Maintenance* and
   leaves *Startup* alone, and vice versa. For every power action the observable is the row's status,
@@ -168,12 +168,12 @@ That shows as TWO signals, with two scopes:
   render rather than pulsing to the ceiling). It is bounded to `AWAIT_CHANGE_SECONDS`, so a start that
   never comes up cannot pulse forever; a failed or refused write drops the expectation at once, and a
   spent expectation is dropped the moment it is read (so it can never re-arm).
-  A CONTROL WHOSE OPERATION IS PENDING STAYS ON THE ROW (card W4n): while the row is transitional
+  A CONTROL WHOSE OPERATION IS PENDING STAYS ON THE ROW: while the row is transitional
   (`LOADING`/`SHUTTING_DOWN`) and a start/restart is pending, `server_controls` renders that pending
   control's own glyph — `busy` and `DISABLED`, a statement rather than an invitation — where the row
   would otherwise render NOTHING (there is no control gated on `LOADING`). That is what gives the
   pulse a glyph to run on through the boot.
-  IT IS PROCESS-SIDE AND KEYED BY TARGET (card W4m), held by `pages/actions` exactly like the seam's
+  IT IS PROCESS-SIDE AND KEYED BY TARGET, held by `pages/actions` exactly like the seam's
   in-flight set — NOT in the session, whose cookie the route writes only on its reply: `submit.js`
   navigates the moment it fires the POST, so the render that is meant to show the pulse usually
   happened BEFORE that `Set-Cookie` landed, and the signal trailed the render (nothing at all, or a
@@ -194,7 +194,7 @@ delivered by the polling fallback on its next poll and by the stream's snapshot 
 is already stored when the stream connects (a refused write is decided in milliseconds, so the fresh
 render's stream sees it) — so a refusal is seen without a reload. This holds for EVERY write, the
 dialog's included, and for the refusals the ROUTE itself makes (no signed-in identity, a spent/absent
-confirm token, an out-of-scope target — `pages/actions._refusal_notice`, card W4m), which used to be
+confirm token, an out-of-scope target — `pages/actions._refusal_notice`), which used to be
 a bare 403 nobody read. With JavaScript off every form is a plain POST, exactly as before.
 
 **The confirm rule.** `restart`, `shutdown`, `stop`, `kick` and `ban` do not POST their action: they
@@ -220,7 +220,7 @@ The **maintenance flag pair** on the server row confirms nothing either: it is a
 change, so both halves submit directly and have no dialog at all (the same rule the mute pair
 follows).
 
-**A NODE power action pulses the SERVER rows it moves** (card W7c). *Take servers offline* and *Bring
+**A NODE power action pulses the SERVER rows it moves**. *Take servers offline* and *Bring
 servers online* start or stop their servers INSIDE the bot's action, so no per-server write is
 submitted from the browser and their rows would carry no expectation — the node row would behave and
 the server rows would not. After such a write is **accepted**, `pages/actions.node_moved_names` seeds

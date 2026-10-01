@@ -1,7 +1,7 @@
 {#-
   THE CONFIRMATION — one destructive server action, in the user's terms, on its own page.
 
-  Frank's decision (2026-09-28): `restart`, `shutdown` and `stop` all confirm. This page is the
+  Decision (2026-09-28): `restart`, `shutdown` and `stop` all confirm. This page is the
   dialog: it names the CONSEQUENCE FIRST (the red-edged warning block), then what will actually
   happen, then the two ways out — `Cancel` (left, autofocused, a plain link home) and the destructive
   button (right).
@@ -32,13 +32,13 @@
   never the default), and the markup is a real `role="dialog"` / `aria-modal` region so assistive
   technology announces it as one.
 
-  THE SUBMIT IS ASYNCHRONOUS TOO, and it is no longer a script of this page's own (card W4h): the
+  THE SUBMIT IS ASYNCHRONOUS TOO, and it is no longer a script of this page's own: the
   interception W4e gave this dialog is now the console's ONE interceptor, `static/submit.js`, loaded
   by `base.html` on every page so the ROW STRIP (which is on every page) submits in the background
   too. The form here carries the two attributes that script reads: `data-async` (this is a background
   write) and `data-back` (the page it returns to).
 
-  IT LEAVES THE MOMENT IT IS PRESSED (card W4m, Frank's third report). W4e's dialog WAITED for the
+  IT LEAVES THE MOMENT IT IS PRESSED (the maintainer's third report). W4e's dialog WAITED for the
   answer and filled a refusal line of its own; that is the behaviour he rejected twice — the modal
   "still does not vanish the moment I press the button". There is no wait and no refusal line here
   any more: on press the form fires its POST in the background and hands the page back at once, and a
@@ -121,7 +121,7 @@
    is autofocused and Enter dismisses, and the destructive button is never the default. The SUBMIT is
    no longer here: it is the console's one interceptor, `static/submit.js`, which this page's form
    opts into with `data-async` (see the block at the top of this file). */
-(function () {
+(function  {
   "use strict";
   var dialog = document.querySelector('[role="dialog"]');
   if (!dialog) { return; }

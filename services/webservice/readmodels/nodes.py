@@ -12,7 +12,7 @@ A node entry that is ``None`` renders as offline with its counters at 0 rather t
 "the cluster knows this node and cannot reach it" is the interesting case, not a reason to hide a
 row.
 
-CARD B2 — AN OFFLINE NODE'S INSTANCE COUNT IS THE DECLARED ONE. An offline node has no live
+— AN OFFLINE NODE'S INSTANCE COUNT IS THE DECLARED ONE. An offline node has no live
 registry to read (``all_nodes[name] is None``), so its instance FIGURE used to fall to ``0`` and,
 worse, the row then read *"No instances on this node"* — a wrong count and a misleading empty on
 the very row a reader uses to reason about a dead node. The count now comes from the ``instances:``
@@ -63,7 +63,7 @@ def node_views(entries, servers, declared=None) -> list[NodeView]:
         if node is not None:
             instances = safe(lambda: len(attr(node, "instances", {}) or {}), 0)
         else:
-            # offline: what the node DECLARES it carries (card B2), never a live node call
+            # offline: what the node DECLARES it carries, never a live node call
             instances = len(tuple(declared.get(key) or ()))
         out.append(NodeView(
             name=key,

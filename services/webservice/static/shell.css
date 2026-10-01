@@ -8,11 +8,11 @@
  * inline <style>, so the "flight ops" look has a single owner. A second value that is the same
  * measurement is DERIVED (var(--nav-h)), never re-typed: a comment promising parity is what drifts.
  *
- * Ported from the design of record (/home/frank/mockups/dcssb-admin-ui/assets/ui.css): same
+ * Ported from the design of record (mockups/dcssb-admin-ui/assets/ui.css): same
  * palette, status dots, cards, tabs, tables and log block, under the shell's own names.
  *
  * The KPI tile rules (`.kpi`) are DELETED, not kept: the console's tab badges state those totals
- * now (stating one fact twice was the weight Frank called out), so the tile block had no consumer
+ * now (stating one fact twice was the weight the maintainer called out), so the tile block had no consumer
  * left and a rule nothing renders is the same trap as a knob nothing reads.
  */
 :root {
@@ -87,7 +87,7 @@ a { color: var(--link); text-decoration: none; }
 .brand { display: flex; gap: 10px; align-items: center; padding: 16px 16px 14px;
   border-bottom: 1px solid var(--line); }
 .brand img.brand-logo { height: 30px; width: auto; display: block; flex: 0 0 auto; }
-/* The brand mark is Frank's own logo (services/webservice/static/logo.png), served from a
+/* The brand mark is THE PROJECT'S OWN LOGO (services/webservice/static/logo.png), served from a
  * DOWNSCALED derivative: `logo-256.png` here and as the favicon, so the two share one request and
  * one cache entry. A FIXED HEIGHT with `width: auto` is what preserves the artwork's 3:2 aspect at
  * every viewport (a fixed width would stretch it), and 30px is under the 34px square it replaced,
@@ -429,12 +429,12 @@ td.acts .act-strip > form > .act-btn:focus-visible { background: var(--panel-2);
   border-color: var(--accent); }
 td.acts { text-align: right; }
 th.acts { text-align: right; }
-/* THE HONEST STATEMENT beside a node row's strip (card W7b): shown while a check-gated control's
+/* THE HONEST STATEMENT beside a node row's strip: shown while a check-gated control's
  * cached value is UNKNOWN — "no update check yet". Muted and small: it is a fact about the missing
  * control, not a control itself. */
 td.acts .act-note { display: inline-block; margin-left: 6px; color: var(--text-3);
   font-size: 11.5px; }
-/* THE LOG DOWNLOAD (card B3) — the node row's one READ control. It is a LINK where every other
+/* THE LOG DOWNLOAD — the node row's one READ control. It is a LINK where every other
  * control is a POST form, so it is not inside `.act-strip`: it sits beside the strip, quiet at rest
  * like its neighbours, and gets its chrome back on hover and on keyboard focus. */
 td.acts .act-btn.dl { padding: 0; margin-left: 6px; background: transparent;
@@ -481,7 +481,7 @@ td.acts .act-strip > form > .act-btn.danger:hover,
   .act-btn.busy, .mi.busy { animation: none; }
 }
 
-/* THE ROW-LEVEL MARKER (card W4l). The action seam's in-flight set keys the TARGET, not the
+/* THE ROW-LEVEL MARKER. The action seam's in-flight set keys the TARGET, not the
  * operation, so it cannot say WHICH control is running: that fact belongs to the ROW and is rendered
  * as a class on the strip container (``templates/_strip.html``), never as a pulsing glyph — a glyph
  * that blinked for the wrong action is exactly the defect the card fixes. Static on purpose: it is a

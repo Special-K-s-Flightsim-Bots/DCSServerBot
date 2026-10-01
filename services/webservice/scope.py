@@ -1,5 +1,10 @@
 """The per-server scope (``managed_by``): ONE rule, shared by the bot and the admin web UI.
 
+the maintainer's requirement, verbatim: *"managed_by should be like a different view for people to see only
+their servers. They can operate their servers and kick players from them but they might not see
+other servers or kick other players. Also, they might not do special admin tasks that might affect
+other servers."*
+
 THE RULE, taken from Discord unchanged (spec §10.1):
 
 * a server that declares no ``managed_by`` is visible to everyone who may read the console;

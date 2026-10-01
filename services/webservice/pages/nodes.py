@@ -50,15 +50,15 @@ browser — an OS-level job (a launcher, a service, a terminal) that no page can
 above does not contradict that: it changes SERVERS, and it is offered only while the node's own
 services answer.
 
-THE LOG DOWNLOAD (card B3) — the row's one READ control. *Download log* hands over THAT node's own
+THE LOG DOWNLOAD — the row's one READ control. *Download log* hands over THAT node's own
 bot log file as a file download. It is an explicit user action, so it is a ROUTE
 (:data:`NODES_LOG_PATH`, ``GET``), never a render step: the console's no-RPC-on-render rule stays
 intact, and a page render asks no node for anything.
 
 WHAT IT DOES — AND WHAT IT DOES NOT. It hands over ONE complete file, once, on demand. It does not
-tail, stream, merge or live-update an agent's log; the console's log PANEL stays master-only,
-and a node's log is here only ever a file somebody asked for.
-Nothing about the file is parsed, filtered or clipped: an oversized log is
+tail, stream, merge or live-update an agent's log; the console's log PANEL stays master-only
+(the decision of 2026-09-30, audit Q3 deferred), and a node's log is here only ever a file
+somebody asked for. Nothing about the file is parsed, filtered or clipped: an oversized log is
 REFUSED with its own sentence (:data:`LOG_DOWNLOAD_MAX_BYTES`), never silently truncated into a
 file that looks complete.
 

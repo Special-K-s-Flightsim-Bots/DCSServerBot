@@ -1,5 +1,5 @@
 {#-
-  The dashboard (card C3, rebuilt as the approved variant 3 refined) — the console's READ page: it
+  The dashboard (rebuilt as the approved variant 3 refined) — the console's READ page: it
   renders no write of its own, and the controls a server row may carry (W4a) are `pages/actions`'
   POST routes, handed in as the `row_controls` data `_table.html` renders. See
   `pages/dashboard.row_controls_for`.
@@ -37,10 +37,10 @@
 </div>
 
 {# THE ONE-SHOT NOTICE of a write — the same partial the list pages include. A write pressed on a
-   server/player/node row here redirects back to this page (the origin fix, card W4e), so its outcome
+   server/player/node row here redirects back to this page (the origin fix), so its outcome
    is shown here rather than only where the section's own page would have shown it. `notice` is None
    unless a write just happened; outside `#state-panel` so a live refresh neither repeats nor drops
-   it. THE WRAPPER IS A LIVE SWAP TARGET (card W4h): a strip control submits in the background and
+   it. THE WRAPPER IS A LIVE SWAP TARGET: a strip control submits in the background and
    hands the page to a fresh render at once, so the outcome is stored a moment LATER than this render
    — the live path (`static/shell.js`, `pages/live.py`'s `notice` target) swaps it in, and a frame
    sent with nothing to say omits the id rather than blanking this. #}

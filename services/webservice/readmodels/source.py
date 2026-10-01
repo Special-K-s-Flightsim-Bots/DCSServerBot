@@ -52,7 +52,7 @@ def log_path_for(node_name: str | None, *, base: str | Path = LOG_DIR) -> Path |
 def declared_node_instances() -> dict[str, tuple[str, ...]]:
     """The per-node instance names DECLARED in ``nodes.yaml`` for EVERY node in the cluster.
 
-    THE IN-PROCESS ACCESSOR (card B2): ``core.utils.validators.get_node_data()`` is a ``NodeData``
+    THE IN-PROCESS ACCESSOR: ``core.utils.validators.get_node_data()`` is a ``NodeData``
     singleton that parses ``nodes.yaml`` ONCE per process (``validators.py:82-98``) and exposes
     ``.instances`` as ``{node_name: [instance_name, ...]}`` (``validators.py:88-92, 111-113``) — the
     same loaded configuration the bot's own validators read, so this is the master's node config and
@@ -93,7 +93,7 @@ class Source:
         read once at source build from the process's own loaded node configuration
         (:func:`declared_node_instances`). Used ONLY as the instance COUNT for a node that is
         offline/``None``; it is NOT merged into :attr:`instances`, so an offline node's declared
-        instances never become Instances-table rows (card B2).
+        instances never become Instances-table rows.
     instances, servers:
         the collections to read (iterables of objects).
     log_path:
@@ -194,7 +194,7 @@ class ScopedSource(Source):
         node_names.discard("")
         self.nodes = {name: node for name, node in (getattr(source, "nodes", None) or {}).items()
                       if text(name) in node_names}
-        # The declared per-node instance names follow the SAME node filter as ``nodes`` (card B2):
+        # The declared per-node instance names follow the SAME node filter as ``nodes``:
         # a scoped viewer sees a node only when it carries one of their surviving servers, so a
         # node's declared count must not survive for a node whose row did not.
         self.declared_instances = {
@@ -302,7 +302,7 @@ def resolve_source(node=None, *, bot=None) -> Source:
         if member is not None
         for instance in (getattr(member, "instances", None) or {}).values()
     )
-    # Card B2: the instances each node DECLARES in ``nodes.yaml``, read ONCE here (source build) so
+    # The instances each node DECLARES in ``nodes.yaml``, read ONCE here (source build) so
     # an offline node's row can report the count it really has without a node call and without a
     # per-render YAML read. It is kept BESIDE ``instances``, never merged into it: a declared
     # instance of an offline node becomes a count, not an Instances-table row.

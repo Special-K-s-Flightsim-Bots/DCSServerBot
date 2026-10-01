@@ -29,7 +29,7 @@
   `pages/actions._control` decides that, and the action's own route refuses a POST that did not come
   through the dialog.
 
-  TWO KINDS OF CONTROL, ONE ATTRIBUTE (card W4h). `control.direct` says whether this form IS the
+  TWO KINDS OF CONTROL, ONE ATTRIBUTE. `control.direct` says whether this form IS the
   write or only OPENS a dialog for it:
     * `direct` (no confirmation — Startup, Start, Pause, Unpause, Message, Mute/Unmute) — the form
       carries `data-async`, which the console's one interceptor (`static/submit.js`, loaded by
@@ -40,14 +40,14 @@
       dialog's path by construction) — the form must stay a PLAIN form: its answer IS the dialog
       page, and intercepting it would navigate away from the dialog the person asked to see. The
       dialog's own action form is where the background submit resumes (it opts in itself,
-      `confirm.html`), and since card W4m IT hands the page back at once too — closing the modal on
+      `confirm.html`), and since IT hands the page back at once too — closing the modal on
       press — with a refusal delivered by the one-shot notice like every other write.
 
   TWO SIGNALS, TWO SCOPES (cards W4k/W4l/W4m) — and the template computes neither:
     * `control.busy` is the EXPECTATION half and belongs to ONE control: it is `True` only while the
       control THAT WAS PRESSED has a pending expectation and the observable its action moves (the
       row's status, or the maintenance flag for the flag pair) has not moved yet. The record
-      carries it (`pages/actions.awaiting_change`) — PROCESS-side, keyed by target since card W4m, so
+      carries it (`pages/actions.awaiting_change`) — PROCESS-side, keyed by target since so
       the render the at-once navigation lands on sees it with no cookie round-trip — and this partial
       renders `aria-busy="true"` (the accessible statement), the animating `busy` class and the row's
       own `title`/`aria-label`, which name what is happening rather than only spinning. So pressing

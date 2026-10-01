@@ -1,6 +1,6 @@
 """The console's CACHED upgrade signal — one background check per node, read by the render.
 
-WHY THIS MODULE EXISTS (card W7b). The Upgrade control on a node row is offered ONLY while the
+WHY THIS MODULE EXISTS. The Upgrade control on a node row is offered ONLY while the
 node's OWN API says an update is pending. That answer comes from ``Node.upgrade_pending()``
 (``core/data/node.py``), which is an async git/HTTP check on the local node and an RPC on a remote
 one — so it must never be issued from a page RENDER: every page view would call every node, and one

@@ -1,4 +1,4 @@
-"""The core pages of the admin web UI (card C3).
+"""The core pages of the admin web UI.
 
 Each module owns one page: its route, the capability that gates it, the nav item that advertises it
 and the copy it renders. The shell registers them (``services/webservice/shell.py::_core_router``)

@@ -11,7 +11,7 @@
  *   log      -> {"targets": {"log-panel": html}}     (only when the log fragment changed)
  *   state    -> {"targets": {"state-panel": html, "status-pills": html}}
  *   the ONE-SHOT notice of a write ("notice") is a target too: a strip control now submits in the
- *   background and hands the page to a fresh render at once (card W4h), so its outcome is written a
+ *   background and hands the page to a fresh render at once, so its outcome is written a
  *   moment AFTER that render — the live path is what carries it to the person. An id absent from a
  *   frame is skipped, so a frame sent with no notice never blanks one the page already showed.
  *

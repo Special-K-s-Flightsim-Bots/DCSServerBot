@@ -74,7 +74,7 @@ DASHBOARD_FRAGMENTS_PATH = "/api/dashboard/fragments"
 LOG_TARGET = "log-panel"
 STATE_TARGET = "state-panel"
 PILLS_TARGET = "status-pills"
-#: the ONE-SHOT NOTICE of a write, carried on the live path too (card W4h). A strip control submits in
+#: the ONE-SHOT NOTICE of a write, carried on the live path too. A strip control submits in
 #: the background and the page is handed over to a fresh render at once, so that render happens
 #: BEFORE the route has stored the outcome; the live path is what delivers it afterwards — the same
 #: way it delivers the row state. It is a target of its own because the notice is NOT part of the
@@ -233,7 +233,7 @@ def fragments(environment, state: readmodels.Overview, view=None, console=None,
     client skips ids absent from a frame (see ``static/shell.js``), and the frames are compared by
     a hash of the targets that exist.
 
-    ``notice`` is the ONE-SHOT outcome of a write (card W4h), already POPPED for this render by the
+    ``notice`` is the ONE-SHOT outcome of a write, already POPPED for this render by the
     caller. It is included ONLY when there is something to say, for exactly the reason the log
     target is dropped rather than emptied: a frame that carried an empty notice would blank the
     notice the page's own render just showed (the value is popped, so the first frame after a page
@@ -374,7 +374,7 @@ def refuse_log_request(request: Request) -> None:
 
 
 def write_notice(request: Request) -> dict | None:
-    """The ONE-SHOT outcome of the last write, POPPED for this render — or ``None`` (card W4h).
+    """The ONE-SHOT outcome of the last write, POPPED for this render — or ``None``.
 
     THE OUTCOME RIDES THE LIVE PATH. A strip control now submits in the background and the page is
     handed over to a fresh render at once, so the page the person lands on renders BEFORE the route
@@ -496,7 +496,7 @@ def add_routes(router: APIRouter) -> APIRouter:
         # THE ROW CONTROLS RIDE ALONG TOO, for the same reason and by the same bridge the page and
         # the stream use (``pages/dashboard.row_controls_for``): a polled table that dropped its
         # Actions column would rebuild every row WITHOUT its controls about two seconds after the
-        # page loaded — and the origin a write returns to is part of that column (card W4e), so the
+        # page loaded — and the origin a write returns to is part of that column, so the
         # fallback would also lose which page the control came from.
         return JSONResponse(fragments(environment, state, view, console,
                                       row_controls=dashboard_page.row_controls_for(request,

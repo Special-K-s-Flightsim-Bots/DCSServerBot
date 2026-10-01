@@ -1,4 +1,4 @@
-"""Pure read models for the read-only dashboard (card C3).
+"""Pure read models for the read-only dashboard.
 
 Layout, one module per read model:
 

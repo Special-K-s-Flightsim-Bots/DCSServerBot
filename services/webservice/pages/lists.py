@@ -170,7 +170,7 @@ def page_context(request: Request, page: ListPage) -> dict:
         # another page's map (a servers page asking for server controls, a players page for player
         # ones) — and a table with no write at all gets an empty map, hence no column. The ORIGIN is
         # this page's own path, so a write returns here even when the same row is also on a dashboard
-        # tab (card W4e, Defect 1).
+        # tab (Defect 1).
         context["row_controls"] = actions_page.controls_for(request, page.table, page.path)
     return context
 

@@ -445,7 +445,7 @@ class PlayerAction:
     go_title: str = ""
 
 
-#: The player row's controls (W4b): kick · ban · chat · popup · mute. Every one of them posts to an
+#: The player row's controls: kick · ban · chat · popup · mute. Every one of them posts to an
 #: action that EXISTS — ``message_player`` (W3, its two modes drawn as the chat/popup pair) and the
 #: three W4b actions in ``plugins/mission/actions.py``. The ``__qualname__`` is the registry's key
 #: (``core/actions.py``), never the function NAME.
@@ -1218,7 +1218,7 @@ def server_controls(request: Request, origin: str) -> dict[str, dict]:
         # a marker on the strip container — see ``in_flight`` in the record below and
         # ``templates/_strip.html``.
         in_flight = target_is_busy("server", name, running)
-        # A CONTROL WHOSE OPERATION IS PENDING STAYS ON THE ROW . This is what makes
+        # A CONTROL WHOSE OPERATION IS PENDING STAYS ON THE ROW. This is what makes
         # the pulse survive the STARTING state: a real DCS launch reads ``LOADING`` for most of the
         # boot, and NO control is gated on ``LOADING`` — so without this the row renders nothing and
         # there is no glyph to pulse. While the row is
@@ -1496,7 +1496,7 @@ def node_controls(request: Request, origin: str) -> dict[str, dict]:
         key = readmodels.text(name)
         if not key:
             continue
-        # THE ONE READ CONTROL on the row (card B3): *Download log*, offered on the LOG PANEL's own
+        # THE ONE READ CONTROL on the row: *Download log*, offered on the LOG PANEL's own
         # capability — the same predicate the route's gate runs. It needs a node the cluster can
         # REACH (``read_file`` is a call), so an OFFLINE row is offered none, exactly like its
         # write controls: the row already says the node is offline, and a control that could only
@@ -1534,7 +1534,7 @@ def _node_offered(action: NodeAction, name: str, roles: frozenset[str], manager:
 
     Three readings of the ONE declaration, exactly like the filter it replaces: the capability
     (``permissions.allows``, the predicate the access gate runs), the action's availability
-    (``action_available``), and — for a CHECK-GATED control  — the
+    (``action_available``), and — for a CHECK-GATED control — the
     CACHED upgrade value. The value is read from ``services.webservice.upgrade`` and NEVER by asking
     a node: the poller owns every call, and a render must issue none. A value that is ``False`` OR
     UNKNOWN withholds the control ("offered only while the cached value is True"): a control whose
@@ -1664,7 +1664,7 @@ def player_controls(request: Request, origin: str) -> dict[tuple[str, str], dict
     row whose control may not be offered.
 
     ``origin`` is the PAGE this strip is being rendered on, carried into every control as a hidden
-    field so the write returns there  — the registry re-checks it (:func:`origin_path`).
+    field so the write returns there — the registry re-checks it (:func:`origin_path`).
 
     Same three conditions as :func:`server_controls`, each read from the ONE place that decides it
     (design §3.6), and the control is OMITTED — never rendered disabled — when any is false:

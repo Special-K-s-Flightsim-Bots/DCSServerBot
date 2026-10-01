@@ -1,11 +1,10 @@
-/* THE CONSOLE'S ONE SUBMIT INTERCEPTOR (card W4h; the DIALOG path corrected by card W4m) — the
+/* THE CONSOLE'S ONE SUBMIT INTERCEPTOR (the DIALOG path was corrected separately) — the
  * confirmation dialog and the row strip.
  *
- * WHY ONE COPY, AND WHERE IT LIVES. The submit interception was inline in `confirm.html` (card W4e,
- * Defect 2) and reached THAT page only. The strip's controls are on EVERY page that renders a row —
- * and the strip is the control Frank actually pressed on the live dashboard, where a plain
+ * WHY ONE COPY, AND WHERE IT LIVES. The submit interception was inline in `confirm.html` (* Defect 2) and reached THAT page only. The strip's controls are on EVERY page that renders a row —
+ * and the strip is the control actually pressed on the live dashboard, where a plain
  * `<form method="post">` still held the browser until the action had already finished, so no
- * rendered row existed to pulse (card W4g's signal only exists on a render). The behaviour the two
+ * rendered row existed to pulse ('s signal only exists on a render). The behaviour the two
  * need is the same one behaviour, so it is ONE script here, loaded by `base.html` on EVERY page
  * (the dialog extends base.html too), rather than a second copy in the strip's markup: two copies
  * would be two places for the same defect to reappear, and the dialog's own inline block was the
@@ -22,7 +21,7 @@
  * `~/.hermes/cache/scratch/probe-disconnect.py`), and a request whose client has gone away still
  * runs — which is what makes handing the page over to a fresh render safe.
  *
- * NO CONTROL WAITS FOR THE ANSWER (card W4m, Frank's third report). W4e/W4h gave the DIALOG a
+ * NO CONTROL WAITS FOR THE ANSWER (the maintainer's third report). W4e/W4h gave the DIALOG a
  * different path from the strip on purpose — the dialog stayed put and showed a refusal in its own
  * notice line — and that is exactly the behaviour he rejected twice ("the modals ... still do not
  * vanish, the moment I press the button that triggers the action"). A shutdown is the one write
@@ -37,10 +36,10 @@
  * existing route-level mechanism: the ONE-SHOT NOTICE, rendered where they land and on the live path
  * (`pages/actions._remember_notice` / `pages/live.py`'s `notice` target) — the SAME mechanism the
  * strip's outcome has always used. The routes that refused without leaving a notice (no identity, a
- * spent/absent confirm token, an out-of-scope target) now store one before refusing (card W4m), so
+ * spent/absent confirm token, an out-of-scope target) now store one before refusing, so
  * a refusal made in the background is seen rather than swallowed.
  *
- * IT NEVER DISABLES THE PRESSED CONTROL (card W4h item 3, W4g's rule): the server says what is
+ * IT NEVER DISABLES THE PRESSED CONTROL (item 3, W4g's rule): the server says what is
  * running, and the action seam's guard refusing a second press — with its own typed refusal — is
  * already the answer to a double click. A disabled button would be a second, silent refusal path.
  */
@@ -93,7 +92,7 @@
       keepalive: true,
       headers: { "Accept": "application/json" }
     });
-    /* The answer is not awaited (card W4m): the refusal it may carry reaches the person through the
+    /* The answer is not awaited: the refusal it may carry reaches the person through the
        one-shot notice on the page they land on, and the accepted write's effect reaches them through
        the row's own server-rendered signal. We only silence an unhandled rejection — a network
        failure is a rare, honest no-op, and nothing here can be retried. */
