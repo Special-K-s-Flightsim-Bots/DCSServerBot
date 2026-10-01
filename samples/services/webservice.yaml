@@ -6,8 +6,11 @@ DEFAULT:
   # The log panel's default level filter: info (INFO and up, DEBUG hidden; the default) | warning |
   #   all. The panel offers the same choice in the URL (?level=all) so a refresh keeps it.
   log_level: info
-  # The admin frontend. Off = the service runs as a REST API only: no HTML page, no login, no session
-  # cookie, no shell assets, and none of the UI's background work. The REST API is unaffected.
+  # The admin frontend. Default: false - the frontend is opt-in while it is WIP, so a configuration
+  # that does not set `frontend: true` serves the REST API only. This sample demonstrates the UI
+  # (pages, login, session), so it enables the frontend explicitly here.
+  #   false (the default) = REST API only: no HTML page, no login, no session cookie, no shell
+  #     assets, and none of the UI's background work. The REST API is unaffected.
   frontend: true
   # Live updates of the read-only dashboard: the log tail and the servers/KPI figures are pushed to
   # the browser as rendered fragments (Server-Sent Events) so a reader does not have to refresh.
