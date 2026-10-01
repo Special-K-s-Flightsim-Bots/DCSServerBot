@@ -37,7 +37,7 @@ class WebService(Service):
         self.task = None
         self.server = None
         self.ui = None
-        #: the upgrade poll's task (card W7b) — created in ``start()``, cancelled in ``stop()``
+        #: the upgrade poll's task — created in ``start()``, cancelled in ``stop()``
         self.upgrade_task = None
         if cfg:
             self.app = self._create_app()
@@ -193,7 +193,7 @@ class WebService(Service):
                     break
 
         self.task = asyncio.create_task(run_server())
-        # THE UPGRADE POLL (card W7b): a background check of every node the console knows, from the
+        # THE UPGRADE POLL: a background check of every node the console knows, from the
         # node's OWN API (``Node.upgrade_pending()``) — never from a page render. The four triggers
         # live in ``services/webservice/upgrade.py`` (start = the poller's first, full sweep);
         # "immediately after an Upgrade is accepted" is the node route's own call to

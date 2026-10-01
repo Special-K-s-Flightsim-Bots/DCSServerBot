@@ -61,14 +61,14 @@ def frontend_enabled(config: dict | None) -> bool:
     """Whether the admin frontend should be installed for *config* (the service's ``webservice``
     block).
 
-    The switch is ``frontend`` and it defaults to ``true``, so every existing configuration keeps
+    The switch is ``frontend`` and it defaults to ``false``, so every existing configuration keeps
     the frontend it has always had. ``false`` means the service runs as a REST API only: the shell
     is never installed (no page routes, no ``/auth/*``, no session middleware, no shell assets, no
     UI background work) and the ``auth:`` block is not evaluated at all. The gate lives with the
     shell so the two callers that must agree — the app factory and the UI background tasks — read
     one predicate, never their own copy of the rule.
     """
-    return bool((config or {}).get("frontend", True))
+    return bool((config or {}).get("frontend", False))
 
 
 def create_app() -> FastAPI:
