@@ -87,7 +87,7 @@ class NodeControlResult(ActionResult):
 
 @dataclass
 class ServerConfigResult(ActionResult):
-    """Result for a per-server CONFIGURATION operation (card B1 — the DCS face, ``CONFIGURATION.md`` §4.2).
+    """Result for a per-server CONFIGURATION operation (the DCS face, ``CONFIGURATION.md`` §4.2).
 
     Its own record rather than a bare :class:`ActionResult` for the same reason
     :class:`NodeControlResult` has one — every transport reads the fields back. The four extras are

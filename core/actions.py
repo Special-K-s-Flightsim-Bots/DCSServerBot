@@ -19,6 +19,17 @@ from core.action_results import ActionResult
 if TYPE_CHECKING:
     from core import NodeImpl, Server
 
+# ── the transport labels ───────────────────────────────────────────────────
+# Which ``from_*`` builder produced a context — the ONE fact an in-action authorisation check needs
+# and cannot infer from the identity alone. Roles do NOT
+# identify the transport (a Discord member may hold none), and the audit actor is caller-influenced
+# text (a Discord display name could read "API"), so neither is safe to key a permission rule on.
+# Stamped by each constructor and read through:attr:`ActionContext.transport`.
+TRANSPORT_WEB = "web"          # the admin console (``from_web``)
+TRANSPORT_DISCORD = "discord"  # a Discord interaction (``from_interaction``)
+TRANSPORT_PLUGIN = "plugin"    # the REST surface + an installed plugin (``from_plugin``)
+TRANSPORT_SERVICE = "service"  # an in-process Service, the MCP service (``from_service``)
+
 log = logging.getLogger(__name__)
 
 # ── the action registry ────────────────────────────────────────────────────
@@ -581,6 +592,12 @@ class ActionContext:
     _audit_backend: str = field(default="", repr=False)
     _audit_subject: str = field(default="", repr=False)
 
+    #: which ``from_*`` builder built this context — one of:data:`TRANSPORT_WEB`,
+    #::data:`TRANSPORT_DISCORD`,:data:`TRANSPORT_PLUGIN`,:data:`TRANSPORT_SERVICE`, or ``""`` for a
+    #: context built by hand. An in-action authorisation check reads it through:attr:`transport`; an
+    #: EMPTY value is a transport nothing named, so every such check must fail CLOSED on it (B1b §2).
+    _transport: str = field(default="", repr=False)
+
     @classmethod
     def from_interaction(cls, interaction) -> ActionContext:
         """Create context from a Discord interaction."""
@@ -589,6 +606,7 @@ class ActionContext:
 
         bot = interaction.client
         ctx = cls(node=bot.node, bus=ServiceRegistry.get(ServiceBus))
+        ctx._transport = TRANSPORT_DISCORD
         if hasattr(interaction, 'user') and interaction.user:
             ctx._audit_user = interaction.user.display_name
             # No behaviour changes here today (nothing reads the roles yet); populating them is
@@ -606,6 +624,7 @@ class ActionContext:
 
         ctx = cls(node=service.node, bus=ServiceRegistry.get(ServiceBus))
         ctx._audit_user = "MCP"  # or pass explicitly per-call
+        ctx._transport = TRANSPORT_SERVICE
         return ctx
 
     @classmethod
@@ -616,6 +635,7 @@ class ActionContext:
 
         ctx = cls(node=plugin.node, bus=ServiceRegistry.get(ServiceBus))
         ctx._audit_user = "API"
+        ctx._transport = TRANSPORT_PLUGIN
         return ctx
 
     @classmethod
@@ -638,6 +658,7 @@ class ActionContext:
         every reader.
         """
         ctx = cls(node=node, bus=bus)
+        ctx._transport = TRANSPORT_WEB
         ctx._roles = frozenset(getattr(identity, "roles", ()) or ())
         ctx._scope = getattr(identity, "scope", None)
         label = getattr(identity, "shown_name", None) or getattr(identity, "display_name", None)
@@ -656,6 +677,19 @@ class ActionContext:
         empty fails CLOSED at any caller that tests membership.
         """
         return self._roles
+
+    @property
+    def transport(self) -> str:
+        """Which transport built this context — ``web`` / ``discord`` / ``plugin`` / ``service``.
+
+        The companion of:attr:`roles` for an action that must authorise itself (``set_server_config``,
+        ``CONFIGURATION.md`` §6 / §2). It exists because the IDENTITY cannot tell the
+        transports apart: REST (``from_plugin``) and MCP (``from_service``) carry NO roles, and the
+        audit actor is caller-influenced text, so a rule keyed on either could be spoofed by a Discord
+        member whose display name reads like a transport label. An EMPTY string means nothing named the
+        transport (a context built by hand) — an authorisation check must fail CLOSED on it.
+        """
+        return self._transport
 
     @property
     def audit_actor(self) -> str:
