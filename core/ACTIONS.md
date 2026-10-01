@@ -23,7 +23,15 @@ in [`services/webservice/README.md`](../services/webservice/README.md#the-write-
 **Importing the module is the registration.** There is no hard-coded list of actions anywhere; a
 plugin's actions exist in a process only if that process imported its `actions.py`.
 
-Two callers populate the registry, in two different processes:
+The registry is a **bot-wide mechanism** — Discord commands, the REST surface and the MCP service all
+read it — so it is populated where the **plugins load**, by `PluginManager._discover_actions()`
+(`core/plugin_manager.py`, called from `load_plugins()`) — this is the AUTHORITATIVE call, reached by
+the real bot (`services/bot/dcsserverbot.py`) and the headless bot (`services/bot/dummy/bot.py`)
+alike, and re-run whenever the plugins load again (a master/agent switch, a reload). It is
+idempotent (`importlib` caches each module and `@action` keys on `__qualname__`) and never fatal.
+
+Two FALLBACK callers populate the registry for a process that runs WITHOUT that plugin load (a stub
+install in a test, or a service whose plugin list never reached `load_plugins`):
 
 * `services/mcpservice/server.py:48` — the MCP service calls `discover_actions` and wraps each
   function for FastMCP's stdio transport (`:55`).

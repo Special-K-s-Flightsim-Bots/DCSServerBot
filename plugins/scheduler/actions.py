@@ -6,11 +6,16 @@ THE CONFIG PAIR (``get_server_config`` / ``set_server_config``) is the DCS face 
 ``serverSettings.lua`` read and written through the EXISTING ``Server.settings`` ``SettingsDict`` —
 the same path ``/server config`` (``plugins/scheduler/commands.py``) uses. ``CONFIGURATION.md`` §4.2
 is the shape; §5 the validation, §6 the roles (Admin only, no scope grant — plus §2's rule:
-the REST/plugin transport is allowed and the MCP/service one is refused until it authenticates),
+an AUTHENTICATED REST/plugin transport will be allowed and the MCP/service one is refused until it
+authenticates; ``from_plugin`` has no production caller yet, so nothing live takes that branch today),
 §7 the secrets (write-only)
-and §8.2-8.4 the undo, the per-server write lock and the F3-override refusal. The read returns
+and §8.2-8.4 the undo, the per-server write lock and the F3-override SYNC. The read returns
 ``values`` (secrets redacted), ``editable``, ``overridden`` and ``status`` in ``result.data``; the
 write returns the old -> new of every applied key in ``ServerConfigResult.applied``.
+
+The F3 override is mirrored from the Discord Save (``plugins/scheduler/views.py``): a key pinned in
+the entry's ``locals['serverSettings']`` block is APPLIED like any other, and the block is then
+updated in place and the server reloaded, so the value never reverts (B1c, Frank 2026-10-01).
 
 The MAINTENANCE pair below is unchanged and unrelated: ``/scheduler maintenance`` / ``/scheduler
 clear`` and the console's server-row pair all reach:func:`set_maintenance` /:func:`clear_maintenance`,
@@ -24,9 +29,14 @@ one entry per attempt is what an operator wants after an incident.
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
+from ruamel.yaml import YAML
+
+from core import utils
 from core.action_results import ServerConfigResult, ServerControlResult
 from core.actions import (TRANSPORT_PLUGIN, TRANSPORT_SERVICE, action, audit_action,
                           server_write_lock)
@@ -34,11 +44,16 @@ from core.data.const import Status
 
 log = logging.getLogger(__name__)
 
+# ruamel YAML support — the same round-trip loader the Discord Save uses (``plugins/scheduler/
+# views.py``), so the ``servers.yaml`` rewrite preserves the operator's comments and key order.
+yaml = YAML()
+
 __all__ = [
     # the maintenance flag pair (W5b)
     "ABORTED_BY_MAINTENANCE", "set_maintenance", "clear_maintenance",
     # the DCS-face config pair (B1) and its curated table
     "ADMIN_ROLE", "ADMIN_ONLY_SENTENCE", "SERVICE_REFUSAL", "STOP_FIRST_SENTENCE", "WRITABLE_STATES",
+    "NO_NAME_SENTINEL", "NAME_RESERVED_SENTENCE",
     "TRANSPORT_PLUGIN", "TRANSPORT_SERVICE",
     "DCSField", "DCS_FIELDS", "DCS_READONLY_FIELDS", "validate_value",
     "get_server_config", "set_server_config",
@@ -187,6 +202,15 @@ SERVICE_REFUSAL = ("The MCP/service transport has no authentication yet, so a se
 STOP_FIRST_SENTENCE = ("The server must be stopped to change its configuration. "
                        "Stop it on the Servers page, then edit here.")
 
+#: The reserved sentinel that means "unnamed" throughout the core (``ServerImpl.rename``,
+#: ``ServiceBus._check_database``, both spell it literally): a server must never be RENAMED to it.
+#: ``ServerImpl.rename`` special-cases ``old_name == 'n/a'`` and takes its no-rollback path, so a
+#: rename TO it can leave a half-applied change. Refused with its own sentence (B1e §2).
+NO_NAME_SENTINEL = "n/a"
+
+#: The typed refusal a submitted ``n/a`` gets — named once so the action and any test agree.
+NAME_RESERVED_SENTENCE = (f'The name "{NO_NAME_SENTINEL}" is reserved and cannot be used for a server.')
+
 #: The ONLY statuses a config write is allowed in (§5.3, D4). ``LOADING`` and ``SHUTTING_DOWN`` are
 #: transitional and are ALSO refused — the file is being read or the process is dying, the exact race
 #: ``SettingsDict``'s mtime check (``helper.py``) cannot win. ``STOPPED`` is writable: ``/server
@@ -228,12 +252,14 @@ class DCSField:
 
 #: The CURATED editable set (§5, D10) — the DCS fields the four scheduler modals cover, nothing else.
 #: Ranges mirror the modals' own limits (``views.py``: port ``max_length=5``, ``maxPlayers`` 3,
-#: ``maxPing`` 3) and the ``resume_mode`` enum is their three Select options.
+#: ``maxPing`` 3) and the ``resume_mode`` enum is their three Select options. ``description`` and
+#: ``password`` carry the modals' own slice lengths (``views.py:47`` / ``:57``) as a MAXIMUM, so the
+#: console can never write a value Discord would have cut (B1c §5).
 DCS_FIELDS: tuple[DCSField, ...] = (
     DCSField("name", KIND_STR, "The server's name as DCS shows it.", minimum=1),
-    DCSField("description", KIND_STR, "The server's description."),
+    DCSField("description", KIND_STR, "The server's description.", maximum=2000),
     DCSField("password", KIND_STR, "Password required to join. Blank leaves it unchanged; "
-                                   "clearing is its own value (None).", secret=True),
+                                   "clearing is its own value (None).", secret=True, maximum=80),
     DCSField("port", KIND_INT, "The port DCS listens on.", minimum=1, maximum=65535),
     DCSField("maxPlayers", KIND_INT, "Maximum number of players.", minimum=1, maximum=999),
     DCSField("isPublic", KIND_BOOL, "Whether the server is listed publicly."),
@@ -359,6 +385,10 @@ def validate_value(field: DCSField, value: Any) -> str | None:
             return f"'{field.key}' expects text."
         if field.minimum is not None and len(value) < field.minimum:
             return f"'{field.key}' must not be empty."
+        if field.maximum is not None and len(value) > field.maximum:
+            # The modals' own slice length, as a MAXIMUM (B1c §5): the console must not accept a
+            # value Discord would silently cut. The reason names the bound, never the value.
+            return f"'{field.key}' must be at most {field.maximum} characters."
         if any(not char.isprintable() for char in value):
             # NUL, a newline, a tab …: luadata.serialize would faithfully write it and DCS may
             # misbehave at boot (review B1 IMPORTANT-3 — a control character in a server NAME).
@@ -379,9 +409,10 @@ def _f3_override_keys(locals_: Any) -> set[str]:
     """The dotted keys the server's ``servers.yaml`` entry PINS — ``locals['serverSettings']`` (§1).
 
     At startup ``ServerImpl._prepare`` copies every key of that block OVER the live ``serverSettings.lua``
-    values (``core/data/impl/serverimpl.py``), so an F1 edit of such a key would silently REVERT at the
-    next boot. The read returns this set as ``overridden`` so a page can mark those fields without a
-    second read; the write refuses them (§8.4).
+    values (``core/data/impl/serverimpl.py``), so an F1 edit of such a key without updating the block
+    would silently REVERT at the next boot. The read returns this set as ``overridden`` so a page can
+    tell the caller which keys are ALSO pinned — INFORMATION, not a prohibition: the write applies
+    them like any other and keeps the block in sync (:func:`_sync_override`, B1c §4).
     """
     overrides: set[str] = set()
     block = (locals_ or {}).get("serverSettings")
@@ -395,10 +426,61 @@ def _f3_override_keys(locals_: Any) -> set[str]:
     return overrides
 
 
-def _override_message(key: str) -> str:
-    """The design's §8.4 refusal, word for word — the F3 path is the key's own dotted path."""
-    return (f"'{key}' is pinned by servers.yaml (serverSettings.{key}) and would revert at the next "
-            f"start; edit it there (second slice) or remove the override.")
+async def _sync_override(server: Any) -> bool:
+    """Keep the server's ``servers.yaml`` override block in step with the settings just written.
+
+    The behaviour mirrored VERBATIM from the Discord Save button (``plugins/scheduler/views.py``
+    lines 456-462): if the entry pins a ``serverSettings`` block — the F3 override the startup copy
+    (``core/data/impl/serverimpl.py``, ``_prepare``) applies over ``serverSettings.lua`` — then load
+    ``servers.yaml`` from the NODE's config dir, ``utils.update_in_place`` that block from
+    ``server.settings`` (the helper touches ONLY the keys the block already has), dump the file back
+    and ``await server.reload()``, so the in-memory settings and the file agree and the edit does not
+    revert at the next start.
+
+    ORDER (the subtlety the Discord code carries): the RENAME comes first (when a new name was
+    submitted — :func:`_rename_server`, mirrored from the Discord Save), then the settings are written,
+    then the override block is synced FROM them, then the reload. Renaming before either step is what
+    lets every later reader — the override lookup by ``server.name`` and the reload — see ONE name; a
+    sync addressed to the pre-rename entry would be left behind or reverted.
+
+    Returns whether the file was rewritten. A server whose entry pins NO block is left alone: the
+    file is not opened and nothing is reloaded (``views.py`` guards on the same ``if``).
+
+    A server whose ``locals`` pins a block but whose NAME has no entry in ``servers.yaml`` (a rename
+    whose ``yaml`` key move never happened, or a hand-edited file) is SKIPPED and said so in the log:
+    the settings write has already landed, but there is no entry to update — so ``servers.yaml`` and
+    the reload are left alone rather than crashing (the old ``data[server.name]`` ``KeyError``).
+    """
+    if not (getattr(server, "locals", None) or {}).get("serverSettings"):
+        return False
+    node = getattr(server, "node", None)
+    config_dir = getattr(node, "config_dir", None)
+    if not config_dir:
+        # No node config dir to write to. Never an exception out of a transport: the settings write
+        # has already landed, so the override is merely left as it was, and the log says so.
+        log.warning("F3 override sync: server '%s' pins a serverSettings block but its node has no "
+                    "config dir; servers.yaml was left untouched.", getattr(server, "name", "?"))
+        return False
+    config = os.path.join(config_dir, "servers.yaml")
+    data = yaml.load(Path(config).read_text(encoding="utf-8"))
+    entry = data.get(server.name) if isinstance(data, dict) else None
+    if not isinstance(entry, dict):
+        # HONEST BEHAVIOUR when the entry is ABSENT (review B1e): the settings write has already
+        # landed in ``serverSettings.lua``, but there is no ``servers.yaml`` entry to update — a
+        # renamed server whose ``yaml`` key move never happened, or a hand-edited file. Nothing is
+        # pretended and nothing is crashed: ``servers.yaml`` is left untouched, no reload runs, and
+        # the log says WHY, so the operator knows the pinned key may still revert at the next start.
+        # (``data[server.name]`` used to raise ``KeyError`` straight out of the whole action.)
+        log.warning("F3 override sync: server '%s' has no entry in %s, so its override block could "
+                    "not be updated; servers.yaml was left untouched and no reload was performed "
+                    "(a pinned key may revert at the next start).",
+                    getattr(server, "name", "?"), config)
+        return False
+    utils.update_in_place(entry.get("serverSettings", {}), server.settings)
+    with Path(config).open("w", encoding="utf-8") as f:
+        yaml.dump(data, f)
+    await server.reload()
+    return True
 
 
 def _port_collision(ctx: Any, server: Any, port: Any) -> str | None:
@@ -419,6 +501,56 @@ def _port_collision(ctx: Any, server: Any, port: Any) -> str | None:
     return None
 
 
+def _live_fleet() -> dict:
+    """The WHOLE fleet's ``{name: server}`` as the PROCESS's own registry holds it, or ``{}``.
+
+    Resolved lazily, through the service registry, the way ``plugins/mission/actions.py`` reaches the
+    ban service — so this module keeps its layering (no module-level ``services`` import; see
+    ``tests/test_layering_direction.py``). A console caller's ``ctx.servers`` is the SCOPED view
+    (``services/webservice/pages/actions._Cluster``), so a fleet entry outside that view is invisible
+    there — which is exactly why :func:`_name_collision` reads this too. Never raises: a process with
+    no service bus at all yields an empty mapping and the guard falls back to the caller's view.
+    """
+    try:
+        from core.services.registry import ServiceRegistry
+        from services.servicebus import ServiceBus
+
+        bus = ServiceRegistry.get(ServiceBus)
+    except Exception:
+        return {}
+    servers = getattr(bus, "servers", None)
+    return servers if isinstance(servers, dict) else {}
+
+
+def _name_collision(ctx: Any, server: Any, new_name: Any) -> str | None:
+    """The cross-field check for a NAME: *new_name* is already another server's. Returns the refusal.
+
+    The twin of :func:`_port_collision`, and deliberately wider about WHERE it looks. A port is read
+    off the live ``serverSettings.lua`` of the servers the caller may see; a NAME is a KEY in the
+    fleet registry, and ``ctx.servers`` for a console caller is a SCOPED view. A name that collides
+    with a server OUTSIDE the caller's view is STILL a collision: ``ServiceBus.rename_server`` does
+    ``self.servers[new_name] = server`` and pops the old key, so it would OVERWRITE the invisible
+    server's entry and the fleet would silently lose it (the reviewer's trace). So this reads the
+    caller's view AND the process's own registry (:func:`_live_fleet`).
+
+    Matching folds case, exactly as ``ActionContext.resolve_server`` does: ``SRS-1`` and ``srs-1``
+    name ONE server, so they are ONE collision. The refusal names the colliding server, like
+    :func:`_port_collision` does.
+    """
+    wanted = str(new_name)
+    folded = wanted.casefold()
+    seen: list[Any] = [server]
+    for container in (getattr(ctx, "servers", None), _live_fleet()):
+        for other in (container or {}).values():
+            if other is None or any(other is candidate for candidate in seen):
+                continue
+            seen.append(other)
+            other_name = str(getattr(other, "name", "") or "")
+            if other_name and other_name.casefold() == folded:
+                return f'Server name "{wanted}" is already used by server "{other_name}".'
+    return None
+
+
 def _admin(ctx: Any) -> bool:
     """Whether the caller holds the Admin role (§6). No scope grant — roles only, fails closed."""
     return ADMIN_ROLE in (getattr(ctx, "roles", None) or ())
@@ -432,9 +564,12 @@ def _authorised(ctx: Any) -> str | None:
 
     * ``service`` (MCP) — REFUSED with:data:`SERVICE_REFUSAL`: the MCP transport authenticates nobody
       yet, so this action will not accept a caller it cannot attribute;
-    * ``plugin`` (the REST surface + the operator's installed plugins) — ALLOWED: it reaches the seam
-      only through its own scheme, which has already authenticated the caller, and
-      the actor recorded in the audit (``API``) makes the automated write attributable;
+    * ``plugin`` — ALLOWED, for the day an AUTHENTICATED REST caller reaches this action: the rule
+      exists so that such a caller (``from_plugin``, actor ``API``) is admitted WITHOUT the Admin role,
+      because it arrives through its own scheme, which has already authenticated it, and the audit
+      actor makes the automated write attributable. This is a FORWARD-LOOKING allowance, not a live
+      door: ``from_plugin`` has NO production caller yet — the REST surface does not exist today — so
+      nothing in the running install takes this branch, and it changes nothing about who may act now;
     * every other transport — the console, Discord, and a context nothing named — requires the Admin
       role (:data:`ADMIN_ONLY_SENTENCE`). A DCS Admin or a scoped manager is refused on the READ and
       the WRITE alike, because a server's config carries its secrets (§7) and its own scope (§6).
@@ -480,6 +615,48 @@ def _set_message(name: str, applied: dict, skipped: dict) -> str:
     return f'Server "{name}": no configuration values were supplied.'
 
 
+async def _rename_server(ctx: Any, server: Any, new_name: str) -> str | None:
+    """Rename *server* THROUGH the bot's own ``Server.rename`` — never by writing ``settings`` alone.
+
+    Frank's rule (2026-10-01): changing a server's name must use the bot's own rename in every case,
+    because a name lives in more than one place — ``serverSettings.lua`` (F1) AND the server's KEY in
+    ``servers.yaml``, the Discord channels, the database and the cluster's ``servers`` mapping. Writing
+    only ``settings['name']`` (what this action used to do) left the Server object un-renamed, so the
+    ``servers.yaml`` key and every other reader stayed on the OLD name — the console/Discord divergence
+    Frank called out.
+
+    Mirrors the Discord Save (``plugins/scheduler/views.py:448-454``): ``rename(update_settings=True)``
+    and then re-key the master's ``servers`` mapping under the new name, dropping the old one. The
+    re-key is idempotent with the rename's own cluster re-key (``node.rename_server`` →
+    ``ServiceBus.rename_server``) for the plugin/Discord transports, whose ``bus.servers`` IS that
+    mapping; for the web console the bus is a per-request view, so the assignment there is a no-op and
+    the REAL re-key is the one ``rename`` performs (a finding, see the card: the console's ``bus`` is a
+    fresh ``_Cluster`` view, not the live registry, so this action cannot and does not re-key it).
+
+    Returns ``None`` when the rename went through, or a typed reason when the bot REFUSED it — the
+    caller must then write NOTHING (no half-applied state). Two refusal shapes are handled, because the
+    two implementations differ: ``Server.rename`` (``core/data/impl/serverimpl.py:523``) SWALLOWS its
+    own failures and returns without raising, while a remote proxy forwards and re-raises. An exception
+    is caught here, AND a rename that neither raised nor moved ``server.name`` is treated as refused
+    too, so a bad or duplicate name cannot slip through as if it had landed.
+    """
+    old_name = str(getattr(server, "name", ""))
+    try:
+        await server.rename(new_name=new_name, update_settings=True)
+    except Exception as ex:
+        log.exception("Config rename: server '%s' refused the rename to '%s'.", old_name, new_name)
+        return f'Could not rename server "{old_name}" to "{new_name}": {ex}'
+    if str(getattr(server, "name", old_name)) != str(new_name):
+        # the implementation swallowed its own error (serverimpl.rename never raises): the name did NOT
+        # move, so the rename was refused and the rest of the change must not be written either.
+        return f'Server "{old_name}" refused the rename to "{new_name}".'
+    servers = getattr(ctx, "servers", None)
+    if isinstance(servers, dict):
+        servers[new_name] = server
+        servers.pop(old_name, None)
+    return None
+
+
 @action
 async def get_server_config(ctx: Any, server_name: str) -> ServerConfigResult:
     """Read ONE server's DCS configuration (F1) — the shape of ``CONFIGURATION.md`` §4.2.
@@ -493,8 +670,9 @@ async def get_server_config(ctx: Any, server_name: str) -> ServerConfigResult:
     * ``values`` — the curated fields' current values, with every SECRET key redacted to
       ``<set>``/``<unset>`` (§7.1); ``missionList`` and the coalition hash keys ride along read-only;
     * ``editable`` — the curated writable field keys (§5);
-    * ``overridden`` — the keys pinned by an F3 override, so a caller can mark them WITHOUT a second
-      read (§8.4);
+    * ``overridden`` — the keys ALSO pinned by an F3 override, so a caller can say *"also pinned in
+      servers.yaml — a change updates both"* WITHOUT a second read (§8.4). It is INFORMATION, not a
+      prohibition: those keys are editable above; the write applies them and syncs the block;
     * ``status`` — the server's status, so the caller can state the stop/run rule (§5.3).
 
     A name that does not resolve is the seam's own typed refusal (``Server '<name>' not found.``).
@@ -536,8 +714,8 @@ async def set_server_config(ctx: Any, server_name: str,
     The order is the design's, and it matters:
 
     1. AUTHORISE here (:func:`_authorised`, §6) — a service/MCP caller is refused with a typed reason
-       (no authentication exists yet), a plugin/REST caller is allowed, and a DCS Admin or a scoped
-       manager is refused;
+       (no authentication exists yet), an (authenticated, not-yet-live) REST/plugin caller is allowed,
+       and a DCS Admin or a scoped manager is refused;
     2. REFUSE while the server is up (§5.3, D4) — ``RUNNING``/``PAUSED``/``LOADING``/``SHUTTING_DOWN``
        are refused with the stop-first sentence. Server-side, so a direct call gets it too;
     3. VALIDATE every key against the curated table + types + ranges, and the DCS-level cross-field
@@ -545,13 +723,32 @@ async def set_server_config(ctx: Any, server_name: str,
        ``values`` that is not a MAPPING is refused here too, as a typed skip, so a caller's mistake
        (a list, a string, a number) is never an ``AttributeError`` that a transport renders as a 500;
     4. hold the per-server WRITE lock §8.3 across the read-modify-write;
-    5. apply each accepted key through ``server.settings`` (the existing ``SettingsDict`` path);
-    6. audit once with the actor, the server and the KEYS, and return the old -> new of every applied
+    5. RENAME FIRST, through the bot's own ``Server.rename`` (:func:`_rename_server`, Frank 2026-10-01):
+       a submitted ``name`` that differs calls ``rename(update_settings=True)`` and re-keys the master's
+       ``servers`` mapping, exactly as the Discord Save does — so ``serverSettings.lua`` AND the
+       ``servers.yaml`` key (and the cluster) move together and the console cannot diverge from Discord.
+       Two guards run BEFORE that rename, inside the same lock (B1e): the reserved sentinel ``n/a``
+       (:data:`NO_NAME_SENTINEL`) and a name another server already carries (:func:`_name_collision`,
+       checked against the caller's view AND the whole fleet) are each a WHOLE-ACTION typed refusal —
+       ``ServiceBus.rename_server`` would overwrite the colliding server's registry entry, and ``n/a``
+       takes ``ServerImpl.rename``'s no-rollback path, so neither may reach the bot;
+    6. apply each remaining accepted key through ``server.settings`` (the existing ``SettingsDict`` path);
+    7. audit once with the actor, the server and the KEYS, and return the old -> new of every applied
        key so the console can offer a revert through this same action (§8.2).
 
-    A key pinned by an F3 override is refused KEY BY KEY with the design's §8.4 message; the others
-    still apply. A submitted BLANK secret means UNCHANGED (a whitespace-only one included); ``None``
-    is the explicit CLEAR (§7.2).
+    A REFUSED rename (a bad or duplicate name) is a WHOLE-ACTION typed refusal with NOTHING written —
+    the settings, the ``servers.yaml`` key and the override block are all left as they were, so there is
+    no half-applied state.
+
+    A key pinned by an F3 override is APPLIED like any other key; afterwards the entry's
+    ``serverSettings`` block is updated in place and the server reloaded, exactly as the Discord Save
+    does (:func:`_sync_override`, ``plugins/scheduler/views.py:456-462``), so the value does not
+    revert at the next start. The whole read-modify-write — the rename, the settings write, the
+    ``servers.yaml`` update and the reload — is ONE critical section under the per-server write lock
+    (§8.3).
+
+    A submitted BLANK secret means UNCHANGED (a whitespace-only one included); ``None`` is the
+    explicit CLEAR (§7.2).
 
     There is NO ``confirmed`` parameter: the design's signature carries one (§4.2) but no BEHAVIOUR
     was ever designed for it, and an accepted-but-ignored parameter invites a caller to believe a
@@ -589,15 +786,46 @@ async def set_server_config(ctx: Any, server_name: str,
     applied: dict[str, Any] = {}
     skipped: dict[str, str] = {}
     async with server_write_lock(str(server.name)):
-        overrides = _f3_override_keys(getattr(server, "locals", None))
+        # Frank's rule: a submitted NAME goes through the bot's own rename FIRST, still inside this one
+        # critical section (:func:`_rename_server`), before any other key is written — that is the
+        # Discord Save's ordering. A REFUSED rename returns here with NOTHING written (no settings, no
+        # servers.yaml), so a bad or duplicate name cannot leave a half-applied change behind. An
+        # INVALID name is not renamed either: it is skipped with its reason right here, exactly as the
+        # loop below would, so the two paths cannot word the same refusal differently.
+        old_name = str(server.name)
+        name_handled = False
+        if "name" in values and isinstance(values["name"], str) and values["name"] != old_name:
+            name_handled = True
+            name_reason = validate_value(_FIELDS_BY_KEY["name"], values["name"])
+            if name_reason:
+                skipped["name"] = name_reason
+            else:
+                # B1e: two guards run BEFORE the bot's rename, both as WHOLE-ACTION typed refusals
+                # (nothing written), because a rename cannot be "half" done — the reviewer's trace
+                # showed a colliding name silently OVERWRITING another server's registry entry
+                # (``ServiceBus.rename_server``) and the ``n/a`` sentinel taking ``ServerImpl.rename``'s
+                # no-rollback path. Both mirror ``_port_collision``'s shape (a refusal naming the
+                # other side); unlike a port collision, neither can be a per-key SKIP, because §3
+                # requires the settings, ``servers.yaml`` and the registry stay untouched.
+                guard_reason = (NAME_RESERVED_SENTENCE if values["name"] == NO_NAME_SENTINEL
+                                else _name_collision(ctx, server, values["name"]))
+                if guard_reason:
+                    return await _audited_config(ctx, ServerConfigResult(
+                        success=False, server_name=old_name, refused=guard_reason,
+                        applied={}, skipped=skipped, message=guard_reason), server)
+                refusal_reason = await _rename_server(ctx, server, values["name"])
+                if refusal_reason:
+                    return await _audited_config(ctx, ServerConfigResult(
+                        success=False, server_name=old_name, refused=refusal_reason,
+                        applied={}, skipped=skipped, message=refusal_reason), server)
+                applied["name"] = _redacted_applied("name", old_name, values["name"])
         for key, value in values.items():
+            if key == "name" and name_handled:
+                continue                    # applied (or skipped) through the bot's rename above
             field = _FIELDS_BY_KEY.get(key)
             if field is None:
                 skipped[key] = (f"'{key}' is read-only and is never written here." if key in
                                 _READONLY_BY_KEY else f"'{key}' is not an editable setting.")
-                continue
-            if key in overrides:
-                skipped[key] = _override_message(key)
                 continue
             if field.secret:
                 if value is None:                      # the explicit CLEAR (§7.2)
@@ -609,6 +837,10 @@ async def set_server_config(ctx: Any, server_name: str,
                         skipped[key] = f"'{key}' was left blank and is unchanged."
                         continue
                     new_value = value
+                    reason = validate_value(field, new_value)
+                    if reason:                         # the modal's own length, and no control chars
+                        skipped[key] = reason
+                        continue
                 else:
                     skipped[key] = f"'{key}' expects text."
                     continue
@@ -626,6 +858,9 @@ async def set_server_config(ctx: Any, server_name: str,
             old = _read_setting(server.settings, key)
             await _apply_setting(server, key, new_value)
             applied[key] = _redacted_applied(key, old, new_value)
+        # Mirror the Discord Save: sync the F3 override from what was just written and reload, so a
+        # pinned key never reverts at the next start — still inside the one critical section (§8.3).
+        await _sync_override(server)
 
     result = ServerConfigResult(
         success=bool(applied), server_name=name, applied=applied, skipped=skipped,

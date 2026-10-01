@@ -70,7 +70,47 @@ class PluginManager:
             await self._load_plugins_master()
         else:
             await self._load_plugins_agent()
+        self._discover_actions()
         await self._load_webui_pages()
+
+    def _discover_actions(self) -> None:
+        """Populate the ACTION REGISTRY for this process, from the plugins just loaded.
+
+        THE authoritative discovery call. The registry is a BOT-WIDE mechanism — the Discord
+        commands, the REST surface and the MCP service all read it through
+        ``core.actions.action_available`` / ``call_action`` — so it must be filled when the PLUGINS
+        load, never when one particular transport's install path happens to run. Wiring it into the
+        web shell's install alone meant that with ``frontend: false`` the shell was never installed,
+        the registry stayed empty, and every Discord command that delegates to an action answered
+        *"Action '<name>' is not available in this installation."* (B6).
+
+        IDEMPOTENT: ``importlib`` caches each ``actions.py`` and the ``@action`` decorator keys the
+        registry on ``__qualname__``, so loading the plugins again (a master/agent switch, a reload)
+        re-runs this with no duplicate or replaced entries.
+
+        NEVER FATAL: a plugin whose ``actions.py`` raises on import must not stop the bot from
+        loading — ``discover_actions`` already logs per plugin and continues. This guard covers the
+        action layer's own import, and logs loudly for the same reason the shell's copy
+        (``services/webservice/shell.py::_discover_actions``) does: an action that is absent with no
+        line saying why is indistinguishable from one that was never deployed.
+        """
+        try:
+            from core.actions import discover_actions
+        except Exception:
+            self.log.exception("PluginManager: the action layer could not be imported; no action "
+                               "will be available in this process (Discord, REST and MCP all read "
+                               "the registry it fills).")
+            return
+        plugin_names = list(self.plugins)
+        try:
+            registry = discover_actions(plugin_names)
+        except Exception:
+            self.log.exception("PluginManager: action discovery failed for plugin(s) %s.",
+                               plugin_names)
+            return
+        self.log.info("PluginManager: action registry populated from %d plugin(s) - %d action(s) "
+                      "available in this process: %s.", len(plugin_names), len(registry),
+                      ", ".join(sorted(registry)) or "-")
 
     async def _load_plugins_master(self) -> None:
         """On the master, plugins are loaded by BotService.setup_hook().
