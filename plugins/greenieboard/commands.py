@@ -203,7 +203,6 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
                     ORDER BY 1 DESC LIMIT %s
                 """, (ucid, num_landings))
                 if cursor.rowcount == 0:
-                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(_('No carrier landings recorded for this user.'),
                                                             ephemeral=True)
                     return
@@ -247,7 +246,6 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
         config = self.get_config()
         if 'grades' not in config:
-            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _('You need to specify grades in your greenieboard.yaml to use {}!').format(
                     (await utils.get_command(self.bot, group=self.traps.name, name=self.add.name)).mention
@@ -255,7 +253,6 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
             return
 
         view = TrapView(self.bot, config, user)
-        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(view=view, ephemeral=ephemeral)
         try:
             await view.wait()
@@ -266,28 +263,27 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
         finally:
             await interaction.delete_original_response()
 
-    @traps.command(description=_('Resets all traps'))
+    @traps.command(description=_('Delete all traps'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def reset(self, interaction: discord.Interaction,
+    async def clear(self, interaction: discord.Interaction,
                     user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None):
         ephemeral = utils.get_ephemeral(interaction)
 
         sql = 'DELETE FROM traps'
         if not user:
-            message = _('Do you want to reset all traps?')
+            message = _('Do you want to wipe all traps?')
             ucid = None
         else:
             if isinstance(user, discord.Member):
                 ucid = await self.bot.get_ucid_by_member(user)
                 if not ucid:
-                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(_('User {} is not linked!').format(user.display_name),
                                                             ephemeral=ephemeral)
                     return
             else:
                 ucid = user
-            message = _('Do you want to reset all traps for user {}').format(
+            message = _('Do you want to wipe all traps of user {}').format(
                 user.display_name if isinstance(user, discord.Member) else user)
             sql += ' WHERE player_ucid = %(ucid)s'
         if not await utils.yn_question(interaction, message, ephemeral=ephemeral):
@@ -295,7 +291,7 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
             return
         async with self.node.apool.connection() as conn:
             await conn.execute(sql, {"ucid": ucid})
-        await interaction.followup.send(_('All traps reset.'), ephemeral=ephemeral)
+        await interaction.followup.send(_('Traps wiped.'), ephemeral=ephemeral)
 
 
 async def setup(bot: DCSServerBot):

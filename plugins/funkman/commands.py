@@ -1,8 +1,15 @@
 import os
+from typing import Literal
+
+import discord
 import psycopg
 
 from configparser import ConfigParser
-from core import Plugin, PluginInstallationError, PluginConfigurationError, DEFAULT_TAG, Server
+
+from discord import app_commands
+
+from core import Plugin, PluginInstallationError, PluginConfigurationError, DEFAULT_TAG, Server, Group, utils, \
+    get_translation
 from services.bot import DCSServerBot
 
 from .listener import FunkManEventListener
@@ -10,6 +17,8 @@ from .listener import FunkManEventListener
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class FunkMan(Plugin[FunkManEventListener]):
@@ -82,6 +91,54 @@ class FunkMan(Plugin[FunkManEventListener]):
             DELETE FROM strafe_runs WHERE time < (DATE(now() AT TIME ZONE 'utc') - %s::interval)
         """, (f'{days} days', ))
         self.log.debug('FunkMan pruned.')
+
+    async def _wipe(self, interaction: discord.Interaction, what: Literal['bomb', 'strafe'],
+                    user: str | discord.Member | None):
+        ephemeral = utils.get_ephemeral(interaction)
+
+        sql = f'DELETE FROM {what}_runs'
+        if not user:
+            message = _('Do you want to wipe the whole {} board?').format(what)
+            ucid = None
+        else:
+            if isinstance(user, discord.Member):
+                ucid = await self.bot.get_ucid_by_member(user)
+                if not ucid:
+                    await interaction.response.send_message(_('User {} is not linked!').format(user.display_name),
+                                                            ephemeral=ephemeral)
+                    return
+            else:
+                ucid = user
+            message = _('Do you want to wipe all {} runs of user {}').format(
+                what, user.display_name if isinstance(user, discord.Member) else user
+            )
+            sql += ' WHERE player_ucid = %(ucid)s'
+        if not await utils.yn_question(interaction, message, ephemeral=ephemeral):
+            await interaction.followup.send(_('Aborted'), ephemeral=ephemeral)
+            return
+        async with self.node.apool.connection() as conn:
+            await conn.execute(sql, {"ucid": ucid})
+        await interaction.followup.send(_('{} runs wiped.').format(what.title()), ephemeral=ephemeral)
+
+    # New command group "/strafeboard"
+    strafeboard = Group(name="strafeboard", description=_("Commands to manage strafe boards"))
+
+    @strafeboard.command(description=_('Delete all traps'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def clear(self, interaction: discord.Interaction,
+                    user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None):
+        await self._wipe(interaction, 'strafe', user)
+
+    # New command group "/bombboard"
+    bombboard = Group(name="bombboard", description=_("Commands to manage bomb boards"))
+
+    @bombboard.command(description=_('Delete all traps'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def clear(self, interaction: discord.Interaction,
+                    user: app_commands.Transform[str | discord.Member, utils.UserTransformer] | None = None):
+        await self._wipe(interaction, 'bomb', user)
 
 
 async def setup(bot: DCSServerBot):

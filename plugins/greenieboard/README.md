@@ -138,7 +138,7 @@ with all 3 methods.
 | /traps board | rows landings theme landings_rtl | all     | DCS       | Print the current greenieboard (per server). 10 rows is default, so is 30 landings. Can be changed with the parameters. |
 | /traps info  | [user]                           | all     | DCS       | Display the last carrier landings for this user and a detailed view on selection. User is the caller if not provided.   |
 | /traps add   | user                             | all     | DCS Admin | Adds a trap for this user (manual data input).                                                                          |
-| /traps reset | [user]                           | admin   | DCS Admin | Resets all traps (optional: of a user).                                                                                 |
+| /traps clear | [user]                           | admin   | DCS Admin | Wipes all traps (optional: of a user).                                                                                  |
 
 ## Highscore Plugin
 You can add your traps to your .highscore (.hs) command. To do that, copy the file plugins/userstats/reports/highscore.json 
