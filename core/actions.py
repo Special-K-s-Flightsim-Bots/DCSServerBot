@@ -282,23 +282,18 @@ def reset_in_flight() -> None:
     _in_flight.clear()
 
 
-# ── the per-server CONFIG WRITE lock (design §8.3 / D9) ────────────────────
-# ONE lock per SERVER — never per action and never per face. The DCS face (this card's actions) and
-# the bot face (a later slice) take the SAME lock, so a DCS-file edit and a `servers.yaml` edit of one
-# server cannot interleave across the F3 override (``CONFIGURATION.md`` §1/§8.3); and because the
-# console, Discord, REST and MCP all reach the same action body, one lock serializes every writer of
-# that server's two faces.
+# ── the per-server CONFIG WRITE lock ───────────────────────────────────────
+# ONE lock per SERVER, shared by its two faces (``serverSettings.lua`` and the ``servers.yaml``
+# channels), so no two writers of either face interleave.
 #
-# It is PROCESS-LOCAL, exactly like ``_in_flight`` above and the power-off record of
-# ``core/data/maintenance.py``. The honest degradation, stated here and not discovered later: during a
-# master FAILOVER a second process has its own locks, so two masters could write the same server's
-# file at once. A deployment that must survive that needs a distributed lock, which this cut does not
-# add (``CONFIGURATION.md`` §8.3 asks only for the process-local shape).
+# PROCESS-LOCAL, like ``_in_flight`` above: during a master FAILOVER a second process has its own
+# locks, so two masters could write the same server's file at once. Surviving that needs a
+# distributed lock, which this does not add.
 _write_locks: dict[str, asyncio.Lock] = {}
 
 
 def server_write_lock(server_name: str) -> asyncio.Lock:
-    """The config WRITE lock for *server_name*, created on first use (design §8.3 / D9).
+    """The config WRITE lock for *server_name*, created on first use.
 
     Keyed on the RESOLVED server's own name (the caller passes ``server.name``), so two spellings of
     one server — ``SRS-1`` and ``srs-1``, which ``resolve_server`` matches to the same object — share
@@ -422,6 +417,38 @@ async def call_action(qualname: str, ctx: ActionContext, /, *, audit_result: boo
             log.warning("Action '%s' returned no audit entry (data['audit']) - the operation has no "
                         "trail. The action must call audit_action(ctx, result) before returning.",
                         qualname)
+    return result
+
+
+async def read_action(qualname: str, ctx: ActionContext, /, **params) -> ActionResult:
+    """Invoke a READ action *qualname* on *ctx* — the UNGUARDED twin of :func:`call_action`.
+
+    A read is not a write, so it takes neither of the two burdens :func:`call_action` imposes on one:
+
+    * NO in-flight guard. The guard refuses a second call against a TARGET an action is already
+      running on, which is right for writes and wrong for reads: a console rendering a page WHILE a
+      power action runs must still read that server's data, and the guard would silently refuse the
+      render. A read neither changes the target nor races a writer.
+    * NO missing-audit warning. That warning exists because an OPERATION that happened without a trail
+      is a problem; a read changes nothing and has no trail to miss.
+
+    What it KEEPS is the typing: an ABSENT action (its plugin is not loaded) is a typed refusal, and an
+    action that RAISES is typed too, so a page never turns a missing plugin into a 500. The caller gets
+    the action's own :class:`ActionResult`, or a typed refusal.
+    """
+    fn = _ACTIONS.get(qualname)
+    if fn is None:
+        return ActionResult(
+            success=False,
+            message=f"Action '{qualname}' is not available in this installation.",
+        )
+    try:
+        result = await fn(ctx, **params)
+    except Exception as ex:
+        log.exception("Action '%s' failed", qualname)
+        return ActionResult(success=False, message=f"Action '{qualname}' failed: {ex}")
+    if not isinstance(result, ActionResult):
+        result = ActionResult(success=bool(result), message=str(result))
     return result
 
 
@@ -669,12 +696,11 @@ class ActionContext:
 
     @property
     def roles(self) -> frozenset:
-        """The caller's role NAMES — the capability vocabulary, for an IN-ACTION check (design §2.2).
+        """The caller's role NAMES, for an in-action authorisation check.
 
-        Exposed so an action that must authorise itself (``set_server_config``, ``CONFIGURATION.md``
-        §6: "enforced HERE, not only at the route") answers the SAME question the console's gate does,
-        without reaching into ``_roles``. Empty for the transports that carry no roles (REST/MCP), and
-        empty fails CLOSED at any caller that tests membership.
+        Lets an action that must authorise itself (``set_server_config``) ask the same question the
+        console's gate does, without reaching into ``_roles``. Empty for the transports that carry no
+        roles (REST/MCP); a membership test fails CLOSED on empty.
         """
         return self._roles
 
@@ -682,14 +708,35 @@ class ActionContext:
     def transport(self) -> str:
         """Which transport built this context — ``web`` / ``discord`` / ``plugin`` / ``service``.
 
-        The companion of:attr:`roles` for an action that must authorise itself (``set_server_config``,
-        ``CONFIGURATION.md`` §6 / §2). It exists because the IDENTITY cannot tell the
-        transports apart: REST (``from_plugin``) and MCP (``from_service``) carry NO roles, and the
-        audit actor is caller-influenced text, so a rule keyed on either could be spoofed by a Discord
-        member whose display name reads like a transport label. An EMPTY string means nothing named the
-        transport (a context built by hand) — an authorisation check must fail CLOSED on it.
+        The identity cannot tell the transports apart: REST (``from_plugin``) and MCP
+        (``from_service``) carry no roles, and the audit actor is caller-influenced text, so a rule
+        keyed on either could be spoofed by a display name that reads like a transport label. An EMPTY
+        string means nothing named the transport (a hand-built context) — a check must fail CLOSED on
+        it.
         """
         return self._transport
+
+    @property
+    def manages_only(self) -> bool:
+        """Whether this caller reaches servers through a MANAGER's restricted scope ALONE.
+
+        A manager holds a server's ``managed_by`` scope and no cluster role. This is the ONE fact an
+        action reads to apply the manager deny-list (``core.server_config``); it keys on the scope's
+        KIND (resolved, restricted), not the transport label, so a manager is recognised whichever
+        door it came through.
+
+        ``False`` for a role-holding or unscoped caller and for any transport that carries no scope at
+        all (Discord, MCP, REST). Fails closed: no scope, an unresolved scope, or a scope that raises
+        is ``False`` — a caller is never made a manager by an error.
+        """
+        scope = self._scope
+        if scope is None:
+            return False
+        try:
+            return bool(getattr(scope, "resolved", True)) \
+                and not bool(getattr(scope, "unrestricted", False))
+        except Exception:            # pragma: no cover - a hostile scope object
+            return False
 
     @property
     def audit_actor(self) -> str:

@@ -334,9 +334,9 @@ class PubSub:
                         """).format(table=sql.Identifier(self.name))
                         await conn.execute(query, (self.node.guild_id, ))
                         query = sql.SQL("""
-                            UPDATE {table} SET node = 'Master' WHERE node = %s
+                            UPDATE {table} SET node = 'Master' WHERE guild_id = %s AND node = %s
                         """).format(table=sql.Identifier(self.name))
-                        await conn.execute(query, (self.node.name, ))
+                        await conn.execute(query, (self.node.guild_id, self.node.name))
                     else:
                         query = sql.SQL("""
                             DELETE FROM {table}

@@ -76,34 +76,27 @@ class PlayerActionResult(ActionResult):
 
 @dataclass
 class NodeControlResult(ActionResult):
-    """Result for node lifecycle operations (restart / shutdown / upgrade — W4c-revised).
+    """Result for node lifecycle operations (restart / shutdown / upgrade).
 
-    Its own record rather than a bare :class:`ActionResult` because every node transport names its
-    target back: a Discord follow-up, an MCP tool result and the console's banner all read the node
-    the operation was about, and a second field cannot drift from the message it was built with.
+    Carries the node the operation was about, which every transport names back; a field stops it
+    drifting from the message it was built with.
     """
     node_name: str = ""
 
 
 @dataclass
 class ServerConfigResult(ActionResult):
-    """Result for a per-server CONFIGURATION operation (the DCS face, ``CONFIGURATION.md`` §4.2).
+    """Result for a per-server CONFIGURATION operation (the DCS face).
 
-    Its own record rather than a bare :class:`ActionResult` for the same reason
-    :class:`NodeControlResult` has one — every transport reads the fields back. The four extras are
-    the design's; the shapes are deliberate:
+    * ``refused`` — a WHOLE-ACTION typed reason, set only when the action did nothing at all (the
+      caller is not an Admin, the name is unknown, or the server is up). When it is set,
+      ``applied``/``skipped`` are empty.
+    * ``applied`` — ``{key: {"from": …, "to": …}}`` for every key that WAS written, so a caller can
+      offer a revert. A SECRET key's two sides are the redacted sentinels, never the value.
+    * ``skipped`` — ``{key: reason}`` for the keys that could not be written.
+    * ``ok`` — alias for the base :attr:`success` flag.
 
-    * ``refused`` — a WHOLE-ACTION typed reason. It is set only where the action did nothing at all:
-      the caller is not an Admin (§6), the name is unknown (the seam's own refusal), or the server is
-      up (§5.3, D4). When it is set, ``applied``/``skipped`` are empty.
-    * ``applied`` — ``{key: {"from": …, "to": …}}`` for every key that WAS written, so the console can
-      offer a revert through this same action (§8.2). A SECRET key's ``from``/``to`` are the redacted
-      sentinels (§7), never the value — a revert of a secret is a re-submission, not a re-print.
-    * ``skipped`` — ``{key: reason}`` for the keys that could not be written: not an editable setting,
-      a type/range failure, a ``unique`` sequence with duplicates, or a key pinned by an F3 override.
-    * ``ok`` — the card's spelling of the base :attr:`success` flag.
-
-    Nothing here ever carries a secret VALUE (§7.4): the audit line and the message name the KEYS.
+    Never carries a secret VALUE: the audit line and the message name the KEYS.
     """
     server_name: str = ""
     refused: str | None = None
@@ -112,7 +105,7 @@ class ServerConfigResult(ActionResult):
 
     @property
     def ok(self) -> bool:
-        """The card's name for :attr:`success`."""
+        """Alias for :attr:`success`."""
         return self.success
 
     def to_dict(self) -> dict[str, Any]:

@@ -70,6 +70,11 @@
 
   `title` and `aria-label` are NOT drawn here: they belong to the CONTROL (one per button, naming
   its target), never to a bare glyph.
+
+  THE SECRET-REVEAL PAIR is the two glyphs the Configuration tab's password row needs: `reveal` is
+  the open eye, `conceal` the same eye struck through. One button wears both and swaps between them
+  (`aria-pressed`; see `.cfg-reveal` in shell.css), so the shape states the state as plainly as the
+  colour does.
 -#}
 {% set GLYPHS = {
   'startup': '<path d="M7.6 4.8 19.6 12 7.6 19.2Z" fill="currentColor" stroke="none"/>',
@@ -92,7 +97,9 @@
   'end_maintenance': '<circle cx="12" cy="12" r="8.4"/><path d="M8.2 12.3 11 15.1l5-5.6"/>',
   'more': '<circle cx="12" cy="5.2" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="18.8" r="1.9" fill="currentColor" stroke="none"/>',
   'download': '<path d="M12 3.8v10.6"/><path d="M7.8 10.2 12 14.4l4.2-4.2"/><path d="M4.8 16.6v1.8a1.4 1.4 0 0 0 1.4 1.4h11.6a1.4 1.4 0 0 0 1.4-1.4v-1.8"/>',
-  'warn': '<path d="M12 3.6 22 20.4H2Z"/><path d="M12 9.8v4.4"/><circle cx="12" cy="17.4" r="1" fill="currentColor" stroke="none"/>'
+  'warn': '<path d="M12 3.6 22 20.4H2Z"/><path d="M12 9.8v4.4"/><circle cx="12" cy="17.4" r="1" fill="currentColor" stroke="none"/>',
+  'reveal': '<path d="M2.4 12S6.2 5.6 12 5.6 21.6 12 21.6 12 17.8 18.4 12 18.4 2.4 12 2.4 12Z"/><circle cx="12" cy="12" r="3.1"/>',
+  'conceal': '<path d="M2.4 12S6.2 5.6 12 5.6c1.5 0 2.9.4 4.1 1"/><path d="M20.2 8.7c.9 1.2 1.4 2.2 1.4 2.2S19 17.3 13.2 18.2"/><path d="M6.1 7.3C3.7 9.1 2.4 12 2.4 12"/>'
 } %}
 {%- macro act(name) -%}
 <svg class="ic24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{{ GLYPHS.get(name, '')|safe }}</svg>

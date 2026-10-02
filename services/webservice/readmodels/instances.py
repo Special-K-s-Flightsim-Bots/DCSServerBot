@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from .access import attr, port_number, safe, text
 from .model import NO_INSTANCES_MESSAGE, InstanceView
+from .servers import server_url
 
 __all__ = ["instances", "instance_views", "bound_server_name"]
 
@@ -67,6 +68,9 @@ def instance_views(entries, node_name: str = "") -> list[InstanceView]:
             server_name=bound or None,
             dcs_port=safe(lambda: port_number(attr(instance, "dcs_port", None)), None),
             webgui_port=safe(lambda: port_number(attr(instance, "webgui_port", None)), None),
+            # the BOUND server's name is the link to its page, and only when there is one: an idle
+            # instance has no server to open and renders plain text.
+            link=server_url(bound) if bound else "",
         ))
     out.sort(key=lambda view: view.name)
     return out

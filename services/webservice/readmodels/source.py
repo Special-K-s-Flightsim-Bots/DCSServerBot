@@ -158,8 +158,9 @@ class ScopedSource(Source):
     What is filtered, and why each one:
 
     * ``servers`` — kept iff :meth:`services.webservice.scope.Scope.allows` the server's
-      ``managed_by``. A server that declares none is visible to every caller who may read the
-      console (spec §10.1), which is what :func:`holds_scope` already means;
+      ``managed_by``. ``managed_by`` is an ALLOW-LIST: a server is theirs iff it NAMES one of their
+      tokens, so a server that declares none is NOT in a scoped viewer's view (only an UNSCOPED
+      viewer — ``Admin``/``DCS Admin``, break-glass — sees it);
     * ``instances`` — kept iff BOUND TO A SURVIVING SERVER. An idle instance (one holding no server)
       is cluster infrastructure, not "their server", and its ports are not part of the hoster view:
       it is OMITTED for a scoped viewer;

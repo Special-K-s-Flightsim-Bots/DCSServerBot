@@ -8,13 +8,12 @@ mapping:
       debug: {type: bool, nullable: false}
       listen: {type: str, pattern: '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', nullable: false}
       port: {type: int, nullable: false, default: 9876, func: unique_port}
-      # The admin frontend switch. `false` is the default: the frontend is opt-in while it is WIP,
-      # so an existing configuration that does not set `frontend: true` gets the REST API only.
-      # `true` installs the whole web UI. `false` runs the service as a REST API only: the shell is
-      # never installed — no page route, no `/auth/*`, no session middleware, no shell assets and
-      # none of the UI's background work — and the `auth:` block is not evaluated at all, so a stale
-      # login block cannot stop an API-only installation. The REST API is unaffected in both modes.
-      # A non-boolean value is refused here.
+      # The admin frontend switch, default `false`: the frontend is opt-in while it is WIP, so an
+      # existing configuration that does not set `frontend: true` gets the REST API only. `true`
+      # installs the whole web UI; `false` never installs the shell — no page route, no `/auth/*`,
+      # no session middleware, no shell assets, no UI background work — and the `auth:` block is not
+      # evaluated at all, so a stale login block cannot stop an API-only installation. The REST API
+      # is unaffected in both modes. A non-boolean value is refused here.
       frontend: {type: bool, nullable: false, default: false}
       # The log panel's default level filter — the SAME vocabulary the page offers in its URL
       # (`?level=`). "info" is INFO and up (DEBUG hidden), "warning" is WARNING and up, "all" shows

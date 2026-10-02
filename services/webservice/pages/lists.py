@@ -38,7 +38,7 @@ from dataclasses import dataclass
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from .. import permissions, readmodels
+from .. import permissions, readmodels, scope
 from ..registry import NavItem
 from . import dashboard as dashboard_page
 
@@ -64,11 +64,10 @@ CRUMB_GROUP = dashboard_page.CRUMB_GROUP
 READ_ONLY_ROLES: tuple[str, ...] = dashboard_page.DASHBOARD_ROLES
 
 #: The cluster lists are the same two roles: Nodes and Instances are no more readable than Servers
-#: now that ``DCS`` (the general member role) is out of the console entirely. Kept as its own name
-#: because the two sets are conceptually different — the pages that render a server's own data
-#: versus the pages that render the cluster's infrastructure — and a future divergence must be a
-#: deliberate edit here rather than an accident of aliasing.
-CLUSTER_ROLES: tuple[str, ...] = ("Admin", "DCS Admin")
+#: now that ``DCS`` (the general member role) is out of the console entirely. This is the ONE
+#: definition of "a cluster role" (``..scope.CLUSTER_ROLES``, beside the scope rule), read here so
+#: the console's role model and the scope resolution's cluster bypass cannot drift apart.
+CLUSTER_ROLES: tuple[str, ...] = scope.CLUSTER_ROLES
 
 
 @dataclass(frozen=True, slots=True)

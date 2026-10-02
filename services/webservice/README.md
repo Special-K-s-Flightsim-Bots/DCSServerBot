@@ -30,7 +30,10 @@ read-only. The controls appear in **two screens that render the same declaration
 pages. There is ONE declaration per surface — `SERVER_ACTIONS`, `PLAYER_ACTIONS` and `NODE_ACTIONS` in
 `services/webservice/pages/actions.py` — and the route table, the capability map, the page's control
 data and the confirm dialog are all readings of it, so a control cannot exist without a declared
-capability and a declared action.
+capability and a declared action. The **Configuration tab** of a server's own page carries **two more
+writes**, declared the same way in the same file: the **DCS config write** (`SERVER_CONFIG_ACTIONS`)
+and the **channels write** (`SERVER_CHANNEL_ACTIONS`). The table below is the WHOLE write surface —
+the three tables' rows and the tab's two.
 
 | Row    | Control              | Capability                  | Action (`__qualname__`) | Confirms |
 |--------|----------------------|-----------------------------|-------------------------|----------|
@@ -53,6 +56,9 @@ capability and a declared action.
 | node   | Upgrade              | `nodes.upgrade`             | `upgrade_node`          | **yes**  |
 | node   | Take servers offline | `nodes.offline`             | `take_node_offline`     | **yes**  |
 | node   | Bring servers online | `nodes.online`              | `bring_node_online`     | no       |
+| config (tab)   | Save          | `servers.config.dcs`        | `set_server_config`     | no       |
+| channels (tab) | Save channels | `servers.config.channels`   | `set_server_channels`   | no       |
+| coalitions (tab) | Save coalition passwords | `servers.config.coalitions` | `set_coalition_password` | no |
 
 **Two server controls open a DIALOG without confirming**: *Shutdown* and *Startup* each
 carry a `maintenance` **option** — a checkbox with its `off` companion (the `NodeOption` shape the
@@ -62,12 +68,44 @@ form field with nowhere else to live, both post to their `<path>/confirm` dialog
 chosen; *Startup* is the non-destructive half, so its dialog is an **options** form and mints **no**
 one-shot token. *Start* and *Stop* carry **no** option: the process-level pair touches no flag.
 
-The write roles are `Admin` and `DCS Admin`, and every **server** and **player** capability above is
+The write roles are `Admin` and `DCS Admin`, and every **server** and **player** row capability above is
 declared `scope_grants`: a **manager** (an identity whose scope holds a server's `managed_by`) reaches
-them **on their own servers** and on nobody else's. The **node** row is the exception and stays so:
-its five are declared `Admin`-only and **without** a scope grant
+them **on their own servers** and on nobody else's. A server with **no** `managed_by` is **not** a
+manager's: the scoped source leaves it out of every page, so no control is built for it, and a
+crafted POST naming it is refused exactly like a name that does not exist. The **node** row is one
+exception and stays so: its five are declared `Admin`-only and **without** a scope grant
 (`NODE_ROLES`, `pages/actions.py`), because a manager's scope is a set of *servers* and taking a whole
 node — or every server on it — out of service must never widen out of it.
+
+The Configuration tab's three writes do **not** follow the server/player row rule, and their own
+roles/scope rules differ from each other (`NODE_ROLES` is `Admin` alone, `declare()` in
+`pages/actions.py`). All three are `POST` forms — the DCS Save to `/actions/server/config`, the
+channels Save to `/actions/server/channels`, the coalition Save to `/actions/server/coalitions` — with
+the target and the CSRF token in the body like every other write; none confirms and none has a dialog.
+The DCS Save is offered only on a server that is down (`SHUTDOWN`/`STOPPED`/`UNREGISTERED`), the
+channels Save in every state (a channel change applies immediately, no restart), and the coalition
+Save in every state but `LOADING`/`SHUTTING_DOWN`/`UNREGISTERED` (`RUNNING`/`PAUSED` here — the bot's
+own method tells DCS live):
+
+* the **DCS config write**, `servers.config.dcs`, is declared `Admin`-only **with** a scope grant: an
+  Admin changes everything, and a **manager** may change every setting of a *server in their scope*
+  **except** the keys the manager deny-list names (`core/server_config`) — today the server **port**
+  (`port`). The deny-list is enforced in the action, not only at the page: a manager's crafted POST of
+  a denied key is refused with a typed sentence and nothing is written. A `DCS Admin` is refused here:
+  `allows` is satisfied by the `Admin` role or by a managing scope, and a `DCS Admin`'s scope is
+  *unscoped*, so it is neither.
+* the **channels write**, `servers.config.channels`, is declared `Admin`-only **without** a scope grant:
+  a manager may not write the channels **at all**. The channels are also named in the same manager
+  deny-list (`CHANNELS_ITEM`, `core/server_config`), so the whole channels card is omitted from a
+  manager's view and the action re-checks a direct caller.
+* the **coalition write**, `servers.config.coalitions`, is declared `Admin`-only **with** a scope grant
+  (the DCS write's rule: a manager reaches the coalition passwords of a server in their scope). It
+  writes the blue/red join passwords through the bot's own `Server.setCoalitionPassword` — never the
+  hash, never the file. The cleartext is read back from the `servers` table by the READ action
+  `get_server_coalitions` (through `core.actions.read_action`, the *unguarded* twin — a render must
+  read while a power action runs). Unlike the DCS/channels faces, both actions **refuse** the REST/MCP
+  transports (`_coalition_authorised`): a coalition password has no REST consumer, and an API key must
+  not become a fleet-wide cleartext reader.
 
 **Two things that look like one.** The server row's *Maintenance* / *End maintenance* is the
 MAINTENANCE FLAG (`servers.maintenance`, a persisted switch that keeps a server out of service and is

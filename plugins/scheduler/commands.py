@@ -9,6 +9,7 @@ from contextlib import suppress
 from core import (Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, Group, Node, Instance,
                   DEFAULT_TAG, get_translation, TRAFFIC_LIGHTS)
 from core.actions import ActionContext, call_action
+from core.data.impl.serverimpl import RenameError
 from datetime import datetime, timedelta, timezone
 from discord import app_commands, TextStyle
 from discord.ext import tasks
@@ -1424,7 +1425,14 @@ class Scheduler(Plugin[SchedulerListener]):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         old_name = server.name
-        await server.rename(new_name, True)
+        try:
+            await server.rename(new_name, True)
+        except RenameError as ex:
+            # A refused rename (a collision, or a reserved / empty name) is the user's to act on:
+            # answer with the refusal's own sentence — the same string the console action returns —
+            # rather than let it escape as a generic interaction failure. Nothing was written.
+            await interaction.followup.send(str(ex), ephemeral=ephemeral)
+            return
         await self.bot.audit(f"renamed from {old_name}", server=server, user=interaction.user)
         await interaction.followup.send(
             _("Server \"{old_name}\" renamed to \"{new_name}\".").format(old_name=old_name, new_name=new_name),

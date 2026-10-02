@@ -13,7 +13,7 @@ from core import Server, Mission, Node, Status, utils, Instance, FatalException,
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
 from core.data.impl.instanceimpl import InstanceImpl
-from core.data.impl.serverimpl import ServerImpl
+from core.data.impl.serverimpl import ServerImpl, RenameError
 from core.data.proxy.serverproxy import ServerProxy
 from core.process import ProcessManager
 from core.pubsub import PubSub
@@ -507,10 +507,28 @@ class ServiceBus(Service):
         return True
 
     def rename_server(self, server: Server, new_name: str):
+        # Refuse an empty, reserved or case-insensitively duplicate name BEFORE touching the
+        # registry: assigning below would otherwise overwrite a live entry and silently drop the
+        # other server from the fleet. The collision check folds case, the same rule the core guard
+        # (``ServerImpl._rename_refusal``) and the console's ``_name_collision`` use.
+        if not isinstance(new_name, str) or not new_name.strip():
+            raise RenameError('A server name must not be empty.')
+        folded = new_name.strip().casefold()
+        if folded == 'n/a':
+            raise RenameError(f'Server name "{new_name}" is reserved and cannot be used.')
+        for existing in self.servers.values():
+            if existing is None or existing is server:
+                continue
+            existing_name = str(getattr(existing, 'name', '') or '')
+            if existing_name and existing_name.casefold() == folded:
+                raise RenameError(
+                    f'Server name "{new_name}" is already used by server "{existing_name}".')
         self.servers[new_name] = server
-        if server.name in self.servers:
+        # Only drop the old key when it actually differs — a same-name call would pop the key it
+        # just wrote.
+        if server.name != new_name and server.name in self.servers:
             self.servers.pop(server.name, None)
-        if server.name in self.udp_server.message_queue:
+        if server.name != new_name and server.name in self.udp_server.message_queue:
             self.udp_server.message_queue[server.name].put_nowait({})
             self.udp_server.message_queue[new_name] = asyncio.Queue()
             asyncio.create_task(self.udp_server.process_messages(new_name))

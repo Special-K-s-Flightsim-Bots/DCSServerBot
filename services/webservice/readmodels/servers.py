@@ -10,13 +10,32 @@ one module per read model, so each figure has exactly one owner.
 """
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from .access import attr, as_int, port_number, safe, text
 from .model import NO_SERVERS_MESSAGE, ServerView, status_view
 
-__all__ = ["servers", "server_view"]
+__all__ = ["SERVERS_HREF_PREFIX", "server_url", "servers", "server_view"]
 
 #: the empty-state copy this module owns
 EMPTY_MESSAGE = NO_SERVERS_MESSAGE
+
+#: the per-server page's path prefix — the SAME route ``pages/server_detail`` registers
+#: (``SERVER_DETAIL_PATH``). This module owns a server's read model AND its URL, so every builder of
+#: that URL (the row link, the config write's redirect back, the page's tab links) goes through
+#: :func:`server_url` and the same name always yields the same URL.
+SERVERS_HREF_PREFIX = "/servers/"
+
+
+def server_url(name, *, tab: str = "") -> str:
+    """The per-server page URL for *name* — the ONE encoding of a server name.
+
+    ``quote(str(name), safe='')`` percent-encodes every reserved character a DCS server name may
+    carry (a space, ``&``, ``#``, ``?``, ``/``), so a name round-trips through the URL segment
+    instead of truncating it or opening a query string. ``tab`` names the tab to open on.
+    """
+    url = f"{SERVERS_HREF_PREFIX}{quote(str(name), safe='')}"
+    return f"{url}?tab={tab}" if tab else url
 
 
 def _mission(server) -> tuple[str | None, int]:
@@ -64,6 +83,7 @@ def server_view(server) -> ServerView:
         active_players=active,
         remote=bool(attr(server, "is_remote", False)),
         maintenance=bool(attr(server, "maintenance", False)),
+        link=server_url(text(attr(server, "name", None))),
     )
 
 

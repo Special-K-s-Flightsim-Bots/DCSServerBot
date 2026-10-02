@@ -136,6 +136,10 @@ class InstanceView:
     server_name: str | None
     dcs_port: int | None
     webgui_port: int | None
+    #: the link to the bound server's own page (``/servers/<encoded-name>``), built by
+    #: :func:`~.servers.server_url`. Empty when the instance is bound to no server — the name then
+    #: renders as plain text.
+    link: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,6 +160,9 @@ class ServerView:
     #: power state, and the two are independent (``MAINTENANCE.md`` §1). Defaulted, so a producer
     #: that predates the field still builds a row.
     maintenance: bool = False
+    #: the link to the server's own page (``/servers/<encoded-name>``), built by
+    #: :func:`~.servers.server_url` — the affordance that opens the row. Empty renders plain text.
+    link: str = ""
 
     @property
     def mission_label(self) -> str:
@@ -170,6 +177,9 @@ class PlayerView:
     server_name: str
     slot: str
     active: bool
+    #: the link to the own page of the server the player is on (``/servers/<encoded-name>``), built
+    #: by :func:`~.servers.server_url`. Empty renders the name as plain text.
+    link: str = ""
 
 
 @dataclass(frozen=True, slots=True)

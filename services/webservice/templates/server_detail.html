@@ -1,0 +1,361 @@
+{#-
+  The per-server page: its head, the tab strip, and one tab's content. The Configuration tab is the
+  deliverable; Overview / Players / Missions / Log reuse the shared read models and the ONE table
+  component (`_table.html`), so this template owns no table markup of its own.
+
+  READ + WRITE. The tab renders ONE form that posts the single action `set_server_config`
+  (`pages/actions.py`); there is no second write path and no state-changing GET. Only the CHANGED
+  fields are submitted, Save is drawn DISABLED (with its reason stated) when the server cannot take a
+  change or the action is absent, and a successful write offers a one-shot Revert that re-submits the
+  previous values through the SAME action.
+
+  THE PASSWORD FIELDS DECLARE WHICH THEY ARE (`serverconfig.ConfigField.protection`, read here, never
+  the field's key): an UNPROTECTED one renders a normal masked field holding the STORED value (this
+  console's own Discord editor already shows it in the clear) with the eye beside it — leave it to
+  keep, empty it to remove, type in it to set a new one. A PROTECTED one renders NO value at all: only
+  the "a password is set" state, with the same keep / clear / replace read off the fixed placeholder
+  the field holds. The coalition password hashes are not rendered at all.
+
+  THE THIRD FACE (its own card and form): the blue/red coalition passwords, whose CLEARTEXT lives in
+  the bot's database and whose write goes through the bot's own `setCoalitionPassword`. Their values
+  are rendered in the clear; a password is removed by EMPTYING its field (the same way the DCS server
+  password is removed — there is no Clear control), a field that shipped EMPTY does nothing, and the
+  card is absent when the read could not be taken.
+-#}
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}{{ page_title }} — DCSServerBot{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ page_title }}</h1>
+  {% if server is defined and server %}
+  <div class="sub">node {{ server.node_name }}{% if server.instance_name %} · instance {{ server.instance_name }}{% endif %}{% if server.port %} · port :{{ server.port }}{% endif %} · <span class="tag"><span class="dot {{ server.status.dot }}" aria-hidden="true"></span> {{ server.status.word }}</span>{% if server.maintenance %} <span class="tag">maintenance</span>{% endif %}</div>
+  {% endif %}
+</div>
+
+<nav class="tabs" aria-label="Server">
+  {% for t in tabs %}<a class="tab{{ ' on' if t.active else '' }}" href="{{ t.link }}"{% if t.active %} aria-current="page"{% endif %}>{{ t.label }}</a>
+  {% endfor %}
+</nav>
+
+{% if tab == 'configuration' %}
+{# ---------------------------------------------------------------- the Configuration tab #}
+{% set cfg_enabled = config.serviceable and config_available %}
+{#- THE WORDS FOR A CHOICE FIELD'S OPTIONS. `advanced.resume_mode`'s options are bare numbers in the
+    declaration (`choices=(0, 1, 2)`), and "1" is not "always pause". The SUBMITTED values stay the
+    numbers; only what is READ changes, and the number stays in the label so it still matches the file
+    and DCS's own docs.
+
+    The map sits here, beside the render that reads it, rather than in the declaration (which carries
+    values only). Folding it into the declaration as `(value, label)` pairs beside `choices` would
+    remove this map. -#}
+{% set CHOICE_LABELS = {'advanced.resume_mode': {0: '0 — always run', 1: '1 — always pause',
+                                                 2: '2 — pause without clients'}} %}
+<div class="card">
+  <div class="hd"><h3>Configuration — the DCS face</h3><div class="spacer"></div>
+    <span class="tag">Saved Games/&lt;instance&gt;/Config/serverSettings.lua</span></div>
+  <div class="bd">
+    <div class="sub">Read from the master's in-process snapshot: no file is opened and no node is
+      asked on this render. {% if config.overridden %}Pinned by <b>servers.yaml</b>: {{ config.overridden | join(', ') }}. A change updates both places.{% endif %}</div>
+
+    {% include "_notice.html" %}
+    {% if notice and notice.revert %}
+    <form class="revert" method="post" action="{{ config_action_path }}" data-async>
+      <input type="hidden" name="server" value="{{ server_name }}">
+      <input type="hidden" name="{{ config_revert_field }}" value="{{ notice.revert }}">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+      <span class="sub">Every write is a write: Revert re-submits the previous values through the
+        same action — audited, validated and locked like any change.</span>
+      <button type="submit">Revert</button>
+    </form>
+    {% elif notice and notice.revert_omitted %}
+    <div class="notice"><div class="sub">{{ notice.revert_omitted }}</div></div>
+    {% endif %}
+
+    {% if not config.serviceable %}
+    <div class="notice"><div class="sub"><b>{{ config.status.word }}</b> — {{ config.apply_note }}</div></div>
+    {% elif not config_available %}
+    <div class="notice"><div class="sub"><b>Read-only.</b> The write action is not available in this
+      installation (the <span class="mono">scheduler</span> plugin is not loaded), so there is no Save here.</div></div>
+    {% endif %}
+
+    <form class="cfg-form" method="post" action="{{ config_action_path }}" data-async id="cfg-form">
+      <input type="hidden" name="server" value="{{ server_name }}">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+
+      {% for group in config.groups %}
+      <div class="card">
+        <div class="hd"><h4>{{ group.label }}</h4><div class="spacer"></div>
+          <span class="tag">{{ group.fields | length }} editable</span></div>
+        <div class="bd">
+          {% for f in group.fields %}
+          <div class="cfg-row">
+            <div class="cfg-meta">
+              <div><b>{{ f.label }}</b> <span class="mono">{{ f.key }}</span></div>
+              <div class="sub">{{ f.bound }}{% if f.protection %} · {{ f.protection }}{% endif %}{% if f.overridden %} <span class="tag">also pinned in servers.yaml — a change updates both</span>{% endif %}</div>
+              <div class="sub">{{ f.help }}</div>
+            </div>
+            <div class="cfg-widget">
+              {% if f.protection == 'protected' %}
+                {#- A PROTECTED PASSWORD: the value is NEVER rendered. The field holds the fixed
+                    placeholder (`serverconfig.PROTECTED_SENTINEL`) while a password is set, and nothing
+                    when none is — so the browser sees the "a password is set" state and never the value.
+                    Leave it to keep the password, empty it to remove it, type in it to set a new one
+                    (the write reads the placeholder back: see `actions._protected_password`). There is
+                    NO eye here: the field holds no value to reveal. `autocomplete="new-password"`
+                    stops the browser offering a saved credential into the console's own field. -#}
+                <input type="password" id="cfg-{{ f.key | replace('.', '-') }}" name="{{ f.key }}"
+                       value="{{ f.value if f.value is not none else '' }}"
+                       autocomplete="new-password"{% if not cfg_enabled %} disabled{% endif %}>
+                <div class="sub">Leave it to keep the password, empty it to remove it, type in it to
+                  set a new one. Its value is never shown here.</div>
+              {% elif f.protection == 'unprotected' %}
+                {#- AN UNPROTECTED PASSWORD: A NORMAL MASKED FIELD HOLDING THE STORED VALUE, shown as it
+                    is (this console's own Discord editor already shows it in the clear). Leave it to
+                    keep, empty it to remove, type in it to set a new one — the plain field semantics,
+                    read off what the browser posts (see `actions.config_values_from_form`).
+                    `autocomplete="new-password"` stops the browser offering a saved credential into
+                    the console's own field. -#}
+                <input type="password" id="cfg-{{ f.key | replace('.', '-') }}" name="{{ f.key }}"
+                       value="{{ f.value if f.value is not none else '' }}"
+                       autocomplete="new-password"{% if not cfg_enabled %} disabled{% endif %}>
+                {#- THE EYE. A real `button` (keyboard-reachable, Enter/Space both work, never a submit —
+                    `type="button"`), carrying `aria-pressed` as the announced state and both glyphs, so
+                    the shape says which way the button goes. It ships `hidden` and the ONE script that
+                    enhances the page (`/static/reveal.js`) reveals it: with JavaScript off a button that
+                    could not toggle anything would lie, and this console's rule is that nothing is
+                    MISSING without JS — only the enhancement is.
+
+                    IT IS DISABLED WHILE THE FIELD IS EMPTY (nothing to reveal); otherwise it toggles the
+                    masking of what the field holds, and nothing else. -#}
+                <button type="button" class="cfg-reveal" data-reveal="cfg-{{ f.key | replace('.', '-') }}"
+                        aria-pressed="false" aria-label="Show password" title="Show password"
+                        {% if not cfg_enabled %}disabled{% endif %} hidden>
+                  <span class="g-show">{{ icons.act('reveal') }}</span>
+                  <span class="g-hide">{{ icons.act('conceal') }}</span>
+                </button>
+                {#- HOW A PASSWORD IS REMOVED IS THE FIELD ITSELF: empty it and save, and the write
+                    submits the explicit clear. There is no clear link, no button and no checkbox. -#}
+              {% elif f.multiline %}
+                {#- A MULTI-LINE FIELD for the one declaration that asks for it (`description`, whose
+                    own maximum is 2000 characters). `maxlength` is the browser's OWN enforcement of
+                    the action's declared maximum — it costs nothing and prevents the over-long value
+                    instead of reporting it — and the browser's resize handle is deliberately left
+                    alone (`resize` is not set anywhere), so the field the reader grows stays grown. -#}
+                <textarea name="{{ f.key }}" rows="7"{% if f.maximum %} maxlength="{{ f.maximum }}"{% endif %}{% if not cfg_enabled %} disabled{% endif %}>{{ f.value if f.value is not none else '' }}</textarea>
+              {% elif f.kind == 'bool' %}
+                <label class="tag"><input type="checkbox" name="{{ f.key }}" value="1"{% if f.value %} checked{% endif %}{% if not cfg_enabled %} disabled{% endif %}> {{ 'on' if f.value else 'off' }}</label>
+              {% elif f.choices %}
+                {#- a leading EMPTY "unchanged" option. A browser ALWAYS submits the chosen option, and
+                    picks the FIRST one when none is marked — so with this first an UNTOUCHED select
+                    posts "" (never the first choice, which would write 0 for an absent or unlisted
+                    current value). It is marked selected only when the current value is not itself an
+                    offered option.
+
+                    The option's TEXT is the meaning, the option's VALUE is the number the file carries:
+                    `CHOICE_LABELS` words them (see the map at the top of this tab), and a choice with no
+                    words of its own falls back to the value itself, so a later declaration with more
+                    options cannot render a blank one. -#}
+                {% set choice_words = CHOICE_LABELS.get(f.key, {}) %}
+                <select name="{{ f.key }}"{% if not cfg_enabled %} disabled{% endif %}><option value=""{% if f.value not in f.choices %} selected{% endif %}>— unchanged —</option>{% for c in f.choices %}<option value="{{ c }}"{% if f.value == c %} selected{% endif %}>{{ choice_words.get(c, c) }}</option>{% endfor %}</select>
+              {% elif f.kind == 'int' %}
+                <input type="number" name="{{ f.key }}" value="{{ f.value if f.value is not none else '' }}"{% if not cfg_enabled %} disabled{% endif %}>
+              {% else %}
+                <input type="text" name="{{ f.key }}" value="{{ f.value if f.value is not none else '' }}"{% if not cfg_enabled %} disabled{% endif %}>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+
+      <div class="notice">
+        <div class="sub"><b>Save writes the file — the change applies when the server next starts.</b> DCS reads
+          <span class="mono">serverSettings.lua</span> at boot, so nothing is applied live here. Only the fields you
+          change are submitted.</div>
+        {#- THE TAB'S OWN Save — marked `primary` so it is the ONE filled control on a page that carries
+            three (`Save channels` and `Save coalition passwords` are the other two, drawn as the plain
+            secondary chips they are). The class is dropped on nothing: even a disabled Save keeps it and
+            the stylesheet's `:not(:disabled)` scope leaves it the dim chip state. The `busy` pulse rides
+            the SAME element. -#}
+        <button type="submit" class="primary{% if cfg_enabled and config_pulse %} busy{% endif %}"{% if not cfg_enabled %} disabled title="{{ config.apply_note if not config.serviceable else 'The write action is not available in this installation.' }}"{% elif config_pulse %} aria-busy="true"{% endif %}>Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% set channels_enabled = channels_available %}
+{#- THE CHANNELS CARD — the servers.yaml face, with REAL channel pickers. It is its OWN <form>, posted
+    to its OWN action (`set_server_channels`): the channels are a different face of the same tab,
+    written through the bot's own `Server.update_channels`, and applied IMMEDIATELY (no state gate, no
+    restart). The DCS form above cannot carry it — nested forms are not a thing — so this form sits
+    after the DCS face's Save.
+
+    THE WHOLE CARD IS ABSENT WHEN THE VIEWER MAY NOT WRITE THE CHANNELS: the read model builds no row
+    at all and sets `config.channels_denied` (see `serverconfig._channels`), so a manager — who may not
+    write the channels — gets no card, no picker and no reason to read. The refusal itself is the
+    action's, server-side; the card being gone is not the control.
+
+    THE ADMIN ROW IS ABSENT WHEN `bot.yaml` DEFINES A CENTRAL ADMIN CHANNEL: the read model does not
+    build it at all (see `serverconfig._channels`), so there is nothing here to hide with CSS and
+    nothing to disable — in that configuration the setting is not per-server. The `config.central_admin`
+    flag only words the note; it never suppresses a row the read model already decided against. -#}
+{% if not config.channels_denied %}
+<div class="card">
+  <div class="hd"><h4>Discord channels</h4><div class="spacer"></div>
+    <span class="tag">bot face — servers.yaml</span></div>
+  <div class="bd">
+    <div class="sub">The one part of this page that does not live in <span class="mono">serverSettings.lua</span>:
+      these are the <span class="mono">servers.yaml</span> face, written through the bot's own
+      <span class="mono">Server.update_channels</span>. Pick a channel per row; only the rows you
+      change are submitted.</div>
+    <form class="cfg-form" method="post" action="{{ channels_action_path }}" data-async id="channels-form">
+      <input type="hidden" name="server" value="{{ server_name }}">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+      {% for c in config.channels %}
+      <div class="cfg-row">
+        <div class="cfg-meta"><div><b>{{ c.label }}</b> <span class="mono">{{ c.key }}</span></div>
+          <div class="sub">{% if c.required %}required{% else %}optional{% endif %}</div><div class="sub">{{ c.help }}</div></div>
+        <div class="cfg-widget">
+          {#- THE PICKER. Options are the guild's channels, grouped by category, plus an explicit
+              "not set" whose VALUE is a distinct sentinel (`channel_unset_value`) — so clearing a set
+              channel is an explicit change and never a blank field. A value that is set but not among
+              the options (a deleted channel, or one from another guild) is rendered as its own
+              selected option, so an untouched form still posts the truth (unchanged) instead of
+              silently reading as "not set". -#}
+          <select name="{{ c.key }}"{% if not channels_enabled %} disabled{% endif %}>
+            {% for g in c.options %}{% if g.label %}<optgroup label="{{ g.label }}">
+              {% endif %}{% for o in g.options %}<option value="{{ o.value }}"{% if o.value == c.value %} selected{% endif %}>{{ o.label }}</option>
+              {% endfor %}{% if g.label %}</optgroup>
+            {% endif %}{% endfor %}
+            {% if c.value and not c.value_offered %}<option value="{{ c.value }}" selected>{{ c.value }} (not in this guild)</option>
+            {% endif %}<option value="{{ channel_unset_value }}"{% if not c.value %} selected{% endif %}>— not set —</option>
+          </select>
+        </div>
+      </div>
+      {% endfor %}
+      <div class="notice">
+        <div class="sub"><b>Channel changes apply immediately.</b> {{ config.channel_apply_note }} Read from the
+          master's in-process Discord connection: no node is asked and no Discord API call is made on this render.{% if not config.channel_options_available %} The guild's channel list could not be read right now (the bot is not connected to a guild) — only "not set" can be chosen.{% endif %}{% if config.central_admin %} A central admin channel is defined in <span class="mono">bot.yaml</span>, so the per-server admin channel is not shown or edited here.{% endif %}</div>
+        <button type="submit"{% if not channels_enabled %} disabled title="The channels action is not available in this installation."{% elif channels_pulse %} class="busy" aria-busy="true"{% endif %}>Save channels</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{#- THE COALITION PASSWORDS CARD — the THIRD face: the blue/red join passwords, whose CLEARTEXT lives
+    in the bot's database (``servers.blue_password`` / ``red_password``) and whose write goes through
+    the bot's own ``Server.setCoalitionPassword``. Its own ``<form>``, its own route
+    (``set_coalition_password``) and its own capability. The values are rendered IN THE CLEAR (Frank's
+    call — the field holds the real password, with the same eye the DCS password carries), except that
+    the CLEARTEXT comes from the read ACTION: when that read could not be taken, ``config.coalitions``
+    is EMPTY and this whole card is absent (never two rows that would read as \"no password\"). The
+    hash is never rendered anywhere.
+
+    REMOVING A PASSWORD IS EMPTYING ITS FIELD — the same way the DCS server password is removed, and
+    the reason this card carries no Clear control. A field that shipped HOLDING a password and comes
+    back empty is the deliberate clear; a field that shipped EMPTY does nothing, so a password the bot
+    knows only as a hash (its field renders empty) can be REPLACED but never wiped by a blank submit. -#}
+{% set coalitions_enabled = config.coalitions_serviceable and coalitions_available %}
+{% if config.coalitions %}
+<div class="card">
+  <div class="hd"><h3>Coalition passwords</h3><div class="spacer"></div>
+    <span class="tag">bot database — set live, no restart</span></div>
+  <div class="bd">
+    <div class="sub">The blue and red join passwords. The bot keeps the cleartext in its own database
+      and asks DCS to apply it — a change while the server is running or paused is picked up at its
+      next restart, exactly like <span class="mono">/password</span>. This page never writes
+      <span class="mono">serverSettings.lua</span> itself.</div>
+    <form class="cfg-form" method="post" action="{{ coalitions_action_path }}" data-async id="coalitions-form">
+      <input type="hidden" name="server" value="{{ server_name }}">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+      {% for c in config.coalitions %}
+      <div class="cfg-row">
+        <div class="cfg-meta">
+          <div><b>{{ c.label }}</b> <span class="mono">{{ c.key }}</span></div>
+          <div class="sub">{% if c.hash_set %}DCS carries a hash for this coalition{% else %}DCS carries no hash for this coalition{% endif %}</div>
+          <div class="sub">{{ c.help }}</div>
+          {% if c.note %}<div class="sub"><b>{{ c.note }}</b></div>{% endif %}
+        </div>
+        <div class="cfg-widget">
+          {#- The real password, masked, with the eye — the same unprotected branch the DCS password
+              uses. `autocomplete="new-password"` stops the browser offering a saved credential here. -#}
+          <input type="password" id="cfg-{{ c.key }}" name="{{ c.key }}"
+                 value="{{ c.value }}" autocomplete="new-password"{% if not coalitions_enabled %} disabled{% endif %}>
+          <button type="button" class="cfg-reveal" data-reveal="cfg-{{ c.key }}"
+                  aria-pressed="false" aria-label="Show password" title="Show password"
+                  {% if not coalitions_enabled %}disabled{% endif %} hidden>
+            <span class="g-show">{{ icons.act('reveal') }}</span>
+            <span class="g-hide">{{ icons.act('conceal') }}</span>
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+      <div class="notice">
+        <div class="sub"><b>Emptying a field removes its password.</b> A field that is already empty does
+          nothing — so a password shown as empty here (the bot knows only its hash) can be replaced but
+          not removed from this page. {% if not config.coalitions_serviceable %}<b>{{ config.status.word }}</b> — {{ config.coalition_apply_note }}{% endif %}</div>
+        <button type="submit"{% if not coalitions_enabled %} disabled title="{{ config.coalition_apply_note if not config.coalitions_serviceable else 'The write action is not available in this installation.' }}"{% endif %}>Save coalition passwords</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% elif tab == 'players' %}
+{# ---------------------------------------------------------------- the Players tab #}
+{% set search_action = search_action %}
+{% set search_clear = search_clear %}
+{% set search_hidden = search_hidden %}
+{% include "_table.html" %}
+
+{% elif tab == 'missions' %}
+{# ---------------------------------------------------------------- the Missions tab (pointer) #}
+<div class="card">
+  <div class="hd"><h3>Missions</h3><div class="spacer"></div><span class="tag">read-only</span></div>
+  <div class="bd">
+    <div class="sub">The mission list and the two keys that index it (<span class="mono">listStartIndex</span>,
+      <span class="mono">current</span>) belong to a dedicated missions feature that is not built yet. They
+      are settings of a FEATURE, not of the server, so nothing on the Configuration tab shows or edits
+      them.</div>
+    <div class="sub">Current mission: <b>{{ server.mission_name or '—' }}</b> · elapsed {{ server.mission_label }}.</div>
+  </div>
+</div>
+
+{% elif tab == 'log' %}
+{# ---------------------------------------------------------------- the Log tab #}
+<div class="card">
+  <div class="hd"><h3>Log</h3><div class="spacer"></div><span class="tag">cluster-wide</span></div>
+  <div class="bd">
+    <div class="sub">The bot log is cluster-wide, not per server. <a href="/logs">Open the Logs page</a> for the
+      tail and its level filter.</div>
+  </div>
+</div>
+
+{% else %}
+{# ---------------------------------------------------------------- the Overview tab #}
+<div class="card">
+  <div class="hd"><h3>Overview</h3><div class="spacer"></div>
+    <span class="tag"><span class="dot {{ server.status.dot }}" aria-hidden="true"></span> {{ server.status.word }}</span></div>
+  <div class="bd">
+    <div class="sub">node {{ server.node_name }}{% if server.instance_name %} · instance {{ server.instance_name }}{% endif %}{% if server.port %} · port :{{ server.port }}{% endif %}{% if server.remote %} · remote{% endif %}</div>
+    <div class="sub">Current mission: <b>{{ server.mission_name or '—' }}</b> · elapsed {{ server.mission_label }}</div>
+    <div class="sub">Players: {{ server.players }} player(s) ({{ server.active_players }} active){% if server.maintenance %} · <span class="tag">maintenance</span>{% endif %}</div>
+  </div>
+</div>
+
+{% endif %}
+
+{% endblock %}
+
+{#  THE PAGE'S ONE ENHANCEMENT: the UNPROTECTED password's eye. A page that ships no enhancement with
+    JavaScript off must LOSE nothing, and it does not — the field is a plain masked password input that
+    submits exactly like every other control (empty = clear, left as it is = keep). The script only lets
+    the reader LOOK at what the field holds, and it removes the `hidden` attribute it shipped with.
+    Registered HERE, on the page that renders the field, rather than in base.html: a page with no
+    unprotected password on it has no reason to load it.  #}
+{% block scripts %}<script src="/static/reveal.js" defer></script>{% endblock %}
+

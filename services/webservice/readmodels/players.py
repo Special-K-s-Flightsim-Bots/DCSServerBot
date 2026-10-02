@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from .access import attr, safe, text
 from .model import NO_PLAYERS_MESSAGE, PlayerView
+from .servers import server_url
 
 __all__ = ["players_online", "player_views"]
 
@@ -42,6 +43,9 @@ def player_views(server_name: str, players) -> list[PlayerView]:
             server_name=server_name,
             slot=safe(lambda: _slot(player), "") or "",
             active=True,
+            # the server the player is on is the link to its page, built from the same name the row
+            # renders — a player row exists only for a server that survived the scope.
+            link=server_url(server_name) if server_name else "",
         ))
     out.sort(key=lambda view: view.name)
     return out

@@ -117,13 +117,10 @@ def install_shell(app: FastAPI, node=None, config: dict | None = None) -> Regist
     # shell's pages so a path collision is refused loudly here rather than silently winning later.
     from .pages import actions as actions_page
     actions_page.register(registrar)
-    # THE ACTION REGISTRY. Its AUTHORITATIVE population happens at the bot's own plugin load
-    # (core/plugin_manager.py::PluginManager._discover_actions), which is what fills it for the
-    # Discord, REST and MCP transports alike regardless of this service. THIS call is the
-    # belt-and-braces fallback for a shell installed WITHOUT that plugin load — a stub install in
-    # tests, or a web process whose plugin list never reached load_plugins — so it runs here too,
-    # before anything renders a control: otherwise action_available() answers False for everything
-    # and every write control is silently omitted while the suite stays green.
+    # THE ACTION REGISTRY, also populated here as a belt-and-braces fallback for a shell installed
+    # WITHOUT the bot's own plugin load (core/plugin_manager.py::PluginManager._discover_actions):
+    # a test stub, or a web process whose plugin list never reached load_plugins. Without it
+    # action_available() answers False for everything and every write control is silently omitted.
     _discover_actions(node)
     registrar.environment = templating.build_environment(registrar)
 
@@ -146,17 +143,16 @@ def install_shell(app: FastAPI, node=None, config: dict | None = None) -> Regist
 
 
 def _discover_actions(node=None) -> None:
-    """Populate the ACTION REGISTRY for this process — the BELT-AND-BRACES call (review I-4).
+    """Populate the ACTION REGISTRY for this process — the belt-and-braces call.
 
-    The AUTHORITATIVE population is the bot's own plugin load
+    The authoritative population is the bot's own plugin load
     (``core/plugin_manager.py::PluginManager._discover_actions``), which fills the registry for
-    every transport — Discord, REST and MCP — independent of this service. THIS call exists for a
-    shell that is installed WITHOUT a bot plugin load: a stub install in tests, or a web process
-    whose plugin list never reached ``load_plugins``. Without it such a process would find an empty
-    registry, ``action_available`` would answer ``False`` for every action, and each control would
-    be silently OMITTED while the whole suite stayed green — the failure mode this repo has hit
-    before (code that looks implemented and never runs), so ``tests/test_webui_write_pause.py``
-    asserts ``action_available("pause_mission")`` through THIS shell's own install.
+    every transport — Discord, REST and MCP. THIS call covers a shell installed WITHOUT one: a test
+    stub, or a web process whose plugin list never reached ``load_plugins``. Without it the registry
+    stays empty, ``action_available`` answers ``False`` for every action, and each control is
+    silently omitted — the "looks implemented, never runs" failure this repo has hit before.
+    ``tests/test_webui_write_pause.py`` asserts ``action_available("pause_mission")`` through THIS
+    shell's own install.
 
     The plugin list is MCPServer's own (``PluginManager.plugins``, which falls back to the node's
     configured plugin list before ``load_plugins`` has run) — the same source, so the web and MCP

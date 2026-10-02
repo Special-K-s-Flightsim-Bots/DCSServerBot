@@ -5,11 +5,18 @@ their servers. They can operate their servers and kick players from them but the
 other servers or kick other players. Also, they might not do special admin tasks that might affect
 other servers."*
 
-THE RULE, taken from Discord unchanged (spec §10.1):
+THE RULE:
 
-* a server that declares no ``managed_by`` is visible to everyone who may read the console;
-* a server that declares one is visible only to a caller holding one of the listed roles;
-* ``Admin`` bypasses the restriction.
+* ``Admin`` and ``DCS Admin`` (:data:`CLUSTER_ROLES`) are UNSCOPED — they see and act on every
+  server, tagged or not;
+* for every OTHER viewer (a manager), a server is theirs iff it NAMES one of their tokens in
+  ``managed_by``. A server that declares NO ``managed_by`` is NOT theirs — invisible and not
+  actionable. ``managed_by`` is an ALLOW-LIST: fail closed.
+
+NOTE the asymmetry with ``core.utils.discord.holds_scope``, where an empty ``managed_by`` means
+"no restriction": that default suits the bot's own Discord commands, whose caller already passed a
+role check, and is wrong for a manager's console view — so :meth:`Scope.allows` applies the
+allow-list rule itself instead of deferring to ``holds_scope``.
 
 The comparison is made against the caller's **Discord** role ids and names — the same pair
 :func:`core.utils.discord.check_roles` builds — because ``managed_by`` entries are free text
@@ -33,10 +40,10 @@ identity": both would be an empty set, and the second must DENY while the first 
 everything. :class:`Scope` is therefore three states, and it is the single value a page, the live
 stream or a read model consumes:
 
-* :meth:`Scope.everything` — unscoped (any ``Admin``, break-glass, a local account that declares no
-  scope);
-* :meth:`Scope.restricted` — the resolved tokens; a server is visible iff
-  :func:`holds_scope` says so;
+* :meth:`Scope.everything` — unscoped (any ``Admin`` / ``DCS Admin`` cluster role, break-glass, a
+  local account that declares no scope AND holds a cluster role);
+* :meth:`Scope.restricted` — the resolved tokens; a server is visible iff it NAMES one of them in
+  ``managed_by`` (a server that declares none is NOT theirs — :meth:`Scope.allows`);
 * :meth:`Scope.unresolved` — FAIL CLOSED: nothing is visible, not everything (bot restarting, no
   guild, an empty member cache).
 
@@ -59,6 +66,7 @@ from core.utils.discord import holds_scope, may_manage_server, member_scope_toke
 
 __all__ = [
     "ADMIN_ROLE",
+    "CLUSTER_ROLES",
     "Scope",
     "holds_scope",
     "manages_any_server",
@@ -74,6 +82,12 @@ __all__ = [
 #: one privileged role NAMES the same string, and the map module will own the constant once it
 #: exists — this is the name, not a second rule).
 ADMIN_ROLE = "Admin"
+
+#: The CLUSTER roles — ``Admin`` and ``DCS Admin`` — the viewers who are UNSCOPED: they see and act
+#: on every server, whatever it declares in ``managed_by``. This is the ONE definition of "a cluster
+#: viewer"; the pages (``pages/lists.CLUSTER_ROLES``), the scope resolution and the local backend's
+#: fallback all read it, so the role model and the scope rule cannot drift apart.
+CLUSTER_ROLES: tuple[str, ...] = ("Admin", "DCS Admin")
 
 
 def manages_any_server(scope: "Scope", servers: Iterable[Any] | None = ()) -> bool:
@@ -108,8 +122,9 @@ def manages_any_server(scope: "Scope", servers: Iterable[Any] | None = ()) -> bo
       (``Admin``, break-glass, a local account that declares nothing). It is never a second way in:
       a roleless local account declares no scope and is exactly the account that must NOT reach
       the console;
-    * a server that declares NO ``managed_by`` — visible to everyone who may read the console
-      (spec §10.1), so it cannot be what makes somebody a manager, or every member would be one.
+    * a server that declares NO ``managed_by`` — NOT visible to any scoped viewer (the allow-list
+      rule in :meth:`Scope.allows`), so it can neither be what makes somebody a manager nor what a
+      manager manages;
     """
     if not scope.resolved or scope.unrestricted:
         return False
@@ -161,12 +176,24 @@ class Scope:
     declared: bool = False
 
     def allows(self, managed_by) -> bool:
-        """Whether a server declaring *managed_by* is inside this scope."""
+        """Whether a server declaring *managed_by* is inside this scope.
+
+        The allow-list rule for a RESTRICTED scope: a server is theirs iff it NAMES one of their
+        tokens in ``managed_by``. A server that declares NO ``managed_by`` is NOT theirs — invisible
+        and not actionable — because ``managed_by`` is a manager's ALLOW-LIST, not a default-allow.
+
+        An ``unrestricted`` scope (``Admin`` / ``DCS Admin``, break-glass, a local account that
+        declares nothing) still allows everything; an ``unresolved`` scope allows nothing (fail
+        closed).
+        """
         if not self.resolved:
             return False            # fail closed: nothing is visible, not everything
         if self.unrestricted:
             return True
-        return holds_scope(managed_by, self.tokens)
+        declared = tuple(managed_by or ())
+        if not declared:
+            return False            # no allow-list entry -> not this manager's server
+        return holds_scope(declared, self.tokens)
 
     @classmethod
     def everything(cls) -> "Scope":
@@ -255,9 +282,12 @@ def audit_local_scopes(declared_by_user: Mapping[str, Iterable[str]],
             _audit_conditions().hit(
                 ("local-scope", str(user), text),
                 "Admin web UI scope: auth.local.users '%s' declares scope '%s', which matches no "
-                "server's managed_by in this installation - the account will only see servers that "
-                "declare no managed_by at all. managed_by values are free text in the server "
-                "configuration, so check the spelling.", user, text, summary=None)
+                "server's managed_by in this installation. A declared scope is an ALLOW-LIST, so "
+                "the account now sees NOTHING at all - no server names '%s' in its managed_by. "
+                "managed_by values are free text in the server configuration, so check the "
+                "spelling; otherwise replace the scope with a value a server actually declares, "
+                "or give the account a cluster role (%s) to see the whole cluster.",
+                user, text, text, ", ".join(CLUSTER_ROLES), summary=None)
     return unmatched
 
 

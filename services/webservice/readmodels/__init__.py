@@ -40,7 +40,18 @@ from .model import (LOG_EMPTY_MESSAGE, LOG_MISSING_MESSAGE, NO_INSTANCES_MESSAGE
 from .nodes import nodes
 from .overview import overview
 from .players import players_online
-from .servers import servers
+from .serverconfig import (EDITABLE_FIELDS, READONLY_FIELDS, MISSION_INDEX_FIELDS, ConfigField,
+                           ConfigGroup, FieldView, ServerConfigView, server_config_view,
+                           bound_text, editable_keys, readonly_keys, STOP_FIRST_SENTENCE,
+                           CHANNEL_KEYS, CHANNEL_ADMIN_KEY, CHANNEL_UNSET, CHANNEL_UNSET_VALUE,
+                           CHANNEL_APPLY_NOTE, ChannelOption, ChannelGroup, ChannelView,
+                           channel_value_text, live_bot, central_admin_channel,
+                           guild_channel_groups,
+                           COALITION_FIELDS, COALITION_TOKENS, COALITION_OF_KEY, CoalitionView,
+                           coalition_views, coalition_keys, COALITION_APPLY_NOTE,
+                           COALITION_UNKNOWN_NOTE, COALITION_DB_ONLY_NOTE,
+                           COALITION_REFUSED_SENTENCE, WRITABLE_COALITION_RAW)
+from .servers import SERVERS_HREF_PREFIX, server_url, servers
 from .source import EmptySource, LiveSource, ScopedSource, Source, console_source, \
     declared_node_instances, log_path_for, resolve_source, scoped_source
 from .views import (Column, ColumnView, PlayerSearch, TableView, ViewParams, ViewState,
@@ -61,6 +72,20 @@ __all__ = [
     # read models
     "nodes", "instances", "servers", "players_online", "log_tail", "tail", "overview",
     "DEFAULT_LINES",
+    # a server's read model AND the ONE encoder of its page URL (the row link and the redirect back)
+    "server_url", "SERVERS_HREF_PREFIX",
+    # the DCS configuration read model (the Configuration tab): its declaration and its view
+    "EDITABLE_FIELDS", "READONLY_FIELDS", "MISSION_INDEX_FIELDS", "ConfigField", "ConfigGroup",
+    "FieldView", "ServerConfigView", "server_config_view", "bound_text", "editable_keys",
+    "readonly_keys", "STOP_FIRST_SENTENCE",
+    # the channels face: the per-server rows, the guild's options and the central rule
+    "CHANNEL_KEYS", "CHANNEL_ADMIN_KEY", "CHANNEL_UNSET", "CHANNEL_UNSET_VALUE", "CHANNEL_APPLY_NOTE",
+    "ChannelOption", "ChannelGroup", "ChannelView", "channel_value_text",
+    "live_bot", "central_admin_channel", "guild_channel_groups",
+    # the coalition face: the two plaintext rows and the states they render
+    "COALITION_FIELDS", "COALITION_TOKENS", "COALITION_OF_KEY", "CoalitionView", "coalition_views",
+    "coalition_keys", "COALITION_APPLY_NOTE", "COALITION_UNKNOWN_NOTE", "COALITION_DB_ONLY_NOTE",
+    "COALITION_REFUSED_SENTENCE", "WRITABLE_COALITION_RAW",
     # the validated view layer (sorting + players search)
     "Column", "ColumnView", "TableView", "PlayerSearch", "ViewParams", "ViewState",
     "column_link", "sort_rows", "table_view", "view_params", "view_state",

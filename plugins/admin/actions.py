@@ -1,57 +1,44 @@
 """
 Action functions for NODE operations.
 
-TWO FAMILIES, and the difference between them is the whole reason this module carries both:
+TWO FAMILIES:
 
 * the NODE LIFECYCLE trio — **restart**, **shut down** and **upgrade** — acts on the node's own
   PROCESS (``Node.restart()`` / ``shutdown()`` / ``upgrade()``); every server on the node goes down
   with it, and an "offline" node is reached by the machine, never by a browser;
 * the POWER pair — **offline** and **online** — acts on the SERVERS the node carries and touches no
-  service at all. ``offline`` takes the servers that are *in service* out of service: it SHUTS THEM
-  DOWN (through the engine's popup chain) and, unless the caller opts out, marks them
-  ``maintenance``. ``online`` reverts EXACTLY what ``offline`` did — it clears only the flags that
-  operation set and starts only the servers it stopped. The node's services — including the
-  webservice serving the console's request — keep running, which is precisely why these two CAN be
-  called from a browser.
+  service at all. ``offline`` takes the in-service servers out of service: it shuts them down (through
+  the engine's popup chain) and, unless the caller opts out, marks them ``maintenance``. ``online``
+  reverts EXACTLY what ``offline`` did — clearing only the flags that operation set and starting only
+  the servers it stopped. The node's services, including the webservice serving the console's request,
+  keep running, which is why these two CAN be called from a browser.
 
 The SEMANTICS do not live here: they are the engine's (``core/data/maintenance.py``,
-:class:`~core.data.maintenance.ServerMaintenanceManager`), and the record of what an ``offline`` did
-is the engine's too (``NodePowerRecord``). This module resolves the target, drives the two halves and
-words the report — the design of record is ``MAINTENANCE.md`` §4 (semantics), §5 (the record's
-lifetime) and §9 (the behaviour matrix).
+:class:`~core.data.maintenance.ServerMaintenanceManager`), as is the record of what an ``offline`` did
+(``NodePowerRecord``). This module resolves the target, drives the two halves and words the report.
 
-Each operation lives here in the SAME shape as every other console write (``plugins/mission/
-actions.py`` is the model): a ``@action`` function takes typed parameters plus an
-:class:`~core.actions.ActionContext`, resolves its target through the seam, performs the operation
-and returns a typed result. The transport wraps the result; the console renders ``result.message``
-in its one-shot notice.
+Each operation lives here in the SAME shape as every other console write (``plugins/mission/actions.py``
+is the model): a ``@action`` function takes typed parameters plus an
+:class:`~core.actions.ActionContext`, resolves its target through the seam, performs the operation and
+returns a typed result. The transport wraps the result; the console renders ``result.message`` in its
+one-shot notice.
 
-WHAT EACH ONE MIRRORS, so one word never means two things:
+Each one mirrors an existing command so a word never means two things:
 
-* :func:`restart_node` -> ``Node.restart()`` — the SAME method ``/node restart``
-  (``plugins/admin/commands.py``) reaches through ``run_on_nodes``. ``NodeImpl.restart()`` is
-  ``shutdown(RESTART)``: the process ends and the launcher on that machine brings it back.
-* :func:`shutdown_node` -> ``Node.shutdown()`` — the same method ``/node shutdown`` reaches.
-  ``NodeImpl.shutdown()`` sets ``rc`` and the shutdown event; a node shut down this way does NOT
-  come back on its own.
-* :func:`upgrade_node` -> ``Node.upgrade()`` — the same method ``/node upgrade`` reaches.
-  ``NodeImpl.upgrade()`` checks for an update, sets the cluster's ``update_pending`` flag, launches
-  ``update.py`` and shuts the node down with ``rc=UPDATE``.
-* :func:`take_node_offline` / :func:`bring_node_online` -> ``/node offline`` / ``/node online``
-  (``plugins/admin/commands.py``): the power pair above. ``offline`` shuts the node's in-service
-  servers down (popup chain) and — unless the ``maintenance`` option is off — flags the ones that
-  were not already flagged; ``online`` reverts exactly that record. No node service is touched, so
-  the webservice that served the request survives — unlike the trio above.
+* :func:`restart_node` / :func:`shutdown_node` / :func:`upgrade_node` -> the ``Node`` method
+  ``/node restart`` / ``/node shutdown`` / ``/node upgrade`` (``plugins/admin/commands.py``) reaches:
+  ``NodeImpl.restart()`` is ``shutdown(RESTART)`` (the launcher brings it back), ``shutdown()`` does
+  not come back on its own, and ``upgrade()`` checks for an update and shuts down with ``rc=UPDATE``;
+* :func:`take_node_offline` / :func:`bring_node_online` -> ``/node offline`` / ``/node online`` (the
+  power pair above).
 
-THE TRAIL is written HERE, once, whatever the transport (design §5.3 D1), including for a refusal —
-one entry per attempt is what an operator wants after an incident. The audit's actor is the
-caller's: ``[web:backend/subject]`` for the console, a display name for Discord (``core/actions``).
+THE TRAIL is written HERE, once, whatever the transport, including for a refusal. The audit's actor is
+the caller's: ``[web:backend/subject]`` for the console, a display name for Discord (``core/actions``).
 
-NO RPC ON THE RENDER PATH, and the one honest consequence: the console cannot know whether an upgrade
-is pending while rendering a page and must not ask (``Node.upgrade_pending()`` is an async git/HTTP
-check on the local node and an RPC on a remote one), so the Upgrade control is OFFERED unconditionally.
-The check happens where ``/node upgrade`` performs it — when the ACTION runs — and its verdict is the
-typed refusal this module returns verbatim (``"There is no upgrade available for node 'X'."``).
+NO RPC ON THE RENDER PATH: the console cannot know whether an upgrade is pending while rendering and
+must not ask (``Node.upgrade_pending()`` is an async git/HTTP check on the local node and an RPC on a
+remote one), so the Upgrade control is OFFERED unconditionally. The check runs when the ACTION runs and
+its verdict is the typed refusal this module returns verbatim.
 """
 from __future__ import annotations
 
@@ -167,13 +154,12 @@ async def _lifecycle(ctx: Any, node_name: str, method: str) -> NodeControlResult
 
 
 async def _audited(ctx: Any, result: NodeControlResult) -> NodeControlResult:
-    """Write the trail for *result* and return it (design §5.3 D1).
+    """Write the trail for *result* and return it.
 
-    ONE place, so every exit of every node operation — the success, each of the typed refusals
-    (offline/unknown, nothing to upgrade, the check itself failing) and the failure — leaves exactly one
-    entry, and none of them can forget the one mechanism. The entry names the node in its own message;
-    the audit row carries no ``server`` (there is none) and the target is spelled, which is what makes a
-    node event greppable in the trail.
+    ONE place, so every exit of every node operation — the success, each typed refusal (offline/unknown,
+    nothing to upgrade, the check itself failing) and the failure — leaves exactly one entry. The entry
+    names the node in its own message; the audit row carries no ``server`` and the target is spelled,
+    which makes a node event greppable in the trail.
     """
     await audit_action(ctx, result)
     return result
@@ -216,14 +202,13 @@ async def upgrade_node(ctx: Any, node_name: str) -> NodeControlResult:
     return await _lifecycle(ctx, node_name, "upgrade")
 
 
-# ── the NODE POWER pair (W4d, rebuilt on the engine in W5a) ────────────────
+# ── the NODE POWER pair ────────────────────────────────────────────────────
 # ``/node offline`` / ``/node online`` act on the SERVERS a node carries and never on a service.
 # ``offline`` shuts the in-service servers down (through the engine's popup chain) and flags the ones
 # that were not already flagged; ``online`` reverts exactly the record that operation left. Nothing
 # stops a node service, so the webservice serving the console's request keeps running — which is what
-# makes this pair callable from a browser at all. The flag bookkeeping and the in-service test are the
-# engine's (``core/data/maintenance.py``); before W5a this module carried a second, blanket copy of
-# them, which is what let ``online`` clear a hand-set flag and start a server that never ran.
+# makes this pair callable from a browser at all. The flag bookkeeping and the in-service test live in
+# the engine (``core/data/maintenance.py``); this module carries no copy of them.
 
 
 def _node_servers(ctx: Any, node_name: str) -> list:
@@ -248,11 +233,9 @@ def _server_names(servers) -> list[str]:
 def _resolve_recorded(servers: list, names) -> tuple[list, list[str]]:
     """``(servers, missing names)`` for the recorded *names* among the node's *servers*.
 
-    The record holds NAMES, because that is what survives a redesign of the objects between the two
-    halves; the online half resolves them against the CALLER's current view. A name that no longer
-    resolves — the server was renamed, migrated to another node or removed from the config — is
-    returned in the second element and REPORTED, never raised (``MAINTENANCE.md`` §9). Matching folds
-    case, like every other name in this seam.
+    The record holds NAMES; the online half resolves them against the caller's current view. A name
+    that no longer resolves — renamed, migrated or removed from the config — is returned in the second
+    element and REPORTED, never raised. Matching folds case, like every other name in this seam.
     """
     index = {}
     for server in servers:
@@ -332,14 +315,14 @@ async def _power_on(ctx: Any, node_name: str) -> NodeControlResult:
     """Bring the SERVERS of ONE node back into service — ``online``'s one implementation.
 
     With a power-off RECORD (the ordinary case) it reverts EXACTLY that record: it clears the flags
-    the operation set, starts the servers it stopped (skipping any that is already up, or that still
-    carries a flag the record does not own), and reports what it could not resolve. It clears NO flag
-    it did not set, and it starts NO server it did not stop — the two rules this card exists to fix.
+    the operation set, starts the servers it stopped (skipping any already up or still carrying a flag
+    the record does not own), and reports what it could not resolve. It clears NO flag it did not set
+    and starts NO server it did not stop.
 
     With NO record (this process started since the ``offline`` — a bot restart, a failover, a crash)
     it falls back to the RULE: start every server of the node that is down AND not in maintenance,
     clear NO flag, and say in the message that the record is gone, since when. The degradation is
-    visible and never clears a flag nobody asked it to clear (``MAINTENANCE.md`` §4.2/2, §5 (a)).
+    visible and never clears a flag nobody asked it to clear.
     """
     node = ctx.resolve_node(node_name)
     if node is None:

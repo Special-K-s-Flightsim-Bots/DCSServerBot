@@ -52,7 +52,7 @@ from .. import permissions
 # the bot's ``core`` with it — deliberate: the console runs in the bot's OWN environment (the same
 # venv) and CONSUMES the one shared rule instead of keeping a second copy. The direction is pinned
 # by ``tests/test_layering_direction.py``.
-from ..scope import ADMIN_ROLE, Scope
+from ..scope import CLUSTER_ROLES, Scope
 
 __all__ = [
     "SESSION_IDENTITY_KEY",
@@ -248,19 +248,28 @@ class AuthManager:
     def scope_for(self, request: Request) -> Scope:
         """THE scope resolver. Installed through ``permissions.set_scope_resolver``.
 
-        Two rules, in this order, and both are load-bearing:
+        THREE rules, in this order (the order IS the precedence, highest first):
 
         * an identity that could not be resolved is :meth:`Scope.unresolved` — FAIL CLOSED (the bot
           is restarting, the guild is unreachable, the member cache is empty). A scoped-to-nothing
           view is the only safe answer; a scoped-to-everything one is a leak;
-        * ``Admin`` is unscoped, whatever it declared (spec §10.6: *any Admin, any backend*). The
-          bypass lives HERE, once, so no backend can forget it and no page can re-invent it — and it
-          is the same rule Discord applies to the picker.
+        * an explicit DECLARATION wins over everything else, INCLUDING the cluster-role bypass
+          below: a local account's ``auth.local.users[].scope`` is the operator's instruction, so it
+          is honoured even when the account also holds a cluster role (a declaration can only ever
+          shrink a cluster role's view, never widen a non-cluster one);
+        * otherwise a CLUSTER role — ``Admin`` or ``DCS Admin`` (:data:`..scope.CLUSTER_ROLES`) — is
+          unscoped, whatever it declared implicitly: the two cluster roles keep the whole cluster,
+          so a scoped DCS Admin does not lose the untagged servers it has always administered. A
+          Discord cluster role carries no declaration — its scope is derived from member roles — so
+          it falls through to here. The bypass lives HERE, once, so no backend can forget it and no
+          page can re-invent it.
         """
         identity = self.authenticate(request)
         if identity is None:
             return Scope.unresolved()
-        if ADMIN_ROLE in identity.roles:
+        if identity.scope.declared:
+            return identity.scope
+        if not set(CLUSTER_ROLES).isdisjoint(identity.roles):
             return Scope.everything()
         return identity.scope
 

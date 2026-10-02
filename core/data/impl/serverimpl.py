@@ -59,7 +59,17 @@ DEFAULT_EXTENSIONS = {
     "Cloud": {}
 }
 
-__all__ = ["ServerImpl"]
+__all__ = ["ServerImpl", "RenameError"]
+
+
+class RenameError(Exception):
+    """A rename that must NOT proceed — a collision, or a reserved / empty target name.
+
+    Raised BEFORE anything is written or re-keyed, so a caller that catches it can trust that
+    ``servers.yaml``, the database rename, the cluster registry (``ServiceBus.servers``) and the
+    extension ``rename_server`` hooks are all untouched — a refusal, not a failure halfway through.
+    Raised by :meth:`ServerImpl.rename` and, defensively, by ``ServiceBus.rename_server``.
+    """
 
 
 class MissionFileSystemEventHandler(FileSystemEventHandler):
@@ -348,7 +358,15 @@ class ServerImpl(Server):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:
             config = yaml.load(infile)
-        config[self.name]['channels'] = channels
+        # PRESERVE the keys this write does not name: merge onto the FILE's current map, not an
+        # in-memory copy (which can be stale after a hand-edit) and not the partial map a caller hands
+        # in (the Discord editor sends only the rows it shows). A key absent from ``channels`` keeps
+        # whatever the file holds; only the keys named here are overwritten.
+        entry = config[self.name]
+        current = entry.get('channels')
+        current = dict(current) if isinstance(current, dict) else {}
+        current.update(channels)
+        entry['channels'] = current
         with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
         self.locals.setdefault('channels', {}).update(channels)
@@ -519,6 +537,62 @@ class ServerImpl(Server):
         await self._ensure_transport()
         self.transport.sendto(msg.encode("utf-8"))
 
+    def _servers_yaml_keys(self) -> list[str]:
+        """The top-level keys of ``servers.yaml`` (the configured servers), or ``[]``.
+
+        Read-only and best-effort: a missing node config dir, a missing file or an unreadable one
+        yields ``[]``, so the collision guard falls back to the live registry alone.
+        """
+        config_dir = getattr(self.node, 'config_dir', None)
+        if not config_dir:
+            return []
+        filename = os.path.join(config_dir, 'servers.yaml')
+        if not os.path.exists(filename):
+            return []
+        try:
+            data = yaml.load(Path(filename).read_text(encoding='utf-8'))
+        except Exception:
+            return []
+        return [str(key) for key in data.keys()] if isinstance(data, dict) else []
+
+    def _rename_refusal(self, new_name: Any) -> str | None:
+        """Why *new_name* cannot be this server's name, or ``None`` when it can (see ``RenameError``).
+
+        Three refusals, all decided BEFORE anything is written:
+
+        * an EMPTY name (``None``, a non-string, or whitespace only);
+        * the RESERVED sentinel ``n/a`` — the code's "unnamed" marker, which takes ``rename``'s
+          no-rollback path;
+        * a COLLISION with a DIFFERENT server, read from both the fleet registry (``bus.servers``, the
+          live entry ``ServiceBus.rename_server`` would clobber) and the KEYS of ``servers.yaml`` (a
+          key held by a different entry would leave a half-renamed server).
+
+        Case is folded: ``SRS-1`` and ``srs-1`` name ONE server. The server's OWN name is never a
+        collision, so a same-name Save (and the auto-rename in ``ServiceBus.register_server``) still
+        goes through.
+        """
+        if not isinstance(new_name, str) or not new_name.strip():
+            return 'A server name must not be empty.'
+        folded = new_name.strip().casefold()
+        if folded == 'n/a':
+            return f'Server name "{new_name}" is reserved and cannot be used.'
+        own = str(self.name or '').casefold()
+        if folded == own:
+            return None
+        registry = getattr(getattr(self, 'bus', None), 'servers', None) or {}
+        for other in registry.values():
+            if other is None or other is self:
+                continue
+            other_name = str(getattr(other, 'name', '') or '')
+            if other_name and other_name.casefold() == folded:
+                return f'Server name "{new_name}" is already used by server "{other_name}".'
+        for key in self._servers_yaml_keys():
+            if key.casefold() == own:
+                continue
+            if key.casefold() == folded:
+                return f'Server name "{new_name}" is already used by server "{key}".'
+        return None
+
     @override
     async def rename(self, new_name: str, update_settings: bool = False) -> None:
         def update_config(old_name: str | None, new_name: str, update_settings: bool = False):
@@ -563,6 +637,11 @@ class ServerImpl(Server):
                 })
                 self.bus.rename_server(self, new_name)
 
+        # REFUSE a reserved / empty / colliding target BEFORE anything is written or re-keyed, so a
+        # refusal leaves no half-state. The guard is typed: ``RenameError``.
+        refusal = self._rename_refusal(new_name)
+        if refusal:
+            raise RenameError(refusal)
         old_name = self.name
         if old_name == 'n/a':
             old_name = None
@@ -586,8 +665,9 @@ class ServerImpl(Server):
                     await update_database(new_name, old_name)
                 raise
         except Exception:
+            # RE-RAISE: a caller must never be told the rename succeeded when it did not.
             self.log.exception(f"Error during renaming of server {old_name} to {new_name}: ", exc_info=True)
-            return
+            raise
 
     async def unlink(self):
         if self.name == 'n/a':

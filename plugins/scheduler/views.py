@@ -4,6 +4,7 @@ import luadata
 import os
 
 from core import Server, utils
+from core.data.impl.serverimpl import RenameError
 from discord import ButtonStyle, ChannelType
 from discord.ui import Button, ChannelSelect
 from io import BytesIO
@@ -446,7 +447,15 @@ class ServerConfigView(discord.ui.View):
         old_name = self.server.name
         new_name = self.config['name']
         if old_name != new_name:
-            await self.server.rename(new_name=new_name, update_settings=True)
+            try:
+                await self.server.rename(new_name=new_name, update_settings=True)
+            except RenameError as ex:
+                # A refused rename (a collision, or a reserved / empty name) is the user's to act on:
+                # answer with the refusal's own sentence rather than let it escape as a generic
+                # interaction failure. Nothing is written, and the view stays open so the name can be
+                # corrected and Save pressed again.
+                await interaction.followup.send(str(ex), ephemeral=True)
+                return
             bot.servers[new_name] = self.server
             if old_name in bot.servers:
                 del bot.servers[old_name]

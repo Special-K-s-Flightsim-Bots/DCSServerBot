@@ -76,23 +76,18 @@ class PluginManager:
     def _discover_actions(self) -> None:
         """Populate the ACTION REGISTRY for this process, from the plugins just loaded.
 
-        THE authoritative discovery call. The registry is a BOT-WIDE mechanism — the Discord
-        commands, the REST surface and the MCP service all read it through
-        ``core.actions.action_available`` / ``call_action`` — so it must be filled when the PLUGINS
-        load, never when one particular transport's install path happens to run. Wiring it into the
-        web shell's install alone meant that with ``frontend: false`` the shell was never installed,
-        the registry stayed empty, and every Discord command that delegates to an action answered
-        *"Action '<name>' is not available in this installation."* (B6).
+        The registry is bot-wide — Discord commands, the REST surface and the MCP service all read it
+        through ``core.actions.action_available`` / ``call_action`` — so it must be filled when the
+        PLUGINS load, not from one transport's install path: with ``frontend: false`` the web shell is
+        never installed, and an unfilled registry leaves every Discord command that delegates to an
+        action answering "Action '<name>' is not available in this installation.".
 
         IDEMPOTENT: ``importlib`` caches each ``actions.py`` and the ``@action`` decorator keys the
-        registry on ``__qualname__``, so loading the plugins again (a master/agent switch, a reload)
-        re-runs this with no duplicate or replaced entries.
+        registry on ``__qualname__``, so a reload re-runs this with no duplicate entries.
 
-        NEVER FATAL: a plugin whose ``actions.py`` raises on import must not stop the bot from
-        loading — ``discover_actions`` already logs per plugin and continues. This guard covers the
-        action layer's own import, and logs loudly for the same reason the shell's copy
-        (``services/webservice/shell.py::_discover_actions``) does: an action that is absent with no
-        line saying why is indistinguishable from one that was never deployed.
+        NEVER FATAL: a plugin whose ``actions.py`` raises on import must not stop the bot loading;
+        ``discover_actions`` logs per plugin and continues, and the import guard here logs loudly so
+        an absent action is distinguishable from one never deployed.
         """
         try:
             from core.actions import discover_actions

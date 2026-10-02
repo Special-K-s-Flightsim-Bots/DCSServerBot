@@ -75,7 +75,7 @@ from . import AuthBackend, Identity, session_identity_ref
 # the shared rule LIVES in ``core/utils/discord.py`` and this module CONSUMES it (through ``..scope``),
 # so this import reaches the bot's ``core`` — deliberate: the console runs in the bot's own venv.
 # Direction pinned by ``tests/test_layering_direction.py``.
-from ..scope import Scope
+from ..scope import CLUSTER_ROLES, Scope
 
 __all__ = [
     "SCHEME", "DEFAULT_ITERATIONS", "MIN_ITERATIONS", "MAX_ITERATIONS", "MAX_PASSWORD_LENGTH",
@@ -233,7 +233,9 @@ class LocalUser:
     username: str
     password_hash: str
     roles: tuple[str, ...]
-    #: the managed_by values this account is scoped to. EMPTY = unrestricted (no declaration).
+    #: the managed_by values this account is scoped to. EMPTY is decided by the account's ROLES:
+    #: unrestricted (the whole cluster) iff it holds a cluster role (``Admin``/``DCS Admin``),
+    #: otherwise scoped to NOTHING (fail closed — see :meth:`LocalAuthBackend._identity`).
     scope: tuple[str, ...] = ()
 
 
@@ -303,17 +305,28 @@ class LocalAuthBackend(AuthBackend):
         A password backend has no avatar, so ``avatar_url`` keeps its empty default and the shell
         falls back to the initials chip.
 
-        The SCOPE is the account's DECLARED one (spec §10.2), because a web-only principal has no
-        Discord member to compare a ``managed_by`` list against: absent a declaration the account is
-        unrestricted, exactly as a web user with no per-server restriction always was.
+        The SCOPE is the account's DECLARED one: a web-only principal has no Discord member to
+        compare a ``managed_by`` list against, so its declaration IS the fact.
 
-        A declared scope is marked ``declared=True``: it is what makes the account a MANAGER of the
-        console (``scope.manages_any_server``) even before a server with that ``managed_by`` exists,
-        because for this backend the declaration IS the fact — a local account has no Discord roles
-        to walk, so "the tokens match a server" could never be established from an identity alone.
+        ABSENT a declaration, the ROLES decide, and the default is FAIL CLOSED:
+
+        * a CLUSTER role (``Admin``/``DCS Admin``, :data:`..scope.CLUSTER_ROLES`) -> UNSCOPED: the
+          whole cluster, exactly as on the Discord path;
+        * anything else -> scoped to NOTHING (``Scope.restricted(())``): the account may sign in but
+          sees no server. ``parse_users`` has already logged a WARNING naming the account, so an
+          operator is told at startup rather than discovering it as a silent lock-out.
+
+        A declared scope is marked ``declared=True``: it makes the account a MANAGER of the console
+        (``scope.manages_any_server``) even before a server with that ``managed_by`` exists — a local
+        account has no Discord roles to walk, so "the tokens match a server" could never be
+        established from an identity alone.
         """
-        scope = (Scope.everything() if not user.scope
-                 else Scope.restricted(tuple(user.scope), declared=True))
+        if user.scope:
+            scope = Scope.restricted(tuple(user.scope), declared=True)
+        elif set(user.roles) & set(CLUSTER_ROLES):
+            scope = Scope.everything()
+        else:
+            scope = Scope.restricted(())
         return Identity(subject=user.username, backend=self.name, roles=frozenset(user.roles),
                         display_name=user.username, scope=scope)
 
@@ -373,12 +386,16 @@ def parse_users(local_config: dict, *, config_dir: str | Path) -> tuple[LocalUse
                              f"defines would grant nothing at best and, merged wrongly, too much.")
 
         scope_values = _parse_scope(entry.get("scope"), username=username)
-        # A roleless account is not necessarily a dead one: the console's third kind of identity is
-        # a MANAGER, admitted through a declared scope rather than a role (``scope_grants``). Only
-        # an account with NEITHER can reach nothing, so that — not "no role" — is what warns.
-        if not role_names and not scope_values:
-            log.warning("auth.local.users '%s' holds no role and declares no scope: the account "
-                        "can sign in and reach no page.", username)
+        # With NO declared scope the account's ROLES decide what it sees, and only a CLUSTER role
+        # opens the whole cluster; anything else is scoped to NOTHING (fail closed). An operator
+        # would otherwise meet this as a silent empty view, so it is warned about at startup with
+        # the two ways to fix it.
+        if not scope_values and not (set(role_names) & set(CLUSTER_ROLES)):
+            log.warning("auth.local.users '%s' holds no cluster role (%s) and declares no scope: "
+                        "the account signs in with an EMPTY view - no server is inside its scope. "
+                        "Give it a `scope:` list of the managed_by values it should manage, or a "
+                        "cluster role (%s) to see the whole cluster.",
+                        username, ", ".join(CLUSTER_ROLES), ", ".join(CLUSTER_ROLES))
 
         users.append(LocalUser(username=username, password_hash=encoded, roles=role_names,
                                scope=scope_values))

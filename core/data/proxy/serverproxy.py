@@ -70,6 +70,11 @@ class ServerProxy(Server):
                 "channels": channels
             }
         }, node=self.node.name, timeout=timeout)
+        # The owning node persisted the write and moved its own ``locals``/channel cache; the
+        # master's view must follow, or a re-render shows the old rows and master-side consumers keep
+        # the old channel until a restart.
+        self.locals.setdefault('channels', {}).update(channels)
+        self._channels.clear()
 
     @override
     async def get_current_mission_file(self) -> str | None:

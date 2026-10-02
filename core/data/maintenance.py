@@ -1,30 +1,23 @@
 """
 The maintenance ENGINE, and the one home of the power-off RECORD.
 
-Two things live here, and they were split apart by design (``MAINTENANCE.md`` §5 option (a)):
+:class:`ServerMaintenanceManager` is the ONE place that knows what a server's ``maintenance`` flag
+means to a power operation: which servers are *in service* at all, which were already flagged before
+the operation ran (and must never be unflagged by it), which the operation flagged itself (and may
+therefore unflag), and how a stop is announced to the players
+(:meth:`~ServerMaintenanceManager.shutdown_with_warning` — the popup chain, never a silent
+``shutdown()``).
 
-* :class:`ServerMaintenanceManager` — the ENGINE. It is the ONE place that knows what a server's
-  ``maintenance`` flag means to a power operation: which servers are *in service* at all, which were
-  already flagged before the operation ran (and must therefore never be unflagged by it), which the
-  operation flagged itself (and may therefore unflag), and how a stop is announced to the players
-  (:meth:`~ServerMaintenanceManager.shutdown_with_warning` — the popup chain, never a silent
-  ``shutdown()``).
+It is an async context manager for the in-process call sites (``nodeimpl.dcs_update`` / ``dcs_repair``
+/ ``handle_module``, the four extensions, the monitoring service), whose ``power_off`` and ``power_on``
+are also usable ON THEIR OWN — a node power-off is driven as two requests minutes or hours apart
+(``/node offline`` then ``/node online``), and ``__aenter__`` / ``__aexit__`` simply delegate to them.
+The in-service test and the flag bookkeeping live here, in ONE copy, so callers cannot disagree about
+what an operation may touch.
 
-  It is still an async CONTEXT MANAGER for every existing call site (``nodeimpl.dcs_update`` /
-  ``dcs_repair`` / ``handle_module``, the four extensions, the monitoring service) — those are two
-  halves of ONE ``async with`` block and nothing about them changes. But a node power-off is driven
-  as TWO requests minutes or hours apart (``/node offline`` then ``/node online``, from Discord or
-  from the console), so :meth:`~ServerMaintenanceManager.power_off` and
-  :meth:`~ServerMaintenanceManager.power_on` are also usable ON THEIR OWN, and ``__aenter__`` /
-  ``__aexit__`` simply delegate to them. The reason this had to move into the engine rather than be
-  forked into the action functions is the in-service test and the flag bookkeeping: two copies of
-  "what may this operation touch" is exactly the bug this card exists to remove
-  (``plugins/admin/actions.py`` only orchestrates — it decides nothing about flags).
-
-* The power-off RECORD — a small module-level registry keyed by node name. It is the memory the
-  console pair needs between its two requests: what the operation stopped, what it flagged, and what
-  was already flagged before it ran. See :class:`NodePowerRecord` for why it is in memory and not on
-  the ``Node`` object, and why it is not persisted.
+The power-off RECORD is a small module-level registry keyed by node name: the memory the console pair
+needs between its two requests — what the operation stopped, what it flagged, and what was already
+flagged before it ran. See :class:`NodePowerRecord` for why it is in memory and not persisted.
 """
 import asyncio
 import logging
@@ -40,24 +33,18 @@ from core.utils.helper import format_time
 log = logging.getLogger(__name__)
 
 
-# ── the power-off record (§5 option (a)) ───────────────────────────────────────
+# ── the power-off record ──────────────────────────────────────────────────────
 #
-# WHERE IT LIVES, and the two things it deliberately is NOT:
+# Deliberately NOT an attribute on ``NodeImpl`` / ``NodeProxy``: both are dataclasses, and an
+# undeclared attribute is a landmine for ``__eq__``/``__repr__``, for pickling across the service bus
+# and for every transport that carries a node object. A module-level registry keyed by NAME touches no
+# object and is visible only through its accessors.
 #
-# * NOT an attribute on ``NodeImpl`` / ``NodeProxy``. Both are dataclasses; hang an undeclared
-#   attribute off one and it is a landmine for ``__eq__``/``__repr__``, for pickling across the
-#   service bus, and for every other transport that carries a node object. A module-level registry
-#   keyed by NAME touches no object and cannot be observed by anything but its accessors.
-# * NOT persisted. The record is meaningful only while the node is "offline" — the second half of a
-#   two-step operation in one maintenance window. A row in a table would survive a crash and could be
-#   acted on weeks later (``MAINTENANCE.md`` §5 (b)/(c)); the honest degradation for a lost record is
-#   handled by :meth:`~ServerMaintenanceManager.in_service`'s fallback rule in the online half, which
-#   clears nothing it does not own.
-#
-# The consequence, stated plainly: the record is lost on a bot restart, a master failover or a
-# process crash between the two halves. ``/node online`` then still works, but only by the rule —
-# start every server that is down and NOT flagged, clear NO flag — and says so in its message
-# (including this process's own start time, below).
+# Deliberately NOT persisted: the record is meaningful only while the node is "offline", between the
+# two halves of one maintenance window, and a row in a table could be acted on weeks later. The
+# consequence, stated plainly: the record is lost on a bot restart, a master failover or a crash
+# between the halves. ``/node online`` still works then, but only by the rule — start every server that
+# is down and NOT flagged, clear NO flag — and says so in its message.
 
 
 @dataclass
@@ -106,12 +93,11 @@ def record_power_off(node_name: str, *, when: datetime, actor: str,
                      stopped=(), flagged=(), already_flagged=()) -> NodePowerRecord:
     """Create or UNION the power-off record for *node_name*, and return it.
 
-    A SECOND ``offline`` on the same node does not replace the record — it unions into it
-    (``MAINTENANCE.md`` §5): a server started by hand between the two halves must not fall out of the
-    record just because the second pass found it running again. A name is added only to a list that
-    does not already carry it, and never MOVED between lists — a server this process flagged stays in
-    ``flagged`` even when a later pass sees it already flagged, because ``online`` must still know
-    that the flag is the operation's to clear.
+    A SECOND ``offline`` on the same node unions into the record rather than replacing it, so a server
+    started by hand between the two halves does not fall out of it. A name is added only to a list that
+    does not already carry it and never MOVED between lists: a server this process flagged stays in
+    ``flagged`` even when a later pass sees it already flagged, because ``online`` must still know the
+    flag is the operation's to clear.
     """
     node_name = str(node_name)
     record = _power_records.get(node_name)
@@ -122,10 +108,9 @@ def record_power_off(node_name: str, *, when: datetime, actor: str,
         # the newest pass owns the "when"/"actor" of a record that already exists
         record.when = when
         record.actor = actor
-    # UNION, list by list, with ONE cross-list rule: a name in ``flagged`` is OURS to clear, and it
-    # must never also sit in ``already_flagged`` (which the online half reads as "not yours"). A name
-    # this pass found already flagged does not move a name that this process flagged earlier, so a
-    # server started by hand between the two halves cannot cost the record its flag ownership.
+    # UNION, list by list, with ONE cross-list rule: a name in ``flagged`` is OURS to clear and must
+    # never also sit in ``already_flagged`` (which the online half reads as "not yours"). A name this
+    # pass found already flagged does not move a name this process flagged earlier.
     _union(record.stopped, stopped)
     for name in flagged:
         if name not in record.flagged:
@@ -142,9 +127,8 @@ def record_power_off(node_name: str, *, when: datetime, actor: str,
 def clear_power_record(node_name: str) -> NodePowerRecord | None:
     """Forget the power-off record for *node_name* and return it (``None`` if there was none).
 
-    Called by ``online`` once it has reverted the record: an operation that has been answered must
-    not be answerable a second time, which is exactly why "online twice" is the no-record rule on the
-    second press (``MAINTENANCE.md`` §9).
+    Called by ``online`` once it has reverted the record: an operation that has been answered must not
+    be answerable a second time.
     """
     return _power_records.pop(str(node_name), None)
 
@@ -199,20 +183,18 @@ class PowerOnOutcome:
 class ServerMaintenanceManager:
     """Take a node's servers out of service (and back) — the ONE implementation of that semantics.
 
-    As a context manager (every existing call site — a DCS update/repair, a module change, the
-    extensions, the monitoring service):
+    As a context manager:
 
         async with ServerMaintenanceManager(node, message="… in {}!"):
             …                       # servers flagged and stopped; flag cleared and start on exit
 
-    As two independent halves (the node power pair, one HTTP/Discord request each):
+    As two independent halves (the node power pair, one request each):
 
         off = await mgr.power_off(servers, stop=True)      # flags + stops, for the record
-        …                       # remember off.stopped / off.flagged / off.already_flagged
         on = await mgr.power_on(servers, clear=…, start=…, skip_running=True)
 
-    ``shutdown`` is the context-manager default of the STOP half of ``power_off`` (a caller may
-    override it per call with ``stop=``); it is NOT the flag half, which is ``flag=``.
+    ``shutdown`` is the context-manager default of the STOP half of ``power_off`` (overridable per
+    call with ``stop=``); it is NOT the flag half, which is ``flag=``.
     """
 
     def __init__(self, node: Node, *, warn_times: list[int] = None, message: str = None,
@@ -232,12 +214,10 @@ class ServerMaintenanceManager:
     def in_service(server) -> bool:
         """Whether *server*'s process MAY be up — i.e. whether a power operation may be about it.
 
-        ``Status.SHUTDOWN`` and ``Status.UNREGISTERED`` are both "not in service"
-        (``MAINTENANCE.md`` §4.4/1). ``UNREGISTERED`` matters even though it is the INITIAL status of
-        a server object that has never reported: it is not ``SHUTDOWN``, so the old test flagged such
-        a server and called ``shutdown()`` on it — the console shows "Shutdown" for the two alike, so
-        the admin saw a flag appear on a server that never ran. Everything else, ``SHUTTING_DOWN``
-        included, counts as in service: the process is still up.
+        ``Status.SHUTDOWN`` and ``Status.UNREGISTERED`` are both "not in service". ``UNREGISTERED``
+        matters even though it is the INITIAL status of a server that has never reported: it is not
+        ``SHUTDOWN``, so the old test flagged such a server and called ``shutdown()`` on it. Everything
+        else, ``SHUTTING_DOWN`` included, counts as in service — the process is still up.
         """
         return getattr(server, "status", None) not in (Status.SHUTDOWN, Status.UNREGISTERED)
 
@@ -250,11 +230,9 @@ class ServerMaintenanceManager:
     def node_servers(self) -> list:
         """The servers of THIS node, from its own ``instances`` (the context-manager source).
 
-        The entries may include ``None`` (an instance that carries no server object); the halves skip
-        those, exactly as the old ``__aenter__`` did.
-
-        The node power pair does NOT read this: an action resolves its servers from the CALLER's own
-        view (``plugins/admin/actions.py``), so a node the caller cannot see can never be acted on.
+        Entries may include ``None`` (an instance that carries no server object); the halves skip
+        those. The node power pair does NOT read this — an action resolves its servers from the
+        caller's own view, so a node the caller cannot see can never be acted on.
         """
         return [instance.server for instance in self.node.instances.values()]
 
@@ -307,10 +285,9 @@ class ServerMaintenanceManager:
         for server in servers:
             if not server:
                 continue
-            # ALREADY-FLAGGED is collected node-WIDE, not only for the servers that are in service:
-            # the record's ``already_flagged`` is what tells the online half "this flag is not yours
-            # to clear", and a flagged server that was already stopped is exactly such a flag
-            # (``MAINTENANCE.md`` §5, §9). It is never MOVED out of ``flagged`` by a later pass.
+            # ALREADY-FLAGGED is collected node-WIDE, not only for in-service servers: the record's
+            # ``already_flagged`` tells the online half "this flag is not yours to clear", and a
+            # flagged server that was already stopped is exactly such a flag.
             was_flagged = bool(getattr(server, "maintenance", False))
             if was_flagged:
                 already.append(server)
@@ -344,12 +321,10 @@ class ServerMaintenanceManager:
           context manager keeps it ``False`` — it has just stopped these servers itself, and for an
           agent node the master may still read ``SHUTTING_DOWN`` over the RPC.
         * ``skip_flagged`` — never start a server that still carries ``maintenance`` (a flag this
-          operation does not own keeps its server out of service: ``MAINTENANCE.md`` §4.2/3). On by
-          default, which is the split operation's rule. The in-process CONTEXT MANAGER passes
-          ``False`` deliberately: its semantics are "stop everything, do the work, restart everything
-          I stopped", so a server that was RUNNING and already flagged before an update is restored
-          to running afterwards — that is the pre-operation state, and it is what every existing call
-          site relies on.
+          operation does not own keeps its server out of service). On by default, which is the split
+          operation's rule. The in-process CONTEXT MANAGER passes ``False`` deliberately: it restarts
+          everything it stopped, so a server that was RUNNING and already flagged before an update is
+          restored to running afterwards — the pre-operation state every call site relies on.
         * ``stagger`` — when set, the starts are spaced by that many seconds (the node power pair's
           rule, so a whole node does not load DCS at once); the method returns as soon as they are
           SCHEDULED, and the report says "starting", not "started". When ``None`` the starts are
