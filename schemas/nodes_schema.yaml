@@ -5,7 +5,7 @@ mapping:
     nullable: false
     mapping:
       listen_address: {type: str, nullable: false, range: {min: 1}}
-      listen_port: {type: int, range: {min: 1025, max: 65535}, nullable: false}
+      listen_port: {type: int, nullable: false, func: unique_port}
       proxy:
         type: map
         nullable: false
