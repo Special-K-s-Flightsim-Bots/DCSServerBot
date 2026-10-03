@@ -68,8 +68,27 @@ class ServiceBus(Service):
         self._lock = asyncio.Lock()
         self._registering_nodes: set[str] = set()
 
+    def _assert_listen_port_free(self):
+        """Refuse to start when the node's own listener port is already taken.
+
+        That listener binds with SO_REUSEADDR, so a second bot process on this PC binds the very
+        same port successfully and then silently loses the messages of one of the two clusters. The
+        failure reads as servers that report nothing, not as a conflict, so the refusal - and the
+        fix in nodes.yaml - is what makes it visible.
+        """
+        host = self.node.listen_address
+        port = self.node.listen_port.port
+        if not utils.is_port_free(host, port, udp=True):
+            raise FatalException(
+                f"Listen port {port} on {host} is already in use and this node would bind it anyway "
+                f"(the listener sets SO_REUSEADDR), then silently lose its servers' messages. Another "
+                f"bot process on this PC - for example a second cluster - is most likely holding it. "
+                f"Refusing to start: give this node its own 'listen_port' in nodes.yaml."
+            )
+
     async def start(self):
         await super().start()
+        self._assert_listen_port_free()
         try:
             # Start the DCS listener
             self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus',
@@ -98,6 +117,8 @@ class ServiceBus(Service):
             ))
             await self.switch(self.master)
 
+        except FatalException:
+            raise
         except Exception as ex:
             # we can't run without the servicebus, so better restart
             raise FatalException(repr(ex)) from ex

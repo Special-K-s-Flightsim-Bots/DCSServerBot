@@ -120,7 +120,7 @@ mapping:
             nullable: true
             mapping:
               enabled: {type: bool, nullable: false, default: false}
-              client_id: {type: str, nullable: true}
+              client_id: {type: int, nullable: true}
               # the client secret INLINE. Precedence: `client_secret_key` wins when it is set,
               # otherwise this value is used.
               client_secret: {type: str, nullable: true}

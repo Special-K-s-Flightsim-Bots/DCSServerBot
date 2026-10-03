@@ -272,6 +272,15 @@ class Scheduler(Plugin[SchedulerListener]):
                 self.log.warning(f'  => DCS server "{server.name}" timeout while launching.')
             if not ignore_exception:
                 raise
+        except Exception as ex:
+            # The state loop fires this as a task and drops the reference, so a launch that fails
+            # for any other reason - a port already in use, a refusal from startup() - used to
+            # vanish without a line anywhere. Report it here, where the reason is still known.
+            self.log.error(f'  => DCS server "{server.name}" could not be started: {ex}')
+            with suppress(Exception):
+                await self.bot.audit(f"failed to start DCS server: {ex}", server=server)
+            if not ignore_exception:
+                raise
 
     @staticmethod
     def get_warn_times(config: dict) -> list[int]:
@@ -939,11 +948,13 @@ class Scheduler(Plugin[SchedulerListener]):
                         )
                     )
                     # wait until the server is loading
-                    await server.wait_for_status_change(status=[Status.LOADING], timeout=180)
                     embed.description += "\n- {}".format(_("Launching ..."))
                     embed.set_thumbnail(url=TRAFFIC_LIGHTS['amber'])
                     await msg.edit(embed=embed)
-                    # wait for the startup
+                    # Await the launch itself: it returns once the server is up, and raises the real
+                    # reason when it is not. Waiting for LOADING first hid every failure that happens
+                    # before the status moves - a port already in use, a refused desanitize - behind a
+                    # 180s timeout and three "crashed during startup" retries, with the cause unprinted.
                     await task
                     if maintenance:
                         embed = utils.create_warning_embed(

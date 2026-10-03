@@ -22,6 +22,7 @@ __all__ = [
     "hmac_hash",
     "hash_ip_addr",
     "is_open",
+    "is_port_free",
     "get_public_ip",
     "is_upnp_available",
     "generate_firewall_rules",
@@ -82,6 +83,50 @@ def is_open(ip: str, port: int, *, timeout: float = 1.0) -> bool:
             return True
         except (socket.timeout, OSError):
             return False
+
+
+def _can_bind(ip: str, port: int, *, udp: bool) -> bool:
+    kind = socket.SOCK_DGRAM if udp else socket.SOCK_STREAM
+    with closing(socket.socket(socket.AF_INET, kind)) as s:
+        try:
+            s.bind((ip, int(port)))
+            return True
+        except OSError:
+            return False
+
+
+def is_port_free(ip: str, port: int, *, udp: bool = False, timeout: float = 1.0) -> bool:
+    """Can ``(ip, port)`` be bound by the process that is about to use it?
+
+    The two protocols need different tests, because "is this port taken" cannot be answered by a
+    bind on both platforms:
+
+    * **UDP** - a flagless bind of the address. A holder that set ``SO_REUSEADDR`` (the service bus
+      binds its listener that way) is still caught, measured on Linux *and* Windows, and UDP has no
+      ``TIME_WAIT``. A wildcard target is also probed on the loopback, because Windows lets a
+      wildcard bind coexist with a holder on a specific address while Linux does not.
+    * **TCP** - a *connection*, not a bind. A bind answers wrongly either way: **with**
+      ``SO_REUSEADDR`` it succeeds over a live listener on Windows (measured: ``BOUND`` against a
+      listener, which is how this check first shipped and why it refused nothing), and **without**
+      it a port left in ``TIME_WAIT`` by the server that just stopped fails on Linux, refusing every
+      quick restart. A listener answers a connection on both platforms while a ``TIME_WAIT`` socket
+      refuses it, so one call detects the conflict and tolerates the restart.
+
+    The target address is always paired with the loopback, so a holder bound to either one is found.
+    """
+    wildcard = not ip or ip in ('0.0.0.0', '::')
+    hosts = ['127.0.0.1'] if wildcard else [ip, '127.0.0.1']
+    if udp:
+        if wildcard:
+            hosts.append('0.0.0.0')
+        for host in dict.fromkeys(hosts):
+            if not _can_bind(host, int(port), udp=True):
+                return False
+        return True
+    for host in dict.fromkeys(hosts):
+        if is_open(host, int(port), timeout=timeout):
+            return False
+    return True
 
 
 async def get_public_ip():

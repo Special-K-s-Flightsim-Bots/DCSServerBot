@@ -59,7 +59,18 @@ DEFAULT_EXTENSIONS = {
     "Cloud": {}
 }
 
-__all__ = ["ServerImpl", "RenameError"]
+__all__ = ["ServerImpl", "RenameError", "PortConflictError"]
+
+
+class PortConflictError(Exception):
+    """Startup refused because a port this component needs is already taken on this machine.
+
+    Raised BEFORE the process touches an installation or writes a config file, so the caller can
+    report it and the node keeps running. A port taken by a *second bot cluster on the same PC* is
+    the case this exists for: DCS either fails to bind or, being UDP, binds anyway and loses the
+    traffic, and the user sees a server that never comes up rather than a conflict. Raised by
+    :meth:`ServerImpl.startup`.
+    """
 
 
 class RenameError(Exception):
@@ -890,8 +901,39 @@ class ServerImpl(Server):
         except sqlite3.OperationalError:
             pass
 
+    def _assert_ports_free(self) -> None:
+        """Refuse to launch while a port this instance needs is already taken on this machine.
+
+        A conflict is otherwise silent or late: DCS fails to bind, or - being UDP - binds and loses
+        the traffic, and the user sees a server that never comes up. Two bot clusters on one PC hand
+        the same default ports to instances of both, so this has to be checked against the machine;
+        the schema-level check only ever sees its own nodes.yaml.
+
+        Each port is probed on the address its component binds: DCS uses every interface by default,
+        while the WebGUI and the DCS-to-bot port are reached on ``dcs_host``. Probing the wrong one
+        reports a free port for a bind that is about to fail.
+        """
+        instance = self.instance
+        if not instance:
+            return
+        dcs_bind = self.settings.get('bind_address') or '0.0.0.0'
+        local = instance.dcs_host
+        for name, host, port, udp in [
+            ("DCS port", dcs_bind, instance.dcs_port.port, False),
+            ("DCS port", dcs_bind, instance.dcs_port.port, True),
+            ("WebGUI port", local, instance.webgui_port.port, False),
+            ("bot port", local, instance.bot_port.port, True),
+        ]:
+            if not utils.is_port_free(host, port, udp=udp):
+                raise PortConflictError(
+                    f"{name} {port} is already in use on {host}. Another DCS server, or a second bot "
+                    f"cluster on this machine, is most likely holding it. Startup refused - give this "
+                    f"instance a different port in nodes.yaml."
+                )
+
     @override
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
+        self._assert_ports_free()
         if not utils.is_desanitized(self.node):
             if not self.node.locals['DCS'].get('desanitize', True):
                 raise Exception("Your DCS installation is not desanitized properly to be used with DCSServerBot!")
